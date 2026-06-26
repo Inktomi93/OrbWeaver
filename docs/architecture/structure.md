@@ -89,8 +89,11 @@ two call sites (server assemble + client render) → guaranteed-identical behavi
 name-leak/speaker-label handling (`stripSelfSpeakerLabel`, `parseSpeakerSpans`) is also `kit` — it runs
 at both persist and render. `chat` is a *consumer* of these engines, never their home.
 
-TS project references are **not** used (recommended only at 100s-of-projects scale); ~5 packages
-type-check fine without the complexity.
+TS project references are **not** used: they require emit (`composite` ⇒ `declaration`), which fights
+our no-emit/tsx model, and our `exports`→`.ts` map already gives cross-package go-to-def + boundary
+enforcement without them. **Revisit triggers** (only then): we start publishing a package to npm, or
+per-package `tsc --noEmit` gets slow enough to want incremental `tsc -b` caching. (TS house style +
+the staged-config triggers live in `spine/typescript-style.md`.)
 
 ---
 

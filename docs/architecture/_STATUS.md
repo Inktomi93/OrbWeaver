@@ -78,7 +78,9 @@ The planning docs are **complete and reconciled**. Done:
 - **Tier surveys** — `tiers/{providers,infra,foundation,transport,db}.md`.
 - **Spine threads** — §7.1–7.5 (identity-auth-permission · settings-and-config · serialization-core ·
   types-and-schemas · string-union-dispatch) + `spine/testing.md` (the consolidated test policy:
-  4 kinds, the `test-presence` gate, mock/determinism doctrine, factory contract — `DECISIONS-LEDGER §6`).
+  suffix lanes, the `test-presence` gate, mock/determinism doctrine, factory contract — `DECISIONS-LEDGER §6`)
+  + `spine/typescript-style.md` (house TS mined from the handbook: utility-type policy, narrowing,
+  erasable forbidden set, async-generators, the staged-config triggers).
 - **Reconciliation + de-dup** — cross-doc conflicts resolved; the 3 doubled docs (chat/connection/providers)
   merged into their single homes; `structure.md §7` gate table extended. Decisions ledger: `reports/DECISIONS-LEDGER.md`.
 
