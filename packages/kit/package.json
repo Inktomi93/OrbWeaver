@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "luxon": "catalog:",
+    "remend": "catalog:",
     "typeid-js": "catalog:",
     "zod": "catalog:"
   },

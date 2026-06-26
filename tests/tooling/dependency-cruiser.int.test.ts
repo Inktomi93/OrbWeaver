@@ -25,6 +25,7 @@ interface DcConfig {
 // .dependency-cruiser.cjs is CommonJS (module.exports); a static default import trips biome's
 // no-default-export resolver, so load it via dynamic import (top-level await — vitest evaluates the
 // module before collecting `it.each`). `.default` is the module.exports object.
+// @ts-expect-error -- the .cjs config ships no type declaration (implicit any); its shape is asserted by the cast.
 const CONFIG = ((await import("../../.dependency-cruiser.cjs")) as { default: DcConfig }).default;
 
 // The rules to test = EVERY active rule in the config (derived, NOT hardcoded). Deriving from the config

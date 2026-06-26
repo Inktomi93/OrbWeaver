@@ -5,6 +5,13 @@
   // vitest's type lane (the `.test-d.ts` project) and Stryker's typescript-checker (Phase 4) both default
   // tsconfigFile to `tsconfig.json`. Extends the base + widens `include` to the whole graph (the base's
   // `${configDir}/src` would only see a root src/).
+  // This aggregator typechecks node-context code (`scripts/` tooling + `tests/` harnesses use
+  // `node:*`), so it adds `@types/node` on top of the isomorphic base (`types: []`). This does NOT
+  // weaken kit-purity: that is enforced per-package (each package's own `tsconfig` keeps `types: []`)
+  // + the dep-cruiser `kit-purity` gate — never by this root config.
   "extends": "./tsconfig.base.json",
+  // `allowImportingTsExtensions` (safe under the base's `noEmit`): the `scripts/` tooling imports
+  // siblings with explicit `.ts` extensions (tsx-run); this aggregator must permit that to typecheck them.
+  "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true },
   "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"]
 }
