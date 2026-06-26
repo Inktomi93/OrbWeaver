@@ -347,7 +347,14 @@
     {
       "includes": ["*.config.ts", "*.config.js", "playwright*.config.ts"],
       "linter": {
-        "rules": { "style": { "noDefaultExport": "off", "useNamingConvention": "off" } }
+        "rules": {
+          "style": {
+            "noDefaultExport": "off",
+            "useNamingConvention": "off",
+            "noProcessEnv": "off"
+          },
+          "correctness": { "noProcessGlobal": "off" }
+        }
       }
     },
     {
@@ -366,7 +373,18 @@
     {
       "includes": ["tests/**"],
       "linter": {
-        "rules": { "suspicious": { "noConsole": "off" } }
+        "rules": {
+          "suspicious": { "noConsole": "off" },
+          "style": { "noMagicNumbers": "off" },
+          "performance": { "noBarrelFile": "off" },
+          "correctness": { "noEmptyPattern": "off" },
+          "nursery": {
+            "useConsistentTestIt": {
+              "level": "error",
+              "options": { "function": "test", "withinDescribe": "test" }
+            }
+          }
+        }
       }
     }
   ]
