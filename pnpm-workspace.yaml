@@ -57,5 +57,9 @@ catalog:
 overrides:
   "esbuild@^0.25.0": 0.28.1
 
+# Supply-chain delay: refuse versions published < 1440 min (24h) ago — a just-published malicious
+# version is usually yanked within that window. (The Exclude was orphaned without this — the guard was
+# OFF.) --frozen-lockfile installs are unaffected (no re-resolution); only new/updated deps are gated.
+minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - dependency-cruiser@18.0.0
