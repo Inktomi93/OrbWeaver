@@ -75,7 +75,7 @@
 | `contracts/observability` mirror, t-digest latency, per-knob settings-form details | the seams are noted; no module until needed (YAGNI) | a real external consumer / measured need appears |
 
 ## 4. Build order + next step
-Scaffold in boundary-scan order (`reports/boundary-scan.md`): **stand up the pnpm workspace + 5 packages + the 11 gates FIRST** (validates the cake at resolve-time), then bottom-up —
+**The expanded step-by-step runbook is `BUILD-PLAN.md`** (phases + checkpoints); this section is the canonical order it consolidates. Scaffold in boundary-scan order (`reports/boundary-scan.md`): **stand up the pnpm workspace + 5 packages + the gate suite (`structure.md §7`, 13 gates) FIRST** (validates the cake at resolve-time), then bottom-up —
 `kit → contracts → db → server (foundation → infra → domain[leaf-first: credentials/tag/persona/preset/world-info/assets/sessions/stats/settings/admin → embeddings/search → discovery/workloads/import/export/buddy] → transport → entry) → client`,
 with **chat + memory LAST** behind the differential oracle. Populate `kit/ids` + `kit/errors` + the engines + `contracts/*` before any domain (the dissolution boot-order). Resolve §3's two scaffold-gating defaults (`@orb/*` already decided; UI engine + version pins at package creation).
 

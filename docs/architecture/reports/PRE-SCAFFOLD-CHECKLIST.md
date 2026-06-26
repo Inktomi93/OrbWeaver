@@ -11,7 +11,7 @@
 The boundary scan proves the cake is clean *today*; nothing keeps it clean but gates that don't exist
 yet, and everything *inside* `server` is dep-cruiser (tier 3), not resolver-physics. Stand up, WITH the
 5 packages and before the first domain:
-- The 11 gates (`structure.md §7`) as real dep-cruiser + biome rules + `tsc` patterns.
+- The 13 gates (`structure.md §7`) as real dep-cruiser + biome rules + `tsc` patterns.
 - The bespoke domain rules named across the docs: `domain-no-cross-feature` (exempt `entry/` only),
   `drivers-through-domain` (transport imports front doors only), `assets-single-writer`,
   `discovery-no-vector-write`, `stats-no-vector-tables`, `persistence-no-io`,

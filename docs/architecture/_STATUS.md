@@ -12,8 +12,10 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
 **boundaries are physics (packages), not lint**.
 
 ## The docs (all under `docs/architecture/`)
+- **`BUILD-PLAN.md`** — ⭐ the ordered runbook: numbered phases (workspace+gates → kit → contracts → db
+  → server tiers leaf-first → chat+memory → client) with a checkpoint per phase. Start here to build.
 - **`structure.md`** — the constitution. 4 locked principles + the enforcement ladder + the per-feature
-  8-slot template + central test mirror + the 6 gates. Includes: `kit` holds the macro+regex ENGINES;
+  8-slot template + central test mirror + the 13 gates. Includes: `kit` holds the macro+regex ENGINES;
   the "unwired ≠ worthless" rule.
 - **`domains.md`** — the feature map (neo-tavern's 18 → orbweaver), cross-cutting concept homes, the
   connection↔providers boundary. Points to the detail docs below.
@@ -80,12 +82,13 @@ The planning docs are **complete and reconciled**. Done:
 - **Reconciliation + de-dup** — cross-doc conflicts resolved; the 3 doubled docs (chat/connection/providers)
   merged into their single homes; `structure.md §7` gate table extended. Decisions ledger: `reports/DECISIONS-LEDGER.md`.
 
-**NEXT ACTION = scaffold**, in boundary-scan order: stand up the pnpm workspace + the 5 packages + the
-six (now eleven) gates FIRST (validates the cake at resolve-time), then build bottom-up
-(`kit` → `contracts` → `db` → server domains leaf-first → `client`), with **chat + memory LAST** behind
-the cross-repo differential oracle against running neo-tavern (the locked build path). Resolve the three
-parked stack decisions before step 1: package scope (`@orb/*` recommended), UI headless engine, 2026
-version pins.
+**NEXT ACTION = scaffold — follow `BUILD-PLAN.md`** (the ordered runbook). In short: stand up the pnpm
+workspace + the 5 packages + the **full gate suite (`structure.md §7`, 13 gates)** FIRST (validates the
+cake at resolve-time on the empty tree), then build bottom-up (`kit` → `contracts` → `db` → server tiers
+leaf-first → `client`), with **chat + memory LAST** behind the differential oracle against the steady
+neo-tavern clone. Stack decisions: package scope `@orb/*` (DECIDED); UI engine + 2026 version pins are
+package-creation-time acts (`ledger §3`). The directory skeleton already exists on disk (the 5-package
+cake + tests mirror); Phase 0 fills it with manifests + gates.
 
 **Recon method that worked (keep for scaffold verification):** general-purpose agents reading whole files
 top-to-bottom (not grep-skim), structured `file:line` returns, then verify/synthesize. Verifying claims
