@@ -1,6 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
   "root": true,
+  "plugins": [
+    "./tools/grit/no-raw-id.grit",
+    "./tools/grit/no-loose-id-cast.grit",
+    "./tools/grit/no-mint-via-cast.grit",
+    "./tools/grit/no-await-db-in-loop.grit",
+    "./tools/grit/no-raw-intl-time.grit",
+    "./tools/grit/no-if-is-group.grit"
+  ],
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -45,6 +53,7 @@
         "noUnusedVariables": { "level": "error", "options": { "ignoreRestSiblings": false } },
         "noUnusedFunctionParameters": "error",
         "noUndeclaredDependencies": "error",
+        "noUnresolvedImports": "error",
         "noPrivateImports": "error",
         "noGlobalDirnameFilename": "error",
         "noProcessGlobal": "error",
@@ -70,12 +79,12 @@
         "useWhile": "error",
         "noImplicitCoercions": { "level": "error", "options": { "allowDoubleNegation": true } },
         "noExcessiveCognitiveComplexity": {
-          "level": "warn",
+          "level": "error",
           "options": { "maxAllowedComplexity": 15 }
         },
-        "useMaxParams": { "level": "warn", "options": { "max": 4 } },
-        "noForEach": "warn",
-        "useSimplifiedLogicExpression": "warn",
+        "useMaxParams": { "level": "error", "options": { "max": 4 } },
+        "noForEach": "error",
+        "useSimplifiedLogicExpression": "error",
         "noVoid": "off",
         "useLiteralKeys": "off"
       },
@@ -151,11 +160,11 @@
             }
           }
         },
-        "noMagicNumbers": "warn",
-        "useForOf": "warn",
-        "useAtIndex": "warn",
-        "useNumericSeparators": "warn",
-        "useUnifiedTypeSignatures": "warn",
+        "noMagicNumbers": "error",
+        "useForOf": "error",
+        "useAtIndex": "error",
+        "useNumericSeparators": "error",
+        "useUnifiedTypeSignatures": "error",
         "useDefaultSwitchClause": "off",
         "useLiteralEnumMembers": "off",
         "useVueMultiWordComponentNames": "off"
@@ -191,7 +200,7 @@
         "useStaticResponseMethods": "error",
         "noShadow": { "level": "error", "options": { "ignoreTypeValueShadow": true } },
         "noDoubleEquals": { "level": "error", "options": { "ignoreNull": false } },
-        "noUnnecessaryConditions": "warn",
+        "noUnnecessaryConditions": "error",
         "noEmptySource": "off"
       },
       "performance": {
@@ -199,8 +208,8 @@
         "noReExportAll": "error",
         "noDelete": "error",
         "useTopLevelRegex": "error",
-        "noAwaitInLoops": "warn",
-        "noNamespaceImport": "warn"
+        "noAwaitInLoops": "error",
+        "noNamespaceImport": "error"
       },
       "security": {
         "noBlankTarget": "error",
@@ -208,14 +217,14 @@
         "noDangerouslySetInnerHtmlWithChildren": "error",
         "noGlobalEval": "error",
         "noScriptUrl": "error",
-        "noSecrets": "warn"
+        "noSecrets": "error"
       },
       "a11y": {
         "preset": "recommended",
         "noStaticElementInteractions": "error",
         "noNoninteractiveElementInteractions": "error",
-        "noSvgWithoutTitle": "warn",
-        "useSemanticElements": "warn"
+        "noSvgWithoutTitle": "error",
+        "useSemanticElements": "error"
       },
       "nursery": {
         "preset": "none",
@@ -244,8 +253,8 @@
         "noConditionalExpect": "error",
         "noIdenticalTestTitle": "error",
         "useConsistentTestIt": "error",
-        "useExplicitReturnType": "warn",
-        "noMisleadingReturnType": "warn",
+        "useExplicitReturnType": "error",
+        "noMisleadingReturnType": "error",
         "noDrizzleDeleteWithoutWhere": "error",
         "noDrizzleUpdateWithoutWhere": "error"
       }
@@ -300,6 +309,10 @@
     {
       "includes": ["packages/client/**"],
       "linter": { "rules": { "correctness": { "noNodejsModules": "error" } } }
+    },
+    {
+      "includes": ["packages/db/src/schema/**"],
+      "linter": { "rules": { "performance": { "noNamespaceImport": "off" } } }
     },
     {
       "includes": [

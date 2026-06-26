@@ -1,0 +1,16 @@
+// Plugin: no-raw-id — a Zod `*Id` field typed as a raw `z.string()` chain.
+// Use `brandedId<T>()` (nanoid) or `typeIdSchema(ID_PREFIX.x)` (TypeID) from `@orb/kit/ids`.
+// The brand flows through the contract → service → client, so swapping a ChatId for a CharacterId
+// becomes a tsc error instead of silent FK drift. Skips values already using a brand helper.
+// Suppress: // biome-ignore lint/plugin/no-raw-id: polymorphic ref
+// Refs: spine/typescript-style.md §1, spine/string-union-dispatch.md.
+language js
+
+`$key: $val` as $prop where {
+  $key <: r".*Id$",
+  $val <: contains `z.string()`,
+  $val <: not contains `brandedId`,
+  $val <: not contains `typeIdSchema`,
+  $val <: not contains `castId`,
+  register_diagnostic(span=$prop, message="id field typed as a raw z.string() — use brandedId<T>() (nanoid) or typeIdSchema(ID_PREFIX.x) (TypeID) from @orb/kit/ids. The brand flows through the contract surface into services + client, so swapping a ChatId for a CharacterId becomes a type error instead of silent FK drift. See spine/typescript-style.md.")
+}

@@ -1,0 +1,19 @@
+// Plugin: no-loose-id-cast — `<expr> as never` or `<expr> as unknown as <SomethingId>`.
+// These launder a value past a branded-ID type — exactly what the brand exists to flag.
+// Real fix: the typed ID helpers in `@orb/kit/ids` (castId / brandedId / parseId) at the boundary.
+// PRODUCTION code only (tests/tooling/scripts skipped in-rule). Suppress with a substantive reason
+// for a genuine ORM/library escape (e.g. a Drizzle polymorphic insert).
+// Refs: spine/typescript-style.md §4 (no `as`), the no-raw-id companion.
+language js
+
+or {
+  `$expr as never` as $cast where {
+    $filename <: not or { r".*\.test\.tsx?$", r".*\.spec\.tsx?$", r".*/tests/.*", r".*/tools/.*", r".*/scripts/.*" },
+    register_diagnostic(span=$cast, message="`as never` launders a value past ALL type checks. For a branded-ID parameter use the typed helper from @orb/kit/ids (castId / brandedId / parseId). For a genuine ORM/library escape, suppress WITH a reason. See spine/typescript-style.md.", severity="error")
+  },
+  `$expr as unknown as $type` as $cast where {
+    $filename <: not or { r".*\.test\.tsx?$", r".*\.spec\.tsx?$", r".*/tests/.*", r".*/tools/.*", r".*/scripts/.*" },
+    $type <: r"^[A-Z][A-Za-z0-9]*Id$",
+    register_diagnostic(span=$cast, message="`as unknown as <SomethingId>` launders a value past a branded-ID type — exactly what the brand exists to flag. Use the typed helper from @orb/kit/ids (castId / brandedId / parseId) at the boundary. See spine/typescript-style.md.", severity="error")
+  }
+}

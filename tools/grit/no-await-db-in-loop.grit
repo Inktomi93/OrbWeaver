@@ -1,0 +1,28 @@
+// Plugin: no-await-db-in-loop — `await <db|tx>.{select,insert,update,delete,query,run,execute,
+// batch,transaction}…` inside a for / for-of / for-await / while / do-while BODY. The classic N+1
+// shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...])
+// for multi-statement writes, .values([...]) for bulk inserts. Skips test files (seed loops are fine).
+// Suppress WITH a reason for a deliberate serial loop (heartbeats, backpressure, per-row FK errors).
+// Refs: spine/typescript-style.md (the .d.ts/db do's), domains/* persistence notes.
+language js
+
+or {
+  `for (const $_ of $_) { $body }`,
+  `for (let $_ of $_) { $body }`,
+  `for (const [$...] of $_) { $body }`,
+  `for await (const $_ of $_) { $body }`,
+  `for await (const [$...] of $_) { $body }`,
+  `for (const $_ in $_) { $body }`,
+  `for ($_; $_; $_) { $body }`,
+  `while ($_) { $body }`,
+  `do { $body } while ($_)`
+} where {
+  $filename <: not or { r".*\.test\.tsx?$", r".*/tests/.*" },
+  $body <: contains bubble `await $q` as $hit where {
+    $q <: r"(?s).*\b(?:db|tx)\.(?:query\.|select\b|insert\b|update\b|delete\b|run\b|execute\b|executeMultiple\b|batch\b|transaction\b).*",
+    register_diagnostic(
+      span = $hit,
+      message = "await on a db/tx query inside a loop — N+1 shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...]) for multi-statement writes, .values([...]) for bulk inserts. If the serialization is deliberate (heartbeats, backpressure, per-row error observation), suppress WITH the reason."
+    )
+  }
+}

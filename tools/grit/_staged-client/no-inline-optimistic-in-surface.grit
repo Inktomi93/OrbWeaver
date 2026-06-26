@@ -1,0 +1,51 @@
+// Plugin: no-inline-optimistic-in-surface
+// Severity: warn
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    `<qc>.cancelQueries(...)` or `<qc>.setQueryData(...)` — the
+//             optimistic-mutation plumbing dance happening inline at the JSX
+//             composition layer (surfaces).
+//
+// Rationale:  Surfaces compose JSX; the cancel/snapshot/setQueryData/revert/
+//             invalidate dance is data-layer work and belongs in
+//             `features/<x>/hooks/*.ts` (or, when the shape fits, behind
+//             `optimisticOptions({...})` from `features/_shared/use-optimistic-mutation.ts`).
+//             Inline optimistic plumbing drifts subtly per surface — the
+//             cancellation step gets skipped in one place, the revert in
+//             another — and the bugs only surface under refetch races.
+//
+// Skips:      The plugin fires on ALL files matching biome's includes; the
+//             intent ("surfaces only") is a path-scoping question that Biome
+//             2.4.x can't express in `overrides` (tracking:
+//             github.com/biomejs/biome/issues/6851). For now:
+//               • `features/<x>/hooks/*.ts` — hooks LEGITIMATELY inline the
+//                 pattern when tRPC's wide TInput inference trips the helper's
+//                 narrower TInput. See `features/characters/hooks/use-star-toggle.ts`
+//                 for the documented exception.
+//               • Test files — assertion against the query cache is fine.
+//             Both currently rely on per-line suppressions.
+//
+// Suppress:   // biome-ignore lint/plugin/no-inline-optimistic-in-surface: <reason>
+//             (pair with a `hooks/` extraction TODO if the suppression is for
+//             a surface site)
+//
+// Refs:       src/client/AGENTS.md §6
+//             features/_shared/use-optimistic-mutation.ts (the helper)
+//             features/characters/hooks/use-star-toggle.ts (the wide-TInput exception)
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: `$qc.<method>($args)` matches member-call syntax. `$qc` is the
+// receiver (typically `queryClient` but also handles aliases like `qc` /
+// `client`). The `as $call` span anchor highlights the whole call.
+
+language js
+
+or {
+  `$qc.cancelQueries($args)` as $call,
+  `$qc.setQueryData($args)` as $call
+} where {
+  // This rule is "in-SURFACE" by name and intent: optimistic plumbing in a SURFACE
+  // is the smell; in a hook it's exactly where it belongs (AGENTS.md §6). Fire only
+  // on surface files (biome-2.4 $filename guard) so hooks aren't false-flagged.
+  $filename <: r".*/features/[^/]+/surfaces/.*",
+  register_diagnostic(span=$call, message="Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (AGENTS.md §6), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).", severity="warn")
+}
