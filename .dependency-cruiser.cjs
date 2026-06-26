@@ -24,6 +24,21 @@
  * "runner/family never leave providers" (compile-time + a grep). no-orphans is set to ignore until code
  * wires up (the placeholder tree is all orphans; knip is the dead-code authority — ENFORCEMENT backlog).
  *
+ * FEATURES USED beyond the forbidden-list: `reachable` (the transitive credential firewall),
+ * `dependencyTypesNot:["type-only"]` (the contract-vs-coupling discriminator), `tsPreCompilationDeps`
+ * (so type-only edges exist to discriminate), `skipAnalysisNotInRules` (speed), content-strategy `cache`,
+ * the `archi`/`dot` collapse reporters + the package.json graph scripts (`depcruise:graph` mermaid,
+ * `:focus`, `:reaches`, `:affected`), and `--output-type err-long` on the validator so a violation prints
+ * its WHY (the rule comment) — load-bearing since agents are the authors.
+ *
+ * DELIBERATE feature non-adoptions (evaluated, declined — don't re-litigate without new evidence):
+ * `metrics`/instability gates (churn every edit → noisy advisory, not a stable invariant); baseline /
+ * known-violations / `--ignore-known` (that's for adopting on a DIRTY codebase — we're green-to-ship);
+ * `scope:"folder"` cycle rules (neo MEASURED 161 phantom cycles from the type-only client→server bridge;
+ * the one-directional rules already encode the acyclicity that matters); `allowed`/whitelist mode (a
+ * forbidden-list fits a known cake); `required` rules (no current "must-import" invariant the structural
+ * gates don't already cover).
+ *
  * @type {import('dependency-cruiser').IConfiguration}
  */
 
