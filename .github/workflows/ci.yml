@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref (a force-push / rapid pushes don't pile up).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm first (reads the pinned packageManager from package.json), then node with pnpm cache.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The blocking gate suite: biome + tsc + the ts-morph gates + dependency-cruiser.
+      - run: pnpm check
+
+      # The node test lanes (unit + integration + contract). CI=true → vitest uses the github-actions
+      # + junit reporters (vitest.config.ts) and `allowOnly`/determinism rigor applies.
+      - run: pnpm test
+
+      # The copy-paste CI lane (jscpd, threshold 5%) — kept out of the fast pre-commit `check`.
+      - run: pnpm cpd
+
+      # Browser lanes (Playwright e2e + CT) are deferred to Phase 6 (client) — no specs/stack yet.
+      # Mutation testing (Stryker) is on-demand (Phase 4c/5), never in CI's fast path.
