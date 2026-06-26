@@ -51,5 +51,11 @@ catalog:
   "@types/react": ^19.2.17
   "@types/react-dom": ^19.2.3
 
+# Force vite/vitest's bundled esbuild (0.25.x — rejects the `es2025` target) up to 0.28.1, which
+# supports es2025, so the transform matches tsc's es2025 with no "Unrecognized target" warning. Scoped
+# to the 0.25.x line so the ancient @esbuild-kit 0.18.20 (a tsx transitive) is left untouched.
+overrides:
+  "esbuild@^0.25.0": 0.28.1
+
 minimumReleaseAgeExclude:
   - dependency-cruiser@18.0.0
