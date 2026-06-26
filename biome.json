@@ -155,7 +155,7 @@
           "level": "error",
           "options": { "syntax": "shorthand" }
         },
-        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "type" } },
+        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "interface" } },
         "useNamingConvention": {
           "level": "error",
           "options": { "strictCase": false, "requireAscii": true }
@@ -348,7 +348,11 @@
       "linter": {
         "rules": {
           "suspicious": { "noConsole": "off" },
-          "style": { "noDefaultExport": "off", "useNamingConvention": "off" }
+          "style": {
+            "noDefaultExport": "off",
+            "useNamingConvention": "off",
+            "useConsistentTypeDefinitions": "off"
+          }
         }
       }
     },
