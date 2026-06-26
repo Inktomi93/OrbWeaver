@@ -42,7 +42,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 3. `settings` (pulls versioned-config + connection + chat + regex — the counterintuitive edge) · `preset` (pulls versioned-config)
 4. `persona` + `character` (pull the world-info tuples)
 5. provider result contracts (`EmbedResult`/`RerankResult`/`ImageEmbedResult`/`SummarizeResult`) → **then** `role-clients`
-6. the remainder: `identity`, `session`, `credentials`, `assets`, `tag`, `stats`, `buddy`, `embeddings`, `search`, `memory`, `providers`, `discovery`, `workloads`, `import`, `export`, `admin`, `sessions`.
+6. the remainder: `identity`, `session`, `credentials`, `assets`, `tag`, `stats`, `buddy`, `embeddings`, `search`, `memory`, `providers`, `discovery`, `workloads`, `import`, `export`, `admin`.
 
 **✅ Checkpoint:** `tsc` clean (DAG honored); `.contract.test` schema round-trips green; `no-inline-types`/`no-inline-union-redecl`/`exhaustive-dispatch` gates green.
 

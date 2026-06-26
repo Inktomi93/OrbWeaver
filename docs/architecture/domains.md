@@ -204,8 +204,8 @@ searched by the one cosine engine in `search`.
 
 ## Connection ↔ providers boundary (verified)
 
-> **Authoritative detail: [`domains/connection.md`](./connection.md)** (selection + the capability descriptor)
-> and [`tiers/providers.md`](./providers-and-backends.md) (execution). Headline: ONE capability
+> **Authoritative detail: [`domains/connection.md`](./domains/connection.md)** (selection + the capability descriptor)
+> and [`tiers/providers.md`](./tiers/providers.md) (execution). Headline: ONE capability
 > descriptor per `(model, backend)` with **distinct reasoning/sampling/verbosity axes** drives **both**
 > the per-runner translation AND the samplers panel — replacing the two-capability-system,
 > reasoning-collapsed-into-one-cascade, panel-ignores-capabilities mess.
@@ -260,5 +260,4 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (`domains/stats.md`.)
 - **assets vs infra/storage** — `assets` domain owns the CAS *index* (table + verbs); `infra/storage`
   owns the byte I/O. Keep split.
-- **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ distill/` +
-  `substrate/` (kmeans/pca/etc., the pure math), per the template.
+- **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ image-analytics/` + `substrate/` (distill is a VERB, not a subsystem — see `domains/discovery.md`) (kmeans/pca/etc., the pure math), per the template.

@@ -144,11 +144,12 @@ Exempt by nature: `index.ts` barrels, `context.ts` type-interfaces, pure-type `c
 `.ct.tsx`/`.spec.ts` lanes are NOT presence-gated (they're not in the fast `check`). Implemented as a
 dep-cruiser/`tsc`-pattern check in the day-one suite (`CHECKLIST §A1`), blocking in pre-commit + CI.
 
-**Coverage: a backslide floor, not a fast-gate.** v8 provider (Vitest 4 AST remapping); GLOBAL thresholds
-pinned at the measured baseline and **ratcheted UP** as coverage grows — run via `pnpm test:coverage`,
-**NOT** inside `pnpm check` (a green local run shouldn't depend on coverage state). The presence gate + the
-esoterica catalog (§6) are the real floor; for "are these tests actually catching bugs?" use **mutation
-testing (Stryker)**, not a coverage number — a green global % is not evidence the risky files are covered.
+**Coverage: REPORT-ONLY in v1 (ledger §6), a backslide floor later.** v8 provider (Vitest 4 AST
+remapping), run via `pnpm test:coverage`, **NEVER** inside `pnpm check` (a green local run shouldn't
+depend on coverage state). v1 ships **no `thresholds` block** — there's no baseline to pin yet and a hard
+% just gets gamed. When a real baseline exists, add GLOBAL thresholds pinned at it and **ratchet UP** as a
+backslide floor. The presence gate + the esoterica catalog (§6) are the real floor; for "are these tests
+actually catching bugs?" use **mutation testing (Stryker)**, not a coverage number.
 
 ## 6. The "what to test" obligations, gathered (the part that was scattered)
 
@@ -240,9 +241,13 @@ See `reports/ENFORCEMENT.md` › Layer 6.
 
 - The fixture is the composed *production* `compose/` wiring with the model scripted — tests exercise the
   real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.
-- **`isolate: false` for the node `unit` project** (pure-function tests, shared module graph → 2–3× faster),
-  with `restoreMocks: true` + a per-test reset for any module-scope mutable state (stores, the rate-limiter
-  Map). `isolate: true` for `integration` (libSQL handles). Playwright CT isolates per-mount.
+- **`isolate: true` for ALL node projects** (the vitest default — kept deliberately, NOT neo's
+  `isolate: false`). A fresh module graph per test file resets the single-tenant `globalMacroRegistry`
+  for FREE — no per-test reset discipline to forget (the neo rot risk). `restoreMocks`/`unstubGlobals`/
+  `unstubEnvs` (root rigor defaults) handle mock/stub/env cleanup. `integration` additionally runs
+  **serially** (`fileParallelism: false`) — the tree-mutating gate self-tests need exclusivity; freshDb
+  isolates data. Playwright CT isolates per-mount. (The 2–3× of `isolate: false` isn't worth the
+  reset-discipline footgun; revisit only if the suite gets slow.)
 - **`.parity` is excluded** from the default run + the fast CI lane on purpose — a deliberate gate
   (`pnpm test:parity`) run before the chat/memory scaffold and in the nightly, never in the inner loop.
 - **Vitest browser-mode is forbidden** — the cold-cache hang is the reason; browser coverage is Playwright's.

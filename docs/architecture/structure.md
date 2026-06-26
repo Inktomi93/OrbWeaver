@@ -198,7 +198,7 @@ tests/
 
 **The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
 `tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/X/src/` ↔ `tests/X/`); the gate
-exempts the two non-mirror trees `support/` + `e2e/`. **Kind by suffix**: `.test.ts` (unit) ·
+exempts the three non-mirror trees `support/` + `e2e/` + `tooling/` (tests of root configs/gates). **Kind by suffix**: `.test.ts` (unit) ·
 `.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.test-d.ts` (types) ·
 `.parity.test.ts` (differential oracle — slow, opt-in). These **node** lanes are Vitest `test.projects`
 selected by suffix in ONE config (`test.projects` is the modern "workspace"). **Browser lanes are
@@ -209,7 +209,7 @@ Why central+mirror over colocation: an agent can drop a colocated test anywhere;
 path-gate means a test **must** land at the computed path or `check` goes red, and the src tree stays
 clean. The fixture doctrine is composed `test.extend` (over `beforeEach`/`freshDb()`).
 
-> **Authority: `spine/testing.md`.** This section is the layout + `test-mirror` gate only. The full
+> **Authority: `spine/testing.md`.** This section is the layout + `test-layout` gate only. The full
 > testing policy — the four kinds as Vitest projects (`.test`/`.int.test`/`.contract.test`/`.parity.test`),
 > the `test-presence` rule (§5 there), the mock/determinism doctrine, the factory contract, and the homes
 > for the oracle + the ~150 esoterica + memory's 6 semantics — lives in that spine doc. (Committed:
@@ -243,7 +243,7 @@ The neo-tavern crunch was concepts with no single home. Orbweaver fixes the wors
 | Every feature is the identical 8-slot template | `feature-structure` |
 | One verb per file, named for the verb | `verb-naming` |
 | Exported feature types live only in `contract/`; `service.ts` interface always present | `types-in-contract` |
-| Tests mirror src 1:1 (prefix-swap), kind by suffix | `test-mirror` |
+| Tests mirror src 1:1 (prefix-swap), kind by suffix | `test-layout` |
 | **Verbs/schemas/persistence each have their required test** (presence, not blanket coverage) | `test-presence` (§5 `spine/testing`) |
 | **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
@@ -261,7 +261,9 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > `domains/credentials.md`) during the 2026-06-25 reconciliation; `test-presence` + `test-determinism`
 > were added with `spine/testing.md` (2026-06-26). They are gate *candidates* — implemented as
 > dep-cruiser/biome rules + `tsc` patterns at scaffold time. (`no-internal-mocks` stays advisory in
-> `spine/testing.md §3`, not a hard gate.)
+> `spine/testing.md §3`, not a hard gate.) **This table is the constitution; the full implemented-gate
+> catalog — these + `commented-code`, `schema-branding`, the 19 grit plugins, and the 28 dep-cruiser
+> rules — is `reports/ENFORCEMENT.md`** (the single enforcement source of truth).
 
 ---
 

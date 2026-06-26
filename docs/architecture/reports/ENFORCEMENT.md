@@ -10,8 +10,9 @@ would only false-fire on the current (placeholder) tree is not "missing" — it'
 to the code that makes it meaningful.
 
 **The fast lane** — `pnpm check` = `biome` (lint+format) → `tsc` (types, hardened by `@total-typescript/
-ts-reset` via the root `reset.d.ts`) → `check:structure` (ts-morph/fs gates) → `depcruise` (import
-graph, pending). All four must be green; lefthook runs them pre-commit in every worktree. The check
+ts-reset` via the root `reset.d.ts`) → `check:structure` (ts-morph/fs gates) → `depcruise` (import graph
+— ACTIVE, Layer 4). All four must be green. lefthook runs **biome on staged files at pre-commit** (fast)
+and the **full `pnpm check` at pre-push**; CI runs the full check + `pnpm test` + `pnpm cpd`. The check
 budget is **structural-fast** — whole-tree/slow analyses (jscpd, mutation) are deliberately CI/on-demand
 lanes, not pre-commit.
 
@@ -46,7 +47,8 @@ no-direct-useform, no-form-state-in-useeffect, no-inline-optimistic-in-surface.
 Layout: `harness.ts` (Project loader + Violation runner) and `report.ts` (registry) at the root;
 each gate is one module in `gates/`. Add a gate by dropping it in `gates/` and listing it in
 `report.ts`. All are lenient on absent code (vacuously pass on the placeholder tree, activate as code
-lands) and fixture-tested to fire on a violation + pass clean.
+lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives the gate registry from
+`report.ts` and asserts every gate fires on a fixture (a broken AST query can't silently pass; anti-drift).
 
 | Gate | Enforces | Origin |
 |---|---|---|
@@ -56,15 +58,21 @@ lands) and fixture-tested to fire on a violation + pass clean.
 | `types-in-contract` | a feature's `contract/service.ts` declares the exported `<Feature>Service` interface (§7.4) | new |
 | `no-inline-union-redecl` | no inline ≥3-member string-literal union type aliases (→ contracts) | new |
 | `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test` | new |
+| `test-determinism` | no ambient clock/random/unseeded-id under `tests/` (support/+e2e/ exempt) | new |
 | `commented-code` | no parked code in `//` comments (prose only) | neo (ported) |
 | `schema-branding` | db `*Id` columns carry `.$type<XId>()` (PK + cross-brand FK) | neo (ported) |
 
-## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **PENDING (Phase 0b)**
+## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 
-The import-graph backstop ("boundaries are physics"): 5-package cake layering
-(kit←contracts←db←server←client), server tier direction (entry→transport→domain→infra→foundation→kit),
-kit-purity, persistence-no-io, domain-no-cross-feature, drivers-through-domain, and the `#`/package
-import convention (absorbs neo's `import-alias`). Last major Phase-0b gate.
+The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 28 rules:
+the 5-package cake (kit←contracts←db←server←client), server tier direction
+(entry→transport→domain→infra→foundation→kit), kit-purity, infra-no-db, foundation-reaches-up-to-nothing,
+drivers-through-domain, domain isolation (no-cross-feature/-verb/-subsystem + front-door + substrate
+mediation), providers public-surface + strategy-isolation + the transitive credential firewall
+(openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables. Every rule is **pinned by
+`tests/tooling/dependency-cruiser.int.test.ts`** (derives the rule set from the config, fires each on a
+fixture — anti-drift). The full feature set (err-long, mermaid graph, `--focus`/`--reaches`/`--affected`)
++ deliberate non-adoptions are documented in the config header.
 
 ## Layer 5 — jscpd (`jscpd.json`) — copy-paste detection
 
@@ -96,6 +104,10 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | Gate | What it does | Activates when |
 |---|---|---|
 | `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | db schema files land (Phase 1 db) |
+| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader (biome no-restricted-globals/grep — dep-cruiser can't see non-import access) | foundation/env built (4a); the sessions call-time reads are allowlisted (foundation.md inv #1) |
+| `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
+| `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
+| `assumes-single-replica` | every module-scope ring/cache/counter carries the `ASSUMES(single-replica)` annotation | the first single-replica in-memory state lands (foundation rings, §A1) |
 | `dead-code` | unused exports (the seam tsc + knip leave open) | post-Phase-1 (false-fires while everything is a placeholder) |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
 | `monotonic-tests` | test-count baseline only grows (behavior lock) | first real test suite + baseline file |
@@ -114,6 +126,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `entity-editor` | entity-editor checklist ratchet | client entity editors built |
 | `audit-client-tests` | client test audit | client tests exist |
 | `doc-tables` | docs ↔ code table-consistency | a docs-table convention is adopted |
+| `no-inline-union-redecl` (full set-dedup) | the ACTIVE gate is a v1 PROXY — it flags inline ≥3-member string-union *type aliases*, but NOT a 2nd `as const` tuple or `z.enum([…])` re-spelling of an existing axis's member set. The ledger §5 decision is the stronger "exactly one declaration site per member set." | strengthen when the first real union axes land + can be measured (the measured-pain axes from §7.5) |
 | `dangling-refs` | prose pointers (paths/symbols) that lead nowhere | revisit (risk: doc-path refs); candidate post-Phase-1 |
 | `abandoned-comments` | comments that lost their code anchor (report-only metric) | optional; revisit if churn warrants |
 | `comment-density` | comment-density metric (report-only) | optional; revisit if a cap is agreed |
