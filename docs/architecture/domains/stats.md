@@ -221,8 +221,10 @@ StatsService = {
 columns; `latency` (a separate bounded scan) is spread in at read time. If the percentile read path is
 ever consolidated with the rollup read, latency must stay a distinct scan — it can't be `+=`-maintained.
 
-**`personaUsage` is live, not rolled up:** it's a cheap chat-level GROUP BY (persona is "used" when it's
-a chat's active OR pinned persona), so a just-created persona shows immediately — unlike the precomputed
+**`personaUsage` is live, not rolled up:** it's a cheap GROUP BY (persona is "used" when it's a
+participant's active persona — `chat_participants.activePersonaId` — or a chat's anchor persona —
+`chats.anchorPersonaId`; there is no `chats.personaId`, D18), so a just-created persona shows
+immediately — unlike the precomputed
 character/model rollups. Do not fold it into the write path.
 
 ---

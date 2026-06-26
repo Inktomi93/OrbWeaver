@@ -21,7 +21,7 @@ provider backends).
 
 Concretely, `connection` owns:
 
-- **`resolveRoleConnection(role, ctx)` — the one resolver for all 7 roles:**
+- **`resolveRole(role, ctx)` — the one resolver for all 7 roles:**
   `chat · agent · embed · rerank · imageEmbed · summarize · generateImage`.
   Reads `userSettings.routing.roleDefaults.<role>` + the per-agent override → returns
   `{backend, model, credential, capability}` for that role. No per-role hard-pin; every role
@@ -48,7 +48,7 @@ Concretely, `connection` owns:
 
 - **`RoutableChat` resolution:** the overlay logic (`chat row api/source/model` ← `UserSettings`
   defaults ← heal-to-default) that today lives in `domain/chat/routing.ts`. The
-  `resolveTurnRouting` function becomes `connection.resolveRoleConnection('chat', ctx)` wired
+  `resolveTurnRouting` function becomes `connection.resolveRole('chat', ctx)` wired
   from the chat domain at the composition root. The per-field overlay (chat-row fields →
   UserSettings defaults → system default) stays but is expressed cleanly without re-spelling the
   `api/source` union literals 6+ times.
@@ -80,12 +80,13 @@ domain/connection/
 ├── contract/
 │   ├── service.ts                  ConnectionService interface — read to know everything the domain does
 │   ├── params.ts                   ResolveRoleParams, ChatRoutingOverlay, RoutableChat, RefreshCatalogParams
-│   ├── results.ts                  ResolvedConnection, CatalogSnapshot, ChatModelEntry
+│   ├── results.ts                  CatalogSnapshot (the get/refresh result; its entries are
+│   │                               ModelCatalogEntry, owned by @orb/contracts/connection)
 │   ├── views.ts                    ModelCatalogView (client-facing list), ModelCapabilityView (panel descriptor)
 │   └── errors.ts                   ConnectionRoutingError, CatalogUnavailableError
 ├── verbs/
-│   ├── resolve-role.ts             resolveRoleConnection(ctx, params) — the one resolver for all 7 roles
-│   ├── resolve-chat.ts             resolveChatConnection(ctx, params) — the chat-specific overlay
+│   ├── resolve-role.ts             resolveRole(ctx, params) — the one resolver for all 7 roles
+│   ├── resolve-chat.ts             resolveChat(ctx, params) — the chat-specific overlay
 │   │                               (heals RoutableChat → RouteOverlay → resolved connection)
 │   ├── get-catalog.ts              getCatalog(ctx) — reads the snapshot; seeds the OR in-memory cache
 │   ├── refresh-catalog.ts          refreshCatalog(ctx) — fetches OR /models, writes the KV snapshot
@@ -131,12 +132,12 @@ export type {
   ConnectionContext,
 } from './contract/service'
 
-// Verb params/results
+// Verb params/results (ResolvedConnection is cross-boundary — it lives in
+// @orb/contracts/connection and is NOT re-exported here)
 export type {
   ResolveRoleParams,
   ChatRoutingOverlay,
   RoutableChat,
-  ResolvedConnection,
   CatalogSnapshot,
 } from './contract/params'
 export type {
@@ -200,7 +201,8 @@ handed in **on the request** — connection resolves it and threads it through `
 | Type | Home | Consumers |
 |---|---|---|
 | `ModelCapability` | `contracts/connection/capability.ts` | server translator (infra/providers), client panel |
-| `ChatApi` / `ChatSource` | `contracts/connection/routing.ts` | server routing, client UI, shared forms |
+| `ChatApi` | `contracts/connection/routing.ts` | server routing, client UI, shared forms |
+| `ChatSource` | `contracts/connection/routing.ts` — re-export of `CredentialSource` (D31) | server routing, client UI, shared forms |
 | `RoutingRoleKey` | `contracts/connection/routing.ts` | server (resolveRole) + client (settings panel) |
 | `ResolvedConnection` | `contracts/connection/routing.ts` | server (chat, workloads, buddy), infra/providers |
 | `ModelCatalogEntry` | `contracts/connection/catalog.ts` | server (list), client (model picker) |
@@ -228,7 +230,7 @@ compile time (`no-inline-union-redecl` gate — §7.5 spine).
 | `domain/chat/routing.ts — RouteChatAssignment` unexported inline interface | → `contracts` | `@orb/contracts/connection/routing.ts` | Currently unexported (private) but structurally a connection input shape; promoting to contracts makes the concept explicit and gated. | lint-time: `no-inline-types` gate |
 | `domain/chat/routing.ts — chatRoutingOverlay` projection | → `connection` | `domain/connection/verbs/resolve-chat.ts` | The UserSettings → `ChatRoutingOverlay` projection is routing logic, not chat domain logic. Moves with `resolveTurnRouting`. | resolve-time |
 | `domain/chat/routing.ts — pickOrModel` (the dual guard) | → `connection` | `domain/connection/substrate/pick-or-model.ts` | The two defensive guards (Claude-shortlist-is-agent-sdk-only + catalog guard with cold-cache skip) are connection-selection concerns. The cold-cache skip is load-bearing (§esoteric); preserve exactly. | test-time: unit tests assert the two guard paths (shortlist guard rejects non-agent-sdk, catalog guard skips on cold cache) |
-| `shared/providers/chat-routing.ts — CHAT_APIS, CHAT_SOURCES, chatApiSchema, chatSourceSchema` | → `contracts` | `@orb/contracts/connection/routing.ts` | Canonical api/source vocabulary is a cross-boundary type (server routing + client settings + shared forms all consume it). Currently in `shared/` but re-spelled 18+ times anyway. The tuples + Zod schemas + inferred `ChatApi`/`ChatSource` types move together. | compile-time: `no-inline-union-redecl` gate rejects any inline re-spelling of the `api`/`source` unions; `assertNever` in every dispatch switch |
+| `shared/providers/chat-routing.ts — CHAT_APIS, CHAT_SOURCES, chatApiSchema, chatSourceSchema` | → `contracts` (api here; source aliases credentials — D31) | `@orb/contracts/connection/routing.ts` | `ChatApi`/`CHAT_APIS`/`chatApiSchema` are canonical here. `ChatSource`/`CHAT_SOURCES`/`chatSourceSchema` are NOT redeclared — the source axis is the same 4 members as `CredentialSource`, so routing **re-exports `CredentialSource` as `ChatSource`** (D31; `CRED_SOURCES`/the credential source schema are the one source of truth in `@orb/contracts/credentials`). | compile-time: `no-inline-union-redecl` gate rejects any inline re-spelling of the `api`/`source` unions; `assertNever` in every dispatch switch |
 | `providers/_shared/chat-models.ts — CHAT_MODELS, ChatModelId, getChatModel, DEFAULT_CHAT_MODEL_ID` | → `connection` | `domain/connection/catalog/chat-models.ts` | The curated Claude catalog is a connection selection resource, not a provider implementation. The 3-stage prefix-match lookup is load-bearing (§esoteric — preserve exactly). `DEFAULT_CHAT_MODEL_ID` is also re-exported from `@orb/contracts/connection/catalog.ts` for client use. | resolve-time: `CHAT_MODELS` is no longer on the `providers/index.ts` barrel; callers import from `domain/connection` front door or `@orb/contracts` |
 | `providers/_shared/model-family.ts — detectModelFamily` (the regex) | → `connection` | `domain/connection/catalog/model-family.ts` | Family detection is a connection-layer concern (used by `resolveModelCapability`). The regex anchor is load-bearing (§esoteric). | resolve-time |
 | `providers/_shared/model-family.ts — FAMILY_CAPS` | dissolved | `domain/connection/catalog/resolve-model-capability.ts` | `FAMILY_CAPS` is a partial precursor to `ModelCapability`; `hasFastMode` is dead (zero consumers outside the definition). The capability facts merge into `resolveModelCapability`. | compile-time: `FAMILY_CAPS` is deleted; any reference fails `tsc` |
@@ -236,9 +238,9 @@ compile time (`no-inline-union-redecl` gate — §7.5 spine).
 | `providers/resolve-chat.ts — resolveChat function` | → `infra/providers` (stays infra) | `infra/providers/resolve-chat.ts` | `resolveChat` is the `(UserIntent × ModelCapability) → resolved wire knobs` funnel — it needs the wire-quirk knowledge that makes it an infra concern (Opus 4.8 adaptive/budget conflict §esoteric, XOR constraint §esoteric). It reads `ModelCapability` from `connection` (through the injected op model) rather than calling `FAMILY_CAPS` directly. The function is RIGHT-sized; it moves to the correct tier (infra), not further. | resolve-time: domain/connection imports from the providers barrel (infra), not the reverse |
 | `providers/openrouter/profile.ts — deriveOrChatProfile` | dissolved into connection | `domain/connection/catalog/resolve-model-capability.ts` | The OR profile deriver reads FAMILY_CAPS to construct a ChatModel. Both are dissolved into `resolveModelCapability(model, backend='openrouter-chat')`. The synthesis logic (supportedParameters → reasoning/sampling/verbosity) moves here. | compile-time: `deriveOrChatProfile` is deleted from the providers barrel; pipeline.ts import fails `tsc` — the replacement is `connection.getModelCapability` wired at the composition root |
 | `providers/vllm/profile.ts — deriveVllmChatProfile` | dissolved into connection | `domain/connection/catalog/resolve-model-capability.ts` | Same dissolution path. vLLM capability is a static profile (model heals from env; context window from env). | compile-time: same deletion |
-| `providers/custom-openai/profile.ts — deriveCustomOpenAiChatProfile` | dissolved into connection | `domain/connection/catalog/resolve-model-capability.ts` | Hardcoded 128k window + sonnet tier + no-thinking dissolve into a user-declared profile (from `UserSettings.customEndpoint.modelProfile` or the inspector probe). Nothing baked. | compile-time: same deletion; any reference to `CUSTOM_OPENAI_DEFAULT_WINDOW` fails `tsc` |
-| `domain/_shared/role-clients.ts — RoleClients interface` | → `contracts` | `@orb/contracts/connection/roles.ts` | `RoleClients` is the cross-boundary composition-seam interface (the workloads `runner-env` bundle carries it; 19 type-only importers confirmed). Moving to `@orb/contracts` makes both consumers (server domain + infra binder) flow DOWN from contracts. | resolve-time: package dep |
-| `domain/_shared/role-clients-binder.ts — createVllmRoleClients / createDefaultRoleClients` | → `infra` | `infra/providers/role-clients-binder.ts` | The binder is infra composition (it mints credentials + wires role dispatchers). TODAY it always creates vLLM credentials regardless of `UserSettings` — the one-site rebind (§esoteric). In orbweaver it reads `resolveRoleConnection` per role from the composition root. | resolve-time: `entry/` wires the binder; domain never reaches the binder |
+| `providers/custom-openai/profile.ts — deriveCustomOpenAiChatProfile` | dissolved into connection | `domain/connection/catalog/resolve-model-capability.ts` | Hardcoded 128k window + sonnet tier + no-thinking dissolve into a user-declared profile (from `providerMetadataSchema.modelProfile` — credential metadata, ledger §2 / `credentials.md` — or the inspector probe). Nothing baked. | compile-time: same deletion; any reference to `CUSTOM_OPENAI_DEFAULT_WINDOW` fails `tsc` |
+| `domain/_shared/role-clients.ts — RoleClients interface` | → `contracts` | `@orb/contracts/role-clients` | `RoleClients` is the cross-boundary composition-seam interface (the workloads `runner-env` bundle carries it; 19 type-only importers confirmed). Moving to `@orb/contracts` makes both consumers (server domain + infra binder) flow DOWN from contracts. | resolve-time: package dep |
+| `domain/_shared/role-clients-binder.ts — createVllmRoleClients / createDefaultRoleClients` | → `infra` | `infra/providers/role-clients-binder.ts` | The binder is infra composition (it mints credentials + wires role dispatchers). TODAY it always creates vLLM credentials regardless of `UserSettings` — the one-site rebind (§esoteric). In orbweaver it reads `resolveRole` per role from the composition root. | resolve-time: `entry/` wires the binder; domain never reaches the binder |
 | `domain/models/context.ts — cross-feature reach into `_shared/credentials.ts`` | removed | connection context injects `credentials.buildKeylessCatalogCredential` | The cross-_shared reach for the keyless catalog credential becomes composition-root injection (same pattern credentials.md documents). | resolve-time: `_shared` does not exist in orbweaver |
 | `shared/prompt/intent.ts — UserIntent, userIntentSchema, generationKnobSchemas` | → `contracts` | `@orb/contracts/preset/intent.ts` | Cross-boundary wire type (server runners AND client form). Lives in the `preset` contracts namespace (generation config lives there). `connection` imports it from `@orb/contracts/preset` when constructing requests. NOT a connection-owned type. | resolve-time: package dep |
 | `providers/contract/chat-model.ts — ChatModel, ChatModelSampling, agentSdkHonorsTemperature field` | dissolved | `@orb/contracts/connection/capability.ts — ModelCapability` | `ChatModel` is the precursor to `ModelCapability`. `agentSdkHonorsTemperature` bakes runner-vocab into the model descriptor (§esoteric); in `ModelCapability.sampling` each knob has a per-knob support range. The field disappears; its sole consumer (`resolve-chat.ts:24` warning) is replaced by a real capability check. | compile-time: `ChatModel` type deleted; `ChatModelSampling.agentSdkHonorsTemperature` gone; any surviving reference fails `tsc` |
@@ -278,7 +280,7 @@ injection.
 
 | Dep injected | Provided by | Used for |
 |---|---|---|
-| `credentials.resolve` | credentials domain | `resolveRoleConnection` resolves the credential for any role's backend |
+| `credentials.resolve` | credentials domain | `resolveRole` resolves the credential for any role's backend |
 | `credentials.buildKeylessCatalogCredential` | credentials domain | keyless OR `/models` catalog fetch |
 | `providers.fetchOrCatalog` | infra/providers | OR catalog HTTP fetch (used by `refreshCatalog`) |
 
@@ -289,17 +291,18 @@ injection.
 ### §7.1 Identity / auth / permission
 
 The `max-pro-sub` arm is a **credential concern** (`credentials.resolve` is gated behind
-`principal.role === 'admin'`), not a connection concern — `connection` receives a
-`ResolvedCredential` from injection and never re-checks the admin gate. The connection domain does
-carry the per-agent routing axis (`participants-agents-identity.md §2`): a character participant's
-own `{backend, model}` override can target a different backend than the room owner's. The
-`connection.resolveRole` signature accepts an optional `AgentOverride` (from the participant row)
-and applies it over the role default. If an agent override points at `max-pro-sub`, the credentials
-domain enforces the admin gate — `connection` does not duplicate it.
+`requireOwner` — `role === 'owner'`, ledger D17: the box belongs to the `owner`, not any `admin`), not
+a connection concern — `connection` receives a `ResolvedCredential` from injection and never re-checks
+the owner gate. The connection domain does carry the per-agent routing axis
+(`participants-agents-identity.md §2`): a character participant's own `{backend, model}` override can
+target a different backend than the room host's. The `connection.resolveRole` signature accepts an
+optional `AgentOverride` (from the participant row) and applies it over the role default. If an agent
+override points at `max-pro-sub`, the credentials domain enforces the owner gate — `connection` does
+not duplicate it.
 
 ### §7.2 Settings / config
 
-`UserSettings.routing.roleDefaults.*` is the per-role routing store that `resolveRoleConnection`
+`UserSettings.routing.roleDefaults.*` is the per-role routing store that `resolveRole`
 reads. Today only the `chat` role is wired; the remaining six roles are hard-pinned in the binder.
 The orbweaver target: the binder reads `routing.roleDefaults.<role>` per role via the composition
 root (a one-site rebind, `_FANOUT-BRIEF.md §8.7` correction). `connection` is a CONSUMER of user
@@ -316,8 +319,9 @@ parsed with a Zod schema at read time (`catalog-snapshot.ts`); the blind cast af
 
 - `ModelCapability` → `@orb/contracts/connection/capability.ts` (cross-boundary; server translators
   AND client panel both need it; flows down from contracts).
-- `ChatApi` / `ChatSource` / `RoutingRoleKey` → `@orb/contracts/connection/routing.ts` (canonical
-  tuples; no inline re-spelling anywhere — the 18 re-spellings in neo-tavern are the anti-pattern
+- `ChatApi` / `RoutingRoleKey` → `@orb/contracts/connection/routing.ts` (canonical tuples); `ChatSource`
+  is **re-exported there from `@orb/contracts/credentials`'s `CredentialSource`** (D31, same 4-member axis)
+  (no inline re-spelling anywhere — the 18 re-spellings in neo-tavern are the anti-pattern
   to gate out).
 - `ResolvedConnection` → `@orb/contracts/connection/routing.ts` (cross-boundary; chat, buddy,
   workloads are all consumers).
@@ -330,7 +334,7 @@ parsed with a Zod schema at read time (`catalog-snapshot.ts`); the blind cast af
 - `ConnectionContext` → `domain/connection/context.ts` top — explicit `export interface
   ConnectionContext`, never `ReturnType<typeof createConnectionContext>`.
 - `CatalogModels` (today `Awaited<ReturnType<typeof catalog.rawModels>>`) → `@orb/contracts/
-  connection/catalog.ts` as `CatalogModelEntry[]` (a named shape, not a ReturnType alias that
+  connection/catalog.ts` as `ModelCatalogEntry[]` (a named shape, not a ReturnType alias that
   couples persistence to providers at the type level).
 - `FamilyCapabilities` interface → dissolved into `ModelCapability`; not a standalone type.
 - `ConnectionRoutingError`, `CatalogUnavailableError` → `domain/connection/contract/errors.ts`
@@ -346,14 +350,18 @@ over `api` uses `assertNever` (the dispatch is already fully gated in neo-tavern
 re-spelling). The no-inline-union-redecl gate rejects any new spelling.
 
 **`ChatSource` (`'max-pro-sub' | 'openrouter' | 'vllm' | 'custom_openai'`) — 18 touch-count, 11
-inline re-decls (scout-confirmed; the user's lived pain, MEASURED):** same fix. ONE importable tuple
-in `@orb/contracts/connection/routing.ts`. The existing `CHAT_SOURCES` tuple (`shared/providers/
-chat-routing.ts`) is the seed — promote it to `@orb/contracts` and delete the source file. All 11
-re-decl sites become RED under the `no-inline-union-redecl` gate.
+inline re-decls (scout-confirmed; the user's lived pain, MEASURED):** same fix, with **D31**: this is the
+SAME 4-member axis as `CredentialSource` (routing's `source` IS the credential source). So there is ONE
+canonical declaration — **`CredentialSource` + `CRED_SOURCES` in `@orb/contracts/credentials`** — and
+`@orb/contracts/connection/routing.ts` **re-exports it as `ChatSource`** (`export { CredentialSource as
+ChatSource }`), respecting the connection→credentials dep. The neo `CHAT_SOURCES` tuple (`shared/providers/
+chat-routing.ts`) collapses INTO `CRED_SOURCES` (not a second tuple); the source file is deleted. All 11
+re-decl sites become RED under the `no-inline-union-redecl` gate. (`ChatApi` is a SEPARATE axis and keeps
+its own `CHAT_APIS`/`chatApiSchema` in `@orb/contracts/connection`.)
 
 **`RoutingRoleKey` (`'chat' | 'agent' | 'embed' | 'rerank' | 'imageEmbed' | 'summarize' |
 'generateImage'`):** NEW union, does not exist today (roles are 5 hard-pinned functions, not a
-typed axis). In orbweaver: one importable union; `resolveRoleConnection` dispatch is a
+typed axis). In orbweaver: one importable union; `resolveRole` dispatch is a
 `ROLE_RESOLVERS: { [K in RoutingRoleKey]: Resolver<K> }` mapped-type Record so a new role arm
 missing the resolver is a `tsc` error. Gate: `exhaustive-dispatch`.
 
@@ -513,10 +521,11 @@ missing the resolver is a `tsc` error. Gate: `exhaustive-dispatch`.
   capability, not the room's. No separate per-agent call path is needed.
 
 - **Custom/BYO model profile — RESOLVED: user-declared (nothing baked).** The user declares the profile
-  (window, max output, reasoning, sampling) via `UserSettings.customEndpoint.modelProfile` or the
-  inspector probe; it feeds `resolveModelCapability(model, 'custom-byo')`. **DEFERRED (schema shape
-  only):** the exact field list = a subset of `ModelCapability`; uninspected fields default conservative.
-  Fix when the custom-byo form is built.
+  (window, max output, reasoning, sampling) via `providerMetadataSchema.modelProfile` (the credential
+  metadata — ledger §2 / `credentials.md`) or the inspector probe; it feeds
+  `resolveModelCapability(model, 'custom-byo')`. **DEFERRED (schema shape only):** the exact field list
+  = a subset of `ModelCapability`; uninspected fields default conservative. Fix when the custom-byo form
+  is built.
 
 - **`ChatModelId` TypeID vs plain string — RESOLVED.** The branded `ChatModelId` covers **only** the
   curated Claude shortlist (`CHAT_MODELS`). OR model ids (`'anthropic/claude-sonnet-4.6'`) are **plain
@@ -549,7 +558,7 @@ missing the resolver is a `tsc` error. Gate: `exhaustive-dispatch`.
 It then hands `providers` a request. It contains **zero execution logic** (no sessions, env, wire
 shaping — that's providers). Selection vs execution, per `domains.md`.
 
-## 1. `resolveRoleConnection(role)` — pick the tier/backend/model per role
+## 1. `resolveRole(role)` — pick the tier/backend/model per role
 
 One resolver for all roles: `chat · agent · embed · rerank · imageEmbed · summarize · generateImage`.
 It reads the user's settings (`routing.roleDefaults.<role>`) + the per-agent override and returns the
@@ -678,5 +687,6 @@ descriptor's axes — but it maps to *distinct* fields, not a merged cascade.
 - **Custom/BYO descriptor — RESOLVED: user-declared (nothing baked).** The user fills in the descriptor
   (knobs, ranges, reasoning, window) for their endpoint, or the inspector probes it
   (`tiers/providers.md` §1a). **DEFERRED (schema shape only):** the exact
-  `customEndpoint.modelProfile` fields = a subset of `ModelCapability` the user can fill; uninspected
-  fields fall back conservative. Fix the field list when the custom-byo settings form is built.
+  `providerMetadataSchema.modelProfile` fields (credential metadata) = a subset of `ModelCapability` the
+  user can fill; uninspected fields fall back conservative. Fix the field list when the custom-byo
+  settings form is built.

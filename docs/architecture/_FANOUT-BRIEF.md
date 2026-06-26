@@ -307,7 +307,7 @@ Findings that fix the target:
 - **Esoteric to preserve:** `externalId` keys SSO / `handle` keys the rest (rename stability); the
   owner-fallback is bootstrap AND an origin-gated security belt (`viaFallback` is the safe "this is the
   owner" discriminator, NOT `externalId===null`); JWKS fails-closed 3 ways; CSRF keys on `viaCookie`;
-  credential AAD binds `(userId, provider)`; `max-pro-sub` admin-gate is the only construction site.
+  credential AAD binds `(userId, provider)`; the `max-pro-sub` gate is the only construction site (admin-gated in neo-source today → `requireOwner` in orbweaver, D17).
 - **BFF session ≠ SDK chat session** — keep the two "session" concepts firmly separate (identity vs
   prompt-cache lineage); the schema already calls this out.
 

@@ -17,7 +17,7 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
 - **`structure.md`** — the constitution. 4 locked principles + the enforcement ladder + the per-feature
   8-slot template + central test mirror + the 13 gates. Includes: `kit` holds the macro+regex ENGINES;
   the "unwired ≠ worthless" rule.
-- **`domains.md`** — the feature map (neo-tavern's 18 → orbweaver), cross-cutting concept homes, the
+- **`domains.md`** — the feature map (neo-tavern's 20 → orbweaver), cross-cutting concept homes, the
   connection↔providers boundary. Points to the detail docs below.
 - **`knowledge-cluster.md`** — embeddings/memory/search/discovery. Build-once-read-many; memory =
   scoped search; the lens dimension; the embedding-space-tied-to-model invariant.
@@ -54,7 +54,8 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
   rare re-index).
 - **Memory = scoped search** over ONE substrate (segments+digests, two lenses, tiered); `discovery`
   (was corpus) = semantics; `stats` = economics; scoped-group recall = egocentric-only.
-- **De-pin characters** (live identity, versions = restorable history); **persona per-participant**
+- **De-pin characters** (live identity in a flat `characters` row; history = the standalone
+  `character_snapshots` log, which gates nothing — D28); **persona per-participant**
   (active on roster, anchor=pinned for `{{user}}`, attribution per-message); drop `chats.personaId`.
 - **One capability descriptor** drives params translation + the panel (reasoning/sampling/verbosity as
   distinct axes — fixes the "bonkers mapper").
@@ -105,5 +106,5 @@ this environment (some returned 0 tool-uses); foreground launches were reliable.
 - neo-tavern's `docs/architecture/*` (the current layer cake, chat-resolution-pipeline, send-round-trip,
   feature-organization — the per-feature template + enforcement matrix) and `docs/plans/unified-group-
   chat.md` (the 1585-line group-chat plan — §11.5 group-as-character memory is load-bearing).
-- neo-tavern domains (18): admin, assets, buddy, character, chat, corpus, credentials, debug, export,
+- neo-tavern domains (20): admin, assets, buddy, character, chat, corpus, credentials, debug, export,
   import, models, persona, preset, search, sessions, settings, stats, tag, workloads, world-info.

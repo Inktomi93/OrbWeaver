@@ -94,8 +94,10 @@ domain/search/
 │   ├── knn.ts              top-k vector scan — embed query → scan one table → CSLS → optional rerank
 │   ├── find-characters.ts  character-card vector search with distilled-facet enrichment
 │   ├── discover.ts         character discovery by best-segment group
-│   ├── digests.ts          owner-scoped digest scan (was: memory.ts digests)
-│   ├── segments.ts         owner-scoped segment scan (was: memory.ts segments)
+│   ├── digests.ts          membership-scoped digest scan (was: memory.ts digests) — scope =
+│   │                         `chatId ∈ {my/hosted chats}` (host-only v1, D18/D20); no `chats.ownerId`
+│   ├── segments.ts         membership-scoped segment scan (was: memory.ts segments) — same
+│   │                         `chatId ∈ {my/hosted chats}` derivation (host-only v1, D18/D20)
 │   ├── corpus.ts           hybrid digest+segment corpus search with joint rerank + block dedupe
 │   │                         (was: memory.ts corpus)
 │   ├── images.ts           cross-modal text→image search with pool-capped multimodal rerank
@@ -104,8 +106,11 @@ domain/search/
 ├── persistence/
 │   ├── display.ts          resolveSegmentDisplay, resolveCharacterDisplay — JOIN helpers producing
 │   │                         display shapes; was: context.ts mixed with DI wiring
-│   ├── scope.ts            scopeCond SQL-fragment builder (owner-scoped vs chat-scoped vs
-│   │                         character-scoped WHERE clauses, incl. chat_digest_speakers OR-branch)
+│   ├── scope.ts            scopeCond SQL-fragment builder (membership-derived chat scope —
+│   │                         `chatId ∈ {my/hosted chats}`, host-only v1 — vs character-scoped WHERE
+│   │                         clauses, incl. chat_digest_speakers OR-branch). No `chats.ownerId`; the
+│   │                         scope predicate is applied BEFORE cosine rank AND before `content_hash`
+│   │                         collapse (the no-leak invariant, D18/D20)
 │   ├── nearest.ts          nearestCharacters, nearestSegments — raw SQL vector_distance_cos
 │   │                         queries; NearestCharacter, NearestSegment row shapes live here
 │   └── digest-rows.ts      MemoryDigestRow, MemorySegmentRow shapes + fetch helpers
@@ -300,8 +305,8 @@ imports it from there.
 (not re-declared inline at call sites). The `over` / `group` top-level discriminant in
 `UnifiedSearchResult` must have an exhaustive `assertNever` guard in `service.ts`'s dispatch switch
 (the mapped-Record pattern from `workloads.kind` is the gold standard). The lens axis
-(`image-raw` | `image-captioned` | `segment` | `digest` | `card-text`) is a new union that must
-also be defined once in `contract/params.ts`.
+(`image-raw` | `image-captioned` | `segment` | `digest` | `card-text`) is owned by `embeddings`
+(`embeddings/contract/params.ts`, Rule 11) — search **imports** the union; it does NOT re-declare it.
 
 ### knowledge-cluster.md invariant #4
 

@@ -10,7 +10,7 @@
 > "assets vs infra/storage" open call; `_FANOUT-BRIEF.md` §2 (one-directional rule), §3 (placement
 > rule), §4 (assets pain ledger), §7.3 (serde/PNG codec), §7.4/§7.5 (types/dispatch);
 > `structure.md` §3 (server tiers), §4 (8-slot template), §6 (derived-data = event-driven indexer),
-> §7 (the six gates); and `reports/shared-dissolution.md` §1/§4/§5 (the three-way split of
+> §7 (the 13 legibility gates); and `reports/shared-dissolution.md` §1/§4/§5 (the three-way split of
 > `shared/_kit/assets.ts` — **cited, not re-derived**).
 
 ---
@@ -35,8 +35,9 @@ Specifically:
 - **Index reads** — `assetIdForHash` (hash → AssetId) and `getMetadata` (hash → `{mime, size}`, the
   blob-serve gate).
 - **Avatar backfill** — `backfillAvatars(ownerId, cards)`: workload-driven (re)link of staged card
-  PNGs to characters' current versions; bulk-fetch + bounded-concurrency store + batched UPDATE;
-  integrity-guards on `characters.importHash` mismatch.
+  PNGs to the flat `characters` row (D28 — no version table); bulk-fetch + bounded-concurrency store +
+  batched UPDATE; integrity-guards on `characters.importHash` mismatch (the imported-file hash on the
+  flat row, distinct from `contentHash`).
 - **Garbage collection + targeted reap** — `collectGarbage` (mark-sweep over the live avatar refs,
   grace-windowed) and `reapIfOrphan` (targeted, no grace; wired into `character.remove`). Both honor
   the **avatar-ref registry** and the **drop-row-before-blob** crash-safety ordering. No refcount
@@ -82,7 +83,7 @@ The one design question for this domain. Map every current unit to one side:
 | Side | Tier | Holds | May import |
 |---|---|---|---|
 | **CAS index** | `domain/assets` | `assets` table + verbs; the coherence primitive (`storeBlob`); GC/reap/fsck/rebuild; the avatar-ref registry; variant-sizing policy; `sniffMime` | `@orb/db`, `@orb/kit`, `@orb/contracts`, **down** into `infra/storage` (the `Cas`/`VariantCache` handles) |
-| **Byte store** | `infra/storage` | `cas.ts` (sharded `ab/cd/<hash>` blob I/O, atomic write, dedup, listHashes), `variant-cache.ts` (derived-webp cache), `zip-extract.ts` (archive I/O) | `@orb/kit` (`isAssetHash`), `node:*`, `atomically`/`fflate`/`sharp`. **NEVER `@orb/db`, NEVER a domain.** |
+| **Byte store** | `infra/storage` | `cas.ts` (sharded **per-user** `<owner>/ab/cd/<hash>` blob I/O (D21), atomic write, dedup, listHashes), `variant-cache.ts` (derived-webp cache), `zip-extract.ts` (archive I/O) | `@orb/kit` (`isAssetHash`), `node:*`, `atomically`/`fflate`/`sharp`. **NEVER `@orb/db`, NEVER a domain.** |
 
 The blob is content; the row is metadata; the domain is **where they are kept coherent.** The single
 chokepoint that proves the split: `storeBlob` calls `cas.putBytes(bytes)` (infra) then upserts the
@@ -271,9 +272,11 @@ Assets stores card PNGs as **opaque bytes**; it does not read or write the embed
 The PNG card codec (`isPng`/`readCardChunk`/`writeCardChunk`) is `@orb/kit/png-card-chunk`
 (string-based, so it never imports the card type) and belongs to import/export. The load-bearing
 intersection: **a card blob's CAS hash == `characters.importHash`** (both are the sha-256 of the whole
-file). The CAS hash therefore doubles as the import idempotency key, and `backfillAvatars` uses it as
-an integrity guard (`row.importHash !== stored.hash` ⇒ NOT linked, recorded as a mismatch). Any change
-to the hash algorithm silently breaks importHash matching.
+file). `importHash` is a column on the **flat `characters` row** (D28 — no version table) and is the
+re-import dedup key; it is **DISTINCT from `contentHash`** (the semantic-fields hash). The CAS hash
+therefore doubles as the import idempotency key, and `backfillAvatars` uses it as an integrity guard
+(`row.importHash !== stored.hash` ⇒ NOT linked, recorded as a mismatch). Any change to the hash
+algorithm silently breaks importHash matching.
 
 ### §7.4 Types and schemas — one home, one direction
 
@@ -414,7 +417,8 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 9. **Assets emits `asset.created` but never imports `embeddings`/`discovery`.**
    *Enforcement: resolve-time (no dep) + dep-cruiser `domain-no-cross-feature`.*
 
-10. **A card blob's CAS hash == `characters.importHash`** (both sha-256 of the whole file).
+10. **A card blob's CAS hash == `characters.importHash`** (both sha-256 of the whole file; `importHash`
+    is a column on the flat `characters` row per D28, distinct from `contentHash` the semantic-fields hash).
     *Enforcement: test-time (store a card PNG, assert `stored.hash === importHash`).*
 
 ---

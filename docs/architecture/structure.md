@@ -231,7 +231,7 @@ The neo-tavern crunch was concepts with no single home. Orbweaver fixes the wors
 | **World info** | one books/entries store + scope junctions | already the right shape in neo-tavern; keep it |
 | **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (corpus) |
 | **Derived data** (digests/embeddings/themes) | an event-driven indexer (canon write → ContentChanged → coalesced workload) | "import just works"; no manual backfill scripts |
-| **Character versions** | reference live identity; versions = restorable history | de-pinned; no cv-pins woven through |
+| **Character cards** | the card IS a flat `characters` row (live identity + content); history = a standalone `character_snapshots` log that gates nothing | D28: no version table — git working-tree (`characters`) + commit-log (`character_snapshots`), browse + restore-in-place |
 
 ---
 

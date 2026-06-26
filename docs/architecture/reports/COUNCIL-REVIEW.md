@@ -10,7 +10,7 @@
 |---|---|---|---|
 | Architecture Skeptic | Opus | SIGN-OFF w/ conditions | "Most disciplined greenfield plan I've reviewed" — intra-server boundaries are *lint, not physics* until the gates exist |
 | AI-Native Visionary | Sonnet | sound, missing the big swing | "Builds a superb substrate and only **retrieves** from it; the 2026 move is to **synthesize**" |
-| Executability / DX | Sonnet | can-scaffold-with-fixes | 8/11 gates real; 5 pre-scaffold blockers (mostly stale "Open"s the ledger already decided) |
+| Executability / DX | Sonnet | can-scaffold-with-fixes | 8/11 gates real; 5 pre-scaffold blockers (mostly stale "Open"s the ledger already decided) *(dated verdict — the gate ladder was since finalized at the canonical **13**, `structure.md` §7)* |
 | Production / Ops | Sonnet | SIGN-OFF w/ conditions | single-replica is honest + cleanly seamed; gaps are missing *migration scripts* + *failure surfaces* |
 | Product / RP-fidelity | Sonnet | PRODUCT-COMPLETE | genuine strict-superset (12 wins over ST); one real v1 risk (local-light embed tier) |
 

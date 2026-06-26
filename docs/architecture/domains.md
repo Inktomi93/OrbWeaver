@@ -4,11 +4,11 @@
 > 8-slot template in `structure.md`. This doc records *which* features exist, why, and how the
 > knowledge/derived-data cluster (the neo-tavern tangle) is untangled.
 
-## The map (neo-tavern's 18 → orbweaver)
+## The map (neo-tavern's 20 → orbweaver)
 
 | Domain | Origin | Owns |
 |---|---|---|
-| **chat** | keep (slim) | the turn lifecycle, canon, sessions (SDK), assembly, arbitration. `memory` is a subsystem here but *delegates* vectors (below). |
+| **chat** | keep (slim) | the turn lifecycle, canon, assembly, arbitration. **Stateless-first** — the agent-sdk session cache is backend-internal (`infra/providers/backends/agent-sdk/session/`, D8), NOT a chat concern. `memory` is a subsystem here but *delegates* vectors (below). |
 | **character** | keep | character identity; the card is a flat `characters` row; history = a `character_snapshots` log that gates nothing (D28). |
 | **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
 | **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
@@ -224,11 +224,12 @@ clean line, confirmed sound against the real code:
   params, providerRouting}` + the credential → builds the request → calls `providers.runChat`. Knows
   ONLY the user vocab `{api, source, model}`. Depends *down* on providers (allowed).
 - **`ChatRequest` is keyed on user vocab `{api, source, model}` + an explicit `stateful | stateless`
-  payload dimension** (verified necessity): agent-sdk is *stateful* (prompt + sessionStore + resume);
-  the completion runners are *stateless* (history array). This correlates 1:1 with agent-sdk today, but
-  the **session-seeding logic (DbSessionStore / buildSeedFrames / reseed) lives in the chat domain and
-  must NOT move into providers** — so the stateful/stateless split is a real ChatRequest dimension, not
-  a derivable detail. providers maps `(api,source)→runner` internally and dispatches.
+  payload dimension** (verified necessity): agent-sdk is *stateful* (prompt + resume); the completion
+  runners are *stateless* (history array). The split is a real ChatRequest dimension, not a derivable
+  detail — but the **session-seeding logic (DbSessionStore / buildSeedFrames / reseed) is backend-internal
+  to the agent-sdk provider** (`infra/providers/backends/agent-sdk/session/`, ledger **D8**), NOT a chat
+  concern. The chat domain is **stateless-first**: it builds the request from canon and never holds a
+  session; the backend reseeds-from-canon when stale. providers maps `(api,source)→runner` internally and dispatches.
 - **`resolveChat` is infra** (provider-quirk knowledge: effort/thinking/fastMode per model). It sits
   before `runChat`. The *profile derivation* feeding it is scattered across 4 dispatchers today →
   unify into one `resolveModelProfile(api, source, modelId)`.

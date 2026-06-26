@@ -62,8 +62,10 @@ No named subsystems; no `substrate/` (it's a thin durable surface).
 
 ## Cross-feature composition (the injection model)
 
-- **As a provider:** `notifications.emit` is injected (at the composition root) into **chat** (invite/kick/handoff) and
-  any future producer. Producers never import this domain's internals — they receive the op. **Durable-first/fan-out-
+- **As a provider:** `notifications.emit` is the injected producer-facing op — it **wraps the domain's `record`
+  verb** (the durable INSERT) plus its after-commit fan-out hook (`emit` = `record` + bus fan-out; one op, the
+  `record` verb is its core). It is injected (at the composition root) into **chat** (invite/kick/handoff) and any
+  future producer. Producers never import this domain's internals — they receive the op. **Durable-first/fan-out-
   second:** the INSERT runs inside the producer's membership-transition tx; the per-user bus emit is the after-commit
   hook (so a crash between can't deliver an event with no durable row, and an offline recipient still gets it on return).
 - **Consumed by transport:** `transport` exposes the `authedProcedure.subscription` over the caller's inbox (the

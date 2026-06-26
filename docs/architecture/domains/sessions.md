@@ -47,11 +47,11 @@ Specifically:
 
 This domain does **NOT** own:
 
-- **The SDK "chat session"** — `DbSessionStore` / `buildSeedFrames` / reseed (prompt-cache lineage,
-  `session_entries` table in `db/schema/sdk-session.ts`). That is a **backend-internal concern of the
-  claude-agent-sdk strategy, owned by the `chat` domain** (`domains.md`: "the session-seeding logic …
-  lives in the chat domain and must NOT move into providers"). It shares only the word "session." See
-  §"BFF session ≠ SDK chat session."
+- **The SDK "chat session"** — `DbSessionStore` / `buildSeedFrames` / reseed (prompt-cache lineage). That
+  is a **backend-internal concern of the claude-agent-sdk strategy, owned by the agent-sdk backend in
+  `infra/providers/backends/agent-sdk/session/`** (D8); the `chat` domain is **stateless-first** and does
+  NOT own it either. Only the `session_entries` *table* lives in `@orb/db/schema/sdk-session.ts`
+  (producer-owned schema). It shares only the word "session." See §"BFF session ≠ SDK chat session."
 - **Auth VERIFICATION** — JWT/JWKS validation, the mode-resolver dispatch, cookie/CSRF/host parsing
   (`auth/trust-header.ts`, `auth/<mode>/resolver.ts`, `auth/_shared/{jwks-cache,cookie,csrf,host,config}.ts`).
   That is `infra/auth` — a sealed, db-free Strategy executor. It produces a `ResolvedIdentity`; it never
@@ -73,17 +73,17 @@ This domain does **NOT** own:
 
 ## BFF session ≠ SDK chat session (the naming collision, resolved)
 
-Two concepts wear the word "session." They are unrelated and must stay in different domains, different
+Two concepts wear the word "session." They are unrelated and must stay in different homes, different
 tables, different tiers:
 
-| | **BFF/auth session** (this domain) | **SDK chat session** (chat domain) |
+| | **BFF/auth session** (this domain) | **SDK chat session** (agent-sdk backend) |
 |---|---|---|
 | What | revocable browser login: identity + live login state | prompt-cache lineage for a stateful agent-sdk turn |
 | Table | `sessions` (`db/schema/sessions.ts`) | `session_entries` (`db/schema/sdk-session.ts`) |
 | Keyed on | peppered token hash → `users` row | chat + seed-frame transcript resume |
 | Produced by | a login mint (OIDC callback / local login) | `DbSessionStore` / `buildSeedFrames` / reseed |
 | Lifecycle | create → per-request validate → revoke | seed → resume → reseed across turns |
-| Owner | `domain/sessions` | `domain/chat` (backend-internal to the claude-sdk strategy) |
+| Owner | `domain/sessions` | the agent-sdk backend (`infra/providers/backends/agent-sdk/session/`, D8) — backend-internal; chat is stateless-first |
 
 The `db/schema/sessions.ts` comment already flags this ("NOT to be confused with `session_entries` …").
 Orbweaver makes the separation structural: the `sessions` domain has **zero** SDK-frame code, and the
@@ -217,7 +217,7 @@ injected `SessionAdminPort` (structural subset). The OIDC/local route handlers c
 | `shared/contracts/identity.ts` — `ResolvedIdentity` | → `contracts` | `@orb/contracts/identity` | Cross-boundary: `infra/auth` produces it, `domain/sessions` + the seam consume it. Branded `Handle`/`ExternalId` cast lives at the producer. | resolve-time |
 | `trpc/context.ts` — `AuthContext` + `Context.{userId,role}` + `auth/identity.ts` `IdentityResolution` (3 principal shapes) | merge / reconcile | one `Principal` in `@orb/contracts/identity` | The §8.2 finding: identity/principal fragmented across 3 differently-named shapes for one concept (`AuthContext`/`IdentityResolution`/`OwnerResolution`/`Context.userId`). One immutable `Principal`, constructed once. | compile-time (the single `Principal` type) + manual reconcile |
 | `auth/identity.ts` — `AuthConfig`, `ResolveDeps`, `ModeResolver` | → `infra/auth` (cross-mode contract) | `infra/auth/contract.ts` | The infra auth module's internal contract (mode shape + injected db-deps). Infra-internal, not cross-package. | resolve-time |
-| SDK `DbSessionStore` / `buildSeedFrames` / `session_entries` (NOT in this slice) | stays in `chat` | `domain/chat` | Explicitly NOT sessions: prompt-cache lineage, backend-internal to the claude-sdk strategy. Naming collision only. | resolve-time (no dep from `domain/sessions`) |
+| SDK `DbSessionStore` / `buildSeedFrames` / reseed + the `session_entries` table (NOT in this slice) | → infra/providers (D8) | `infra/providers/backends/agent-sdk/session/` (table in `@orb/db/schema/sdk-session.ts`) | Explicitly NOT sessions: prompt-cache lineage, backend-internal to the agent-sdk strategy; chat is stateless-first. Naming collision only. | resolve-time (no dep from `domain/sessions`) |
 
 ---
 
@@ -376,9 +376,10 @@ fresh session + revoke the old at that transition.
 
 ## Invariants (gate candidates)
 
-1. **BFF session ≠ SDK chat session.** Separate tables (`sessions` vs `session_entries`), separate
-   domains (`sessions` vs `chat`), separate tiers. `domain/sessions` has zero SDK-frame code.
-   *Enforcement: resolve-time (no dep from `domain/sessions` on the claude-sdk strategy / `session_entries`)
+1. **BFF session ≠ SDK chat session.** Separate tables (`sessions` vs `session_entries`), separate homes
+   (`domain/sessions` vs the agent-sdk backend in `infra/providers`, D8), separate tiers. `domain/sessions`
+   has zero SDK-frame code.
+   *Enforcement: resolve-time (no dep from `domain/sessions` on the agent-sdk strategy / `session_entries`)
    + the `db/schema/sessions.ts` cross-reference comment.*
 
 2. **Identity is resolved ONCE → one immutable `Principal`; `userId` is carried, never re-queried.**

@@ -13,7 +13,7 @@
 > `jobs/` (`workloads-env.ts`, `buddy-env.ts`) move to `entry/compose/runner-env.ts` (per
 > DECISIONS-LEDGER §7 D4) for the same reason. Authoritative
 > upstream: `structure.md` §3 (server tiers — `transport` is `trpc/` + `jobs/`, `http/` is under
-> `entry/`; drivers are THIN, call DOWN into front doors only), §7 (the six gates); `_FANOUT-BRIEF.md`
+> `entry/`; drivers are THIN, call DOWN into front doors only), §7 (the 13 legibility gates); `_FANOUT-BRIEF.md`
 > §2 (one-directional flow), §3 (placement rule), §8.1 (coupling already clean — zero cross-feature
 > deep imports, zero domain→transport edges); `reports/shared-dissolution.md` §6
 > (`_shared/rate-limit.ts` → `transport/rate-limit`); `domains/workloads.md` (the worker is

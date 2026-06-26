@@ -243,8 +243,9 @@ additive later, never a schema fight:
 ## 10. Knobs (per-preset where user-facing)
 
 `blockSize` (16) · `verbatimWindow` (30) · `mode` (off/mixA/mixB/mixC/tiered) · `fanOut` (8) ·
-`maxTier` · `retrieveK` · `rerankTo` · `minScore` · `keywordMatch` · `summarizer` (local-first GGUF →
-hosted fallback; `maxTokens`, `temperature`).
+`maxTier` · `retrieveK` · `rerankTo` · `minScore` · `keywordMatch` · `summarizer` (NOT a separate model —
+a `chat`-turn shaped on whatever chat backend the user has, per `tiers/providers.md` §2b; `maxTokens`,
+`temperature`).
 
 ---
 

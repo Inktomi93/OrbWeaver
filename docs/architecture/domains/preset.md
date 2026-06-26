@@ -40,8 +40,9 @@ configuration:
 **Schema:** one `presets` table — `id` (PresetId TypeID PK), `ownerId` (nullable FK →
 `users.id` RESTRICT), `name`, `kind` (free-text label), `config` (JSON `PromptConfig` blob),
 `schemaVersion` (mirrors `config.schemaVersion`), `createdAt`, `updatedAt`. Owner index. No FK
-from `chats` or `messages` (dropped in migration 0002 — past-turn provenance lives on
-`messages.params`, a `UserIntent` snapshot, not a preset FK).
+from `chats` or `messages` (neo dropped this in its migration 0002; orbweaver's `0000_baseline`
+never adds it — past-turn provenance lives on `message_variants.params`, a `UserIntent` snapshot
+(D26), not a preset FK).
 
 **Preset is NOT the connection.** The user's `{api, source, model}` selection is `connection`'s
 concern. A preset that "saves a connection" is a misuse — the partitioning rule in `domains.md`
@@ -113,7 +114,7 @@ These live in `@orb/contracts`, not in `shared/prompt/` (see §movement):
 | `PromptConfig` | `contracts/preset/config.ts` | server (assembly, seed, chat), client (preset editor) |
 | `UserIntent` + `userIntentSchema` + `generationKnobSchemas` | `contracts/preset/intent.ts` | server (runners, assembly), client (form validation) |
 | `PresetFormValues` + `presetFormValuesSchema` | `contracts/preset/form.ts` | server (tRPC input validation), client (preset editor form) |
-| `GuidedActionsConfig` + `GuidedAction` union | `contracts/preset/guided.ts` | server (assembly, config), client (guided panel) |
+| `GuidedActionsConfig` + `GuidedActionKind` union | `contracts/preset/guided.ts` | server (assembly, config), client (guided panel) |
 | `CustomParameters` + `customParametersSchema` | `contracts/preset/custom-parameters.ts` | server (runners), client (form) |
 | `StDroppedField`, `StImportResult`, `NeoPresetFile` | `contracts/preset/serde.ts` | client (import toolbar), tests |
 
@@ -168,9 +169,9 @@ but should live in `contracts`. `generationKnobSchemas` is the one shared numeri
 
 **§7.5 (string-union dispatch):** `guidedAction` is flagged in the dispatch-scout as 23 touch-count
 with 14 redecls + 4 untyped `Record`s and no exhaustiveness backstop. In orbweaver: one importable
-`GuidedAction` union (the canonical name used in the cross-boundary types table above and matching the
-steady clone's `GuidedAction`) in `contracts/preset/guided.ts`; the dispatch table is a
-`GUIDED_ACTION_IMPLS: { [K in GuidedAction]: Impl<K> }` mapped-type Record so a missing action
+`GuidedActionKind` union (the canonical name used in the cross-boundary types table above; neo/the
+steady clone calls it `GuidedAction`) in `contracts/preset/guided.ts`; the dispatch table is a
+`GUIDED_ACTION_IMPLS: { [K in GuidedActionKind]: Impl<K> }` mapped-type Record so a missing action
 is a `tsc` error. The untyped `Record`s become RED at compile time.
 
 ---

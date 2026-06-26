@@ -214,7 +214,8 @@ domain/workloads/
     ├── distill-characters.ts      discovery summaries         ├── import-st.ts               import bulk loop + post-import reconcile
     ├── compute-themes.ts          discovery k-means           ├── reconcile-stats.ts         stats rollup rebuild
     ├── memory-backfill.ts         memory digest/segment gen   ├── refresh-model-catalog.ts   connection catalog snapshot
-    ├── group-character-backfill.ts character group mint       └── compute-cooccurrence.ts / find-duplicates.ts  discovery analytics
+    ├── group-character-backfill.ts character group mint       ├── compute-cooccurrence.ts / find-duplicates.ts  discovery analytics
+    └── reconcile-world-state.ts   v2 STUB (reserved kind → no-op runner; keeps RUNNERS / exhaustive-dispatch green)
 ```
 
 **Two named subsystems (`engine/` + `runners/`)** — the template permits multiple. `engine/` is the
@@ -277,7 +278,7 @@ export type { WorkloadServiceDeps } from './context'
 export type {
   WorkloadRunnerEnv, WorkloadEmbeddingsEnv, WorkloadDiscoveryEnv,
   WorkloadImportEnv, WorkloadMemoryEnv, WorkloadAssetsEnv,
-  WorkloadStatsEnv, WorkloadModelsEnv,
+  WorkloadStatsEnv, WorkloadConnectionEnv, WorkloadCharacterEnv,
 } from './contract/runner-env'
 export type { Runner } from './contract/runner'
 

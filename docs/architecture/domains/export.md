@@ -275,7 +275,9 @@ split, the string-based codec, the round-trip test pins.
 ### §7.5 string-union dispatch discipline
 - **`ExportChatFormat = "jsonl" | "txt"`** — one importable canonical union in
   `contract/service.ts`; dispatched once in `export-chat.ts` (`format === "txt"` else jsonl).
-  Two members, two sites — keep it gated (`no-inline-union-redecl`), no inline re-spelling.
+  Two members, two sites — below the `no-inline-union-redecl` threshold (the gate fires only on
+  ≥3-member unions, ledger §5), so it is exempt; kept as one canonical union by convention, no
+  inline re-spelling.
 - **`EntryInjectionRole`** (`system | user | assistant`) — the at-depth role on exported
   book entries comes through `@orb/kit/world-info`'s bimap; export never re-declares the
   3-member union (it was part of the 4× role-map antipattern).

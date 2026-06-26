@@ -160,7 +160,7 @@ notes — catalogued, not invented here:
   test at its mirror, kind by what it pins (mostly `.test.ts` / `.contract.test.ts`). Headliners: the GCM
   AAD byte-string `${userId}|${provider}`, the ZWSP in `neutralizeMacros`, the `scopedCharacterId=''`
   sentinel, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog, `storedVersion`-beats-probe,
-  the last-admin EXISTS-on-UPDATE, `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
+  the last-owner / owner-immutability guard EXISTS-on-UPDATE (D17), `deepMergeRequestBody` Layer-2 defense, every `ASSUMES(single-replica)`.
 - **The differential oracle** (`CHECKLIST §C1`) — `tests/server/domain/chat/pipeline-breakpoint.parity.test.ts`
   (at the mirror; the steady-clone driver is `tests/support/parity-runner.ts`): the rolling-pair breakpoint
   + cache-token delta diff vs the steady clone. The runbook + fixture are written **before** the chat

@@ -9,7 +9,7 @@
 > a thin I/O handle a domain *injects* and calls; none of them reach UP into a domain, and (the load-
 > bearing physics) **none of them import `@orb/db`** — the db-dependent steps are injected in. Authoritative
 > upstream: `structure.md` §3 (the tier list — `entry→transport→domain→infra→foundation→kit`, imports
-> flow DOWN), §7 (the six gates); `_FANOUT-BRIEF.md` §2 (one-directional hard rule), §3 (the
+> flow DOWN), §7 (the 13 legibility gates); `_FANOUT-BRIEF.md` §2 (one-directional hard rule), §3 (the
 > `→ infra` taxonomy row: "external I/O adapter — provider, crypto, storage, network, auth
 > verification"), §7.1 (identity/auth spine — **auth VERIFICATION is infra; identity RESOLUTION + the
 > users-row upsert is `domain/sessions`**); `reports/shared-dissolution.md` §0 (kit-purity LOCKED),

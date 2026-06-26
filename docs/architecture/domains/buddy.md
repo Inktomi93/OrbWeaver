@@ -9,7 +9,7 @@
 > connection + a soul instead of a card," composed via chat's ONE stateless turn path. Authoritative
 > upstream: `participants-agents-identity.md` §0/§2/§6 (the agent model + the open
 > agent-as-domain-vs-pattern decision) — **the governing doc**; `domains/connection.md` §1
-> (`resolveRoleConnection('agent')` — buddy's own backend/model); `_FANOUT-BRIEF.md` §4 (buddy pain
+> (`resolveRole('agent')` — buddy's own backend/model); `_FANOUT-BRIEF.md` §4 (buddy pain
 > entry), §7.1 + §8.6 (first-class principal); `reports/shared-dissolution.md` §4 (`contracts/buddy`
 > taxonomy), §1 (`replay-buffer` → kit), §5 (the credentials injection). `structure.md` §4 is the
 > 8-slot template this domain follows.
@@ -50,7 +50,7 @@
 This domain does **not** own: the **agent-turn runner** (that is `infra/providers` — sealed;
 `runAgentTurn` with the firewall lives there; buddy consumes it through an injected op); the
 **credential resolver / vLLM mint** (that is `credentials` — injected per `credentials.md`); **connection
-routing** (that is `connection`'s `resolveRoleConnection('agent')` — the hand-rolled `resolveBuddyRouting`
+routing** (that is `connection`'s `resolveRole('agent')` — the hand-rolled `resolveBuddyRouting`
 is **deleted**); the **taxonomy enums** (those are `@orb/contracts/buddy`; `@orb/db` imports them for
 enum columns); the **sprites / ASCII rendering** (that is `@orb/client` — presentation); the
 **replay-buffer** (that is `@orb/kit`); the **cross-feature event sources** (workload/chat buses, trace
@@ -72,13 +72,13 @@ The four parts, mapped onto today's buddy:
 | Agent part | neo-tavern buddy (ad-hoc) | orbweaver buddy (composed) |
 |---|---|---|
 | **identity** | the `buddies` soul (`name`/`personality`) + `buildBuddySystemPrompt` | the same soul — the character-card identity shape **minus the card** (§2). The system-prompt builder stays buddy-local (its persona has no card scaffolding). |
-| **connection** | `resolveBuddyRouting(role)` — a hand-rolled `admin→max-pro-sub haiku, else vLLM` switch, the `BUDDY_SUB_MODEL` literal | **`resolveRoleConnection('agent')`** + a per-agent override (§1, the new per-agent routing axis). Buddy's "always cheap" is just its connection. The admin gate stays in credential resolution (`max-pro-sub` is admin-only). |
+| **connection** | `resolveBuddyRouting(role)` — a hand-rolled `admin→max-pro-sub haiku, else vLLM` switch, the `BUDDY_SUB_MODEL` literal | **`resolveRole('agent')`** + a per-agent override (§1, the new per-agent routing axis). Buddy's "always cheap" is just its connection. The owner gate stays in credential resolution (`max-pro-sub` is owner-only, D17). The owner's buddy inherits the owner's box sub via owner-delegated `credentials.resolve`; a non-owner's buddy never resolves the box. |
 | **view** | the `buddy_turns` transcript + `buildPromptWithMemory` + `fitSeedToBudget` (its own memory) | the buddy's egocentric **view of canon** — for the solo buddy chat, the `buddy_turns` transcript IS the view; the budget-trim is the view-builder's window discipline. |
 | **tools** | the in-process MCP server (`agent/tools.ts`) + the firewall | unchanged in spirit; the firewall (mcpServers asymmetry) becomes a property of **agent-mode in the sealed runner**, not a buddy-local concern. |
 
 What this dissolves (the pain ledger, `_FANOUT-BRIEF.md` §4):
 
-- **No hand-rolled router** — `resolveBuddyRouting` is deleted; the brain is `resolveRoleConnection('agent')`.
+- **No hand-rolled router** — `resolveBuddyRouting` is deleted; the brain is `resolveRole('agent')`.
 - **No second turn path** — `ask` no longer imports `#server/providers` `runAgentTurn` directly; it
   composes the **one** chat-turn path via an injected op (invariant #3: "no second agent system").
 - **No exiled credential reach** — `resolveCredential`/`mintVllmCredential` come via injection from
@@ -246,7 +246,7 @@ domain/buddy/
 
 **Named subsystems (three):** `agent/` (tools + soul prompt), `agency/` (the single-replica gate state —
 mirrors `credentials.md`'s `health/` rename: in-memory state out of `persistence/`), `observer/` (the
-reaction engine). **`agent/routing.ts` is gone** (its job is `connection.resolveRoleConnection('agent')`).
+reaction engine). **`agent/routing.ts` is gone** (its job is `connection.resolveRole('agent')`).
 
 **`context.ts` — explicit interface:** the DI bundle type is `export interface BuddyContext` (not
 `ReturnType<typeof createBuddyContext>`), per `no-inline-types`. The `createDefaultRoleClients()` /
@@ -280,7 +280,7 @@ The reaction engine is started out-of-band (`startBuddyObserver`, wired at the c
 service verb — it is a supervised loop, not a request path.
 
 **`ask` is the agent-mode composition:** it resolves the connection (injected
-`resolveRoleConnection('agent')` + per-agent override), resolves the credential (injected
+`resolveRole('agent')` + per-agent override), resolves the credential (injected
 `credentials.resolve` / `mintVllmCredential`), builds the soul system-prompt + the view (recent turns,
 budget-trimmed), builds the MCP tool server, and calls the injected `agentTurn` op (the one turn path /
 sealed runner). It persists the user line **before** the multi-second turn (crash-safety) and the
@@ -323,7 +323,7 @@ import the contracts taxonomy type, so they cannot be `kit`.
 
 | Unit | Outcome | Target | Rationale | Enforcement tier |
 |---|---|---|---|---|
-| `agent/routing.ts` — `resolveBuddyRouting`, `BUDDY_SUB_MODEL`, `BuddyRouting` | **deleted** | — | The hand-rolled `admin→max-pro-sub-haiku / else vLLM` router is exactly the pain (`_FANOUT-BRIEF.md` §4). Replaced by `connection.resolveRoleConnection('agent')` + a per-agent override. The `claude-haiku-4-5` literal becomes the connection's per-agent model. | resolve-time: buddy imports the `connection` front door (injected op); the local router is gone — `domain-no-cross-feature` + no `agent/routing.ts` to import |
+| `agent/routing.ts` — `resolveBuddyRouting`, `BUDDY_SUB_MODEL`, `BuddyRouting` | **deleted** | — | The hand-rolled `admin→max-pro-sub-haiku / else vLLM` router is exactly the pain (`_FANOUT-BRIEF.md` §4). Replaced by `connection.resolveRole('agent')` + a per-agent override. The `claude-haiku-4-5` literal becomes the connection's per-agent model. | resolve-time: buddy imports the `connection` front door (injected op); the local router is gone — `domain-no-cross-feature` + no `agent/routing.ts` to import |
 | `verbs/ask.ts` — `import { runAgentTurn } from "#server/providers"` | injected op | `agentTurn` op on `BuddyContext`, wired at `entry/` from the sealed `infra/providers` runner | "No second agent system" (invariant #3). Buddy composes the ONE turn path; the firewall stays in the sealed runner. | lint-time: `domain-no-cross-feature` (a domain may not reach `infra/providers` directly — it receives the op) |
 | `verbs/ask.ts` + `verbs/hatch.ts` + `context.ts` — `resolveCredential`, `mintVllmCredential` (from `_shared/credentials`) | injected ops | `credentials.resolve` + `credentials.mintVllmCredential` on `BuddyContext` (the `buddy.context` injection in `credentials.md`) | `_shared` does not exist; credentials owns resolve+mint and injects them. | resolve-time: `_shared` gone; `domain-no-cross-feature` enforces injection |
 | `verbs/ask.ts` — `buildPromptWithMemory`, `fitSeedToBudget`, `MEMORY_TURNS`, `SEED_TOKEN_BUDGET`, `VLLM_MAX_CONTEXT_TOKENS` | stays domain feature | `domain/buddy/substrate/view.ts` (the egocentric view-builder + window discipline) | This is the buddy's **view** of canon (agent part #3). The window cap derives from the connection capability descriptor (`domains/connection.md` §2), not a hardcoded literal. | lint-time: `no-inline-types`; the literal → descriptor-sourced |
@@ -340,7 +340,7 @@ import the contracts taxonomy type, so they cannot be `kit`.
 | `contract/signals.ts` — `workloadSignal`/`chatSignal`/`traceSignal`/`presenceSignal` builders + `bucket5m` | stays domain feature | `domain/buddy/observer/signals.ts` (pure builders next to the reactor) | Pure builders belong with the subsystem that uses them, not in `contract/` (which is types-only). | lint-time: `feature-structure` (no logic in `contract/`) |
 | `contract/env.ts` — `BuddyAgentEnv`, `BuddyWorkloadKind` | stays domain feature, renamed | `domain/buddy/contract/agent-env.ts` | The injected cross-feature HANDS seam (mirrors `WorkloadRunnerEnv`). Rename for clarity vs `observer-env.ts`. | resolve-time: the env is wired at `entry/`; `domain-no-cross-feature` keeps buddy from importing `workloads` |
 | `contract/observer-env.ts` — `BuddyObserverEnv` + lite event shapes | stays domain feature | `domain/buddy/contract/observer-env.ts` | The injected cross-feature EVENT-SOURCE seam (chat/workloads buses + trace ring). Lite shapes keep the coupling type-thin. | resolve-time: assembled at `entry/`/`transport/jobs` |
-| `observer/db-reads.ts` — `createBuddyObserverReads` (narrow `chats`/`workloads` ownerId reads) | stays domain feature | `domain/buddy/observer/db-reads.ts` | A narrow read-only owner lookup of **shared schema rows** (not another feature's code) — the observer must resolve an owner it doesn't yet know; the owning services expose only caller-scoped reads. Sanctioned cross-table read, like `import/export`→`@orb/db`. | resolve-time: `@orb/db` is a declared dep; the read is schema-level, not a cross-feature service call |
+| `observer/db-reads.ts` — `createBuddyObserverReads` (narrow reads: the workload's `ownerId` FK + the chat's host from the `chat_participants(role='host')` roster) | stays domain feature | `domain/buddy/observer/db-reads.ts` | A narrow read-only lookup of **shared schema rows** (not another feature's code) — the observer must resolve the reacting user it doesn't yet know: the workload owner by FK (workloads are single-owned), the chat **host** from the `chat_participants` roster (D18: chats are membership-scoped, there is no `chats.ownerId` column). The owning services expose only caller-scoped reads. Sanctioned cross-table read, like `import/export`→`@orb/db`. | resolve-time: `@orb/db` is a declared dep; the read is schema-level, not a cross-feature service call |
 | `bus.ts` — `buddyBusEmitter`/`emitBuddyEvent`/`getRecentBuddyEvents`/`BuddyBusEvent` | stays domain feature | `domain/buddy/bus.ts` | The buddy's outward voice; mirrors `chat/bus.ts`. Keyed on `userId`. | resolve-time |
 | `bus.ts` — `import { createReplayBuffer } from "_shared/replay-buffer"` | → `@orb/kit` | `@orb/kit/replay-buffer` | Pure, 3 feature consumers (buddy/chat/workloads) — `shared-dissolution.md` §1 + §7.1 REFINES the brief's "feature-internal" verdict to kit. | resolve-time: `@orb/kit` declared dep; `kit-purity` (no domain/Node import) |
 | `shared/buddy/taxonomy.ts` — all enums/weights/thresholds + `CompanionBones`/`CompanionStats` | → `contracts` | `@orb/contracts/buddy` | Cross-boundary vocab: `@orb/db` imports the enums for columns, the client renders from it, the server rolls from it. `shared-dissolution.md` §4. | resolve-time: `@orb/db`/`@orb/client`/`@orb/server` all declare `@orb/contracts`; never import `@orb/server` for it |
@@ -365,9 +365,9 @@ arrives through three injected bundles, all assembled at the composition root (`
 
 | Op injected | Provided by | Used for |
 |---|---|---|
-| `connection.resolveRoleConnection('agent')` | `connection` domain | the buddy's brain (backend/model) + the capability descriptor (window cap) |
-| `credentials.resolve` | `credentials` domain | gating the agent turn (admin → `max-pro-sub`; the admin gate lives in resolve) |
-| `credentials.mintVllmCredential` | `credentials` domain | the keyless local vLLM credential for the non-admin path |
+| `connection.resolveRole('agent')` | `connection` domain | the buddy's brain (backend/model) + the capability descriptor (window cap) |
+| `credentials.resolve` | `credentials` domain | gating the agent turn (owner → `max-pro-sub`, owner-delegated; the owner gate lives in resolve, D17) |
+| `credentials.mintVllmCredential` | `credentials` domain | the keyless local vLLM credential for the non-owner path |
 | `agentTurn` (the sealed agent-mode runner) | `infra/providers` (the ONE turn path; or chat's exposed op, per the KEY decision) | running the tool-using turn behind the firewall |
 | `roleClients.summarize` | `infra` role clients (vLLM) | soul-gen at hatch + quip-gen in the reactor (free, local) |
 | `BuddyAgentEnv.startWorkload` | `workloads` domain | the `confirm`→workload proposal path (curated `BuddyWorkloadKind` subset) |
@@ -378,7 +378,7 @@ arrives through three injected bundles, all assembled at the composition root (`
 |---|---|---|
 | `BuddyObserverEnv.onWorkloadEvent` / `onChatEvent` | `workloads` / `chat` buses | the live reaction triggers |
 | `BuddyObserverEnv.readRecentTraces` | `foundation/observability` ring | the 30s slow-turn / error-spike sampler |
-| `BuddyObserverEnv.resolveWorkloadOwner` / `resolveChatOwner` | `createBuddyObserverReads` (buddy's own narrow schema reads) | resolving "whose buddy reacts" |
+| `BuddyObserverEnv.resolveWorkloadOwner` / `resolveChatHost` | `createBuddyObserverReads` (buddy's own narrow schema reads) | resolving "whose buddy reacts" — the workload owner by FK, the chat host from the `chat_participants(role='host')` roster (D18: no `chats.ownerId`) |
 | `roleClients.summarize` | `infra` vLLM | quip generation (canned fallback on breaker-open) |
 
 No domain imports `domain/buddy` internals; the tRPC router consumes the front door, the observer is
@@ -390,7 +390,7 @@ started at the composition root.
 
 ### §0 / §2 / §3 the agent model (governing)
 Buddy is the proof-of-concept for "agent mode is opt-in on the one chat-turn path." The four agent parts
-(identity=soul, connection=`resolveRoleConnection('agent')`, view=the transcript, tools=the MCP server)
+(identity=soul, connection=`resolveRole('agent')`, view=the transcript, tools=the MCP server)
 map cleanly. The stateless-first contract holds: buddy's turn is `runAgentTurn(systemPrompt, view,
 connection, tools?)`; the agent-sdk session is a backend-internal cache, never a buddy concept.
 
@@ -483,10 +483,12 @@ the connection capability descriptor (`domains/connection.md` §2).
   agent with tools + its own connection + a soul," composed via chat's ONE stateless turn path + an
   injected `agentTurn` op; the shared agent *contract* lives in `@orb/contracts` + `infra/providers`
   WITHOUT a `domain/agent`. (Per the fan-out ledger; consistent with chat invariant #3.)
-- **Where the per-agent connection's admin gate lives — RESOLVED.** The admin gate stays in credential
-  resolution (`max-pro-sub` is admin-only, `credentials.md`); the "always cheap" default is a per-agent
-  connection override on `resolveRoleConnection('agent')`. The buddy domain carries NEITHER the model
-  literal NOR the routing logic (`resolveBuddyRouting` is deleted).
+- **Where the per-agent connection's owner gate lives — RESOLVED.** The owner gate stays in credential
+  resolution (`max-pro-sub` is owner-only, D17, `credentials.md`); buddy is the OWNER's agent and inherits
+  the owner's box sub via owner-delegated `credentials.resolve` (a non-owner's buddy gets its own
+  credential, never the box). The "always cheap" default is a per-agent connection override on
+  `resolveRole('agent')`. The buddy domain carries NEITHER the model literal NOR the routing logic
+  (`resolveBuddyRouting` is deleted).
 - **The soul as identity — RESOLVED (for the initial port): keep the `buddies` row.** Buddy's soul stays
   buddy-local soul columns (single, mutable, model-authored once at hatch) rather than a cardless
   `character`. (Deferred refinement below if tool-using characters ever need the same shape.)

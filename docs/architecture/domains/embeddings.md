@@ -92,7 +92,7 @@ dedicated `writeHubScores` helper. One policy, one site.
 |---|---|---|---|
 | `card` | `card-text` | `character_embeddings` | `character.updated` event |
 | `avatar` | `image-raw` | `image_embeddings` | `asset.created` event |
-| `avatar` | `image-captioned` | `image_embeddings` | `asset.created` event (requires caption from `memory`'s summarizer or `discovery`) |
+| `avatar` | `image-captioned` | `image_embeddings` | `asset.created` event (caption generated inline in `embeddings/indexer`, ledger §2) |
 | `chat-block` | `segment` | `chat_segments` | `memory` post-turn build, import backfill |
 | `chat-block` | `digest` | `chat_digests` | `memory` post-turn build, import backfill |
 
@@ -136,15 +136,16 @@ domain/embeddings/
 │                               chat/memory, corpus/service each had inline variants)
 └── indexer/                    NAMED SUBSYSTEM — the event-driven subscriber
     ├── index.ts                createEmbeddingsIndexer(ctx): EmbeddingsIndexer
-    ├── handlers.ts             onCharacterUpdated, onAssetCreated, onDigestCreated, onSegmentCreated
-    │                           — each calls embeddings.store via ctx; debounced/coalesceable
+    ├── handlers.ts             onCharacterUpdated, onAssetCreated — each calls embeddings.store via
+    │                           ctx; debounced/coalesceable. (No onDigestCreated/onSegmentCreated:
+    │                           `memory` calls `embeddings.store` directly for digests/segments — ledger §2)
     └── types.ts                EmbeddingsIndexer interface (the event subscription shape)
 ```
 
 **Named subsystem: `indexer/`** — the event-driven subscriber that receives `character.updated` /
-`asset.created` / `digest.created` / `segment.created` domain events and dispatches to
-`embeddings.store`. This is distinct from the `store` verb (which is also called directly by `memory`
-synchronously post-turn). The indexer is the async/bulk path; `memory` uses `store` via the injected op
+`asset.created` domain events and dispatches to `embeddings.store`. This is distinct from the `store`
+verb (which is called directly by `memory` synchronously post-turn for digests/segments — `memory`
+emits no digest/segment events, ledger §2). The indexer is the async/bulk path; `memory` uses `store` via the injected op
 (synchronous post-turn, already on the right async boundary because it is itself post-turn
 fire-and-forget).
 
@@ -218,8 +219,9 @@ they live in `contract/params.ts` and `contract/results.ts` and are NOT re-expor
 door. Callers that inject `embeddings.store` through the composition root receive the function directly
 and do not need the param types at call sites (type inference handles it).
 
-**Cross-boundary types** (`EmbedRequest`, `EmbedResult`) live in `@orb/contracts/embeddings` — these
-are the `infra/providers` role-contract types consumed by the sealed embed backend impls. The domain
+**Cross-boundary types** (`EmbedRequest`, `EmbedResult`) live in `@orb/contracts/providers` (the
+provider-result group, Rule 10) — these are the `infra/providers` role-contract types consumed by the
+sealed embed backend impls. The domain
 imports them from `@orb/contracts`, not from `infra/`.
 
 ---
@@ -236,8 +238,8 @@ imports them from `@orb/contracts`, not from `infra/`.
 | `db/vector-ops.ts:clearVectorTable` | → domain feature | `domain/embeddings/persistence/clear.ts` (verb is `EmbeddingsService.clearTable`) | The helper belongs to the domain that owns the tables, not the db layer. The load-bearing "safe: no DiskANN shadow index" comment is carried verbatim. | resolve-time: `db/vector-ops.ts` is removed; consumers (tests, bootstrap) import from `domain/embeddings` front door |
 | `db/vector-ops.ts:VECTOR_TABLES` + `VectorTable` | → domain feature | `domain/embeddings/contract/params.ts` | The typed table registry belongs to the domain that owns the tables, not the db layer. Consumers (tests, `discovery`, `search`) import from `domain/embeddings/index.ts`. | resolve-time: same as above |
 | `providers/embed.ts:embed(req)` (role dispatcher) | → `infra/providers` | `infra/providers/roles/embed.ts` (sealed impl per backend) + `domain/embeddings` calls it via the injected role op | The dispatcher is an infra concern (`switch (credential.source) → backend impl`). `embeddings` imports the role contract (`EmbedRequest` / `EmbedResult`) from `@orb/contracts`, not from `infra/`. The domain calls the role via an injected dep, never the backend directly. | resolve-time: `domain/embeddings` does not declare `infra/providers` as a package dep; the injected op type comes from `@orb/contracts` |
-| `providers/_shared/vector-math.ts` (pairwiseCosine, cosineToMany, cosineDistance, cosineSim, l2Normalize, mean) | → `@orb/kit` | `@orb/kit/math/vector` | Pure math primitives (zero I/O, zero domain); 5+ consumer files in domain/corpus and domain/chat/memory reach directly into `providers/_shared/` — a domain→infra-internal violation. As a `kit` module all consumers import cleanly from a proper home. | resolve-time: `providers/_shared/vector-math.ts` is removed from `infra/providers`; `@orb/kit/math/vector` is the declared dep for any consumer needing cosine/l2norm |
-| `corpus/substrate/pair-cosine.ts` (hand dot-loop) | → `@orb/kit` | `@orb/kit/math/vector` (consolidated with pairwiseCosine) | A second hand-rolled cosine implementation. Fold into the kit math module so there is one implementation. | resolve-time: `pair-cosine.ts` is removed; dep-cruiser `kit-purity` gate ensures the kit module has zero I/O deps |
+| `providers/_shared/vector-math.ts` (pairwiseCosine, cosineToMany, cosineDistance, cosineSim, l2Normalize, mean) | → `@orb/kit` | `@orb/kit/vector-math` | Pure math primitives (zero I/O, zero domain); 5+ consumer files in domain/corpus and domain/chat/memory reach directly into `providers/_shared/` — a domain→infra-internal violation. As a `kit` module all consumers import cleanly from a proper home. | resolve-time: `providers/_shared/vector-math.ts` is removed from `infra/providers`; `@orb/kit/vector-math` is the declared dep for any consumer needing cosine/l2norm |
+| `corpus/substrate/pair-cosine.ts` (hand dot-loop) | → `@orb/kit` | `@orb/kit/vector-math` (consolidated with pairwiseCosine) | A second hand-rolled cosine implementation. Fold into the kit math module so there is one implementation. | resolve-time: `pair-cosine.ts` is removed; dep-cruiser `kit-purity` gate ensures the kit module has zero I/O deps |
 | `corpus/verbs/hubness.ts:computeCharacterHubScores` / `computeDigestHubScores` / `computeSegmentHubScores` / `computeImageHubScores` | → `domain/discovery` | `domain/discovery/verbs/compute-hub-scores.ts` (per-kind verbs) + writes via injected `embeddings.writeHubScores` | Hubness computation is a `discovery` concern (a semantic ranking signal); the write target (`hub_score` column) is `embeddings`'s. Hubness lives in `discovery`; it calls the `embeddings.writeHubScores` helper through the composition-root injection, never touching persistence directly. | resolve-time: `corpus/verbs/hubness.ts` is removed; `discovery` front door re-exports the hub-score verbs; lint-time: dep-cruiser `domain-no-cross-feature` prohibits `discovery` from importing `embeddings/persistence/` directly |
 | `db/schema/search.ts` — `character_embeddings`, `image_embeddings`, `chat_digests`, `chat_segments`, `chat_digest_speakers` | rename/move | `@orb/db/schema/embeddings.ts` | Schema-naming lie: all four primary vector tables + the speaker join were in a file named for the consumer. In orbweaver the producer names the schema. The memory producer's domain-stamped columns (`chatId`, `scopedCharacterId`, `isGroup`, `tier`) stay on the same tables; schema ownership transfers. | compile-time: the old file is gone; any import of the old path fails `tsc` |
 | `db/schema/search.ts` — `chat_digests.characterVersionId` (CASCADE FK to `character_versions`) | **dropped (D28)** | the column does not exist in orbweaver | Today FKs to `character_versions` via CASCADE (a chat-pinning artifact). D28 deletes the version table outright, and digest scoping already moved to `chat_digest_speakers.characterId` (D25). The column had no remaining reader — it is dropped entirely, not retained as a stamp. | compile-time: `chat_digests` has no `characterVersionId` column and `character_versions` does not exist; any reference fails `tsc` |
@@ -316,7 +318,7 @@ in `infra/providers`'s embed backend initialization.
   owns its table registry). Re-exported from the front door for `discovery` and tests.
 - `StoreParams` / `StoreResult` / `WriteHubScoresParams` / `ClearTableParams` →
   `domain/embeddings/contract/params.ts` + `contract/results.ts` (domain-internal).
-- `EmbedRequest` / `EmbedResult` (the infra role contract) → `@orb/contracts/embeddings` (cross-boundary:
+- `EmbedRequest` / `EmbedResult` (the infra role contract) → `@orb/contracts/providers` (cross-boundary:
   `domain/embeddings` produces the call, `infra/providers/roles/embed.ts` consumes it as a sealed impl).
 - `EmbedImagesPassOptions` (moved from inline verb file) → `domain/embeddings/contract/params.ts`.
 - `EmbeddingsContext` → explicit named `export interface EmbeddingsContext` in `context.ts` (not
@@ -426,7 +428,7 @@ must preserve:
 
 8. **`SourceKind` and `SourceLens` unions are exhaustively dispatched** — a new member fails the build.
    *Enforcement: compile-time — `store.ts` uses a `satisfies never` or `assertNever` in the switch
-   default; the `@orb/kit/math/vector` math kit exports an exhaustive lens→table map.*
+   default; `embeddings/store.ts` (§7.5) owns the exhaustive lens→table map.*
 
 ---
 

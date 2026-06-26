@@ -62,9 +62,9 @@ load-bearing axes; the count is the blast radius of adding one member today.
 | axis | members | touch-count | shape of the rot | target home |
 |---|---|---|---|---|
 | `messageRole` | `system` / `user` / `assistant` | **132** | 3 competing canonical const-arrays + 116 inline re-spellings; **no importable union at all** | `@orb/contracts` (chat / preset) |
-| `users.role` | `admin` / `user` | 35 | no exported `UserRole` → 33 inline `"admin"\|"user"` re-decls | `@orb/contracts/identity` (§7.1 overlap) |
+| `users.role` | `admin` / `user` *(NEO-SOURCE measurement; orbweaver widens to the 3-member `owner\|admin\|user`, D17)* | 35 | no exported `UserRole` → 33 inline `"admin"\|"user"` re-decls | `@orb/contracts/identity` (§7.1 overlap) |
 | `guidedAction` | 6 actions | 23 | 14 redecls + **4 UNTYPED `Record`s** (no exhaustiveness backstop) | `@orb/contracts/preset/guided.ts` |
-| `routing.source` (`ChatSource`) | `max-pro-sub` / `openrouter` / `vllm` / `custom_openai` | **18** | 11 inline re-decls — **the user's lived pain, MEASURED**; dispatch IS already `assertNever`-gated, the cost is pure re-declaration | `@orb/contracts/connection` |
+| `routing.source` (`ChatSource` = `CredentialSource`, D31) | `max-pro-sub` / `openrouter` / `vllm` / `custom_openai` | **18** | 11 inline re-decls — **the user's lived pain, MEASURED**; dispatch IS already `assertNever`-gated, the cost is pure re-declaration | `@orb/contracts/credentials` (canonical); `contracts/connection` re-exports as `ChatSource` |
 | `routing.api` (`ChatApi`) | `agent-sdk` / `chat-completions` / `responses` | 12 | 9 inline re-decls; dispatch fully `assertNever`-gated | `@orb/contracts/connection` |
 
 `messageRole` is the worst axis in the codebase: 132 touches, three different const-arrays each
@@ -179,15 +179,15 @@ single source of truth for *both* its shape and its fan-out.
 | axis | (a) ONE home | (b) dispatch shape | gate that catches a new member |
 |---|---|---|---|
 | `messageRole` | `MessageRole` + `MESSAGE_ROLES` → `contracts/chat` (re-exported into preset injection) — collapse the 3 const-arrays | `Record`/`assertNever` over `MessageRole` at every switch (today 116 inline sites) | both: redecl RED at lint, missing arm RED at `tsc` |
-| `users.role` (`UserRole`) | `UserRole` + `USER_ROLES` → `contracts/identity` (§7.1) | role checks dispatch through the canonical union; no inline `"admin"\|"user"` | both |
+| `users.role` (`UserRole`) | `UserRole` + `USER_ROLES` (`owner\|admin\|user`, D17) → `contracts/identity` (§7.1) | role checks dispatch through the canonical union; no inline `"admin"\|"user"` | both |
 | `guidedAction` (`GuidedActionKind`) | `GuidedActionKind` + schema → `contracts/preset/guided.ts` | `GUIDED_ACTION_IMPLS: { [K in GuidedActionKind]: Impl<K> }` — the 4 untyped `Record`s become typed | both (the untyped Records gain exhaustiveness) |
-| `ChatSource` | `ChatSource`/`CHAT_SOURCES` → `contracts/connection` (promote, delete source file) | already `assertNever`-gated — KEEP; just kill the 11 re-decls | Gate A (dispatch already total) |
+| `ChatSource` | **= `CredentialSource` (D31): canonical in `contracts/credentials`; `contracts/connection` re-exports it as `ChatSource`** (same 4-member axis; no second tuple) | already `assertNever`-gated — KEEP; kill the 11 re-decls | Gate A (dispatch already total) |
 | `ChatApi` | `ChatApi`/`CHAT_APIS` → `contracts/connection` | already `assertNever`-gated — KEEP; kill the 9 re-decls | Gate A |
 | `RoutingRoleKey` | NEW union → `contracts/connection` | `ROLE_RESOLVERS: { [K in RoutingRoleKey]: Resolver<K> }` | Gate B (mapped Record) |
 | `WorkloadKind` | `contract/workload-kind.ts` (the exemplar) | `RUNNERS: { [K in WorkloadKind]: Runner<K> }` | Gate B — preserve verbatim |
 | `SourceKind`/`SourceLens`/`VectorTable` | `domain/embeddings/contract/params.ts` | `assertNever` in `store.ts`/`clearTable` | both |
 | `TagTargetType`/`TagSource`/`TagFolderType` | `contracts/tag` | `junctions: { [K in TagTargetType]: JunctionEntry<K> }` | both |
-| `CredProvider`/`CredentialSource` | `contracts/credentials` | role dispatchers `switch (credential.source)` exhaustively | both |
+| `CredProvider`/`CredentialSource` | `contracts/credentials` (**`CredentialSource` is THE provider-source axis — `ChatSource` aliases it, D31**) | role dispatchers `switch (credential.source)` exhaustively | both |
 | `AssetKind` | `contracts/assets` (db enum derives) | exhaustive over `AssetKind` | both |
 | `RegexPlacement` | `kit/regex` (`REGEX_PLACEMENTS`) | `assertNever` in the placement walk | both |
 | `WorldBookRole`/`EntryInjectionRole`/`EntryScopeMode`/`EntryPosition` | `contracts/world-info` + `kit/world-info` | resolvers + bimaps total over each axis | both |
@@ -207,8 +207,8 @@ dispatch-completeness an import graph structurally cannot express. The canonical
 
 ### §7.1 (identity / auth / permission)
 
-`users.role` (`admin`/`user`) is BOTH a §7.5 axis (35 touch, 33 re-decls → `contracts/identity`) and a
-§7.1 concern (it gates `credentials.resolve`'s `max-pro-sub` arm, `adminProcedure`, `requireAdmin`).
+`users.role` (neo-source `admin`/`user`, widened to `owner`/`admin`/`user` per D17) is BOTH a §7.5 axis (35 touch, 33 re-decls → `contracts/identity`) and a
+§7.1 concern (it gates `credentials.resolve`'s `max-pro-sub` arm via `requireOwner` (D17), plus `adminProcedure`/`requireAdmin`).
 Single-homing `UserRole` is §7.5; *what the roles authorize* is §7.1. The deeper §8.6 finding sharpens
 this: `chat_participants.kind` is **overloaded** (identity-table AND human-vs-AI at once), so its
 `parseParticipant` `never`-exhaustiveness guard already enumerates the work — splitting in an `agent`
@@ -272,6 +272,6 @@ B; the *credential inheritance* question it raises is a §7.1 decision, parked t
   or *mirrors* it with a test (tier 4) — driver is whether `@orb/db` may depend on `@orb/contracts`
   for the value (it may; db's deps are `kit, contracts`), so import-and-derive is achievable for most
   axes. Confirm per axis.
-- **Adding the two gates to the `structure.md` §7 six-gate table.** Today there are six; §7.5 makes it
-  eight. Confirm `no-inline-union-redecl` + `exhaustive-dispatch` land in that canonical table so
-  "where does this go?" stays a one-answer derivation.
+- **Adding the two gates to the `structure.md` §7 gate table — RESOLVED.** `no-inline-union-redecl` +
+  `exhaustive-dispatch` both land in the canonical §7 table, which now lists the **13** legibility gates.
+  "Where does this go?" stays a one-answer derivation.

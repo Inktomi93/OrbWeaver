@@ -8,8 +8,8 @@
 > permission model (global × resource × capability), and the LOCKED first-class-principal transition for
 > agents. Authoritative siblings: `domains/sessions.md` (the anchor — resolve-once, the 4 modes,
 > `provisionIdentity`/`ensureUser`), `domains/admin.md` (global-role gating, `requireAdmin` 2-layer, the
-> `can()` seam, the last-admin guard), `domains/credentials.md` (the AAD belt, the `max-pro-sub`
-> admin-gate), `domains/buddy.md` (the §8.6 buddy-as-principal transition + the firewall inversion),
+> `can()` seam, the owner-immutability guard), `domains/credentials.md` (the AAD belt, the `max-pro-sub`
+> owner-gate), `domains/buddy.md` (the §8.6 buddy-as-principal transition + the firewall inversion),
 > `tiers/infra.md` (auth VERIFICATION is sealed/db-free → `ResolvedIdentity` with no `userId`).
 > `_FANOUT-BRIEF.md` §7.1 + §8.6 carry the recon; `structure.md` §7 the gate vocabulary.
 
@@ -79,8 +79,9 @@ redesign does not touch them; it changes only what the seam does with their outp
 
 **BFF session ≠ SDK chat session.** Two unrelated concepts wear the word "session." The revocable
 browser login (`sessions` table, identity + live login state, owned by `domain/sessions`) is THIS
-doc's concern. The prompt-cache lineage of a stateful agent-sdk turn (`session_entries` table, owned by
-`domain/chat`, backend-internal to the claude-sdk strategy) is NOT. They share only a comment. Keep them
+doc's concern. The prompt-cache lineage of a stateful agent-sdk turn (`session_entries` table,
+backend-internal to the agent-sdk provider — `infra/providers/backends/agent-sdk/session/`, ledger D8;
+the chat domain is stateless-first and does NOT own it) is NOT. They share only a comment. Keep them
 in different domains, tables, and tiers.
 
 ## 2. The permission model — global-role × resource-role × capability
@@ -325,10 +326,17 @@ risk) is preserved on every routing path regardless.
 
 ## 6. Open decisions
 
-- **The `can(principal, action, resource)` seam shape.** Does `requireAdmin` *become* `can(p, 'admin',
-  global)`, or does `can()` wrap `requireAdmin` + `requireHost` as two concrete predicates? Lean:
-  introduce `can()` as the seam with `requireAdmin` (global) and `requireHost` (resource, chat's) as its
-  first two implementations — so the capability axis has a home to grow into without re-scattering checks.
+- **The `can(principal, action, resource)` seam shape — RESOLVED (ledger §5; was open).** `can()` is the
+  ONE decision primitive; it throws `DomainForbiddenError` and takes a typed `ResourceRef` union
+  (`{kind:'global'} | {kind:'chat', roster} | …`). It + the **global-role** wrappers `requireAdmin`
+  (= `can(p,'admin',global)`, owner∪admin) and `requireOwner` (owner-only) live in **`domain/admin/guard.ts`**
+  — a low, dependency-light auth module that every domain imports **down** (not a cross-feature import).
+  The **resource** predicates `requireParticipant`/`requireHost` are thin **chat-domain** wrappers: chat
+  loads its own roster (`chat_participants` — its data, no extra query; the turn loads it anyway) and calls
+  `can(principal, 'read'|'host', {kind:'chat', roster})`. So the DECISION always lives in the one `can()`
+  seam; only the chat-specific data fetch is chat's. No `role === 'admin'` / `ownerId === userId` scattered
+  anywhere else. *(Resolves the prior open question + the audit's Q1 — the seam home is `admin/guard.ts`,
+  chat reaches it by importing `can()` downward and feeding it the roster.)*
 - **Credential inheritance for agents — DECIDED (default, 2026-06-26; clarified by D17): the OWNER's agents
   INHERIT the OWNER's box sub via owner-delegated resolution.** (Reworded from "admin-host" → "owner" — with
   the role split, the box belongs to `owner`, not any `admin`.) An agent principal owned by the **owner**

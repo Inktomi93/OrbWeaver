@@ -7,7 +7,7 @@
 > `chat/engine` couldn't import across a domain boundary; in orbweaver that exile ends and every piece
 > lives in its natural home (the feature, its contracts, or the injected-op model). Authoritative
 > upstream: `domains.md` §"credentials" + §"Cross-cutting concept homes"; `_FANOUT-BRIEF.md` §4
-> (credentials pain ledger) + §7.1 (identity/auth/permission spine, esp. the `max-pro-sub` admin-gate
+> (credentials pain ledger) + §7.1 (identity/auth/permission spine, esp. the `max-pro-sub` owner-gate
 > and AAD invariant); `structure.md` §4 (the 8-slot template).
 
 ---
@@ -78,21 +78,23 @@ reach `domain/credentials/persistence/`. The fix in orbweaver is the injection m
 arbitrary `{ source, ... }` object literal cannot satisfy the type — construction is gated by the `as
 ResolvedCredential` cast, and the ONLY legal casts are inside `domain/credentials/verbs/resolve.ts`.
 
-The `max-pro-sub` arm is the most critical: it is unconstructable except AFTER the `role === 'admin'`
-check. The identity/auth spine (§7.1) calls this out explicitly — "the max-pro-sub mint is the ONLY
-construction site." Orbweaver can harden this to tier-1 by giving `max-pro-sub` a distinct opaque
-subtype that can only be constructed by a factory function gated on the admin principal:
+The `max-pro-sub` arm is the most critical: it is unconstructable except AFTER the `requireOwner`
+(`role === 'owner'`) check — it is the OWNER's box credential (ledger D17; a delegated admin is NOT the
+box owner and never resolves the owner's sub). The identity/auth spine (§7.1) calls this out explicitly
+— "the max-pro-sub mint is the ONLY construction site." Orbweaver can harden this to tier-1 by giving
+`max-pro-sub` a distinct opaque subtype that can only be constructed by a factory function gated on the
+owner principal:
 
 ```typescript
 // @orb/contracts/credentials.ts (cross-boundary; consumed by both domain and infra/providers)
 declare const CredentialBrand: unique symbol
 export type ResolvedCredential =
   | MaxProSubCredential     // opaque — constructed ONLY by domain/credentials; sub path only
-  | OpenRouterCredential    // branded  — requires a key; admin/user
+  | OpenRouterCredential    // branded  — requires a key; any user
   | VllmCredential          // branded  — loopback; boot-time or per-turn
   | CustomOpenAiCredential  // branded  — requires baseUrl + optional key
 
-// The max-pro-sub factory: accepts a Principal, returns the opaque type ONLY IF admin
+// The max-pro-sub factory: accepts a Principal, returns the opaque type ONLY IF requireOwner passes
 // (the factory lives in domain/credentials/verbs/resolve.ts; the type lives in @orb/contracts)
 ```
 
@@ -244,8 +246,9 @@ client needs it for form validation on custom-endpoint metadata fields (same pat
 imports from `@orb/contracts` and applies the parse.
 
 **`seedCredentialFromEnv`** (boot seed) lives in `entry/boot/seed-credential.ts`, NOT in the domain or
-its front door. It is a composition-root concern: it calls `createCredentialsService` + `ensureOwner`
-(from the `sessions`/`admin` domain) at entry and is never imported by any domain.
+its front door. It is a composition-root concern: it calls `createCredentialsService` after the boot
+owner-seed (`entry/boot/seed-owner.ts` — `provisionIdentity` + `determineRole` from `domain/sessions`)
+has provisioned the owner at entry, and is never imported by any domain.
 
 ---
 
@@ -263,7 +266,7 @@ its front door. It is a composition-root concern: it calls `createCredentialsSer
 | `_shared/credentials.ts` — `aadFor()` helper | stays domain feature | `domain/credentials/persistence/aad.ts` | The AAD binding `${userId}|${provider}` is a domain-persistence concern (one file, never inline). Must be a single canonical site to make the byte-identical invariant auditable. | test-time: round-trip crypto test asserts AAD format is stable |
 | `persistence/health-cache.ts` (module-scope LRU Maps) | stays domain feature, renamed | `domain/credentials/health/cache.ts` | In-memory throttle + strike state is NOT a DB query; belongs in a named subsystem not in `persistence/`. Adds the `ASSUMES(single-replica)` annotation. | lint-time: dep-cruiser `persistence-no-in-memory-state` rule (gate candidate) |
 | `persistence/openai-models.ts` (raw `fetch()`) | → `infra` | `infra/network/openai-models.ts` | A raw I/O adapter against a user-supplied URL is not a DB query. `persistence/` is queries only. The `fetch-models` verb calls it through an injected op. | lint-time: dep-cruiser `persistence-no-io` rule (gate candidate) |
-| `boot-seed.ts` | → `entry` | `entry/boot/seed-credential.ts` | A composition-root concern: calls `ensureOwner` (users domain) + `createCredentialsService`. In neo-tavern it imports from both `_shared/credentials.ts` and `_shared/users.ts` — cross-_shared coupling. In orbweaver `entry/` is the correct tier for boot wiring; it can import any domain front door. | resolve-time: `entry/` is the topmost tier; imports flow downward |
+| `boot-seed.ts` | → `entry` | `entry/boot/seed-credential.ts` | A composition-root concern: runs after the boot owner-seed (`entry/boot/seed-owner.ts` — `provisionIdentity` + `determineRole`, `domain/sessions`) + calls `createCredentialsService`. In neo-tavern it imports from both `_shared/credentials.ts` and `_shared/users.ts` — cross-_shared coupling. In orbweaver `entry/` is the correct tier for boot wiring; it can import any domain front door. | resolve-time: `entry/` is the topmost tier; imports flow downward |
 | `providers/contract/credential.ts` — `ResolvedCredential` brand type | → `contracts` | `@orb/contracts/credentials` | A cross-boundary type: the credentials domain produces it; `infra/providers` runners consume it. Currently in `providers/contract/` (infra) which creates an infra→domain conceptual dependency for the type. In `@orb/contracts` both tiers are consumers (down from contracts). | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; `infra/providers` imports from there, not from domain |
 | `providers/contract/health.ts` — `CredentialHealth` type | → `contracts` | `@orb/contracts/credentials` | Cross-boundary: the credentials domain's `testHealth` return type AND `infra/providers` `probe()` return type. Currently in `providers/contract/` (infra); moving to `@orb/contracts` makes both consumers equal. | resolve-time |
 | `context.ts` — `ReturnType<>` inference (implicit interface shape) | stays domain feature | `domain/credentials/contract/service.ts` top — as `export interface CredentialContext` | The inferred type is invisible at a glance. The explicit interface is readable, matches the 8-slot template, and satisfies the `no-inline-types` rule. | lint-time: `no-inline-types` dep-cruiser gate |
@@ -319,11 +322,12 @@ No domain (chat, buddy, models/connection) reaches into `domain/credentials/pers
 
 ### §7.1 Identity / auth / permission
 
-The `max-pro-sub` credential is the one auth-gated construction site — "admin or owner-only" is the
-invariant. The `resolve.ts` verb checks `principal.role === 'admin' || principal.isOwner` BEFORE minting
-the opaque `MaxProSubCredential` type. In orbweaver this is an opportunity to promote from tier-3 (a
-comment + a cast) to tier-2 (a factory function that accepts a `Principal` and returns the opaque type
-only if the guard passes — the `as ResolvedCredential` cast is then only legal inside that factory).
+The `max-pro-sub` credential is the one auth-gated construction site — **owner-only** is the invariant
+(ledger D17: the box belongs to the `owner`, not any `admin`). The `resolve.ts` verb runs `requireOwner`
+(`principal.role === 'owner'`) BEFORE minting the opaque `MaxProSubCredential` type. In orbweaver this is
+an opportunity to promote from tier-3 (a comment + a cast) to tier-2 (a factory function that accepts a
+`Principal` and returns the opaque type only if the owner guard passes — the `as ResolvedCredential` cast
+is then only legal inside that factory).
 
 The credential AAD binds `(userId, provider)` — the identity/auth spine notes this as the
 "origin-gated security belt" that makes row-lifting impossible without re-encryption. Preserve exactly.
@@ -383,9 +387,13 @@ export type CredentialProvider = 'openrouter' | 'anthropic' | 'openai' | 'google
 // anthropic/openai/google_vertex are storable CredentialProvider values that have no CredentialSource dispatch arm yet.
 ```
 
-ONE importable `CredentialSource` canonical union in `@orb/contracts` (no inline re-spelling). The
-resolver switch uses `assertNever` for exhaustiveness. Any new source arm = add to the union +
-add the switch arm + add the runner arm in `infra/providers` → `tsc` error if any of the three is
+ONE importable `CredentialSource` canonical union in `@orb/contracts/credentials` (no inline re-spelling).
+**It is the single home for the provider-source axis (D31): `@orb/contracts/connection` re-exports it as
+`ChatSource`** (routing's `source` IS the credential source — same 4 members), rather than declaring a
+second tuple. (Distinct from the broader `CredentialProvider`/`CredProvider` storable-provider union,
+which has members like `anthropic`/`openai`/`google_vertex` with no resolver arm yet — see the open
+decision below.) The resolver switch uses `assertNever` for exhaustiveness. Any new source arm = add to the
+union + add the switch arm + add the runner arm in `infra/providers` → `tsc` error if any of the three is
 missing. Gate candidate: **`exhaustive-dispatch`** (from §7.5).
 
 ### §8.4 Escape hatches
@@ -407,9 +415,9 @@ validation, this is where it goes).
    cast is encapsulated in the factory; no exported constructor. Any attempt to construct it elsewhere
    fails `tsc`.*
 
-2. **`max-pro-sub` is admin/owner-only** — the `MaxProSubCredential` factory returns the opaque type
-   only after the principal role check.
-   *Enforcement: compile-time — the factory signature accepts a `Principal`; the admin check is
+2. **`max-pro-sub` is owner-only (`requireOwner`, D17)** — the `MaxProSubCredential` factory returns
+   the opaque type only after the `role === 'owner'` check.
+   *Enforcement: compile-time — the factory signature accepts a `Principal`; the owner check is
    inside; the opaque return type can't be fabricated.*
 
 3. **AAD = `${userId}|${provider}` — byte-identical, never inline** — the single `aadFor()` function
@@ -444,8 +452,9 @@ validation, this is where it goes).
    *Enforcement: lint-time — a `check` gate validates the `ASSUMES(single-replica)` comment is
    present on the module-scope Map declarations (same gate pattern neo-tavern uses for buddy).*
 
-9. **`entry/boot/seed-credential.ts` is the ONLY caller of `ensureOwner` + `credentials.add`
-   at boot** — no domain imports another domain's users/auth primitives at the module level.
+9. **The boot wiring (`entry/boot/seed-owner.ts` then `entry/boot/seed-credential.ts`) is the ONLY
+   caller of the owner-seed (`provisionIdentity` + `determineRole`) + `credentials.add` at boot** — no
+   domain imports another domain's users/auth primitives at the module level.
    *Enforcement: resolve-time — `entry/` is the only tier that can import both `domain/credentials`
    and `domain/sessions`/`domain/admin` simultaneously; a cross-domain import from `domain/credentials`
    into `domain/sessions` or vice versa fails the `domain-no-cross-feature` dep-cruiser rule.*
@@ -455,8 +464,8 @@ validation, this is where it goes).
 ## Open decisions
 
 - **`MaxProSubCredential` factory signature — DECIDED (2026-06-25): accepts a `Principal`** and does the
-  admin/owner check inside (one gate site; the `as ResolvedCredential` cast is encapsulated in the
-  factory). The identity-model coupling is acceptable — the factory IS the gate. (ledger §2.)
+  `requireOwner` (owner-only, D17) check inside (one gate site; the `as ResolvedCredential` cast is
+  encapsulated in the factory). The identity-model coupling is acceptable — the factory IS the gate. (ledger §2.)
 - **`CredentialSource` vs `CredentialProvider` as two distinct types** — the current code collapses
   them into one usage site. Orbweaver explicitly separates them (dispatch vs storage). Confirm the
   distinction is enforced in `@orb/db/schema/credentials.ts` (the column is `CredentialProvider`) vs

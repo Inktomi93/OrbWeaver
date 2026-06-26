@@ -215,10 +215,11 @@ is the macro-resolution shape; metadata drives the injection-placement decision.
 two shapes must stay separate; merging them into one would cause the persona description
 to double-inject.
 
-**`character_personas` keys on `characters.id` (not cv)**: this is deliberate and must
+**`character_personas` keys on `characters.id`**: this is deliberate and must
 be preserved. Personas are local prefs that survive card edits — identity-keyed.
-(`character_books` keys on cv by design — book snapshot semantics — distinct concern.
-Do not normalize these to the same key.)
+(`character_books` ALSO keys on `characters.id` — D28: there is no character-version
+table, so both junctions key on the flat `characters` row. Both are identity-keyed;
+there is no `cv` to normalize against.)
 
 **No reseed on `setActivePersona`**: persona shapes the per-turn system prompt only; it
 is not in the agent-sdk session turns. Calling `setActivePersona` must NOT trigger a

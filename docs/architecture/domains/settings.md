@@ -27,6 +27,11 @@
 - **The `AppSettings` admin-runtime tier** — `getAppSettings` / `updateAppSettings` (both admin-gated).
   The stored OVERRIDE blob lives under the reserved `APP_SETTINGS_KEY` (`"app"`) row of the `settings`
   table; **env is the floor, the DB override wins** (resolved through `layer()` → `EffectiveAppConfig`).
+  This tier also carries the **D17 owner-box governance toggles**: `allowNonOwnerLocalCompute` (default
+  ON), a per-member local-compute turn/request **COUNT budget**, and `allowNonOwnerMaxProSub` (default
+  OFF). They govern whether non-owner members may use the owner's shared local compute / `max-pro-sub`;
+  the `max-pro-sub` mint itself stays `requireOwner` regardless (the toggles are box governance, not the
+  mint gate).
 - **The raw global KV escape hatch** — `getGlobalSetting` / `setGlobalSetting` over the `settings`
   table (a generic `key → json` store; `APP_SETTINGS_KEY` is RESERVED — the generic setter refuses it).
   The OR model-catalog snapshot row (`'openrouter-model-catalog'`) is a TENANT of this table but is
@@ -82,7 +87,7 @@ others have homes elsewhere and are listed so the boundary is explicit.
 |---|---|---|---|
 | **(a) true env** | boot / secret / identity (`PORT`, `DATABASE_URL`, `CREDENTIALS_KEY`, `AUTH_MODE`, OIDC, rate-limit budgets). The one `process.env` reader; `superRefine` boot-fatality per `AUTH_MODE`. | `foundation/env` | reads it DOWN as the floor; never writes it |
 | **(a/seed) env→DB-once** | env that writes a DB row once then goes inert. **The model: `OPENROUTER_API_KEY` → a labeled `openrouter` credential.** | `credentials` domain (`entry/boot/seed-credential.ts`) | NOT owned here — cited as the pattern the floor-merge generalizes; the *seed verb* is credentials' |
-| **(b) runtime toggles → AppSettings** | non-secret, non-bootstrap operational knobs an admin can flip at runtime; **env floor, DB override wins** via `layer()` + a versioned blob. Today: `corpusAutoindex`, `importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `guidedActions`, `memoryDefaults`, `memorySummarizer`. | **`settings` domain (AppSettings)** | **OWNED — the core job.** |
+| **(b) runtime toggles → AppSettings** | non-secret, non-bootstrap operational knobs an admin can flip at runtime; **env floor, DB override wins** via `layer()` + a versioned blob. Today: `corpusAutoindex`, `importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `guidedActions`, `memoryDefaults`, `memorySummarizer`. Orbweaver adds the **D17 owner-box governance toggles**: `allowNonOwnerLocalCompute` (default ON), the per-member local-compute COUNT budget, `allowNonOwnerMaxProSub` (default OFF). | **`settings` domain (AppSettings)** | **OWNED — the core job.** |
 | **(c) agent-sdk runtime config** | THE homeless nature: ~13 isolation pins + the 11-key reserved-denylist + the 3-mode credential firewall (200+ lines, security-load-bearing, rebuilt every turn). Called "env" only because it *emits* env vars. | `infra/providers/backends/agent-sdk` (a named backend-internal config of the strategy, per DECISIONS-LEDGER §7 D8) | **NOT a settings tier — explicitly excluded.** |
 | **(d) generation params** | `UserIntent`/preset, translated per-backend (reasoning is typed SDK Options, not env). | `preset` (`contracts/preset`) | not owned here |
 
@@ -194,8 +199,8 @@ SettingsService = {
   setGlobalSetting(key: string, value: JsonValue): Promise<GlobalSettingView>   // refuses APP_SETTINGS_KEY
 
   // AppSettings (admin-runtime tier; requireAdmin injected)
-  getAppSettings(params: { userId: UserId; callerRole?: 'owner' | 'admin' | 'user' }): Promise<EffectiveAppConfig>
-  updateAppSettings(params: { userId: UserId; callerRole?: 'owner' | 'admin' | 'user' }, partial: AppSettings): Promise<EffectiveAppConfig>
+  getAppSettings(params: { userId: UserId; callerRole?: UserRole }): Promise<EffectiveAppConfig>   // UserRole from @orb/contracts/identity
+  updateAppSettings(params: { userId: UserId; callerRole?: UserRole }, partial: AppSettings): Promise<EffectiveAppConfig>
 
   // Floor-merge read side (effective-config subsystem)
   getEffectiveConfig(): EffectiveAppConfig            // SYNC — hot-path read of the in-memory cache

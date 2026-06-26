@@ -24,20 +24,24 @@
   `userId` (chainable) or throws `DomainForbiddenError`. These are the **verb-tier half** of the 2-layer
   global-role gate (the transport-tier `adminMiddleware` is the other half — see §Cross-feature
   composition). owner ⊇ admin lives ONLY in the seam (no scattered `role === 'admin'`/`'owner'`).
-- **The user-administration verbs (11)** — `listUsers`, `setRole`, `setEnabled`, `createUser`,
+- **The user-administration verbs (10)** — `listUsers`, `setRole`, `setEnabled`, `createUser`,
   `resetPassword`, `listSessions`, `revokeSession`, `revokeUserSessions`, `vllmEngines`,
-  `restartVllmEngine`. Every one is admin-gated (`requireAdmin`, defense-in-depth even though the tRPC
-  `adminProcedure` already gated). This is the **multi-user management surface** — admin-only; ordinary
-  users self-manage through settings/auth, not here.
-- **The last-admin guard + owner-immutability (load-bearing, D17)** — `setRole` (demote) and `setEnabled`
-  (disable) must never zero out the enabled-admin set; **AND the `owner` is immutable** — it cannot be
-  demoted, disabled, or removed, and there is **exactly one** (the bootstrap OWNER; transfer is a future
-  owner-only action). `setRole` is **owner-only** (only the owner grants/revokes `admin`; `user↔admin`
-  only, never to/from `owner`). Two layers (unchanged shape): a friendly `SELECT count(*)` of OTHER enabled
-  admins (`otherEnabledAdminCount`) for the fast-path `last_admin` error, plus the atomic backstop — an
-  `EXISTS (… other enabled admin …)` clause ON THE UPDATE — and an owner-row guard (`role='owner'` rows are
-  un-demotable / un-disablable, enforced on the UPDATE).
-- **The `AdminUserView` read-model + its persistence** — `loadUser`, `otherEnabledAdminCount`,
+  `restartVllmEngine`. All are admin-gated (`requireAdmin`, defense-in-depth even though the tRPC
+  `adminProcedure` already gated) — **except `setRole`, which is OWNER-gated (`requireOwner`, D17): only
+  the owner grants/revokes `admin` (`user↔admin`, never to/from `owner`).** This is the **multi-user
+  management surface** — admin-only (the grant verb owner-only); ordinary users self-manage through
+  settings/auth, not here.
+- **The owner-immutability guard (load-bearing, D17 — replaces neo's last-admin guard)** — the `owner` is
+  immutable: `setRole` (demote) and `setEnabled` (disable) can NEVER demote, disable, or remove it, and
+  there is **exactly one** (the bootstrap OWNER; transfer is a future owner-only action). This **replaces**
+  neo's "never zero out the enabled-admin set" last-admin guard: since `requireAdmin` = owner∪admin (D17),
+  the immutable owner is *always* an administrator, so the admin-capable set can never be emptied — demoting
+  the last *delegated* admin is therefore allowed (the owner remains). `setRole` is **owner-only** (only the
+  owner grants/revokes `admin`; `user↔admin` only, never to/from `owner`). Mechanism (two layers, same
+  shape as neo's guard but keyed on the owner row): a friendly `SELECT` owner-row check for the fast-path
+  `cannot_modify_owner` error, plus the atomic backstop — a `WHERE role <> 'owner'` clause ON THE UPDATE so
+  `role='owner'` rows are un-demotable / un-disablable even under a race.
+- **The `AdminUserView` read-model + its persistence** — `loadUser`,
   `listAllUsers`, and the `userCols` projection. admin is one of the few features allowed to read the
   `users` table directly (the `no-direct-users-read` chokepoint exempts `domain/admin` — every read here
   `requireAdmin`s first, so the discipline holds).
@@ -101,16 +105,16 @@ give the privilege check one name and one importable union.
 ```
 domain/admin/
 ├── index.ts            FRONT DOOR — re-exports AdminService (interface), AdminUserView (type),
-│                         ActorRole/UserRole (type), createAdminService. The @public comment notes the
+│                         UserRole (type), createAdminService. The @public comment notes the
 │                         client consumes AdminUserView via tRPC service-method-signature inference.
-├── service.ts          COMPOSITION ROOT — createAdminService(db, deps) wires all 11 verbs. ZERO logic.
+├── service.ts          COMPOSITION ROOT — createAdminService(db, deps) wires all 10 verbs. ZERO logic.
 │                         The one structural dep beyond db is the injected SessionAdminPort (+ the vLLM
 │                         supervisor port + requireAdmin's home stays in-domain).
 ├── context.ts          DI BUNDLE — explicit `interface AdminContext` (NOT ReturnType<>): db + the
 │                         injected SessionAdminPort + the vLLM supervisor port + loadUser /
-│                         otherEnabledAdminCount / listAllUsers reads.
+│                         listAllUsers reads.
 ├── contract/
-│   ├── service.ts      interface AdminService (the 11-verb authoritative API) + SessionAdminPort
+│   ├── service.ts      interface AdminService (the 10-verb authoritative API) + SessionAdminPort
 │   │                     (the dependency-inversion port) + AdminContext (explicit, top of file)
 │   ├── params.ts       every verb's *Params — the { actorId, callerRole?, userId?, role?, … } shapes,
 │   │                     declared ONCE (today re-spelled inline in all 7 verb files + the interface)
@@ -119,20 +123,20 @@ domain/admin/
 │   └── errors.ts       (none of its own — see §Esoteric: admin throws kit errors, by design)
 ├── verbs/
 │   ├── list-users.ts       listUsers
-│   ├── set-role.ts         setRole (the demote last-admin guard)
-│   ├── set-enabled.ts      setEnabled (disable last-admin guard + cannot_disable_self + revoke tail)
+│   ├── set-role.ts         setRole (owner-only grant/revoke; owner-immutability guard, D17)
+│   ├── set-enabled.ts      setEnabled (owner-immutability guard + cannot_disable_self + revoke tail)
 │   ├── create-user.ts      createUser (invalid_handle / user_exists TOCTOU / weak_password)
 │   ├── reset-password.ts   resetPassword (existence-before-audit + revoke-all)
 │   ├── sessions.ts         listSessions / revokeSession / revokeUserSessions (delegate to the port)
 │   └── vllm.ts             vllmEngines / restartVllmEngine (delegate to the supervisor port)
 ├── persistence/
-│   └── queries.ts      loadUser · otherEnabledAdminCount · listAllUsers (+ the userCols projection).
-│                         The atomic last-admin EXISTS-on-UPDATE stays in the verbs (per-verb clauses).
+│   └── queries.ts      loadUser · listAllUsers (+ the userCols projection).
+│                         The atomic owner-immutability `WHERE role <> 'owner'` stays in the verbs (per-verb clauses).
 ├── substrate/          (none — admin has no pure feature-local helpers; the guards are db clauses)
 └── (no named subsystems)
 ```
 
-**Verbs (11):** listUsers · setRole · setEnabled · createUser · resetPassword · listSessions ·
+**Verbs (10):** listUsers · setRole · setEnabled · createUser · resetPassword · listSessions ·
 revokeSession · revokeUserSessions · vllmEngines · restartVllmEngine. (`sessions.ts` and `vllm.ts` each
 group ops that share identical guard + delegation mechanics — same "one logical group per file"
 allowance tag.md uses for `attach.ts`.)
@@ -166,8 +170,8 @@ verb surface — it is the gate primitive the verbs and `settings` both consume)
 
 | Unit | Outcome | Target | Rationale | Enforcement tier |
 |---|---|---|---|---|
-| `_shared/admin.ts` — `requireAdmin(db, userId, role?)` | stays domain feature (the gate primitive) | `domain/admin/persistence/queries.ts` or `domain/admin/guard.ts` (a named in-domain primitive, NOT the front door) | `_shared` dissolves. `requireAdmin` takes a `Db` + principal (imports `db`, downward — legal in a domain). It is the verb-tier half of the 2-layer gate; the settings domain consumes it via **composition-root injection** (settings can't sideways-import admin). | Resolve-time: `_shared` does not exist; the cross-feature ban means settings receives `requireAdmin` as an injected op, not an import |
-| All 7 admin verb files | stays domain feature | `domain/admin/verbs/*` | They are the user-admin business logic; fit the 8-slot template unchanged (the last-admin guard, TOCTOU translation, existence-before-audit all preserved). | Lint-time: `verb-naming` + `feature-structure` |
+| `_shared/admin.ts` — `requireAdmin(db, userId, role?)` | stays domain feature (the gate primitive) | `domain/admin/guard.ts` (a named in-domain primitive, NOT the front door — RESOLVED, Q1: the `can()`/`requireAdmin`/`requireOwner` seam home) | `_shared` dissolves. `requireAdmin` takes a `Db` + principal (imports `db`, downward — legal in a domain). It is the verb-tier half of the 2-layer gate; the settings domain consumes it via **composition-root injection** (settings can't sideways-import admin). | Resolve-time: `_shared` does not exist; the cross-feature ban means settings receives `requireAdmin` as an injected op, not an import |
+| All 7 admin verb files | stays domain feature | `domain/admin/verbs/*` | They are the user-admin business logic; fit the 8-slot template unchanged (the owner-immutability guard, TOCTOU translation, existence-before-audit all preserved). | Lint-time: `verb-naming` + `feature-structure` |
 | `_shared/users.ts` — `ensureUser`, `provisionIdentity`, `ownerHandles`, `determineRole` | **→ another feature** | `domain/sessions` | Identity *resolution* (handle/externalId → row, OWNER_HANDLES role seeding, SSO upsert) is sessions' job, not admin's. admin *administers* the `users` table; sessions *populates* it. `createUser` (admin) and `provisionIdentity` (sessions) are distinct write paths. | Resolve-time: `_shared` dissolves; admin's create/reset verbs receive sessions' user primitives via injection (cross-feature ban) |
 | `create-user.ts` / `reset-password.ts` — direct `users` INSERT/UPDATE + `hashPassword` import from `#server/auth/_shared/password` | re-routed | `infra/auth` for `hashPassword` (sealed adapter, injected); the row write stays in admin persistence but the **handle-uniqueness primitive** aligns with sessions' `ensureUser` shape | `hashPassword` is an I/O-adjacent auth adapter (`infra`, injected down). The `INSERT` is admin's (it owns admin-created local users), but it must share the TOCTOU-safe conflict shape with sessions to avoid two divergent user-creation paths. | Resolve-time (`infra/auth` injected) + Compile-time (shared `UserRole` on the role column) |
 | `SessionAdminPort` (the dependency-inversion port) | stays domain feature | `domain/admin/contract/service.ts` | The port pattern is exactly right: admin declares the slice of sessions it needs; the composition root injects the real `SessionsService`. No over-indirection. Preserve. | Compile-time: the port interface; the root's `createAdminService(db, { sessions, … })` fails `tsc` if sessions doesn't satisfy it |
@@ -276,12 +280,14 @@ inside every verb. This is deliberate redundancy: a verb called from a non-tRPC 
 fixture, a future internal caller) is still gated. **Do not collapse to one layer** — the verb gate is
 what makes the verb safe independent of its caller.
 
-**The last-admin atomic backstop.** The `EXISTS (SELECT 1 FROM users other WHERE other.role='admin' AND
-other.enabled=1 AND other.id != ?)` clause ON THE UPDATE (in both `setRole` and `setEnabled`) is the
-concurrency-safe guard: two admins demoting/disabling each other both pass the friendly `SELECT count`
-pre-check, but only the write that still sees another enabled admin commits (the loser matches 0 rows →
-`last_admin`). The `SELECT count` alone is a TOCTOU race; the EXISTS-on-UPDATE is the real defense. Both
-must survive — the count is the friendly error, the EXISTS is the correctness.
+**The owner-immutability atomic backstop (D17 — replaces neo's last-admin backstop).** A `WHERE role <>
+'owner'` clause ON THE UPDATE (in both `setRole` and `setEnabled`) is the concurrency-safe guard: any
+attempt to demote/disable the owner row matches 0 rows → `cannot_modify_owner`. A friendly `loadUser`
+owner-row pre-check gives the fast-path error; the `WHERE role <> 'owner'` on the write is the real defense
+under a race. Both survive — the pre-check is the friendly error, the UPDATE clause is the correctness.
+Neo's "≥1 enabled admin" last-admin guard is GONE: with `requireAdmin` = owner∪admin, the immutable owner
+is always an administrator, so the admin-capable set can never empty — demoting the last *delegated* admin
+is allowed.
 
 **The `callerRole` fast-path / slow-path duality.** `requireAdmin(db, userId, role?)` skips the role
 `SELECT` when the resolved role is passed (the tRPC seam already has it in `ctx.auth.role`). The slow
@@ -296,7 +302,7 @@ a phantom audit row for an action that never happened, then throws — a forensi
 existence check → write → audit.
 
 **`cannot_disable_self`.** `setEnabled` rejects an admin disabling their own account (locks the deployment
-out of itself). Distinct from `last_admin` (which is about the *set*, this is about the *actor*).
+out of itself). Distinct from `cannot_modify_owner` (which protects the immutable owner row; this protects the *actor*).
 
 **TOCTOU translation on `createUser`.** The handle-existence `SELECT` then `INSERT` is check-then-act; a
 concurrent `createUser` taking the handle in between surfaces a raw `SQLITE_CONSTRAINT`, translated to the
@@ -304,7 +310,7 @@ same typed `user_exists` the `SELECT` path throws. Keep the translation (via the
 `isConstraintViolation` in `@orb/db/kit`).
 
 **No custom error class (by design).** admin throws `DomainNotFoundError` + `DomainOperationError`
-(reasons: `last_admin` / `cannot_disable_self` / `user_exists` / `weak_password` / `invalid_handle` /
+(reasons: `cannot_modify_owner` / `cannot_disable_self` / `user_exists` / `weak_password` / `invalid_handle` /
 `restart-engine`) + `DomainForbiddenError` (from `requireAdmin`) — all kit primitives. The reason-string
 is the discriminator. This is correct; do not invent an `AdminError`.
 
@@ -328,10 +334,11 @@ gate must carry the exemption forward (admin + sessions are the only `users`-tab
    *Enforcement: lint-time — `no-inline-union-redecl` + a rule that `role === 'admin'` appears only inside
    the `can()`/`requireAdmin` primitive.*
 
-3. **The last-admin guard keeps BOTH layers.** The friendly `otherEnabledAdminCount` pre-check AND the
-   atomic `EXISTS`-on-UPDATE in `setRole` + `setEnabled`.
-   *Enforcement: test-time — a concurrent demote/disable race (two admins, each targeting the other)
-   leaves exactly one enabled admin; the loser gets `last_admin`.*
+3. **The owner-immutability guard keeps BOTH layers (D17).** The friendly `loadUser` owner-row pre-check
+   AND the atomic `WHERE role <> 'owner'` on the UPDATE in `setRole` + `setEnabled` (the owner can't be
+   demoted/disabled/removed; there is exactly one). Neo's `≥1 enabled admin` last-admin guard is dropped.
+   *Enforcement: test-time — an attempt to demote/disable the owner (direct or racing) returns
+   `cannot_modify_owner` and the owner row is unchanged; demoting the last delegated admin succeeds.*
 
 4. **Existence-check precedes audit on every targeted write.** A write to a missing `userId` throws
    `DomainNotFoundError` and writes NO audit row.
@@ -358,16 +365,19 @@ gate must carry the exemption forward (admin + sessions are the only `users`-tab
 
 ---
 
+## Resolved decisions (was: open)
+
+- **The `can(principal, action, resource)` seam + where the gate primitives live — RESOLVED (Q1).**
+  `can(principal, action, resource)` and the global wrappers `requireAdmin` (owner ∪ admin) /
+  `requireOwner` (owner-only) live in **`domain/admin/guard.ts`** (imported DOWN by any domain); the seam
+  throws `DomainForbiddenError` and dispatches on a `ResourceRef` union. `requireParticipant`/`requireHost`
+  are thin CHAT wrappers that load the roster and call `can(principal, 'read'|'host', { kind:'chat', roster })`
+  — the privilege decision always lives in this one seam, only the data fetch is chat's; no cross-feature
+  import. `guard.ts` (NOT `persistence/queries.ts`) is the home: it is the gate, not a query, even though it
+  reads. The third axis (capability) grows into the same seam without re-scattering `role === 'admin'`.
+
 ## Open decisions
 
-- **The `can(principal, action, resource)` seam shape.** Does `requireAdmin` *become*
-  `can(p, 'admin', global)`, or does `can()` wrap `requireAdmin` + `requireHost` as the two concrete
-  predicates? Lean: introduce `can()` as the seam, with `requireAdmin` (global) and `requireHost`
-  (resource, chat's) as its first two implementations — so the third axis (capability) has a home to grow
-  into without re-scattering checks.
-- **Where `requireAdmin` physically lives.** A standalone `domain/admin/guard.ts` (a named primitive the
-  verbs and the injected-into-settings op both use) vs folding it into `persistence/queries.ts` (it does
-  a `SELECT`). Lean: `guard.ts` — it's the gate, not a query, even though it reads.
 - **`vllmEngines`/`restartVllmEngine` home.** Are these really admin's, or an `ops`/`connection` admin
   surface? They're a thin admin-gated shell over `infra/providers`. Keep in admin per the "keep"
   directive, but via an injected `VllmSupervisorPort` (not a direct infra import). Revisit if a broader

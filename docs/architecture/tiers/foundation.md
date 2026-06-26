@@ -137,7 +137,7 @@ foundation/
 │       └── inspect/        the read-only DB probes (import @orb/db DOWN — no DbInspector port)
 │           ├── stats.ts        tableCounts + auditFailures snapshot
 │           ├── integrity.ts    PRAGMA foreign_key_check + integrity_check
-│           └── inspect-chat.ts inspectChatState (row + version-collapsed character + messages+variants + events)
+│           └── inspect-chat.ts inspectChatState (row + the flat card row + messages+variants + events)
 └── config/
     └── version.ts          APP_VERSION (read package.json once)   ← the floor-merge does NOT live here
 
@@ -454,5 +454,3 @@ decisions (this doc only locates the env READER). No double-claim.
 - **Metrics — leave as trace-totals or add a real module?** There is no metrics module today; metrics
   are the per-trace totals + ring timing. For a single-operator deploy that suffices. Lean: no separate
   module unless an external metrics sink is ever wanted (the `RingExporter` is the OTLP-replaceable seam).
-</content>
-</invoke>

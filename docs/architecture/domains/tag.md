@@ -11,10 +11,12 @@
 
 ## What this domain owns in orbweaver
 
-**One user-scoped tag namespace + five polymorphic junction tables.** A tag is a
-named, colored, sortable label; every tag belongs to one owner (composite unique key
-`(ownerId, name)`). Five entity types can be tagged; each has its own junction table.
-The domain owns everything up to the junction boundary.
+**One user-scoped tag namespace + five per-type FK junctions with polymorphic DISPATCH.**
+A tag is a named, colored, sortable label; every tag belongs to one owner (composite
+unique key `(ownerId, name)`). Five entity types can be tagged; each has its own
+per-type FK junction table (D24: NO polymorphic association tables — the tables are
+per-type FK; only the registry-driven *dispatch* is polymorphic). The domain owns
+everything up to the junction boundary.
 
 Specifically:
 

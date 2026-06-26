@@ -99,7 +99,7 @@ Each domain/tier doc's "Esoteric / load-bearing" notes are correctness documenta
 from-structure rebuild silently drops. Each becomes a named test or an asserted invariant. The
 load-bearing comments that must travel with the code: the AAD byte-string, ZWSP-between-the-braces
 (`neutralizeMacros`), `scopedCharacterId=''` sentinel, the PNG dual-chunk + CRC, the vLLM death-couple
-pipe-watchdog, `storedVersion`-beats-probe, the last-admin EXISTS-on-UPDATE, the `globalMacroRegistry`
+pipe-watchdog, `storedVersion`-beats-probe, the last-owner / owner-immutability guard EXISTS-on-UPDATE (D17), the `globalMacroRegistry`
 single-tenant note, the `deepMergeRequestBody` Layer-2 defense, the `ASSUMES(single-replica)` annotations.
 
 ### C3. The unified roster / group / multi-human system is built WHOLE (ledger D16; `domains/chat.md` Part III)

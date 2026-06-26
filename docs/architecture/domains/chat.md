@@ -150,9 +150,8 @@ domain/chat/
 └── connected-persona.ts  one-connection-only auto-activate (reads character_personas — formalize the reach)
 ```
 
-**Memory is a `chat/` subsystem, not its own domain** (per `structure.md §4` + the build path) —
-`knowledge-cluster.md §3/§8` says "its own domain"; that wording is the stale one and is amended in the
-reconciliation pass. Memory is reached ONLY through `chat/context.ts` (the
+**Memory is a `chat/` subsystem, not its own domain** (per `structure.md §4` + the build path; reconciled
+with `knowledge-cluster.md §3/§8`). Memory is reached ONLY through `chat/context.ts` (the
 `domain-substrate-only-subsystem-access` seam).
 
 ---
@@ -221,7 +220,7 @@ through — wired at the composition root, never sideways-imported:
 | `character.getCard` / `mintSyntheticGroupCharacter` / `findSyntheticGroupCharacter` | character | live card per roster member (the flat `characters` row — D28); the group-memory bucket |
 | `persona.setActivePersona` | persona | per-participant active persona (host-or-self) |
 | `embeddings.store` | embeddings | memory's digest/segment vector write (into the memory subsystem) |
-| `search.digests` / `search.corpus` | search | memory's chat-scoped recall (the 6 semantics as params) |
+| `search.digests` / `search.corpus` | search | memory's chat-scoped recall (the 6 semantics as params); `search.corpus` is the search METHOD — the cross-chat corpus/digest+segment scan (Q6), distinct from the dissolved `corpus` domain |
 | `stats.applyDelta` | stats | persist the turn-economics delta the builders produced |
 | `RoleClients.summarize` | connection/providers | the memory summarizer + smart-arbitrate side-LLM |
 | `notifications.emit` | notifications | invite/kick/handoff delivery to non-members (the per-chat bus can't reach them) — durable-first, fan-out after commit |
@@ -376,8 +375,7 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
 ## Decisions (resolved / deferred)
 
 - **memory-as-subsystem vs domain — RESOLVED: a chat subsystem** (per `structure.md §4` + the build
-  path). **FLAGGED cross-doc:** `knowledge-cluster.md §3/§8` says "its own domain" — stale wording, amend
-  in the reconciliation pass (not in this slice).
+  path; `knowledge-cluster.md §3/§8` reconciled to match).
 - **the `search` param contract for the 6 semantics — chat's REQUIREMENT is RESOLVED (non-negotiable);
   the param *shape* is DEFERRED to the search contract.** Chat requires that **chat-scope (#5)** and the
   **bridge-candidate restriction (#2)** be **first-class params on `search.digests`** — `search.digests`
