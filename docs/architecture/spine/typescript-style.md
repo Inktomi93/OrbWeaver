@@ -125,12 +125,16 @@ pass + neo-tavern's proven set). Meta-decisions worth recording:
 - `noProcessEnv` error (env only via `foundation/env`); `noConsole` error (allow info/warn/error);
   pino-style logger funnel via `noRestrictedImports` when the logger lands.
 
-**GritQL plugins (`tools/grit/`):** 6 active — `no-raw-id`, `no-loose-id-cast`, `no-mint-via-cast`
-(branded `typeid`), `no-await-db-in-loop` (N+1), `no-raw-intl-time` (the `@orb/kit/time` seam),
-`no-if-is-group` (unified group chat: solo = degenerate group). **8 client rules staged** in
-`tools/grit/_staged-client/` (Tailwind-token / layout-primitive / form / surface-hook gates) — they
-encode deferred client-architecture decisions; activate + adapt at the client scaffold (see
-`tools/grit/README.md`). Still TODO: a `no-decorators` plugin (erasable-illegal but compiler-silent).
+**GritQL plugins (`tools/grit/`) — 19 active, all `error`, all on now** (greenfield: gates before the
+code, so it's born compliant). Decided-convention gates: `no-raw-id`, `no-loose-id-cast`,
+`no-mint-via-cast`, `no-await-db-in-loop`, `no-raw-intl-time`, `no-raw-clock`, `no-if-is-group`,
+`no-context-returntype`, `no-decorators` (erasable-illegal + compiler-silent — `JsDecorator()`),
+`no-inline-types` (§7.4), `persistence-no-in-memory-state` (§7). Client-convention gates (inherited from
+neo, committed now, fire when the client lands): `no-color-literals`, `no-raw-z-index`,
+`no-raw-spacing-in-features`, `no-raw-typography-in-features`, `no-chat-trpc-in-surface`,
+`no-direct-useform`, `no-form-state-in-useeffect`, `no-inline-optimistic-in-surface`. Full table +
+the "intentionally not a gate" list (`no-raw-id-mint` over-fires; `no-inline-union-redecl` → ts-morph
+script) in `tools/grit/README.md`. **Biome 2.5.1 GritQL: node matchers are PascalCase** (`JsDecorator()`).
 
 **Ratcheted to error (no longer deferred):** all former warn-tier rules (`noUnnecessaryConditions`,
 `noMagicNumbers`, `noExcessiveCognitiveComplexity@15`, `useExplicitReturnType`, `useForOf`, `useAtIndex`,

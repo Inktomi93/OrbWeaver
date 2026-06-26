@@ -48,5 +48,5 @@ or {
   // createFormHook/createFormHookContexts — it defines useAppForm. Skip it in-rule
   // (biome-2.4 $filename guard) so the rule flags only feature-code drift.
   $filename <: not r".*/features/_shared/form/.*",
-  register_diagnostic(span=$call, message="Use `useAppForm` (and `withForm` / `withFieldGroup`) from `features/_shared` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds shadcn Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See src/client/AGENTS.md §5.3.", severity="warn")
+  register_diagnostic(span=$call, message="Use `useAppForm` (and `withForm` / `withFieldGroup`) from `features/_shared` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds shadcn Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See src/client/AGENTS.md §5.3.", severity="error")
 }

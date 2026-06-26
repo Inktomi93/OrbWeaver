@@ -47,5 +47,5 @@ or {
   // is the smell; in a hook it's exactly where it belongs (AGENTS.md §6). Fire only
   // on surface files (biome-2.4 $filename guard) so hooks aren't false-flagged.
   $filename <: r".*/features/[^/]+/surfaces/.*",
-  register_diagnostic(span=$call, message="Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (AGENTS.md §6), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).", severity="warn")
+  register_diagnostic(span=$call, message="Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (AGENTS.md §6), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).", severity="error")
 }

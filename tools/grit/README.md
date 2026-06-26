@@ -1,36 +1,51 @@
 # GritQL lint plugins
 
-Custom AST gates Biome runs via the `linter.plugins` array in `biome.json`. They express
-single-file pattern rules that `tsc` and dependency-cruiser can't ergonomically — branded-ID
-discipline, the N+1 db shape, the time seam, the group-vs-solo invariant.
+Custom AST gates Biome runs via the `plugins` array in `biome.json` (single-file pattern rules that
+`tsc`, dependency-cruiser, and Biome's built-ins can't ergonomically express). **All are active and
+fire as `error`** — turned on greenfield, before the code exists, so the code is born compliant.
 
-## Active (registered in `biome.json`)
+> **Biome 2.5.1 GritQL note:** node-kind matchers are **PascalCase** — `JsDecorator()`, `JsxAttribute()`
+> (NOT snake_case `js_decorator()` — that fails to compile). Snippet patterns (backticks) are casing-free.
 
-| Rule | Catches | Maps to |
+## Conventions enforced (decided)
+
+| Rule | Catches | Convention |
 |---|---|---|
-| `no-raw-id` | a Zod `*Id` field as raw `z.string()` | branded `typeid` (`@orb/kit/ids`) |
-| `no-loose-id-cast` | `as never` / `as unknown as <XId>` | branded-ID laundering |
-| `no-mint-via-cast` | `castId(<generator>)` | mint via `mintTypeId`/`newId`, not re-brand |
-| `no-await-db-in-loop` | `await db.<query>` in a loop | N+1 → batch (`inArray`/`db.batch`/`.values`) |
-| `no-raw-intl-time` | `Intl.DateTimeFormat`/`RelativeTimeFormat` | the one time seam (`@orb/kit/time`) |
-| `no-if-is-group` | `isGroup`-style identity boolean | unified group chat (solo = degenerate group) |
+| `no-raw-id` | Zod `*Id` as raw `z.string()` | branded `typeid` (`@orb/kit/ids`) |
+| `no-loose-id-cast` | `as never` / `as unknown as <XId>` | no brand laundering |
+| `no-mint-via-cast` | `castId(<generator>)` | mint via `mintTypeId`/`newId` |
+| `no-await-db-in-loop` | `await db.<query>` in a loop | N+1 → batch |
+| `no-raw-intl-time` | `Intl.{DateTimeFormat,RelativeTimeFormat}` | the `@orb/kit/time` seam |
+| `no-raw-clock` | `Date.now()` / `new Date()` (no-arg) | the injected clock (determinism) |
+| `no-if-is-group` | `isGroup` identity boolean | unified group chat (solo = degenerate) |
+| `no-context-returntype` | `ReturnType<>` in `context.ts` | DI bundle = explicit interface (§7.4) |
+| `no-decorators` | any decorator (`JsDecorator()`) | erasable-only (compiler-silent!) |
+| `no-inline-types` | exported `type`/`z.object/enum/discriminatedUnion` outside a type home | types-in-contract (§7.4) |
+| `persistence-no-in-memory-state` | `Map`/`Set` in `persistence/` | persistence = queries-only (§7) |
 
-These are ported + adapted from neo-tavern to orbweaver paths/conventions and map to **decided**
-conventions, so they're live.
+## Client conventions enforced (inherited from neo-tavern, committed now)
 
-## Staged — `_staged-client/` (NOT registered)
+Activated before the client is built — they commit orbweaver's client to: a Tailwind **intent-token**
+system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`hooks/` split.
 
-Eight rules brought over verbatim from neo-tavern that encode **client architecture decisions
-orbweaver has deliberately deferred to the client scaffold** (ledger §3 — UI engine = Base UI, TBD):
+| Rule | Catches |
+|---|---|
+| `no-color-literals` | hex (`text-[#abc]`) in `className`/`cn`/`clsx`/`cva` |
+| `no-raw-z-index` | raw `z-N` in `className` (client substrate scope) |
+| `no-raw-spacing-in-features` | raw `gap-N`/`p[xy]-N`/`m-N` in `className` |
+| `no-raw-typography-in-features` | raw `text-{sm,lg,…}` font-size in `className` |
+| `no-chat-trpc-in-surface` | `trpc.chat.<verb>.mutationOptions` in a `surfaces/` file |
+| `no-direct-useform` | TanStack `useForm`/`createFormHook` outside `_shared/form` |
+| `no-form-state-in-useeffect` | `useEffect` dep-array reading `form.state.values`/`store` |
+| `no-inline-optimistic-in-surface` | `cancelQueries`/`setQueryData` in a `surfaces/` file |
 
-- `no-color-literals`, `no-raw-z-index`, `no-raw-spacing-in-features`, `no-raw-typography-in-features`
-  — assume a Tailwind **intent-token** system (`bg-card`, `gap-row`, `text-body`, `z-modal`) +
-  layout primitives (`<Stack>`/`<Row>`) that orbweaver hasn't designed.
-- `no-chat-trpc-in-surface`, `no-inline-optimistic-in-surface` — assume the `surfaces/`-vs-`hooks/`
-  split + a TanStack-Query optimistic helper.
-- `no-direct-useform`, `no-form-state-in-useeffect` — assume TanStack Form + a `_shared/form` toolkit.
+These fire zero times today (no client code) but are armed. Their diagnostic *messages* still point at
+neo-style token/doc names (`globals.css`, the design-token vocabulary) — finalize those references when
+the client scaffold defines the actual token system + its conventions doc; the **detection** is correct.
 
-**To activate (at the client scaffold):** once the client's token system / layout primitives / form
-lib / surface convention are chosen, adapt each rule's `$filename` guards (`src/client/…` →
-`packages/client/src/…`) and its token/component names, move it up into `tools/grit/`, and add it to
-`biome.json` `linter.plugins`. Until then they are inert reference, not active gates.
+## Intentionally NOT a gate
+
+- **`no-raw-id-mint`** (blanket ban on raw `crypto.randomUUID()`/`nanoid()`) — declined: it over-fires on
+  legitimate non-id uses (request ids, nonces, idempotency keys). The dangerous path — laundering a raw
+  value into a branded id — is already covered by `no-raw-id` + `no-loose-id-cast` + `no-mint-via-cast`.
+- **`no-inline-union-redecl`** — needs the axis registry → a ts-morph script in the gate suite, not a grit.

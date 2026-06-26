@@ -26,7 +26,7 @@
 //             src/client/AGENTS.md §Spacing-and-layout
 // ──────────────────────────────────────────────────────────────────────────────
 //
-// GritQL note: same shape as no-raw-z-index — jsx_attribute() for the className
+// GritQL note: same shape as no-raw-z-index — JsxAttribute() for the className
 // attribute, then cn/clsx/cva arms with `contains bubble` to descend into call
 // arg strings. `bubble` isolates `$lit` per match so multiple bad colors in
 // one cn() call each fire.
@@ -34,26 +34,26 @@
 language js
 
 or {
-  jsx_attribute() as $attr where {
+  JsxAttribute() as $attr where {
     $attr <: r"^className=\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
-    register_diagnostic(span=$attr, message="arbitrary hex color in className — use a design token from globals.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+    register_diagnostic(span=$attr, message="arbitrary hex color in className — use a design token from globals.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
   },
   `cn($args)` where {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
-      register_diagnostic(span=$lit, message="arbitrary hex color in cn() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+      register_diagnostic(span=$lit, message="arbitrary hex color in cn() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="error")
     }
   },
   `clsx($args)` where {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
-      register_diagnostic(span=$lit, message="arbitrary hex color in clsx() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+      register_diagnostic(span=$lit, message="arbitrary hex color in clsx() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="error")
     }
   },
   `cva($args)` where {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
-      register_diagnostic(span=$lit, message="arbitrary hex color in cva() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+      register_diagnostic(span=$lit, message="arbitrary hex color in cva() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="error")
     }
   }
 }
