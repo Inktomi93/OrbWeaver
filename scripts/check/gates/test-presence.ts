@@ -4,7 +4,7 @@
 // Tests live at the mirror path (tests/server/<rest>). index.ts and pure-type contracts are exempt.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Check, Violation } from "./harness.ts";
+import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
 const SERVER_SRC = "/packages/server/src/";

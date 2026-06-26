@@ -4,7 +4,7 @@
 // built). The "no exported types OUTSIDE contract/" half is the no-inline-types grit; this is the
 // "service.ts interface always present" half. Object shapes are interfaces (biome
 // useConsistentTypeDefinitions:interface) — this gate ensures the service interface actually exists.
-import type { Check, Violation } from "./harness.ts";
+import type { Check, Violation } from "../harness.ts";
 
 const SERVICE_RE = /\/packages\/server\/src\/domain\/[^/]+\/contract\/service\.ts$/;
 

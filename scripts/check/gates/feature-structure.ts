@@ -4,7 +4,7 @@
 // no persistence/; chat/workloads have no substrate/), so they are NOT required here.
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { Check, Violation } from "./harness.ts";
+import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_REL = "packages/server/src/domain";
 const REQUIRED_FILES = ["index.ts", "service.ts", "context.ts"] as const;

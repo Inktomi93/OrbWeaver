@@ -3,7 +3,7 @@
 // re-spelled inline. Flags an inline string-literal union TYPE ALIAS of >=3 members (the derived
 // form is an indexed-access node, NOT matched). Trivial 2-member unions are allowed (ledger §5).
 import { Node } from "ts-morph";
-import type { Check, Violation } from "./harness.ts";
+import type { Check, Violation } from "../harness.ts";
 
 const MIN_MEMBERS = 3;
 
