@@ -110,3 +110,26 @@ though we `noEmit` — it shapes the types you see.
   `erasableSyntaxOnly` compiler flag is silent on them. Add to the Phase 0b gate suite.
 - ⚙️ **`no-truthiness-narrowing-on-primitive`** (review/lint) — `if (str)` / `if (n)` (§3). Lower priority.
 - The `any` / non-null-`!` / `as` bans (§4) are covered by biome `noExplicitAny` + `noNonNullAssertion` (already on).
+
+## Biome — ratcheted to max (2.5.1)
+
+`biome.json` is the source of truth (168 explicit rules beyond `recommended`, mined from a full handbook
+pass + neo-tavern's proven set). Meta-decisions worth recording:
+- **Domains `project` + `types` + `react` + `test` are mandatory** — the type-aware rules
+  (`noFloatingPromises`, `noMisusedPromises`, `useAwaitThenable`, `useExhaustiveSwitchCases`,
+  `noBaseToString`, `noUnnecessaryConditions`) **silently no-op** without the `types`/`project` domains.
+- **`useLiteralKeys: off`** — it fights our `noPropertyAccessFromIndexSignature` (which *requires*
+  `obj["key"]` for index-sig reads). The type-safety flag wins. (neo's hard-won lesson.)
+- **Per-language formatter blocks are set fully explicit** — they do NOT inherit the top-level formatter.
+- **`useDefaultSwitchClause: off`** — forcing a `default` defeats exhaustive-`never` dispatch (§1).
+- `noProcessEnv` error (env only via `foundation/env`); `noConsole` error (allow info/warn/error);
+  pino-style logger funnel via `noRestrictedImports` when the logger lands.
+
+**Deferred ratchets** (promote as the codebase matures — recorded so they aren't forgotten):
+- `noEmptySource` → enable once placeholders are replaced by real modules (it fires on comment-only stubs).
+- `noUnresolvedImports` → enable after confirming it resolves our `#imports`/`exports` (`tsc` covers it meanwhile).
+- The **warn-tier** rules (`noUnnecessaryConditions`, `noMagicNumbers`, `noExcessiveCognitiveComplexity@15→10`,
+  `useExplicitReturnType`, `useForOf`, `useAtIndex`) → ratchet to `error` once clean.
+- **GritQL plugins to author** (Phase 0b, `tools/grit/`): `no-raw-id` + `no-loose-id-cast` +
+  `no-mint-via-cast` (branded `typeid` discipline) + `no-await-db-in-loop` (N+1 guard, scope server/db).
+  Plus `no-decorators` (the erasable-illegal-but-compiler-silent gate, above).
