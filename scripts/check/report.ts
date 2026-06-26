@@ -4,6 +4,8 @@
 import { featureStructure } from "./feature-structure.ts";
 import { runChecks } from "./harness.ts";
 import { noInlineUnionRedecl } from "./no-inline-union-redecl.ts";
+import { schemaBranding } from "./schema-branding.ts";
 import { testLayout } from "./test-layout.ts";
+import { verbNaming } from "./verb-naming.ts";
 
-runChecks([featureStructure, testLayout, noInlineUnionRedecl]);
+runChecks([featureStructure, testLayout, verbNaming, noInlineUnionRedecl, schemaBranding]);
