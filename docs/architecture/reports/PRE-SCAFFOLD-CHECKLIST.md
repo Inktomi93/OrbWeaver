@@ -40,9 +40,12 @@ superset" claim fails. (`tiers/providers.md §2b`.)
 The fixture doctrine is referenced everywhere but nothing exists to import yet. Build it WITH the gates,
 before the first domain test: the composed `test.extend` (`tests/support/fixtures.ts` → `freshDb`,
 frozen `clock`, seeded `ids`, a seeded user, the composed services with the model scripted), `freshDb`
-(migrated libSQL `:memory:`), and the first factories. Wire the four Vitest projects
-(`.test`/`.int.test`/`.contract.test`/`.parity.test`) and the `test-presence` + `test-determinism` gates
-into `check`. Full policy: `spine/testing.md`. (The `.parity` project stays opt-in — see §C1.)
+(migrated libSQL `:memory:`), and the first factories. Wire the Vitest node projects — `unit` (`.test`),
+`integration` (`.int.test`), `contract` (`.contract.test`), `types` (`.test-d.ts`), `parity` (`.parity.test`,
+opt-in) — in ONE `vitest.config.ts` via `test.projects`, plus the `test-presence` + `test-determinism`
+gates, into `check`. **Browser lanes are Playwright, not Vitest** (Vitest browser hangs): scaffold
+`playwright-ct.config.ts` (`.ct.tsx` component) + `playwright.config.ts` (`.spec.ts` e2e) as separate
+runners, NOT in the fast `check`. Full policy: `spine/testing.md`.
 
 ## B. Before / during the DB + migrations build
 

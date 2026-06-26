@@ -18,7 +18,7 @@ The highest-leverage phase: stand up the fences before the code, so the cake is 
 1. `pnpm` workspace + the 5 packages (`kit·contracts·db·server·client`) with `package.json` + `tsconfig`.
    **Pin versions now** — 2026-latest stable of Node/TS/Hono/Drizzle/tRPC (`ledger §3`; `@orb/*` already decided). UI engine stays deferred to Phase 6.
 2. Stand up the **gate suite** (`structure.md §7`, 13 gates) + the bespoke domain rules as dep-cruiser/biome/`tsc` patterns, wired into a **blocking `check`** (pre-commit + CI + a PreToolUse hook since agents author). `CHECKLIST §A1`.
-3. Stand up **`tests/support/`** (composed `test.extend` → `freshDb`, frozen `clock`, seeded `ids`, factories) + the **4 Vitest projects** (`.test`/`.int.test`/`.contract.test`/`.parity.test`) + the `test-presence` + `test-determinism` gates. `CHECKLIST §A4`, `spine/testing.md`.
+3. Stand up **`tests/support/`** (composed `test.extend` → `freshDb`, frozen `clock`, seeded `ids`, factories) + the Vitest **node** projects in one `vitest.config.ts` via `test.projects` (`unit` `.test` · `integration` `.int.test` · `contract` `.contract.test` · `types` `.test-d.ts` · `parity` `.parity.test`, opt-in) + the `test-presence`/`test-determinism` gates. **Browser = Playwright, not Vitest** (it hangs): `playwright-ct.config.ts` (`.ct.tsx`) + `playwright.config.ts` (`.spec.ts`), separate runners, not in `check`. `CHECKLIST §A4`, `spine/testing.md`.
 4. Reserve the AI-native seams in code (`ClipKind`/`clip.scope` types, `WorkloadKind:'world-state'` stub, `observer` participant kind). `CHECKLIST §A2`.
 
 **✅ Checkpoint:** `pnpm check` is green on the empty cake; an intentional cross-tier import (e.g. `foundation`→`domain`) **fails to resolve**; an empty `.test.ts` runs.
@@ -74,7 +74,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 ---
 
 ## Phase 5 — chat + memory (LAST — highest risk, behind the oracle)
-1. **Write the differential-oracle runbook + fixture FIRST** (`CHECKLIST §C1`) → `tests/parity/pipeline-breakpoint.parity.test.ts` against the steady clone (`/tmp/neo-tavern-steady`). Don't start the chat scaffold until this exists.
+1. **Write the differential-oracle runbook + fixture FIRST** (`CHECKLIST §C1`) → `tests/server/domain/chat/pipeline-breakpoint.parity.test.ts` (at the mirror; steady-clone driver in `tests/support/parity-runner.ts`) against the steady clone (`/tmp/neo-tavern-steady`). Don't start the chat scaffold until this exists.
 2. Build `chat/`: `engine/`, `assembly/` (+ `world-info/`), the explicit resolution-order pipeline (RESOLVE→GATHER→BUILD→SHAPE), and the **§8 rolling-pair cache breakpoint** (preserve + upgrade — dropping it = ~5300-tok/turn regression).
 3. Build the `memory/` subsystem (`build/`, `recall/`, `persistence/`) — the **6 chat-scoped semantics → `.int.test`s** (the surface the oracle deliberately can't cover).
 4. The **~150 "preserve exactly" esoterica → named tests** (`CHECKLIST §C2`): the AAD byte-string, ZWSP macro-neutralize, the PNG dual-chunk+CRC, the vLLM death-couple watchdog, every `ASSUMES(single-replica)`.
@@ -86,7 +86,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 ## Phase 6 — `@orb/client` (deferred rebuild)
 1. Pick the UI headless engine (recommended: Base UI) — `ledger §3`.
 2. Feature-sliced layout; convert any copied shadcn atoms to `#` imports (no `@/`).
-3. `tests/client/` Playwright CT at the mirror; e2e under `tests/client/e2e/`.
+3. Client component tests = **Playwright CT** (`.ct.tsx` at the `tests/client/` mirror); e2e = **Playwright** (`.spec.ts` under `tests/e2e/`). No Vitest browser. Client pure-logic stays node `.test.ts`.
 
 **✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green.
 

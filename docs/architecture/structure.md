@@ -174,21 +174,23 @@ tests/
 │   ├── db.ts            freshDb / seed helpers (libSQL :memory:)
 │   ├── clock.ts         frozen clock — determinism
 │   └── ids.ts           seeded typeid generator — determinism
-├── parity/          the differential oracle (NOT a mirror — a harness) — opt-in `parity` project
-│   └── pipeline-breakpoint.parity.test.ts
-├── server/          mirrors packages/server/src/  EXACTLY
+├── kit/             mirrors packages/kit/src/        (.test.ts · .test-d.ts)
+├── contracts/       mirrors packages/contracts/src/  (.contract.test.ts · .test-d.ts)
+├── db/              mirrors packages/db/src/         (.int.test.ts)
+├── server/          mirrors packages/server/src/     (all node suffixes; .parity.test.ts at the validated module)
 │   └── domain/<feature>/<file>.<kind>.test.ts   ↔  packages/server/src/domain/<feature>/<file>.ts
-├── contracts/       mirrors packages/contracts/src/
-├── db/              mirrors packages/db/src/
-└── client/          component / e2e (Playwright CT) — mirrors features/
+├── client/          mirrors features/                (.ct.tsx = Playwright CT · .test.ts = node pure-logic)
+└── e2e/             full-stack Playwright .spec.ts   (NOT a mirror — spans the whole app)
 ```
 
 **The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
 `tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/X/src/` ↔ `tests/X/`); the gate
-exempts the two non-mirror trees `support/` + `parity/`. **Kind by suffix**, not folder: `.test.ts`
-(unit) · `.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.parity.test.ts`
-(differential oracle — slow, opt-in, excluded from the default run). A file's unit + integration tests
-sit *together* next to its mirror — never scattered. Vitest projects select by suffix; coverage merges at root.
+exempts the two non-mirror trees `support/` + `e2e/`. **Kind by suffix**: `.test.ts` (unit) ·
+`.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.test-d.ts` (types) ·
+`.parity.test.ts` (differential oracle — slow, opt-in). These **node** lanes are Vitest `test.projects`
+selected by suffix in ONE config (`test.projects` is the modern "workspace"). **Browser lanes are
+Playwright, not Vitest** (Vitest browser-mode hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts`
+(e2e) — separate runners, not in the fast `check`. Full policy: `spine/testing.md`.
 
 Why central+mirror over colocation: an agent can drop a colocated test anywhere; the mirror + a
 path-gate means a test **must** land at the computed path or `check` goes red, and the src tree stays
