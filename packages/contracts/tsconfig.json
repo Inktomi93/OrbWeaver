@@ -1,0 +1,4 @@
+{
+  // @orb/contracts is isomorphic (the wire): NO node types, no DOM.
+  "extends": "../../tsconfig.base.json"
+}

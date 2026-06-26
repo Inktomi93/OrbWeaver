@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Shared base. Per-package tsconfigs `extends` this; `${configDir}` (TS 5.5+) resolves
+  // `include`/`tsBuildInfoFile` relative to the LEAF package, so one base serves all five.
+  "compilerOptions": {
+    // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
+    "noEmit": true,
+    "incremental": true,
+    // Cache lives in the package's own node_modules → per-worktree + gitignored.
+    "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsbuildinfo.json",
+    "skipLibCheck": true,
+
+    // --- language / module (TS 6 defaults made explicit) ---
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "allowJs": false,
+
+    // --- module syntax: every file is an erasable, type-only-import module (node can strip + run) ---
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "esModuleInterop": true,
+    "noUncheckedSideEffectImports": true,
+
+    // --- strictness: everything on, out of the gate (these hurt to retrofit later) ---
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "forceConsistentCasingInFileNames": true,
+    "useUnknownInCatchVariables": true,
+
+    // No tsconfig `paths` (principle #2): cross-package = package names, intra-package = the
+    // package.json `imports` field (`#*`). `types: []` keeps ambient @types out unless a package opts in.
+    "types": []
+  },
+  "include": ["${configDir}/src"]
+}

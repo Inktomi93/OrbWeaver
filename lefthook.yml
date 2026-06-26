@@ -1,0 +1,23 @@
+# Lefthook — git hooks, worktree-safe by construction.
+#
+# Installed via the root `prepare: lefthook install` script, which runs on EVERY `pnpm install`
+# (main checkout AND every worktree). `lefthook install` sets `core.hooksPath` in the SHARED git
+# config (the common gitdir), and this file is tracked — so hooks fire in every worktree with zero
+# per-worktree setup. Commands run from the worktree root (lefthook resolves it per-worktree), so a
+# fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
+#
+# Split: pre-commit is the FAST structural gate on staged files (Biome, ~1s); pre-push is the
+# HEAVY full `pnpm check` (lint + typecheck + — as they land — dep-cruiser + the suffix test lanes).
+# Bypass for emergencies: `git commit --no-verify` / `git push --no-verify`.
+
+pre-commit:
+  parallel: true
+  commands:
+    biome:
+      glob: "*.{ts,tsx,js,jsx,json,jsonc,css}"
+      run: pnpm exec biome check --no-errors-on-unmatched {staged_files}
+
+pre-push:
+  commands:
+    check:
+      run: pnpm check

@@ -1,0 +1,21 @@
+{
+  "name": "@orb/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "#*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@orb/kit": "workspace:*",
+    "@orb/contracts": "workspace:*",
+    "@orb/db": "workspace:*",
+    "@trpc/server": "catalog:",
+    "hono": "catalog:",
+    "zod": "catalog:"
+  }
+}

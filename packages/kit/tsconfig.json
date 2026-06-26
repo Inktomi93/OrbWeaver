@@ -1,0 +1,5 @@
+{
+  // @orb/kit is isomorphic (browser-safe): base defaults fit as-is — NO node types, no DOM.
+  // kit-purity is also gate-enforced (dep-cruiser + biome), not just typed.
+  "extends": "../../tsconfig.base.json"
+}

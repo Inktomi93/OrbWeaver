@@ -1,0 +1,22 @@
+{
+  "name": "@orb/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "#*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@orb/kit": "workspace:*",
+    "@orb/contracts": "workspace:*",
+    "@libsql/client": "catalog:",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "drizzle-kit": "catalog:"
+  }
+}

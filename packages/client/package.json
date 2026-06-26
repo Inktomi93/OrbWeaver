@@ -1,0 +1,24 @@
+{
+  "name": "@orb/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "#*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@orb/kit": "workspace:*",
+    "@orb/contracts": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@orb/server": "workspace:*",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:"
+  }
+}
