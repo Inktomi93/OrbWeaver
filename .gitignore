@@ -48,6 +48,9 @@ yarn-error.log*
 # --- git hooks (lefthook local overrides) ---
 lefthook-local.yml
 
+# --- Claude Code: share the project hook (settings.json), keep personal overrides local ---
+.claude/settings.local.json
+
 # --- editor / OS ---
 .DS_Store
 Thumbs.db
