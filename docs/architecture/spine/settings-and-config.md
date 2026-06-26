@@ -5,7 +5,7 @@
 > through `process.env` or *emit* env vars. Naming them — and giving each ONE home — IS the config
 > re-architecture. This doc is the canonical model the per-tier docs defer to: `domains/settings.md`
 > (the owned core — AppSettings/UserSettings + the floor-merge) and `tiers/foundation.md` (env-read +
-> observability) each implement a slice of it; `infra/providers/claude-sdk` houses the homeless one.
+> observability) each implement a slice of it; `infra/providers/backends/agent-sdk` houses the homeless one.
 > Pairs with `domains/connection.md` (the `roleDefaults` consumer) and the preset doc (generation params).
 > `domains.md` carries the summary. Sources: `_FANOUT-BRIEF.md §7.2`, `structure.md §7`,
 > `reports/shared-dissolution.md §4/§8`; verified against `/tmp/neo-tavern-steady/src/server/env.ts`,
@@ -23,7 +23,7 @@ four are NOT settings at all (they only look like config); saying so out loud is
 | **(a) true env** | boot / secret / identity | set before boot, frozen; operator via deploy | `foundation/env` |
 | **(a/seed)** | env that writes a DB row once, then goes inert | first boot only; then it's a normal DB row | `credentials` domain (seed verb in `entry/`) |
 | **(b) runtime toggles** | non-secret operational knobs, flippable at runtime | admin, live; **env floor ⊕ DB override** | `settings` domain → `AppSettings` |
-| **(c) agent-sdk runtime config** | isolation pins + reserved-denylist + the 3-mode credential firewall | deploy-pinned constants, rebuilt every turn | `infra/providers/claude-sdk` (NOT a settings tier) |
+| **(c) agent-sdk runtime config** | isolation pins + reserved-denylist + the 3-mode credential firewall | deploy-pinned constants, rebuilt every turn | `infra/providers/backends/agent-sdk` (NOT a settings tier) |
 | **(d) generation params** | per-turn reasoning / sampling / token budgets | per-turn, per-preset | `preset` → `UserIntent` |
 
 > **The shared primitive cuts across (b) and (d):** AppSettings, UserSettings, AND preset's
@@ -132,7 +132,7 @@ security-load-bearing, rebuilt every turn, with three parts:
      unset — unset falls through to other sources), `BASE_URL`→OpenRouter, `AUTH_TOKEN`→OR key.
    - **Mode 3 (local vLLM)** `buildClaudeVllmEnv`: same firewall as mode 2, base URL loopback, throwaway
      auth (`max-pro-sub` is admin-gated; non-admin buddy turns route here).
-- **Home: `infra/providers/claude-sdk`** — a *named* backend-internal config of the strategy, NOT a
+- **Home: `infra/providers/backends/agent-sdk`** — a *named* backend-internal config of the strategy, NOT a
   settings tier and NOT `foundation/env`. The only piece that stays in `foundation/env` is the
   `process.env`-reading baseline producer `hostEnvForClaudeChild()` (it reads `process.env`, so it stays
   under the single-reader roof); the `HOST_SECRET_ENV_KEYS` *denylist policy* travels WITH the firewall.
@@ -191,7 +191,7 @@ invariant lists in `settings.md` and `foundation.md` — this is the cross-cutti
    effective-config`. A foundation file referencing the resolver is RED.
 
 8. **The agent-sdk runtime config (c) is NOT a settings tier.** *(lint)* — the isolation pins /
-   denylist / credential firewall live in `infra/providers/claude-sdk`; `domain/settings/**` and
+   denylist / credential firewall live in `infra/providers/backends/agent-sdk`; `domain/settings/**` and
    `foundation/**` have zero references to them; such an import is RED.
 
 9. **The credential firewall is byte-faithful and runner-owned.** *(test)* — each of the three builders
@@ -262,6 +262,6 @@ invariant lists in `settings.md` and `foundation.md` — this is the cross-cutti
   `openrouter` in prod when unset (`env.ts:310`). If promoted to AppSettings, lean: keep the auto-default
   as the env floor; the admin override layers on top.
 - **`HOST_SECRET_ENV_KEYS` denylist split.** Lean: `foundation/env` exposes a raw `processEnvSnapshot()`;
-  `infra/providers/claude-sdk` composes the denylist (the policy travels with the firewall it serves).
+  `infra/providers/backends/agent-sdk` composes the denylist (the policy travels with the firewall it serves).
 - **The (c)/(d) seam shape in claude-sdk.** Confirm where the per-preset generation knobs (d) are emitted
   vs the pinned isolation config (c) — one module, two named exports, or two modules. (Tuning at build.)

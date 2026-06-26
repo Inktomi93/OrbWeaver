@@ -145,7 +145,7 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 |---|---|---|
 | `_shared/audit.ts` (fanIn 60) | `logAudit` (+ failure-snapshot) | `foundation/observability/audit` |
 | `_shared/rate-limit.ts` | `createRateLimiter`/`RateLimiter`/`RateLimitConfig` | `transport/rate-limit` |
-| `_shared/role-clients-binder.ts` | `createVllmRoleClients` | `entry/` (or `infra/vllm/role-clients`) composition root |
+| `_shared/role-clients-binder.ts` | `createVllmRoleClients` | `entry/` (or `infra/providers/vllm/role-clients`) composition root (per DECISIONS-LEDGER §7 D7 — the `infra/vllm` sibling alternative is dropped; vLLM is nested under `infra/providers/vllm/`) |
 | `_shared/role-clients-binder.ts` | `createDefaultRoleClients` | **DELETED** — contexts receive `roleClients` as a required `entry/`-wired dep (missing → `tsc` red) |
 
 ---
@@ -167,7 +167,7 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 Within the cake `kit ← contracts ← db ← server ← client`, there is an **internal DAG** the agents surfaced:
 
 **`@orb/kit` (build first, in this internal order):**
-1. `kit/ids` (446 importers — the universal leaf), `kit/errors` (esp. `DomainNotFoundError`), `kit/guards`, `kit/strings`, `kit/objects`, `kit/json`, `kit/time`, `kit/tokens`, `kit/slug`, `kit/error-message`, `kit/fix-markdown`, `kit/speaker-label`, `kit/vector-math`, `kit/replay-buffer`, `kit/stats-tally`, `kit/png-card-chunk`.
+1. `kit/ids` (446 importers — the universal leaf), `kit/errors` (esp. `DomainNotFoundError`), `kit/guards`, `kit/strings`, `kit/objects`, `kit/json`, `kit/time`, `kit/tokens`, `kit/slug`, `kit/error-message`, `kit/assets` (the `isAssetHash` guard — per DECISIONS-LEDGER §7 D11, required in the kit boot order; matches §1), `kit/fix-markdown`, `kit/speaker-label`, `kit/vector-math`, `kit/replay-buffer`, `kit/stats-tally`, `kit/png-card-chunk`.
 2. `kit/macro` (engine) → then `kit/regex` (depends on `kit/macro`) and `kit/guided` (depends on `kit/macro`).
 3. `kit/world-info` (role/scope/position tuples + bimap) and `kit/persona` — needed by multiple contracts namespaces.
 

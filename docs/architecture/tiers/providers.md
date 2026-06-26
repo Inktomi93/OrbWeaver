@@ -170,9 +170,9 @@ composition) wires which backend each role resolves to at boot.
 **Tree location — RESOLVED (§5 below):** vllm is **nested** under
 `infra/providers/vllm/` (the layout above), not a sibling and not under an `infra/inference/` parent —
 chosen for cohesion (the engine + its surfaces are one subsystem). `connection` references
-`infra/providers/resolve-chat.ts` (exact); the `credentials.md` `infra/vllm/role-clients` spelling is the
-same engine under a sibling-path alias — **FLAGGED cross-doc** to reconcile to the nested path (not in
-this slice). See §Decisions.
+`infra/providers/resolve-chat.ts` (exact). The vLLM role-clients builder is `infra/providers/vllm/role-clients`
+(the nested path, per §7 D7) — `credentials.md` now uses the same spelling; the prior sibling-path alias is
+reconciled. See §Decisions.
 
 ---
 
@@ -288,7 +288,7 @@ with `env.ts` because the firewall is built around env.*
 The agent-sdk runtime config (~13 isolation pins + the 11-key reserved denylist + the 3-mode firewall)
 is `_FANOUT-BRIEF.md §7.2(c)`'s "homeless nature": it is called "env" only because it EMITS env vars,
 but it is **backend-internal config of the agent-sdk strategy**, NOT a settings tier. It stays in
-`backends/agent-sdk/env.ts`. Generation params (`UserIntent`) are nature (d) — they ride in on the
+`backends/agent-sdk/env.ts` (per DECISIONS-LEDGER §7 D8 — the `infra/providers/claude-sdk` name is DROPPED). Generation params (`UserIntent`) are nature (d) — they ride in on the
 request and `resolve-chat` projects them per-backend; `maxOutputTokens`/`maxContextTokens`/compaction
 are env-shaped only at the wire. The vLLM engine reads `VLLM_*_PORT`/`VLLM_*_MODEL`/`VLLM_*_CONCURRENCY`
 from `foundation/env` (true env / runtime toggles); `VLLM_*_CONCURRENCY` is flagged in §7.2(b) as
@@ -473,11 +473,12 @@ Two dispatch axes are infra-sealed and stay so, gated:
 
 ## Decisions (resolved / deferred)
 
-- **Tree location — RESOLVED: vllm nested under `infra/providers/vllm/`** (the layout above). Both
-  consumer refs are satisfied: `connection` references `infra/providers/resolve-chat.ts` (exact);
-  `credentials.md`'s `infra/vllm/role-clients` is the same engine under a sibling-path spelling — a
-  cross-doc path alias to reconcile (FLAGGED: align `credentials.md` to the nested path, not in this
-  slice). Nesting is chosen for cohesion (the vLLM engine + its surfaces are one subsystem). No
+- **Tree location — RESOLVED (per DECISIONS-LEDGER §7 D7): vllm nested under `infra/providers/vllm/`**
+  (the layout above, with `engine/` + `surfaces/`; the `infra/vllm` sibling alternative is DROPPED). Both
+  consumer refs are satisfied: `connection` references `infra/providers/resolve-chat.ts` (exact); the
+  vLLM role-clients builder is `infra/providers/vllm/role-clients` and `credentials.md` now uses that
+  same nested spelling (the prior sibling-path alias is reconciled). Nesting is chosen for cohesion (the
+  vLLM engine + its surfaces are one subsystem). No
   `infra/inference/` parent.
 
 - **Where `resolveModelCapability` executes vs `resolve-chat` — RESOLVED.** Connection's `catalog/`
@@ -706,9 +707,8 @@ about agents, only `req`.
 
 - **Where the layer lives in the tree — RESOLVED: `infra/providers/` with vllm nested at
   `infra/providers/vllm/`** (roles + remote chat backends + contract at the top; the local engine as a
-  self-owned subsystem under it — see §2 below). No `infra/inference/` parent. (FLAGGED
-  cross-doc: `credentials.md` spells it `infra/vllm/role-clients` — same engine, sibling-path alias to
-  reconcile to the nested path.)
+  self-owned subsystem under it — see §2 below). No `infra/inference/` parent. (`credentials.md` uses the
+  same nested `infra/providers/vllm/role-clients` spelling — reconciled, per §7 D7.)
 - **Role-default vs per-agent connection resolution — RESOLVED.** Resolution lives entirely in
   `connection`; the role dispatcher takes the already-resolved `{backend, model, credential, capability}`
   and **never re-resolves** (the selection/execution split). Per-agent override is applied in

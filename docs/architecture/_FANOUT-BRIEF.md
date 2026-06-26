@@ -198,10 +198,13 @@ misses (those feed the adversary).
 - **debug** (309 lines): `/api/_debug` traces → this is **observability**, a `foundation` concern, not a
   domain.
 - **`_shared`** (1907 lines, 19 files — THE DRAWER TO DISSOLVE; each file needs a destination verdict):
-  `credentials.ts`/`user-settings.ts`/`role-clients{,−binder}.ts`/`admin.ts`/`users.ts`/`audit.ts`/
-  `stats-tally.ts` (cross-feature **services** → their own feature), `regex.ts`/`group-character-rows.ts`/
-  `roster-rows.ts`/`replay-buffer.ts` (feature-internals → home), `ids.ts`/`strip-undefined.ts`/
-  `batch.ts`/`errors.ts`/`db-errors.ts`/`fetch-owned.ts`/`content-hash` (primitives → `kit`),
+  `credentials.ts`/`user-settings.ts`/`role-clients{,−binder}.ts`/`admin.ts`/`users.ts`/`audit.ts`
+  (cross-feature **services** → their own feature), `regex.ts`/`group-character-rows.ts`/
+  `roster-rows.ts` (feature-internals → home), `ids.ts`/`strip-undefined.ts`/
+  `batch.ts`/`errors.ts`/`db-errors.ts`/`fetch-owned.ts`/`replay-buffer.ts`/`stats-tally.ts`
+  (primitives → `kit`; `replay-buffer` + `stats-tally` are pure `@orb/kit` primitives, NOT
+  feature-internal — per DECISIONS-LEDGER §7 D10), `content-hash` (→ `@orb/server/kit`, node-only-pure,
+  NOT `@orb/kit` — per DECISIONS-LEDGER §7 D9),
   `rate-limit.ts` (→ `transport`). **No `_shared` exists in orbweaver** — every file must land somewhere.
 
 ---

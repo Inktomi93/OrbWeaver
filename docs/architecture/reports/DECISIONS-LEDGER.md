@@ -49,7 +49,7 @@
 - **Split `envDefaults()`**: env-mirrored fields read `env`; born-in-DB defaults become `appSettingsSchema` defaults (the floor is one legible thing).
 - **`IMPORT_DEFAULT_SOURCE` NODE_ENV auto-default stays the env floor**; the AppSettings override layers on top.
 - **`EffectiveAppConfig`** lives in the settings `effective-config/` subsystem; injected as a **sync getter op** into chat/workloads; `entry/boot` reloads at startup.
-- **`HOST_SECRET_ENV_KEYS`**: `foundation/env` exposes `processEnvSnapshot()`; `infra/providers/claude-sdk` composes the denylist (policy travels with the firewall).
+- **`HOST_SECRET_ENV_KEYS`**: `foundation/env` exposes `processEnvSnapshot()`; `infra/providers/backends/agent-sdk` composes the denylist (policy travels with the firewall). *(path per §7 D8.)*
 - **`lifecycle.ts` → `entry/`**; **`DbInspector` port dropped** (probes read `@orb/db` down); **`DEFAULT_*_MODEL_ID` → `@orb/contracts/connection`**.
 - settings `results.ts`/`errors.ts` slots **omitted** until a non-view result / new failure mode appears.
 
@@ -117,3 +117,22 @@ Two independent full-doc reads converged: the test *layout* was locked (`structu
 - **Scattered obligations — gathered (index, not invented):** the ~150 esoterica (`CHECKLIST §C2`) each → a named test at its mirror; the oracle (`CHECKLIST §C1`) → `tests/parity/pipeline-breakpoint.parity.test.ts` (runbook written before the chat scaffold); memory's 6 chat-scoped semantics (`domains/chat.md`) → named `.int.test.ts` (the surface the oracle deliberately cannot cover); serde round-trip → one `.contract.test.ts`.
 - **`tests/support/` is a DAY-ONE stand-up** (fixture `test.extend` + `freshDb` + `clock` + `ids` + factories) — folded into the gate-suite wave so the fixture doctrine has something to import (`CHECKLIST §A4`).
 - **Client testing — DEFERRED with the client rebuild** (provisional rule stated: `tests/client/` mirrors `features/`, Playwright CT at mirror, e2e under `tests/client/e2e/`); full depth standard appended to `spine/testing.md §7` at client scaffold. Flagged as an honest gap, not a false lock.
+
+## 7. Conflict resolutions — the central path/home registry (2026-06-26)
+
+A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross-doc path conflicts where two docs named different homes for the same thing. **These are now DECIDED — this section is the single source of truth; every other doc is aligned to it.** If a doc ever disagrees with §7, §7 wins.
+
+- **D1 — The auth seam is `entry/auth/seam.ts`.** The ONE Principal construction site. NOT `entry/compose/auth-seam.ts`. (Winner: ledger §2 + `tiers/infra.md` + `domains/sessions.md`; `tiers/entry.md` was the outlier and is corrected.)
+- **D2 — `entry/` canonical shape (LOCKED):** root files `index.ts`, `app.ts`, `lifecycle.ts`; `auth/` (the seam, D1); `boot/` (migrate + `seed-credential` + `seed-owner` + `seed-default-preset` + `seed-default-characters` + `reclaim-locks`); `compose/` (the non-auth wiring: `services`, `runner-env`, `event-bus`, `role-clients`, `effective-config`); `http/` (`blob`, `upload`, `auth-routes`, `healthz`); `import/` (`run-profile-import`, the bulk composition driver). `compose/` is KEPT for wiring; the auth seam lives in `auth/`, not `compose/`.
+- **D3 — Bulk import has two distinct homes, both real:** `entry/http/upload.ts` = the HTTP multipart route; it delegates to `entry/import/run-profile-import.ts` = the composition driver. Not a conflict — two responsibilities.
+- **D4 — `WorkloadRunnerEnv` builder = `entry/compose/runner-env.ts`** (not loose `entry/workloads-env.ts` / `entry/buddy-env.ts`). The type stays in `domain/workloads/contract`.
+- **D5 — `lifecycle` = `entry/lifecycle.ts`** (not `foundation/lifecycle.ts`). Foundation's open question is closed.
+- **D6 — Image variant transform = EXTRACT to `infra/image`.** A `sharp` adapter behind an `imageTransform` op, injected into `domain/assets/verbs/resolve-variant.ts` (width-snap = domain policy; `sharp` = infra I/O). NOT inline in the blob route. Closes the `tiers/infra.md`/`domains/assets.md` "open decision."
+- **D7 — vLLM = `infra/providers/vllm/`** (nested under providers, with `engine/` + `surfaces/`), per the LOCKED R11. The `infra/vllm` sibling alternative is dropped; `shared-dissolution.md §6` is corrected.
+- **D8 — Claude Agent SDK backend = `infra/providers/backends/agent-sdk/`** (+ `session/`). The `infra/providers/claude-sdk` name is dropped; `domains/settings.md`'s SDK-runtime-config references point here.
+- **D9 — `content-hash` = `@orb/server/kit/content-hash`** (node-only-pure; NOT `@orb/kit`). (Winner: `shared-dissolution.md §2` + `domains/search.md` + `domains/character.md`.)
+- **D10 — `replay-buffer` + `stats-tally` = `@orb/kit/{replay-buffer,stats-tally}`** (pure primitives; NOT feature-internal). (Winner: `shared-dissolution.md §8` boot-order + `domains/{buddy,workloads,stats}.md`.)
+- **D11 — `kit/assets` is required** (`@orb/kit/assets`, the `isAssetHash` guard). `shared-dissolution.md §8` boot-list is corrected to include it (it was in §1 but dropped from the §8 list).
+- **D12 — identity/session contracts split:** `@orb/contracts/identity` (`Principal`, `ResolvedIdentity`, `UserRole`) + `@orb/contracts/session` (`SessionView`, **singular**). The domain stays `domain/sessions` (plural). No `@orb/contracts/sessions`.
+- **D13 — `tests/kit` exists** (the `spine/testing.md §2` tree snippet omitted it; the mirror rule governs — `packages/kit/src` ⇒ `tests/kit`). Snippet corrected.
+- **D14 — `substrate`/`persistence` are optional template slots** (`structure.md §4`: "only if needed"). `domain/chat` and `domain/workloads` have NO top-level `substrate/` (helpers live in their named subsystems); `domain/export` has NO `persistence/`. Not omissions — deliberate.

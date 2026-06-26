@@ -413,7 +413,7 @@ must preserve:
    or `tsc` rejects the call.*
 
 7. **`embeddings` imports `infra/providers` only through the injected role op** — the domain has zero
-   direct imports from `infra/providers/` or `infra/vllm/`.
+   direct imports from `infra/providers/` (vLLM is nested at `infra/providers/vllm/`, per §7 D7).
    *Enforcement: resolve-time (package dep: `@orb/server` does not declare `infra/providers` as an
    intra-package import target for `domain/embeddings`; dep-cruiser backstop: `domain-no-infra-direct`
    rule).*

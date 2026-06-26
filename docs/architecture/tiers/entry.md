@@ -37,24 +37,32 @@ packages/server/src/entry/
 ├── index.ts                  boot: load env → migrate (backupBeforeMigrate + assertReferentialIntegrity)
 │                             → seed → start supervisors → wire composition root → serve → graceful shutdown
 ├── app.ts                    the Hono builder (middleware order, ingress-allowlist, mount tRPC + http)
-├── compose/                  THE COMPOSITION ROOT (the wiring; no logic)
-│   ├── services.ts           constructs every domain service with its Context; the injection graph
-│   ├── runner-env.ts         builds the WorkloadRunnerEnv bundle (crosses every feature — the one true hub)
-│   ├── auth-seam.ts          wires infra/auth (verify) + domain/sessions (resolve/upsert) → mints the ONE Principal
-│   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, etc.)
-│   ├── role-clients.ts       binds the role clients (createVllmRoleClients / per-role via connection.resolveRole)
-│   └── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
+├── lifecycle.ts              boot/shutdown protocol — invoked once with injected deps; read by entry only
+│                             (per DECISIONS-LEDGER §7 D5: entry/lifecycle.ts, NOT foundation/lifecycle.ts)
+├── auth/                     THE AUTH SEAM (the ONE Principal construction site)
+│   └── seam.ts               wires infra/auth (verify) + domain/sessions (resolve/upsert) → mints the ONE
+│                             Principal (per DECISIONS-LEDGER §7 D1: entry/auth/seam.ts, NOT compose/auth-seam.ts)
 ├── boot/
 │   ├── migrate.ts            run drizzle migrations (FK-off connection; post-check); backup first
 │   ├── seed-credential.ts    env→DB-once OPENROUTER_API_KEY seed (calls credentials + ensureOwner)
+│   ├── seed-owner.ts         idempotent owner provisioning at boot
 │   ├── seed-default-preset.ts / seed-default-characters.ts   the idempotent boot packs
 │   └── reclaim-locks.ts      reclaimChatLocksOnBoot (single-replica boot wipe)
-└── http/                     non-tRPC registrars (compose domain + infra + auth)
-    ├── blob.ts               GET /blob/<hash> (+ ?w=&f=webp variant transform via the infra/image op)
-    ├── upload.ts             multipart asset + import-zip routes (the bulk-import driver lives here:
-    │                         run-profile-import.ts — store→collect→reconcile→emit)
-    ├── auth-routes.ts        OIDC/local mint handlers + cookie set/clear (the __Host- contract)
-    └── healthz.ts            liveness + the credentials_key_mismatch / shutdown-503 signals
+├── compose/                  THE COMPOSITION ROOT (NON-auth wiring; no logic — the auth seam is in auth/)
+│   ├── services.ts           constructs every domain service with its Context; the injection graph
+│   ├── runner-env.ts         builds the WorkloadRunnerEnv bundle (crosses every feature — the one true hub)
+│   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, etc.)
+│   ├── role-clients.ts       binds the role clients (createVllmRoleClients / per-role via connection.resolveRole)
+│   └── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
+├── http/                     non-tRPC registrars (compose domain + infra + auth)
+│   ├── blob.ts               GET /blob/<hash> (+ ?w=&f=webp variant transform via the infra/image op)
+│   ├── upload.ts             multipart asset + import-zip routes (the HTTP multipart route DELEGATES to
+│   │                         import/run-profile-import.ts — per DECISIONS-LEDGER §7 D3)
+│   ├── auth-routes.ts        OIDC/local mint handlers + cookie set/clear (the __Host- contract)
+│   └── healthz.ts            liveness + the credentials_key_mismatch / shutdown-503 signals
+└── import/                   bulk composition driver
+    └── run-profile-import.ts the composition driver (store→collect→reconcile→emit); the upload route
+                              delegates here (per DECISIONS-LEDGER §7 D3)
 ```
 
 ---
@@ -64,13 +72,13 @@ packages/server/src/entry/
 | Unit | From | Why entry |
 |---|---|---|
 | `buildWorkloadsEnv` / the `WorkloadRunnerEnv` value | workloads.md | crosses every feature boundary — above `domain-no-cross-feature` |
-| the auth seam (`createAuthResolver`/`resolveOwner` → the `Principal` mint) | sessions.md / infra.md | the ONE place that may import both `infra/auth` (verify) and `domain/sessions` (resolve) |
+| the auth seam (`createAuthResolver`/`resolveOwner` → the `Principal` mint) — `entry/auth/seam.ts` (per DECISIONS-LEDGER §7 D1) | sessions.md / infra.md | the ONE place that may import both `infra/auth` (verify) and `domain/sessions` (resolve) |
 | the bulk-import outer driver (`run-profile-import.ts`) | import.md | composes import + assets + workloads + the event emit |
 | the non-tRPC registrars (blob/upload/auth-routes/healthz) | transport.md / sessions.md / assets.md | compose domain+infra+auth; not thin drivers |
 | cookie I/O (`setSessionCookie`/clear/refresh, `__Host-`) | sessions.md / infra.md | route-layer job; the domain returns a token string |
 | `seedCredentialFromEnv`, default-preset/character seeders, `reclaimChatLocksOnBoot` | credentials/preset/character/chat | boot-time composition; import any domain front door |
 | `createVllmRoleClients` / the role-client binder | shared-dissolution + providers | mints credentials + wires role dispatchers at boot |
-| `lifecycle.ts` | foundation.md (ruled here) | boot protocol + injected deps; read by entry only |
+| `lifecycle.ts` (a root entry file: `entry/lifecycle.ts`, per DECISIONS-LEDGER §7 D5) | foundation.md (ruled here) | boot protocol + injected deps; read by entry only |
 | the event-bus instance + indexer subscriptions | embeddings.md / assets.md | the bus shape is an entry concern (in-process typed bus) |
 | `getEffectiveConfig` reload wiring | settings.md | the sync getter is injected from here into chat/workloads |
 
@@ -125,4 +133,4 @@ Package/contract build order: see `reports/DECISIONS-LEDGER.md §4` + `reports/b
 
 - **`compose/` granularity** — one `services.ts` graph vs per-concern files (recommended: the split shown above; collapse if it stays small).
 - **Event bus mechanism** — in-process typed `EventEmitter` for v1 (single-replica); the durable-outbox upgrade is the multi-replica seam (see `reports/PRE-SCAFFOLD-CHECKLIST.md` — the `content_hash` catch-up sweep is the required reliability backstop regardless).
-- **`lifecycle.ts` home** — ruled `entry/` (boot protocol); `foundation/lifecycle.ts` is the defensible alternative (it reaches up to nothing). Confirm at skeleton; one-directional holds either way.
+- **`lifecycle.ts` home — DECIDED: `entry/lifecycle.ts`** (per DECISIONS-LEDGER §7 D5; the `foundation/lifecycle.ts` alternative is closed). It is a root entry file (boot protocol + injected deps, read by entry only); the one-directional invariant holds.

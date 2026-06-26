@@ -65,7 +65,8 @@ This domain does **not** own:
   verbs at the composition root (the app-settings tier and the admin gate are different concerns).
 - **`logAudit`.** → `foundation/observability/audit` (fan-in 60); injected/called, not owned.
 - **The HOMELESS agent-sdk runtime config** — see "the fourth nature" below. It is NOT a settings tier;
-  it is a backend-internal config of the claude-sdk strategy (`infra/providers/claude-sdk`). Explicitly
+  it is a backend-internal config of the agent-sdk strategy (`infra/providers/backends/agent-sdk`, per
+  DECISIONS-LEDGER §7 D8 — the `infra/providers/claude-sdk` name is DROPPED). Explicitly
   excluded from this domain.
 - **Generation params** (`UserIntent`/preset) — the `preset` domain (`contracts/preset`). Not settings.
 
@@ -82,7 +83,7 @@ others have homes elsewhere and are listed so the boundary is explicit.
 | **(a) true env** | boot / secret / identity (`PORT`, `DATABASE_URL`, `CREDENTIALS_KEY`, `AUTH_MODE`, OIDC, rate-limit budgets). The one `process.env` reader; `superRefine` boot-fatality per `AUTH_MODE`. | `foundation/env` | reads it DOWN as the floor; never writes it |
 | **(a/seed) env→DB-once** | env that writes a DB row once then goes inert. **The model: `OPENROUTER_API_KEY` → a labeled `openrouter` credential.** | `credentials` domain (`entry/boot/seed-credential.ts`) | NOT owned here — cited as the pattern the floor-merge generalizes; the *seed verb* is credentials' |
 | **(b) runtime toggles → AppSettings** | non-secret, non-bootstrap operational knobs an admin can flip at runtime; **env floor, DB override wins** via `layer()` + a versioned blob. Today: `corpusAutoindex`, `importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `guidedActions`, `memoryDefaults`, `memorySummarizer`. | **`settings` domain (AppSettings)** | **OWNED — the core job.** |
-| **(c) agent-sdk runtime config** | THE homeless nature: ~13 isolation pins + the 11-key reserved-denylist + the 3-mode credential firewall (200+ lines, security-load-bearing, rebuilt every turn). Called "env" only because it *emits* env vars. | `infra/providers/claude-sdk` (a named backend-internal config of the strategy) | **NOT a settings tier — explicitly excluded.** |
+| **(c) agent-sdk runtime config** | THE homeless nature: ~13 isolation pins + the 11-key reserved-denylist + the 3-mode credential firewall (200+ lines, security-load-bearing, rebuilt every turn). Called "env" only because it *emits* env vars. | `infra/providers/backends/agent-sdk` (a named backend-internal config of the strategy, per DECISIONS-LEDGER §7 D8) | **NOT a settings tier — explicitly excluded.** |
 | **(d) generation params** | `UserIntent`/preset, translated per-backend (reasoning is typed SDK Options, not env). | `preset` (`contracts/preset`) | not owned here |
 
 **The stranded (b) toggles (env-only today, SHOULD be AppSettings).** Three knobs are runtime-operational
@@ -459,8 +460,8 @@ dispatch hotspot), but each gets one canonical home:
 
 11. **The agent-sdk runtime config (nature c) is NOT in this domain.**
     *Enforcement: lint-time — the isolation pins / credential-firewall config live in
-    `infra/providers/claude-sdk`; `domain/settings/**` has zero references to them; a settings import of
-    the claude-sdk env config is RED.*
+    `infra/providers/backends/agent-sdk` (per DECISIONS-LEDGER §7 D8); `domain/settings/**` has zero
+    references to them; a settings import of the agent-sdk env config is RED.*
 
 12. **`effective-config/cache.ts` carries the `ASSUMES(single-replica)` marker.**
     *Enforcement: lint-time — a `check` gate validates the annotation is present on the module-scope

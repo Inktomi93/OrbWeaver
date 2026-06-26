@@ -55,6 +55,7 @@ tests/
 ├── server/           mirrors packages/server/src/  EXACTLY
 ├── contracts/        mirrors packages/contracts/src/
 ├── db/               mirrors packages/db/src/
+├── kit/              mirrors packages/kit/src/   (per DECISIONS-LEDGER §7 D13 — the mirror rule covers kit)
 └── client/           component / e2e (Playwright CT) — mirrors features/ (§7, provisional)
 ```
 

@@ -10,7 +10,8 @@
 > (`http/`) are NOT a transport driver — they tier under `entry/http/`** because they wire
 > domain+infra+the auth seam together (composition), which is above `domain-no-cross-feature`; only
 > `entry/` may cross feature front doors. The other cross-feature builders neo-tavern parked in
-> `jobs/` (`workloads-env.ts`, `buddy-env.ts`) move to `entry/` for the same reason. Authoritative
+> `jobs/` (`workloads-env.ts`, `buddy-env.ts`) move to `entry/compose/runner-env.ts` (per
+> DECISIONS-LEDGER §7 D4) for the same reason. Authoritative
 > upstream: `structure.md` §3 (server tiers — `transport` is `trpc/` + `jobs/`, `http/` is under
 > `entry/`; drivers are THIN, call DOWN into front doors only), §7 (the six gates); `_FANOUT-BRIEF.md`
 > §2 (one-directional flow), §3 (placement rule), §8.1 (coupling already clean — zero cross-feature
@@ -63,7 +64,8 @@
   `domain-no-cross-feature`. (RESOLVED → `entry/http/`; see §Resolved decisions.)
 - **The cross-feature env builders** — `buildWorkloadsEnv` (`WorkloadRunnerEnv`) and the buddy
   agent/observer envs lived in neo-tavern's `jobs/` but cross EVERY feature boundary; they are
-  `entry/` (composition root). `workloads.md` already states this — transport/jobs must not reach
+  `entry/compose/runner-env.ts` (per DECISIONS-LEDGER §7 D4 — the type stays in
+  `domain/workloads/contract`). `workloads.md` already states this — transport/jobs must not reach
   sideways into features.
 - **The bulk-import driver** — `importCollectedProfile` (store-then-import glue across import+assets)
   is `entry/import/run-profile-import.ts`, shared by the zip route and the `import-st` runner
@@ -134,7 +136,7 @@ transport/
 entry/http/{assets,import,export,health,auth-meta}.ts   non-tRPC registrars (binary/multipart/healthz)
 entry/auth/seam.ts                                       createAuthResolver/resolveOwner → the Principal
 entry/import/run-profile-import.ts                       the bulk store-then-import driver
-entry/{workloads-env,buddy-env}.ts                       the cross-feature WorkloadRunnerEnv + buddy envs
+entry/compose/runner-env.ts                              the cross-feature WorkloadRunnerEnv + buddy envs (per §7 D4)
 entry/app.ts                                             the Hono builder + the tRPC fetch-handler mount
                                                           (createContext seam + onError + the Retry-After responseMeta)
 ```
@@ -157,8 +159,8 @@ entry/app.ts                                             the Hono builder + the 
 | `trpc/routers/corpus.ts` (read procs + `embed`) | **stays a driver, re-pointed** | `transport/trpc/routers/corpus.ts` (or `discovery.ts`) | Read analytics procs re-point to `ctx.services.discovery.*` (corpus→discovery rename); `embed` re-points to `ctx.services.embeddings.*` (the one write path). Thin delegations throughout. | resolve-time (front-door only) |
 | `jobs/workloads-worker.ts` — poll loop / reap tick / wake-on-emit / shutdown | **stays a driver, re-tiered** | `transport/jobs/workloads-worker.ts` | THE workloads driver — calls `nextRunnableWorkload`/`runWorkload`/`reapOrphanedWorkloads`/`loadWorkload` through the front door; crosses zero feature boundaries. | resolve-time (front-door only); dep-cruiser `drivers-through-domain` |
 | `jobs/catalog-refresh-scheduler.ts` — when-to-enqueue | **stays a driver, re-tiered** | `transport/jobs/catalog-refresh-scheduler.ts` | A recurring driver; `workloads.list`/`.start` through the front door, swallows the single-active `DomainConflictError` as the desired end state. The snapshot itself is the `refresh-model-catalog` runner calling `connection.refreshCatalogSnapshot`. | resolve-time (same tier rule) |
-| `jobs/workloads-env.ts` — `buildWorkloadsEnv` | **→ entry**, re-partitioned | `entry/` (composition root) | Crosses EVERY feature boundary (embeddings/discovery/memory/assets/import/stats/connection) — an `entry/` concern, above `domain-no-cross-feature`. NOT transport (a driver must not reach sideways). Matches `workloads.md`. | resolve-time: only `entry/` may import multiple domain front doors; a `transport/`-located cross-feature build fails the tier rule |
-| `jobs/buddy-env.ts` — `buildBuddyAgentEnv` / `buildBuddyObserverEnv` | **→ entry** | `entry/` (composition root) | Bridges `domain/buddy` ↔ `domain/workloads`/`domain/chat` event sources — cross-feature composition (the buddy doc's seam). NOT transport. | resolve-time (entry only) |
+| `jobs/workloads-env.ts` — `buildWorkloadsEnv` | **→ entry**, re-partitioned | `entry/compose/runner-env.ts` (per §7 D4) | Crosses EVERY feature boundary (embeddings/discovery/memory/assets/import/stats/connection) — an `entry/` concern, above `domain-no-cross-feature`. NOT transport (a driver must not reach sideways). Matches `workloads.md`; the type stays in `domain/workloads/contract`. | resolve-time: only `entry/` may import multiple domain front doors; a `transport/`-located cross-feature build fails the tier rule |
+| `jobs/buddy-env.ts` — `buildBuddyAgentEnv` / `buildBuddyObserverEnv` | **→ entry** | `entry/compose/runner-env.ts` (per §7 D4) | Bridges `domain/buddy` ↔ `domain/workloads`/`domain/chat` event sources — cross-feature composition (the buddy doc's seam). NOT transport. | resolve-time (entry only) |
 | `http/assets.ts` — blob serve + upload registrars | **→ entry** | `entry/http/assets.ts` | Wires `assetsService` (domain) + `cas`/`variants` (infra) + `resolveOwner` (auth seam) — composition, not a thin driver. (`assets.md` movement.) | resolve-time: `entry/` is the topmost tier (downward imports OK) |
 | `http/assets.ts` — the `?w=&f=webp` snap+variant-cache+`sharp` block | **split: policy → domain, sharp → infra** | `domain/assets/verbs/resolve-variant.ts` injecting a `sharp` infra adapter | Width-snap is domain policy; `sharp` is CPU/I/O infra. Keeps the route thin and `sharp` out of `entry/`. (assets.md open item.) | resolve-time (sharp behind an infra adapter) + lint (no `sharp` in `entry/` if extracted) |
 | `http/import.ts` — `/api/import/{cards,chats,zip}` | **→ entry** | `entry/http/import.ts` | Wires `domain/import` + `domain/assets` (the card PNG is the avatar) + the auth seam — composition. | resolve-time (entry only) |
@@ -252,9 +254,10 @@ bucket is a build error rather than a silent free-turn leak.
 
 Transport is the proof that the driver tier adds zero coupling: every router is a single front-door
 call, the worker enters `workloads` through `index.ts`, and the cross-feature builders that LOOK like
-they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hoisted to `entry/`. The
-one true cross-feature hub stays `workloads/contract/runner-env.ts` (a domain contract), wired at
-`entry/` — never in transport.
+they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hoisted to
+`entry/compose/runner-env.ts` (per DECISIONS-LEDGER §7 D4). The one true cross-feature hub TYPE stays
+`workloads/contract/runner-env.ts` (a domain contract), and the builder is wired at
+`entry/compose/runner-env.ts` — never in transport.
 
 ---
 

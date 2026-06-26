@@ -66,7 +66,7 @@ This tier does **not** own:
   (b)) is settings'. `foundation/config` therefore contains **no `app-config.ts`**.
 - **The agent-sdk runtime config (nature (c) — the homeless one).** ~13 isolation pins + the
   11-key reserved-denylist + the 3-mode credential firewall. It is a backend-internal config of the
-  claude-sdk strategy → `infra/providers/claude-sdk`. It is called "env" only because it *emits* env
+  claude-sdk strategy → `infra/providers/backends/agent-sdk`. It is called "env" only because it *emits* env
   vars. Explicitly excluded. (The `HOST_SECRET_ENV_KEYS` *denylist policy* belongs with that firewall;
   only the `process.env`-reading `hostEnvForClaudeChild` baseline producer stays in `env` — see Open
   decisions.)
@@ -76,10 +76,11 @@ This tier does **not** own:
 - **The `CREDENTIALS_KEY_AUTO` auto-key boot path.** That is `infra/crypto`'s one-shot `SecretBox`
   initialization (`credentials.md` §7.2). `env` only supplies the raw `CREDENTIALS_KEY` string (and
   validates length in `infra/crypto`, NOT at boot — a missing/short key must DEGRADE, never crash).
-- **The boot/shutdown protocol (`lifecycle.ts`).** RULED to `entry/` (the composition root): it is
-  invoked once with injected deps (`httpServer` / `db` / `intervals` / `onShutdown`), is read by entry
-  only, and reaches down only to `logger` — it is NOT "read down by all," so it fails the foundation
-  test. (See the movement table + Open decisions.)
+- **The boot/shutdown protocol (`lifecycle.ts`).** DECIDED `entry/lifecycle.ts` (the composition
+  root), per DECISIONS-LEDGER §7 D5: it is invoked once with injected deps (`httpServer` / `db` /
+  `intervals` / `onShutdown`), is read by entry only, and reaches down only to `logger` — it is NOT
+  "read down by all," so it fails the foundation test. The `foundation/lifecycle.ts` alternative is
+  closed. (See the movement table.)
 - **The admin gate / auth resolution / asset CAS.** The debug surface needs an `isAdmin` check and an
   asset `fsck`; both would be UPWARD imports (auth/entry, `domain/assets`). Foundation declares them as
   **structural-injection ports** and entry supplies the impls — inversion of control, no upward import.
@@ -140,7 +141,7 @@ foundation/
 └── config/
     └── version.ts          APP_VERSION (read package.json once)   ← the floor-merge does NOT live here
 
-  (lifecycle.ts → entry/  ·  the floor-merge → domain/settings/effective-config/  ·  nature (c) → infra/providers/claude-sdk)
+  (lifecycle.ts → entry/  ·  the floor-merge → domain/settings/effective-config/  ·  nature (c) → infra/providers/backends/agent-sdk)
 ```
 
 **`debug` folds in (not a domain):** its `service.ts` / `context.ts` / `contract/` / `verbs/` /
@@ -159,7 +160,7 @@ could even sit loose; kept under `config/` for the named-tier legibility `struct
 | Unit | Outcome | Target | Rationale | Enforcement tier |
 |---|---|---|---|---|
 | `server/env.ts` (whole) | stays a tier, un-moved | `foundation/env/index.ts` | The ONE `process.env` reader; keep the `superRefine` boot-fatality, the `dotenv override` discipline + its two escape hatches, the frozen `env`. Imports `LOG_LEVELS` from `@orb/contracts/settings` (DOWN). | resolve-time: foundation tier; **lint-time** — a gate asserts no `process.env` access outside `foundation/env` (the sole-reader rule) |
-| `env.ts` — `hostEnvForClaudeChild()` + `HOST_SECRET_ENV_KEYS` | reader stays; policy splits | reader → `foundation/env`; the denylist **policy** → `infra/providers/claude-sdk` (nature (c) firewall) | `hostEnvForClaudeChild` reads `process.env` wholesale, so the read stays under the single-reader roof; *which* keys the Claude child may not see is the credential-firewall's concern, not env's. | lint-time (sole-reader covers the read); **Open decision** on the denylist split |
+| `env.ts` — `hostEnvForClaudeChild()` + `HOST_SECRET_ENV_KEYS` | reader stays; policy splits | reader → `foundation/env`; the denylist **policy** → `infra/providers/backends/agent-sdk` (nature (c) firewall) | `hostEnvForClaudeChild` reads `process.env` wholesale, so the read stays under the single-reader roof; *which* keys the Claude child may not see is the credential-firewall's concern, not env's. | lint-time (sole-reader covers the read); **Open decision** on the denylist split |
 | `env.ts` — `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`, `VLLM_*_CONCURRENCY` | candidate promotion (b) | `@orb/contracts/settings` AppSettings fields (env floor preserved) | Stranded runtime toggles — nature (b) by behavior, env-only today with no DB override. The env READER stays here; the *toggle* becomes an AppSettings field (env floor ⊕ admin override). **Not a foregone move** — defer to `settings.md` Open decisions (rate-limit budgets may stay boot-env). | resolve-time (if promoted): the field joins `appSettingsSchema`; `layer()` (settings) resolves it |
 | `observability/logger.ts` | stays, named tier | `foundation/observability/logger.ts` | The pino logger + rings + request ALS + `securityEvent`; fan-in ~94, read down by every tier. Imports `env` (down, same tier). | resolve-time: foundation tier |
 | `observability/tracing.ts` | stays, named tier | `foundation/observability/tracing.ts` | OTel spans + the trace ring + `wrapLibSqlClient`. Imports `errorMessage` (kit, down) + `APP_VERSION` (foundation). `wrapLibSqlClient` is **passed into `createDb` at the composition root** — observability can't be imported from `@orb/db` (cake), so entry injects it. | resolve-time |
@@ -171,7 +172,7 @@ could even sit loose; kept under `config/` for the named-tier legibility `struct
 | `domain/debug/persistence/queries.ts` — `tableCounts` / `integrityProbe` / `inspectChatState` | fold in; drop the port | `foundation/observability/debug/inspect/*` (import `@orb/db` directly) | `@orb/db` is a lower package, so foundation may read schema+client down. The `DbInspector` structural port existed only to dodge the upward `domain/debug` reach — unnecessary once the probes live in foundation. | resolve-time (db is a lower package) |
 | `server/version.ts` — `APP_VERSION` | stays (residual config) | `foundation/config/version.ts` | A pure constant read down by `tracing` (service version) + `debug/info`. The genuine remainder of `config` after the floor-merge leaves. | resolve-time |
 | `server/config/app-config.ts` — `envDefaults`/`layer`/`getAppConfig`/`reloadAppConfig`/cache + `EffectiveAppConfig` + `APP_SETTINGS_KEY` | **NOT foundation** | `domain/settings/effective-config/{layer,cache}.ts`; `EffectiveAppConfig` → `@orb/contracts/settings`; `APP_SETTINGS_KEY` → settings domain | The floor-merge is the read-side twin of `updateAppSettings` and belongs with the tier it resolves (`settings.md`). Foundation owns the env READ (the floor's source), not the env⊕DB resolution. | resolve-time: the resolver moves with the settings domain |
-| `server/lifecycle.ts` | RULED → `entry/` | `entry/lifecycle.ts` | Boot/shutdown protocol — invoked once at the composition root with injected deps, read by entry only, reaches down only to `logger`. NOT "read down by all" → not foundation. (Alternative kept in Open decisions.) | resolve-time: `entry/` is the top tier (imports flow down) |
+| `server/lifecycle.ts` | DECIDED → `entry/` (per §7 D5) | `entry/lifecycle.ts` | Boot/shutdown protocol — invoked once at the composition root with injected deps, read by entry only, reaches down only to `logger`. NOT "read down by all" → not foundation. The `foundation/lifecycle.ts` alternative is closed. | resolve-time: `entry/` is the top tier (imports flow down) |
 | `server/observability/*` — `SerializedSpan` / `RequestTrace` / `RequestRecord` / `AuditFailureSnapshot` / `SpanAttrs` | foundation-internal shapes | `foundation/observability/*` (the `/traces` client reads them as JSON over HTTP, structurally redeclared by probe scripts today) | Not domain types; the client never imports them — it consumes the JSON. Keep foundation-internal; a `contracts/observability` mirror is an Open decision (kills the probe-script structural redeclare). | lint-time: `types-in-contract` is a domain rule; foundation surfaces are tier-internal |
 
 ---
@@ -243,7 +244,7 @@ This tier is the **(a) true env** half of the §7.2 spine; the boundary with set
   cache, `EffectiveAppConfig`) is the **settings domain**. Foundation supplies the env floor's *source*;
   it does not resolve it. The stranded (b) toggles (`IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`,
   `VLLM_*_CONCURRENCY`) are env-only readers here today, candidate AppSettings fields in settings.
-- **(c) agent-sdk runtime config — EXCLUDED.** → `infra/providers/claude-sdk`. Foundation has zero
+- **(c) agent-sdk runtime config — EXCLUDED.** → `infra/providers/backends/agent-sdk`. Foundation has zero
   references to the isolation pins / credential firewall (the `HOST_SECRET_ENV_KEYS` denylist policy
   travels with it).
 - **(d) generation params** — `preset`. Not foundation.
@@ -413,10 +414,10 @@ decisions (this doc only locates the env READER). No double-claim.
 
 ## Open decisions
 
-- **`lifecycle.ts` — `entry/` (ruled) vs `foundation/`.** Ruled `entry/` (boot protocol, injected deps,
-  read by entry only, not read-down-by-all). The counter-case: it reaches UP to nothing and is pure
-  process infrastructure — a defensible `foundation/lifecycle.ts`. Confirm at skeleton; the
-  one-directional invariant holds either way.
+- **`lifecycle.ts` — DECIDED: `entry/lifecycle.ts`** (per DECISIONS-LEDGER §7 D5; no longer open). The
+  boot/shutdown protocol is the composition root's (injected deps, read by entry only, not
+  read-down-by-all), NOT `foundation/lifecycle.ts`. The foundation alternative is closed; the
+  one-directional invariant holds.
 - **A `contracts/observability` mirror for `SerializedSpan` / `RequestTrace`.** Today three probe
   scripts + the `/traces` client structurally redeclare these (a drift hazard the source comments flag).
   Promoting them to `@orb/contracts/observability` retires the redeclare at the cost of a contracts
@@ -425,7 +426,7 @@ decisions (this doc only locates the env READER). No double-claim.
   `@orb/db` down, the port is unnecessary. Lean: drop it; keep `AssetInspector` + `AdminAuthChecker`
   (those remain genuine upward seams).
 - **`HOST_SECRET_ENV_KEYS` denylist split.** The `process.env`-reading baseline producer stays in
-  `env`; the *denylist contents* (the credential-firewall policy) belong with `infra/providers/claude-sdk`.
+  `env`; the *denylist contents* (the credential-firewall policy) belong with `infra/providers/backends/agent-sdk`.
   Confirm the seam: does env expose a raw `processEnvSnapshot()` and claude-sdk compose the denylist, or
   does env keep `hostEnvForClaudeChild` whole? Lean: env exposes the snapshot; the firewall owns the policy.
 - **`DEFAULT_*_MODEL_ID` destination — DECIDED: `@orb/contracts/connection`** (connection vocab; kills
