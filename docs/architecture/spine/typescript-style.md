@@ -122,6 +122,10 @@ pass + neo-tavern's proven set). Meta-decisions worth recording:
   `obj["key"]` for index-sig reads). The type-safety flag wins. (neo's hard-won lesson.)
 - **Per-language formatter blocks are set fully explicit** — they do NOT inherit the top-level formatter.
 - **`useDefaultSwitchClause: off`** — forcing a `default` defeats exhaustive-`never` dispatch (§1).
+- **`useConsistentTypeDefinitions: interface`** — object shapes are interfaces (matches §7.4: `context.ts`
+  + `contract/service.ts` ARE interfaces); `z.infer`/union/intersection are type aliases, unaffected (the
+  rule only governs object-literal shapes). Resolves the config-vs-§7.4 conflict the gate-build surfaced.
+  Tooling scripts (`scripts/`) are exempt — they keep `type` aliases.
 - `noProcessEnv` error (env only via `foundation/env`); `noConsole` error (allow info/warn/error);
   pino-style logger funnel via `noRestrictedImports` when the logger lands.
 

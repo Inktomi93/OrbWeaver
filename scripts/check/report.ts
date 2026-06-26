@@ -6,6 +6,16 @@ import { runChecks } from "./harness.ts";
 import { noInlineUnionRedecl } from "./no-inline-union-redecl.ts";
 import { schemaBranding } from "./schema-branding.ts";
 import { testLayout } from "./test-layout.ts";
+import { testPresence } from "./test-presence.ts";
+import { typesInContract } from "./types-in-contract.ts";
 import { verbNaming } from "./verb-naming.ts";
 
-runChecks([featureStructure, testLayout, verbNaming, noInlineUnionRedecl, schemaBranding]);
+runChecks([
+  featureStructure,
+  testLayout,
+  verbNaming,
+  typesInContract,
+  noInlineUnionRedecl,
+  testPresence,
+  schemaBranding,
+]);
