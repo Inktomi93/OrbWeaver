@@ -1,0 +1,9 @@
+{
+  // Root AGGREGATING tsconfig — NOT used by `pnpm typecheck` (that runs per-package via `pnpm -r exec
+  // tsc`, each package's own tsconfig.json). This one exists for whole-repo tooling that needs ONE
+  // entry config spanning every package: dependency-cruiser (tsConfig + tsPreCompilationDeps, so it
+  // can tell a type-only edge from a value edge) and Stryker (tsconfigFile). Extends the base and
+  // widens `include` to the whole graph (the base's `${configDir}/src` would only see a root src/).
+  "extends": "./tsconfig.base.json",
+  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"]
+}
