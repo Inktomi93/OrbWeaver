@@ -18,7 +18,9 @@ or {
     r".*/packages/(?:kit|contracts|db)/.*",
     r".*/server/src/kit/.*",
     r".*\.test\.tsx?$",
-    r".*/tests/.*"
+    r".*/tests/.*",
+    r".*/scripts/.*",
+    r".*/tools/.*"
   },
   register_diagnostic(span=$node, message="exported type/interface/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
 }
