@@ -77,6 +77,16 @@ packages/
 resolve. (Package scope name **DECIDED: `@orb/*`** — scoped, native via pnpm, no alias tooling; see Open
 decisions + `DECISIONS-LEDGER §0`. The shadcn `@/` path-alias is NOT carried over.)
 
+**Every importable module is a DIRECTORY with `index.ts`** (front-door = folder; internal files stay flat
+and relative-imported). So all five packages share ONE resolution map — `exports: { ".": "./src/index.ts",
+"./*": "./src/*/index.ts" }`, `imports: { "#*": "./src/*/index.ts" }` — that works at any depth and never
+needs editing: a module grows from one file to many with no change to its import path or the map.
+Consumers never see the `index.ts` (`@orb/kit/ids`, not `@orb/kit/ids/index`). This avoids the flat-vs-dir
+special-casing that rots: Node's `exports` has **no directory-index and no file-existence fallback** (an
+array target resolves to the first *syntactically valid* entry, not the first existing file), so a mixed
+flat/dir layout would force per-package exception lists. Uniform folders = one rule, zero maintenance
+(`DECISIONS-LEDGER §7 D15`).
+
 **`kit` holds the pure ENGINES (not just tiny utils):** the **macro engine** (`kit/macro` — AST/parse +
 resolve a template against a `MacroContext`) and the **regex engine** (`kit/regex` — compile + apply +
 the `node:vm` ReDoS guard + the macro-substitute hook; depends on `kit/macro`). They are pure,
