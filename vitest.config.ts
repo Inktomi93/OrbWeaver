@@ -18,14 +18,10 @@ const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "repor
 const inCI = process.env.CI !== undefined;
 
 export default defineConfig({
-  // Transform OUTPUT target = esnext (Node 24 runs es2025 natively; the transform only strips types).
-  // KNOWN-BENIGN warning on every run: vite/esbuild reads each file's tsconfig `target: es2025` and logs
-  // "Unrecognized target environment es2025" — esbuild hasn't shipped es2025 support yet (upstream
-  // evanw/esbuild#4432; es2026 doesn't exist there at all). It falls back to esnext = what we want, so
-  // it's cosmetic. We deliberately keep `es2025` for tsc (the TS6 decision); the only blanket silencer is
-  // `logLevel: 'error'` which would hide REAL warnings too — not worth it. Self-resolves when esbuild
-  // adds es2025.
-  esbuild: { target: "esnext" },
+  // Transform target = es2025, matching tsc (Node 24 runs es2025 natively → no downlevel, just type
+  // strip). Needs esbuild ≥0.28 (0.25.x rejects es2025); pnpm-workspace.yaml overrides vite's bundled
+  // esbuild up to 0.28.1 so this is clean — no "Unrecognized target environment" warning.
+  esbuild: { target: "es2025" },
   test: {
     exclude: IGNORE,
 
