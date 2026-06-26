@@ -1,0 +1,83 @@
+// Plugin: no-raw-typography-in-features
+// Severity: warn
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Raw Tailwind font-size utilities in className strings —
+//             `text-xs`, `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`,
+//             `text-[10px]`, `text-[0.875rem]`, etc. — inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` call args (any nesting)
+//
+// Rationale:  Typography intent tokens live in globals.css under utility-generating
+//             prefixes (--text-micro, --text-label, --text-body, --text-hint,
+//             --text-mono-tag). Feature surfaces reach for these names, NOT the
+//             raw Tailwind scale.
+//
+//               ❌ <p className="text-sm text-muted-foreground">…</p>
+//               ✅ <p className="text-body text-muted-foreground">…</p>
+//               ✅ <span className="font-mono text-mono-tag">…</span>
+//
+//             Same litmus as no-raw-spacing-in-features: the GritQL plugin is
+//             warn-severity tree-wide; the substrate-clean ratchet (Wave 1)
+//             promotes it to error for the substrate paths. Wave 5's codemod
+//             will sweep features/* into compliance.
+//
+// Allowed:    Color/utility prefixes that happen to start with `text-` stay clean:
+//               text-foreground / text-muted-foreground / text-destructive /
+//               text-primary / text-accent-* / text-left / text-right /
+//               text-center / text-balance / text-pretty / text-wrap / text-nowrap
+//             and any token name (text-micro / text-label / text-body / text-hint
+//             / text-mono-tag) — the regex only matches the raw font-size scale.
+//
+// Scope:      Fires ONLY inside src/client/{features,components,routes} and SKIPS
+//             the allowlist (features/_shared/layout/, _shared/form/contexts.ts,
+//             components/ui/, components/markdown.tsx) — via the in-rule `$filename`
+//             guard, NOT per-line suppressions. Mirrors substrate-clean.ts exactly.
+//             (See no-raw-spacing-in-features.grit for the guard rationale + the
+//             retired biome #6851 note.)
+//
+// Refs:       src/client/AGENTS.md §Spacing-and-layout (typography intent tokens)
+//             src/client/styles/globals.css (--text-* definitions)
+// ──────────────────────────────────────────────────────────────────────────────
+
+language js
+
+// Shared guard: substrate-gated client path AND not allowlisted. $filename is
+// auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
+predicate in_substrate_scope() {
+  $filename <: r".*/src/client/(?:features|components|routes)/.*",
+  $filename <: not or {
+    r".*/features/_shared/layout/.*",
+    r".*/features/_shared/form/contexts\.ts$",
+    r".*/components/ui/.*",
+    r".*/components/markdown\.tsx$"
+  }
+}
+
+or {
+  jsx_attribute() as $attr where {
+    in_substrate_scope(),
+    $attr <: r"^className=\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
+    register_diagnostic(span=$attr, message="raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+  },
+  `cn($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw font-size utility in cn() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+    }
+  },
+  `clsx($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw font-size utility in clsx() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+    }
+  },
+  `cva($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+    }
+  }
+}

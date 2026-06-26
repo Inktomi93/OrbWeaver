@@ -1,0 +1,79 @@
+// Plugin: no-raw-z-index
+// Severity: warn
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Raw Tailwind z-index utilities — `z-10`, `z-50`, `z-[60]`, etc.
+//             — inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` call args (any nesting)
+//
+// Rationale:  Z-index needs a global stacking contract or we get Dialog-behind-
+//             Tooltip / Toast-under-Modal bugs that surface only in obscure
+//             permutations of open overlays. Use the semantic tokens from
+//             src/client/styles/globals.css:
+//               z-dropdown · z-sticky · z-overlay · z-modal · z-popover ·
+//               z-tooltip · z-toast
+//
+// Scope:      Fires ONLY inside src/client/{features,components,routes} and SKIPS
+//             the allowlist (features/_shared/layout/, _shared/form/contexts.ts,
+//             components/ui/ — the shadcn portal floor that OWNS the tokens —,
+//             components/markdown.tsx) via the in-rule `$filename` guard, NOT
+//             per-line suppressions. Mirrors substrate-clean.ts exactly. (See
+//             no-raw-spacing-in-features.grit for the guard rationale + the
+//             retired biome #6851 note.)
+//
+// Refs:       src/client/styles/globals.css §z-index tokens
+//             src/client/AGENTS.md §Spacing-and-layout
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: `jsx_attribute()` is Biome's AST-node primitive for JSX attrs;
+// the regex filters its full text (`^className=\"...\"$`) so only className
+// attrs fire. cn/clsx/cva arms descend via `contains bubble` so multiple bad
+// strings in one call are each reported independently — without `bubble`,
+// metavariable unification would silently drop all matches after the first.
+// `in_substrate_scope()` is the shared path guard (DRY across arms).
+//
+// Perf note: cumulative time dropped ~23× by scoping to jsx_attribute() instead
+// of every string literal — see spikes/biome-perf/RESULTS.md.
+
+language js
+
+// Shared guard: substrate-gated client path AND not allowlisted. $filename is
+// auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
+predicate in_substrate_scope() {
+  $filename <: r".*/src/client/(?:features|components|routes)/.*",
+  $filename <: not or {
+    r".*/features/_shared/layout/.*",
+    r".*/features/_shared/form/contexts\.ts$",
+    r".*/components/ui/.*",
+    r".*/components/markdown\.tsx$"
+  }
+}
+
+or {
+  jsx_attribute() as $attr where {
+    in_substrate_scope(),
+    $attr <: r"^className=\"[^\"]*\bz-(?:\d+|\[\d+\])[^\"]*\"$",
+    register_diagnostic(span=$attr, message="raw z-N in className — use a semantic z-index token (z-modal, z-popover, z-tooltip, z-overlay, z-toast, z-dropdown, z-sticky). See src/client/styles/globals.css §z-index tokens and src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+  },
+  `cn($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\bz-(?:\d+|\[\d+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw z-N in cn() — use a semantic z-index token (z-modal, z-popover, z-tooltip, z-overlay, z-toast, z-dropdown, z-sticky). See src/client/styles/globals.css §z-index tokens.", severity="warn")
+    }
+  },
+  `clsx($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\bz-(?:\d+|\[\d+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw z-N in clsx() — use a semantic z-index token (z-modal, z-popover, z-tooltip, z-overlay, z-toast, z-dropdown, z-sticky). See src/client/styles/globals.css §z-index tokens.", severity="warn")
+    }
+  },
+  `cva($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\bz-(?:\d+|\[\d+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw z-N in cva() — use a semantic z-index token (z-modal, z-popover, z-tooltip, z-overlay, z-toast, z-dropdown, z-sticky). See src/client/styles/globals.css §z-index tokens.", severity="warn")
+    }
+  }
+}

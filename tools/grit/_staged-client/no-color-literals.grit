@@ -1,0 +1,59 @@
+// Plugin: no-color-literals
+// Severity: warn
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Arbitrary hex color literals in Tailwind utilities — `text-[#abc]`,
+//             `bg-[#fff000]`, `border-[#123456]`, `ring-[#deadbe]`, etc. —
+//             inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` call args (any nesting)
+//
+// Rationale:  Literal hex colors bypass the design-token system (Hearth /
+//             Catppuccin / Loom in src/client/styles/globals.css) and silently
+//             break theme switching — a literal color doesn't change when the
+//             user flips themes. Use semantic tokens (`text-foreground`,
+//             `bg-card`, `border-border`) or the named accents (`text-success`,
+//             `text-destructive`).
+//
+// Skips:      The theme.css blocks themselves — the canonical Catppuccin hex
+//             IS the token there. That file isn't TSX, so it isn't reached.
+//             Chart series + brand-asset previews legitimately use specific
+//             palettes; those sites carry per-line suppressions.
+//
+// Suppress:   // biome-ignore lint/plugin/no-color-literals: <reason>
+//             (discuss before suppressing — the design system is the default)
+//
+// Refs:       src/client/styles/globals.css (token definitions)
+//             src/client/AGENTS.md §Spacing-and-layout
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: same shape as no-raw-z-index — jsx_attribute() for the className
+// attribute, then cn/clsx/cva arms with `contains bubble` to descend into call
+// arg strings. `bubble` isolates `$lit` per match so multiple bad colors in
+// one cn() call each fire.
+
+language js
+
+or {
+  jsx_attribute() as $attr where {
+    $attr <: r"^className=\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
+    register_diagnostic(span=$attr, message="arbitrary hex color in className — use a design token from globals.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+  },
+  `cn($args)` where {
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary hex color in cn() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+    }
+  },
+  `clsx($args)` where {
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary hex color in clsx() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+    }
+  },
+  `cva($args)` where {
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary hex color in cva() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="warn")
+    }
+  }
+}

@@ -125,11 +125,17 @@ pass + neo-tavern's proven set). Meta-decisions worth recording:
 - `noProcessEnv` error (env only via `foundation/env`); `noConsole` error (allow info/warn/error);
   pino-style logger funnel via `noRestrictedImports` when the logger lands.
 
-**Deferred ratchets** (promote as the codebase matures — recorded so they aren't forgotten):
-- `noEmptySource` → enable once placeholders are replaced by real modules (it fires on comment-only stubs).
-- `noUnresolvedImports` → enable after confirming it resolves our `#imports`/`exports` (`tsc` covers it meanwhile).
-- The **warn-tier** rules (`noUnnecessaryConditions`, `noMagicNumbers`, `noExcessiveCognitiveComplexity@15→10`,
-  `useExplicitReturnType`, `useForOf`, `useAtIndex`) → ratchet to `error` once clean.
-- **GritQL plugins to author** (Phase 0b, `tools/grit/`): `no-raw-id` + `no-loose-id-cast` +
-  `no-mint-via-cast` (branded `typeid` discipline) + `no-await-db-in-loop` (N+1 guard, scope server/db).
-  Plus `no-decorators` (the erasable-illegal-but-compiler-silent gate, above).
+**GritQL plugins (`tools/grit/`):** 6 active — `no-raw-id`, `no-loose-id-cast`, `no-mint-via-cast`
+(branded `typeid`), `no-await-db-in-loop` (N+1), `no-raw-intl-time` (the `@orb/kit/time` seam),
+`no-if-is-group` (unified group chat: solo = degenerate group). **8 client rules staged** in
+`tools/grit/_staged-client/` (Tailwind-token / layout-primitive / form / surface-hook gates) — they
+encode deferred client-architecture decisions; activate + adapt at the client scaffold (see
+`tools/grit/README.md`). Still TODO: a `no-decorators` plugin (erasable-illegal but compiler-silent).
+
+**Ratcheted to error (no longer deferred):** all former warn-tier rules (`noUnnecessaryConditions`,
+`noMagicNumbers`, `noExcessiveCognitiveComplexity@15`, `useExplicitReturnType`, `useForOf`, `useAtIndex`,
+`noAwaitInLoops`, `noNamespaceImport`, `noSecrets`, the a11y warns…) are now `error`; `noUnresolvedImports`
+is `error` (verified it resolves our `@orb/*` workspace + `#imports` with no false-positive).
+
+**Deferred ratchet — only one left:** `noEmptySource` → enable once the comment-only placeholders are
+replaced by real modules.
