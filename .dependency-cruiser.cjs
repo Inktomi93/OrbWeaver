@@ -320,13 +320,14 @@ module.exports = {
   ],
 
   options: {
-    // Optional for dep-cruiser (we have ZERO tsconfig `paths` — confirmed against the options reference).
-    // Kept ONLY for resolution parity with tsc (the exports→.ts map + the `#` imports field + bundler
-    // moduleResolution) and because it's the same root config Stryker needs. Type-only edge detection
-    // comes from `tsPreCompilationDeps` below, NOT from this.
-    tsConfig: { fileName: "tsconfig.json" },
-    // REQUIRED for the `dependencyTypesNot: ["type-only"]` discriminator (client→server bridge,
-    // drivers' param types, cross-feature/verb type shapes). Surfaces pre-compilation (type-only) edges.
+    // No `tsConfig` — VERIFIED unneeded (2026-06-26, three tests: cross-package relative resolution,
+    // the type-only-vs-value discriminator, AND `#` subpath resolution all behave IDENTICALLY with and
+    // without it). We have zero tsconfig `paths`, and enhancedResolveOptions + tsPreCompilationDeps below
+    // do the real work. (Per the options reference, tsConfig only applies `paths` aliases.) The root
+    // tsconfig.json exists for vitest's type lane + Stryker's typescript-checker (Phase 4), not this.
+    //
+    // REQUIRED for the `dependencyTypesNot: ["type-only"]` discriminator (client→server bridge, drivers'
+    // param types, cross-feature/verb type shapes) — surfaces pre-compilation (type-only) edges.
     tsPreCompilationDeps: true,
     // depcruise derives which analyses (cycles/orphans/reachability) the ruleset needs — free speed.
     skipAnalysisNotInRules: true,
