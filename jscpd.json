@@ -1,0 +1,52 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kucherenko/jscpd/master/apps/jscpd/jscpd-schema.json",
+
+  "// path": "The product code only — the 5 packages' src. Tooling (scripts/, tools/) + the centralized tests/ mirror are excluded below.",
+  "path": ["packages"],
+
+  "// formats": "Only the languages in play; CSS joins when the client lands (Phase 6).",
+  "format": ["typescript", "css"],
+
+  "// minTokens": "50 (default) catches real duplication; lower → noise.",
+  "minTokens": 50,
+
+  "// minLines": "5 lines minimum — below this it's coincidence.",
+  "minLines": 5,
+
+  "// maxLines": "2000 — handle large generated files without bailing.",
+  "maxLines": 2000,
+
+  "// maxSize": "Skip files over 200kb (fixtures, snapshots).",
+  "maxSize": "200kb",
+
+  "// threshold": "CI gate: fail if duplication exceeds 5%. Ratchet down as the codebase matures.",
+  "threshold": 5,
+
+  "// gitignore": "Respect .gitignore — no node_modules / reports / scratchpad.",
+  "gitignore": true,
+
+  "// ignore": "Tests are the centralized tests/ tree (intentional mirror duplication is fine); migrations are generated; fixtures are data; reset.d.ts is a one-liner.",
+  "ignore": [
+    "**/tests/**",
+    "**/*.test.ts",
+    "**/*.int.test.ts",
+    "**/*.contract.test.ts",
+    "**/*.parity.test.ts",
+    "**/*.test-d.ts",
+    "**/*.ct.tsx",
+    "**/*.spec.ts",
+    "**/migrations/**",
+    "**/snapshots/**",
+    "**/__fixtures__/**",
+    "**/*.d.ts"
+  ],
+
+  "// reporters": "Console for interactive use; `pnpm cpd:report` emits the HTML to reports/cpd.",
+  "reporters": ["console"],
+
+  "// skipComments": "Strip comments before tokenising — don't match comment boilerplate.",
+  "skipComments": true,
+
+  "// noTips": "Suppress sponsor/AI tips in CI output.",
+  "noTips": true
+}
