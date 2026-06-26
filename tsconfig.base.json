@@ -6,6 +6,8 @@
     // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
     "noEmit": true,
     "incremental": true,
+    // tsc is the type ORACLE — never truncate a deep contracts/db type with `...` in a diagnostic.
+    "noErrorTruncation": true,
     // Cache lives in the package's own node_modules → per-worktree + gitignored.
     "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsbuildinfo.json",
     "skipLibCheck": true,
@@ -16,6 +18,10 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
+    // Honor package.json `exports`/`imports` resolution explicitly. Default-true under `bundler`;
+    // pinned to harden our exports/#imports contract + survive a future moduleResolution change.
+    "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true,
     "resolveJsonModule": true,
     "allowJs": false,
 
