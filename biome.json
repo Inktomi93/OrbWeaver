@@ -7,7 +7,20 @@
     "./tools/grit/no-mint-via-cast.grit",
     "./tools/grit/no-await-db-in-loop.grit",
     "./tools/grit/no-raw-intl-time.grit",
-    "./tools/grit/no-if-is-group.grit"
+    "./tools/grit/no-if-is-group.grit",
+    "./tools/grit/no-context-returntype.grit",
+    "./tools/grit/no-decorators.grit",
+    "./tools/grit/no-inline-types.grit",
+    "./tools/grit/no-raw-clock.grit",
+    "./tools/grit/persistence-no-in-memory-state.grit",
+    "./tools/grit/no-color-literals.grit",
+    "./tools/grit/no-raw-z-index.grit",
+    "./tools/grit/no-raw-spacing-in-features.grit",
+    "./tools/grit/no-raw-typography-in-features.grit",
+    "./tools/grit/no-chat-trpc-in-surface.grit",
+    "./tools/grit/no-direct-useform.grit",
+    "./tools/grit/no-form-state-in-useeffect.grit",
+    "./tools/grit/no-inline-optimistic-in-surface.grit"
   ],
   "vcs": {
     "enabled": true,

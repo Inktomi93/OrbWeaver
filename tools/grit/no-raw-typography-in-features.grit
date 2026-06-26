@@ -44,40 +44,40 @@ language js
 // Shared guard: substrate-gated client path AND not allowlisted. $filename is
 // auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
 predicate in_substrate_scope() {
-  $filename <: r".*/src/client/(?:features|components|routes)/.*",
+  $filename <: r".*/packages/client/src/.*",
   $filename <: not or {
     r".*/features/_shared/layout/.*",
     r".*/features/_shared/form/contexts\.ts$",
-    r".*/components/ui/.*",
+    r".*/packages/client/src/shared/ui/.*",
     r".*/components/markdown\.tsx$"
   }
 }
 
 or {
-  jsx_attribute() as $attr where {
+  JsxAttribute() as $attr where {
     in_substrate_scope(),
     $attr <: r"^className=\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-    register_diagnostic(span=$attr, message="raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+    register_diagnostic(span=$attr, message="raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
   },
   `cn($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in cn() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+      register_diagnostic(span=$lit, message="raw font-size utility in cn() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
     }
   },
   `clsx($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in clsx() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+      register_diagnostic(span=$lit, message="raw font-size utility in clsx() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
     }
   },
   `cva($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="warn")
+      register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
     }
   }
 }
