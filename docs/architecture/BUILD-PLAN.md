@@ -28,8 +28,8 @@ The highest-leverage phase: stand up the fences before the code, so the cake is 
 ## Phase 1 — `@orb/kit` (the leaf — everything imports down into it)
 Build in the dissolution boot-order (`shared-dissolution.md §8`):
 1. `ids`, `errors` first (the universal leaf — `ids` had 446 importers).
-2. The primitives: `guards`, `strings`, `objects`, `json`, `time`, `tokens`, `slug`, `error-message`, `fix-markdown`, `speaker-label`, `vector-math`, `replay-buffer`, `stats-tally`, `png-card-chunk`, `assets`, `persona`.
-3. The engines: **`macro/` first**, then `regex/` + `guided` (both depend on `macro`); `world-info/` tuples (before the 3 contracts that import them).
+2. The primitives: `guards`, `strings`, `objects`, `json`, `time`, `tokens`, `slug`, `error-message`, `fix-markdown`, `speaker-label`, `vector-math`, `replay-buffer`, `stats-tally`, `png-card-chunk`, `assets`, `message-role` (D32 — the canonical `system|user|assistant` axis + ST bimap; the role atom every injector + chat message shares).
+3. The engines: **`macro/` first**, then `regex/` + `guided` (both depend on `macro`); `injection/` (D32 — the shared `{depth,role}` placement; depends on `message-role`); then `world-info/` + `persona/` (depend on `message-role` + `injection`), before the contracts that import their tuples.
 
 **✅ Checkpoint:** kit unit tests green; `kit-purity` gate green (zero `node:*`/`contracts`/`db`/domain imports).
 

@@ -38,6 +38,8 @@ catalog:
   typeid-js: ^1.2.0
   luxon: ^3.7.2
   "@types/luxon": ^3.7.2
+  # remend: Vercel's streamdown markdown-repair engine (isomorphic, pure) — kit/fix-markdown.
+  remend: ^1.3.0
   # --- db ---
   drizzle-orm: ^0.45.2
   drizzle-kit: ^0.31.10

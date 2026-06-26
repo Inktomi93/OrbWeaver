@@ -46,7 +46,9 @@ function runStructure(): string {
 }
 
 function names(re: RegExp, out: string): Set<string> {
-  return new Set([...out.matchAll(re)].map((m) => m[1]));
+  // `m[1]` is `string | undefined` under noUncheckedIndexedAccess — flatMap drops the (impossible
+  // here, but type-visible) undefined so the Set is `Set<string>`.
+  return new Set([...out.matchAll(re)].flatMap((m) => (m[1] === undefined ? [] : [m[1]])));
 }
 
 function writeFixtures(): void {

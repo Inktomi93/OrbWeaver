@@ -310,7 +310,7 @@
   },
   "overrides": [
     {
-      "includes": ["packages/*/src/index.ts", "packages/server/src/domain/*/index.ts"],
+      "includes": ["packages/*/src/**/index.ts"],
       "linter": {
         "rules": { "performance": { "noBarrelFile": "off", "noReExportAll": "off" } }
       }

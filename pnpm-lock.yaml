@@ -75,6 +75,9 @@ catalogs:
     react-dom:
       specifier: ^19.2.7
       version: 19.2.7
+    remend:
+      specifier: ^1.3.0
+      version: 1.3.0
     ts-morph:
       specifier: ^28.0.0
       version: 28.0.0
@@ -104,6 +107,21 @@ importers:
       '@biomejs/biome':
         specifier: 'catalog:'
         version: 2.5.1
+      '@orb/client':
+        specifier: workspace:*
+        version: link:packages/client
+      '@orb/contracts':
+        specifier: workspace:*
+        version: link:packages/contracts
+      '@orb/db':
+        specifier: workspace:*
+        version: link:packages/db
+      '@orb/kit':
+        specifier: workspace:*
+        version: link:packages/kit
+      '@orb/server':
+        specifier: workspace:*
+        version: link:packages/server
       '@playwright/experimental-ct-react':
         specifier: 'catalog:'
         version: 1.61.1(@types/node@24.13.2)(tsx@4.22.4)(vite@6.4.3(@types/node@24.13.2)(tsx@4.22.4))
@@ -208,6 +226,9 @@ importers:
       luxon:
         specifier: 'catalog:'
         version: 3.7.2
+      remend:
+        specifier: 'catalog:'
+        version: 1.3.0
       typeid-js:
         specifier: 'catalog:'
         version: 1.2.0
@@ -1998,6 +2019,9 @@ packages:
   regexp-tree@0.1.27:
     resolution: {integrity: sha512-iETxpjK6YoRWJG5o6hXLwvjYAoW+FEZn9os0PD/b6AP6xQwsa/Y7lCVgIixBbUPMfhu+i2LtdeAqVTgGlQarfA==}
     hasBin: true
+
+  remend@1.3.0:
+    resolution: {integrity: sha512-iIhggPkhW3hFImKtB10w0dz4EZbs28mV/dmbcYVonWEJ6UGHHpP+bFZnTh6GNWJONg5m+U56JrL+8IxZRdgWjw==}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
@@ -3868,6 +3892,8 @@ snapshots:
       resolve: 1.22.12
 
   regexp-tree@0.1.27: {}
+
+  remend@1.3.0: {}
 
   require-from-string@2.0.2: {}
 

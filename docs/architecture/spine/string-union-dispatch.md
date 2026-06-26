@@ -79,9 +79,11 @@ don't regress): `CredProvider`/`CRED_PROVIDERS` + `CredentialSource` → `contra
 re-spell it inline — CORRECTED to cross-boundary) → `contracts/assets`; `SourceKind`/`SourceLens` +
 `VectorTable` → `domain/embeddings/contract`; `WorkloadKind`/`WorkloadStatus` → `domain/workloads/
 contract` (the exemplar); `TagTargetType`/`TagSource`/`TagFolderType` → `contracts/tag`;
-`WorldBookRole`/`EntryInjectionRole`/`EntryScopeMode`/`EntryPosition` → `contracts/world-info` +
-`kit/world-info` (`ENTRY_INJECTION_ROLES` is the most cross-shared union — character + persona +
-world-info — so it sits below all three contracts namespaces).
+`WorldBookRole`/`EntryScopeMode`/`EntryPosition` → `contracts/world-info` + `kit/world-info`. **The
+at-depth injection ROLE is NOT a world-info type (D32):** `ENTRY_INJECTION_ROLES` collapses into the
+canonical `MessageRole` (the same `system|user|assistant` axis as `messageRole`) homed in the neutral
+`kit/message-role`; world-info, persona, the card depth-prompt, author's note, memory, and guided all
+import it from there. The `{depth,role}` inject SHAPE lives in `kit/injection`.
 
 ---
 
@@ -178,7 +180,7 @@ single source of truth for *both* its shape and its fan-out.
 
 | axis | (a) ONE home | (b) dispatch shape | gate that catches a new member |
 |---|---|---|---|
-| `messageRole` | `MessageRole` + `MESSAGE_ROLES` → `contracts/chat` (re-exported into preset injection) — collapse the 3 const-arrays | `Record`/`assertNever` over `MessageRole` at every switch (today 116 inline sites) | both: redecl RED at lint, missing arm RED at `tsc` |
+| `messageRole` | **tuple `MESSAGE_ROLES` + `MessageRole` → `kit/message-role` (D32, neutral); schema `messageRoleSchema = z.enum(MESSAGE_ROLES)` → `contracts/chat`** (tuple-in-kit §5). Collapses all 4 const-arrays (`messageRole`/`ENTRY_INJECTION_ROLES`/`GUIDED_INJECTION_ROLES`/`PRESET_GUIDED_INJECTION_ROLES`). | `Record`/`assertNever` over `MessageRole` at every switch (today 116 inline sites) | both: redecl RED at lint, missing arm RED at `tsc` |
 | `users.role` (`UserRole`) | `UserRole` + `USER_ROLES` (`owner\|admin\|user`, D17) → `contracts/identity` (§7.1) | role checks dispatch through the canonical union; no inline `"admin"\|"user"` | both |
 | `guidedAction` (`GuidedActionKind`) | `GuidedActionKind` + schema → `contracts/preset/guided.ts` | `GUIDED_ACTION_IMPLS: { [K in GuidedActionKind]: Impl<K> }` — the 4 untyped `Record`s become typed | both (the untyped Records gain exhaustiveness) |
 | `ChatSource` | **= `CredentialSource` (D31): canonical in `contracts/credentials`; `contracts/connection` re-exports it as `ChatSource`** (same 4-member axis; no second tuple) | already `assertNever`-gated — KEEP; kill the 11 re-decls | Gate A (dispatch already total) |
@@ -256,10 +258,13 @@ B; the *credential inheritance* question it raises is a §7.1 decision, parked t
 
 ## 8. Open decisions
 
-- **`messageRole` home — `contracts/chat` vs a shared `contracts/message` namespace.** It is consumed
-  by chat assembly AND preset injection-role mapping AND the provider wire. Probably `contracts/chat`
-  with preset importing it; confirm there's no `tool`/`developer` role coming that would widen it
-  (and force the dispatches to grow an arm — the point of Gate B).
+- **`messageRole` home — RESOLVED (D32).** The TUPLE `MESSAGE_ROLES` + `MessageRole` + the ST bimap live
+  in the neutral **`kit/message-role`** (kit needs them: the ST serde bimap + the injection resolvers; kit
+  can't import contracts — §5 tuple-in-kit); the wire schema `messageRoleSchema = z.enum(MESSAGE_ROLES)`
+  lives in `contracts/chat` and imports the tuple down. Chat assembly, preset/guided injection-role
+  mapping, persona/world-info/depth-prompt/author-note/memory injection, and the provider wire all import
+  the ONE union. *(Open watch: a future `tool`/`developer` role would widen the tuple in the one place and
+  every `assertNever` dispatch grows an arm — exactly Gate B's point.)*
 - **The axis registry format for Gate A.** `no-inline-union-redecl` needs a machine-readable list of
   `{ canonicalPath, memberSet }` to count against. Decide whether that registry is a hand-maintained
   manifest, or inferred from "every exported `as const satisfies readonly T[]` tuple under
