@@ -62,9 +62,12 @@ export default defineConfig({
         },
       },
       {
-        // integration: `.int.test.ts` — real libSQL :memory:, real I/O.
+        // integration: `.int.test.ts` — real libSQL :memory:, real I/O. fileParallelism:false runs
+        // these files SERIALLY: the gate/dep-cruiser self-tests write fixtures into the shared package
+        // tree and run whole-tree tools (report.ts/depcruise), so parallel files would clobber each
+        // other; shared-resource integration tests want serial anyway (freshDb-per-test isolates data).
         extends: true,
-        test: { name: "integration", include: ["tests/**/*.int.test.ts"] },
+        test: { name: "integration", include: ["tests/**/*.int.test.ts"], fileParallelism: false },
       },
       {
         // contract: `.contract.test.ts` — zod round-trips / golden surface.
