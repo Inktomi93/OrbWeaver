@@ -41,6 +41,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# --- git hooks (lefthook local overrides) ---
+lefthook-local.yml
+
 # --- editor / OS ---
 .DS_Store
 Thumbs.db

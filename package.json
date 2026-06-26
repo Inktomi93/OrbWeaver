@@ -1,0 +1,38 @@
+{
+  "name": "orbweaver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.5.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "prepare": "lefthook install",
+    "worktree:bootstrap": "bash scripts/worktree-bootstrap.sh",
+    "typecheck": "pnpm -r exec tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
+    "test": "vitest run --project unit --project integration --project contract",
+    "test:types": "vitest run --project types",
+    "test:parity": "vitest run --project parity",
+    "test:coverage": "vitest run --coverage",
+    "test:ct": "playwright test -c playwright-ct.config.ts",
+    "e2e": "playwright test -c playwright.config.ts",
+    "check": "pnpm lint && pnpm typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@playwright/experimental-ct-react": "catalog:",
+    "@playwright/test": "catalog:",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "dependency-cruiser": "catalog:",
+    "lefthook": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
