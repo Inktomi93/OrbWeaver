@@ -26,7 +26,7 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "stryker run stryker.config.json",
     "test:mutation:gate": "stryker run stryker.gate.config.json",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:structure"
+    "check": "pnpm lint && pnpm typecheck && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
