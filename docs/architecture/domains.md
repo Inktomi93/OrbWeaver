@@ -1,0 +1,264 @@
+# Orbweaver — domain inventory
+
+> **Status: planning.** The feature map for `packages/server/src/domain/`. Each domain follows the
+> 8-slot template in `structure.md`. This doc records *which* features exist, why, and how the
+> knowledge/derived-data cluster (the neo-tavern tangle) is untangled.
+
+## The map (neo-tavern's 18 → orbweaver)
+
+| Domain | Origin | Owns |
+|---|---|---|
+| **chat** | keep (slim) | the turn lifecycle, canon, sessions (SDK), assembly, arbitration. `memory` is a subsystem here but *delegates* vectors (below). |
+| **character** | keep | character identity + versions-as-history (de-pinned); the card. |
+| **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
+| **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
+| **world-info** | keep | one books/entries store + scope junctions (already correct). |
+| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRoleConnection(role)` for all 7 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent). Absorbs **models** (the catalog = "what a connection can pick"). |
+| **credentials** | keep (un-invert) | ALL credential logic — resolve + CRUD + metadata. No `_shared` guts. |
+| **tag** | keep (fix) | one tag namespace + per-entity junctions; **proposed = a status**, not a parallel store. Labels only — NOT analytics facets (those are `discovery`). |
+| **embeddings** | **NEW** | the vector substrate: embeds every source + owns the vector store + the event-driven indexer. The ONE write path. (Below.) |
+| **search** | keep (narrow) | the ONE retrieval capability (cosine + rerank + field-search). One cosine engine. |
+| **discovery** | rename of **corpus** | library *semantic understanding*: themes, hubness/centrality, near-duplicates, distillation (genre/tone/pitch), archetypes, similarity browsing. Consumes embeddings + search; embeds nothing itself. |
+| **stats** | keep (narrow) | turn **economics** only — tokens/cost/cache/timing. Distinct from `discovery` (semantics). |
+| **buddy** | keep | the companion = the `agent` role connection (no hand-rolled router). |
+| **settings** | keep | app + user setting tiers. |
+| **sessions** | keep | auth/BFF sessions (distinct from SDK chat sessions). |
+| **admin** | keep | admin surfaces / gating. |
+| **import** | keep (rework) | TARGET: a canon-write that **emits ContentChanged events** so the indexer auto-runs. (Today it stops at row insert + emits nothing — verified.) Unify the two bulk loops (zip route vs `import-st` workload) into one. |
+| **export** | keep (rework) | TARGET: import + export **share ONE serialization core**. (Today they are two independent mappers coupled only by round-trip tests — role-map triplicated, WI mapping hand-duplicated, `creator`/`regex_scripts` survive only via a `raw` blob. Verified.) |
+| **assets** | keep | the CAS index/table (the blob *store* itself is `infra/storage`). |
+| **workloads** | keep | the execution engine the indexer + bulk passes enqueue into. |
+| ~~models~~ | → **connection** | merged. |
+| ~~debug~~ | → **foundation/observability** | `/api/_debug` is observability, not a domain. |
+| ~~corpus~~ | → **discovery** | renamed (name required insider knowledge; it does library understanding). |
+
+## Participants, agents & identity (character + persona)
+
+> **Authoritative detail: [`participants-agents-identity.md`](./participants-agents-identity.md).**
+
+The reframe (confirmed by recon): the foundation is a **stateless chat turn** —
+`(system prompt, this-participant's-view-of-canon, connection) → reply`, a pure function of canon, run by
+**pluggable backends**: stateless chat-completions (OpenRouter incl. Claude-via-OR / vLLM /
+custom-openai) + `claude-agent-sdk` (the sub + the OpenRouter Anthropic skin). **No direct-Anthropic-API
+backend** (no key; the `@anthropic-ai/sdk` peer stays unused). **"Agent mode" (tools + loop + session
+via `claude-agent-sdk`) is opt-in, NOT the whole bet** — `claude-agent-sdk` is reserved for the Max sub
+(its only legal path) + agent mode; most turns are stateless and never touch it. This dissolves neo-tavern's name-stamping merge-tax (per-participant
+isolation removes the merge), the agent-sdk env-knob tax (a backend detail, not a per-turn concern), and
+the seed/reseed statefulness (a backend-internal canon-derived cache). **`character` participants can opt
+into agent mode; `buddy` is the first agent-mode consumer** — one chat-turn path + a `tools?`/loop flag.
+**persona** is
+per-participant (active, on the roster — drop `chats.personaId`) + a chat-level **anchor** (`{{user}}`
+POV, the kept dual-persona rule) + per-message **attribution**; multi-human = each human carries their
+own persona. **character** = live identity + versions-as-restorable-history (de-pin; chats never pin a
+cv; `restore` copies old→current). Open: per-agent connection is a new routing axis; whether `agent` is
+a thin shared domain vs a pattern composed by chat+buddy.
+
+## Memory ↔ search: two reads over ONE substrate (original intent — `memory-diagram.pdf`)
+
+> **Authoritative detail: [`knowledge-cluster.md`](./knowledge-cluster.md).** That doc is the source of
+> truth for the embeddings/memory/search/discovery cluster (substrate shape, tiering, group scoping, the
+> egocentric-scoped-recall decision, knobs, invariants). The summary below must not contradict it; if it
+> ever does, the cluster doc wins.
+
+The downloaded purpose doc establishes memory's design, and it reframes the whole cluster: **memory and
+cross-chat search were *designed* to share one substrate — the tangle is botched execution of
+intentional sharing, not an accident to be split.**
+
+- **Memory's job:** canon is append-only forever; the model's window sees only the recent *tail*;
+  memory is the **regenerable index that reaches past the window and pulls the relevant past forward**.
+  Orthogonal to compaction (which compresses *inside* the window). Pure function of canon — never a
+  second source of truth.
+- **One substrate, two lenses** over fixed 16-msg blocks: **segment** (verbatim) + **digest** (distilled:
+  topic-anchor + significance-filtered facts + 15–30 keywords, **tiered**, fanOut 8). Both keyed
+  `(chatId, blockIdx, seq-span)`; digest = sharp search key, segment = verbatim ground truth.
+- **Search is the engine; memory is search scoped to one chat.** Not two parallel readers — ONE
+  retrieval engine with memory as a parameterized application of it.
+  - **`search` engine parameters:** **scope** (one chat · a character · all the user's chats) ×
+    **lens** (raw **segments** verbatim · **semantic** digests · a specific **tier**) × rerank/top-k/
+    hub-adjust → ranked hits → seq-spans back to canon.
+  - **cross-chat use** → "where across *all* my chats did X happen?" → scope=all, any lens.
+  - **memory use** → `search(scope=this chat, lens=tier-0 digests | tiered bridge, window=aged-out)`
+    → assembled into the single `{{memory}}` macro (dynamic/cache-safe half).
+
+**Corrected ownership (supersedes "memory delegates everything" AND "memory owns its own read"):**
+
+| Concern | Owner | Note |
+|---|---|---|
+| the **substrate build** (slice 16-msg blocks → segment + digest + tier/consolidate; the summarizer = the ST-summarizer replacement; self-heal; fork-lazy) | **memory** | memory's defining job is *building* the substrate, not retrieving over it |
+| the **`{{memory}}` read policy + assembly** (scope=this chat, window=aged-out, which lens/tier/mode) | **memory** | calls `search` for the actual retrieval; owns only the chat-scoped policy + assembly |
+| the **retrieval engine** — scope × lens × rerank over ALL vector columns (segments/digests/cards/avatars); within-chat exact cosine + cross-chat scan + CSLS + joint rerank | **search** | read-only; the ONE engine both cross-chat search and memory invoke. ANN dropped — exact scan at this scale |
+| `embedAndStore(kind, key, …)` + embed dispatch + `content_hash` + the one 1024-dim space | **embeddings** (shared *mechanism*, not a row-owner) | producers write THROUGH it (kills 6 hand-rolled sites); rows stay FK'd to their producer |
+| themes/hubness/duplicates/distillation + **computes `hub_score`** (a search ranking signal `dist−1+hub_score`) | **discovery** | clean seam: discovery computes hub_score, embeddings owns the column, search reads it; a vector write must NOT null it |
+| turn economics | **stats** | zero vector tables |
+
+**Substrate-ready roadmap to NOT foreclose** (doc §9 — possible only because digests are pure functions
+of canon): **trackers** (one entry updated in place — relationship/inventory/plot), **clips**
+(user-pinned facts), **user-curated promotion**, **per-chat summarizer profiles**. Keep the
+pure-function-of-canon invariant so these stay free to add.
+
+### Validated against SillyTavern (the thing this replaces)
+
+ST splits this across **two independent extensions** (`memory` = Summarize, `vectors` = RAG) that share
+nothing and **duplicate their summarization code**. ST lacks every orbweaver differentiator: paired
+two-lens store (ST embeds verbatim XOR a lossy summary, never both), tiered consolidation (ST keeps one
+rolling prose blob), structured digests (freeform), a unified substrate, cross-chat search (ST is
+hard-`chatId`-scoped), window-driven recall (ST uses a fixed message count `protect=5`, not tokens), and
+any group scoping. So our "build once, read many" is a strict superset.
+
+**Steal from ST:** (1) **hash-diff incremental sync** (diff content hashes → insert new / drop vanished;
+idempotent, self-heals on edit/delete) — the model for "pure function of canon"; (2) the **recent-window
+retrieval guard**, but make it **token-driven** not count-driven; (3) **score-threshold + top-k** as the
+retrieval contract; (4) **distill-only-long-content** efficiency (short content embeds as-is).
+**Improve on ST:** everything in the gap list above. ST gives **no precedent for group scoping** — that
+decision is ours (see §11.5 of the group-chat plan; leans egocentric-only for `scoped`).
+
+## The knowledge / derived-data untangle
+
+**The neo-tavern tangle:** `corpus` embedded characters/avatars *and* read `chat/memory`'s digests for
+themes; `memory` did its own embedding *and* its own cosine; `search` ran a *second* cosine over the
+same tables; `stats` and `corpus` were both "analytics" with no clean line. Vectors were written from
+**four** places. Incestuous and confusing.
+
+**The fix — producer → store → consumer, with embedding as a substrate nobody co-owns:**
+
+```
+                          ┌──────────────── embeddings (NEW) ───────────────┐
+   canon writes ──emit──▶ │ the ONE vector substrate + event indexer         │
+   (card / avatar /       │ • embeds every SOURCE (card, avatar, chat        │
+    segment / digest)     │   segment, chat digest) → ONE 1024-dim space     │
+                          │ • owns the vector tables + the ONE write path     │
+                          │ • derive runs via the workloads engine            │
+                          │ • content_hash = staleness gate                   │
+                          └───────────────┬──────────────────────────────────┘
+                                          │ (read)
+            ┌─────────────────────────────┼─────────────────────────────┐
+            ▼                             ▼                              ▼
+        search                         memory                       discovery
+   ONE retrieval cap             chat-scoped recall              library understanding
+   (cosine + rerank +            → {{memory}} macro.             themes · hubness ·
+    field-search). ONE            Owns digest GENERATION          near-duplicates ·
+    cosine engine.                (summarize); DELEGATES          distillation (genre/
+                                  embed→embeddings,               tone/pitch) · archetypes.
+                                  retrieve→search.                Consumes embeddings +
+                                                                  search; embeds NOTHING.
+```
+
+What it kills (counts verified by whole-file recon — they were worse than first assumed):
+
+- **6 vector write sites across 5 tables → 1.** Today: corpus card upsert (×2), image upsert, theme
+  centroids, memory digests, memory segments — each hand-rolls the same embed→null-filter→upsert→
+  reset-hubScore dance (the reset rule is copy-pasted 3×). `embeddings` owns every embed+store;
+  card/avatar/segment/digest are just *source kinds* in its indexer registry.
+- **4 ranking implementations → one `search` domain with two engines.** Today: SQL `vector_distance_cos`
+  top-k scan + JS all-pairs/clustering (`vector-math.ts`) + a *third* hand-inlined dot loop
+  (`pair-cosine.ts`) + a **separate MiniSearch/BM25 lexical engine** (`field-search`). The split is by
+  *access pattern* (top-k scan vs in-RAM all-pairs), not by domain — corpus straddles both. `search`
+  owns **both a vector engine and a lexical engine** (they're complementary, not dups); `memory` and
+  `discovery` call them.
+- **memory stops being a mini-corpus — but this is a REWRITE, not a refactor.** Today memory delegates
+  *nothing*: it's a full parallel embed + JS-cosine + rerank stack with per-chat tier / mixA–C /
+  §11.5 scoped-egocentric-bucket semantics that `search`'s owner-wide scan does NOT model. Target:
+  memory owns digest *generation* + the `{{memory}}` assembly + those chat-scoped query semantics, and
+  delegates the raw embed→store (to `embeddings`) and the vector scan (to `search`). Stays a `chat/`
+  subsystem; its embeddings/search ops are composition-root-wired into chat's `context.ts`, never
+  sideways-imported. **The tier/scoped semantics must be preserved — that's the risk to manage.**
+- **corpus's *mutation* of memory tables ends.** Today `discovery`(corpus) doesn't just read
+  digests/segments — it **writes `hub_score` back into them**, and `search` ranking reads that score.
+  `hub_score` is a discovery-computed signal stored on embeddings rows: design the seam (embeddings
+  owns the column; discovery computes it; search reads it) so a vector write doesn't have to null it in
+  3 places.
+- **The schema-naming lie ends.** `chat_digests`/`chat_segments` currently live in
+  `db/schema/search.ts` (named for the *consumer*). In orbweaver the memory/embeddings producer owns
+  its schema; `discovery` rollups own theirs.
+- **`corpus` the name is gone** → `discovery`.
+- **Analytics splits into two non-overlapping homes:** `stats` = **economics** (tokens/cost/cache —
+  touches zero vector tables, verified); `discovery` = **semantics** (themes/hubness/facets). The line
+  is real but was made clean by *deletion* + prose comments — orbweaver should make it **type-enforced**
+  (one residual gray zone: `corpus/insights.ts` still reads raw `messages`).
+
+### Where the embedded SOURCES come from (one space, many producers)
+
+| Source kind | Produced by | Embedded by `embeddings` indexer on event |
+|---|---|---|
+| character card text | character save | `character.updated` |
+| avatar image | asset upload | `asset.created` |
+| chat segment | chat turn (memory) | `digest/segment.created` |
+| chat digest | memory summarize | `digest.created` |
+
+All land in the **one 1024-dim space** (text↔image comparable), one table family owned by `embeddings`,
+searched by the one cosine engine in `search`.
+
+## Cross-cutting concept homes (the partitioning rule, as domains)
+
+| Concept | Home |
+|---|---|
+| connection (talk) | `connection` |
+| generation config (generate) | `preset` |
+| credential (secret) | `credentials` |
+| descriptive labels | `tag` (proposed = status) |
+| semantic facets (genre/tone/themes) | `discovery` |
+| turn economics | `stats` |
+| derived vectors | `embeddings` |
+| per-chat recall | `chat/memory` (delegating) |
+| retrieval | `search` |
+
+## Connection ↔ providers boundary (verified)
+
+> **Authoritative detail: [`domains/connection.md`](./connection.md)** (selection + the capability descriptor)
+> and [`tiers/providers.md`](./providers-and-backends.md) (execution). Headline: ONE capability
+> descriptor per `(model, backend)` with **distinct reasoning/sampling/verbosity axes** drives **both**
+> the per-runner translation AND the samplers panel — replacing the two-capability-system,
+> reasoning-collapsed-into-one-cascade, panel-ignores-capabilities mess.
+
+The risk: `connection` becomes a shell over `providers`, or leaks providers' internal vocab (which
+neo-tavern's `routing.ts` did — it built the request keyed on `runner`, an infra-internal name). The
+clean line, confirmed sound against the real code:
+
+- **`providers` (infra) = execution + sealed internal vocab.** Owns runners, env builders, wire
+  protocols, the `(api,source)→runner→family→env-builder` mapping. `runner`/`family`/`protocol` are
+  *internal* — `runner` is provably a total function of `(api, source)` (verified), so it carries no
+  information the user vocab lacks. It never leaves providers.
+- **`connection` (domain) = selection + policy.** Reads settings → resolves `{api, source, model,
+  params, providerRouting}` + the credential → builds the request → calls `providers.runChat`. Knows
+  ONLY the user vocab `{api, source, model}`. Depends *down* on providers (allowed).
+- **`ChatRequest` is keyed on user vocab `{api, source, model}` + an explicit `stateful | stateless`
+  payload dimension** (verified necessity): agent-sdk is *stateful* (prompt + sessionStore + resume);
+  the completion runners are *stateless* (history array). This correlates 1:1 with agent-sdk today, but
+  the **session-seeding logic (DbSessionStore / buildSeedFrames / reseed) lives in the chat domain and
+  must NOT move into providers** — so the stateful/stateless split is a real ChatRequest dimension, not
+  a derivable detail. providers maps `(api,source)→runner` internally and dispatches.
+- **`resolveChat` is infra** (provider-quirk knowledge: effort/thinking/fastMode per model). It sits
+  before `runChat`. The *profile derivation* feeding it is scattered across 4 dispatchers today →
+  unify into one `resolveModelProfile(api, source, modelId)`.
+- **One `resolveRoleConnection(role)` for all 7 roles** (chat + embed/rerank/imageEmbed/summarize/
+  generateImage + agent). Feasible and anticipated by the code; today chat and the 4 bound role-clients
+  use *two different* dispatch paths and 5 roles + buddy hard-pin instead of reading settings —
+  unifying reconciles those.
+- **Tell that it's right:** `providers` has zero imports from any domain, and `connection` has zero
+  knowledge of `runner`/`family`. If either is false, the incest is back.
+
+The same "infra is a sealed executor; the domain owns selection" rule applies to `credentials`↔crypto,
+`embeddings`↔providers.embed, `search`↔providers.rerank.
+
+## Open / judgment calls
+
+- **memory placement** — kept as a `chat/` subsystem (per-chat, turn-coupled) that delegates the raw
+  embed/scan but KEEPS its tier/mixA–C/scoped-egocentric query semantics. **Risk:** this is a rewrite,
+  not a move — the chat-scoped semantics (which `search`'s owner-wide scan doesn't model) must survive.
+- **`hub_score` ownership seam — RESOLVED:** column on the embeddings row; **discovery computes** (CSLS),
+  **embeddings stores** (via `writeHubScores`), **search reads**, and a vector write **never nulls** it.
+  (`domains/embeddings.md`, `domains/discovery.md`, `knowledge-cluster.md §7`.)
+- **serialization core — RESOLVED:** ONE serde core shared by import+export — mappers →
+  `@orb/server/kit/serde`, canonical card → `@orb/contracts/character`, PNG codec →
+  `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/world-info`.
+  (`spine/serialization-core.md`.)
+- **bulk-import + proposedTags — RESOLVED:** the outer bulk-loop driver lives at
+  `entry/import/run-profile-import.ts`; `proposedTags` becomes `character_tags.status` (export reads
+  `status='accepted'`). (`domains/import.md`, `domains/tag.md`.)
+- **stats/discovery line as a type — RESOLVED:** type-enforced via disjoint `messages` projections
+  (a stats-only economics projection vs a discovery semantic projection) + a `stats-no-vector-tables`
+  dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (`domains/stats.md`.)
+- **assets vs infra/storage** — `assets` domain owns the CAS *index* (table + verbs); `infra/storage`
+  owns the byte I/O. Keep split.
+- **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ distill/` +
+  `substrate/` (kmeans/pca/etc., the pure math), per the template.

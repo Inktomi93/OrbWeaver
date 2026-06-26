@@ -1,0 +1,54 @@
+# --- secrets & local state (NEVER commit) ---
+.credentials-key          # the ONLY decryption recovery path — must stay local
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- local databases ---
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+data/
+
+# --- node / pnpm ---
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# --- build output ---
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# --- test / coverage ---
+coverage/
+.vitest/
+*.lcov
+
+# --- caches ---
+.turbo/
+.cache/
+.eslintcache
+
+# --- logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- editor / OS ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# --- scratch ---
+scratchpad/
+/tmp/
