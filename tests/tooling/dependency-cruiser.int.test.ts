@@ -1,9 +1,9 @@
 // Pins that EVERY rule in .dependency-cruiser.cjs actually fires — the config-robustness guarantee.
 // For each rule we write a minimal violating fixture at the real tier path the rule's regex anchors on,
 // run dep-cruiser once over packages/, and assert the rule appears in the violations. Also asserts the
-// allowed edges (client→server TYPE-ONLY) do NOT fire, and that the real tree contributes zero
-// violations (every violation is fixture-induced). A broken regex / backreference / typo makes a rule
-// silently match nothing — this test is what catches that.
+// allowed edges (client→server TYPE-ONLY) do NOT fire. (The real tree being violation-free is enforced
+// separately by `pnpm depcruise` in check/CI — not re-asserted here.) A broken regex / backreference /
+// typo makes a rule silently match nothing — this test is what catches that.
 //
 // Fixtures are all named `__dc*` so cleanup is a single find -prune -rm; the one non-__dc target
 // (db/schema/embeddings.ts, which the stats rule anchors on by name) is tracked + removed if created.

@@ -351,9 +351,11 @@ they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hois
    *Enforcement: resolve-time (front-door rule) + dep-cruiser backstop.*
 
 3. **Composition lives at `entry/`, never `transport/`.** A transport file that imports two domain
-   front doors, or a domain + the auth seam, or builds the `WorkloadRunnerEnv`, is RED.
-   *Enforcement: resolve-time — only `entry/` may import multiple domain front doors; a
-   `transport/`-located cross-feature build fails the tier rule.*
+   front doors, or a domain + the auth seam, or builds the `WorkloadRunnerEnv`, is wrong.
+   *Enforcement: NOT a single dep-cruiser rule — it can't count front-door imports per file. Caught by
+   the front-door + no-cross-driver rules + review; a ts-morph "≤1 domain front door per transport file"
+   gate is the backlog candidate if it ever slips. (The cross-feature builders are already hoisted to
+   `entry/compose` per D4, so there's no live offender.)*
 
 4. **Wire schemas derive from the domain tuples; no inline union re-spelling.** `z.enum(WORKLOAD_STATUSES)`,
    `z.enum(CRED_PROVIDERS)`, `chatApiSchema`, etc. are imported, not re-typed.
