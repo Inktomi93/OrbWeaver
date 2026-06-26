@@ -1,14 +1,17 @@
 // The structural-gate orchestrator: registers every ts-morph/fs check and runs them.
-// Wired into `pnpm check` (after biome + tsc). Add a gate by importing it and listing it here.
+// Wired into `pnpm check` (after biome + tsc). Add a gate by dropping it in gates/ and listing it here.
+// The catalog of every enforcement (these gates + biome rules + grit + dep-cruiser) and the deferred
+// backlog lives in docs/architecture/reports/ENFORCEMENT.md.
 
-import { featureStructure } from "./feature-structure.ts";
+import { commentedCode } from "./gates/commented-code.ts";
+import { featureStructure } from "./gates/feature-structure.ts";
+import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { schemaBranding } from "./gates/schema-branding.ts";
+import { testLayout } from "./gates/test-layout.ts";
+import { testPresence } from "./gates/test-presence.ts";
+import { typesInContract } from "./gates/types-in-contract.ts";
+import { verbNaming } from "./gates/verb-naming.ts";
 import { runChecks } from "./harness.ts";
-import { noInlineUnionRedecl } from "./no-inline-union-redecl.ts";
-import { schemaBranding } from "./schema-branding.ts";
-import { testLayout } from "./test-layout.ts";
-import { testPresence } from "./test-presence.ts";
-import { typesInContract } from "./types-in-contract.ts";
-import { verbNaming } from "./verb-naming.ts";
 
 runChecks([
   featureStructure,
@@ -17,5 +20,6 @@ runChecks([
   typesInContract,
   noInlineUnionRedecl,
   testPresence,
+  commentedCode,
   schemaBranding,
 ]);

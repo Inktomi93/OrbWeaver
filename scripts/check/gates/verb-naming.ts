@@ -1,7 +1,7 @@
 // Gate: verb-naming (structure.md §4/§7) — one verb per file, named for the file. Each
 // domain/<f>/verbs/**/<verb>.ts must export `create<Pascal(verb)>(ctx, deps?)` (e.g. create.ts →
 // createCreate, bulk-archive.ts → createBulkArchive). index.ts barrels are exempt.
-import type { Check, Violation } from "./harness.ts";
+import type { Check, Violation } from "../harness.ts";
 
 const VERB_FILE =
   /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/;
