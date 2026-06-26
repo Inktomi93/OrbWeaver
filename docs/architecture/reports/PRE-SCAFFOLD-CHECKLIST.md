@@ -50,16 +50,20 @@ runners, NOT in the fast `check`. Full policy: `spine/testing.md`.
 ## B. Before / during the DB + migrations build
 
 ### B1. Write the migration data scripts (not just the schema outcomes) (ops)
-- **`proposedTags → character_tags.status`**: in the SAME migration that drops the JSON column, for each
+- **`proposedTags → character_tags.status`** (neo→orb data port): for each neo
   `character_versions.proposedTags` array element upsert a `character_tags` row (`source='card'`,
-  `status='pending'`, create the tag if needed). Add a post-migration count-validation query. Without
-  this, existing pending-tag data is silently lost on migrate.
-- **`character_books` re-key** (cv → `characters.id`): add a pre-flight orphan check
-  (`LEFT JOIN character_versions … characters WHERE characters.id IS NULL`); log + drop orphans as a
-  documented, observable event rather than a mid-migration FK crash or silent loss.
-- **stats regroup** (`cv.character_id → characters.id`) and the **character de-pin** (drop
-  `chats.characterVersionId`) migrations must be in the SAME or adjacent files (no transactional gap) —
-  else `assertReferentialIntegrity` aborts the chain on the window.
+  `status='pending'`, create the tag if needed). Orbweaver has no `proposedTags` column anywhere (D28 +
+  `tag.md`). Add a post-migration count-validation query. Without this, existing pending-tag data is
+  silently lost on the port.
+- **`character_books` land on `characters.id`** (D28; neo keyed books on the cv): when porting, add a
+  pre-flight orphan check (neo `LEFT JOIN character_versions … characters WHERE characters.id IS NULL`);
+  log + drop orphans as a documented, observable event rather than an FK crash or silent loss. Orbweaver's
+  `character_books.characterId` references `characters.id` directly (no cv exists).
+- **Card-content port** (D28): neo's `character_versions` card columns land on the FLAT orbweaver
+  `characters` row (no version table); per-character stats group on `characters.id`. Orbweaver is born
+  without `chats.characterVersionId` / `currentVersionId` / a version table — there is no "de-pin"
+  migration, just a flat-row write. Run the port's content + stats-grouping steps in one pass so
+  `assertReferentialIntegrity` sees a consistent graph.
 - **WI persona-book join**: rewire `pool.ts` from `chats.personaId` to `chat_participants.activePersonaId`
   BEFORE dropping `chats.personaId`.
 - **`image_embeddings.lens`**: adding the discriminator needs a re-embed workload to populate `image-raw`
@@ -97,6 +101,28 @@ load-bearing comments that must travel with the code: the AAD byte-string, ZWSP-
 (`neutralizeMacros`), `scopedCharacterId=''` sentinel, the PNG dual-chunk + CRC, the vLLM death-couple
 pipe-watchdog, `storedVersion`-beats-probe, the last-admin EXISTS-on-UPDATE, the `globalMacroRegistry`
 single-tenant note, the `deepMergeRequestBody` Layer-2 defense, the `ASSUMES(single-replica)` annotations.
+
+### C3. The unified roster / group / multi-human system is built WHOLE (ledger D16; `domains/chat.md` Part III)
+**No feature-phasing** — there is no solo-then-multihuman split (neo's Phase A/B is a retrofit artifact, not
+carried). The chat build delivers the entire system cohesively. Build obligations, each → a named test:
+- **Schema born whole (Phase 4c/db):** `chat_participants` lifecycle (`joinSeq`/`leftSeq`/`joinHistoryVisibility`/
+  `talkativeness`/`disabled`/`role` + `(chatId,userId)` UNIQUE + the XOR CHECK), `chat_invites`, `pending_turns`,
+  the `messages` SLOT + `message_variants` content split (slot-level attribution, NOT on the variant — D26), the
+  `notifications` table (NEW `notifications` domain), `chats.metadata`.
+- **neo's §9 security must-dos → tests:** host-wallet abuse (per-member COUNT budget across ALL backends, attributed to
+  `triggeredBy`, debited in-lock); **max-pro-sub-by-proxy refused** unless owner consent (D17); server-stamp
+  `authorUserId` + sanitize member content (the trusted speaker label after all regex); host-only room overrides; host-
+  approved cross-user WI; invite hardening (hashed CSPRNG token, atomic `maxUses` redeem, server-forced `member`);
+  server-derived presence (never client-asserted); bus payload allowlist (credentials type-level-unrepresentable).
+- **neo's §10.4 cross-cutting invariants → tests:** `no-if(isGroup)` solo-byte-identical; the turn-identity TRIPLE;
+  `computeHistoryBreakpoint` undefined for multi-responder/narrator tails; AI-authored `@mention` never forces a speaker;
+  presence→cast snapshot pinned once per round; narrator authored by the group character (never NULL).
+- **The owner role split (D17):** `UserRole = owner|admin|user`; `requireOwner` gates the `max-pro-sub` mint + admin
+  grant; owner-immutability / last-owner guard; the local-compute owner-box knobs (count budget + concurrency + throttle).
+- **The oracle covers PARITY only** — the multi-human/group/invite/notification/presence/arbitration surfaces are
+  intentional rewrites (not diffable); they ship with `.int`/`.contract` tests, not the differential oracle (C1).
+- **A group/multi-human fixture** for the int suite (a roster with ≥2 humans + ≥2 characters, an invite, a kick, a
+  host-handoff, a narrator round + a per-speaker round, a scoped-memory room) lands with the oracle fixture (C1).
 
 ## D. Failure-surface + ops hardening (during the relevant domain builds)
 

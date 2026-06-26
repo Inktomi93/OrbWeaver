@@ -31,15 +31,24 @@
 - **Speaker arbitration** (7a sync select + 7b async arbitrate + the side-LLM smart-arbitrate),
   **auto-mode** AI→AI chaining, **guided steering** (one typed steer), the **stats-delta builders**
   (build the delta; the apply is injected), the **chat bus** (events + replay ring), **active-turns**.
+- **The unified roster / group / multi-human system** (Part III — built WHOLE, no feature-phasing, `D16`): the
+  participant roster + **membership lifecycle** (`chat_participants` join/leave/visibility, `chat_invites`,
+  kick/self-leave/host-handoff, the ONE insert chokepoint), **hosting** (`runAsUserId` triple + `pending_turns` +
+  per-member COUNT budget + owner-consent for `max-pro-sub`), **two-axis generation** (narrator/per-speaker ×
+  merged/scoped), **room overrides**, the **group macros**, and **group-as-character memory**. Group-ness is **data**
+  (roster size + presence), never a branch (`no-if(isGroup)`; solo = roster-of-1, byte-identical).
 
 This domain does **NOT** own (all injected or relocated — see Movement table + Injection model):
 the **agent-sdk session/seed/reseed/frames** (→ `infra/providers/agent-sdk/session`, backend-internal);
-**routing** api/source/model resolution (→ `connection.resolveChat`); **`resolveCurrentVersion`**
-(→ `character`); **`setActivePersona`** (→ `persona`); the **vector embed/scan** (memory delegates to
+**routing** api/source/model resolution (→ `connection.resolveChat`); **`getCard`** (live card read,
+→ `character` — D28); **`setActivePersona`** (→ `persona`); the **vector embed/scan** (memory delegates to
 `embeddings`/`search`); **stats apply-delta** (→ `stats`); **credential resolve/revoke**
 (→ `credentials`); the **macro/regex/speaker/guided engines** (→ `kit`); `resolveCharacterDepthPrompt`
 (→ `server/kit/serde`); the **AssembleContext family** + `RoomOverrides`/`GroupConfig`/`OpeningPolicy` +
-`ChatDeltaEvent` (→ `@orb/contracts/chat`); `providerRouting` (→ `@orb/contracts/connection`).
+`ChatDeltaEvent` (→ `@orb/contracts/chat`); `providerRouting` (→ `@orb/contracts/connection`); the **per-user
+notification inbox + delivery** (→ the **`notifications` domain**, reached via an injected `notifications.emit` op —
+it carries invite/kick/handoff to non-members the per-chat bus can't reach); **presence** (→ transport's SSE
+connection registry, injected as a `presence.read` op).
 
 ---
 
@@ -65,9 +74,9 @@ the **agent-sdk session/seed/reseed/frames** (→ `infra/providers/agent-sdk/ses
 6. **One injection list + one budget pass** — WI + persona-desc + author's-note + after-history + guided
    all flow through one `Injection[]`, budgeted once (today: a WI budget walk + a separate
    `fitHistoryToWindow` + **unbudgeted** `chat_injections`).
-7. **De-pin** — chats never pin a character version; `chats.characterVersionId` is dropped; member
-   identity resolves via injected `character.resolveCurrentVersion`. (`loadCanonHistory` is already
-   de-pin-ready — it keys on `messages.characterId` + `currentVersionId`.)
+7. **No character version (D28)** — there is no version table; `chats.characterVersionId` does not exist;
+   member identity resolves via injected `character.getCard` (a flat `characters`-row read). `loadCanonHistory`
+   keys on `messages.characterId` (identity attribution) alone — nothing to pin or resolve.
 8. **Participant-membership authority** — `requireParticipant`/`requireHost(Principal)` replace the
    `loadOwnedChat` owner-equality predicate (~45 sites across 31 files); `authorUserId` is stamped with
    the real principal on the live persist path (a NEW build — today only the backfill stamps it).
@@ -98,20 +107,22 @@ domain/chat/
 │   └── metadata.ts     chatMetadataSchema + parseChatMetadata + getGroupConfig/getRoomOverrides
 │                       (the `chats.metadata` blob; the providerRouting sub-parse LEAVES → contracts/connection)
 ├── verbs/              ONE logical verb per file (grouped where the template allows):
-│   ├── start-chat.ts        lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate (de-pin rework)
+│   ├── start-chat.ts        lazy chat+roster creation, greeting/verbatim seeding, first-turn delegate (D28: live-identity roster)
 │   ├── send.ts              send + simple-send
 │   ├── regen.ts             swipe · continue(+undo/revert) · generate · impersonate · force-character · opening
 │   ├── edit.ts              editMessage · setMessageHidden · editReasoning · clearReasoning · delete · duplicate · move · reattribute
-│   ├── fork.ts              forkChat (de-pin: copies identity, not a cv pin)
-│   ├── roster.ts            addCharacterToChat · participant-control · group-config · room-overrides · config-read (host-gated)
+│   ├── fork.ts              forkChat (D27: deep COPY → new membership-scoped chat; `chats.parentChatId` lineage; no shared rows)
+│   ├── roster.ts            addCharacterToChat · participant-control (disable/talkativeness) · group-config · room-overrides · config-read · kick/self-leave/host-handoff · join-lifecycle (host-gated where authority)
+│   ├── invites.ts           createInvite/redeem/revoke/declineInvite/previewInvite (the ONE participant-insert chokepoint; token mirrors sessions)
 │   ├── chat-lifecycle.ts    title/star/archive/variables · delete · reapTemporary · abort · injections
 │   ├── read.ts              listChats/getChat/listMessages/previewAssembly/peekPrompt/replayStream/… (read surface)
 │   └── compaction.ts        runCompaction (injected into engine) + compact (manual lever)
 ├── persistence/        QUERIES ONLY (no logic, no I/O):
-│   ├── queries.ts          loadOwnedChat (the one JSON-parse boundary), canon reads, loadCanonHistory,
+│   ├── queries.ts          loadMemberChat → {chat, role} (membership-scoped, replaces loadOwnedChat — D18; the one JSON-parse boundary), canon reads, loadCanonHistory,
 │   │                       event/stream-log reads. (the SDK-frame readers LEAVE → providers)
 │   ├── roster.ts           loadRoster + buildInitialRosterRows (un-exiled from _shared)
-│   ├── participant.ts      parseParticipant (the kind XOR exhaustiveness) + assertForcedCharacterMember
+│   ├── participant.ts      parseParticipant (kind XOR) + membership lifecycle (joinSeq/leftSeq, re-add upsert, present-and-contributing predicate) + assertForcedCharacterMember
+│   ├── invites.ts          chat_invites reads + atomic-redeem; pending_turns (host-offline deferred turn, boot-reclaimed, NOT lock-held)
 │   └── lock.ts             per-chat turn lock (DB-backed; candidate → infra — open)
 ├── engine/             NAMED SUBSYSTEM — the per-turn loop + SHAPE:
 │   ├── engine.ts           the lifecycle shell (the persist batch-writers split toward persistence/)
@@ -176,7 +187,7 @@ The `@public` memory/persistence helpers wired by workload runners + bootstrap (
 | `engine/pipeline.ts` `dispatchOpenrouter`/`dispatchVllm`/`dispatchCustomOpenai` + the runner `if/else` (`executeTurn:932-982`) | **collapse → one `runChatTurn(req)`** | `chat/engine` builds `req`, calls the `chat` role | "the domain calls a role, never a backend" | lint: dep-cruiser — no `domain/**` import of `infra/providers/backends/**` |
 | `engine/pipeline.ts` `computeHistoryBreakpoint` + `shapeCompletionHistory` | **STAYS chat (SHAPE)**, upgraded to rolling PAIR | `chat/engine` | assembly-coupled (in_chat depth + squash + nudge); runner only places the tags | test: `pipeline-breakpoint.test.ts` + cache-token differential |
 | `routing.ts` (whole: `resolveTurnRouting`/`TurnRouting`/`RoutableChat`/`RouteOverlay`/`pickOrModel`/`healToChatDefault`) | **→ connection** | `connection.resolveChat` → `ResolvedConnection{backend,model,credential,capability}` | routing keyed on `runner` is the infra-vocab leak | resolve: `domain-no-cross-feature`; compile: `runner`/`family` grep RED in `domain/chat/**` |
-| `persistence/resolve-current-version.ts` (whole) | **→ character** | `character.resolveCurrentVersion` (injected) | character resolves its own live version; today a chat workaround | resolve: cross-domain via injection |
+| `persistence/resolve-current-version.ts` (whole) | **deleted (D28)** | `character.getCard` (injected — a flat `characters`-row read) | no version to resolve; the cv-era resolver is gone | resolve: cross-domain via injection |
 | `verbs/set-persona.ts` (`setChatPersona`, writes `chats.personaId`) | **→ persona** | `persona.setActivePersona` (per-participant `chat_participants.activePersonaId`) | `chats.personaId` is dropped; chat calls via injection; no reseed | host-or-self authority |
 | `persistence/group-character.ts` `ensureGroupCharacter` + `_shared/group-character-rows` | **→ character + a chat verb** | `character.mintSyntheticGroupCharacter` (injected); chat verb orchestrates | identity creation is character's; it's logic+writes (not a query) | resolve + structure §4 |
 | `memory/db.ts` `embedAndUpsert` (embed+upsert half) + `generate.ts` segment embed | **→ embeddings.store** | `embeddings.store(kind='chat-block', lens='digest'|'segment', fkRefs)` | the one write path; kills the conflation | resolve (injection) |
@@ -193,7 +204,7 @@ The `@public` memory/persistence helpers wired by workload runners + bootstrap (
 | engine inline types (`TurnRequest`/`TurnOutcome`/`TurnEngine`/`TurnPrep`/`TurnIntent`/`VariantProvenance`) | → chat `contract/` | `chat/contract/{params,results}.ts` | exported feature types belong in contract/ | lint: `types-in-contract` |
 | `batch`/`db-errors` inline casts on the persist path | **→ @orb/db/kit** | `@orb/db/kit` (`batchMany`/`isConstraintViolation`) | wire the ~59 inline `BatchItem` casts to the helper | kit-purity |
 | `escapeRegExp` (select-speakers dup) | **→ @orb/kit/strings** | one copy | triplicated | lint: `no-inline-union-redecl`-adjacent |
-| `chats.characterVersionId` reads (`backfill-roster.ts`, read.getChat, assembly primary) | **de-pin rewrite** | live-identity resolution | the cv-pin is dropped | compile: column gone |
+| `chats.characterVersionId` reads (`backfill-roster.ts`, read.getChat, assembly primary) | **deleted (D28)** | live-identity read (`characters.id` → `getCard`) | no version table exists; the column is gone | compile: column + `character_versions` gone |
 
 ---
 
@@ -207,12 +218,14 @@ through — wired at the composition root, never sideways-imported:
 | `connection.resolveChat` | connection | per-turn `{backend,model,credential,capability}` from the chat row + UserSettings |
 | the `chat` role (`runChatTurn`) | infra/providers | the ONE turn dispatch (replaces the 4 arms) |
 | `credentials.resolve` / `credentials.maybeRevokeOnAuthFailed` | credentials | turn-time credential + post-turn auth_failed side-effect |
-| `character.resolveCurrentVersion` / `mintSyntheticGroupCharacter` / `findSyntheticGroupCharacter` | character | live identity per roster member; the group-memory bucket |
+| `character.getCard` / `mintSyntheticGroupCharacter` / `findSyntheticGroupCharacter` | character | live card per roster member (the flat `characters` row — D28); the group-memory bucket |
 | `persona.setActivePersona` | persona | per-participant active persona (host-or-self) |
 | `embeddings.store` | embeddings | memory's digest/segment vector write (into the memory subsystem) |
 | `search.digests` / `search.corpus` | search | memory's chat-scoped recall (the 6 semantics as params) |
 | `stats.applyDelta` | stats | persist the turn-economics delta the builders produced |
 | `RoleClients.summarize` | connection/providers | the memory summarizer + smart-arbitrate side-LLM |
+| `notifications.emit` | notifications | invite/kick/handoff delivery to non-members (the per-chat bus can't reach them) — durable-first, fan-out after commit |
+| `presence.read` | transport | server-derived SSE liveness per `userId` → cast-gating (offline → dropped from the present cast) |
 
 Memory is injected the `embeddings.store` + `search.digests`/`corpus` ops at the same seam
 (`chat/context.ts`) — the substrate-mediated access that keeps memory a sealed subsystem.
@@ -335,8 +348,8 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
 8. **Trusted speaker label applied after all USER_INPUT/AI_OUTPUT regex** — un-forgeable. *(test.)*
 9. **Engines are `kit`** — chat imports `kit/macro` + `kit/regex` + `kit/speaker-label`, never
    reimplements them. *(resolve + kit-purity.)*
-10. **Chats never pin a character version** — `chats.characterVersionId` is gone; live identity via
-    `resolveCurrentVersion`. *(compile: column absent.)*
+10. **No character version table (D28)** — `chats.characterVersionId` and `character_versions` do not
+    exist; the card is the flat `characters` row, read via `character.getCard`. *(compile: column + table absent.)*
 11. **Participant-membership authority** — `requireParticipant`/`requireHost` replace owner-equality; no
     `loadOwnedChat` owner-equality predicate survives. *(lint: a `can()`/predicate seam; grep for
     `ownerId === ` in chat verbs goes RED.)*
@@ -345,6 +358,18 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
 13. **`persistence/` is queries only** — the group-character mint + the reseed batch-writers leave
     (to a verb / to providers). *(lint: `persistence-no-io` / `persistence-no-logic`.)*
 14. **`context.ts` is an explicit interface**, not `ReturnType<>`. *(lint: `no-inline-types`.)*
+15. **A message is a pure slot; all content lives on the variant (D26)** — `messages` carries only
+    `{id, chatId, seq, role, personaId, characterId, authorUserId, selectedVariantId, excludedFromPrompt,
+    timestamps}`; every generation's `content`/`reasoning`/economics/`promptSnapshot`/continue-state live on
+    `message_variants`. Every message has ≥1 variant (user/system = exactly 1); a swipe APPENDS a variant and
+    `selectVariant` flips `messages.selectedVariantId` (pointer move — never a content copy). Attribution is
+    **slot-level** — a swipe never changes the speaker. *(compile: `messages.content` does not exist → every
+    reader joins the selected variant.)*
+16. **A fork is a deep copy with a lineage pointer (D27)** — `forkChat` COPIES the chat + its messages/
+    variants into a new membership-scoped chat; the only link is `chats.parentChatId` (self-FK, SET NULL so a
+    fork outlives its parent as a root). No rows are shared; there is no message-level branch axis
+    (`messages.parentId` does not exist). The lineage walk is membership-gated — a fork grants NO parent
+    membership (inv §12). *(compile: `messages.parentId` gone; lint: lineage walkers `requireParticipant` per ancestor.)*
 
 ---
 
@@ -436,7 +461,7 @@ markdown-render (sanitize + speaker-spans + quote-spans)`.
 persist post-regex user row`.
 
 **ASSEMBLE** (server) — explicitly **four phases** (today blurred across two files):
-1. **RESOLVE** — cast (primary + roster, live identity via `resolveCurrentVersion`), personas (active
+1. **RESOLVE** — cast (primary + roster, live card via `character.getCard` — D28), personas (active
    per-participant + anchor), room overrides, names. *(no macros yet — just identity.)*
 2. **GATHER** — WI pool (4-scope union + keyword match over the haystack incl. pending user text),
    memory recall (`{{memory}}` via `search` scoped to this chat), ChoiceBlock variables.
@@ -520,8 +545,8 @@ placement, never folded into history/WI).
 | **render-only** | DISPLAY-placement regex, `markdownOnly` scripts, fix-markdown, span coloring, speaker-label strip | no |
 | **canon-mutating at write** | USER_INPUT regex (SEND), AI_OUTPUT/REASONING regex (RECEIVE) | yes — the stored row is the transformed text |
 | **prompt-affecting only** | `promptOnly` scripts | sent prompt, not display |
-| **transient injection** | the one `Injection[]` list (WI, persona-desc, AN, after-history, guided) | rows may persist (e.g. chat_injections), content spliced per-turn, never into a `messages` row |
-| **persisted canon** | `messages.content`/`reasoning`, variants, continue snapshots, the macro `variableValues` flush | yes |
+| **transient injection** | the one `Injection[]` list (WI, persona-desc, AN, after-history, guided) | rows may persist (e.g. chat_injections), content spliced per-turn, never into a `message_variants` row |
+| **persisted canon** | `message_variants.content`/`reasoning` (D26 — content lives on the variant, never on `messages`; the `messages` row is a pure slot + `selectedVariantId`), continue snapshots (per-variant), the macro `variableValues` flush | yes |
 
 **`runOnEdit` — wire it, don't kill it.** It's unwired today (copied from ST, never hooked up) — but
 that's *intent not yet realized*, not worthless. ST's `runOnEdit` re-runs a canon-mutating regex when a
@@ -647,3 +672,222 @@ read.
   become the `speaker` argument to `shape(turnCtx, speaker)`; the per-speaker loop re-derives `shape` per
   speaker off the immutable ctx (+ advancing canon), replacing the ~17 in-place `assembleCtx` mutation
   sites.
+
+---
+
+# Part III — The unified roster / group / multi-human system (authoritative design)
+
+> **Status: planning (authoritative — built WHOLE, no feature-phasing — `DECISIONS-LEDGER §7 D16`).** The chat domain
+> rebuild delivers this ENTIRE system in ONE cohesive build. There is no solo-first/multi-human split: neo-tavern's
+> Phase A/B + its 12-step order are **neo retrofit artifacts, not carried** (orbweaver greenfields everything; the
+> package-cake build-order — chat is leaf-last — is the only ordering, and is unrelated). **Source:** neo
+> `docs/plans/unified-group-chat.md` is the design record (its §10.4 cross-cutting invariants + §9 security must-dos are
+> transplanted here, not re-derived). This Part is the orbweaver home for that design.
+
+## 0. The principle — a chat is a ROSTER; group-ness is DATA, not a branch
+
+A chat is a **roster of participants**, each a **human** (carries a persona) or an **agent/character** (carries an
+identity + connection + tools?). N=1-human + N-character solo and N-human multiplayer are the **same problem** (neo §1):
+roster + a policy that picks who speaks next + a transport that shows everyone the result. Everything below hangs off the
+roster. **Solo = a roster of 1, byte-identical** — there is **no `if (isGroup)` anywhere** (the `no-if-is-group` grit
+gate + a solo-byte-identical contract test enforce it; §12). The unifying rule: *group-ness is data (roster size +
+presence), never a code branch.*
+
+## 1. Roster & membership lifecycle (`chat_participants`)
+
+**A chat is MEMBERSHIP-scoped, not single-owned (ledger D18): there is no `chats.ownerId`.** The host =
+`chat_participants(role='host')` is the ONE home for room authority (`requireHost`), the `runAsUserId`/credential-funding
+source (read from the loaded roster — no extra query). Host-only memory search (D16) derives its scope from membership
+(`chatId ∈ {chats I host}`), NOT a stamped digest `ownerId` (D20 — the vector substrate doesn't denormalize ownership).
+`loadOwnedChat`/owner-equality → `loadMemberChat → {chat, role}` + `requireParticipant`; "list my chats" is pure
+membership (`id IN (chat_participants WHERE userId=me AND leftSeq IS NULL)` — the host is a participant, no `ownerId OR
+member` branch). Chats sit in the **membership-scoped** category, NOT the `OwnedTable`/`fetchOwned` pattern (which stays
+for genuinely single-owned tables — characters/presets/personas/credentials/world-books/assets). Solo = a roster of {1
+human (role=host), 1 character} — byte-identical, no special-case.
+
+`chat_participants` (schema `@orb/db/schema/chat.ts`, producer = chat): `chatId` (FK CASCADE), `kind` (`human|character`,
++ `observer` reserved — `knowledge-cluster §9`), `userId` FK NULL, `characterId` FK NULL (keyed on **`characters.id`
+identity**, never a cv pin — de-pin), `role: host|member`, `activePersonaId` FK NULL, `talkativeness` (0-1, default 0.5),
+`disabled` (mute), `joinedAt`, `joinSeq`, `leftSeq` NULL, `joinHistoryVisibility` (`from-join|full`, default `from-join`).
+Constraints **at creation** (free on a new table): **`(chatId,userId)` UNIQUE** + the **XOR CHECK
+`(user_id IS NULL) <> (character_id IS NULL)`** + the validating `parseParticipant` discriminated-union parser
+(`satisfies never`). **Lifecycle:** join/leave horizons live in `messages.seq` (NOT the `chat_stream_events` cursor);
+re-add = the guarded atomic `ON CONFLICT(chatId,userId) DO UPDATE joinSeq=<current maxSeq>, leftSeq=NULL, role='member'
+WHERE leftSeq IS NOT NULL` (advance `joinSeq` ONLY on a genuine kicked-then-rejoin; the UNIQUE key is the
+no-duplicate-membership enforcer). **ONE "present-and-contributing" predicate** (`leftSeq`=gone → never in any union;
+`disabled`=cards/WI contribute but never arbiter-selected + excluded from `{{groupNotMuted}}`; offline-human=persona
+drops from the cast) feeds the WI union, `{{groupNotMuted}}`, and arbitration alike.
+
+## 2. Invites & the membership chokepoint (`chat_invites`, chat-owned)
+
+`chat_invites` (schema `@orb/db/schema/chat.ts`): `token` **CSPRNG ≥128-bit, STORED HASHED, constant-time lookup**
+(mirror the `sessions` token discipline), `expiresAt`, `maxUses`, optional `invitedUserId`, `status:
+pending|accepted|declined|revoked|expired`. A `chat_participants` row is inserted **ONLY** via a valid invite redeem or
+a host action — **one chokepoint**, no stray INSERT. Redeem = atomic conditional `UPDATE … WHERE remaining>0 AND
+not-expired RETURNING` (closes the `maxUses` TOCTOU) → insert with `role` **server-forced `member`** + `joinSeq` stamped.
+**Creation:** share-link (`/join/:token`, default, no user directory, all modes) + targeted-by-handle (exact
+`resolveHandle`, no listing, rate-limited). **Accept = preview-then-confirm** (room name / host name / member COUNT / mode
+label — NO roster identities, NO history; never auto-join; history replays from `joinSeq` AFTER accept). **decline** is
+first-class. **Lifecycle verbs** (host-gated where noted): kick (set `leftSeq` + server-side subscription teardown +
+notify), self-leave (retain authored rows, persona drops), host-handoff (two-party: nominate → notify → nominee accepts
+with an un-spoofable "what your credentials will power" confirmation → atomic role swap; offline-nominee = deferred;
+sole-host self-leave archives, never refused). **Precondition:** the whole surface is gated `AUTH_MODE != 'single-user'`
+(a server-side capability gate — 404 in single-user, surface HIDDEN; §11/§7.1).
+
+## 3. Notifications — the delivery surface (the `notifications` domain)
+
+The per-chat bus **cannot** reach a non-member (they can't subscribe to that chat's stream), so invite/kick/handoff
+delivery rides a separate **per-user durable inbox** owned by a small **`notifications` domain** (`domain/notifications`,
+schema `@orb/db/schema/notifications.ts`: `recipientUserId`, `type`, `payload`, monotonic `seq`, `readAt`/`dismissedAt`).
+**Durable-first, fan-out-second** (INSERT inside the membership-transition tx; emit on the per-user bus only in the
+after-commit hook — so an offline invitee still finds it on return). The subscription adopts the **`chat.streamMessages`
+resume shape** (`authedProcedure.subscription` filtered to the caller, every yield `tracked()`, `lastEventId` replay) —
+**NOT `buddy.stream`** (in-memory ring, drops offline events). The notification event is a **closed discriminated union**
+with `recipientUserId` mandatory and credentials/secrets **type-level-unrepresentable** (`@orb/contracts/notifications`).
+chat (and any future producer) emits via an injected `notifications.emit` op wired at the composition root — chat never
+imports the notifications internals.
+
+## 4. Presence — server-derived, never client-asserted
+
+Presence (who is live) is **derived server-side from the SSE connection** (a ref-count per `userId` across all devices,
+debounced/grace-windowed) — **never** a client-asserted heartbeat, because presence → cast → injected WI/persona, so a
+spoofable presence is a prompt-composition attack (neo §9). It lives in **transport** (the connection registry) and is
+**injected into chat** as a `presence.read` op for cast-gating. An offline participant is silenced (persona drops from
+the present cast; they catch up from the durable log on return — the loop never blocks on an offline human). Page
+Visibility is a client *hint* (triggers reconnect), never the source of truth.
+
+## 5. Hosting & the turn-identity triple
+
+AI turns **run as the host** (`runAsUserId`), not the triggering caller. **The split is a TRIPLE, not one id**
+(neo §10.4): `runAsUserId` carries (1) the id for credential/routing resolution, (2) the **role** the credential gate
+reads, and (3) the **model** that effort/intent is gated against — all rebind to the host together. **Three identities,
+named crisply (D19):** the **caller** = `Principal.userId` (already carried — membership/CSRF, a human post's
+`authorUserId`); **`triggeredBy`** = the human RESPONSIBLE for the turn (spend budget + abort-rights + attribution) =
+the caller for a direct send, the **chain-starter for an auto-mode turn** (no fresh caller); **`runAsUserId`** = the host
+(whose box funds it). There is no separate `callerUserId` term. Resolve `runAsUserId` ONCE at turn start; read all host
+state under that frozen id inside the lock; the turn path never passes the caller's `Principal.userId` to
+`resolveCredential`/`loadUserSettings`. **Host-offline → the turn defers:** a durable
+`pending_turns` row (`triggeredBy` + the authorized host id), **NOT lock-held** (the 5-min lock TTL would expire +
+stale-takeover → double-run), boot-reclaimed and re-validated for consent/budget at drain. **The owner's box (two
+resource classes — `D17`):** hosted creds (`max-pro-sub`/wallet) are **owner-only** and a non-owner-triggered
+`max-pro-sub` turn is **refused unless explicit owner consent** (default OFF — `triggeredBy≠owner` forces the DB role
+SELECT, fail-closed); local compute (vLLM + in-process light tier) is shared-by-design but **count-budgeted** (below).
+**Per-member budget = a turn/request COUNT limiter** (the DB-backed `transport/rate-limit`), metering **ALL** backends
+(hosted $ AND local — local has no dollar cost but finite hardware), attributed to `triggeredBy`, debited inside the
+per-chat lock.
+
+## 6. Arbitration — the pluggable "who speaks next" (AI only; humans post free-form)
+
+`ArbitrationPolicy: (roster, history, trigger) → CharacterParticipant[]` (humans are NOT scheduled — they post freely; a
+human message is a bus event that *triggers* arbitration). Policies: **`@mention`** hard-override (runs BEFORE any
+policy; **only human-authored trigger text** drives it — an AI-authored `@Name` must NOT force a speaker, else characters
+ping-pong-summon each other + amplify spend; §12) · **`natural`** (weighted-sample-to-N by `talkativeness`, NOT ST's
+independent per-member coin-flip) · **`list`** · **`pooled`** (round-robin, exclude last; in-memory round state,
+abandon-in-flight-on-boot) · **`manual`** · **`smart`** (low-temp side-LLM, roster-validating parse + round-robin
+fallback; runs **once per round, lock-free**, metered). Cross-cutting: **auto-mode** AI→AI chaining (delay-based,
+lock-guarded, **dual bound** — turn-count cap AND spend ceiling) + **ban-last-speaker** (soft; yields rather than
+empties). Selection **re-arbitrates per turn** (fixes ST's deaf round); a multi-speaker round acquires the lock **PER
+SPEAKER** (TTL sized for one turn; lets a human send interleave at a clean seq boundary); never DROP a concurrent trigger
+(serialize via the lock + durable log; drain all pending human msgs and arbitrate once). `select-speakers.ts` (7a sync) +
+`smart-arbitrate.ts` (7b) already exist (Part I).
+
+## 7. Two-axis generation (output × card-scope)
+
+**Axis 1 output:** `per-speaker` (DEFAULT — one message per active speaker, `{{char}}`=that speaker; per-character swipe
+"just works") vs `narrator` (one call voices the cast, `{{char}}`=cast, authored by the **group character** — a real id,
+**never NULL**, §10). **Axis 2 cardScope:** `merged` (all member cards in one cache-stable block; required for narrator)
+vs `scoped` (own card + egocentric history; best isolation, cache-hostile; per-speaker only). Enforce **`narrator ⇒
+merged`** as a Zod discriminated union (unrepresentable, not prose). `speakerTags` (the `<speaker>` wrap) is orthogonal,
+default-derived from output. **Card-scope at ASSEMBLE time** (omit sections per target), never post-gen regex stripping.
+**Squash:** stamp the trusted `Name:` into content (server-authored, AFTER all regex — §12) then `squashSameRole`; store
+per-speaker rows **verbatim as distinct rows** (never route canon through the empty-dropping/first-wins squash before
+attribution — squash only at the provider wire boundary). **`computeHistoryBreakpoint` returns undefined for any round
+whose tail is NOT a single volatile turn** (multi-responder/narrator break the single-tail invariant — §12; extends the
+§8 rolling-pair test).
+
+## 8. Group macros (data-fed, volatile)
+
+Register `{{group}}` / `{{groupNotMuted}}` (= the present+active cast) / `{{notChar}}` (cast minus current speaker;
+humans NOT included — a separate `{{party}}`/`{{humans}}` macro is the human-cast surface) / `{{char}}`-as-cast (narrator
+turn-level = comma-joined present cast, collapsing to the single name when cast=1 so narrator-of-one == solo) in the
+existing `@orb/kit/macro` registry, fed the resolved roster + presence. **All are `volatile:true`** (else they sit in the
+cached static half and the cache-buster misses them) and feed **both** macro mappers (render + turn-context). **Subtle:**
+the *turn-level* narrator `{{char}}` = joined cast, but **per-entry world-info `{{char}}` binds to the entry's OWNING
+character**, never the joined cast (else WI possessives / name-keyed regex corrupt). WI keyword activation widens the name
+SET to the full present cast + present personas (no primitive change). Accept legacy `<GROUP>`/`<CHARIFNOTGROUP>` aliases
+on import (ecosystem compat). Relational lore (`{{user}} is {{char}}'s brother`) is the **card author's job** —
+`{{user}}` resolves to the anchor; per-connection relationship data is a rejected non-goal.
+
+## 9. Room-level overrides (host-only)
+
+Precedence per field: **room override > scope-fallback (`scoped`→active speaker; `merged`/narrator→merged-of-present) >
+empty**, via ONE generic `resolveOverridable(field, …) → {value, source}` shared by every overrideable field (solo =
+roster-of-1 degenerate). **Field allowlist = exactly four, host-only:** `scenario` · `main_prompt` · `post_history`
+(jailbreak IS post_history — one column) · `authors_note` (an AN room-override **suppresses** the N per-character
+depth-prompts, not stacks). **Writes are host-only** (else a member injects a room-wide system prompt — a one-shot
+jailbreak/exfil over everyone's turns); default-deny any field not listed. `{{original}}` at the room tier = the
+scope-fallback inherited value (NOT the card body — leak risk; NOT empty). Add a **separate `forbidRoomOverride`** (don't
+reuse the card-lock `forbidCharacterOverride` — host authority > card-lock). **Surface the resolved source** (`room
+override` / `from <Character>` / `merged`) at assemble + in the trace (host/admin-only; LABEL-only, never card body) +
+preview the inherited value in the editor (shares ONE resolver+render-context with assemble). A mid-room override edit is
+a `staticCacheBuster` (`collectStaticSources` scans the RESOLVED value). Persona is NOT a room-override field (it's
+per-human). Contracts: `RoomOverrides`/`GroupConfig`/`OpeningPolicy` → `@orb/contracts/chat` (already mapped).
+
+## 10. Group-as-character memory (cohesion — `knowledge-cluster §4`)
+
+A group room is its own **synthetic group character** (hidden, no card embedding) — it **authors narrator turns** (a real
+`characterId`, **never NULL**; after a one-time backfill, NULL is unused for assistant rows), so memory keying stays
+honest (assistant rows always carry a real `characterId`; there is no cv-FK on `chat_digests`/`chat_segments` — dropped, `D28`). **Memory keying mirrors
+`cardScope`:** `merged`/`narrator` (default) → group-as-character, per-room-shared digests (the chatId-keyed pool is
+correct — everyone sees everything by design); `scoped` (opt-in) → per-character egocentric digests
+(`(chatId,scopedCharacterId,tier,blockIdx)` + the witnessing/present-at-seq predicate) — **egocentric-only** (a character
+can't recall a scene it wasn't in). `scopedCharacterId=''` is the SHARED-bucket sentinel (SQLite UNIQUE NULL≠NULL).
+A **`chat_digest_speakers` join** ("which characters a block contains") backs by-character search across rooms. Identity
+folds into the content-hash (rename-robust, re-attribution-aware, solo byte-identical). **Member room/group corpus search
+is HOST-ONLY in v1** (the scope is derived from membership — `chatId ∈ {chats I host}` — NOT a stamped digest `ownerId`,
+`D20`; a membership-gated union is deferred and widens for free — `D16`); members still get in-room `{{memory}}` recall.
+CSLS/themes tag group rows (`roomKind`/`isGroup`) so analytics partition. The digest/segment rows FK to their producer
+(`chatId`) and carry NO denormalized `ownerId` (`D20`).
+
+## 11. The per-verb auth matrix + the enforcer (chat's half of §7.1)
+
+Every chatId surface routes through `can()` / `requireParticipant(principal, chatId)` (membership) /
+`requireHost(principal, chatId)` (authority), replacing owner-equality. **Typed matrix:** read/stream → **member** ·
+post → **member** (author server-stamped) · edit/delete → **author-or-host** · **read a roster character's card
+(membership-gated, level-clamped — D22)** → **member**, fields clamped to `chatMetadata.group.memberCardVisibility`
+(`name-avatar | sheet | sheet+lore | full`, host-set, default `sheet`; the **owner/host always sees `full`**; read-only +
+while-present `leftSeq IS NULL`; **edit/clone/export stay owner-only** — viewing ≠ owning) · reseed/reorder/group-config/
+room-overrides/invites/kick/handoff/anchor-reassignment/**memberCardVisibility** → **host-only** · lineage walked & gated
+**independently** (a fork grants no parent membership). **The enforcer's scope is explicit and default-deny:** every chatId verb **+ the SSE subscribe path
+(cut a kicked member's stream within the kick tx) + bus delivery + cross-domain lineage walkers (fork/export/corpus) +
+`forkChat` + `chat_injections` + anchor reassignment** — an unlisted chatId surface defaults to deny. The global
+`owner|admin|user` axis (`D17`) is orthogonal: `requireAdmin` (owner∪admin) gates admin surfaces; `requireOwner` gates
+the box-credential mint + admin grant. (Authoritative: `spine/identity-auth-permission.md`.)
+
+## 12. Invariants (gate candidates — the §10.4 cross-cutting set)
+
+1. **`no-if(isGroup)` + solo byte-identical** — `stampSpeaker` no-ops at roster=1 (prefix only when >1 distinguishable
+   speaker); one `resolveOverridable`; message-row/render switch on role×characterId against a roster map. *(grit
+   `no-if-is-group` + a contract test: a solo chat's assembled history AND rendered output is byte-identical.)*
+2. **Turn-identity triple** — id + role + model-gating all rebind to `runAsUserId`; `triggeredBy` (the responsible human;
+   the chain-starter in auto-mode) is separate; the caller is `Principal.userId` (no `callerUserId` term, D19). The
+   caller's `Principal.userId` never reaches `resolveCredential`/`loadUserSettings`. *(test + `turn-identity` gate.)*
+3. **max-pro-sub by-proxy refused** — a member-triggered `max-pro-sub` turn forces the DB role SELECT on `runAsUserId`
+   and is refused unless owner consent (default OFF). *(test, fail-closed.)*
+4. **Per-member budget meters turn-COUNT across all backends**, attributed to `triggeredBy`, debited in-lock. *(test.)*
+5. **Trusted speaker label is out-of-band** — stamped AFTER all USER_INPUT/AI_OUTPUT regex + after squash; member bodies
+   have leading `Name:`/`<speaker>` neutralized; render chrome derives from `characterId`/`authorUserId`, never body
+   parse. *(test.)*
+6. **AI-authored `@mention` never forces a speaker** — only human trigger text drives the override. *(test.)*
+7. **`computeHistoryBreakpoint` returns undefined for a non-single-volatile-tail** (multi-responder/narrator). *(extends
+   `pipeline-breakpoint.test.ts` + cache-token diff.)*
+8. **Presence is server-derived; the cast/WI snapshot is pinned once per round** (a presence flip takes effect next
+   round, not mid-round). *(test; the group macros register `volatile`.)*
+9. **Narrator is authored by the group character (a real id), never NULL.** *(compile: exhaustive `characterId` handling;
+   the one-time backfill.)*
+10. **Notifications are durable-first** (INSERT in the tx, emit after commit) on the resumable stream shape. *(test: kill
+    the emit path, assert deliverable from the table alone.)*
+11. **Bus payload allowlist** — credentials/secrets are type-level-unrepresentable in `ChatBusEvent` /
+    `NotificationEvent`; all chat bus events are room-public. *(compile + a type-level test.)*
+12. **The membership chokepoint covers every chatId surface** incl. SSE subscribe + lineage walkers + chat_injections +
+    forkChat + anchor; default-deny unlisted. *(lint: a `scripts/check` enforcer; grep for `ownerId ===` in chat → RED.)*

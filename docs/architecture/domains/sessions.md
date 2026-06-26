@@ -38,7 +38,8 @@ Specifically:
   SSO seam upsert: keys on the stable `externalId`, falls back to `handle`; seeds `role` from
   `OWNER_GROUP`/`OWNER_HANDLES` on insert, preserves it on update unless `RE_DERIVE_ROLE_ON_LOGIN`).
 - **Role-derivation policy** — `ownerHandles()` + `determineRole(handle, groups)`: the one
-  access-control decision the app owns (`admin` iff identity ∈ `OWNER_GROUP` or handle ∈ `OWNER_HANDLES`).
+  access-control decision the app owns (**`owner`** iff identity ∈ `OWNER_GROUP` or handle ∈ `OWNER_HANDLES`;
+  else `user`, D17). **`admin` is NEVER env-derived — it is GRANTED** by the owner via `setRole` (owner-only).
   The sanctioned call-time `process.env` trio lives here (see §Esoteric).
 - **The `sessions` table** — all SELECT/INSERT/UPDATE for the BFF session rows.
 - **The `users`-row read/write seam** — the lookup + upsert queries against the `users` table (the
@@ -60,7 +61,7 @@ This domain does **NOT** own:
   This domain is pure DB + crypto — it returns a token string; the route sets the cookie.
 - **The composition-root auth SEAM** — `createAuthResolver` / `resolveOwner` (today `auth-context.ts`).
   That moves to **`entry/`** (the one tier allowed to wire `infra/auth` + `domain/sessions` together).
-- **The boot owner-seed** — the one-time `role=admin` backfill for the owner handle. A `entry/boot`
+- **The boot owner-seed** — the one-time `role=owner` backfill for the owner handle (D17). A `entry/boot`
   concern (same tier as credentials' `seedCredentialFromEnv`).
 - **The `users` table definition** — `@orb/db` (a reserved cross-cutting schema file; admin / credentials
   / sessions all FK it). This domain owns the *resolution queries*, not the schema.
@@ -114,7 +115,7 @@ immutable `Principal` at the seam; flow it down unchanged.
 //   Principal        = the post-seam, immutable, db-resolved caller. Constructed ONCE at the entry seam.
 export interface Principal {
   userId: UserId;            // resolved ONCE — validate (cookie) / provisionIdentity (SSO) / owner-seed (fallback)
-  role: "admin" | "user";    // the single global-authz axis carried downstream
+  role: UserRole;            // owner | admin | user (D17) — the single global-authz axis carried downstream
   handle: Handle;
   externalId: ExternalId | null;
   via: "cookie" | "header" | "fallback";  // subsumes viaCookie/viaFallback (CSRF + owner discriminators)
@@ -211,7 +212,7 @@ injected `SessionAdminPort` (structural subset). The OIDC/local route handlers c
 | `auth/_shared/oidc-store.ts` (`createOidcStore`) | → **`domain/sessions/persistence`** (NOT `infra/auth`) | `domain/sessions/persistence/oidc-store.ts` | **CORRECTED 2026-06-25** (verified + flagged by tiers/infra.md): it imports `@orb/db` (`Db` + `oidcTransactions`) — stateful PKCE/state KV persistence, NOT db-free verification, so it cannot be sealed `infra/auth`. The `oidc` route calls it through the sessions domain. Reconciles the §esoteric note that already acknowledged it's a DB table. | resolve-time (infra stays db-free; the DB write is the domain's) |
 | `auth/_shared/cookie.ts` (set/clear/refresh + `__Host-` name) + the OIDC/local route handlers | → `entry`/route layer | `entry/http/auth-routes.ts` | Cookie I/O is the route layer's job; the domain returns a token string. The §11 `__Host-` contract is route-tier. | resolve-time |
 | `auth-context.ts` owner-fallback identity mint (`{ externalId:null, handle, groups:[] }`, `viaFallback:true`) | → the seam (`entry`) | `entry/auth/seam.ts` | The un-credentialed owner path mints a `Principal` with `via:"fallback"` and NO DB touch (the owner is the owner by definition, not a revocable user). `via:"fallback"` is the safe "this IS the owner" discriminator. | compile-time (`Principal.via` discriminant) |
-| The one-time `role=admin` owner backfill / owner-seed | → `entry/boot` | `entry/boot/seed-owner.ts` (`ensureOwner`) | Composition-root boot concern (same tier as `seedCredentialFromEnv`, which already calls `ensureOwner`). Reads `OWNER_HANDLES`; calls the sessions upsert at boot. | resolve-time (`entry/` is topmost) |
+| The one-time `role=owner` owner backfill / owner-seed (D17) | → `entry/boot` | `entry/boot/seed-owner.ts` (`ensureOwner`) | Composition-root boot concern (same tier as `seedCredentialFromEnv`, which already calls `ensureOwner`). Reads `OWNER_HANDLES`; calls the sessions upsert at boot. | resolve-time (`entry/` is topmost) |
 | `shared/contracts/session.ts` — `SessionView` | → `contracts` | `@orb/contracts/session` | Cross-boundary DTO: produced by sessions, consumed by admin (via port) and the client device list. Already in `shared/contracts` precisely to dodge the domain↔domain import. | resolve-time (`@orb/contracts` is below both server and client) |
 | `shared/contracts/identity.ts` — `ResolvedIdentity` | → `contracts` | `@orb/contracts/identity` | Cross-boundary: `infra/auth` produces it, `domain/sessions` + the seam consume it. Branded `Handle`/`ExternalId` cast lives at the producer. | resolve-time |
 | `trpc/context.ts` — `AuthContext` + `Context.{userId,role}` + `auth/identity.ts` `IdentityResolution` (3 principal shapes) | merge / reconcile | one `Principal` in `@orb/contracts/identity` | The §8.2 finding: identity/principal fragmented across 3 differently-named shapes for one concept (`AuthContext`/`IdentityResolution`/`OwnerResolution`/`Context.userId`). One immutable `Principal`, constructed once. | compile-time (the single `Principal` type) + manual reconcile |
@@ -268,7 +269,7 @@ This domain is the **anchor** of the §7.1 spine. The headline redesigns:
   `Principal` = `entry/` seam; the boot owner-seed = `entry/boot`. Each boundary is a tier edge
   (resolve-time), not prose.
 - **`role:host|member` (per-resource authority) is NOT this domain.** Sessions resolves the global
-  `admin|user` axis only. The chat-participant authority axis (§7.1: "added-but-unwired") is `chat`'s.
+  `owner|admin|user` axis only (D17). The chat-participant authority axis (§7.1: "added-but-unwired") is `chat`'s.
 - **Agents as first-class principals (§8.6 — direction, not built).** When agents become real `users`
   rows, the mint verb — **`provisionAgentPrincipal`** (a non-SSO, non-loginable users-row minted from
   inside the app) — sits in **this domain**, next to `provisionIdentity`. Precedent: the synthetic
@@ -284,15 +285,15 @@ This domain is the **anchor** of the §7.1 spine. The headline redesigns:
   validate read-seam).
 - `Principal` → `@orb/contracts/identity` (the post-seam immutable; supersedes the 3 fragmented shapes).
 - `SessionView` → `@orb/contracts/session` (the domain's `contract/views.ts` re-exports, never re-declares).
-- `users.role` union (`admin|user`) → `@orb/contracts/identity` as `UserRole` (one importable union; the
-  §7.5 census found **35 touch / 33 inline re-decls** of `"admin"|"user"`). The `db/schema/users.ts`
+- `users.role` union (`owner|admin|user`, D17) → `@orb/contracts/identity` as `UserRole` (one importable union;
+  the §7.5 census found **35 touch / 33 inline re-decls** of the old `"admin"|"user"`). The `db/schema/users.ts`
   enum column and the contracts union must agree (one source, mirrored by a test).
 - Domain-internal params/results (`ProvisionInput`, `ProvisionResult`, create params) →
   `domain/sessions/contract/`.
 
 ### §7.5 string-union dispatch discipline
 
-`UserRole` (`admin|user`) is the axis this domain governs. Target: ONE importable union in
+`UserRole` (`owner|admin|user`, D17) is the axis this domain governs. Target: ONE importable union in
 `@orb/contracts/identity`; the `determineRole` return + the `Principal.role` + the `db` enum all derive
 it. The 4 auth modes (`single-user|local|forward-header|oidc`) dispatch through `MODE_RESOLVERS` — a
 `Record<AuthConfig["mode"], ModeResolver>` (the gold-standard mapped-type Record) in `infra/auth`; a 5th
@@ -414,7 +415,7 @@ fresh session + revoke the old at that transition.
     (the env-reader exception allowlist = exactly `OWNER_HANDLES`/`OWNER_GROUP`/`RE_DERIVE_ROLE_ON_LOGIN`
     in this one file; any other `process.env` read in the domain is RED).*
 
-11. **`UserRole` has one declaration.** `admin|user` lives once in `@orb/contracts/identity`; the `db`
+11. **`UserRole` has one declaration.** `owner|admin|user` (D17) lives once in `@orb/contracts/identity`; the `db`
     enum + `determineRole` return + `Principal.role` derive it. *Enforcement: `no-inline-union-redecl`
     (count must be 1) + a test asserting the db enum matches.*
 

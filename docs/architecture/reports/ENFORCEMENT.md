@@ -38,7 +38,9 @@ AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDec
 `JsxAttribute()`). Full list + rationale in `tools/grit/README.md`. Server: no-raw-id,
 no-loose-id-cast, no-mint-via-cast, no-await-db-in-loop, no-raw-intl-time, no-raw-clock,
 no-if-is-group, no-context-returntype, no-decorators, no-inline-types,
-persistence-no-in-memory-state. Client (live now, fire when client code lands): no-color-literals,
+persistence-no-in-memory-state. (`no-if-is-group` flags an `if (isGroup)` / group-vs-solo branch — group-ness
+is DATA, not a branch; solo is the roster-of-1 degenerate case, byte-identical — ledger D16, `domains/chat.md`
+Part III §0/§12.) Client (live now, fire when client code lands): no-color-literals,
 no-raw-z-index, no-raw-spacing-in-features, no-raw-typography-in-features, no-chat-trpc-in-surface,
 no-direct-useform, no-form-state-in-useeffect, no-inline-optimistic-in-surface.
 
@@ -106,6 +108,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | db schema files land (Phase 1 db) |
 | `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader (biome no-restricted-globals/grep — dep-cruiser can't see non-import access) | foundation/env built (4a); the sessions call-time reads are allowlisted (foundation.md inv #1) |
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
+| `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
 | `assumes-single-replica` | every module-scope ring/cache/counter carries the `ASSUMES(single-replica)` annotation | the first single-replica in-memory state lands (foundation rings, §A1) |
 | `dead-code` | unused exports (the seam tsc + knip leave open) | post-Phase-1 (false-fires while everything is a placeholder) |
@@ -116,7 +119,14 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `env-natures` | settings "four natures" split, machine-locked | settings domain built |
 | `serde-core` | serialization-core invariants (one canonical home, layer-clean) | serde/import-export domains built |
 | `bus-coverage` | chat event-bus coverage ratchet | chat domain built |
-| `turn-identity` | turn pipeline runs as `runAsUserId` (host), not caller | chat domain built |
+| `turn-identity` | turn pipeline runs as `runAsUserId` (host), not caller — the **triple** (id + role + model-gating all flip; the caller's `Principal.userId` never reaches `resolveCredential`/`loadUserSettings`; `triggeredBy` is the responsible human, no `callerUserId` term) (ledger D16/D17/D19) | chat domain built |
+| `membership-enforcer` | every `chatId`-taking surface routes through the membership chokepoint (`requireParticipant`/`requireHost`/`can()`), default-deny — scope INCLUDES SSE subscribe + bus delivery + lineage walkers + `forkChat` + `chat_injections` + anchor reassignment; grep `ownerId ===` in chat → RED (ledger D16; `domains/chat.md` Part III §11) | chat domain built |
+| `member-card-clamped` | a member reads a roster character's card ONLY via `getRosterCardView` (`requireParticipant` + fields clamped to `chatMetadata.group.memberCardVisibility`); `get`/`update`/`duplicate`/export stay owner-only (`fetchOwned`); the owner/host always sees `full`; viewing ≠ owning (ledger D22) | character + chat domains built |
+| `owner-role-split` | `UserRole = owner\|admin\|user` single-homed in `@orb/contracts/identity`; db enum derives the `USER_ROLES` tuple (test-mirror); exhaustive dispatch; `max-pro-sub` gated `requireOwner`; the only `role === 'owner'\|'admin'` site is the `can()` seam (ledger D17) | identity/contracts built (chat for the by-proxy gate) |
+| `bus-payload-allowlist` | credentials/secrets are **type-level-unrepresentable** in `ChatBusEvent` / `NotificationEvent`; all chat bus events are room-public (ledger D16) | chat + notifications domains built |
+| `notifications-durable-first` | a notification is INSERTed in the membership-transition tx and fanned out only after commit (deliverable from the table alone); the stream uses the `chat.streamMessages` resume shape, never `buddy.stream` | notifications domain built |
+| `solo-byte-identical` | a solo chat's assembled history AND rendered output is byte-identical before/after the roster (the `no-if(isGroup)` equivalence — pairs with the active `no-if-is-group` grit plugin) (ledger D16) | chat domain built |
+| `vector-scope-derived` | NO domain reads the vector tables (`chat_digests`/`chat_segments`/`*_embeddings`) except via the ONE `search` engine; the producer owner-scope is a MANDATORY param, applied BEFORE cosine rank AND before `content_hash` collapse; no denormalized `ownerId` on a vector row (ledger D20 — the no-cross-user-leak gate; scope is derived from the producer, never stamped) | embeddings + search domains built |
 | `optimistic-chat` | client optimistic-update call-site invariants | chat client built |
 | `client-structure` | `packages/client` by-feature layout | client package built |
 | `component-size` | god-component file-size cap | client package built |

@@ -101,6 +101,15 @@ Non-secret, non-bootstrap operational knobs an admin can flip at runtime. Today:
   `env.ts:96-97`). Each is a candidate AppSettings field (env floor preserved, admin override added) —
   a wiring choice, not a foregone move (rate-limit budgets may stay boot-env; hot-reloading a limiter
   mid-flight is fiddly). See Open decisions.
+- **Owner-box governance toggles (NEW — AppSettings, ledger D17 + D16).** "Whose box it is" (the
+  server `owner`) owns two shared resource classes, each with a runtime toggle: **`VLLM_*_CONCURRENCY`**
+  is promoted to AppSettings (above) AND joined by **`allowNonOwnerLocalCompute`** (default **ON** — may
+  delegated admins / chat members drive the owner's vLLM + in-process transformers.js/ONNX tier? local
+  compute is shared-by-design, only finite-hardware contention) and the per-member **local-compute COUNT
+  budget**; paired with **`allowNonOwnerMaxProSub`** (default **OFF** — the hosted `max-pro-sub` is
+  owner-only, ban-prone + money). These are AppSettings (admin-flippable runtime knobs), but the
+  *enforcement* is the credential gate (`requireOwner`, `tiers/providers.md §2b`,
+  `spine/identity-auth-permission.md §3`) — the toggle only widens/narrows the default.
 - **`getEffectiveConfig()` is SYNC** (hot paths — engine/embedder — can't do a per-call DB read; they
   read an in-memory cache warmed by `reloadEffectiveConfig(db)` at boot + after every admin write,
   `ASSUMES(single-replica)`). **The `logger.level` rebind on reload is load-bearing** (`app-config.ts:93`):
@@ -131,7 +140,7 @@ security-load-bearing, rebuilt every turn, with three parts:
      credential source; the only auth in scope is the OpenRouter key. `ANTHROPIC_API_KEY=""` (empty, not
      unset — unset falls through to other sources), `BASE_URL`→OpenRouter, `AUTH_TOKEN`→OR key.
    - **Mode 3 (local vLLM)** `buildClaudeVllmEnv`: same firewall as mode 2, base URL loopback, throwaway
-     auth (`max-pro-sub` is admin-gated; non-admin buddy turns route here).
+     auth (`max-pro-sub` is owner-gated, ledger D17; non-owner buddy turns route here).
 - **Home: `infra/providers/backends/agent-sdk`** — a *named* backend-internal config of the strategy, NOT a
   settings tier and NOT `foundation/env`. The only piece that stays in `foundation/env` is the
   `process.env`-reading baseline producer `hostEnvForClaudeChild()` (it reads `process.env`, so it stays

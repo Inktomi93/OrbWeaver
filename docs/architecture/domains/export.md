@@ -21,12 +21,14 @@ Export reads an owned character / chat from canon and **serializes it to a downl
 artifact** — the inverse of `domain/import`. Owner-scoped; returns bytes/text + a filename;
 the entry layer streams them with a download header. Two verbs:
 
-- **`exportCharacter`** — read the live version + attached books + accepted tags → emit a
+- **`exportCharacter`** — read the live character row + attached books + accepted tags → emit a
   **V3 character-card PNG** (the card JSON embedded as `tEXt` chunks in the avatar, or a
   256×256 placeholder when there's no avatar). Returns `{ bytes, filename }` or `null`.
 - **`exportChat`** — read the chat + messages + variants + the persona/character names →
   emit **ST-compatible JSONL interchange** (round-trips through import) or a human-readable
-  **TXT transcript**. Returns `{ text, filename }` or `null`.
+  **TXT transcript**. Returns `{ text, filename }` or `null`. **Gated `requireHost` (D29)** — a chat
+  is membership-scoped (D18, no `chats.ownerId`), and bulk transcript extraction is a host action in
+  v1 (widening to `requireParticipant` is a deferred additive change).
 
 Concretely, export owns **the OUT assembly and packaging only**:
 
@@ -95,8 +97,8 @@ The defining fixes export delivers:
 2. **Close the `raw`-blob lossiness.** `creator` / `character_version` / `regex_scripts` /
    `extensions` survive only through the `raw` blob today, so an **app-authored card** (one
    created in-app with no `raw`) silently drops them on export. Orbweaver promotes them to
-   **typed columns** on `character_versions`; the export verb reads each column straight off
-   the row (the steady clone already does this — orbweaver makes the columns the schema
+   **typed columns** on the flat `characters` row (D28); the export verb reads each column
+   straight off the row (the steady clone already does this — orbweaver makes the columns the schema
    source of truth, not the `raw` fallback). Enforcement: compile-time (typed columns exist;
    a `raw`-only read is the absence of a column).
 3. **Close the `proposedTags` accepted-tags round-trip gap.** Export today reads
@@ -125,9 +127,10 @@ domain/export/
 │   ├── params.ts       ExportChatMeta · ExportMessage · ExportVariant — the chat-builder
 │   │                     input shapes (today inline in chat.ts; move to contract/)
 │   ├── results.ts      ExportedCard { bytes; filename } · ExportedText { text; filename }
-│   └── (no errors.ts)  — both verbs return null when not-owned / no-version; HTTP → 404
+│   └── (no errors.ts)  — verbs return null when not-permitted / not-found; HTTP → 404
+│                          (exportCharacter: not-owned; exportChat: not-host — D29)
 ├── verbs/
-│   ├── export-character.ts  read version + books + accepted tags → buildCardV3 →
+│   ├── export-character.ts  read character + books + accepted tags → buildCardV3 →
 │   │                          writeCardChunk; basePng (avatar fetch + transcode +
 │   │                          placeholder) inline
 │   └── export-chat.ts        read chat + messages + variants + persona/character names →
@@ -195,13 +198,13 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `export/helpers.ts` — `slug` (download filename) | stays domain feature | `domain/export/substrate/download-slug.ts` | Filename policy specific to export downloads (distinct from `kit/slug`'s `slugifyHandle`). | lint-time: `feature-structure` |
 | `export/helpers.ts` — `strArr` (coerce unknown → string[]) + `export-character.ts` `parseRecordArray` | **→ `kit`** (dedupe) | `@orb/kit/json` (or `kit/arrays`) | `strArr` duplicates `strArray` in card-serde; `parseRecordArray` duplicates the regex-scripts coerce. One generic primitive; delete the copies. | lint-time: `no-inline-types` + dup-finder |
 | `export/context.ts` — `ExportContext = ReturnType<typeof createExportContext>` | stays domain feature (made explicit) | `domain/export/context.ts` top — `export interface ExportContext { db: Db; cas: Cas }` | The inferred type is invisible; an explicit interface is the no-inline-types target (same fix as `character.md`). | lint-time: `no-inline-types` |
-| `_shared/fetch-owned.ts` — `fetchOwned` (used by both verbs) | **→ `@orb/db/kit`** | `@orb/db/kit` (`OwnedTable` constraint) | Owner-scoped single-row fetch; needs drizzle column types → db/kit, not kit. `ownerId` → `principal.userId` under §7.1. | resolve-time: `@orb/db/kit` below `@orb/server` |
+| `_shared/fetch-owned.ts` — `fetchOwned` (used by `exportCharacter`; `exportChat` uses `requireHost` — D29) | **→ `@orb/db/kit`** | `@orb/db/kit` (`OwnedTable` constraint) | Owner-scoped single-row fetch for the owned `exportCharacter`; needs drizzle column types → db/kit, not kit. `ownerId` → `principal.userId` under §7.1. `exportChat` does NOT use it (chats are membership-scoped, D18 — it gates `requireHost`). | resolve-time: `@orb/db/kit` below `@orb/server` |
 | `#db/parsers` — `parseRecord` | stays `@orb/db` | `@orb/db` | The JSON boundary parser used at every row→view seam; export reads it directly as a db consumer. | resolve-time |
-| `creator`/`character_version`/`regex_scripts`/`extensions` — survive only via `raw` blob | **→ typed columns** | `@orb/db/schema/character` (`character_versions`) | The §7.3 lossiness fix: app-authored cards (no `raw`) must round-trip identically. Export reads each typed column off the row. Owned by `character` schema; export consumes. | compile-time: typed columns are the schema source; a `raw`-only read is the absence of a column |
+| `creator`/`character_version`/`regex_scripts`/`extensions` — survive only via `raw` blob | **→ typed columns** | `@orb/db/schema/character` (the flat `characters` row, D28) | The §7.3 lossiness fix: app-authored cards (no `raw`) must round-trip identically. Export reads each typed column off the row. Owned by `character` schema; export consumes. | compile-time: typed columns are the schema source; a `raw`-only read is the absence of a column |
 | `character_versions.proposedTags` read → card `tags` | **→ accepted `character_tags`** | read `character_tags WHERE status='accepted'` (`tag.md` redesign) | Closes the round-trip gap — accepted tags now export; `proposedTags` JSON column is deleted. (Behavioral shift, see Open decisions / Esoteric.) | compile-time: `proposedTags` column absent → `tsc` red at any read site |
-| `export-chat.ts` reads `chat.characterVersionId` (for the character name) | **rewrite — resolve via live identity** | chat → `characterId` → `characters.currentVersionId` → `characterVersions.name` (direct reads) | De-pin (`character.md`) DELETES `chats.characterVersionId`; export must resolve the character name through live identity. | compile-time: column gone → `tsc` red |
+| `export-chat.ts` reads `chat.characterVersionId` (for the character name) | **rewrite — resolve off the flat character row** | chat → `characterId` → `characters.name` (direct read) | D28 removes the version model entirely: there is no `chats.characterVersionId` (and no version to resolve); export reads the character name straight off the `characters` row. | compile-time: column gone → `tsc` red |
 | `export-chat.ts` reads `chat.personaId ?? chat.pinnedPersonaId` (for the user name) | **rewrite — resolve via participant active persona** | participant active-persona resolution (`persona.md` drops `chats.personaId`) | `persona.md` target: active per-participant, anchor per-chat; `chats.personaId` is dropped. | compile-time: column gone → `tsc` red |
-| `export-character.ts` book walk joins `characterBooks.characterVersionId` | **rewrite — identity-keyed, current-version resolution** | `character_books.characterId` (re-keyed to `characters.id`); export resolves the live book set directly (no cv join) | RESOLVED (`character.md` + `world-info.md`): `character_books` re-keys to `characters.id`; the snapshot guarantee is re-provided by current-version resolution (the simple default), not a cv pin. Export reads books by `characterId`. | compile-time: the cv-keyed FK is gone post-migration |
+| `export-character.ts` book walk joins `characterBooks.characterVersionId` | **rewrite — identity-keyed (D28)** | `character_books.characterId = characters.id` (re-keyed); export reads the live card's book set off the flat row (no version join) | RESOLVED (`character.md` + `world-info.md`): D28 collapses the version model, so `character_books` re-keys to `characters.id` and the book set is simply the live card's books, read at assemble — there is no cv pin to resolve. Export reads books by `characterId`. | compile-time: the cv-keyed FK is gone post-migration |
 | `http/export.ts` — `registerExportRoutes` (binary/text download registrar) | **→ entry tier** | `entry/http/export.ts` | A non-tRPC download registrar; calls the export front door only, streams bytes/text with a download header. | resolve-time: `entry`/`transport` → domain front door (dep-cruiser backstop) |
 | `export-character.ts` — `basePng` (`sharp` transcode jpg/webp→png + placeholder) + `cas.read` | stays domain feature (note the I/O) | `domain/export/verbs/export-character.ts` (sharp is the one heavy native dep) | The avatar→base-PNG packaging is export-specific assembly; `cas` is injected via context. If `sharp` transcode is ever reused, extract to `infra/image`. | resolve-time: `cas`/`sharp` injected/declared; not a cross-feature reach |
 | `resolveCharacterDepthPrompt(v.depthPrompt)` call before `buildCardV3` | **→ `@orb/server/kit/serde`** (RESOLVED) | `@orb/server/kit/serde` | Server-only (zod), TWO consumers (export + chat/assembly) → `server/kit/serde`, not a single domain's substrate. Deferred refinement: fold the unknown→`{prompt,depth,role}` coercion into the serde-out path so the export verb reads the typed `depthPrompt` column directly (do this iff it leaves a single caller). | resolve-time (both consumers import down) |
@@ -219,7 +222,7 @@ everything else is a static import of a lower-tier module.
 
 | Dep | Provided by | Used for |
 |---|---|---|
-| `db` (`@orb/db` client) | entry | all canon reads (version, books, accepted tags, chat, messages, variants, persona/character names) |
+| `db` (`@orb/db` client) | entry | all canon reads (card, books, accepted tags, chat, messages, variants, persona/character names) |
 | `cas` (`@orb/server/storage`) | infra/storage | the avatar blob read in `basePng` (one read attempt — the TOCTOU-safe pattern) |
 
 **Statically composed (no injection — lower-tier imports):**
@@ -232,13 +235,13 @@ everything else is a static import of a lower-tier module.
 | `@orb/contracts/character` (`characterCardV3Schema`) | contracts | the canonical card shape the serde parses against |
 | `@orb/db/kit` (`fetchOwned`) | db/kit | owner-scoped single-row guard |
 
-**Why no domain injection (and the de-pin consequence):** the character name + book set +
-accepted tags that `exportCharacter` needs are all reachable by **direct db reads**
-(`characters.currentVersionId` → `characterVersions` → `character_books` → `character_tags`),
-exactly as `character.md` sanctions ("import/export bypass the front door by reading `@orb/db`
-directly"). De-pin means export must **resolve the live version itself** via
-`currentVersionId` rather than reading a `chats.characterVersionId` pin — but it does this
-with a join, not by injecting `character.resolveCurrentVersion`. The bulk serializer reads
+**Why no domain injection (and the D28 consequence):** the character name + book set +
+accepted tags that `exportCharacter` needs are all reachable by **direct db reads** off the
+flat `characters` row (`characters` → `character_books` → `character_tags`), exactly as
+`character.md` sanctions ("import/export bypass the front door by reading `@orb/db`
+directly"). D28 collapses the version model: there is no `currentVersionId` join and no
+`chats.characterVersionId` pin to resolve — export reads card content straight off the
+`characters` row, not by injecting `character.getCard`. The bulk serializer reads
 schema; business-logic callers go through front doors.
 
 ---
@@ -253,7 +256,7 @@ half. The card mapper (`buildCardV3` ⟷ `cardFromJson`), the WI-entry mapper
 round-trip is a one-file invariant, not a cross-domain test contract. The canonical card is
 fully modeled in `@orb/contracts/character` (creator/cardVersion/regex_scripts/extensions are
 typed columns, not `raw`-blob survivors); `raw` is reserved for genuinely-unknown vendor
-extras. Export reads the typed columns off the version row; the serde maps them to the V3
+extras. Export reads the typed columns off the flat `characters` row (D28); the serde maps them to the V3
 wire; the codec writes the dual chunk. **Already clean (don't touch):** the parse/write
 split, the string-based codec, the round-trip test pins.
 
@@ -266,7 +269,7 @@ split, the string-based codec, the round-trip test pins.
 - `ExportContext` → explicit named interface, not `ReturnType<>`.
 - `ExportService` / `ExportChatFormat` → `domain/export/contract/service.ts`
   (domain-internal; re-exported from the front door for the entry registrar).
-- DB-row types (`typeof characterVersions.$inferSelect`, `messageVariants.$inferSelect`) →
+- DB-row types (`typeof characters.$inferSelect`, `messageVariants.$inferSelect`) →
   stay derived from `@orb/db` schema in the verbs (no leak; a db-row type).
 
 ### §7.5 string-union dispatch discipline
@@ -281,11 +284,13 @@ split, the string-based codec, the round-trip test pins.
   from `contracts`, not an inline re-spelling (this axis is the measured 132-touch pain).
 
 ### §7.1 identity / auth / permission
-Both verbs take `ownerId` and gate every read through `fetchOwned` (owner-equality scoping).
-When identity migrates to a `Principal` (§7.1), the verb signatures change from
-`ownerId: string` to `principal: Principal` and the scoping reads `principal.userId`; the
-`OwnedTable` `fetchOwned` already keys on `ownerId` and follows that rename. The download
-routes resolve owner via the SAME auth seam as tRPC (`resolveOwner`); safe GET downloads
+The two verbs gate **differently** (D18/D29). **`exportCharacter`** is owner-scoped: it gates through
+`fetchOwned` (owner-equality on the single-owned `characters` row). **`exportChat`** is
+membership-scoped: chats have no `ownerId` (D18), so it gates `requireHost(principal, chatId)` — bulk
+transcript extraction is a host action in v1 (D29; widening to `requireParticipant` is deferred-additive).
+Both take a `Principal` (§7.1); `exportCharacter`'s `fetchOwned` reads `principal.userId`, `exportChat`
+resolves the host from the loaded roster. The download
+routes resolve the caller via the SAME auth seam as tRPC (`resolveOwner`); safe GET downloads
 carry no CSRF requirement (preserve this — it's a deliberate transport decision).
 
 ---
@@ -372,19 +377,20 @@ re-emerging is a second emitter (the drift this domain exists to kill).
    *Enforcement: `kit-purity` gate (no domain/contracts import; **no `node:*` import at all**).*
 
 3. **No `raw`-blob-only provenance.** `creator`/`cardVersion`/`regexScripts`/`extensions` are
-   typed columns on `character_versions`; export reads the columns, not `raw`. An app-authored
+   typed columns on the flat `characters` row (D28); export reads the columns, not `raw`. An app-authored
    card (no `raw`) round-trips identically.
    *Enforcement: compile-time — the typed columns are the schema source; a `raw`-only read is
    the absence of a column.*
 
 4. **Accepted tags export; `proposedTags` does not exist.** The card's `tags` come from
-   `character_tags WHERE status='accepted'`. No `character_versions.proposedTags` column.
+   `character_tags WHERE status='accepted'`. No `proposedTags` column anywhere (and no
+   `character_versions` table — D28).
    *Enforcement: compile-time (column absent → `tsc` red) — shared with `tag.md` invariant 4.*
 
-5. **Export never reads a character-version pin off the chat.** `exportChat` resolves the
-   character name through live identity (`currentVersionId`), not `chats.characterVersionId`.
-   *Enforcement: compile-time — `chats.characterVersionId` is gone (de-pin); any read is a
-   `tsc` error.*
+5. **Export resolves the character name off the flat character row.** `exportChat` resolves the
+   character name via `chat → characterId → characters.name`, not a `chats.characterVersionId` pin.
+   *Enforcement: compile-time — `chats.characterVersionId` is gone (D28 — there is no version
+   model at all); any read is a `tsc` error.*
 
 6. **Export reads `@orb/db` directly; it does not inject domain services.** The bulk
    serializer's only runtime deps are `db` + `cas`. No `domain/export` import of another

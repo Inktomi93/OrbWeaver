@@ -32,9 +32,10 @@
   here (in-RAM all-pairs / streaming), **written through the injected `embeddings.writeHubScores` seam**,
   read by `search` ranking. discovery never touches `embeddings` persistence directly and never nulls
   `hub_score` — it is the ONLY computer/writer of that column's values.
-- **Near-duplicates** — `duplicate_pairs` rollup: character all-pairs cosine (≥ threshold, CSLS-ranked)
-  + chat Jaccard-of-segment-contentHashes (fork-lineage-labelled `forked` vs `duplicate`). Plus the
-  delete-time `sweepStale*Duplicates` seam (polymorphic no-FK rollup; recompute is the source of truth).
+- **Near-duplicates** — per-type FK rollups `duplicate_character_pairs` / `duplicate_chat_pairs` (D24 — was
+  the polymorphic `duplicate_pairs`): character all-pairs cosine (≥ threshold, CSLS-ranked) + chat
+  Jaccard-of-segment-contentHashes (fork-lineage-labelled `forked` vs `duplicate`). Real FK + `CASCADE`
+  (no delete-time sweep — physics, not a reaper); `ownerId` derived from the entity FK (D23).
 - **Character distillation** — the guided-decode `summarize` pass turning each card into FILTERABLE
   facets (genre/tone enum-constrained, sub-genres, setting, tags, elevator pitch, overview) →
   `character_summaries`. Powers browse/catalog/archetype labels and `search`'s `resolveCharacterDisplay`.
@@ -150,7 +151,7 @@ domain/discovery/
 │   └── views.ts            home / characterDossier / themeDetail composed page views
 ├── persistence/           ALL db access (reads of the vector store + rollup-table reads; rollup writes
 │   │                       live in the subsystem generate.ts files per the {generate,retrieve} split)
-│   ├── character-names.ts  characterId → current-version name (was: substrate/character-names.ts — it READS db)
+│   ├── character-names.ts  characterId → card name (the flat `characters` row, D28; was: substrate/character-names.ts — it READS db)
 │   ├── embed-store-reads.ts  the read-only SELECTs over character_embeddings / chat_digests /
 │   │                         chat_segments / image_embeddings (vectors + keywords + content_hash) the
 │   │                         verbs cluster over — table names appear ONLY here
@@ -168,10 +169,10 @@ domain/discovery/
 │   ├── generate.ts         computeThemes (k-means + LLM naming) + backfillMsgMidAt → theme_clusters/assignments
 │   ├── retrieve.ts         themes / themeTimeline / characterThemeProfile / themeCharacters reads
 │   └── utils.ts            parseThemeName
-├── duplicates/            NAMED SUBSYSTEM — {generate, retrieve, sweep}
-│   ├── generate.ts         computeDuplicatePairs (char all-pairs + chat Jaccard + forkRoots) → duplicate_pairs
-│   ├── retrieve.ts         readDuplicateCharacters / readDuplicateChats (NO similarCharacters — that → search)
-│   └── sweep.ts            sweepStaleCharacterDuplicates / sweepStaleChatDuplicates (delete-time seam)
+├── duplicates/            NAMED SUBSYSTEM — {generate, retrieve}  (no sweep — CASCADE replaces it, D24)
+│   ├── generate.ts         computeDuplicatePairs (char all-pairs + chat Jaccard + forkRoots) → duplicate_character_pairs / duplicate_chat_pairs (per-type FK)
+│   └── retrieve.ts         readDuplicateCharacters / readDuplicateChats (NO similarCharacters — that → search)
+│                           (sweep.ts is GONE — real FK + CASCADE deletes stale pairs; no delete-time reaper, D24)
 ├── cooccurrence/          NAMED SUBSYSTEM — {generate, retrieve, utils}
 │   ├── generate.ts         computeCooccurrence + tallyCooccurrence → keyword_cooccurrence/character_keyword_profiles
 │   ├── retrieve.ts         topKeywords / cooccurringKeywords / characterKeywords
@@ -308,8 +309,7 @@ export {
   CSLS_K, DEFAULT_DUP_THRESHOLD,
 } from '...'  // re-exported from their verb/subsystem homes
 
-// Delete-time sweep seam (wired at the composition root into character.remove / chat.delete)
-export { sweepStaleCharacterDuplicates, sweepStaleChatDuplicates } from './duplicates/sweep'
+// (No delete-time sweep export — duplicate_*_pairs use real FK + CASCADE; stale pairs die with their entity, D24)
 ```
 
 **Gone from the front door (vs neo-tavern `corpus/index.ts`):** `createCorpusService.model`; the embed
@@ -329,7 +329,7 @@ or producer; `clearFieldIndexCache` + the field-search surface → `search`. The
 | `corpus/verbs/embed-corpus.ts` (`runEmbedCorpusPass`, `filterEmbedTargets`, slice/skip pipeline) | → `embeddings` | the `re-index` workload calling `embeddings.store` in bulk | The full card embed pass is a write pass; in orbweaver it is the model-change re-index workload over `embeddings.store`. | resolve-time: verb file removed from discovery |
 | `corpus/verbs/embed-images.ts` (`runEmbedImagesPass`, `EmbedImagesPassOptions`) | → `embeddings` | `domain/embeddings/indexer/handlers.ts:onAssetCreated` (image-raw + image-captioned) | Image embed + caption is content production for two lenses; the indexer owns it (per `embeddings.md`). | resolve-time: verb file removed; `EmbedImagesPassOptions` → `embeddings/contract/params.ts` (`no-inline-types`) |
 | `corpus/substrate/caption.ts` (`CAPTION_SCHEMA`, `CAPTION_SYSTEM`, `parseCaption`, `flattenCaption`, `CaptionFields`) | → `embeddings` | `domain/embeddings/indexer/` (image-captioned content production) | The caption is produced DURING the image-captioned embed (the joint `{image, caption}` vector). discovery only READS the stored `caption_meta` column for faceting. | resolve-time: substrate file moves with the image embed pass; discovery reads `image_embeddings.caption_meta` via `@orb/db` |
-| `corpus/substrate/embed-text.ts` (`buildCardEmbedText`, `CardEmbedFields`, `MIN_SEARCH_TEXT_TOKENS`, `truncateAtCodepoint`, `cleanText`, `normalizePlaceholders`, `APPROX_CHARS_PER_TOKEN`) + `substrate/targets.ts` (`collectEmbedTargets`) | → producer | `embeddings` indexer / `character` (the card→embed-text builder) | "What text represents a card" is a producer concern (the embeddings indexer needs it to `store`). discovery's `distill` needs the SAME card text — it reads it via `@orb/db` (current-version card) OR the stored `character_embeddings.sourceText`, not by re-building. | resolve-time: builder leaves discovery; **open decision** on the exact producer home (see Open decisions) |
+| `corpus/substrate/embed-text.ts` (`buildCardEmbedText`, `CardEmbedFields`, `MIN_SEARCH_TEXT_TOKENS`, `truncateAtCodepoint`, `cleanText`, `normalizePlaceholders`, `APPROX_CHARS_PER_TOKEN`) + `substrate/targets.ts` (`collectEmbedTargets`) | → producer | `embeddings` indexer / `character` (the card→embed-text builder) | "What text represents a card" is a producer concern (the embeddings indexer needs it to `store`). discovery's `distill` needs the SAME card text — it reads it via `@orb/db` (the flat `characters` card row, D28) OR the stored `character_embeddings.sourceText`, not by re-building. | resolve-time: builder leaves discovery; **open decision** on the exact producer home (see Open decisions) |
 | `corpus/verbs/hubness.ts` — `computeCharacterHubScores` / `computeDigestHubScores` / `computeSegmentHubScores` / `computeImageHubScores` (+ `computeAndWriteHubs`, `HubSpec`, the 4 specs) | stays domain feature | `domain/discovery/verbs/compute-hub-scores.ts` | Hubness is a semantic ranking signal — a discovery concern. The compute stays; only the WRITE changes. | resolve-time: `corpus/verbs/hubness.ts` gone; lint-time: `domain-no-cross-feature` (discovery must not import `embeddings/persistence`) |
 | `corpus/verbs/hubness.ts` — the `db.batch` `UPDATE … set hubScore` write path | **re-routed** | injected `embeddings.writeHubScores(table, updates[])` | The §8 seam: discovery computes the values, `embeddings` owns the column write. A vector write never nulls `hub_score`; `writeHubScores` is the only path that sets it. | compile-time: `compute-hub-scores.ts` has no `db.update` on a vector table; the write is the injected op's typed signature |
 | `corpus/verbs/hubness.ts` — `computeGroupHubs`, `offer`, `HUBNESS_DENSE_MAX`, `CSLS_K` | → `substrate/` | `domain/discovery/substrate/hub-math.ts` (`CSLS_K` re-exported from the verb for the runner log) | Pure top-K-mean math over float arrays (dense `pairwiseCosine` + streaming `cosineToMany`); zero I/O. | lint-time: `feature-structure` (pure math in substrate/) |
@@ -354,7 +354,7 @@ or producer; `clearFieldIndexCache` + the field-search surface → `search`. The
 | `corpus/substrate/pair-cosine.ts:DuplicatePair`, `verbs/field-search.ts:CardDoc/IndexCacheEntry`, `cooccurrence/generate.ts:DigestKeywords/CooccurrenceTally`, `duplicates/generate.ts:GroupRow/JaccardChatPair` | keep local (substrate/subsystem-private) | their (rehomed) files | File-private pipeline shapes, not the public surface — they stay where used, not in `contract/`. | lint-time: `no-inline-types` flags only the EXPORTED leaks |
 | `corpus/context.ts` — `createDefaultRoleClients()` fallback | **deleted** | `entry/` wires role clients; `DiscoveryContext.summarize` is a required dep | `_shared/role-clients-binder` does not exist; the composition root is the wiring site. discovery needs only `summarize` (never `embed`). | resolve-time: `_shared` gone; missing dep fails `tsc` |
 | `corpus/context.ts` — `CorpusContext = ReturnType<typeof createCorpusContext>` | stays domain feature | `domain/discovery/context.ts` top — explicit `export interface DiscoveryContext` | The inferred shape is invisible at a glance. | lint-time: `types-in-contract` / `no-inline-types` |
-| `db/schema/corpus.ts` — `duplicate_pairs`, `keyword_cooccurrence`, `character_keyword_profiles`, `character_summaries`, `theme_clusters`, `digest_theme_assignments` | **rename + move** | `@orb/db/schema/discovery.ts` | The rollup tables follow the rename. They are discovery's OWN tables (not the primary vector store). The `centroid` `vector32` column stays a rollup, not a primary vector. | compile-time: schema file move forces importers to update; `tsc` flags broken imports |
+| `db/schema/corpus.ts` — `duplicate_pairs` (polymorphic), `keyword_cooccurrence`, `character_keyword_profiles`, `character_summaries`, `theme_clusters`, `digest_theme_assignments` | **rename + move**; `duplicate_pairs` → **per-type FK tables (D24)** | `@orb/db/schema/discovery.ts` — `duplicate_character_pairs` + `duplicate_chat_pairs` (real FK ×2 + CASCADE) + the 5 others | The rollups follow the `corpus`→`discovery` rename; `duplicate_pairs` is also de-polymorphized (D24). `ownerId` is dropped from the entity-keyed ones (`character_summaries`/`_keyword_profiles`/`digest_theme_assignments`/`duplicate_*_pairs` — derive via the parent, D23); KEEP on the parentless aggregates (`keyword_cooccurrence`/`theme_clusters`). The `centroid` `vector32` stays a rollup. | compile-time: file move + the per-type FK tables; `tsc` flags broken imports |
 | `trpc/routers/corpus.ts` | **rename** | `transport/trpc/routers/discovery.ts` | Router follows the domain rename; delegates to `ctx.services.discovery.*` with `ownerId = principal.userId`. The `corpus.fieldSearch`/`fieldSuggest` procedures move to the `search.*` router. | resolve-time: `corpus.*` ceases to exist; `tsc` on the router context |
 
 ---
@@ -380,7 +380,7 @@ internals, always through the composition-root injected ops. It READS the vector
 
 | Op exposed | Wired into | Used for |
 |---|---|---|
-| `sweepStaleCharacterDuplicates` / `sweepStaleChatDuplicates` | `character.remove` / `chat.delete`'s `onContentDeleted` callback | a hard delete eagerly clears stale `duplicate_pairs` rows. The character/chat domains cannot import discovery (`domain-no-cross-feature`); the composition root is the seam (the same pattern neo-tavern used) |
+| ~~`sweepStaleCharacterDuplicates` / `sweepStaleChatDuplicates`~~ | **DELETED (D24)** | The manual delete-time sweep + the `onContentDeleted` composition-root seam are GONE: `duplicate_character_pairs`/`duplicate_chat_pairs` are real FK tables with `CASCADE`, so a deleted character/chat removes its pairs by physics — no reaper, no cross-domain delete seam |
 
 **`search` and `discovery` both read the vector tables via `@orb/db` directly** — expected (bulk
 readers, no business-logic concern). discovery calls a `search` VERB only for top-k retrieval; it never
@@ -444,9 +444,10 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
   `SCALAR_FACET_PATHS` mapped-`Record<Exclude<ImageFacetKey, ListFacetKey>, string>` + `isListFacet`
   guard (the gold-standard exhaustive-dispatch pattern — a new facet without a path fails `tsc`). The
   json path is never caller-derived (allowlisted) — preserve.
-- **`duplicate_pairs.entityType`** (`'character' | 'chat'`) and **`relation`** (`'duplicate' | 'forked'`)
-  — single unions; the polymorphic rollup's one extension point (a third `entity_type`) is an enum + a
-  recompute arm, not a new table.
+- **`relation`** (`'duplicate' | 'forked'`) is a single union on each `duplicate_*_pairs` table. **A third
+  dedup'd kind is a NEW `duplicate_<kind>_pairs` per-type FK table** (D24 — explicit, like the tag junctions),
+  NOT a polymorphic `entity_type` enum + an untyped id. (Reverses neo's "extension = a new enum arm on one
+  polymorphic table.") Each table's FK + `CASCADE` is the integrity; no `entity_type` discriminator.
 - The distill **`GENRES`/`TONES`** const tuples (guided-decode grammar enums) stay discovery-local data
   (they drive the JSON schema), pinned by `satisfies`.
 
@@ -505,15 +506,19 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
    (path-compressed lineage walk) labels a pair `forked` (shared fork root) vs `duplicate` (independent
    look-alike) so a fork family reads as "3 forks of this chat", not 3 dups.
 
-9. **`duplicate_pairs` is polymorphic + no-FK + delete-time swept** — one rollup for N entity types
-   (`entity_type` + plain-text `entity_id_a/b`, canonical A<B), decoupled from source-row lifetime
-   (recompute is the source of truth). The price is stale rows between runs → the `sweepStale*` verbs
-   run at delete time, wired via the composition-root seam (character/chat can't import discovery). The
-   `replacePairs` atomic delete+insert per `(owner, type)` also clears owners whose source rows all
-   vanished (else stale pairs strand forever).
+9. **Near-dup pairs are PER-TYPE FK tables, not polymorphic (ledger D24)** — `duplicate_character_pairs`
+   (FK `characters` ×2, CASCADE) + `duplicate_chat_pairs` (FK `chats` ×2, CASCADE), canonical A<B per the
+   unique index. This REVERSES neo's polymorphic `duplicate_pairs` (`entity_type` + plain-text `entity_id_a/b`,
+   no FK) and its hand-rolled orphan-GC: **`CASCADE` deletes a pair when either entity is deleted**, so the
+   `sweepStale*Duplicates` delete-time verbs + the `onContentDeleted` composition-root seam are **GONE**
+   (physics replaces the reaper). `ownerId` is **derived** from the entity FK (D23 — `characters.ownerId` /
+   chat→host), not stamped. `replacePairs` stays an atomic per-entity-set delete+insert on recompute, but it
+   no longer needs to clear orphaned owners (CASCADE already did). A 3rd dedup'd kind = a new
+   `duplicate_<kind>_pairs` table (explicit, like the tag junctions), never a `(type, untyped_id)` soft ref.
 
 10. **Shared/default-avatar exclusion (`SHARED_AVATAR_MIN_REFS = 3`)** — CAS dedups by content hash, so a
-    byte-identical placeholder avatar is one asset referenced by N character versions; an avatar that is
+    byte-identical placeholder avatar is one asset referenced by N of an owner's characters (D28 — flat
+    cards, no versions); an avatar that is
     the current avatar of ≥3 of an owner's characters is excluded from cross-modal alignment + facet
     distributions (it represents no one character and pollutes the signal).
 
@@ -523,9 +528,10 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
     (search-only) → load both vectors, compute with `@orb/kit/vector-math.cosineSim`. The caption-facet
     SQL reads (`json_extract(caption_meta, …)`) stay.
 
-12. **Distill is current-version + idempotent + owner-stable** — `computeCharacterSummaries` resolves
-    each character's CURRENT version (a version bump + re-run refreshes), upserts by `characterId`, and on
-    conflict deliberately OMITS `ownerId` (the summary's owner is established at insert, never rewritten).
+12. **Distill is current-card + idempotent** — `computeCharacterSummaries` reads each character's current
+    card row (a card edit + re-run refreshes — D28, no version table), upserts by `characterId`. The
+    summary's owner is NOT stamped — `character_summaries` has no `ownerId` column (D23); owner-scope
+    derives via the character (`characterId → characters.ownerId`).
     SYNTHETIC group characters are skipped (no real card text — would pollute character similarity/themes).
 
 13. **`themes` excludes group rows from solo clustering** (`is_group = 0`) — a room's digests belong to
@@ -582,8 +588,8 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
   summarize). Options: (a) it lives with the producer (`character`) and both consume; (b) it lives in
   `embeddings` and discovery reads the stored `character_embeddings.sourceText` instead of re-building.
   Lean: (a) for the builder (a card→text transform belongs near the card), and distill reads the
-  current-version card via `@orb/db` (it already reads `character_versions` heavily). Either way the
-  builder leaves discovery.
+  flat `characters` card row via `@orb/db` (D28 — the card IS the row; no version table to read).
+  Either way the builder leaves discovery.
 - **Image caption generation home** — the VL caption (`caption.ts` schema + the `summarize` call) is
   content production for the `image-captioned` lens (an `embeddings` indexer concern per `embeddings.md`'s
   open decision), but the structured `caption_meta` is read by discovery's faceting. Confirm caption
@@ -601,9 +607,10 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
   `@orb/db/schema/character.ts` (read by `search`'s `resolveCharacterDisplay` for `genre`/`tone`/
   `elevatorPitch`). Either is fine as long as it is ONE place; `search.md` flags the same question. Lean:
   `discovery.ts` (the writer owns it); `search` reads it downward.
-- **`duplicate_pairs` sweep timing under de-pin** — the sweep keys on `characters`/`chats` membership;
-  confirm it composes cleanly with the character de-pin (the sweep is identity-keyed already, so likely
-  unaffected). Sequence against `character.md`.
+- ~~**`duplicate_pairs` sweep timing under de-pin**~~ — **RESOLVED by D24: there is no sweep.** The
+  per-type FK `duplicate_character_pairs`/`duplicate_chat_pairs` use real FK + `CASCADE`, so a deleted
+  character/chat removes its pairs automatically — no delete-time `sweepStale*` verb, no `onContentDeleted`
+  seam, no de-pin sequencing concern.
 - **Image hub↔image browse verb** — the reserved `image_embeddings.hub_score` use case (image↔image
   similarity browse) is a future `search` verb that opts INTO reading the column; discovery already
   computes/stamps it. Decide when the browse surface lands (a `search` + discovery decision).

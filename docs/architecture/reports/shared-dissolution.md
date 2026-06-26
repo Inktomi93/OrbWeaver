@@ -104,7 +104,7 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 | Namespace | Symbols (from where) |
 |---|---|
 | `contracts/preset` | `PromptConfig`+`DEFAULT_PROMPT_CONFIG`+`CONFIG_LIFTS` (prompt-config); `UserIntent`+`userIntentSchema`+**`generationKnobSchemas`** (intent — must stay co-located); `PresetFormValues`+mappers (preset-schema); `GuidedActionsConfig`+`DEFAULT_GUIDED_ACTIONS` (guided-actions schema half); `customParametersSchema` (custom-parameters); `PROMPT_MACROS` (prompt-macros); ST/neo serde (`st-preset`+`preset-file`) |
-| `contracts/chat` | all 8 assemble types (`AssembleContext`/`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`/`ChatInjection`/`AssembleTrace`/`AssembledPrompt`/`SectionPreview` — from prompt-assemble-types); `ChatDeltaEvent` (chat-types); **`RoomOverrides`+`roomOverridesSchema`, `GroupConfig`+`groupConfigSchema`+`GroupPolicy`, `OpeningPolicy` — MISFILED in `shared/settings`, they are chat shapes** |
+| `contracts/chat` | all 8 assemble types (`AssembleContext`/`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`/`ChatInjection`/`AssembleTrace`/`AssembledPrompt`/`SectionPreview` — from prompt-assemble-types); `ChatDeltaEvent` (chat-types); **`RoomOverrides`+`roomOverridesSchema`, `GroupConfig`+`groupConfigSchema`+`GroupPolicy`, `OpeningPolicy` — MISFILED in `shared/settings`, they are chat shapes**; **the unified-roster wire shapes (D16): invite create/preview/redeem params + `InviteView`, the roster/`ParticipantView` + the membership-gated member card view (`MemberCardView` + `memberCardVisibility` on `groupConfigSchema`, host-toggleable — D22), the group-macro context** |
 | `contracts/connection` | `ChatApi`/`ChatSource` unions+schemas (chat-routing — **18 touch / 11 re-decls, the measured pain**); `OpenRouterProviderRouting`+`parseProviderRouting` (provider-routing) |
 | `contracts/credentials` | `ResolvedCredential` (brand), `CredentialHealth`, `ProviderMetadata`+`providerMetadataSchema`, `CredProvider`/`CRED_PROVIDERS`, `CredentialSource` |
 | `contracts/character` | `createCharacterSchema`/`updateCharacterSchema` + the canonical card (`CharacterCard`/`characterCardV3Schema`/`CHARA_CARD_V3_SPEC`) — §7.3 LOCKED one-card |
@@ -116,7 +116,8 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 | `contracts/stats` | `StatsDelta`, `ApplyStatsDelta` (the chat↔stats wire) |
 | `contracts/regex` | `regexScriptSchema`/`RegexScript` — the script-library shape. **kit/regex executor stays generic via a kit-local structural `RegexScriptInput`; `contracts/regex.RegexScript satisfies RegexScriptInput`** (kit may not import contracts) |
 | `contracts/assets` | `BLOB_ROUTE`, `blobUrl` (the `/blob/<hash>` route contract) |
-| `contracts/identity` / `contracts/session` | `ResolvedIdentity`; `SessionView` (BFF-session ≠ SDK-session) |
+| `contracts/identity` / `contracts/session` | `ResolvedIdentity`; **`UserRole`/`USER_ROLES` = `owner\|admin\|user` (D17 — the ONE global-role axis; db enum + tRPC + client derive it)**; `Principal`; `SessionView` (BFF-session ≠ SDK-session) |
+| `contracts/notifications` | the **CLOSED** `NotificationEvent` discriminated union (`recipientUserId` mandatory; credentials/secrets **type-level-unrepresentable**) + the `PresenceView` (D16 — the per-user delivery surface; producer = the `notifications` domain) |
 | `contracts/role-clients` | `RoleClients` — depends on the provider result contracts (`EmbedResult`/`RerankResult`/… must move to contracts FIRST) |
 
 ---
@@ -185,7 +186,7 @@ Within the cake `kit ← contracts ← db ← server ← client`, there is an **
 ## 9. Load-bearing invariants that MUST survive the move (pointer list)
 
 - **Credentials AAD** `` `${userId}|${provider}` `` byte-identical (else all GCM ciphertext fails). Single `aadFor()` site.
-- **`ResolvedCredential` brand** — 6 construction sites only; `max-pro-sub` unconstructable except after `role==='admin'`.
+- **`ResolvedCredential` brand** — 6 construction sites only; `max-pro-sub` unconstructable except after the owner check (`requireOwner` — owner-only box-cred mint, D17; neo's admin gate → owner).
 - **`neutralizeMacros`** U+200B between the `{{` braces (macro re-injection defense).
 - **`globalMacroRegistry`** single-tenant singleton → vitest single-worker for macro tests.
 - **`params: userIntentSchema.catch({})`** damage-bounding; **CONFIG_LIFTS v1→v2** three transforms (post-history-pivot guard).

@@ -19,10 +19,12 @@
 
 **The CAS index — the `assets` metadata table + the verbs that keep the blob↔row pair coherent.**
 An asset is a content-addressed blob (sha-256 of its bytes = the CAS key) with one index row
-recording `(id, kind, mime, size, hash, uploadedAt)`. **No `ownerId`** — assets are *global* and
-**deduped by hash** (identical art across users is one blob, one row). The domain owns everything
-about the *row* and the *coherence* between row and blob; the bytes themselves live in
-`infra/storage`.
+recording `(id, ownerId, kind, mime, size, hash, uploadedAt)`. **Assets are PER-USER (single-owned),
+NOT global (ledger D21):** `ownerId` (FK users), `unique(ownerId, hash)`, `fetchOwned` — they join the
+single-owned category exactly like characters/presets. **Dedup is within-user** (a user's two
+characters sharing an avatar = one of THEIR blobs); cross-user dedup is dropped on purpose (no shared
+bytes, no existence oracle, no leak). The domain owns the *row* and the *coherence* between row and
+blob; the bytes live in `infra/storage` (a **per-user-keyed** CAS — `<owner>/<ab>/<cd>/<hash>`).
 
 Specifically:
 
@@ -43,7 +45,8 @@ Specifically:
   `rebuildFromTree` (re-derive index rows for orphan blobs by walking + hashing the tree).
 - **The `assets` DB table** — all SELECT/INSERT/DELETE; `persistence/` is the only writer.
 - **The avatar-ref registry** — the canonical list of columns that hold an asset id
-  (`characterVersions.avatarAssetId`, `personas.avatarAssetId`). The single source both GC paths read.
+  (`characters.avatarAssetId`, `personas.avatarAssetId` — `character_versions` is gone, the card is the
+  flat `characters` row per ledger D28). The single source both GC paths read.
 - **Variant-sizing policy** — `BLOB_WIDTHS` + `snapBlobWidth` (the resize ladder that bounds the
   variant cache's keyspace). Domain policy, not a kit primitive — per `shared-dissolution.md` §5.
 - **The magic-byte sniff** — `sniffMime` (pure; PNG/JPEG/GIF/WebP signatures).
@@ -116,7 +119,7 @@ domain/assets/
 ├── persistence/
 │   ├── queries.ts      assetIdForHash · storeBlob (the ONE CAS-put + row-upsert coherence primitive)
 │   └── avatar-refs.ts  THE AVATAR-REF REGISTRY — { table, column } list of asset-bearing FKs
-│                         (characterVersions.avatarAssetId, personas.avatarAssetId). Both GC paths
+│                         (characters.avatarAssetId, personas.avatarAssetId — flat card, D28). Both GC paths
 │                         iterate it. Lives in persistence/ (references @orb/db schema columns), same
 │                         placement as tag's persistence/junctions.ts registry.
 └── substrate/
@@ -130,7 +133,7 @@ domain/assets/
 AssetsService = {
   // Persist + read (the coherence pair)
   store(bytes, kind, mime, opts?): Promise<StoredAsset>     // → storeBlob; enforceMagic at upload boundary
-  getMetadata(hash): Promise<{ mime; size } | undefined>     // the /blob/:hash serve gate
+  getMetadata(caller, hash): Promise<{ mime; size } | undefined>  // owner-gated (fetchOwned) — the /blob serve resolves the caller first (D21)
 
   // Avatar backfill (workload-driven; ownerId-scoped char query)
   backfillAvatars(ownerId, cards: BackfillCard[]): Promise<BackfillResult>
@@ -224,7 +227,7 @@ None import `domain/assets` internals — all access is the front door or compos
 
 | Consumer | Calls | Used for |
 |---|---|---|
-| `entry/http/assets.ts` (blob route) | `assets.getMetadata` + `cas`/`variants` + `snapBlobWidth` | gate + Content-Type + resized-webp serve of `/api/blob/:hash` |
+| `entry/http/assets.ts` (blob route) | `assets.getMetadata(caller,hash)` (owner-gate, D21) + `cas`/`variants` + `snapBlobWidth` | resolve caller (session cookie) → `fetchOwned`/roster-avatar exception → Content-Type + resized-webp serve of `/api/blob/:hash`; `Cache-Control: private, immutable` |
 | `entry/http/assets.ts` (upload route) | `assets.store(..., { enforceMagic: true })` | multipart ingest; auth + CSRF required |
 | CLI scripts (`assets:gc`, `assets:fsck`) | `assets.collectGarbage` / `fsck` / `rebuildFromTree` | maintenance off the box |
 
@@ -244,14 +247,21 @@ the event is the tell the split is right (mirrors `corpus`'s incest being remove
 
 ### §7.1 Identity / auth / permission
 
-Assets are **global, un-scoped, hash-deduped** — there is deliberately no `ownerId` on the `assets`
-table. Access control happens at the **reference**, not the asset: a blob serve is gated on the
-`assets` row *existing* (`getMetadata`), and the references that point at a blob ride owner-scoped
-entities (`characterVersions`/`personas`, which carry `ownerId` on their parents). The blob route is
-**intentionally unauthenticated** — the 64-hex hash is an opaque capability token (you can't
-enumerate or path-traverse it; `isAssetHash` guards that), and the row's existence is the gate. The
-**upload** route, by contrast, requires a resolved identity + CSRF (a mutating write). `backfillAvatars`
-takes `ownerId` purely to scope the *character* query; under the `Principal` migration that argument
+Assets are **per-user (single-owned), NOT global (ledger D21).** `assets.ownerId` + `unique(ownerId,
+hash)`; access control is at the **asset itself** (`fetchOwned`), not just the reference. **The blob
+route `/api/blob/:hash` is OWNER-GATED** (it was unauthenticated in neo for proxy/auth ergonomics —
+`<img>` can't carry auth + forward-auth would 302-bounce image GETs; see ledger D21). The proper
+per-user serve: caddy **skips forward-auth** for `/api/blob/*` (no 302 on images) but **the app is the
+gate** — resolve the caller from the **same-origin session cookie** (the `<img>` GET sends it
+automatically; a read needs no CSRF) → `fetchOwned` the asset → serve or 404; `Cache-Control:
+private, immutable` (per-user cache). `isAssetHash` stays the format/path-traversal guard (necessary,
+not sufficient — ownership is now the real gate). **ONE narrow membership exception:** a roster
+participant may fetch the **avatar** of a character in a chat they belong to (the **avatar floor**, always
+member-visible) — never arbitrary blobs; never fires in solo/single-user. (Broader card-detail visibility
+to members is governed by the host's `memberCardVisibility` room toggle — D22 — but that's a `character`
+read-view concern, not a blob route concern; the blob route only ever serves the avatar to a member.) The
+**upload** route requires a resolved identity + CSRF (a mutating write) and stamps `ownerId` from the
+`Principal`. `backfillAvatars` takes `ownerId` purely to scope the *character* query; under the `Principal` migration that argument
 becomes `principal.userId`. There is no host/member hierarchy here — assets predate the permission
 model and sit beneath it.
 
@@ -328,8 +338,8 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
    deliberate — batching all rows then all blobs would widen the row-without-blob window.
 
 6. **The avatar-ref registry is the silent-data-loss seam** (`verbs/gc.ts` → `persistence/avatar-refs.ts`):
-   the set of columns that reference an asset (`characterVersions.avatarAssetId`,
-   `personas.avatarAssetId`). Both GC paths read it. **Adding a new avatar-bearing column (NPC art,
+   the set of columns that reference an asset (`characters.avatarAssetId`,
+   `personas.avatarAssetId` — flat card, D28). Both GC paths read it. **Adding a new avatar-bearing column (NPC art,
    attachments) without updating the registry makes its blobs silently GC-eligible.** Extract to one
    typed registry + a coverage test (introspect the schema for asset FKs).
 
@@ -349,9 +359,10 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
    that removes an *original* also drops its cached resize variants — but only when `variants` is wired
    (`ctx.variants?.removeAll`).
 
-10. **No `ownerId`, no custom error class** — deliberate. Assets are global+deduped; failures are plain
-    `Error` (magic mismatch, missing-row-after-upsert) because the verbs are infra ops, not a tenant
-    CRUD surface. The `contract/errors.ts` slot is documented-empty.
+10. **Per-user (`ownerId`), no custom error class** — assets are single-owned (`ownerId` + `unique(ownerId,
+    hash)` + `fetchOwned`; ledger D21, was global+deduped); failures are still plain `Error` (magic mismatch,
+    missing-row-after-upsert). The `contract/errors.ts` slot is documented-empty (ownership denial surfaces
+    as a 404 from the gated blob route / `fetchOwned`, not an assets-specific error).
 
 11. **zip-extract defenses (infra, not assets, but adjacent)**: declared-size + streamed-size caps
     (zip-bomb, including a lying header), a `{0,8}` compression allowlist, zip-slip path-escape
@@ -362,9 +373,13 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 
 ## Invariants (gate candidates)
 
-1. **The `assets` table has no `ownerId`; assets are global + hash-deduped.** Access control is at the
-   reference, never the asset.
-   *Enforcement: compile-time (schema has no `ownerId` column) + the blob route gates on row existence.*
+1. **Assets are per-user (single-owned); the `assets` table carries `ownerId` (`unique(ownerId, hash)`);
+   the `/blob/:hash` route is owner-gated, NOT global/unauthenticated (ledger D21).** Access control is at
+   the asset itself (`fetchOwned`), with one membership exception (a roster character's avatar). Dedup is
+   within-user only; the CAS is per-user keyed.
+   *Enforcement: compile-time (`assets.ownerId` column + `unique(ownerId,hash)`); lint — the blob route
+   resolves the caller (session cookie) + `fetchOwned`, never serves on bare row-existence; test — a
+   non-owner (and a non-member) GET of `/blob/:hash` → 404, a roster member gets only the avatar.*
 
 2. **`storeBlob` is the only CAS-put + row-upsert site.** No verb calls `cas.putBytes` or
    `db.insert(assets)` outside `persistence/queries.ts`.

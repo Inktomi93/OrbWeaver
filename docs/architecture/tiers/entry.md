@@ -99,7 +99,7 @@ foundation's pino), versions confirm-latest at build:
 Every cross-feature dependency in the domain docs is a **typed op declared in a domain's `contract/` +
 wired here**. `entry/compose/services.ts` is the graph. Examples (non-exhaustive):
 - `chat.context` ← `connection.resolveChat`, the `chat` role, `credentials.resolve`/`maybeRevoke`,
-  `character.resolveCurrentVersion`/`mintSyntheticGroupCharacter`, `persona.setActivePersona`,
+  `character.getCard`/`mintSyntheticGroupCharacter`, `persona.setActivePersona`,
   `embeddings.store`, `search.digests`/`corpus`, `stats.applyDelta`, `RoleClients.summarize`.
 - `connection.context` ← `credentials.resolve`, `credentials.buildKeylessCatalogCredential`,
   `providers.fetchOrCatalog`.

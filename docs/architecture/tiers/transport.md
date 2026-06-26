@@ -52,6 +52,16 @@
   wake-on-emit / periodic reap tick / graceful-shutdown abort) and the **catalog-refresh scheduler**
   (the when-to-enqueue recurring driver). Both call DOWN into the `workloads` front door only and
   cross ZERO feature boundaries.
+- **The per-user notifications subscription + the presence registry** (the unified multi-human system,
+  `domains/chat.md` Part III §3–§4 + ledger D16). (a) The **notifications subscription**
+  (`authedProcedure.subscription` filtered to the caller) drives the per-user durable inbox owned by the
+  **`notifications` domain** — it adopts the **`chat.streamMessages` resume shape** (every yield `tracked()`,
+  `lastEventId` replay; durable-first/fan-out-second), **NOT `buddy.stream`** (in-memory ring, drops offline
+  events). It carries invite/kick/handoff to non-members the per-chat bus can't reach. Transport owns only
+  the *subscription* (the durable table + verbs are the `notifications` domain). (b) **Presence** is
+  transport state: an **SSE connection ref-count per `userId`** (across devices, debounced/grace-windowed),
+  the **only** liveness source (server-observed, never a client-asserted heartbeat — spoofable presence is a
+  prompt-composition attack). Exposed DOWN to chat as an injected `presence.read` op for cast-gating.
 
 ## What this tier does NOT own
 
@@ -220,15 +230,27 @@ not a substitute for the domain check.
 
 The `Principal` is resolved ONCE at the `entry/auth/seam.ts` edge and flows down immutable; transport
 **carries** it on `ctx` and gates on plain fields — `authMiddleware` checks `Principal.identity !==
-null` (else 401), `adminMiddleware` checks `Principal.role === 'admin'` (else 403, with a
-`securityEvent("admin_required", …)` audit line). No db round-trip in the gate (the role was resolved
-at the seam). Every denial (`auth_required`, `csrf_rejected`, `rate_limit`, `admin_required`) emits a
-`securityEvent` → `foundation/observability`. The **CSRF mutation gate** keys on
+null` (else 401), `adminMiddleware` checks `can(p,'admin',global)` (= **owner ∪ admin**, D17; else 403,
+with a `securityEvent("admin_required", …)` audit line). No db round-trip in the gate (the role was
+resolved at the seam). Every denial (`auth_required`, `csrf_rejected`, `rate_limit`, `admin_required`)
+emits a `securityEvent` → `foundation/observability`. The **CSRF mutation gate** keys on
 `Principal.viaCookie` + the custom header: a cookie-authed MUTATION without the header is 403; header/
 fallback requests and ALL queries/subscriptions (incl. the SSE stream) are exempt — so the zero-infra
-default and the stream are untouched. Forward-compat: when participant-membership replaces
-owner-equality (§7.1), that authority check lands in the DOMAIN verbs, not in a new procedure tier —
-transport stays a thin gate.
+default and the stream are untouched.
+
+**The multi-human surface (unified roster, ledger D16).** Participant-membership authority
+(`requireParticipant`/`requireHost`) lands in the DOMAIN verbs (chat's build, `domains/chat.md` Part III
+§11) — transport stays a thin gate — BUT the **enforcer's scope reaches into transport**: the membership
+chokepoint must cover the **SSE subscribe path** (a kicked member's `chat.streamMessages` stops yielding
+within the kick tx — the subscription gate can't be connect-once) **and the cross-domain lineage walkers**.
+The **`AUTH_MODE != 'single-user'` capability gate** is a **server-side** guard on every
+invite/notifications/join procedure (404 in single-user — never a client hide). The **per-member budget**
+rides the existing DB-backed limiter as a turn/request **COUNT** (metering ALL backends — hosted $ AND the
+owner's local vLLM/in-process compute, which has no dollar cost but finite hardware), attributed to
+**`triggeredBy`** (the caller, captured at trigger time), debited inside the per-chat lock; a member-
+triggered `max-pro-sub` turn is refused unless owner consent (D17 — the box is the owner's). The
+`adminProcedure` layer-1 / `requireAdmin` layer-2 redundancy + the layer-1 `requireOwner` for box surfaces
+stay.
 
 ### §7.4 types & schemas — one home, one direction
 
@@ -331,9 +353,11 @@ they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hois
 
 10. **`corpus.embed` is `adminProcedure`, not `authed`.** It is the only write proc that drives local
     GPU embedding inline (the bulk path is the admin-only `embed-corpus` workload); gating the inline
-    embed the same way keeps "who can drive the embed engine" consistent. `ownerId` is always derived
-    from `Principal.userId`, never the input (audit #1: a caller-supplied owner let a user write a
-    vector row attributed to anyone).
+    embed the same way keeps "who can drive the embed engine" consistent. The producer FK (e.g.
+    `characterId`) is validated against `Principal.userId` (the caller must own the producer); the
+    vector row carries NO `ownerId` to derive or spoof (D20 — `embeddings.store` takes producer FK refs,
+    not an owner), so the caller-supplied-owner bug (audit #1: a user wrote a vector row attributed to
+    anyone) is structurally impossible.
 
 ---
 

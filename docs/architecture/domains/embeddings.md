@@ -69,8 +69,9 @@ This kills the 6-site tangle neo-tavern recon confirmed:
 
 In orbweaver:
 - `memory` calls `embeddings.store(kind='chat-block', lens='digest', ...)` and separately handles its
-  own FK stamping (chatId/ownerId/scopedCharacterId/isGroup) + speaker sync as domain writes AFTER the
-  vector row exists.
+  own FK stamping (chatId/scopedCharacterId/isGroup — **NO `ownerId`**, D20: the vector substrate FKs to its
+  producer and never denormalizes ownership; owner-scope is derived at search time from membership) + speaker
+  sync as domain writes AFTER the vector row exists.
 - `character` emits a `character.updated` event; the `embeddings` indexer (the event subscriber)
   calls `embeddings.store(kind='card', lens='card-text', ...)`.
 - `assets` emits an `asset.created` event; the indexer calls `embeddings.store` for both lenses:
@@ -159,7 +160,7 @@ EmbeddingsService = {
   // The single write path
   store(params: StoreParams): Promise<StoreResult>
   // params: { kind: SourceKind; lens: SourceLens; key: string; content: string | Uint8Array;
-  //           model: string; dim: number; ownerId: UserId; fkRefs?: FkRefs }
+  //           model: string; dim: number; fkRefs?: FkRefs }  (NO ownerId — D20: producer FK only)
   // FkRefs: { characterId?, chatId?, assetId?, scopedCharacterId?, tier?, blockIdx?, seqStart?, seqEnd? }
   // Result: { outcome: 'noop' | 'written'; contentHash: string }
 
@@ -239,9 +240,9 @@ imports them from `@orb/contracts`, not from `infra/`.
 | `corpus/substrate/pair-cosine.ts` (hand dot-loop) | → `@orb/kit` | `@orb/kit/math/vector` (consolidated with pairwiseCosine) | A second hand-rolled cosine implementation. Fold into the kit math module so there is one implementation. | resolve-time: `pair-cosine.ts` is removed; dep-cruiser `kit-purity` gate ensures the kit module has zero I/O deps |
 | `corpus/verbs/hubness.ts:computeCharacterHubScores` / `computeDigestHubScores` / `computeSegmentHubScores` / `computeImageHubScores` | → `domain/discovery` | `domain/discovery/verbs/compute-hub-scores.ts` (per-kind verbs) + writes via injected `embeddings.writeHubScores` | Hubness computation is a `discovery` concern (a semantic ranking signal); the write target (`hub_score` column) is `embeddings`'s. Hubness lives in `discovery`; it calls the `embeddings.writeHubScores` helper through the composition-root injection, never touching persistence directly. | resolve-time: `corpus/verbs/hubness.ts` is removed; `discovery` front door re-exports the hub-score verbs; lint-time: dep-cruiser `domain-no-cross-feature` prohibits `discovery` from importing `embeddings/persistence/` directly |
 | `db/schema/search.ts` — `character_embeddings`, `image_embeddings`, `chat_digests`, `chat_segments`, `chat_digest_speakers` | rename/move | `@orb/db/schema/embeddings.ts` | Schema-naming lie: all four primary vector tables + the speaker join were in a file named for the consumer. In orbweaver the producer names the schema. The memory producer's domain-stamped columns (`chatId`, `scopedCharacterId`, `isGroup`, `tier`) stay on the same tables; schema ownership transfers. | compile-time: the old file is gone; any import of the old path fails `tsc` |
-| `db/schema/search.ts` — `chat_digests.characterVersionId` (CASCADE FK to `character_versions`) | → **redesigned** | the column is retained as provenance (stampedCvId) but its FK type changes post-de-pin | Today FKs to `character_versions` via CASCADE (a chat-pinning artifact). With de-pin (`participants-agents-identity.md` §4), the column becomes a provenance stamp (which version was current at write time) with no FK dependency on the pinned-cv chain. | compile-time: the FK declaration in the schema file changes; any migration referencing the old FK fails tsc |
+| `db/schema/search.ts` — `chat_digests.characterVersionId` (CASCADE FK to `character_versions`) | **dropped (D28)** | the column does not exist in orbweaver | Today FKs to `character_versions` via CASCADE (a chat-pinning artifact). D28 deletes the version table outright, and digest scoping already moved to `chat_digest_speakers.characterId` (D25). The column had no remaining reader — it is dropped entirely, not retained as a stamp. | compile-time: `chat_digests` has no `characterVersionId` column and `character_versions` does not exist; any reference fails `tsc` |
 | `EmbedImagesPassOptions` (inline in `corpus/verbs/embed-images.ts:44`) | → domain feature | `domain/embeddings/contract/params.ts` | Options type for the image embed pass is a contract input shape; its result type (`EmbedImagesPassStats`) was already correctly in `corpus/contract/results.ts`. Co-locate both in `embeddings/contract/`. | lint-time: `no-inline-types` gate |
-| `corpus/service.ts:embedAndStore` ownership guard | → caller responsibility | Callers (character domain, assets domain, memory domain) supply the `ownerId` in `StoreParams`; the `embeddings` domain never re-checks ownership | Ownership is enforced at the producer level (character/assets/memory own their content rows); the store verb is a mechanism, not a gatekeeper. | compile-time: `StoreParams.ownerId` is required; the store verb has no `userId` / auth param |
+| `corpus/service.ts:embedAndStore` ownership guard | → caller responsibility | Callers supply the **producer FK refs** (`chatId`/`characterId`/`assetId`) in `StoreParams`; the `embeddings` domain never stamps OR re-checks ownership (D20 — no denormalized `ownerId` on a vector row) | Ownership is enforced at the producer level (character/assets/memory own their content rows) and owner-SCOPE is derived at search time from the producer (membership for chat digests, `characters.ownerId` for character embeds, caller's asset-usage for images); the store verb is a pure mechanism. | compile-time: `StoreParams` carries the producer FK, **no `ownerId`/`userId`/auth param**; lint: `vector-scope-derived` (no raw vector read outside `search`; scope before rank/collapse) |
 | `character_embeddings.sourceText` staleness key | → `content_hash` | Add `content_hash` column; drop `sourceText` as staleness key | Divergence from the other three tables which use `content_hash`. In orbweaver ALL four tables use `content_hash`. `character_embeddings` gains the column in the migration. | compile-time: `StoreParams.content` is the content; `store` computes the hash; no `sourceText` param exists |
 | `chat_digest_speakers` join (embeddings-managed) | stays domain feature | `@orb/db/schema/embeddings.ts` (moves with the other four) + `domain/embeddings/persistence/queries.ts` (speaker sync after upsert) | The speaker join syncs after a digest upsert. In orbweaver `memory` calls `embeddings.store` for the vector write and then calls a `memory`-owned persistence helper to sync speakers; OR the `store` verb accepts a `speakers?: CharacterId[]` in `fkRefs` and handles the sync internally. Lean: accept speakers in `fkRefs` — keeps the upsert+speaker-sync atomic and avoids a double-trip. | compile-time: `fkRefs.speakers` typed on `StoreParams`; the speaker sync is inside `store`, not split across domains |
 
@@ -345,6 +346,11 @@ must preserve:
    `''` makes the idempotent-upsert unique index work on `(chatId, scopedCharacterId, tier, blockIdx)`.
    `StoreParams.fkRefs.scopedCharacterId` must carry this sentinel through; `store.ts` MUST NOT coerce
    `''` to NULL. This invariant is a load-bearing comment in `store.ts`.
+
+1b. **Image embeddings are owner-scoped via the owned asset (ledger D21/D20).** Assets are per-user now, so an
+   `image_embeddings` row FKs an owned asset; image-similarity search scopes to `assetId ∈ {the caller's
+   assets}` — a scan never returns another user's blob. No `ownerId` on the vector row (the scope derives
+   from the owned asset, D20). `image_embeddings` is no longer a global space.
 
 2. **`hub_score` on `image_embeddings` is reserved for image↔image use only.** CSLS hub scores are
    computed for image embeddings but MUST NOT be used for text→image retrieval (cross-modal cosine

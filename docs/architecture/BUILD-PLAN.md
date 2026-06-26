@@ -51,7 +51,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 ## Phase 3 — `@orb/db`
 1. `custom-types` (the `vector32` F32_BLOB codec), `client` (libSQL factory + PRAGMAs), `db/kit` (batch / db-errors / fetch-owned / insert-chunk / parsers).
 2. `schema/*` (one file per producing domain) + `relations`; `migrations/0000_baseline`.
-3. **Write the migration DATA scripts, not just the schema** (`CHECKLIST §B1`): `proposedTags→character_tags.status`, `character_books` re-key (+ orphan pre-flight), stats regroup + character de-pin (same/adjacent file), WI persona-book join rewire, per-migration `PRAGMA foreign_keys=OFF`, `backupBeforeMigrate`.
+3. **Write the migration DATA scripts, not just the schema** (`CHECKLIST §B1`): `proposedTags→character_tags.status`, `character_books` re-key (+ orphan pre-flight), stats regroup + character card-flatten (D28 — card content onto the flat `characters` row; no version table, no de-pin), WI persona-book join rewire, per-migration `PRAGMA foreign_keys=OFF`, `backupBeforeMigrate`.
 4. `.credentials-key` boot decrypt-probe + the stdout backup warning (`CHECKLIST §B2`).
 
 **✅ Checkpoint:** `migrate` + `assertReferentialIntegrity` (`foreign_key_check`) green; `.int.test`s pass against libSQL `:memory:`.
@@ -62,7 +62,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 ### 4a. `foundation/` — `env` (sole `process.env` reader), `config` (version only), `observability` (+ `debug/inspect`, the dissolved debug domain). **Catalog gains the observability deps here:** `pino`/`pino-pretty` + `@opentelemetry/*` (`tiers/foundation.md` › Runtime dependencies). The `noConsole` total-ban (`ENFORCEMENT.md`) goes live the moment server code lands — `getLog()`/`logger` is the only sanctioned output.
 ### 4b. `infra/` — `crypto`, `network`, `storage`, `image` (the sharp adapter), `auth` (+ `modes/`), `providers/` (`roles`, `contract`, `backends/{openrouter(+runners), agent-sdk(+session), custom-byo, kit(+openai-compat)}`, `vllm/{engine,surfaces}`). Include the **local-light embed/rerank tier** (`CHECKLIST §A3`) and the `VLLM_DISABLED` escape hatch (`§D3`).
 ### 4c. `domain/` — **LEAF-FIRST**, in waves (a domain only builds after its injected deps):
-- **Wave 1** (no cross-domain deps): `credentials` · `tag` · `persona` · `preset` · `world-info` · `assets` · `sessions` · `stats` · `settings` · `admin`
+- **Wave 1** (no cross-domain deps): `credentials` · `tag` · `persona` · `preset` · `world-info` · `assets` · `sessions` · `stats` · `settings` · `admin` · `notifications` (NEW — the per-user durable inbox + stream; chat emits into it via an injected op, so it lands before chat — `domains/notifications.md`, ledger D16)
 - **Wave 2** (consumed by the rest): `embeddings` · `search`
 - **Wave 3**: `discovery` · `workloads` · `import` · `export` · `buddy`
 - Per domain, build the slots in order: `contract/` → `persistence/` → `verbs/` → `service.ts`/`context.ts`/`index.ts`. Add the failure surfaces as you go (`§D1` fire-and-forget audit + `content_hash` catch-up sweep; `§D4` custom-byo `contextWindow`).
@@ -73,13 +73,14 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 
 ---
 
-## Phase 5 — chat + memory (LAST — highest risk, behind the oracle)
-1. **Write the differential-oracle runbook + fixture FIRST** (`CHECKLIST §C1`) → `tests/server/domain/chat/pipeline-breakpoint.parity.test.ts` (at the mirror; steady-clone driver in `tests/support/parity-runner.ts`) against the steady clone (`/tmp/neo-tavern-steady`). Don't start the chat scaffold until this exists.
-2. Build `chat/`: `engine/`, `assembly/` (+ `world-info/`), the explicit resolution-order pipeline (RESOLVE→GATHER→BUILD→SHAPE), and the **§8 rolling-pair cache breakpoint** (preserve + upgrade — dropping it = ~5300-tok/turn regression).
-3. Build the `memory/` subsystem (`build/`, `recall/`, `persistence/`) — the **6 chat-scoped semantics → `.int.test`s** (the surface the oracle deliberately can't cover).
-4. The **~150 "preserve exactly" esoterica → named tests** (`CHECKLIST §C2`): the AAD byte-string, ZWSP macro-neutralize, the PNG dual-chunk+CRC, the vLLM death-couple watchdog, every `ASSUMES(single-replica)`.
+## Phase 5 — chat + memory + the UNIFIED roster/group/multi-human system (LAST, highest risk; built WHOLE)
+> **No feature-phasing (ledger D16).** This phase delivers the ENTIRE unified system in ONE cohesive build — a chat is a roster of participants (humans + characters); group-ness is DATA, not a branch (`no-if(isGroup)`; solo = roster-of-1, byte-identical). neo-tavern's Phase A/B (solo-first → multi-human bolt-on) + its 12-step order are neo RETROFIT artifacts and are NOT carried — orbweaver greenfields everything. **`domains/chat.md` Part III is the authoritative design.** The `notifications` domain (Phase 4c) + presence (Phase 4d, transport) are wired here.
+1. **Write the differential-oracle runbook + fixture FIRST** (`CHECKLIST §C1`) → `tests/server/domain/chat/pipeline-breakpoint.parity.test.ts` (at the mirror; steady-clone driver in `tests/support/parity-runner.ts`) against the steady clone (`/tmp/neo-tavern-steady`). The oracle gates the **assembly + cache-token PARITY surface only**; the multi-human/group/invites/notifications/presence/arbitration pieces are NOT diffable (intentional rewrites) — they ship with `.int`/`.contract` tests in the same build.
+2. Build `chat/` WHOLE: the **roster + membership lifecycle** (`chat_participants` join/leave/visibility, `chat_invites` + the ONE insert chokepoint, kick/self-leave/host-handoff), the **turn-identity triple** + `pending_turns` + per-member **COUNT** budget + owner-consent (`max-pro-sub` by-proxy refused), **arbitration** (@mention/natural/list/pooled/manual/smart + auto-mode + ban-last-speaker, lock-per-speaker), **two-axis generation** (narrator/per-speaker × merged/scoped), **room overrides** (4 host-only fields), the **group macros**, the **typed per-verb auth matrix + the default-deny enforcer** (covering SSE subscribe + lineage + injections + fork + anchor); the explicit RESOLVE→GATHER→BUILD→SHAPE pipeline + the **§8 rolling-pair breakpoint** (preserve+upgrade; undefined for multi-responder/narrator tails — dropping it = ~5300-tok/turn regression).
+3. Build the `memory/` subsystem (`build/`, `recall/`, `persistence/`) — the **6 chat-scoped semantics** + **group-as-character** (synthetic group char authors narrator turns — never NULL; `chat_digest_speakers`; `scopedCharacterId`; merged/scoped mirrors `cardScope`; egocentric-only; **host-only room search v1**) → `.int.test`s.
+4. The **~150 "preserve exactly" esoterica → named tests** (`CHECKLIST §C2`) + neo's **§9 security must-dos** (host-wallet/count budget, server-stamp author + sanitize member content, host-only overrides, host-approved cross-user WI, invite hardening, server-derived presence, bus payload allowlist) + the **§10.4 cross-cutting invariants** (no-if(isGroup) byte-identical, turn-identity triple, max-pro-sub-by-proxy, trusted-label, AI-@mention-never-forces, presence→cast→cache) → named tests.
 
-**✅ Checkpoint:** `pnpm test:parity` green (assembled-prompt + cache-token parity vs the steady clone); memory-semantics `.int`s green.
+**✅ Checkpoint:** `pnpm test:parity` green (assembled-prompt + cache-token parity vs the steady clone); the unified-system `.int`/`.contract` suites green (roster lifecycle · invites/redeem · notifications durable-first · presence cast-gating · arbitration policies · two-axis generation · room overrides · memory 6-semantics + group-as-character); a **solo chat is byte-identical** before/after the roster (the no-if(isGroup) contract test).
 
 ---
 

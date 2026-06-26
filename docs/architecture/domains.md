@@ -9,7 +9,7 @@
 | Domain | Origin | Owns |
 |---|---|---|
 | **chat** | keep (slim) | the turn lifecycle, canon, sessions (SDK), assembly, arbitration. `memory` is a subsystem here but *delegates* vectors (below). |
-| **character** | keep | character identity + versions-as-history (de-pinned); the card. |
+| **character** | keep | character identity; the card is a flat `characters` row; history = a `character_snapshots` log that gates nothing (D28). |
 | **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
 | **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
 | **world-info** | keep | one books/entries store + scope junctions (already correct). |
@@ -28,6 +28,7 @@
 | **export** | keep (rework) | TARGET: import + export **share ONE serialization core**. (Today they are two independent mappers coupled only by round-trip tests — role-map triplicated, WI mapping hand-duplicated, `creator`/`regex_scripts` survive only via a `raw` blob. Verified.) |
 | **assets** | keep | the CAS index/table (the blob *store* itself is `infra/storage`). |
 | **workloads** | keep | the execution engine the indexer + bulk passes enqueue into. |
+| **notifications** | **NEW** | the per-user durable inbox + delivery stream (invite/kick/host-handoff to non-members the per-chat bus can't reach); part of the unified roster/group/multi-human system (ledger D16). Producers (chat) emit via an injected op; transport streams it on the `chat.streamMessages` resume shape. (`domains/notifications.md`.) |
 | ~~models~~ | → **connection** | merged. |
 | ~~debug~~ | → **foundation/observability** | `/api/_debug` is observability, not a domain. |
 | ~~corpus~~ | → **discovery** | renamed (name required insider knowledge; it does library understanding). |
@@ -49,8 +50,9 @@ into agent mode; `buddy` is the first agent-mode consumer** — one chat-turn pa
 **persona** is
 per-participant (active, on the roster — drop `chats.personaId`) + a chat-level **anchor** (`{{user}}`
 POV, the kept dual-persona rule) + per-message **attribution**; multi-human = each human carries their
-own persona. **character** = live identity + versions-as-restorable-history (de-pin; chats never pin a
-cv; `restore` copies old→current). Open: per-agent connection is a new routing axis; whether `agent` is
+own persona. **character** = live identity, the flat `characters` card row + history-as-restorable
+snapshots (D28: no `character_versions`/cv-pin; history = the `character_snapshots` log; `restore`
+copies a snapshot blob → the live row in-place, gating nothing). Open: per-agent connection is a new routing axis; whether `agent` is
 a thin shared domain vs a pattern composed by chat+buddy.
 
 ## Memory ↔ search: two reads over ONE substrate (original intent — `memory-diagram.pdf`)

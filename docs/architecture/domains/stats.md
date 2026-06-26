@@ -20,10 +20,15 @@
 ## What this domain owns
 
 - **The four rollup tables** — `owner_stats` (per-user global totals, PK `ownerId`), `character_stats`
-  (per-`(owner, character)`, version-collapsed), `daily_stats` (per-`(owner, day)` timeseries, WIDE
-  format), `model_stats` (per-`(owner, model, provider)` generation provenance). All economics +
-  behavior counts; **no vector column anywhere**. In neo-tavern these are `db/schema/stats.ts`; in
-  orbweaver `@orb/db/schema/stats.ts` (the name is already honest — keep it).
+  (per-`character`, one row per character), `daily_stats` (per-`(owner, day)` timeseries, WIDE format),
+  `model_stats` (per-`(owner, model, provider)` generation provenance). All economics + behavior counts;
+  **no vector column anywhere**. In neo-tavern these are `db/schema/stats.ts`; in orbweaver
+  `@orb/db/schema/stats.ts` (the name is already honest — keep it). **Ownership stamp (ledger D23):**
+  `owner_stats`/`daily_stats`/`model_stats` KEEP `ownerId` — they're parentless per-user aggregates (owner ×
+  day/model/—), `ownerId` is the row's own key. **`character_stats` DROPS `ownerId`** — it has a single
+  owning parent (the character), so owner is reachable by one FK (`characterId → characters.ownerId`); the
+  per-owner reads scope via `characterId ∈ {my characters}` (the `leaderboard`/`character` verbs join
+  `characters`). Keyed on `characterId` (one row per character).
 - **The read service** (`StatsService`, 12 verbs) — thin projections of the live rollups + read-layer
   derived rates (`reasoningRate`, `throughputTps`, `cacheHitRate`, `avgSwipeDepth`, `swipeRate`,
   `avgReplyWords`). The tRPC `stats.*` router's single delegation target; `ownerId` is ALWAYS
@@ -86,7 +91,7 @@ economics-flavored aggregates (`forgottenGems` SUMs `tokens_out`; `modelRouting`
 message volume). Orbweaver makes the line RED at compile/lint, three ways:
 
 1. **`stats` touches no vector table** — `StatsContext` carries only the canon tables (`messages`,
-   `message_variants`, `chats`, `characters`, `character_versions`, `personas`) + the four rollup
+   `message_variants`, `chats`, `characters`, `personas`) + the four rollup
    tables. *Enforcement: lint-time — dep-cruiser `stats-no-vector-tables`: `domain/stats/**` may not
    import the embeddings schema namespace (`character_embeddings` / `image_embeddings` / `chat_digests`
    / `chat_segments` / `theme_clusters`) or the `search` / `embeddings` / `discovery` front doors.*
@@ -152,7 +157,7 @@ domain/stats/
 │   └── (no errors.ts)      stats has NO typed error — verbs return data or null (documented choice)
 ├── verbs/
 │   ├── overview.ts         owner-grain hero (rollup + on-read owner latency)
-│   ├── character.ts        single character (version-collapsed) + on-read character latency
+│   ├── character.ts        single character (one row per character) + on-read character latency
 │   ├── leaderboard.ts      per-character rows, sortable (assistantTurns | totalGenTimeMs | swipes | lastActivityAt)
 │   ├── timeseries.ts       daily points over [from,to]
 │   ├── by-model.ts         per-(model,provider) usage + on-read latency + distinct-character "reach"
@@ -418,11 +423,12 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
    each `.jsonl` independently, so reconcile maximizes ST-parity by NOT deduping fork copies. Documented
    choice — do not "fix" it with content-hash collapse.
 
-9. **Version-collapse on `cv.character_id`** — `character_stats` is per-character, grouping on
-   `character_versions.character_id` (a chat pins one version, so each chat credits exactly one
-   character; per-version rows would double-count). Under the character **de-pin** (§character.md), the
-   grouping FK migrates from `cv.character_id` to `characters.id` directly. The de-pin and this regroup
-   ship together.
+9. **Per-character grouping on `characters.id`** — `character_stats` is per-character, grouping on
+   `characters.id` directly (a chat references one character — `characters.id` — so each chat credits
+   exactly one character; per-character grain is the only grain). In neo-tavern this grouped on
+   `character_versions.character_id` because a chat pinned one version; under **D28** there is no
+   `character_versions` table and no version pin at all, so the grouping FK is just `characters.id` —
+   there is nothing to collapse.
 
 10. **`newCharacter` live-undercount caveat** — the live delta bumps `owner_stats.characters` only on the
     FIRST chat for a character; reconcile counts ALL owned characters. A character with no chats stays
@@ -489,9 +495,11 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
   economics (proposed), vs promote the economics-flavored halves to first-class stats verbs (e.g.
   `stats.modelUsageByGenre`). The former keeps the semantic ranking in discovery; the latter centralizes
   all economics. Decide once the discovery doc is written.
-- **De-pin regroup timing** — `character_stats` grouping moves from `cv.character_id` to `characters.id`
-  when the character de-pin ships; the live delta builders, reconcile, and the rollup FK migrate
-  together. Sequence against `character.md`.
+- **Per-character grouping key** — settled by **D28**: `character_stats` groups on `characters.id`
+  directly (there is no `character_versions` table and no version pin to collapse). The live delta
+  builders, reconcile, and the rollup FK all key on `characters.id`. The earlier open question of
+  sequencing a `cv.character_id → characters.id` regroup against `character.md` is closed — there was
+  never a version to de-pin.
 - **Per-author economics under agent principals** — the rollup is per-owner today. When agents become
   first-class principals (§8.6), decide whether an agent's turns credit the owner's economics (current
   behavior, lean: yes) or carry a per-author breakdown. Tied to the agent credential-inheritance

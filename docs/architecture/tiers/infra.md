@@ -80,7 +80,11 @@ helpers (JWKS cache, cookie read, CSRF signal, host normalize, config parse, pas
 ### `infra/storage` — the content-addressed byte store
 
 - **The CAS** — `createCas(rootDir)` → `Cas` (`putBytes`/`read`/`exists`/`verify`/`remove`/`listHashes`/
-  `blobPath`). Sharded `ab/cd/<hash>` blob I/O keyed by sha-256; crash-atomic write (temp-under-root →
+  `blobPath`). **Per-user keyed** `<owner>/ab/cd/<hash>` (ledger D21 — assets are per-user, not global; no
+  cross-user byte-dedup/existence-oracle, within-user dedup preserved); `blobPath` takes the owner +
+  hash. The byte store is a sealed adapter; **ownership is gated above it** (the `domain/assets`
+  `fetchOwned` + the owner-gated `/blob` route — caddy skips forward-auth so `<img>` GETs aren't bounced,
+  the app gates via the session cookie). Crash-atomic write (temp-under-root →
   fsync file → rename → **fsync dir**); write-once dedup with an mtime bump for GC's grace window.
 - **The variant cache** — `createVariantCache(rootDir)` → `VariantCache` (`read`/`put`/`removeAll`).
   Derived-webp cache, sibling to the CAS, per-hash directory. Atomic but **`fsync:false`** — it's a

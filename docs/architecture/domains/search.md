@@ -45,12 +45,12 @@
   because `discovery` does NOT call them directly; discovery hands its `hub_score` values to
   `embeddings.store()` which stores them, and `search` reads+applies them — one owner).
 - **Segment display resolver** — `resolveSegmentDisplay`: JOIN `chat_segments` →
-  `character_versions` → `assets`; returns the display shape attached to a segment hit. Persistence
-  concern; moves to `persistence/display.ts`.
+  `characters` → `assets`; returns the display shape attached to a segment hit (the card is the flat
+  `characters` row — D28; no version join). Persistence concern; moves to `persistence/display.ts`.
 - **Character display resolver** — `resolveCharacterDisplay`: JOIN `characters` →
-  `character_summaries` → `character_versions` → `assets`; enriches character card hits with
-  distilled facets (`genre`, `tone`, `elevatorPitch`). Persistence concern; moves to
-  `persistence/display.ts`.
+  `character_summaries` → `assets`; enriches character card hits with distilled facets (`genre`,
+  `tone`, `elevatorPitch`) read off the flat `characters` row (D28 — no version join). Persistence
+  concern; moves to `persistence/display.ts`.
 
 This domain does **not** own: vector writes (that is `embeddings`); digest generation or the
 `{{memory}}` assembly policy (that is `memory`); themes/hubness computation/distillation (that is
@@ -234,7 +234,7 @@ pure helper, not a domain-internal secret).
 | `search/service.ts` — inline `UserId` import at service.ts line 62 | → `contract/` | `domain/search/contract/params.ts` (the proper home for UserId usage in params) | Minor: import style; move to top-level import in params. | lint-time: `no-inline-types` |
 | `db/schema/search.ts` — `character_embeddings`, `image_embeddings`, `chat_digests`, `chat_segments`, `chat_digest_speakers` | **rename + move** | `@orb/db/schema/embeddings.ts` | Schema-naming lie: file named for the consumer. In orbweaver the `embeddings` domain's write path owns these vector tables; the schema file moves to reflect the producer, not the reader. `search` and `memory` read from `@orb/db/schema/embeddings` (a downward dep — allowed). | compile-time: schema file move forces all importers to update; `tsc` flags broken imports immediately |
 | `image_embeddings` — single lens per (asset, model); no `lens` discriminator column | **schema change** | `@orb/db/schema/embeddings.ts` — add `lens: text` column (`image-raw` | `image-captioned`); unique index on `(assetId, model, lens)` | `knowledge-cluster.md` §1 targets two image lenses. The current unique index on `(assetId, model)` allows only one row per asset per model. A `lens` column lets both lenses coexist in the same 1024-dim space. A re-embed workload populates `image-raw` rows. | compile-time: unique-index change; existing `image-raw`-equivalent rows get `lens='image-raw'` in migration |
-| `chat_digests.characterVersionId` — cv-pin FK in search results + scopeCond | evolves with de-pin | `@orb/db/schema/embeddings.ts` — migrate FK to `characters.id` when character de-pin ships | Search verbs key on `characterVersionId` for scoping today; orbweaver de-pins characters. The scope query changes from `cv_id IN (SELECT id FROM character_versions WHERE character_id = ?)` to `character_id = ?` directly. `chat_digest_speakers.characterId` already carries the identity FK — the OR-branch in `scopeCond` becomes the primary path. | compile-time: column rename caught by `tsc`; the OR-branch in `scope.ts` must be updated together with the schema migration |
+| `chat_digests.characterVersionId` — cv-pin FK in search results + scopeCond | **dropped (D28)** | `@orb/db/schema/embeddings.ts` — column does not exist | Search verbs keyed on `characterVersionId` for scoping today; orbweaver has no version table (D28). Scope keys on `chat_digest_speakers.characterId` (the identity FK, already present — D25 moved scoping there); the query is `character_id = ?` directly. The cv OR-branch in `scopeCond` is deleted, not migrated. | compile-time: `chat_digests.characterVersionId` and `character_versions` are both gone; the cv branch in `scope.ts` is removed |
 | `trpc/routers/search.ts` — `ctx.services.corpus.fieldSearch` / `corpus.fieldSuggest` cross-call | **replaced** | `ctx.services.search.fields` / `search.suggest` | Once `fields.ts` moves into `search`, the router calls the search service directly. The cross-router proxy is deleted. | resolve-time: `corpus.fieldSearch` ceases to exist on `CorpusService` once field-search moves; the `tsc` type error is immediate |
 | `context.ts` integration tests + corpus tests importing `createSearchContext`, `createSearchCore` directly | → test fixtures | `tests/support/fixtures.ts` — a `withSearch` fixture wrapping `createSearchService` | Tests should enter through the service factory (the front door) or a test-fixture wrapper, not reach into `context.ts`. The test mirror gate enforces the path. | lint-time: `test-mirror` gate (tests mirroring `context.ts` internals are at the wrong path) |
 
@@ -344,7 +344,7 @@ tier, blockIdx)` but differing only in `scopedCharacterId` are NOT deduplicated.
 
 ### `chat_digest_speakers` OR-branch in `scope.ts` (esoteric — must survive)
 
-A by-character scope filter using only `character_version_id IN (...)` misses co-star blocks where
+A by-character scope filter using only the digest's primary `character_id IN (...)` misses co-star blocks where
 the queried character spoke but was not the digest's primary character. The
 `chat_digest_speakers` JOIN is the OR-branch that catches those blocks. Removing it silently cuts
 recall for multi-character scenes. This load-bearing join is preserved in `persistence/scope.ts`

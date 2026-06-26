@@ -73,7 +73,7 @@ An agent is the AI side of the roster. Four parts, each a clean seam:
 
 | Part | What | Note |
 |---|---|---|
-| **identity** | the character card (current version) — name, description, persona, scenario, depth-prompt | resolved from `characters.id` at use (live identity, §4); buddy's "soul" is the same shape with no card |
+| **identity** | the character card (the flat live `characters` row — D28) — name, description, persona, scenario, depth-prompt | resolved from `characters.id` at use (live identity, §4); buddy's "soul" is the same shape with no card |
 | **connection** | which model/runner voices THIS agent | **per-agent** (a character can run on a different model than another; buddy = "always cheap"). Defaults to the chat/role default, overridable per agent. New routing axis: per-agent, not per-user. |
 | **view** | this agent's egocentric view of canon (what it witnessed; other agents' turns rendered in) | the ONE name/merge concern that survives — owned by the view-builder |
 | **tools** | optional in-process MCP server | character = none; buddy = its tool server. The only structural diff between a "roleplay agent" and a "tool agent" (`maxTurns`, `mcpServers`). |
@@ -106,31 +106,27 @@ no reseed (persona lives in the per-turn system prompt).
 transform — redesign so a persona-from-card keeps a reference / re-derivable mapping rather than baking
 a swapped string.
 
-## 4. Character — identity + versions-as-restorable-history (de-pin)
+## 4. Character — one flat live card + a git-commit history (D28)
 
-- **Two tables stay:** `characters` (identity: id, handle, currentVersionId, owner, flags) +
-  `character_versions` (content: the card fields). But the chat **does not pin a version.**
-- **De-pin (your direction, confirmed cheap):** everything references `characters.id` (live identity)
-  and **resolves the current version at use** (`resolveCurrentVersion`). The cast *already* does this in
-  neo-tavern — the primary character is the lone holdout, frozen only for byte-identity. Dropping the
-  pin (`chats.characterVersionId` notNull → gone) collapses **the fork/CAS branch of `cow.ts`** (verified:
-  ~half the file — `versionPinned` + `forkVersion` + the in-place CAS; the v1-mint + the delete-cascade/
-  asset-reap survive untouched): the copy-on-write fork exists *only because chats pin*. With no pins,
-  editing is **edit-in-place**; history is
-  **explicit snapshots**; **`restore`** copies an old version → new current. `messages.characterId`
-  (identity attribution) is the seam this builds on.
-- **Versions = restorable history**, not a thing a chat is welded to. Back up versions so people can
-  track changes + restore; everything else follows the live identity.
-- **Association keys (verified — the asymmetry is DELIBERATE, not a bug).** `character_personas` keys on
-  `characters.id` and `character_books` keys on the **cv** *by design* (documented at
-  `db/schema/character.ts`): personas are local prefs that must survive every card edit → identity-keyed;
-  books are injected card content snapshotted by the chat's pinned cv → cv-keyed. So de-pin isn't "just
-  switch books to `characters.id`" — with no pin, **cv-keyed books must resolve through the *current*
-  version** (or carry an explicit snapshot). Orbweaver moves character associations onto `characters.id`
-  for live identity, and gives books a current-version resolution path (the snapshot semantics the cv-key
-  gave for free must be re-provided deliberately). One rule, gated — but mind the book-snapshot nuance.
+- **One table holds the card (D28):** `characters` is a **FLAT row that IS the card** — identity
+  (id, handle, owner, flags) **and** all content (name, description, personality, greetings, systemPrompt,
+  the typed promotions, …) on the same row. The neo `character_versions` table is **GONE**; there is no
+  `currentVersionId`, no `version` counter, no version table.
+- **History is a separate log nothing gates on:** `character_snapshots` `{id, characterId FK CASCADE,
+  content (full-card JSON), label?, createdAt}` — append-only, **nothing FKs it**. The git working-tree +
+  commit-log split: the `characters` row is the working tree (edit in place — always safe, no CAS, no COW);
+  `character_snapshots` is the commit log (browse it, `restore` copies a blob → the live row, in place).
+  The whole `cow.ts` machinery (`versionPinned` + `forkVersion` + the in-place CAS) is **deleted** — it
+  existed *only* because chats pinned a cv. `messages.characterId` (identity attribution) is the seam this
+  builds on; reading the card is `getCard` (a plain `characters`-row read — there is no version to resolve).
+- **Snapshots = restorable history**, never a thing a chat is welded to. Back them up so people can track
+  changes + restore; everything else follows the one live row.
+- **Association keys (D28 — all identity-keyed).** `character_personas` AND `character_books` both key on
+  `characters.id`. (Neo keyed books on the cv to snapshot injected content per pinned version; with no cv
+  that asymmetry is gone — the live card's book set is read at assemble. A future "freeze lore at a
+  snapshot" feature would reference a `character_snapshots` id, never a cv.)
 - **`synthetic` group character** (the §11.5 group-as-character memory bucket) stays — a hidden agent
-  identity for a room's shared memory.
+  identity for a room's shared memory; one flat `characters` row like any other.
 
 ## 5. How this dissolves the two named pains (before → after)
 
@@ -171,6 +167,6 @@ a swapped string.
    characters); no second agent system. `claude-agent-sdk` is reserved for the Max sub + agent mode.
 4. **Persona active is per-participant** (roster), anchor is per-chat, attribution is per-message — no
    `chats.personaId` second home.
-5. **Character associations key on `characters.id`** (identity), never a version pin.
-6. **Chats never pin a character version** — live identity + `resolveCurrentVersion`; versions are
-   explicit snapshots + `restore`.
+5. **Character associations key on `characters.id`** (identity), never a version.
+6. **There is no character version table** — the card is the flat `characters` row (read via `getCard`);
+   history is the `character_snapshots` log (browse + `restore`), which nothing FKs and which gates nothing.

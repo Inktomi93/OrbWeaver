@@ -194,8 +194,8 @@ SettingsService = {
   setGlobalSetting(key: string, value: JsonValue): Promise<GlobalSettingView>   // refuses APP_SETTINGS_KEY
 
   // AppSettings (admin-runtime tier; requireAdmin injected)
-  getAppSettings(params: { userId: UserId; callerRole?: 'admin' | 'user' }): Promise<EffectiveAppConfig>
-  updateAppSettings(params: { userId: UserId; callerRole?: 'admin' | 'user' }, partial: AppSettings): Promise<EffectiveAppConfig>
+  getAppSettings(params: { userId: UserId; callerRole?: 'owner' | 'admin' | 'user' }): Promise<EffectiveAppConfig>
+  updateAppSettings(params: { userId: UserId; callerRole?: 'owner' | 'admin' | 'user' }, partial: AppSettings): Promise<EffectiveAppConfig>
 
   // Floor-merge read side (effective-config subsystem)
   getEffectiveConfig(): EffectiveAppConfig            // SYNC — hot-path read of the in-memory cache
@@ -286,8 +286,10 @@ default).
 ### §7.1 Identity / auth / permission
 
 The `AppSettings` tier is **admin-only**: `getAppSettings`/`updateAppSettings` call the injected
-`requireAdmin(db, userId, callerRole?)` before touching the `"app"` row. Today the gate is narrow (only
-the owner, provisioned `role:'admin'` by `ensureUser`, passes). The raw global KV setter is admin-gated
+`requireAdmin(db, userId, callerRole?)` before touching the `"app"` row. (Neo today: the gate is narrow —
+only the owner, provisioned `role:'admin'` by `ensureUser`, passes. Orbweaver D17: `requireAdmin` =
+`can(p,'admin',global)` passes for **owner ∪ admin**; the owner is provisioned `role:'owner'` by
+`seed-owner`, and delegated admins also pass.) The raw global KV setter is admin-gated
 at the *router*, not the verb (the `settings` table backs admin-only runtime config). `UserSettings`
 verbs are **owner-scoped** by `userId` (a user reads/writes only their own row; PK is `userId`). The
 admin gate is injected, never re-implemented — `settings` does not know how admin is determined, only
@@ -400,7 +402,9 @@ dispatch hotspot), but each gets one canonical home:
 7. **Additive namespace, NO version bump (the lenient-parser dividend).** `onboarding`, `groupDefaults`,
    `workloads`, `profile` were added to UserSettings WITHOUT a schema-version bump: each namespace is
    `.prefault({})`, so a pre-existing blob reads as the default ("nothing seen yet" / "per-speaker ×
-   merged") — correct, because those accounts predate the surfaces these gate. Per-field `.catch` keeps
+   merged") — correct, because those accounts predate the surfaces these gate. (`groupDefaults` also seeds
+   the per-room `memberCardVisibility` toggle — default `sheet`, D22 — references `groupConfigSchema` in
+   `@orb/contracts/chat`, the legal downward edge.) Per-field `.catch` keeps
    the parser self-healing as the shape grows. This is the intended growth path; only a SHAPE change
    that an old blob can't satisfy needs a version bump + a lift.
 

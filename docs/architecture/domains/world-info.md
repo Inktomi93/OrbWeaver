@@ -125,28 +125,24 @@ Exported from `index.ts` (the enforced front door):
 | **`verbs/attachments/character.ts` — `db.batch([demote, upsert])` for primary uniqueness** | stays in domain | `world-info/verbs/attachments/character.ts` | The at-most-one-primary-per-character enforcement is a single atomic batch. If split into two sequential awaits, a concurrent attach could leave two primary rows or a crash between them could leave zero. This is the only defense and must not be abstracted away. Carry a comment explaining the DISJOINT-rows proof (the `demote` statement excludes via `ne(bookId)` — the rows are guaranteed non-overlapping, so order is immaterial, but atomicity is not). | Compile-time: a typed `db.batch([...])` call; a `batchMany` helper that wraps it is acceptable as long as it stays a single db call |
 | **`persistence/queries.ts` / `persistence/ownership.ts`** | stays in domain | `world-info/persistence/` | Correct placement. `toEntryView` is the DB→view projection (parse metadata once here). `loadOwnedEntry` inArray-subquery is the ownership guard for entries; do not simplify to a bare `eq(id)` — that would allow cross-tenant writes. | Compile-time: the ownership subquery is inlined in a typed drizzle call; a wrong simplification breaks type inference |
 | **`chat/assembly/world-info/pool.ts`** | stays in chat | `domain/chat/assembly/world-info/pool.ts` | The pool builder is a chat concern: GATHER phase, per-turn, reads four junction tables directly (by design — no ownership guards needed here, ownership is pre-verified by the domain's attach verbs). The `pool.ts` is a direct db-layer consumer of world-info tables; that is the intended and documented separation. The boundary must be explicit: `pool.ts` is chat's internal substrate reader, consuming `@orb/db` schema directly, not going through the world-info domain's front door. | Lint-time: a dep-cruiser rule can assert `pool.ts` imports from `#db/schema` (the db package) and NOT from `domain/world-info/index.ts` |
-| **`worldBooks` / `worldEntries` / `chatBooks` / `characterBooks` / `globalBooks` / `personaBooks` tables** | stays in `@orb/db` | `packages/db/src/schema/world-info.ts` | Correct schema ownership. `characterBooks` was keyed on `cv_id` (the pinned version); in orbweaver it keys on `characters.id` (live identity). De-pin is a single schema migration (column type changes from `CharacterVersionId` to `CharacterId`); the attachment verbs' ownership guard (`ensureCharacterOwned`) switches from a cv-join to a character-row join. The book-snapshot semantics the cv-key gave (a book attached "as of this version" snapshotted its content) must be re-provided deliberately — see §Note on character association key below. | Compile-time: changing `characterBooks.cvId: CharacterVersionId` to `characterBooks.characterId: CharacterId` — the drizzle schema's inferred type fails at any old reference |
+| **`worldBooks` / `worldEntries` / `chatBooks` / `characterBooks` / `globalBooks` / `personaBooks` tables** | stays in `@orb/db` | `packages/db/src/schema/world-info.ts` | Correct schema ownership. `characterBooks` was keyed on `cv_id` (the pinned version); in orbweaver it keys on `characters.id` (live identity — **D28**, no cv exists at all). The attachment verbs' ownership guard (`ensureCharacterOwned`) is a plain `characters`-row join. Books are the live card's; the book set is read at assemble — no snapshot-resolution nuance survives (there is no version to resolve). See §Note on character association key below. | Compile-time: `characterBooks.characterId: CharacterId` is the only typed key; a `CharacterVersionId` reference fails (the brand is retired with the table) |
 
 ---
 
-## Note on character association key (the de-pin consequence)
+## Note on character association key (the D28 consequence)
 
 neo-tavern's `character_books` is keyed on `cv_id` by design: a book attachment was semantically
 "this book was attached when this version of the character was pinned," so the chat sees the
-book-set as of its pinned version. Orbweaver drops the pin (`participants-agents-identity.md` §4 —
-chats reference live identity, versions are restorable history). With no pin:
+book-set as of its pinned version. Orbweaver has **no character versions at all** (D28 —
+`participants-agents-identity.md` §4; the card is the flat `characters` row). With no version table:
 
-- `characterBooks.characterId` references `characters.id` — a live identity key.
-- At the GATHER phase, `pool.ts` resolves character books by `characterId` (no cv join needed).
-- The snapshot guarantee must be re-provided by either:
-  - **Current-version resolution** (default, simple): the chat always sees the active character's
-    current book set. This is the correct default — book sets change only when an author
-    deliberately edits them; mid-chat changes are explicit.
-  - **Explicit snapshot reference** (deferred, if needed): if a future "freeze lore at character
-    version X" feature is wanted, it would be a separate `chatCharacterBookSnapshot` junction, not
-    a version pin on the chat row.
-
-The orbweaver default is current-version resolution (the simple path). No chat-level version pin.
+- `characterBooks.characterId` references `characters.id` — the only key (live identity).
+- At the GATHER phase, `pool.ts` reads character books by `characterId` directly (no cv join, nothing
+  to resolve).
+- Books are the live card's. The book set changes only when an author deliberately edits the card —
+  mid-chat changes are explicit, by design. There is no "snapshot as of version X" to re-provide.
+- A future "freeze lore at a snapshot" feature, if ever wanted, would reference a
+  `character_snapshots` id in a separate junction — never a version pin on the chat row.
 
 ---
 
@@ -180,8 +176,9 @@ world-info domain has no opinion on it. It must not be disturbed when moving poo
    `cv_world_entries`) are absent from the schema. There is no per-attachment scope override — the
    only scope knob is `metadata.scopeMode` on the entry itself. Gate: schema has no
    `chat_world_entries` or `cv_world_entries` table.
-2. **`characterBooks` keys on `characters.id`, not a version id.** The de-pin is a schema invariant.
-   Gate: `characterBooks.characterId` column type is `CharacterId` (branded), not `CharacterVersionId`.
+2. **`characterBooks` keys on `characters.id`, not a version id.** D28 is a schema invariant.
+   Gate: `characterBooks.characterId` column type is `CharacterId` (branded); `CharacterVersionId`
+   does not exist as a type (the version table is gone).
 3. **Primary attachment is atomic.** `attachToCharacter` with `role:'primary'` MUST use a single
    `db.batch([demote, upsert])`. Gate: a test verifies that two concurrent primary attaches leave
    exactly one primary row.

@@ -276,9 +276,10 @@ OR-skin trio; the OR-skin path uses an EMPTY ephemeral dir + a paid base URL + t
 host credential source nulled — so the sub OAuth token is **structurally unreachable** from a paid
 spawn regardless of the runtime's internal credential precedence. This asymmetry IS the firewall.
 `RESERVED_CLAUDE_ENV_KEYS` is applied AFTER the preset escape hatch (`advanced.claudeEnv`) so a preset
-can never repoint auth/routing (the st-claude-proxy ban shape). The `max-pro-sub` admin gate is a
-**credentials concern** — the brand is unconstructable except after `role === 'admin'`; providers
-receives a `ResolvedCredential` and never re-checks. Buddy's non-admin local turn uses the vLLM env
+can never repoint auth/routing (the st-claude-proxy ban shape). The `max-pro-sub` owner gate is a
+**credentials concern** — the brand is unconstructable except after `requireOwner` (owner-only, ledger
+D17 — the box belongs to the `owner`, not any `admin`); providers receives a `ResolvedCredential` and
+never re-checks. Buddy's non-owner local turn uses the vLLM env
 builder (loopback, keyless), which is why the local agent path exists at all. *Enforcement: test-time
 — the firewall test (a mode-2 OR-skin spawn can never see the sub token) is carried forward; it lives
 with `env.ts` because the firewall is built around env.*
@@ -441,7 +442,7 @@ Two dispatch axes are infra-sealed and stay so, gated:
    contract file. *Enforcement: lint-time — `providers-public-surface-only` cruiser rule.*
 
 5. **The agent-sdk firewall is unleakable + unconstructable-around.** The reserved-keys filter runs
-   before the auth overlay; the auth firewall is applied last; `max-pro-sub` is admin-gated upstream.
+   before the auth overlay; the auth firewall is applied last; `max-pro-sub` is owner-gated upstream (D17).
    *Enforcement: test-time — the carried-forward firewall test asserts the OR-skin spawn cannot see the
    sub token AND a preset escape hatch cannot set/strip a reserved key.*
 
@@ -651,6 +652,17 @@ plus image-gen — so every role has a hosted option, and the local-heavy and ho
   engine. ("Summarize via OpenRouter" = just chat.)
 - **rerank-hosted is a genuine gap** — OpenRouter has no generic rerank; hosted rerank needs a
   rerank-specific provider or falls back to a local backend. Flagged, not faked.
+- **Local compute is the OWNER's box resource — the second class of "whose box it is" (ledger D17).** Both
+  local backends (vLLM + the in-process transformers.js/ONNX light tier) run on the **owner's hardware**;
+  the vLLM role-client credential is keyless/loopback ("open to every authenticated user",
+  `role-clients-binder.ts`) — i.e. **shared with authenticated principals by design** (the multi-human /
+  "any box" reality). Unlike the hosted credential class (`max-pro-sub` — owner-only, consent-default-OFF,
+  ban-prone + $), local compute carries **no ban/wallet risk, only finite-hardware contention**, so
+  non-owner (admin/member) use is **allowed by default** but governed by: a **per-member turn/request COUNT
+  budget** (the protected resource is shared compute, NOT dollars — a dollar budget never debits for a
+  keyless local turn), the **supervisor concurrency limits** (`VLLM_*_CONCURRENCY` + the spawn mutex), and
+  an **owner throttle/disable knob**. NOT a credential gate. (The count budget + the owner knobs are
+  transport/settings concerns — `tiers/transport.md §7.1`, `spine/settings-and-config.md`.)
 
 ### The embedding-space invariant (why "unified embed" was hard — and the fix)
 

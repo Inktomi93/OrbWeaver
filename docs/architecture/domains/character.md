@@ -1,31 +1,34 @@
-# Orbweaver — `character`: identity + versions-as-restorable-history
+# Orbweaver — `character`: the flat live card + a git-commit history
 
-> **Status: planning (authoritative detail).** The character domain owns character identity and
-> versioned card content. The defining change from neo-tavern: **de-pin** — chats no longer weld
-> themselves to a version; everything references live identity. This doc is the target spec.
-> Authoritative upstream: `participants-agents-identity.md` §4 (the de-pin contract + the
-> association-key deliberate asymmetry), `_FANOUT-BRIEF.md` §4 (character pain ledger), `domains.md`
-> (the domain map). `structure.md` §4 is the 8-slot template this domain follows.
+> **Status: planning (authoritative detail).** The character domain owns the character — a **FLAT
+> `characters` row that IS the card** (live identity + content in one place) — plus a standalone
+> **`character_snapshots` history** (git-commit-style: browse + restore, but **nothing gates on it**).
+> The defining change from neo-tavern: **`character_versions` is GONE (ledger D28)** — no version table,
+> no cv pin, no copy-on-write, no `resolveCurrentVersion`. Everything references `characters.id` (the live
+> card); history is an opaque snapshot log you can restore in-place. This doc is the target spec.
+> Authoritative upstream: `DECISIONS-LEDGER` D28, `participants-agents-identity.md` §4, `domains.md`.
+> `structure.md` §4 is the 8-slot template this domain follows.
 
 ---
 
 ## What this domain owns
 
-- **Character identity** — the `characters` table row: `id`, `handle`, `ownerId`,
-  `currentVersionId`, `starred`, `archived`, `synthetic`, `forbidExternalMedia`, `importHash`,
-  `contentHash`.
-- **Character content versions** — the `character_versions` table: every card field (`name`,
-  `description`, `personality`, `scenario`, `greetings`, `exampleMessages`, `systemPrompt`,
-  `postHistoryInstructions`, `depthPrompt`, `proposedTags`, `creatorNotes`, `avatarAssetId`), plus the
-  **typed promotions** `creator`, `cardVersion`, `regexScripts`, `extensions` (verified present in the
-  steady clone, `db/schema/character.ts:137-140`), plus refinery signals (`refineryScore`,
-  `refineryAnalysis`), `version` counter, `createdAt`. **The `raw` blob is dropped** — the steady clone
-  already retired it; the promotions below are the round-trip mechanism (§7.3).
-- **Character-persona junction** — `character_personas` (identity-keyed on `characters.id`; personas
-  survive every card edit by design — NOT keyed on a version).
-- **Version history mutations** — mint, edit-in-place, snapshot (explicit named save), restore
-  (copy-old-to-current). The COW fork/CAS branch (`forkVersion` + `editVersionInPlace` CAS guard)
-  is **deleted** with de-pin; what remains is simpler: edit-in-place is always safe.
+- **The character — a FLAT `characters` row that IS the card** (D28): identity (`id`, `handle`, `ownerId`,
+  `starred`, `archived`, `synthetic`, `forbidExternalMedia`, `importedFrom`, `importHash`, `contentHash`,
+  `createdAt`) **+ all card content on the same row** (`name`, `description`, `personality`, `scenario`,
+  `greetings`, `exampleMessages`, `systemPrompt`, `postHistoryInstructions`, `depthPrompt`, `creatorNotes`,
+  the typed promotions `creator`/`cardVersion`/`regexScripts`/`extensions`, `avatarAssetId`, refinery
+  signals). **No `currentVersionId`, no `version` counter, no `character_versions` table** (D28). The card
+  tags surface is the `character_tags` junction (`tag.md`), not a `proposedTags` blob. `raw` stays dropped.
+- **`character_snapshots` — the history log (NEW, D28)** — append-only `{id, characterId (FK CASCADE),
+  content (JSON = the full card snapshot), label?, createdAt}`. **NOTHING FKs it** (it's opaque history,
+  not the content home). It's the git "commit log": browse it, restore from it. A snapshot is taken on a
+  manual "save a version" and (optionally) before a destructive edit/restore.
+- **Character-persona junction** — `character_personas` (identity-keyed on `characters.id`).
+- **Card mutations** — `create`, **edit-in-place** (the card is the live row — always safe, no CAS, no
+  COW), `snapshot` (append to `character_snapshots`), `restore` (copy a snapshot's blob → the live row
+  in-place; snapshot-current-first so restore is reversible). The whole COW/CAS/`forkVersion`/
+  `versionPinned` machinery is **gone** (it existed only because chats pinned a cv).
 - **Default card seeder** — idempotent boot-time pack of well-known cards (the WELCOME_ASSISTANT
   among them), using the real service path.
 - **Character CRUD** — `create`, `get`, `list`, `update`, `remove`, `duplicate`, `bulkRemove`,
@@ -33,52 +36,42 @@
 - **Synthetic group characters** — the `synthetic=true` hidden identity minted per-room for
   scoped-group memory buckets (§11.5 of the group-chat plan). In orbweaver this verb lives here, not
   in `_shared`, composed into `chat` via the injection model.
-- **`resolveCurrentVersion`** — the identity→current-version resolver. In neo-tavern this lives in
-  `chat/persistence`; in orbweaver it belongs here (character is responsible for resolving its own
-  live version). Chat calls it through the injected cross-feature op.
+- **`getCard(characterId)`** — the live-card read (replaces neo's `resolveCurrentVersion`; D28). With no
+  versions, "resolve the current version" is just "read the `characters` row" — the card IS the row. Chat
+  calls it through the injected cross-feature op (per roster member, at ASSEMBLE RESOLVE).
 
 This domain does **not** own: embeddings of card text (that is `embeddings`); book-scope junctions
-(that is `world-info`, though the junction table FKs into `character_versions`); tag junctions (that
+(that is `world-info`; the junction FKs `characters.id` — D28); tag junctions (that
 is `tag`); persona definitions (that is `persona`); the serialization mapper for import/export (that
 is `import`+`export` sharing a serde core that reads `@orb/db` directly, same as today).
 
 ---
 
-## The de-pin invariant (locked)
+## The model: flat live card + a history log nothing gates on (locked, D28)
 
-> **Chats never pin a character version.** Everything references `characters.id` (live identity) and
-> resolves the current version at use.
+> **There are no character versions.** The card IS the `characters` row (live, edited in place).
+> Everything references `characters.id`. History is a standalone `character_snapshots` log that NOTHING
+> FKs — browse it, restore from it in-place. The git working-tree + commit-log split.
 
-This is the load-bearing change that simplifies the entire domain. What changes:
+This is the load-bearing simplification — it deletes the entire cv-tangle. What changes from neo-tavern:
 
-| neo-tavern | orbweaver |
+| neo-tavern | orbweaver (D28) |
 |---|---|
-| `chats.characterVersionId NOT NULL` — a chat is welded to a cv | `chats.characterVersionId` **gone** |
-| `versionPinned()` subquery check before every edit | **deleted** |
-| `forkVersion()` + INSERT-FROM-SELECT book-carry | **deleted** |
-| `editVersionInPlace` CAS `WHERE NOT EXISTS(SELECT FROM chats WHERE characterVersionId=cv)` | **deleted** — edit-in-place is always safe |
-| Versions = immutable-once-pinned | Versions = **restorable history**; `restore` copies old→current |
-| `resolveCurrentVersion` owned by `chat/persistence` | **moved here** (character's responsibility) |
+| `character_versions` table holds the card; `characters` is just identity | **`character_versions` GONE** — the card content is on the flat `characters` row |
+| `chats.characterVersionId NOT NULL` — a chat welded to a cv | gone (de-pin) |
+| `characters.currentVersionId` + circular FK + `version` counter | **gone** |
+| `cow.ts` (`versionPinned` / `forkVersion` / `editVersionInPlace` CAS) | **deleted** — edit-in-place is always safe |
+| `resolveCurrentVersion` | **gone** — `getCard(characterId)` reads the row |
+| Versions = immutable rows in a table everything FKs | **history = `character_snapshots`** (JSON blobs, nothing FKs them); `snapshot` appends, `restore` copies a blob → the live row in-place |
 
-What **survives** de-pin (unchanged):
+What **survives**:
+- `create` (the first-write path), `removeCharacterWithCleanup` (pre-cascade asset-id snapshot + delete +
+  best-effort cleanup) — unchanged logic.
+- `character_personas` (identity-keyed — always was; correct).
 
-- `mintFirstVersion` — the first-write path (still needed; it's the only create path).
-- `removeCharacterWithCleanup` — pre-cascade asset-id snapshot + circular FK break + delete + best-effort
-  cleanup hooks. Correct and stays.
-- `characters.currentVersionId` — still the live pointer; it just no longer has chats FK-ing into `characterVersions` from the chat side.
-
-**Book-snapshot nuance (load-bearing — RESOLVED: identity-keyed + current-version resolution):**
-`character_books` keys on `characterVersionId` in neo-tavern because book content was snapshotted per
-pinned cv. De-pin does NOT simply move this FK to `characters.id` *without re-providing the snapshot
-semantics deliberately* — but the chosen mechanism is the **simple path**: `character_books` re-keys to
-`characters.id` (live identity, matching `character_personas`), and the snapshot guarantee is re-provided
-by **current-version resolution** at assemble time (the chat always sees the active character's current
-book set). This is the correct default — book sets change only when an author deliberately edits them;
-mid-chat changes are explicit. A future "freeze lore at version X" feature would be a SEPARATE
-`chatCharacterBookSnapshot` junction, NOT a chat-level version pin. (Locked consistently in
-`world-info.md` §"Note on character association key" + `db.md` `character_books` row + `export.md` book
-walk.) The `character_personas` asymmetry (already identity-keyed — correct, deliberate, survives) is the
-model.
+**`character_books` keys on `characters.id`** (D28 — no cv exists). Book sets are the live card's; they
+change only on a deliberate edit (snapshot-able like any card content). A future "freeze lore at a
+snapshot" feature would reference a `character_snapshots` id, never a cv.
 
 ---
 
@@ -91,7 +84,7 @@ domain/character/
 ├── context.ts                DI BUNDLE — typed CharacterContext interface (explicit — not ReturnType<>)
 ├── contract/
 │   ├── service.ts            CharacterService interface — read this to know everything the domain does
-│   ├── params.ts             every verb's *Params (+ CvEdits / IdEdits sub-shapes currently in cow.ts)
+│   ├── params.ts             every verb's *Params (CardEdits sub-shape — flat, one card; no Cv/Id split)
 │   ├── results.ts            every verb's *Result
 │   ├── views.ts              CharacterDetail, CharacterSummary — what the client receives
 │   └── errors.ts             CharacterNotFoundError, CharacterOperationError
@@ -105,13 +98,12 @@ domain/character/
 │   ├── bulk-remove.ts
 │   ├── bulk-archive.ts
 │   ├── bulk-add-card-tag.ts
-│   ├── snapshot.ts           NEW — explicit named version save (the orbweaver "save history" verb)
-│   └── restore.ts            NEW — copy old version → new current (replaces the de-pinned fork path)
+│   ├── snapshot.ts           NEW — append a character_snapshots history blob (the "git commit" verb)
+│   └── restore.ts            NEW — copy a snapshot blob → the live card row in-place ("git checkout")
 ├── persistence/
 │   ├── queries.ts            all SELECT/JOIN for this domain; re-exports isConstraintViolation shim
-│   └── versions.ts           mintFirstVersion, editVersionInPlace (simplified — no CAS), removeCharacterWithCleanup
+│   └── card.ts               writeCard (flat in-place edit, no CAS), appendSnapshot, removeCharacterWithCleanup
 ├── substrate/
-│   ├── resolve-version.ts    resolveCurrentVersion — moved from chat/persistence; identity→cv resolver
 │   └── card-tokens.ts        cardTokenSize (list-specific token-size estimate; local to the domain)
 └── seeder/
     ├── index.ts              createDefaultCharacterSeeder, DefaultCharacterSeeder type
@@ -143,18 +135,34 @@ CharacterService = {
   bulkArchive(params: BulkArchiveParams): Promise<void>
   bulkAddCardTag(params: BulkAddCardTagParams): Promise<void>
 
-  // Version history
-  snapshot(params: SnapshotParams): Promise<VersionRef>    // explicit named save
-  restore(params: RestoreParams): Promise<CharacterDetail>  // copy old cv → new current
+  // History (git working-tree + commit-log; gates nothing)
+  snapshot(params: SnapshotParams): Promise<SnapshotRef>       // append a character_snapshots blob
+  listSnapshots(params: ListSnapshotsParams): Promise<SnapshotSummary[]>  // browse history
+  restore(params: RestoreParams): Promise<CharacterDetail>     // copy a snapshot blob → live card, in-place
 
-  // Identity resolution (used by chat, roster, memory)
-  resolveCurrentVersion(params: ResolveVersionParams): Promise<CurrentVersion | null>
+  // Card read (used by chat, roster, memory) — the card IS the row
+  getCard(params: GetCardParams): Promise<CharacterCard | null>
+
+  // Member-visible card view (membership-gated, level-clamped — D22)
+  getRosterCardView(params: RosterCardViewParams): Promise<MemberCardView | null>
 
   // Synthetic identity (group-memory bucket)
   mintSyntheticGroupCharacter(params: MintGroupCharParams): Promise<CharacterRef>
   findSyntheticGroupCharacter(params: FindGroupCharParams): Promise<CharacterRef | null>
 }
 ```
+
+**The member card view (D22 — host-toggleable card visibility).** `get`/`update`/`duplicate`/`remove`/export are
+**owner-only** (`fetchOwned` → 404 for non-owners) — viewing ≠ owning, so a member can never edit/clone/export
+another's card. A human MEMBER of a chat reads a roster character's card through the SEPARATE, membership-gated
+`getRosterCardView(principal, chatId, characterId)`: it `requireParticipant`s, then returns a `MemberCardView`
+**clamped to `chatMetadata.group.memberCardVisibility`** (`name-avatar | sheet | sheet+lore | full`, host-set per room,
+seeded from `userSettings.groupDefaults`, default `sheet`; **`name-avatar`** = name+avatar floor, **`sheet`** =
+presentable identity, **`sheet+lore`** = + lorebooks, **`full`** = + steering internals). Read-only + while-present
+(`leftSeq IS NULL`); the **owner/host always sees `full`** (it's their card — they call `get`). The host owns the cast
+(member-contributed characters stay rejected), so this toggle is the owner controlling their own cards' exposure.
+*(Reserved, not v1: a per-character cap `maxMemberVisibility` so a sensitive card is ceilinged regardless of room level —
+effective `min(room, cap)`.)*
 
 **Cross-verb injection:** `bulkAddCardTag` receives the `update` verb as an injected dep (wired at
 `service.ts`); that injection type lives in `contract/service.ts`, not inline in the verb.
@@ -205,18 +213,18 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 
 | Unit | Outcome | Target | Rationale | Enforcement tier |
 |---|---|---|---|---|
-| `persistence/cow.ts` — `versionPinned` + `forkVersion` + `editVersionInPlace` CAS guard | **deleted** | — | Exists only because chats pin a cv. De-pin removes the need. Zero survivors in orbweaver. | compile-time: `chats.characterVersionId` column gone → any reference fails `tsc` |
-| `persistence/cow.ts` — `mintFirstVersion` + `removeCharacterWithCleanup` | stays domain feature | `domain/character/persistence/versions.ts` | Correct logic, survives de-pin unchanged. Rename file for clarity. | resolve-time (same package) |
-| `persistence/cow.ts` — `CvEdits`, `IdEdits` types | stays domain feature | `domain/character/contract/params.ts` | Input sub-shapes derived from the wire schema; currently in `persistence/` below the verb layer. Move to `contract/` per the types-in-contract rule. | lint-time: `no-inline-types` dep-cruiser gate |
-| `persistence/cow.ts` — `MintFirstVersionArgs`, `ForkVersionArgs` (→ gone), `RemoveCharacterCleanup` | stays domain feature | `domain/character/contract/params.ts` (internal arg shapes) | Same `no-inline-types` fix. `ForkVersionArgs` is deleted with fork. | lint-time: `no-inline-types` |
+| `persistence/cow.ts` — `versionPinned` + `forkVersion` + `editVersionInPlace` CAS guard | **deleted whole** | — | The entire COW file exists only because `character_versions` rows could be pinned by chats. D28 deletes the table; the card is the flat `characters` row, edited in place. Zero survivors. | compile-time: `character_versions` table gone → any reference fails `tsc` |
+| `persistence/cow.ts` — `mintFirstVersion` → `writeCard` + `removeCharacterWithCleanup` | stays domain feature | `domain/character/persistence/card.ts` | `mintFirstVersion` collapses into `create`'s flat-row insert (`writeCard`); cleanup logic survives unchanged. | resolve-time (same package) |
+| `persistence/cow.ts` — `CvEdits`, `IdEdits` types | **collapsed to `CardEdits`** | `domain/character/contract/params.ts` | The cv/identity split existed only because content lived on a separate version row. With one flat card there is ONE edit shape. | lint-time: `no-inline-types` dep-cruiser gate |
+| `persistence/cow.ts` — `MintFirstVersionArgs`, `ForkVersionArgs` (→ gone), `RemoveCharacterCleanup` | **deleted / collapsed** | `domain/character/contract/params.ts` (internal arg shapes) | `ForkVersionArgs` deleted with fork; `MintFirstVersionArgs` folds into `CreateCharacterParams`. `RemoveCharacterCleanup` stays. | lint-time: `no-inline-types` |
 | `persistence/queries.ts` — `isConstraintViolation` re-export shim | → `@orb/db` kit | `@orb/db/kit` or `@orb/server/kit` | A DB-error classifier — pure primitive, no domain knowledge. The re-export shim exists only because `create`/`update` import via `../persistence/queries`. In orbweaver import from `@orb/db` directly. | resolve-time: package dep (undeclared import won't resolve) |
 | `persistence/queries.ts` — `fetchOwned` usage | → `@orb/server/kit` or `@orb/db/kit` | A db-kit helper | Pure owner-scoped row fetch; domain-agnostic. Dissolve `_shared/fetch-owned.ts` here. | resolve-time |
 | `context.ts` — `ReturnType<>` inference (no explicit interface) | stays domain feature | `domain/character/contract/service.ts` or `context.ts` top — as `export interface CharacterContext` | The inferred type is invisible. Explicit interface is the `no-inline-types` target. | lint-time: `no-inline-types` |
 | `shared/character/character-schema.ts` — `createCharacterSchema`, `updateCharacterSchema` (Zod) | → `contracts` | `@orb/contracts/character` | Cross-boundary wire schema: server validates, client renders forms. `@orb/contracts` is the right package-tier home. | resolve-time: `@orb/client` declares `@orb/contracts` dep, never `@orb/server` |
 | `shared/character/character-schema.ts` — `resolveCharacterDepthPrompt` | → `@orb/server/kit/serde` | `@orb/server/kit/serde/depth-prompt.ts` | **CORRECTED 2026-06-25** (verified): it has TWO server consumers — `export/verbs/export-character.ts` AND `chat/assembly/context.ts` — so a `character/substrate` home would force export + chat to cross-feature-import character (illegal). It's a pure server-only helper (uses zod internally → server/kit, not isomorphic kit) consumed by the serde-out path and chat assembly. | resolve-time (server/kit is below domain; both consumers import down) |
 | `verbs/bulk-add-card-tag.ts` — `UpdateFn` type alias (inline) | stays domain feature | `domain/character/contract/service.ts` | The injected cross-verb operation type belongs in the contract surface. | lint-time: `no-inline-types` |
-| `chat/persistence/resolve-current-version.ts` | → `domain/character` | `domain/character/substrate/resolve-version.ts` (surfaced via `CharacterService.resolveCurrentVersion`) | Character resolves its own live version. Today it lives in `chat/persistence` as a workaround; in orbweaver it's character's responsibility and chat calls it through an injected op. | resolve-time: `chat` imports `character` front door only (dep-cruiser `domain-no-cross-feature` rule) |
-| `_shared/group-character-rows.ts` — `buildGroupCharacterRows` | → `domain/character` | `domain/character/verbs/mint-synthetic-group-character.ts` | Chat mints a character without calling the character service today; the `_shared` drawer is the workaround for the cross-feature ban. In orbweaver the character domain owns identity creation; `mintSyntheticGroupCharacter` is injected into chat at the composition root. | resolve-time: `_shared` does not exist in orbweaver; dependency-cruiser `domain-no-cross-feature` enforces the injection model |
+| `chat/persistence/resolve-current-version.ts` | **deleted** | folded into `CharacterService.getCard` (a plain `characters`-row read in `persistence/queries.ts`) | With no versions there is nothing to "resolve" — reading the card is reading the row. Today's `chat/persistence` resolver is a cv-era workaround; in orbweaver chat calls the injected `getCard` op. | resolve-time: `chat` imports `character` front door only (dep-cruiser `domain-no-cross-feature` rule) |
+| `_shared/group-character-rows.ts` — `buildGroupCharacterRows` | → `domain/character` | `domain/character/verbs/mint-synthetic-group-character.ts` | Chat mints a character without calling the character service today; the `_shared` drawer is the workaround for the cross-feature ban. In orbweaver the character domain owns identity creation; `mintSyntheticGroupCharacter` writes ONE flat `characters` row (no version row) and is injected into chat at the composition root. | resolve-time: `_shared` does not exist in orbweaver; dependency-cruiser `domain-no-cross-feature` enforces the injection model |
 | `_shared/audit.ts` — `logAudit` (used by `create.ts`, `update.ts`) | → `foundation` | `foundation/observability` or a `kit` primitive | Cross-feature audit log; a foundation/infra concern. One of the `_shared` dissolve destinations. | resolve-time |
 | `_shared/ids.ts` — `newTypeId` | → `@orb/kit` | `@orb/kit/ids` | Pure TypeID mint; zero I/O, zero domain. The canonical `kit` case. | resolve-time |
 | `_shared/strip-undefined.ts` | → `@orb/kit` | `@orb/kit/objects` | Pure primitive; isomorphic. | resolve-time |
@@ -239,7 +247,7 @@ through the front door or (for import/export) through `@orb/db` schema directly.
 
 | Op injected | Provided by | Used for |
 |---|---|---|
-| `character.resolveCurrentVersion` | character domain | ASSEMBLE RESOLVE phase — resolve live card fields per roster member |
+| `character.getCard` | character domain | ASSEMBLE RESOLVE phase — read live card fields per roster member (the card IS the row) |
 | `character.mintSyntheticGroupCharacter` | character domain | room creation for scoped groups (replaces `_shared/group-character-rows.ts`) |
 | `character.findSyntheticGroupCharacter` | character domain | group-character lookup on send |
 
@@ -260,9 +268,10 @@ Character does NOT call embeddings directly — zero reach into the knowledge cl
 The full card type (`CreateCharacterSchema`) belongs in `@orb/contracts` as the ONE canonical card shape
 (the `spine/serialization-core.md` target: "model the FULL card as typed fields/columns"). **STATUS CORRECTED
 2026-06-25 (verified against the steady clone): this promotion is already DONE, not pending.**
-`creator`/`cardVersion`/`regexScripts`/`extensions` are typed columns on `character_versions`
-(`db/schema/character.ts:137-140`) and the `raw` blob is dropped — so an app-authored card already
-round-trips identically to an imported one. Orbweaver's job is to **preserve** this, not re-derive it:
+`creator`/`cardVersion`/`regexScripts`/`extensions` are typed columns (in neo, on `character_versions`
+`db/schema/character.ts:137-140`; in orbweaver, on the flat `characters` row — D28) and the `raw` blob is
+dropped — so an app-authored card already round-trips identically to an imported one. Orbweaver's job is to
+**preserve** this, not re-derive it:
 the canonical shape lives in `@orb/contracts/character`; the Zod schema validates both the wire (tRPC)
 and the import normalizer (the tolerant `RawCard` adapter normalizes INTO it). Character's
 `contract/params.ts` re-exports the inferred TS type from `@orb/contracts/character`. (import.md +
@@ -273,8 +282,8 @@ was stale recon.)
 - `createCharacterSchema` / `updateCharacterSchema` → `@orb/contracts/character` (cross-boundary wire).
 - `CharacterDetail` / `CharacterSummary` → `domain/character/contract/views.ts` (domain-internal view;
   re-exported from the front door for client type-only use).
-- `CvEdits` / `IdEdits` / `MintFirstVersionArgs` / `RemoveCharacterCleanup` →
-  `domain/character/contract/params.ts` (domain-internal arg shapes).
+- `CardEdits` / `RemoveCharacterCleanup` → `domain/character/contract/params.ts` (domain-internal arg
+  shapes). *(The neo `CvEdits`/`IdEdits`/`MintFirstVersionArgs` split is gone — one flat card, one edit shape.)*
 - `CharacterContext` → explicit named interface, not `ReturnType<>`.
 - `CharacterRow` (`typeof characters.$inferSelect`) → stays in `persistence/queries.ts` (a DB-row
   type derived from the schema; no leak).
@@ -284,7 +293,8 @@ The `synthetic` flag is a boolean, not a union axis — no dispatch concern. The
 `character_books` (`primary | auxiliary`) is a 2-member union; it must have ONE importable canonical
 union in `@orb/contracts` (not re-declared in 3 mapper sites — the current serde-mapper triplication
 is exactly the `messageRole` antipattern). `characters.ownerId` / `characterId` are TypeID-branded
-(`CharacterId`, `CharacterVersionId`) — the brand discipline from neo-tavern carries forward.
+(`CharacterId`; the neo `CharacterVersionId` brand is retired with the table, replaced by `SnapshotId`
+for `character_snapshots` rows) — the brand discipline from neo-tavern carries forward.
 
 ### §8.6 first-class principal blast radius
 The `synthetic=true` character is the precedent for an agent-owned identity row (the `__group__${chatId}`
@@ -297,12 +307,13 @@ a `chat_participants` row. A character agent has both.
 
 ## Invariants (gate candidates)
 
-1. **Chats never pin a character version** — `chats.characterVersionId` is gone; any migration that adds
-   it back is a compile-time error (the column does not exist in `@orb/db/schema/chat`).
-   *Enforcement: compile-time (`tsc`) — column absence is a schema fact.*
+1. **There is no `character_versions` table** — the card is the flat `characters` row; any migration that
+   re-introduces a version table (or `characters.currentVersionId` / a `version` counter / a
+   `chats.characterVersionId` pin) is a compile-time error (none of those columns/tables exist).
+   *Enforcement: compile-time (`tsc`) — table/column absence is a schema fact.*
 
-2. **Character resolves its own live version** — `resolveCurrentVersion` is owned by the character
-   domain; callers inject it. No sibling domain re-implements the `characters.currentVersionId` lookup.
+2. **Reading the card is reading the row** — `getCard` is owned by the character domain; callers inject it.
+   No sibling domain re-implements a version lookup (there is none to implement).
    *Enforcement: lint-time (dep-cruiser `domain-no-cross-feature` rule — a domain may not reach
    into another domain's `persistence/` directly).*
 
@@ -311,17 +322,17 @@ a `chat_participants` row. A character agent has both.
    silently exposes group buckets.
    *Enforcement: test-time — a character/list contract test asserts synthetic rows never appear in list results.*
 
-4. **Edit-in-place is the only write path** — `forkVersion` does not exist; no verb may insert a new
-   `character_versions` row except `mintFirstVersion` (create), `snapshot` (explicit save), and
-   `restore` (copy old → new current).
-   *Enforcement: compile-time — `forkVersion` is deleted; `CharacterService` interface is the
-   exhaustive shape; any new insert path must go through a named verb.*
+4. **Edit-in-place is the only card write path; history is append-only and gates nothing** — `update`
+   writes the flat row in place; `snapshot` appends a `character_snapshots` blob; `restore` copies a blob
+   back onto the live row in place. Nothing FKs `character_snapshots`, so a snapshot can never pin, block,
+   or alter card resolution.
+   *Enforcement: compile-time — no FK references `character_snapshots`; `CharacterService` is the
+   exhaustive write surface; resolve-time — `character_snapshots` has no inbound FK in any schema file.*
 
 5. **Character associations key on `characters.id`, not a version** — `character_personas` and the
-   re-keyed `character_books` both use the identity FK; the book set resolves via current-version
-   resolution at assemble (no cv pin, no snapshot column in the initial port).
-   *Enforcement: compile-time — `@orb/db/schema/character`/`world-info` carry the identity FK; the
-   `character_books` old cv-keyed FK is gone post-migration.*
+   re-keyed `character_books` both use the identity FK; the live card's book set is read at assemble.
+   *Enforcement: compile-time — `@orb/db/schema/character`/`world-info` carry the identity FK; no
+   cv-keyed FK exists.*
 
 6. **The character front door is the only call-site for business logic** — import/export bypass it by
    reading `@orb/db` directly (expected, sanctioned); all other callers (tRPC, chat, buddy, workloads)
@@ -329,8 +340,7 @@ a `chat_participants` row. A character agent has both.
    *Enforcement: lint-time (dep-cruiser `domain-no-cross-feature` rule).*
 
 7. **`mintSyntheticGroupCharacter` is a character verb, not a `_shared` helper** — the `__group__${chatId}`
-   handle namespace is owned here; no code outside `domain/character` inserts into `characters`/
-   `character_versions` directly.
+   handle namespace is owned here; no code outside `domain/character` inserts into `characters` directly.
    *Enforcement: lint-time (dep-cruiser — no direct `@orb/db/schema/character` writes outside
    `domain/character/persistence/`).*
 
@@ -338,19 +348,17 @@ a `chat_participants` row. A character agent has both.
 
 ## Resolved decisions (was: open)
 
-- **`character_books` FK migration — RESOLVED: re-key to `characters.id` + current-version resolution.**
-  The simple path (see §"Book-snapshot nuance" above): `character_books.characterId` references
-  `characters.id`; the book set resolves at assemble via current-version resolution; no snapshot column in
-  the initial port. A freeze-lore-at-version-X feature, if ever wanted, is a separate snapshot junction.
+- **`character_books` FK — RESOLVED: keys on `characters.id`.** `character_books.characterId` references
+  `characters.id` (no cv exists); the live card's book set is read at assemble. A freeze-lore-at-a-snapshot
+  feature, if ever wanted, would reference a `character_snapshots` id — never a cv.
   Locked consistently with `world-info.md`, `db.md`, `export.md`.
-- **`restore` verb — RESOLVED: full copy.** `restore` does a full copy of the old cv into a NEW current
-  version (one `INSERT INTO character_versions … SELECT` with a new version counter). No partial restores
-  (a partial restore is just an `update`).
-- **`resolveCurrentVersion` null semantics — RESOLVED (locked as contract invariant).** Returns `null` for
-  BOTH "not owned" AND "currentVersionId is null (mid-delete)"; callers treat `null` as "skip, not an
-  error." Any rewrite that throws instead of returning `null` breaks the roster loop — this is a contract
-  invariant, not an open question. (Gate: a contract test asserts null-not-throw for the not-owned and
-  mid-delete cases.)
+- **`restore` verb — RESOLVED: copy a snapshot blob onto the live row, in place.** `restore` reads a
+  `character_snapshots.content` blob and writes it over the `characters` row (an `UPDATE`, not a new row).
+  Snapshot-current-first so it's reversible. No partial restores (a partial restore is just an `update`).
+- **`getCard` null semantics — RESOLVED (locked as contract invariant).** Returns `null` for "not owned"
+  (and for a row mid-delete); callers treat `null` as "skip, not an error." Any rewrite that throws instead
+  of returning `null` breaks the roster loop — this is a contract invariant, not an open question. (Gate: a
+  contract test asserts null-not-throw for the not-owned and mid-delete cases.)
 - **`raw` blob fate — RESOLVED: `raw` is dropped; residual unknown vendor keys live in `extensions`.** The
   steady clone already retired `raw` (verified `db/schema/character.ts:137-140`); there is no `raw` column
   in orbweaver. Genuinely-unknown vendor extras land in the typed `extensions` JSON column (the residual

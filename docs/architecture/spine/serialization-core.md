@@ -63,8 +63,9 @@ bulk-serializer access, not a sibling front-door reach (see `character.md` Movem
 ### The canonical card is ALREADY done — preserve, don't re-derive
 
 **STATUS: the full-card promotion is DONE in the steady clone, not pending.**
-`creator`/`cardVersion`/`regexScripts`/`extensions` are typed columns on `character_versions`
-(`db/schema/character.ts:137-140`) and the `raw` blob is dropped — so an app-authored card already
+`creator`/`cardVersion`/`regexScripts`/`extensions` are typed columns — in the steady clone on
+`character_versions` (`db/schema/character.ts:137-140`), in orbweaver on the flat `characters` row (D28) —
+and the `raw` blob is dropped — so an app-authored card already
 round-trips identically to an imported one. `import.md` + `export.md` both independently confirmed this
 against the code; the earlier "promote (pending)" framing was stale recon. **Orbweaver's job is to
 preserve this**: keep the schema in `@orb/contracts/character`, keep one schema validating both the wire
@@ -94,7 +95,7 @@ a domain unit — only `entry/` may import two domain front doors (`domain/impor
 
 ### Already clean — do not touch
 
-The **parse/write split**, the **shared chat-writer** (`importChatsIntoVersion`), and **idempotency
+The **parse/write split**, the **shared chat-writer** (`importChatsIntoCharacter` — the neo `importChatsIntoVersion`, re-keyed to `characters.id` under D28), and **idempotency
 hashing** (`cardContentHash` over semantic fields, not PNG bytes) are correct as-is. Carry them forward.
 
 ## 2. Esoteric / load-bearing (do not flatten)
@@ -124,7 +125,8 @@ hashing** (`cardContentHash` over semantic fields, not PNG bytes) are correct as
    `parseDepthPrompt` (depth defaults to ST's 4; role via the bimap). Without this, ~5–15% of a real corpus
    silently fails to import. The adapter is permissive on input but emits the ONE canonical shape.
 5. **The `proposedTags` shape problem — WIRED, not dead.** Its problem is SHAPE (a parallel JSON store),
-   not deadness. Per `tag.md`: the `character_versions.proposedTags` JSON column is deleted; `character_tags`
+   not deadness. Per `tag.md`: neo's `character_versions.proposedTags` JSON column is gone — orbweaver has no such
+   column (the table dies under D28, and `tag.md` retires the JSON store regardless); `character_tags`
    grows a `status: 'pending' | 'accepted'` column. **Import writes pending junction rows; export reads
    `character_tags WHERE status='accepted'`** for the card's `tags`. **Consequence to flag** (the behavioral
    shift): a freshly-imported card whose tags arrived `pending` and were never accepted will NOT re-export
@@ -183,13 +185,13 @@ pure, below the domains, above the codec). The **canonical card schema** is cros
    test on `writeCardChunk` / `readCardChunk`.*
 
 6. **Import emits `character.updated` for every created/edited character** — no import path writes a
-   `character_versions` row without emitting (so the embeddings indexer always runs) + enqueues a backfill
+   `characters` row without emitting (so the embeddings indexer always runs) + enqueues a backfill
    for `real_conversation` chats.
    *Enforcement: test-time — a contract test asserts importing a card emits `character.updated` and enqueues
    a backfill.*
 
 7. **Proposed tags are junction rows, not a JSON column** — import writes `character_tags` `status:'pending'`;
-   export reads `status='accepted'`; no `character_versions.proposedTags` column.
+   export reads `status='accepted'`; no `proposedTags` JSON column (neo's lived on `character_versions`; both gone under D28 + `tag.md`).
    *Enforcement: compile-time — the `proposedTags` column is absent from the schema → any read/write is `tsc`
    red. (Shared with `tag.md` invariant 4.)*
 

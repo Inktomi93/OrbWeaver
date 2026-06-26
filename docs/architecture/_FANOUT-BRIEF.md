@@ -111,7 +111,7 @@ real code):**
 | per-chat recall | `chat/memory` (delegates embed→embeddings, retrieve→search) |
 | retrieval | `search` (the one engine: vector + lexical) |
 | turn economics | `stats` (zero vector tables) |
-| character versions | reference live identity; versions = restorable history (de-pinned) |
+| character versions | NO version table (D28) — flat `characters` card row; history = `character_snapshots` (browse/restore, gates nothing) |
 
 ---
 
@@ -165,8 +165,9 @@ misses (those feed the adversary).
   per-chat, attribution per-message; drop `chats.personaId`. (Authoritative: `participants-agents-identity.md`.)
 - **character** (1795 lines): the **cv-pin** is woven through (`chats.characterVersionId` notNull);
   `cow.ts` CAS dance **exists only because chats pin**; `character_books` keyed on **cv** while
-  `character_personas` keys on `characters.id` (inconsistent). Target: de-pin (live identity +
-  `resolveCurrentVersion`); versions = restorable history; all associations key on `characters.id`.
+  `character_personas` keys on `characters.id` (inconsistent). Target (**D28**): NO version table at all —
+  the card is the flat `characters` row (read via `getCard`); `cow.ts` deleted; history = the
+  `character_snapshots` log (browse/`restore`, gates nothing); all associations key on `characters.id`.
 - **tag** (693 lines): **proposed = a parallel store** (JSON column) instead of a junction status —
   `proposedTags` is WIRED (import/seed/create/update write it, export reads it), just the wrong SHAPE;
   accepted `character_tags` don't round-trip to export; analytics facets conflated with labels. Target:
@@ -228,7 +229,7 @@ per-domain `contract/`.)
 
 **`db/`:** `schema/*` (20 files) + `client.ts` · `vector-ops.ts` · `insert-chunk.ts` · `parsers.ts` ·
 `custom-types.ts` · `relations.ts`. Schema-naming lies to flag (e.g. `chat_digests`/`segments` in
-`search.ts`); the cv-pin column; `chats.personaId`; the F32_BLOB exact-scan note.
+`search.ts`); the cv-pin column + the whole `character_versions` table (gone — D28); `chats.personaId`; the F32_BLOB exact-scan note.
 
 ---
 
@@ -493,8 +494,8 @@ un-verified assertion in `domains/connection.md`/`tiers/providers.md`/`participa
 `domains/chat.md` against the AST. Most CONFIRMED; **6 corrected** (docs patched): (1) providers role dispatchers
 are NOT vLLM-hard-pinned — they `switch (credential.source)`; the lock is a boot-binder default → the
 multi-backend target is a one-site rebind, not a dispatcher rewrite; (2) `character_books`-on-cv vs
-`character_personas`-on-id is **deliberate** (book-snapshot semantics) → de-pin must resolve cv-keyed books
-through the current version; (3) "collapses most of cow.ts" → only the fork/CAS branch (~half); (4) chat
+`character_personas`-on-id is **deliberate** in neo (book-snapshot semantics) → **superseded by D28**:
+orbweaver has no version table, so both key on `characters.id` and the live card's book set is read at assemble; (3) "collapses most of cow.ts" → only the fork/CAS branch (~half); (4) chat
 has **2** budget tallies not 3 (WI is already one unified walk); (5) `3` `derive*Profile` not 4; (6) the
 params panel already has coarse source-level gating to build on. CONFIRMED-as-written: two-capability-
 systems, reasoning-one-cascade (`effort:"none"`=off), translated-twice, `routing`-on-`runner`,

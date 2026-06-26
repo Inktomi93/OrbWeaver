@@ -161,7 +161,7 @@ orbweaver `embeddings`/`discovery`/`memory` re-architecture (`domains.md`), the 
 | `corpus.embedAndStoreImages` (embed-assets) | embed image sources | **embeddings** | `embeddings.*` |
 | `corpus.computeThemes` / `computeCharacterSummaries` / `computeCooccurrence` / `computeDuplicatePairs` | analytics | **discovery** (rename of corpus, semantics-only) | `discovery.*` |
 | `corpus.compute{Character,Digest,Segment,Image}HubScores` (csls) | hub_score write-back | **discovery** computes, **embeddings** owns the column | `discovery.*` (reads/writes embeddings rows via db) |
-| `chatMemory.generateDigests` / `generateSegments` / `ensureGroupCharacter` / `resolveCurrentVersionId` | digest/segment gen, group mint | **memory** (a chat subsystem) + **character** (group mint) | `memory.*` / `character.*` |
+| `chatMemory.generateDigests` / `generateSegments` / `ensureGroupCharacter` (→ `mintSyntheticGroupCharacter`) / `resolveCurrentVersionId` (→ `getCard`, D28) | digest/segment gen, group mint | **memory** (a chat subsystem) + **character** (group mint) | `memory.*` / `character.*` |
 | `assets.*` / `import.*` / `stats.*` / `models.*` (catalog refresh) / `cas` | unchanged in spirit | assets / import / stats / **connection** (catalog) / infra | path/owner updates only |
 
 The `cas` handle stays at the top level (it's an infra adapter the image-embed pass consumes, not
@@ -349,7 +349,7 @@ door (the worker, the scheduler, the buddy observer, the tRPC router).
 |---|---|---|
 | `embeddings.*` (embed text / embed images) | embeddings domain (the one write path) | `embed-corpus`, `embed-assets` |
 | `discovery.*` (themes, summaries, cooccurrence, duplicates, hub scores) | discovery domain (semantics) | `compute-themes`, `distill-characters`, `compute-cooccurrence`, `find-duplicates`, `csls` |
-| `memory.*` (generateDigests, generateSegments) + `character.ensureGroupCharacter`/`resolveCurrentVersionId` | memory (chat subsystem) + character | `memory-backfill`, `group-character-backfill` |
+| `memory.*` (generateDigests, generateSegments) + `character.mintSyntheticGroupCharacter`/`getCard` (D28) | memory (chat subsystem) + character | `memory-backfill`, `group-character-backfill` |
 | `import.*` (collect, createImportService, importCollectedProfile, app-config) | import domain | `import-st`, `assets-backfill` |
 | `assets.createAssetsService` (store, backfillAvatars) | assets domain | `import-st`, `assets-backfill`, `embed-assets` (via `cas`) |
 | `stats.reconcileStats` | stats domain | `reconcile-stats`, `import-st` (post-import settle) |
@@ -406,7 +406,7 @@ context's "acting user" is `workloads.ownerId` (the admin who triggered, or `nul
 `"system"` user id so the runner path is uniform). The verbs thread `userId` for audit + the F3
 per-user-workloads hook, but it is NOT an authorization input yet (`cancel.ts` documents this
 explicitly). When per-user workloads land, the seam is: assert `workload.ownerId === principal.userId
-|| principal.role === 'admin'` in the verb (replacing the sole reliance on the procedure gate), and
+|| can(principal,'admin',global)` (owner∪admin via the `can()` seam — never a bare `role==='admin'`, D17) in the verb (replacing the sole reliance on the procedure gate), and
 the `bindRoleClients(ownerId)` binder picks up that user's per-role credential pins automatically —
 the runner code (`await ctx.roleClients.embed(…)`) does not change. Agents-as-principals (§7.1 LOCKED)
 already enqueue through the injected `WorkloadService.start`, so an agent-triggered workload simply
@@ -578,7 +578,8 @@ discovery, chatMemory→memory) is the only structural churn; the *mechanism* is
   annotated `ASSUMES(single-replica)`). *Criterion:* iff multi-replica ships — replace the
   `engine/progress-bus.ts` seam with a shared pub/sub (the annotated replacement point).
 - **Per-user workloads (F3) — DEFERRED: admin-global today.** *Criterion (when non-admin triggers land):*
-  wire the ownership assertion in the verbs (`ownerId === principal.userId || principal.role==='admin'`)
+  wire the ownership assertion in the verbs (`ownerId === principal.userId || can(principal,'admin',global)` —
+  owner∪admin via `can()`, never a bare `role==='admin'`, D17)
   replacing sole reliance on the procedure gate; `bindRoleClients(ownerId)` already picks up the user's
   per-role pins; the runner bodies are already `ctx.userId`-scoped. Confirm the cancel/get/list authz
   model (admin-sees-all vs owner-scoped) at that time.

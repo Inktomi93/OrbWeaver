@@ -43,16 +43,30 @@ The seam constructs the Principal **once**, from whichever path resolved the cal
 // @orb/contracts/identity.ts
 //   ResolvedIdentity = the mode-resolver OUTPUT (pre-row; infra produces it — NO userId by design).
 //   Principal        = the post-seam, immutable, db-resolved caller. Constructed ONCE at entry/auth/seam.ts.
-export type UserRole = "admin" | "user";          // the ONE global-authz union (kills 33 inline redecls)
+// the ONE global-authz axis (kills 33 inline redecls) — owner|admin|user (ledger D17, was admin|user)
+export const USER_ROLES = ["owner", "admin", "user"] as const satisfies readonly UserRole[];
+export type UserRole = "owner" | "admin" | "user";
+//   owner = the box owner: sole max-pro-sub/wallet holder; grants/revokes admin; immutable; EXACTLY ONE.
+//   admin = delegated administrator (all admin surfaces, NOT the box owner). user = normal.
 
 export interface Principal {
   userId: UserId;            // resolved ONCE: validate (cookie) | provisionIdentity (SSO) | owner-seed (fallback)
-  role: UserRole;            // the single global-authz axis carried downstream
+  role: UserRole;            // the single global-authz axis carried downstream (owner ⊇ admin in the can() seam)
   handle: Handle;
   externalId: ExternalId | null;
   via: "cookie" | "header" | "fallback";  // subsumes viaCookie/viaFallback (CSRF + owner discriminators)
 }
 ```
+
+**The server-owner role split (ledger D17).** `owner` and `admin` were conflated (a 2-member `admin|user` + `OWNER_*`
+making the owner "just an admin"), so a delegated admin couldn't be added without handing over the box + the
+`max-pro-sub` sub. Now `owner|admin|user` is the one axis: `requireAdmin` = `can(p,'admin',global)` passes for **owner ∪
+admin**; a new **`requireOwner`** (owner-only) gates the box-credential mint + admin grant/revoke + owner-only surfaces.
+**The owner's box = two resource classes** (D17): hosted creds (`max-pro-sub`/wallet) are **owner-only**, non-owner use
+refused unless explicit owner consent (default OFF — ban-prone + money); local compute (the owner's vLLM + in-process
+transformers.js/ONNX tier) is shared-by-design but **count-budgeted** + concurrency-bounded + owner-throttleable (default
+ON — only contention). NOTE: the per-chat `chat_participants.role: host|member` is a **separate, orthogonal** axis
+(resource-scoped) — `host` ≠ the server `owner`.
 
 `AuthContext` and `Context.{userId,role}` collapse into `Principal`. **One construction site, no
 re-query.** The seam builds it from three return shapes: `sessions.validate` returns `userId` for cookie
@@ -75,7 +89,7 @@ in different domains, tables, and tiers.
 
 | Axis | Today (verified) | Orbweaver target |
 |---|---|---|
-| **global-role** `admin\|user` | **WIRED, 2-layer** — transport `adminMiddleware` reads `ctx.auth.role` (no db round-trip); verb-tier `requireAdmin` re-checks (db fallback). Real defense-in-depth. | Keep both rungs. `requireAdmin` becomes `can(p, 'admin', global)` — one implementation behind the seam. |
+| **global-role** `owner\|admin\|user` (D17) | **WIRED, 2-layer** — transport `adminMiddleware` reads `ctx.auth.role` (no db round-trip); verb-tier `requireAdmin` re-checks (db fallback). Real defense-in-depth. (Today 2-member; D17 adds `owner`.) | Keep both rungs. `requireAdmin` = `can(p,'admin',global)` (passes **owner ∪ admin**); a new **`requireOwner`** = `can(p,'owner',global)` (owner-only) gates the box-credential mint + admin grant/revoke. owner ⊇ admin lives only in the seam. |
 | **resource-role** `chat_participants.role: host\|member` | **EXISTS in schema, gates NOTHING** — verified: the column is declared (`chat.ts:307`, comment "Consumed in Step 4c; just a column here"); principal-scout measured 33 writes, 0 authority reads. Access control is pure owner-equality (`loadOwnedChat`, ~45 sites across 31 files). | **WIRE it** as chat authority (chat's job): `requireParticipant` / `requireHost` predicates REPLACE owner-equality. "unwired ≠ worthless." |
 | **capability** (per-action ceiling) | **none** — privilege is scattered `role === 'admin'` / `ownerId === userId`. | Introduce `can(principal, action, resource)`; `requireAdmin` + `requireHost` are its first two implementations; the agent capability ceiling (§4) is enforced here. |
 
@@ -84,13 +98,60 @@ in different domains, tables, and tiers.
   redundancy — a verb called from a non-tRPC path (a job, a fixture, a future internal caller) is still
   gated. Do NOT collapse to one layer. Both rungs route their decision through one `can()` seam; the
   only `role === 'admin'` comparison site is **inside** that primitive.
-- **`UserRole` gets one home.** `@orb/contracts/identity` — the §7.5 census found 35 touches / 33 inline
-  `"admin" | "user"` re-spellings. The db enum column, the tRPC `z.enum`, the client form, and every
-  gating domain derive from the single union (mirrored to the db enum by a test).
-- **Owner-equality dies the right way.** `loadOwnedChat` / `ownerId === userId` conflates two questions —
-  "load this resource" and "may this principal act on it." Split them: `requireParticipant(principal,
-  chatId)` (membership) and `requireHost(principal, chatId)` (authority), reading `chat_participants`.
-  This is chat's build, but the permission model frames it as the resource-role axis.
+- **`UserRole` gets one home.** `@orb/contracts/identity` (`USER_ROLES`/`UserRole` = `owner|admin|user`, D17) — the §7.5
+  census found 35 touches / 33 inline re-spellings (then `"admin"|"user"`). The db enum column, the tRPC `z.enum`, the
+  client form, and every gating domain **derive** from the single tuple (mirrored to the db enum by a test); §7.5
+  exhaustive dispatch over the 3-member axis. No inline role-union re-spelling.
+- **Owner-equality dies the right way — and `chats.ownerId` dies with it (D18).** `loadOwnedChat` /
+  `ownerId === userId` conflates two questions — "load this resource" and "may this principal act on
+  it." Split them: `requireParticipant(principal, chatId)` (membership) and `requireHost(principal,
+  chatId)` (authority), reading `chat_participants`. **A chat is membership-scoped, not single-owned, so
+  the `chats.ownerId` COLUMN is dropped** (not just the check): the host = `chat_participants(role='host')`
+  is the one home for authority + the `runAsUserId`/funding source + the host-only-search scope (derived from
+  membership, not a stamped digest `ownerId` — D20);
+  `loadOwnedChat` becomes `loadMemberChat → {chat, role}` and "list my chats" is pure membership. This is
+  chat's build; the permission model frames it as the resource-role axis. (Owned data splits two ways:
+  single-owned — `ownerId`/`fetchOwned` — vs membership-scoped — `chat_participants`/`requireParticipant`.)
+
+### 2a. The chat per-verb auth matrix + the enforcer (resource-role, chat's build — `domains/chat.md` Part III §11)
+
+The resource-role axis is a **typed per-verb matrix**, not a single gate:
+
+| Action class | Required | Note |
+|---|---|---|
+| read / stream | **member** | `requireParticipant` |
+| post a message | **member** | author server-stamped (`authorUserId` + persona), never client-supplied |
+| edit / delete a message | **author-or-host** | own row, or host override |
+| reseed / reorder / group-config / room-overrides / invites / kick / handoff / anchor-reassignment | **host-only** | `requireHost` |
+| lineage walk (fork/export/corpus ancestry) | **gated INDEPENDENTLY per-ancestor** | a fork grants NO parent membership |
+
+**The enforcer is a `scripts/check` gate with an EXPLICIT, default-deny scope** — every `chatId`-taking verb **+ the SSE
+subscribe path (a kicked member's stream stops yielding within the kick tx) + bus delivery + cross-domain lineage walkers
++ `forkChat` + `chat_injections` + anchor reassignment** routes through the membership chokepoint; an unlisted `chatId`
+surface defaults to deny. (The §8.6 finding: "`requireMember` is a typed security boundary, not a one-line `ensureOwned`
+swap" — the biggest review overclaim.)
+
+### 2b. The turn-identity TRIPLE (member-triggered turns run as the host)
+
+A member-triggered AI turn runs as the **host** (`runAsUserId`), not the caller — and the split is a **TRIPLE, not one
+id** (neo §10.4): `runAsUserId` rebinds (1) the **id** for credential/routing resolution, (2) the **role** the credential
+gate reads (so `max-pro-sub` stays the owner's — the by-proxy refusal, §3), and (3) the **model** that effort/intent is
+gated against. **Three identities on a turn, named crisply (D19):** the **caller** is `Principal.userId` (already carried
+— membership/CSRF, the `authorUserId` of a human post); **`triggeredBy`** is the human RESPONSIBLE for the turn (spend
+budget + abort-rights + attribution) — it equals `Principal.userId` for a direct send but is the **chain-starting human
+for an auto-mode turn** (no fresh caller), which is why it's a distinct concept, not a synonym; **`runAsUserId`** is the
+host (whose box funds it). *There is no separate `callerUserId` term — the caller is just `Principal.userId`.* Resolve
+`runAsUserId` ONCE at turn start; read all host state under that frozen id inside the lock; **the turn path never passes
+the caller's `Principal.userId` to `resolveCredential`/`loadUserSettings`** (a `check`-gate + the `turn-identity` gate
+enforce it). There is no resolved-credential cache — passing the wrong id IS the entire failure mode.
+
+### 2c. The `AUTH_MODE != single-user` capability gate
+
+The whole multi-human surface (invites / notifications / join / roster authority for non-owners) presupposes ≥2
+accounts → it is gated `AUTH_MODE != 'single-user'` as a **server-side guard on every invite/notifications/join
+procedure** (404 in single-user), NOT a client hide; the UI surface is HIDDEN (not merely disabled). Wired into the same
+enforcer. (`single-user` has one identity, no peers; multi-user rows come from `oidc`/`forward-header` auto-provision or
+`local`.)
 
 ## 3. Per-tier detail (the load-bearing seams)
 
@@ -109,8 +170,11 @@ the SAME row — no duplicate tenant); `ensureUser` / single-user / owner-fallba
 (`externalId` NULL). **Change the match order or key and renames silently fork into duplicate tenants.**
 `role` is preserved on UPDATE by default (a manual `setRole` grant survives the next login) unless
 `RE_DERIVE_ROLE_ON_LOGIN`; `enabled` is NEVER reset on UPDATE (else a disabled user re-enables by logging
-in). The owner-role decision (`determineRole` — `admin` iff identity ∈ `OWNER_GROUP` or handle ∈
-`OWNER_HANDLES`) is the one access-control decision the app owns.
+in). The owner-role decision (`determineRole` — **`owner`** iff identity ∈ `OWNER_GROUP` or handle ∈
+`OWNER_HANDLES`; else `user`) is the one access-control decision the app owns (D17). **`admin` is never
+derived from env — it is GRANTED**: `setRole` (owner-only) promotes a `user`→`admin`; the owner is
+immutable (can't be demoted; exactly one — the bootstrap OWNER identity; ownership *transfer* is a future
+owner-only action, not v1). The **last-owner / owner-immutability guard** replaces the old last-admin guard.
 
 ### Construction (`entry/auth/seam.ts`) — the owner-fallback belt + CSRF gate
 The seam mints the Principal and is also where the two request-edge gates fire. **The owner-fallback is
@@ -121,16 +185,20 @@ when no uid header was forwarded). Under SSO modes the fallback is granted ONLY 
 fails closed); under `single-user` it is unconditional (the only way in). **Removing the origin gate
 hands every anonymous public request owner+admin.** **CSRF keys on `via`/`viaCookie`:** a cookie-
 authenticated MUTATION without the custom `x-neo-csrf` header → 403; header/fallback requests carry no
-cross-site surface and are exempt. The boot owner-seed (one-time `role=admin` backfill for `OWNER_HANDLES`)
+cross-site surface and are exempt. The boot owner-seed (one-time `role=owner` backfill for `OWNER_HANDLES`)
 is an `entry/boot` concern.
 
 ### The privileged construction sites (gated, not scattered)
 - **`max-pro-sub` is the ONLY privileged-credential construction site** (verified `credentials.ts:547–562`
-  — the mint sits right after `effectiveRole !== "admin"` → throw). admin owns the GATE primitive
-  (`requireAdmin`/`can()`); credentials owns the CONSTRUCTION. Orbweaver promotes the cast to a tier-1
-  opaque factory: `MaxProSubCredential` is unconstructable except inside a factory that accepts a
-  `Principal` and returns the opaque type only if the admin check passes — the `as ResolvedCredential`
-  cast vanishes from call sites.
+  — the mint sits right after the privilege check → throw). **It is the OWNER's box credential, so the gate
+  is `requireOwner`, not `requireAdmin`** (D17 — a delegated admin is NOT the box owner and never resolves
+  the owner's sub). admin/the seam owns the GATE primitive (`requireOwner`/`can(p,'owner',global)`);
+  credentials owns the CONSTRUCTION. Orbweaver promotes the cast to a tier-1 opaque factory:
+  `MaxProSubCredential` is unconstructable except inside a factory that accepts a `Principal` and returns
+  the opaque type only if the **owner** check passes — the `as ResolvedCredential` cast vanishes from call
+  sites. **max-pro-sub-by-proxy:** a member/agent-triggered `max-pro-sub` turn forces the DB role SELECT on
+  `runAsUserId` and is **refused unless explicit owner consent** (default OFF); `triggeredBy` is checked
+  separately — never trust a caller-supplied role arg (the §8.4 escalation surface).
 - **The credential AAD binds `(userId, provider)`** — `aad = ${userId}|${provider}`, supplied by the one
   `aadFor()` site, carried byte-for-byte by `infra/crypto`'s `SecretBox` (which never derives it). A row
   moved to a different slot fails GCM tag verification (a loud error, not a silent wrong decrypt).
@@ -208,13 +276,14 @@ risk) is preserved on every routing path regardless.
    the seam adds it when building `Principal`).*
 4. **The 4 modes dispatch through one exhaustive record.** `MODE_RESOLVERS: Record<AuthConfig["mode"],
    ModeResolver>`; a 5th mode is a `tsc`-checked addition. *Enforcement: compile-time (`exhaustive-dispatch`).*
-5. **`UserRole` has one declaration** (`@orb/contracts/identity`); the db enum, tRPC schema, client form,
-   and every gating domain derive it. *Enforcement: compile-time (drift breaks `tsc`) + lint
-   (`no-inline-union-redecl`, count = 1).*
-6. **Every privilege decision routes through `can()` / `requireAdmin`.** The only `role === 'admin'`
-   comparison site is inside that primitive; the global-role gate keeps BOTH rungs (transport
-   `adminMiddleware` + verb `requireAdmin`). *Enforcement: lint (`role === 'admin'` appears only in the
-   seam) + test (a `user`-role principal throws `DomainForbiddenError` at the verb).*
+5. **`UserRole` = `owner|admin|user`, one declaration** (`@orb/contracts/identity`, `USER_ROLES`); the db enum, tRPC
+   schema, client form, and every gating domain derive it. *Enforcement: compile-time (drift breaks `tsc`) + lint
+   (`no-inline-union-redecl`, count = 1) + `exhaustive-dispatch` over the 3-member axis.*
+6. **Every privilege decision routes through `can()`.** `requireAdmin` = `can(p,'admin',global)` (passes **owner ∪
+   admin**); `requireOwner` = `can(p,'owner',global)` (owner-only). The only `role === 'owner'|'admin'` comparison site is
+   inside that primitive; the global-role gate keeps BOTH rungs (transport `adminMiddleware` + verb `requireAdmin`).
+   *Enforcement: lint (`role === 'admin'`/`'owner'` appears only in the seam) + test (a `user` throws at an admin verb; an
+   `admin` throws at an owner-only verb).*
 7. **The owner/admin fallback is granted only via `via:"fallback"` + the origin gate; never via
    `externalId === null`.** *Enforcement: compile-time (`Principal.via` discriminant) + test (anonymous
    on a public origin → 401; on a local origin → owner+admin).*
@@ -222,9 +291,11 @@ risk) is preserved on every routing path regardless.
    500, never a downgrade to the unsigned path. *Enforcement: test (each of the five reject points → null).*
 9. **CSRF keys on `via`/`viaCookie`** — a cookie-authenticated mutation without the custom header → 403;
    header/fallback exempt. *Enforcement: test (cookie mutation w/o header → 403; header request passes).*
-10. **The `max-pro-sub` mint is gated by admin's primitive but constructed in credentials.**
-    *Enforcement: compile-time (the `MaxProSubCredential` opaque factory takes a `Principal` and applies
-    the admin check; it is the only construction site).*
+10. **The `max-pro-sub` mint is gated by `requireOwner` (owner-only) but constructed in credentials.** It is the OWNER's
+    box credential (D17) — a delegated admin never resolves it. A non-owner-triggered `max-pro-sub` turn forces the DB
+    role SELECT on `runAsUserId` and is refused unless explicit owner consent. *Enforcement: compile-time (the
+    `MaxProSubCredential` opaque factory takes a `Principal` and applies the **owner** check; only construction site) +
+    test (member-triggered max-pro-sub without consent → refused, fail-closed).*
 11. **The credential AAD `${userId}|${provider}` is byte-identical, single-sited, carried-not-derived.**
     *Enforcement: lint (all `box.encrypt`/`decrypt` import from the one `aadFor()`) + test (round-trip;
     AAD-swap → GCM failure, not a silent wrong decrypt).*
@@ -236,6 +307,21 @@ risk) is preserved on every routing path regardless.
 13. **BFF session ≠ SDK chat session.** Separate tables, domains, tiers; `domain/sessions` has zero
     SDK-frame code. *Enforcement: resolve-time (no dep from `domain/sessions` on the claude-sdk strategy /
     `session_entries`).*
+14. **The server owner is unique + immutable** (D17). `determineRole` derives `owner` from `OWNER_*` only; `admin` is
+    granted by `setRole` (owner-only); the owner can't be demoted/removed; exactly one. *Enforcement: test (the
+    last-owner / owner-immutability guard; `setRole` from a non-owner → `DomainForbiddenError`; demoting the owner →
+    refused).*
+15. **The chat per-verb auth matrix is enforced default-deny over EVERY chatId surface** — verbs + SSE subscribe + bus
+    delivery + lineage walkers + `forkChat` + `chat_injections` + anchor reassignment. *Enforcement: a `scripts/check`
+    enforcer (every `chatId`-taking surface routes through the membership chokepoint; grep `ownerId ===` in chat → RED) +
+    test (a kicked member's SSE stops yielding within the kick tx; a fork grants no parent read).*
+16. **The turn-identity triple rebinds id + role + model-gating to `runAsUserId`; `triggeredBy` is separate; the caller
+    is `Principal.userId` (no `callerUserId` term, D19).** The caller's `Principal.userId` never reaches
+    credential/settings resolution. *Enforcement: compile/lint (`turn-identity` gate — the turn path passes
+    `runAsUserId`, never the caller's `Principal.userId`, to `resolveCredential`/`loadUserSettings`) + test
+    (`runAsUserId ≠ caller` resolves the host's credential; an auto-mode turn bills `triggeredBy` = the chain-starter).*
+17. **The multi-human surface is server-side gated `AUTH_MODE != 'single-user'`** (404 in single-user; UI HIDDEN, not
+    disabled). *Enforcement: test (every invite/notifications/join procedure 404s in single-user).*
 
 ## 6. Open decisions
 
@@ -243,10 +329,19 @@ risk) is preserved on every routing path regardless.
   global)`, or does `can()` wrap `requireAdmin` + `requireHost` as two concrete predicates? Lean:
   introduce `can()` as the seam with `requireAdmin` (global) and `requireHost` (resource, chat's) as its
   first two implementations — so the capability axis has a home to grow into without re-scattering checks.
-- **Credential inheritance for agents (flagged, not mechanical).** Does an agent principal inherit the
-  owner's `max-pro-sub` tier through admin's gate, or get its own credential? Spans sessions + credentials
-  + this spine. (Buddy's "always cheap" today is just a per-agent connection default; the admin gate stays
-  in credential resolution — but a self-attributed agent in a shared chat is a new policy question.)
+- **Credential inheritance for agents — DECIDED (default, 2026-06-26; clarified by D17): the OWNER's agents
+  INHERIT the OWNER's box sub via owner-delegated resolution.** (Reworded from "admin-host" → "owner" — with
+  the role split, the box belongs to `owner`, not any `admin`.) An agent principal owned by the **owner**
+  resolves credentials *as the owner* (`credentials.resolve` delegates to the owner's `userId`), so it can
+  use the `max-pro-sub` sub; a delegated **admin** (and its agents), and any non-owner agent, get their own
+  credential and never the owner's box. **The AAD belt is the load-bearing constraint, not a policy flag:**
+  the sub ciphertext is GCM-bound under `${ownerUserId}|max-pro-sub`, so an agent with its *own* `userId`
+  cannot decrypt it — "inherit" therefore means owner-delegated `resolve()`, NOT a re-mint under the agent's
+  id. This is **one new arm in `credentials.resolve` at the agent-principal migration**; the v1 borrowed-owner
+  posture (§4) already delivers it for free (agent == owner at the credential seam), so the v1 seams must keep
+  `resolve` taking a `Principal` + injectable so the delegation arm has a home. (Local compute — the owner's
+  vLLM/in-process tier — is NOT "inherited": it is shared-by-design + count-budgeted, D17.) Spans sessions +
+  credentials + this spine. (ledger §3 + §7 D17.)
 - **`Principal` shape — does it carry `groups`?** Today `validate` returns `groups: []` by design (SSO
   groups are consumed into `users.role` at login). Lean: drop `groups` — `role` is the sole carried
   authz axis. Revisit only if a downstream consumer needs live group membership (none today).

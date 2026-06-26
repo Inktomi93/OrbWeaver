@@ -24,19 +24,29 @@ Specifically:
 - **Junction trio** — attachTag / detachTag / bulkAttachTag — each polymorphically
   dispatched via the junction registry (3 verbs in one file, sharing guard mechanics)
 - **Junction registry** (`persistence/junctions.ts`) — the `(ownerTable, junction,
-  targetKey, targetCol)` map for the five target types; module-load assertion enforces
-  that every `ownerTable` has an `ownerId` column (cross-tenant guard, fires once at
-  import)
+  targetKey, targetCol)` map for the target types; module-load assertion enforces the
+  cross-tenant guard (fires once at import). **Two scoping flavors (D30):** four
+  **target-derived** junctions (character/worldBook/persona/preset) derive the owner from
+  the target's `ownerTable.ownerId`; **`chat_tags` is the one PER-USER overlay** — its
+  target (`chats`) has no `ownerId` (D18), so the junction carries its OWN `ownerId` (the
+  tagger) and is membership-gated (`requireParticipant`), not target-derived. The assertion
+  is "every target-derived `ownerTable` exposes `ownerId`; `chat_tags` is the explicit
+  per-user exception."
 - **`tags` table** — per-owner rows (name, color, color2, source, folderType,
   sortOrder, isHiddenOnCard)
 - **Five junction tables** — `character_tags`, `chat_tags`, `world_book_tags`,
-  `persona_tags`, `preset_tags` (PK composite; both FK columns cascade on delete)
+  `persona_tags`, `preset_tags` (PK composite; FK columns cascade on delete). **`chat_tags`
+  additionally carries `ownerId` (the tagger) + `unique(chatId, tagId, ownerId)` — D30** (a
+  per-user overlay: two members may apply the same tag to a shared chat independently, and
+  each sees only their own).
 
 This domain does NOT own:
 
-- **`proposedTags`** — the staging column on `character_versions` lives in `character`
-  domain's schema scope; it is a pre-accept staging surface, not the canonical
-  accepted store (see §Movement for the target redesign)
+- **`proposedTags`** — in neo-tavern, a staging JSON column on `character_versions`, in
+  the `character` domain's schema scope. Orbweaver has no `character_versions` table at
+  all (D28), so the column has no home and is not relocated to `characters`; the
+  pre-accept staging surface is rebuilt as a `character_tags.status='pending'` junction
+  row (see §Movement for the target redesign)
 - **Analytics facets** — genre/tone/theme keywords from corpus distillation live in
   `character_summaries.tags` under `discovery`; they share the word "tags" but are a
   structurally separate concept
@@ -62,9 +72,12 @@ does NOT round-trip to export (export reads `character_versions.proposedTags`, n
 `character_tags` — accepted tags are silently lost on re-export).
 
 **Orbweaver target:** proposed = a **status field on the junction row**, not a parallel
-JSON column. One surface: `character_tags` grows a `status: 'pending' | 'accepted'`
-column. Import and corpus distillation write `status:'pending'` junction rows
-(replacing the JSON column); the user's "Accept" action flips the status. Export reads
+JSON column. Orbweaver has no `character_versions` table for such a column to live on
+(D28), and the column is not moved to `characters` — it is gone. One surface:
+`character_tags` grows a `status: 'pending' | 'accepted'` column. Import and corpus
+distillation write `status:'pending'` junction rows (replacing neo's
+`character_versions.proposedTags`, which D28 removes with the table); the user's
+"Accept" action flips the status. Export reads
 the `character_tags` junction (exporting `accepted` rows). This collapses the two
 surfaces into one, closes the round-trip gap, and makes "promote" a status flip rather
 than a copy. (See §Movement and §Invariants for the enforcement plan.)
@@ -108,11 +121,13 @@ domain/tag/
 │                         identical guard patterns with no clarity gain)
 ├── persistence/
 │   ├── junctions.ts    registry — { character, chat, worldBook, persona, preset } →
-│   │                     { ownerTable, junction, targetKey, targetCol }. Module-load
-│   │                     assertion: every ownerTable must expose ownerId. Preserve
-│   │                     the `as never` cast on polymorphic insert (see §Esoteric).
-│   └── queries.ts      loadOwnedTag · ensureTagOwned · fetchTargetOwned (reads ownerId
-│                         on ownerTable) · listOwnedTags · listOwnedTagsWithUsage (5 GROUP
+│   │                     { ownerTable, junction, targetKey, targetCol, scope }. Module-load
+│   │                     assertion: every TARGET-DERIVED ownerTable exposes ownerId; chat is
+│   │                     the per-user exception (scope:'membership', junction carries its own
+│   │                     ownerId — D30). Preserve the `as never` cast on polymorphic insert.
+│   └── queries.ts      loadOwnedTag · ensureTagOwned · fetchTargetOwned (target-derived: reads
+│                         ownerId on ownerTable; chat: requireParticipant + junction.ownerId — D30)
+│                         · listOwnedTags · listOwnedTagsWithUsage (5 GROUP
 │                         BY queries in-process — correct at this scale; see §Esoteric) ·
 │                         insertJunction · deleteJunction
 ├── substrate/          (none needed — no pure helpers; the junction dispatch is a
@@ -157,7 +172,7 @@ import — and are exempt from the front-door rule (same as `world-info/pool.ts`
 | **`TagFolderType` union** (`"NONE" \| "OPEN" \| "CLOSED"`) — today declared in `contract/views.ts` but NOT re-exported from `index.ts`; consumed by `contract/params.ts` internally | **→ `@orb/contracts`** | `contracts/tag/tag-schemas.ts` | Currently a mis-homed type: it is not in `params.ts` where it belongs (it's in `views.ts`), and it cannot be exported from the front door as-is because `views.ts` is the wrong slot. Move the declaration to contracts so both the update input shape and the view shape derive it from one place. | Resolve-time: single declaration; contract imports it; the previous `views.ts` occurrence becomes a re-export from contracts |
 | **Wire schemas** (`createTagSchema`, `updateTagSchema`) — today declared inline in `trpc/routers/tag.ts` as `z.object({...})` literals (no named extracted schema exists) | **→ `@orb/contracts`** | `contracts/tag/tag-schemas.ts` — named `createTagSchema` + `updateTagSchema`, type-inferred | Cross-boundary wire: client form validators and server tRPC input handlers should reference the same zod objects (§7.4 `no-inline-types` gate). Naming them in contracts makes the wire surface inspectable and drift-impossible. | Resolve-time: the tRPC router imports named schemas; client form imports the same; any drift is a `tsc` error |
 | **`TagView` / `TagUsage` / `TagWithUsage`** (today in `contract/views.ts`, deep-imported by the client) | **→ `@orb/contracts`** | `contracts/tag/tag-views.ts` | View types that cross the server↔client boundary. The domain's `contract/views.ts` derives from `@orb/contracts/tag`; it does not re-declare. Same pattern as `world-info.md` §Movement. | Resolve-time: `@orb/client` has `@orb/contracts` in declared deps, not `@orb/server`; importing the view from contracts is the only legal path |
-| **`proposedTags` column on `character_versions`** — JSON `string[]`, written by import and corpus; drained manually into `character_tags` | **→ status column on `character_tags` junction** | `character_tags.status: 'pending' \| 'accepted'` in `@orb/db` schema | Collapses the two-surface design. Import and corpus distillation write `status:'pending'` junction rows (no JSON column). The "Accept" action is a status-flip (`UPDATE character_tags SET status='accepted' WHERE ...`). Export reads `accepted` rows, closing the round-trip gap. A `character_versions.proposedTags` column with no schema or type companion is a stranded JSON blob. | Compile-time: the `proposedTags` column type is absent from the schema → any read site is a `tsc` error; the `status` enum is a typed drizzle column |
+| **`proposedTags` column on `character_versions`** (neo source) — JSON `string[]`, written by import and corpus; drained manually into `character_tags` | **→ status column on `character_tags` junction** | `character_tags.status: 'pending' \| 'accepted'` in `@orb/db` schema | Collapses the two-surface design. D28 deletes the `character_versions` table outright, so the column has no host in orbweaver and is NOT relocated to `characters` — the junction status replaces it regardless. Import and corpus distillation write `status:'pending'` junction rows (no JSON column). The "Accept" action is a status-flip (`UPDATE character_tags SET status='accepted' WHERE ...`). Export reads `accepted` rows, closing the round-trip gap. | Compile-time: no `character_versions` table and no `proposedTags` column exist in the orbweaver schema → any read site is a `tsc` error; the `status` enum is a typed drizzle column |
 | **`corpus/verbs/tag-suggest.ts` writes directly to `tags + characterTags`** (bypasses tag front door; lines 117, 135) | **→ route through `TagService.createTag` + `TagService.attachTag`** wired at the composition root | `discovery` domain (corpus → discovery rename) receives a `TagService` dep via `WorkloadRunnerEnv` | Direct table reach: `applyTagSuggestions` reimplements create-tag + link-character in 70 lines without the junction registry's ownership assertion, without the TOCTOU-safe conflict handler, and without audit. Route through the tag service eliminates the duplicate path. Per the cross-feature dep rule, the tag service is injected at the composition root (NOT a sideways domain import). | Resolve-time: `@orb/server` package dep-cruiser rule — `domain/discovery/` may not import `#domain/tag/` directly; it receives the service dep as an injected type |
 | **`DomainNotFoundError` base class** (imported from `domain/_shared/errors.ts` in `contract/errors.ts`) | **→ `@orb/kit/errors`** (RESOLVED, `shared-dissolution.md` §1 LOCKED) | `@orb/kit/errors.ts` — `DomainNotFoundError` as a pure error class (zero I/O, zero domain) | `_shared` dissolves in orbweaver. `DomainNotFoundError` is a pure primitive (no domain knowledge); 4 callers in the tag domain extend or throw it. Kit is the correct home (no deps → any package imports it without a direction violation). **BOOT-CRITICAL: must exist before the tag front door re-exports `TagNotFoundError`.** | Resolve-time: `@orb/kit` is in `@orb/server`'s declared deps; `_shared/errors` ceases to exist |
 | **`fetchOwned` primitive** (`_shared/fetch-owned.ts`, imported by `persistence/queries.ts:5`) | **→ `@orb/db/kit`** (RESOLVED, `shared-dissolution.md` §3 LOCKED) | `@orb/db/kit/fetch-owned.ts` | Generic owner-scoped single-row fetcher; the `OwnedTable` constraint (`SQLiteTable & { id; ownerId }`) **requires drizzle column types**, so it CANNOT be `@orb/kit`-pure — it lands in `@orb/db/kit` (resolves the earlier kit-vs-db question). Used by `loadOwnedTag` + `ensureTargetOwned`; `ownerId` → `principal.userId` under §7.1. | Resolve-time: `@orb/db/kit` is below `@orb/server`; the kit-purity gate rejects drizzle imports from `@orb/kit` |
@@ -176,20 +191,24 @@ import — and are exempt from the front-door rule (same as `world-info/pool.ts`
 Tag verbs use `{ userId }` as the owner discriminant — owner-equality scoping (every
 fetch is `WHERE ownerId = userId`). This is unchanged in orbweaver; tags are personal
 labels (no resource-role hierarchy). The `attachTag` / `detachTag` / `bulkAttachTag`
-verbs also ownership-check the **target** entity (character/chat/etc.) via
-`fetchTargetOwned`, which reads the ownerTable's `ownerId` column. When the identity
-model migrates to a `Principal` (§7.1), the tag verb signatures change from
-`{ userId: UserId }` to `{ principal: Principal }`, and the ownership scoping reads
-`principal.userId`. No other permission concern touches this domain — tags have no
-host/member hierarchy.
+verbs also permission-check the **target** entity, in one of two ways (**D30**): for the
+four **target-derived** types (character/worldBook/persona/preset) via `fetchTargetOwned`,
+which reads the target's `ownerTable.ownerId`; for **`chat_tags`** — whose target `chats`
+has no `ownerId` (D18) — via `requireParticipant(principal, chatId)` (the tag is a per-user
+overlay, so the junction also carries the tagger's own `ownerId`, and a member sees/edits
+only their own chat tags). When the identity model migrates to a `Principal` (§7.1), the tag
+verb signatures change from `{ userId: UserId }` to `{ principal: Principal }`, and the
+ownership scoping reads `principal.userId`. The only resource-role touch is `chat_tags`'
+membership gate; the other four are pure owner-equality.
 
 ### 7.3 Serialization / serde core
 
 The `proposedTags → character_tags status-pending` redesign is the **import/export
-round-trip fix** identified in `domains.md` Open decisions: accepted canonical tags
-currently don't export because export reads `character_versions.proposedTags`, not the
-`character_tags` junction. When the status column lands, export reads
-`WHERE status='accepted'` from the junction — a single join, no separate JSON column.
+round-trip fix** identified in `domains.md` Open decisions: in neo-tavern accepted
+canonical tags don't export because export reads `character_versions.proposedTags`, not
+the `character_tags` junction. Orbweaver has no `character_versions` table to read (D28),
+so there is no JSON column to fall back to; export reads `WHERE status='accepted'` from
+the junction — a single join, no separate JSON column.
 The tag domain does NOT own the export path; the export domain adds a join. The tag
 domain owns the schema change (new `status` column on `character_tags`).
 
@@ -228,13 +247,16 @@ type. Either way, removing the cast without a typed alternative breaks `tsc`. Ve
 the biome escape-hatch comment survives the restructure.
 
 **Module-load ownerId assertion** (`persistence/junctions.ts:62-68`): the for-loop at
-module load validates every ownerTable has an `ownerId` column. Fires once at import,
-not per request. In orbweaver the preferred upgrade is a **compile-time `OwnedTable`
-constraint** on the registry value type — a drizzle table type that is only assignable
-when `ownerId` exists — so a misconfigured registry is a `tsc` error, not a runtime
-throw. Until that constraint exists, keep the runtime assertion. Do NOT remove or
-defer it — without it, a new registry entry with an unscoped table silently permits
-cross-tenant tag attachment at runtime.
+module load validates every **target-derived** ownerTable has an `ownerId` column. Fires
+once at import, not per request. **D30 nuance:** `chat_tags` is `scope:'membership'` (its
+target `chats` has no `ownerId` — D18), so it is EXEMPT from the ownerTable-has-ownerId
+check and instead asserted to carry its OWN `ownerId` on the junction + a membership gate;
+the assertion branches on `scope`. In orbweaver the preferred upgrade is a **compile-time
+`OwnedTable` constraint** on the target-derived registry values — a drizzle table type only
+assignable when `ownerId` exists — so a misconfigured target-derived entry is a `tsc` error,
+not a runtime throw (the membership-scoped `chat` entry is typed separately). Until that
+constraint exists, keep the runtime assertion. Do NOT remove or defer it — without it, a new
+target-derived entry with an unscoped table silently permits cross-tenant tag attachment.
 
 **`TagNotFoundError extends DomainNotFoundError`** (`contract/errors.ts:1`): the base
 class import is the one that must move when `_shared/errors` dissolves. `TagNotFoundError`
@@ -270,10 +292,13 @@ guard. The orbweaver redesign must close this gap structurally.
 ## Invariants (gate candidates)
 
 1. **One tag namespace, one owner.** `tags.ownerId + tags.name` is the composite
-   unique key. No global shared tags, no cross-owner junction inserts. The junction
-   registry's ownership assertion + `fetchTargetOwned` are the two defenses.
-   Gate: compile-time (typed `OwnedTable` constraint on registry entries) + test
-   (insert with a foreign `ownerId` returns a conflict or 404, never a silent write).
+   unique key. No global shared tags, no cross-owner junction inserts. For the four
+   target-derived junctions the defenses are the registry's ownerTable-ownerId assertion +
+   `fetchTargetOwned`; for **`chat_tags`** (per-user overlay, D30) the defense is
+   `requireParticipant` + the junction's own `ownerId` + `unique(chatId, tagId, ownerId)`.
+   Gate: compile-time (typed `OwnedTable` constraint on target-derived registry entries) +
+   test (a foreign-owner attach returns conflict/404 for the owned types; a non-member chat
+   attach returns 404; a member sees only their own chat tags — never a silent cross-tenant write).
 
 2. **`TagTargetType` has one declaration.** The string union lives in
    `@orb/contracts/tag/tag-schemas.ts` as a zod schema; the TS type is derived. No
@@ -288,9 +313,11 @@ guard. The orbweaver redesign must close this gap structurally.
    junction table for INSERT (reads via `@orb/db` schema are exempt).
 
 4. **`character_tags.status` is the single proposed/accepted surface.** No
-   `proposedTags` JSON column on `character_versions`.
-   Gate: compile-time (column absent from schema → any read site is a `tsc` error);
-   migration drops the column.
+   `proposedTags` JSON column anywhere — neo's `character_versions` table (its only home)
+   is gone under D28, and it is not relocated to `characters`.
+   Gate: compile-time (no `character_versions` table and no `proposedTags` column in the
+   orbweaver schema → any read site is a `tsc` error); the neo→orbweaver data port lands
+   these as `status='pending'` junction rows, not a column.
 
 5. **Semantic facets are NOT in this domain.** `discovery` owns genre/tone/theme
    keywords in `character_summaries`. The tag domain's `source` enum remains

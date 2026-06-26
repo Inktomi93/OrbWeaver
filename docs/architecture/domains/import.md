@@ -12,7 +12,7 @@
 > Authoritative upstream: `_FANOUT-BRIEF.md` §4 (import pain ledger) + §7.3 (serialization/serde core,
 > LOCKED) + §7.4/§7.5 (types + dispatch); `reports/shared-dissolution.md` §1–§5 (the serde homes, the
 > authoritative inventory); `domains.md` + `embeddings.md` §"events" (the indexer subscribers);
-> `character.md` §7.3 + the de-pin contract; `tag.md` (`proposedTags` → junction status);
+> `character.md` §7.3 + the D28 one-row card model; `tag.md` (`proposedTags` → junction status);
 > `structure.md` §4 (the 8-slot template).
 
 ---
@@ -28,7 +28,8 @@
   (trailing-digit + `main_<Name>_spec_vN` decorations), and classifies what was dropped
   (orphans / unreadable / skipped / collided / fuzzy-paired) into an auditable `CollectResult`.
 - **The canon write path** — `importCharacter` / `importChats` / `importPersonas`: maps the parsed
-  structures onto `characters` → `character_versions` → `world_books`/`world_entries`/`character_books`;
+  structures onto a flat `characters` row (D28; identity + all card content in one row) →
+  `world_books`/`world_entries`/`character_books` keyed on `characters.id`;
   `chats` → `messages` → `message_variants` + branch resolution; `personas`. Each character and each
   chat commits as ONE atomic libSQL `db.batch` (the resumable all-or-nothing invariant).
 - **Idempotency** — character matched by `(ownerId, handle)` + a CONTENT hash (`cardContentHash` over
@@ -36,8 +37,8 @@
   safe + resumable.
 - **Cross-verb attribution state** — the `personaByUserName` map: `importPersonas` populates it, the
   chat writer reads it to attribute each imported chat's `user_name` to the persona the user RP'd as.
-- **The event emission + backfill enqueue** (NEW) — after a character is created/version-edited,
-  import emits `character.updated` and enqueues a memory backfill for the `real_conversation`-bucketed
+- **The event emission + backfill enqueue** (NEW) — after a character is created or edited in place
+  (the flat `characters` row), import emits `character.updated` and enqueues a memory backfill for the `real_conversation`-bucketed
   imported chats.
 
 This domain does **not** own: the **serde core** — the card mapper (`cardFromJson`/`buildCardV3`) lives
@@ -110,8 +111,8 @@ domain/import/
 │   ├── import-chats.ts       loose JSONL into an existing character (explicit target)
 │   └── import-personas.ts    settings.json personas (populates personaByUserName)
 ├── persistence/
-│   ├── character-writer.ts   the character_versions write-set builder (de-pinned — see below)
-│   └── chat-writer.ts        importChatsIntoVersion: chats→messages→variants + branch resolution
+│   ├── character-writer.ts   the flat `characters`-row write-set builder (D28 — see below)
+│   └── chat-writer.ts        importChatsIntoCharacter: chats→messages→variants + branch resolution
 ├── substrate/                PURE parsers (zero I/O) + the dedup hash
 │   ├── card.ts              parseCardPng/parseCardJson (compose kit codec + server/kit serde) + cardContentHash
 │   ├── chat.ts             parseChatJsonl + parseStDate + the bucket classifier
@@ -146,12 +147,12 @@ ImportService = {
   // settings.json → personas; MUST run before the chat importers (populates personaByUserName).
   importPersonas(input: { personas: ImportPersonaInput[] }): Promise<ImportPersonasResult>
 
-  // one ST card + its chats → canon (character → versions → embedded lorebook → chats → messages →
+  // one ST card + its chats → canon (the flat `characters` row → embedded lorebook → chats → messages →
   // variants → branch resolution). Idempotent by (ownerId, handle) + contentHash. EMITS character.updated;
   // ENQUEUES a memory backfill for the real_conversation chats.
   importCharacter(input: ImportCharacterInput): Promise<ImportCharacterResult>
 
-  // loose JSONL into an existing character's current version (the standalone path; explicit target).
+  // loose JSONL into an existing character (its flat `characters` row; the standalone path; explicit target).
   importChats(input: ImportChatsInput): Promise<ImportChatsResult>
 }
 
@@ -223,10 +224,10 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `loader.ts` — `collectBundlesFromDir` pairing/collision/fuzzy logic | stays domain feature | `domain/import/loader/collect.ts` | Import business logic (the slug-pairing semantics). | resolve-time |
 | `loader.ts` — `readdir`/`readFile`/`stat` (node:fs) | split: inject the I/O | `domain/import/loader/fs-port.ts` (port type); fs impl at `entry/`/`infra/storage` | `substrate`/domain must be testable without a filesystem; the node:fs lives at the composition tier. | lint-time: `substrate-no-io` / `domain-no-node-fs` (gate candidate) |
 | `import-profile.ts` — `importCollectedProfile` (store-then-import bulk glue) | → composition layer | `entry/import/run-profile-import.ts` | Orchestrates `domain/import` + `domain/assets` (injected `store`) — a cross-feature composition; can't live inside a domain. Shared by the HTTP route + the job runner. | resolve-time: only `entry/` may import two domain front doors |
-| `persistence/chat-writer.ts` — `importChatsIntoVersion` | stays domain feature, **de-pinned** | `domain/import/persistence/chat-writer.ts` | The shared chats→messages→variants writer + branch resolution. Rewritten to key chats + branch resolution on `characters.id`, not `characterVersionId` (de-pin). | compile-time: `chats.characterVersionId` column is gone → any reference fails `tsc` |
-| `verbs/import-character.ts` — the COW version-bump + `character_books` INSERT-FROM-SELECT carry-forward | **deleted / replaced** | edit-in-place or `character.snapshot` | This block is the SAME `forkVersion` INSERT-FROM-SELECT `character.md` deletes; it exists only because cv-pin protected chats welded to an old version. De-pin removes the need (edit-in-place is always safe). | compile-time: `forkVersion`/the cv-pin column gone |
+| `persistence/chat-writer.ts` — `importChatsIntoVersion` (neo) → `importChatsIntoCharacter` | stays domain feature, **D28-flattened** | `domain/import/persistence/chat-writer.ts` | The shared chats→messages→variants writer + branch resolution. Rewritten to key chats + branch resolution on `characters.id`, not `characterVersionId` (D28; no version exists). | compile-time: `chats.characterVersionId` column is gone → any reference fails `tsc` |
+| `verbs/import-character.ts` — the COW version-bump + `character_books` INSERT-FROM-SELECT carry-forward | **deleted / replaced** | edit-in-place or `character.snapshot` | This block is the SAME `forkVersion` INSERT-FROM-SELECT `character.md` deletes; in neo it existed only because the cv-pin welded chats to an old version. D28 removes versions entirely, so there is nothing to fork (edit-in-place is always safe). | compile-time: `forkVersion` is gone; there is no version row to bump (D28) |
 | `verbs/import-character.ts` — `card.tags` → `character_versions.proposedTags` (JSON) | **reshape** | `character_tags` rows with `status:'pending'` | `tag.md`: proposed = a junction STATUS, not a parallel JSON store. WIRED today (not dead) — the fix is shape. Import writes pending junction rows (direct `@orb/db` junction write or injected `tag` op). | compile-time: `proposedTags` column absent from schema → read site is `tsc` red |
-| `verbs/import-character.ts` — the typed columns `creator`/`cardVersion`/`regexScripts`/`extensions`/`depthPrompt` | **keep (already correct)** | `character_versions` typed columns | Steady ALREADY promotes these (the `raw`-blob lossiness is fixed). Carry forward; reconcile `character.md`'s stale `raw`-column listing. | compile-time: schema columns are the type source |
+| `verbs/import-character.ts` — the typed columns `creator`/`cardVersion`/`regexScripts`/`extensions`/`depthPrompt` | **keep (already correct)** | flat `characters` typed columns (D28) | Steady ALREADY promotes these (the `raw`-blob lossiness is fixed); D28 lands them on the flat `characters` row. Carry forward; reconcile `character.md`'s stale `raw`-column listing. | compile-time: schema columns are the type source |
 | `context.ts` — `ReturnType<typeof createImportContext>` | stays domain feature | explicit `export interface ImportContext` | Inferred type is invisible; add `emit`/`enqueueBackfill` ops to the bundle. | lint-time: `no-inline-types` |
 | `context.ts` — `ensureUser(db, ownerHandle)` (owner resolution) | → `domain/sessions` (via entry) | `entry/` resolves owner; domain takes `ownerId` | §7.1: identity resolved once at the edge; `ensureUser` is a sessions verb. | resolve-time: `entry/` is the only tier importing both |
 | `_shared/ids.ts` — `newTypeId` | → `@orb/kit` | `@orb/kit/ids` | Pure TypeID mint; the canonical kit case. Import keeps minting strict prefixed IDs. | resolve-time |
@@ -314,8 +315,8 @@ shape, owned by chat) — the row shape is a contract both sides honor.
 
 ### persona.md / tag.md intersections
 - **persona.md** (drop `chats.personaId`): the chat writer stamps `chats.personaId` + `pinnedPersonaId`
-  + per-message `personaId` today. Orbweaver drops `chats.personaId`; the anchor (`pinnedPersonaId`) +
-  per-message attribution stay; active-persona lives on `chat_participants`.
+  + per-message `personaId` today. Orbweaver drops `chats.personaId`; the anchor (neo `pinnedPersonaId` →
+  renamed `chats.anchorPersonaId`) + per-message attribution stay; active-persona lives on `chat_participants`.
 - **tag.md** (`proposedTags` → status): import writes `character_tags` rows with `status:'pending'`
   instead of the `character_versions.proposedTags` JSON column; export reads `accepted` rows, closing
   the round-trip gap.
@@ -363,7 +364,7 @@ shape, owned by chat) — the row shape is a contract both sides honor.
 ## Invariants (gate candidates)
 
 1. **Import emits `character.updated` for every created/edited character** — no import path writes a
-   `character_versions` row without emitting (so the embeddings indexer always runs).
+   `characters` row without emitting (so the embeddings indexer always runs).
    *Enforcement: test-time — a contract test asserts importing a card emits `character.updated` and
    enqueues a backfill for `real_conversation` chats.*
 
@@ -379,14 +380,15 @@ shape, owned by chat) — the row shape is a contract both sides honor.
    *Enforcement: compile-time — promoting a known field into the residual blob is a `tsc` error (the
    typed column is the only home); round-trip test.*
 
-4. **Chats never reference a character version** — the chat writer + branch resolution key on
-   `characters.id`; `chats.characterVersionId` does not exist.
+4. **Chats never reference a character version (D28: none exists)** — the chat writer + branch
+   resolution key on `characters.id`; `chats.characterVersionId` does not exist.
    *Enforcement: compile-time — the column is absent from `@orb/db/schema/chat`.*
 
-5. **No COW version carry-forward** — import does not mint a new `character_versions` row via an
-   INSERT-FROM-SELECT book carry-forward (the deleted `forkVersion` path). Re-import with new content
-   edits-in-place or snapshots through the character verbs.
-   *Enforcement: compile-time — `forkVersion` is deleted; the cv-pin column is gone.*
+5. **No COW version carry-forward** — import does not mint a new version row via an
+   INSERT-FROM-SELECT book carry-forward (the deleted `forkVersion` path; D28 has no version to mint).
+   Re-import with new content edits the flat `characters` row in place (always safe — no cv pin ever
+   existed); an explicit `character.snapshot` is the only history path, and re-import never triggers it.
+   *Enforcement: compile-time — `forkVersion` is deleted; there is no version row or cv-pin column (D28).*
 
 6. **Proposed tags are junction rows, not a JSON column** — import writes `character_tags`
    `status:'pending'`; no write to `character_versions.proposedTags`.
@@ -425,12 +427,13 @@ shape, owned by chat) — the row shape is a contract both sides honor.
   domain owns" + §7.3 now list the typed columns (`creator`/`cardVersion`/`regexScripts`/`extensions`) and
   state the `raw` blob is dropped — matching the steady schema (verified `db/schema/character.ts:137-140`).
   Residual unknown vendor keys live in `extensions`, not a lossy `raw`.
-- **Re-import version semantics under de-pin — RESOLVED: edit-in-place.** The old "new content → COW
-  version carrying books forward" model existed only to protect chats welded to a pinned cv. De-pin removes
-  pinning, so re-import with new content **edits the current `character_versions` row in place** (always
-  safe under de-pin); the `forkVersion` INSERT-FROM-SELECT + the `character_books` carry-forward are
-  deleted. An explicit `character.snapshot` (user-driven named save) remains available but is NOT triggered
-  automatically by re-import. Aligned with `character.md` (§"Version history mutations" + invariant 4).
+- **Re-import semantics under D28 — RESOLVED: edit-in-place.** The old "new content → COW version
+  carrying books forward" model existed only to protect chats welded to a pinned cv. D28 removes versions
+  entirely, so re-import with new content **edits the flat `characters` row in place** (always safe — no
+  cv pin ever existed); the `forkVersion` INSERT-FROM-SELECT + the `character_books` carry-forward are
+  deleted. An explicit `character.snapshot` (user-driven named save → a `character_snapshots` row) remains
+  the explicit-history path but is NOT triggered automatically by re-import. Aligned with `character.md`
+  (§"Version history mutations" + invariant 4).
 - **`loader` placement — RESOLVED: keep the pairing logic in the domain** (`loader/` subsystem) and inject
   only the `fs-port`. The slug-pairing/collision/fuzzy semantics are import business logic; `node:fs` lives
   at the composition tier behind the injected port.
