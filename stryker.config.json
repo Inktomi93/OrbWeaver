@@ -10,7 +10,7 @@
   "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
 
   "checkers": ["typescript"],
-  "_tsconfig_comment": "Needs a root aggregating tsconfig.json (created alongside vitest.config.ts when the test projects land). orbweaver has only tsconfig.base.json + per-package configs today.",
+  "_tsconfig_comment": "Uses the root aggregating tsconfig.json (exists). What's still missing for this to RUN is the target code + its tests (Phase 4c/5) — vitest.config.ts + tsconfig.json are in place.",
   "tsconfigFile": "tsconfig.json",
 
   "reporters": ["html", "clear-text", "progress"],

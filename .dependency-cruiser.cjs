@@ -261,7 +261,12 @@ module.exports = {
         "Code outside infra/providers may import ONLY the public surface — the front door (providers/index.ts), the role dispatchers (roles/), and the contract barrel (contract/). Reaching INTO a sealed family (backends/<x>) or the local engine (vllm/) is RED — the family boundary is internal, and the agent-sdk credential firewall must not leak through a deep import. Wildcard match means new families inherit the seal. tests/support is exempt (mock runners instantiate family shapes). (tiers/providers.md invariants #1/#4.)",
       severity: "error",
       from: { pathNot: [`${SRV}infra/providers/`, "^tests/support/"] },
-      to: { path: `${SRV}infra/providers/(backends|vllm)/` },
+      to: {
+        // Sealed: the families (backends/<x>), the local engine (vllm/), AND the contract internals —
+        // outside callers reach contract/index.ts (the barrel), never contract/<file> (providers.md #4).
+        path: `${SRV}infra/providers/(backends|vllm|contract)/`,
+        pathNot: `${SRV}infra/providers/contract/index\\.ts$`,
+      },
     },
     {
       name: "infra-strategy-isolation",

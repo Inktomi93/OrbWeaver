@@ -32,6 +32,10 @@ jobs:
       # + junit reporters (vitest.config.ts) and `allowOnly`/determinism rigor applies.
       - run: pnpm test
 
+      # The type lane (`.test-d.ts`, typecheck-only) — nothing else runs it (per-package tsc covers src,
+      # not tests/). Passes-with-no-tests until type tests land.
+      - run: pnpm test:types
+
       # The copy-paste CI lane (jscpd, threshold 5%) — kept out of the fast pre-commit `check`.
       - run: pnpm cpd
 
