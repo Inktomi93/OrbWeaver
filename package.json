@@ -15,13 +15,14 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs",
+    "check:structure": "tsx scripts/check/report.ts",
     "test": "vitest run --project unit --project integration --project contract",
     "test:types": "vitest run --project types",
     "test:parity": "vitest run --project parity",
     "test:coverage": "vitest run --coverage",
     "test:ct": "playwright test -c playwright-ct.config.ts",
     "e2e": "playwright test -c playwright.config.ts",
-    "check": "pnpm lint && pnpm typecheck"
+    "check": "pnpm lint && pnpm typecheck && pnpm check:structure"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
@@ -31,6 +32,7 @@
     "@vitest/coverage-v8": "catalog:",
     "dependency-cruiser": "catalog:",
     "lefthook": "catalog:",
+    "ts-morph": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

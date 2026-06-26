@@ -15,6 +15,7 @@ catalog:
   "@biomejs/biome": ^2.5.1
   lefthook: ^2.1.9
   dependency-cruiser: ^18.0.0
+  ts-morph: ^28.0.0
   tsx: ^4.22.4
   # @types/node tracks the RUNTIME (Node 24), not its own latest (26) — types must not lead the runtime.
   "@types/node": ^24
