@@ -16,7 +16,7 @@
 ## Phase 0 — Workspace + gates (before ANY feature code)
 The highest-leverage phase: stand up the fences before the code, so the cake is physics from commit one.
 1. `pnpm` workspace + the 5 packages (`kit·contracts·db·server·client`) with `package.json` + `tsconfig`.
-   **Pin versions now** — 2026-latest stable of Node/TS/Hono/Drizzle/tRPC (`ledger §3`; `@orb/*` already decided). UI engine stays deferred to Phase 6.
+   **Pin versions now** — 2026-latest stable of the toolchain + core stack: Node/TS/Hono/Drizzle/tRPC (`ledger §3`; `@orb/*` already decided). UI engine stays deferred to Phase 6. **Per-tier runtime libs join the catalog as their tier is built**, not all here — e.g. observability's `pino`/`pino-pretty` + `@opentelemetry/*` land at 4a (`tiers/foundation.md` › Runtime dependencies), `sharp` at 4b.
 2. Stand up the **gate suite** (`structure.md §7`, 13 gates) + the bespoke domain rules as dep-cruiser/biome/`tsc` patterns, wired into a **blocking `check`** (pre-commit + CI + a PreToolUse hook since agents author). `CHECKLIST §A1`.
 3. Stand up **`tests/support/`** (composed `test.extend` → `freshDb`, frozen `clock`, seeded `ids`, factories) + the Vitest **node** projects in one `vitest.config.ts` via `test.projects` (`unit` `.test` · `integration` `.int.test` · `contract` `.contract.test` · `types` `.test-d.ts` · `parity` `.parity.test`, opt-in) + the `test-presence`/`test-determinism` gates. **Browser = Playwright, not Vitest** (it hangs): `playwright-ct.config.ts` (`.ct.tsx`) + `playwright.config.ts` (`.spec.ts`), separate runners, not in `check`. `CHECKLIST §A4`, `spine/testing.md`.
 4. Reserve the AI-native seams in code (`ClipKind`/`clip.scope` types, `WorkloadKind:'world-state'` stub, `observer` participant kind). `CHECKLIST §A2`.
@@ -59,7 +59,7 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 ---
 
 ## Phase 4 — `@orb/server`, bottom-up tiers
-### 4a. `foundation/` — `env` (sole `process.env` reader), `config` (version only), `observability` (+ `debug/inspect`, the dissolved debug domain).
+### 4a. `foundation/` — `env` (sole `process.env` reader), `config` (version only), `observability` (+ `debug/inspect`, the dissolved debug domain). **Catalog gains the observability deps here:** `pino`/`pino-pretty` + `@opentelemetry/*` (`tiers/foundation.md` › Runtime dependencies). The `noConsole` total-ban (`ENFORCEMENT.md`) goes live the moment server code lands — `getLog()`/`logger` is the only sanctioned output.
 ### 4b. `infra/` — `crypto`, `network`, `storage`, `image` (the sharp adapter), `auth` (+ `modes/`), `providers/` (`roles`, `contract`, `backends/{openrouter(+runners), agent-sdk(+session), custom-byo, kit(+openai-compat)}`, `vllm/{engine,surfaces}`). Include the **local-light embed/rerank tier** (`CHECKLIST §A3`) and the `VLLM_DISABLED` escape hatch (`§D3`).
 ### 4c. `domain/` — **LEAF-FIRST**, in waves (a domain only builds after its injected deps):
 - **Wave 1** (no cross-domain deps): `credentials` · `tag` · `persona` · `preset` · `world-info` · `assets` · `sessions` · `stats` · `settings` · `admin`

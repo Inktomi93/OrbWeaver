@@ -155,6 +155,26 @@ could even sit loose; kept under `config/` for the named-tier legibility `struct
 
 ---
 
+## Runtime dependencies (join the catalog at Phase 4a — `BUILD-PLAN §4a`)
+
+The observability tier is the only foundation code with third-party runtime deps. They are added to
+the pnpm catalog when 4a is built (not at Phase 0 — the catalog grows per-tier); versions are
+2026-stable, confirm-latest at build.
+
+| Package | Version | Module | Note |
+|---|---|---|---|
+| `pino` | `^10.3.1` | `observability/logger.ts` | the structured logger; `pino.multistream([stdout, ringStream])` |
+| `pino-pretty` | `^13.1.3` | **dev-only** | NOT a prod transport — piped by the dev script (`dev:server: tsx watch entry/index.ts \| pino-pretty`). Prod emits raw JSON to stdout; the `ringStream` Writable captures the already-serialized line on the main thread, so a worker-thread pino *transport* would double-serialize and starve the ring. `pino-pretty` is a pipe, never a configured transport. |
+| `@opentelemetry/api` | `^1.9.1` | `observability/tracing.ts` | span API |
+| `@opentelemetry/sdk-trace-base` | `^2.8.0` | `observability/tracing.ts` | `BasicTracerProvider` + the `RingExporter` (a `SpanProcessor` → the `TraceRing`, the OTLP-replaceable seam) |
+| `@opentelemetry/context-async-hooks` | `^2.7.1` | `observability/tracing.ts` | ALS context manager — ties spans to the same request scope the logger uses |
+| `@opentelemetry/resources` · `@opentelemetry/semantic-conventions` | `^2.7.1` · `^1.41.1` | `observability/tracing.ts` | `service.name`/`service.version` resource attrs (version ← `config/version`) |
+
+No env (LOG_LEVEL) runtime dep — that is `@orb/contracts/settings` (the `LOG_LEVELS` tuple, a lower
+package, imported DOWN).
+
+---
+
 ## Movement table
 
 | Unit | Outcome | Target | Rationale | Enforcement tier |
