@@ -38,7 +38,9 @@ function srcExistsFor(loc: SrcLoc): boolean {
 function violationFor(root: string, rel: string, name: string): Violation | undefined {
   const segs = rel.split("/");
   const pkg = segs[0];
-  if (pkg === "support" || pkg === "e2e") {
+  // Non-mirror trees: support/ (fixtures), e2e/ (full-stack Playwright), tooling/ (tests of our root
+  // configs + scripts/ gates — they have no packages/<pkg>/src module to mirror).
+  if (pkg === "support" || pkg === "e2e" || pkg === "tooling") {
     return;
   }
   const kind = KINDS.find((k) => name.endsWith(k));
@@ -50,7 +52,7 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
       file: `tests/${rel}`,
       line: 0,
       message:
-        "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e}/",
+        "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
     };
   }
   const base = name.slice(0, -kind.length);
