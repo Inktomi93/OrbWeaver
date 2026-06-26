@@ -9,9 +9,14 @@ Philosophy: gates are written **before** the code they govern, so code is born c
 would only false-fire on the current (placeholder) tree is not "missing" — it's in the backlog, keyed
 to the code that makes it meaningful.
 
-`pnpm check` = `biome` (lint+format) → `tsc` (types) → `check:structure` (ts-morph/fs gates) →
-`depcruise` (import graph, pending). All four must be green; lefthook runs them pre-commit in every
-worktree.
+**The fast lane** — `pnpm check` = `biome` (lint+format) → `tsc` (types, hardened by `@total-typescript/
+ts-reset` via the root `reset.d.ts`) → `check:structure` (ts-morph/fs gates) → `depcruise` (import
+graph, pending). All four must be green; lefthook runs them pre-commit in every worktree. The check
+budget is **structural-fast** — whole-tree/slow analyses (jscpd, mutation) are deliberately CI/on-demand
+lanes, not pre-commit.
+
+**The CI / on-demand lanes** — `pnpm cpd` (jscpd, Layer 5) and `pnpm test:mutation[:gate]` (Stryker,
+Layer 6). Enforced (they fail the build), just not in the pre-commit budget.
 
 ---
 
@@ -60,6 +65,26 @@ The import-graph backstop ("boundaries are physics"): 5-package cake layering
 (kit←contracts←db←server←client), server tier direction (entry→transport→domain→infra→foundation→kit),
 kit-purity, persistence-no-io, domain-no-cross-feature, drivers-through-domain, and the `#`/package
 import convention (absorbs neo's `import-alias`). Last major Phase-0b gate.
+
+## Layer 5 — jscpd (`jscpd.json`) — copy-paste detection
+
+Structural duplication the per-file biome/grit rules can't see. Scans `packages/**/src` (TS + CSS;
+the centralized `tests/` mirror, migrations, fixtures, and `*.d.ts` are excluded — mirror duplication
+is intentional). **CI lane, not the pre-commit fast check** (whole-tree scan). Gate: the build fails
+over **5%** duplication (`threshold`) — ratchet down as the codebase matures. `pnpm cpd` (console) /
+`pnpm cpd:report` (HTML → `reports/cpd`). Active now: vacuous on the comment-only placeholder tree,
+fires the moment real code lands.
+
+## Layer 6 — Stryker (`stryker.config.json` + `stryker.gate.config.json`) — mutation testing — **SCHEDULED (Phase 4c/5)**
+
+Mutates source + reruns the suite to score whether tests actually *catch* bugs — the "test covers the
+line but asserts nothing" signal coverage can't detect (neo's founding `isVllmBackend`-lying-gate
+class). Two lanes: `pnpm test:mutation` (exploratory, `break:null`) and `pnpm test:mutation:gate`
+(pinned to the highest-stakes pure modules — chat routing/assembly, credential resolution — fails the
+build below `thresholds.break`). On-demand + CI, never in `pnpm check` (runs are minutes). Skeleton
+today (needs code + tests + `vitest.config.ts` + a root `tsconfig.json`); the mutate lists are
+forward-looking and `break` stays null until the targets exist and a measured score calibrates it
+(`spine/testing.md` › Mutation testing).
 
 ---
 

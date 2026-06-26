@@ -24,6 +24,15 @@ catalog:
   "@vitest/coverage-v8": ^4.1.9
   "@playwright/test": ^1.61.1
   "@playwright/experimental-ct-react": ^1.61.1
+  # --- quality / mutation tooling ---
+  # ts-reset: ambient type hardening (filter(Boolean), JSON.parse→unknown) — wired via root reset.d.ts.
+  "@total-typescript/ts-reset": ^0.6.1
+  # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
+  jscpd: ^5.0.11
+  # stryker: mutation testing (scheduled — activates Phase 4+ when there's code+tests to mutate).
+  "@stryker-mutator/core": ^9.6.1
+  "@stryker-mutator/vitest-runner": ^9.6.1
+  "@stryker-mutator/typescript-checker": ^9.6.1
   # --- kit (isomorphic libs allowed by the kit-purity ruling) ---
   zod: ^4.4.3
   typeid-js: ^1.2.0

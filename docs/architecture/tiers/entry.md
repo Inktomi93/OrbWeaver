@@ -65,6 +65,16 @@ packages/server/src/entry/
                               delegates here (per DECISIONS-LEDGER §7 D3)
 ```
 
+## Runtime dependencies (join the catalog at Phase 4e)
+
+The entry tier owns the two server-edge libraries no lower tier names — both added per-tier (like
+foundation's pino), versions confirm-latest at build:
+
+| Package | Version | Where | Note |
+|---|---|---|---|
+| `@hono/node-server` | `^2.0.4` | `index.ts` / `app.ts` / `lifecycle.ts` | the Node HTTP listener: `serve()` + `serve-static` + the keep-alive `serverOptions`. The `httpServer` object `lifecycle.ts` takes **injected** is literally this lib's `serve()` return (`ServerType`) — boot order step "serve" is `serve(app)`. |
+| `openid-client` (v6) | `^6.8.4` | `http/auth-routes.ts` | the OIDC mint flow — `discovery()` (one cached round-trip), `randomPKCECodeVerifier`/`calculatePKCECodeChallenge`, `buildAuthorizationUrl`, `authorizationCodeGrant`. v6's API differs substantially from v5. The **verify** side (JWKS) is `infra/auth`'s `jose` (`tiers/infra.md`); this is the **client** side (discovery + code exchange), which is why it lands at the entry mint handler, not infra. |
+
 ---
 
 ## What lands here (movement summary — the scattered "→ entry" rows, consolidated)

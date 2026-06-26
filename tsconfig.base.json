@@ -51,5 +51,7 @@
     // package.json `imports` field (`#*`). `types: []` keeps ambient @types out unless a package opts in.
     "types": []
   },
-  "include": ["${configDir}/src"]
+  // `${configDir}/../../reset.d.ts` → the repo-root ts-reset import; every package lives at
+  // packages/<name>, so `../../` always resolves to root. Declaration-only, no emit.
+  "include": ["${configDir}/src", "${configDir}/../../reset.d.ts"]
 }

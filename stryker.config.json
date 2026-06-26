@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Stryker mutation testing — flips operators / removes branches in src and reruns the suite to see which mutants the tests CATCH. A surviving mutant = a test that covers the line but asserts nothing that would notice the change (the 'shitty test' signal coverage can't detect). SCHEDULED: this is a skeleton — it cannot run until Phase 4+ when there is code, a `vitest.config.ts` (Phase 0.3), a root aggregating `tsconfig.json`, and the target modules below exist. The mutate list is forward-looking to orbweaver's planned structure; calibrate it (and the gate's break threshold) when those modules land. See docs/architecture/spine/testing.md › Mutation testing + reports/ENFORCEMENT.md.",
+
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.config.ts" },
+
+  "_plugins_comment": "Explicit plugin paths — pnpm's strict node_modules layout breaks Stryker's auto-discovery ('Cannot find Checker plugin typescript' even though it's installed).",
+  "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
+
+  "checkers": ["typescript"],
+  "_tsconfig_comment": "Needs a root aggregating tsconfig.json (created alongside vitest.config.ts when the test projects land). orbweaver has only tsconfig.base.json + per-package configs today.",
+  "tsconfigFile": "tsconfig.json",
+
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/mutation.html" },
+
+  "_mutate_comment": "Default scope = the high-stakes pure modules (orbweaver targets; these files do not exist yet — Phase 4c/5). Broaden on the CLI, e.g. `pnpm test:mutation --mutate 'packages/server/src/domain/chat/**/*.ts'`.",
+  "mutate": [
+    "packages/kit/src/macro/**/*.ts",
+    "packages/kit/src/regex/**/*.ts",
+    "packages/server/src/domain/chat/assembly/assemble.ts",
+    "packages/server/src/domain/chat/routing.ts",
+    "packages/server/src/domain/chat/persistence/lock.ts",
+    "packages/server/src/domain/credentials/**/*.ts",
+    "packages/server/src/foundation/observability/audit.ts",
+    "packages/server/src/infra/providers/backends/openrouter/**/*.ts",
+    "!packages/**/*.d.ts"
+  ],
+
+  "_ignore_comment": "ignorePatterns prune the sandbox copy — without this Stryker tries to copy node_modules (huge), .stryker-tmp (recursive!), reports/, coverage/, etc. Keep packages/ + tests/ + the configs.",
+  "ignorePatterns": [
+    ".stryker-tmp/**",
+    ".git/**",
+    "node_modules/**",
+    "coverage/**",
+    "dist/**",
+    "reports/**",
+    "docs/**",
+    "playwright-report/**",
+    "test-results/**",
+    ".claude/**"
+  ],
+
+  "ignoreStatic": true,
+  "concurrency": 4,
+  "timeoutMS": 10000,
+
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
+
+  "thresholds": { "high": 80, "low": 60, "break": null },
+
+  "_dashboard_comment": "Dashboard reporter (mutation-score badge) is opt-in: add 'dashboard' to reporters + STRYKER_DASHBOARD_API_KEY when there's a public repo."
+}

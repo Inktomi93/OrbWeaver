@@ -30,6 +30,10 @@ coverage/
 .vitest/
 *.lcov
 
+# --- quality tooling output (jscpd reports, stryker sandbox + reports) ---
+reports/
+.stryker-tmp/
+
 # --- caches ---
 .turbo/
 .cache/

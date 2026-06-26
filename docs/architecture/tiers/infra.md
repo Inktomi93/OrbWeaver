@@ -37,7 +37,9 @@ helpers (JWKS cache, cookie read, CSRF signal, host normalize, config parse, pas
   ONE branch point; modes never import each other.
 - **The four mode resolvers** — `single-user` (always-null → unconditional fallback), `local` + `oidc`
   (both delegate to the shared cookie resolver; only the MINT side differs), `forward-header` (the
-  signed-JWT and unsigned-network-trust paths).
+  signed-JWT and unsigned-network-trust paths). *(The `oidc` MINT side — discovery + PKCE + code
+  exchange via `openid-client` v6 — lives at `entry/http/auth-routes.ts` (`tiers/entry.md` › Runtime
+  dependencies), not here: infra owns **verify** with `jose`, entry owns the client-side mint.)*
 - **JWT/JWKS verification** — `jwksFor` (build a jose keyset from the forwarded `X-Authentik-Meta-Jwks`
   literal-or-URL, **fails closed** on bad JSON / non-https / off-allowlist; LRU-bounded, sha256-keyed),
   `jwtVerify` with a pinned alg allowlist + optional iss/aud.

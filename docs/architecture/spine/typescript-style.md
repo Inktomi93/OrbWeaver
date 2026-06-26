@@ -47,6 +47,7 @@ Compose two axes with template-literal types (one derived union, still total): `
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
 - **Banned habits ⚙️ (biome):** `any` (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` (use a guard / `?? throw`) · single `as` assertions (use `satisfies`/narrowing/zod); `as any as T` is a hard no.
+- **`@total-typescript/ts-reset` is on (root `reset.d.ts`, all 5 packages).** It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. (`reports/ENFORCEMENT.md` fast-lane.)
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 

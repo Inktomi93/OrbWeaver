@@ -208,6 +208,27 @@ at the CLI (`--tag=slow`, `--tag=!live`) — it centralizes "this category needs
 Tags are the **runtime** axis (how a test behaves); **suffix** is the **kind** axis (what it tests + which
 lane). They compose: a `.int.test.ts` can be tagged `slow`.
 
+## 9. Mutation testing (Stryker) — the test-quality ratchet — SCHEDULED (Phase 4c/5)
+
+Coverage proves a line *ran*; it cannot prove a test *asserted* anything about it. Mutation testing
+closes that gap: Stryker flips operators / removes branches in source and reruns the suite — a
+**surviving mutant** is a line a test covered but did not actually check (neo's founding
+`isVllmBackend`-lying-gate class). Two lanes, both **on-demand / CI, never in `pnpm check`** (runs are
+minutes; the check budget is structural-fast):
+
+- **`pnpm test:mutation`** (`stryker.config.json`) — exploratory, `break:null`. Broaden scope on the
+  CLI (`--mutate '…'`). Use to find tests that need real assertions.
+- **`pnpm test:mutation:gate`** (`stryker.gate.config.json`) — the ratchet. Pinned to the highest-stakes
+  pure modules (chat routing/assembly, credential resolution); **fails the build** below
+  `thresholds.break`. Ratchet `break` UP as suites gain assertions (neo: aggregate 55%→66% over a
+  hardening pass, break held ~6pts under).
+
+Both run the node lanes via the `vitest` runner + the `typescript` checker. **Skeleton today** — the
+configs exist but cannot run until there is code, a `vitest.config.ts`, a root `tsconfig.json`, and the
+target modules; the mutate lists are forward-looking and `break` stays null (a null break never fails)
+until a measured score calibrates it. Catalog: `@stryker-mutator/{core,vitest-runner,typescript-checker}`.
+See `reports/ENFORCEMENT.md` › Layer 6.
+
 ## Invariants (gate candidates)
 
 - `test-mirror` (`structure.md §7`) — mirror path or `check` is red; exempts `support/` + `e2e/`.
