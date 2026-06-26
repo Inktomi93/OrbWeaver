@@ -183,7 +183,7 @@
         "useVueMultiWordComponentNames": "off"
       },
       "suspicious": {
-        "noConsole": { "level": "error", "options": { "allow": ["info", "warn", "error"] } },
+        "noConsole": { "level": "error", "options": { "allow": [] } },
         "noTsIgnore": "error",
         "noEvolvingTypes": "error",
         "noImportCycles": "error",
@@ -321,7 +321,14 @@
     },
     {
       "includes": ["packages/client/**"],
-      "linter": { "rules": { "correctness": { "noNodejsModules": "error" } } }
+      "linter": {
+        "rules": {
+          "correctness": { "noNodejsModules": "error" },
+          "suspicious": {
+            "noConsole": { "level": "error", "options": { "allow": ["info", "warn", "error"] } }
+          }
+        }
+      }
     },
     {
       "includes": ["packages/db/src/schema/**"],
