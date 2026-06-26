@@ -21,7 +21,10 @@ worktree.
 Format + lint + import-organize. See `biome.json` and `docs/architecture/spine/typescript-style.md`.
 Notable ratchets: `noUnresolvedImports`, `useConsistentTypeDefinitions: interface` (object shapes are
 interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `useMaxParams: 4`,
-`useTopLevelRegex`, `useExplicitType`, `noMagicNumbers`.
+`useTopLevelRegex`, `useExplicitType`, `noMagicNumbers`. `noConsole` is a **total ban by default**
+(`allow: []` — server/db/contracts/kit log through the logger/pino, never raw console); relaxed only
+for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
+off for `scripts/**` + `tests/**` (console is their output channel).
 
 ## Layer 2 — GritQL plugins (`tools/grit/`, 19 active)
 
