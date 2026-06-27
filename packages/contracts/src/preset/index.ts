@@ -815,7 +815,8 @@ function copyParamsToForm(params: UserIntent, out: PresetFormValues): void {
 }
 
 /** Flatten the 6 guided actions (× {prompt, role}) onto the form. The preset may omit guidedActions
- *  entirely (→ AppSettings fallback); when present every action is required, so we copy all 12 keys. */
+ *  entirely (→ DEFAULT_GUIDED_ACTIONS at resolve time); when present every action is required, so we
+ *  copy all 12 keys. */
 function copyGuidedToForm(ga: GuidedActionsConfig, out: PresetFormValues): void {
   out.guidedResponsePrompt = ga.response.prompt;
   out.guidedResponseRole = ga.response.role;
@@ -899,9 +900,9 @@ const guidedActionFrom = (prompt: string, role: MessageRole | undefined): Guided
 });
 
 /** Build the guidedActions blob ONLY when every CORE steer (response/swipe/impersonate/rewrite) has its
- *  prompt set; otherwise undefined → the server falls back to AppSettings.guidedActions. `opening` and
- *  `continue` ride along with a default-fallback (not part of the gate, so 4-action presets aren't
- *  suddenly dropped to the AppSettings fallback). */
+ *  prompt set; otherwise undefined → the reader falls back to DEFAULT_GUIDED_ACTIONS. Guided actions have
+ *  ONE home — the preset; there is NO AppSettings.guidedActions (D33). `opening` and `continue` ride along
+ *  with a default-fallback (not part of the gate, so 4-action presets aren't suddenly dropped to default). */
 function formToGuidedActions(form: PresetFormValues): GuidedActionsConfig | undefined {
   if (
     form.guidedResponsePrompt === undefined ||

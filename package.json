@@ -30,7 +30,7 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "stryker run stryker.config.json",
     "test:mutation:gate": "stryker run stryker.gate.config.json",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:structure && pnpm depcruise"
+    "check": "pnpm lint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
     "@orb/client": "workspace:*",

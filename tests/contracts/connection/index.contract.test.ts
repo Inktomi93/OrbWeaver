@@ -16,16 +16,11 @@ import {
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { expect, test } from "vitest";
 
-// Compile-time identity helpers (type-level pins; the runtime body still asserts ≥1).
-type Assert<T extends true> = T;
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
-
 // --- ChatSource IS CredentialSource (D31, the load-bearing pin) ---------------
+// The type-level identity pin (ChatSource ≡ CredentialSource) lives in `index.test-d.ts` (spine/testing.md
+// §1); here we keep the runtime bidirectional-assignability check.
 
 test("ChatSource is a verbatim re-export of CredentialSource (D31, no second tuple)", () => {
-  // Type-level: the two names denote the EXACT same union — divergence fails `tsc`.
-  type _SameAxis = Assert<Equal<ChatSource, CredentialSource>>;
   // Runtime: a value typed as one is assignable as the other in both directions.
   const fromSource: CredentialSource = "openrouter";
   const asChatSource: ChatSource = fromSource;
