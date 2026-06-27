@@ -86,6 +86,15 @@ test("the 0000_baseline migration applies on a fresh db and passes assertReferen
   );
 });
 
+test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
+  // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
+  // future migration left it OFF, every subsequent write would bypass FK enforcement silently.
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  const row = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
+  expect(row?.["foreign_keys"]).toBe(FK_ON);
+});
+
 test("assertReferentialIntegrity THROWS on an orphan FK row (the foreign_key_check gate)", async () => {
   const db = await createDb(":memory:");
   await runMigrations(db, MIGRATIONS_DIR);
