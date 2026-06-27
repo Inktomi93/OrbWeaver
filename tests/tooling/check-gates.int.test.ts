@@ -9,13 +9,20 @@
 // fired set), and assert every registered gate is in the fired set.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const OK_RE = /✓\s+([a-z-]+)/g;
 const FIRED_RE = /✗\s+([a-z-]+)/g;
+const TS_EXT_RE = /\.ts$/;
+const GATE_DIR = join(ROOT, "scripts", "check", "gates");
+// every gate file on disk (basename) — the source of truth for "what gates exist".
+const GATE_FILES = readdirSync(GATE_DIR)
+  .filter((f) => f.endsWith(".ts"))
+  .map((f) => f.replace(TS_EXT_RE, ""))
+  .sort();
 
 function fx(rel: string, content: string): void {
   const abs = join(ROOT, rel);
@@ -101,4 +108,12 @@ test("derives a non-trivial gate registry from report.ts (not silently empty)", 
 test("every registered structural gate fires on its fixture (anti-drift)", () => {
   const unfired = [...registry].filter((g) => !fired.has(g));
   expect(unfired).toEqual([]);
+});
+
+test("every gate file in scripts/check/gates is registered in report.ts (anti-drift)", () => {
+  // A gate file that exists but is never listed in report.ts silently does nothing — it never runs,
+  // so the "fires on its fixture" test above can't catch it (it's not in the registry). This closes
+  // that hole: the gate file's basename (kebab) must equal a gate name report.ts prints.
+  const unregistered = GATE_FILES.filter((g) => !registry.has(g));
+  expect(unregistered).toEqual([]);
 });
