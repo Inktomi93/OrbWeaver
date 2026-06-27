@@ -12,26 +12,33 @@
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { assets } from "./assets";
 import { users } from "./users";
 
-export const personas = sqliteTable("personas", {
-  // TypeID PK (`persona_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-  id: text("id").$type<PersonaId>().primaryKey(),
-  // KEEP `ownerId` (D23) — the persona's own partition key, not a derivable mirror. User delete cascades.
-  ownerId: text("owner_id")
-    .$type<UserId>()
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — it must NOT delete the persona.
-  avatarAssetId: text("avatar_asset_id")
-    .$type<AssetId>()
-    .references(() => assets.id, { onDelete: "set null" }),
-  // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/kit), never trusted raw.
-  metadata: text("metadata", { mode: "json" }).$type<PersonaMetadata>(),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const personas = sqliteTable(
+  "personas",
+  {
+    // TypeID PK (`persona_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
+    id: text("id").$type<PersonaId>().primaryKey(),
+    // KEEP `ownerId` (D23) — the persona's own partition key, not a derivable mirror. User delete cascades.
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull(),
+    // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — it must NOT delete the persona.
+    avatarAssetId: text("avatar_asset_id")
+      .$type<AssetId>()
+      .references(() => assets.id, { onDelete: "set null" }),
+    // Typed JSON blob (PersonaMetadata) — parsed at the read seam (@orb/db/kit), never trusted raw.
+    metadata: text("metadata", { mode: "json" }).$type<PersonaMetadata>(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // Owner-scoped list (`fetchOwned`) — consistency with presets, which kept its owner idx.
+    index("personas_owner_idx").on(t.ownerId),
+  ],
+);

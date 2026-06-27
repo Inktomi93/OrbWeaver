@@ -32,8 +32,13 @@ export const sessions = sqliteTable(
     tokenHash: text("token_hash").notNull(),
     // Slid forward on a throttle by `validate` (sessions.md — per-request gates take effect next request).
     expiresAt: integer("expires_at").notNull(),
+    // Last activity instant (epoch-ms number); born = mint time (a fresh session was just seen), then
+    // bumped on the throttled activity slide alongside expiresAt.
+    lastSeenAt: integer("last_seen_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Set by logout / admin-kick; null = live. Revoke is one atomic `UPDATE … WHERE revoked_at IS NULL`.
     revokedAt: integer("revoked_at"),
+    // The User-Agent captured at mint; null when the mint carried no UA header.
+    userAgent: text("user_agent"),
     // Reserved for the future API-token surface (same table, same revoke/list machinery).
     label: text("label"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

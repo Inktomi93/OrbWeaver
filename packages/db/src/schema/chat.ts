@@ -130,6 +130,15 @@ export const chats = sqliteTable(
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
     // `@orb/db/kit` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
+    // PERSISTED CANON (chat.md L547): the per-chat ChoiceBlock variable flush — `setVariables` writes it,
+    // `getStoredVariables` reads it. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
+    // seam. Nullable (no variables flushed yet).
+    variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
+    // Import provenance: the source `.jsonl` filename a chat was imported from (null for a born-here chat).
+    importedFrom: text("imported_from"),
+    // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
+    // no-op). Mirrors `characters.importHash`. Nullable (null for a born-here chat).
+    importHash: text("import_hash"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -230,6 +239,12 @@ export const messageVariants = sqliteTable(
     finishReason: text("finish_reason"),
     stopReason: text("stop_reason"),
     terminalReason: text("terminal_reason"),
+    // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
+    // terminalReason). Nullable — null on a clean generation.
+    apiErrorStatus: integer("api_error_status"),
+    // Reserved for tool-call records; character tools deferred (chat.md Part III). Untyped JSON — no
+    // contract type exists yet — parsed at the read seam when it lands. Nullable.
+    toolCalls: text("tool_calls", { mode: "json" }),
     // The recorded generation params (D26 `params (UserIntent)`) — typed JSON, parsed at the read seam.
     params: text("params", { mode: "json" }).$type<UserIntent>(),
     // The per-variant assembled-prompt snapshot (D26 — now works per swipe).

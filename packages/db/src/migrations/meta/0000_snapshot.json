@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c7ffaa4d-7398-4eca-9cb8-61e4515764ed",
+  "id": "95a9193b-3bfc-4f04-a2ee-2a49141b34cf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -138,8 +138,34 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
-      "foreignKeys": {},
+      "indexes": {
+        "audit_logs_time_idx": {
+          "name": "audit_logs_time_idx",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "audit_logs_actor_idx": {
+          "name": "audit_logs_actor_idx",
+          "columns": ["actor_user_id"],
+          "isUnique": false
+        },
+        "audit_logs_entity_idx": {
+          "name": "audit_logs_entity_idx",
+          "columns": ["entity_type", "entity_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "audit_logs_actor_user_id_users_id_fk": {
+          "name": "audit_logs_actor_user_id_users_id_fk",
+          "tableFrom": "audit_logs",
+          "tableTo": "users",
+          "columnsFrom": ["actor_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -482,7 +508,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "character_personas_persona_idx": {
+          "name": "character_personas_persona_idx",
+          "columns": ["persona_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "character_personas_character_id_characters_id_fk": {
           "name": "character_personas_character_id_characters_id_fk",
@@ -767,7 +799,18 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "characters_owner_handle_unique": {
+          "name": "characters_owner_handle_unique",
+          "columns": ["owner_id", "handle"],
+          "isUnique": true
+        },
+        "characters_owner_idx": {
+          "name": "characters_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "characters_owner_id_users_id_fk": {
           "name": "characters_owner_id_users_id_fk",
@@ -1453,6 +1496,27 @@
           "notNull": false,
           "autoincrement": false
         },
+        "variable_values": {
+          "name": "variable_values",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "imported_from": {
+          "name": "imported_from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "import_hash": {
+          "name": "import_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1632,6 +1696,20 @@
         },
         "terminal_reason": {
           "name": "terminal_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "api_error_status": {
+          "name": "api_error_status",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tool_calls": {
+          "name": "tool_calls",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -2737,7 +2815,7 @@
         },
         "hub_score": {
           "name": "hub_score",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2766,10 +2844,10 @@
         }
       },
       "indexes": {
-        "character_embeddings_character_idx": {
-          "name": "character_embeddings_character_idx",
-          "columns": ["character_id"],
-          "isUnique": false
+        "character_embeddings_character_model_unique": {
+          "name": "character_embeddings_character_model_unique",
+          "columns": ["character_id", "model"],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -2904,7 +2982,7 @@
         },
         "hub_score": {
           "name": "hub_score",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -3028,7 +3106,7 @@
         },
         "hub_score": {
           "name": "hub_score",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -3132,7 +3210,7 @@
         },
         "hub_score": {
           "name": "hub_score",
-          "type": "integer",
+          "type": "real",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -3337,7 +3415,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "personas_owner_idx": {
+          "name": "personas_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "personas_owner_id_users_id_fk": {
           "name": "personas_owner_id_users_id_fk",
@@ -3658,9 +3742,24 @@
           "notNull": true,
           "autoincrement": false
         },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
         "revoked_at": {
           "name": "revoked_at",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -4572,7 +4671,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "character_tags_tag_idx": {
+          "name": "character_tags_tag_idx",
+          "columns": ["tag_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "character_tags_character_id_characters_id_fk": {
           "name": "character_tags_character_id_characters_id_fk",
@@ -4640,7 +4745,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chat_tags_tag_idx": {
+          "name": "chat_tags_tag_idx",
+          "columns": ["tag_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "chat_tags_chat_id_chats_id_fk": {
           "name": "chat_tags_chat_id_chats_id_fk",
@@ -4705,7 +4816,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "persona_tags_tag_idx": {
+          "name": "persona_tags_tag_idx",
+          "columns": ["tag_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "persona_tags_persona_id_personas_id_fk": {
           "name": "persona_tags_persona_id_personas_id_fk",
@@ -4761,7 +4878,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "preset_tags_tag_idx": {
+          "name": "preset_tags_tag_idx",
+          "columns": ["tag_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "preset_tags_preset_id_presets_id_fk": {
           "name": "preset_tags_preset_id_presets_id_fk",
@@ -4925,7 +5048,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "world_book_tags_tag_idx": {
+          "name": "world_book_tags_tag_idx",
+          "columns": ["tag_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "world_book_tags_world_book_id_world_books_id_fk": {
           "name": "world_book_tags_world_book_id_world_books_id_fk",
@@ -5194,7 +5323,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "character_books_book_idx": {
+          "name": "character_books_book_idx",
+          "columns": ["world_book_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "character_books_character_id_characters_id_fk": {
           "name": "character_books_character_id_characters_id_fk",
@@ -5255,7 +5390,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "chat_books_book_idx": {
+          "name": "chat_books_book_idx",
+          "columns": ["world_book_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "chat_books_chat_id_chats_id_fk": {
           "name": "chat_books_chat_id_chats_id_fk",
@@ -5346,7 +5487,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "persona_books_book_idx": {
+          "name": "persona_books_book_idx",
+          "columns": ["world_book_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "persona_books_persona_id_personas_id_fk": {
           "name": "persona_books_persona_id_personas_id_fk",
@@ -5416,7 +5563,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "world_books_owner_idx": {
+          "name": "world_books_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "world_books_owner_id_users_id_fk": {
           "name": "world_books_owner_id_users_id_fk",
@@ -5517,7 +5670,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "world_entries_book_idx": {
+          "name": "world_entries_book_idx",
+          "columns": ["world_book_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "world_entries_world_book_id_world_books_id_fk": {
           "name": "world_entries_world_book_id_world_books_id_fk",

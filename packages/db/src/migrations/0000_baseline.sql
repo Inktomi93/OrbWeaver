@@ -18,9 +18,13 @@ CREATE TABLE `audit_logs` (
 	`entity_type` text,
 	`entity_id` text,
 	`metadata` text,
-	`created_at` integer NOT NULL
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`actor_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
+CREATE INDEX `audit_logs_time_idx` ON `audit_logs` (`created_at`);--> statement-breakpoint
+CREATE INDEX `audit_logs_actor_idx` ON `audit_logs` (`actor_user_id`);--> statement-breakpoint
+CREATE INDEX `audit_logs_entity_idx` ON `audit_logs` (`entity_type`,`entity_id`);--> statement-breakpoint
 CREATE TABLE `buddies` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -79,6 +83,7 @@ CREATE TABLE `character_personas` (
 	FOREIGN KEY (`persona_id`) REFERENCES `personas`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `character_personas_persona_idx` ON `character_personas` (`persona_id`);--> statement-breakpoint
 CREATE TABLE `character_snapshots` (
 	`id` text PRIMARY KEY NOT NULL,
 	`character_id` text NOT NULL,
@@ -120,6 +125,8 @@ CREATE TABLE `characters` (
 	FOREIGN KEY (`avatar_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `characters_owner_handle_unique` ON `characters` (`owner_id`,`handle`);--> statement-breakpoint
+CREATE INDEX `characters_owner_idx` ON `characters` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `chat_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -223,6 +230,9 @@ CREATE TABLE `chats` (
 	`compact_summary` text,
 	`compacted_at_seq` integer,
 	`metadata` text,
+	`variable_values` text,
+	`imported_from` text,
+	`import_hash` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`anchor_persona_id`) REFERENCES `personas`(`id`) ON UPDATE no action ON DELETE set null,
@@ -250,6 +260,8 @@ CREATE TABLE `message_variants` (
 	`finish_reason` text,
 	`stop_reason` text,
 	`terminal_reason` text,
+	`api_error_status` integer,
+	`tool_calls` text,
 	`params` text,
 	`prompt_snapshot` text,
 	`gen_started_at` integer,
@@ -420,14 +432,14 @@ CREATE TABLE `character_embeddings` (
 	`character_id` text NOT NULL,
 	`embedding` F32_BLOB(1024) NOT NULL,
 	`content_hash` text NOT NULL,
-	`hub_score` integer,
+	`hub_score` real,
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `character_embeddings_character_idx` ON `character_embeddings` (`character_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `character_embeddings_character_model_unique` ON `character_embeddings` (`character_id`,`model`);--> statement-breakpoint
 CREATE TABLE `chat_digest_speakers` (
 	`digest_id` text NOT NULL,
 	`character_id` text NOT NULL,
@@ -446,7 +458,7 @@ CREATE TABLE `chat_digests` (
 	`block_idx` integer NOT NULL,
 	`embedding` F32_BLOB(1024) NOT NULL,
 	`content_hash` text NOT NULL,
-	`hub_score` integer,
+	`hub_score` real,
 	`topic_anchor` text,
 	`keywords` text DEFAULT '[]' NOT NULL,
 	`model` text NOT NULL,
@@ -465,7 +477,7 @@ CREATE TABLE `chat_segments` (
 	`seq_end` integer NOT NULL,
 	`embedding` F32_BLOB(1024) NOT NULL,
 	`content_hash` text NOT NULL,
-	`hub_score` integer,
+	`hub_score` real,
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -481,7 +493,7 @@ CREATE TABLE `image_embeddings` (
 	`caption` text,
 	`caption_meta` text,
 	`content_hash` text NOT NULL,
-	`hub_score` integer,
+	`hub_score` real,
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -517,6 +529,7 @@ CREATE TABLE `personas` (
 	FOREIGN KEY (`avatar_asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
+CREATE INDEX `personas_owner_idx` ON `personas` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text,
@@ -565,7 +578,9 @@ CREATE TABLE `sessions` (
 	`user_id` text NOT NULL,
 	`token_hash` text NOT NULL,
 	`expires_at` integer NOT NULL,
+	`last_seen_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`revoked_at` integer,
+	`user_agent` text,
 	`label` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -700,6 +715,7 @@ CREATE TABLE `character_tags` (
 	CONSTRAINT "character_tags_status_check" CHECK(status in ('pending', 'accepted'))
 );
 --> statement-breakpoint
+CREATE INDEX `character_tags_tag_idx` ON `character_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `chat_tags` (
 	`chat_id` text NOT NULL,
 	`tag_id` text NOT NULL,
@@ -711,6 +727,7 @@ CREATE TABLE `chat_tags` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `chat_tags_tag_idx` ON `chat_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `persona_tags` (
 	`persona_id` text NOT NULL,
 	`tag_id` text NOT NULL,
@@ -720,6 +737,7 @@ CREATE TABLE `persona_tags` (
 	FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `persona_tags_tag_idx` ON `persona_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `preset_tags` (
 	`preset_id` text NOT NULL,
 	`tag_id` text NOT NULL,
@@ -729,6 +747,7 @@ CREATE TABLE `preset_tags` (
 	FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `preset_tags_tag_idx` ON `preset_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `tags` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -755,6 +774,7 @@ CREATE TABLE `world_book_tags` (
 	FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `world_book_tags_tag_idx` ON `world_book_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,
@@ -798,6 +818,7 @@ CREATE TABLE `character_books` (
 	CONSTRAINT "character_books_role_check" CHECK(role in ('primary', 'auxiliary'))
 );
 --> statement-breakpoint
+CREATE INDEX `character_books_book_idx` ON `character_books` (`world_book_id`);--> statement-breakpoint
 CREATE TABLE `chat_books` (
 	`chat_id` text NOT NULL,
 	`world_book_id` text NOT NULL,
@@ -807,6 +828,7 @@ CREATE TABLE `chat_books` (
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `chat_books_book_idx` ON `chat_books` (`world_book_id`);--> statement-breakpoint
 CREATE TABLE `global_books` (
 	`world_book_id` text PRIMARY KEY NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -822,6 +844,7 @@ CREATE TABLE `persona_books` (
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `persona_books_book_idx` ON `persona_books` (`world_book_id`);--> statement-breakpoint
 CREATE TABLE `world_books` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -831,6 +854,7 @@ CREATE TABLE `world_books` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE INDEX `world_books_owner_idx` ON `world_books` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `world_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`world_book_id` text NOT NULL,
@@ -845,3 +869,5 @@ CREATE TABLE `world_entries` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`world_book_id`) REFERENCES `world_books`(`id`) ON UPDATE no action ON DELETE cascade
 );
+--> statement-breakpoint
+CREATE INDEX `world_entries_book_idx` ON `world_entries` (`world_book_id`);

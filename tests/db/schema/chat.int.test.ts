@@ -132,6 +132,26 @@ test("chats.metadata JSON round-trips through the @orb/db/kit read seam", async 
   expect(parsed).toEqual(metadata);
 });
 
+test("chats variableValues (read-seam map) + import provenance round-trip", async () => {
+  const db = await freshDb();
+  const chatId = castId<ChatId>("chat_vars");
+  // The per-chat ChoiceBlock variable flush (setVariables writes it; getStoredVariables reads it).
+  const variableValues = { a: "1" };
+  await db.insert(chats).values({
+    id: chatId,
+    variableValues,
+    importedFrom: "session-2026.jsonl",
+    importHash: "sha256-of-import-bytes",
+  });
+
+  const row = (await db.select().from(chats).where(eq(chats.id, chatId)))[0];
+  // The typed read (drizzle hands back the parsed object as-is) + the generic read-seam parser.
+  expect(row?.variableValues).toEqual(variableValues);
+  expect(parseRecord(row?.variableValues)).toEqual(variableValues);
+  expect(row?.importedFrom).toBe("session-2026.jsonl");
+  expect(row?.importHash).toBe("sha256-of-import-bytes");
+});
+
 // ── messages ↔ message_variants (D26) ────────────────────────────────────────
 
 test("the message SLOT points at its selected variant (D26 pointer + circular-FK dance)", async () => {
@@ -214,6 +234,34 @@ test("message_variants economics + JSON params round-trip (numbers, not Dates)",
   expect(v?.contextWindow).toBe(200_000);
   expect(v?.genStartedAt).toBeTypeOf("number");
   expect(parseRecord(v?.params)).toEqual({ temperature: 0.7 });
+});
+
+test("message_variants toolCalls (untyped json) + apiErrorStatus round-trip (number as number)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_genrec");
+  const messageId = castId<MessageId>("message_genrec");
+  await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
+  const variantId = castId<MessageVariantId>("message_variant_genrec");
+  // A failed generation: an HTTP status diagnostics signal + a reserved tool-call record blob.
+  const apiErrorStatus = 429;
+  const toolCalls = [{ name: "search", args: { q: "nope" } }];
+  await db.insert(messageVariants).values({
+    id: variantId,
+    messageId,
+    idx: 0,
+    content: "",
+    terminalReason: "api_error",
+    apiErrorStatus,
+    toolCalls,
+  });
+
+  const v = (await db.select().from(messageVariants).where(eq(messageVariants.id, variantId)))[0];
+  // The HTTP status survives as a NUMBER (never a string/Date).
+  expect(v?.apiErrorStatus).toBeTypeOf("number");
+  expect(v?.apiErrorStatus).toBe(apiErrorStatus);
+  expect(v?.terminalReason).toBe("api_error");
+  // The untyped json round-trips through the driver as the stored shape.
+  expect(v?.toolCalls).toEqual(toolCalls);
 });
 
 test("deleting a message CASCADEs its variants (D26)", async () => {
