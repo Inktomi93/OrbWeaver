@@ -1,0 +1,27 @@
+// infra/providers/roles/agent — the `agent` role dispatcher (agent mode = chat + tools + a multi-turn
+// loop; agent-sdk-only today). Rides the same firewall base as chat. agent mode is always the agent-sdk
+// backend, so the backend key is fixed; the firewall still gates the source (sub/skin/vllm, never BYO)
+// + the owner-consent belt.
+
+import type { AgentTurnRequest, ChatResult, ProviderDeps } from "../contract";
+import { requireBackend, requireRoleImpl } from "./dispatch";
+import { assertCredentialAllowed } from "./firewall";
+
+const ROLE = "agent";
+const AGENT_BACKEND = "agent-sdk";
+
+/** Bind the agent-turn dispatcher to the wired backend registry. */
+export function createAgentRole(
+  deps: ProviderDeps,
+): (req: AgentTurnRequest) => Promise<ChatResult> {
+  return async (req) => {
+    assertCredentialAllowed({
+      role: ROLE,
+      source: req.credential.source,
+      api: "agent-sdk",
+      ownerConsented: req.ownerConsented,
+    });
+    const backend = requireBackend(deps.backends, AGENT_BACKEND, ROLE);
+    return await requireRoleImpl(backend, backend.runAgentTurn, ROLE)(req);
+  };
+}
