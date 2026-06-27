@@ -92,7 +92,11 @@ let fired = new Set<string>();
 
 beforeAll(() => {
   cleanFixtures();
-  registry = names(OK_RE, runStructure()); // clean run: every gate prints ✓
+  // registry = every gate report.ts prints, ✓ OR ✗. A gate can be legitimately ✗ on the real tree
+  // (e.g. test-presence flagging a not-yet-tested infra/foundation file) and must still count as
+  // "registered" — otherwise the dir-cross-check below would mistake an honest red for an unregistered gate.
+  const cleanReport = runStructure();
+  registry = new Set([...names(OK_RE, cleanReport), ...names(FIRED_RE, cleanReport)]);
   writeFixtures();
   fired = names(FIRED_RE, runStructure()); // with fixtures: the gates that caught a violation
 }, 60_000);
