@@ -340,7 +340,9 @@
         "packages/server/src/domain/export/**",
         "packages/server/src/domain/connection/**",
         "packages/server/src/domain/credentials/**",
-        "packages/server/src/infra/providers/**"
+        "packages/server/src/infra/providers/**",
+        "packages/contracts/src/connection/**",
+        "tests/contracts/connection/**"
       ],
       "linter": { "rules": { "style": { "useNamingConvention": "off" } } }
     },

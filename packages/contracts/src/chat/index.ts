@@ -1,8 +1,736 @@
-// Roster participant kind — the chat-roster discriminator (participants-agents-identity.md §1). Reserved
-// NOW with the `'observer'` seam (reports/COUNCIL-REVIEW.md / DECISIONS-LEDGER §5): the per-chat
-// Narrative Director is an `'observer'` agent that watches + proposes (WI / steering), never acts.
-// `'human'`/`'character'` are the v1 kinds; `'agent'` (first-class agent principal, _FANOUT-BRIEF §8.6)
-// joins this union when that build lands. The rest of the chat contract (AssembleContext, deltas, …)
-// fills in at Phase 2. Self-registering `as const` tuple (no-inline-union-redecl).
+// @orb/contracts/chat — the largest contracts node: the chat-message role schema, the D26 message/variant
+// wire contract, the ASSEMBLE family, the chat stream-delta + bus union, the (formerly misfiled) room /
+// group / opening shapes, and the D16 unified-roster wire (invites, roster, member-card, group macros).
+//
+// LAYER 2 — depends on the Layer-0/1 contracts it imports DOWN:
+//   • `#world-info` (`WiBusEvent` — embedded in `ChatBusEvent`; `WorldInfoScope` — an assemble-entry field).
+//   • `#preset` (`PromptConfig` — `AssembleContext` builds against it; `GenerationType` — the turn gate;
+//      `UserIntent` — a variant's recorded generation params, D26).
+//   • `#connection` (`ChatApi`/`ChatSource` — the `turnStarted` bus event's protocol + provider-source).
+//   • `@orb/kit/message-role` (the `MESSAGE_ROLES` tuple — `messageRoleSchema = z.enum(MESSAGE_ROLES)`, D32;
+//      the canonical role axis. The tuple lives in kit; THE wire schema lives HERE — the §5 tuple-in-kit rule).
+//   • `@orb/kit/injection` (`InjectionPlacement` — the shared `{depth, role}` at-depth shape, D32).
+//   • `@orb/kit/ids` (the branded ids + the `brandedId`/`typeIdSchema` boundary schemas).
+//
+// LAWS honored here:
+//   • Turn identity (D19): a wire shape that carries turn attribution uses `triggeredBy`/`runAsUserId`,
+//     NEVER `callerUserId` (the caller is `Principal.userId`). The bus events here carry no caller id.
+//   • No `chats.ownerId` (D18): chats are membership-scoped; the host participant is the authority. No wire
+//     shape here stamps a chat owner.
+//   • Bus-payload allowlist (chat.md Part III inv §11): credentials / secrets / baseUrls are TYPE-LEVEL
+//     UNREPRESENTABLE in `ChatBusEvent` — every member is a closed object literal of branded ids, enum
+//     literals, plain scalars, and `MessageView`; there is no `unknown`/`Record`/index field a secret could
+//     ride in. The `.contract.test` pins this at the type level.
+//   • D26: `messages` is a pure SLOT (no content/economics); all generation content lives on
+//     `message_variants`. `MessageView` is the slot joined with its selected variant.
+//   • D22: `memberCardVisibility` is a host-set dial on `groupConfigSchema` (default `sheet`).
+
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatInviteId,
+  ChatParticipantId,
+  Handle,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { InjectionPlacement } from "@orb/kit/injection";
+import type { MessageRole } from "@orb/kit/message-role";
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import { z } from "zod";
+import type { ChatApi, ChatSource } from "#connection";
+import type { GenerationType, PromptConfig, UserIntent } from "#preset";
+import type { WiBusEvent, WorldInfoScope } from "#world-info";
+
+// ── The roster participant kind (the chat-roster discriminator) ───────────────
+// Reserved NOW with the `observer` seam (the per-chat Narrative Director — watches + proposes, never acts).
+// `human`/`character` are the v1 kinds; `agent` (first-class agent principal) joins when that build lands.
 export const PARTICIPANT_KINDS = ["human", "character", "observer"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
+
+// ── The chat-message role wire schema (D32 — THE canonical home) ──────────────
+// `z.enum(MESSAGE_ROLES)`: the tuple is `@orb/kit/message-role` (a pure isomorphic atom kit resolvers +
+// the ST bimap need); the WIRE schema is HERE (the §5 tuple-in-kit rule). Every role field across this node
+// (message slot/view, chat injections, assemble entries via `kit/injection`) goes through this one axis —
+// no inline re-spell of `system|user|assistant`.
+export const messageRoleSchema = z.enum(MESSAGE_ROLES);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE ASSEMBLE FAMILY (from neo `shared/prompt/prompt-assemble-types.ts`) — slim assembly projections
+// (DAG §1.3): NOT re-exports of the full card/persona/entry shapes. `db/schema/chat.ts.promptSnapshot`
+// (a `message_variants` column, D26) and chat verb result types consume these without pulling the assembly
+// logic. Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A roster character projected to the fields the ASSEMBLE stage renders — a slim cast projection, NOT the
+ *  full `CharacterCard`. `systemPrompt`/`postHistoryInstructions`, when present, REPLACE the matching preset
+ *  section in place (`{{original}}` recovers the preset text). */
+export interface AssembleCharacter {
+  name: string;
+  description: string;
+  personality?: string | null;
+  scenario?: string | null;
+  exampleMessages?: string | null;
+  systemPrompt?: string | null;
+  postHistoryInstructions?: string | null;
+}
+
+/** The human-side projection for `{{user}}` resolution. Slim (`{name, description}`) — homed HERE, not
+ *  `contracts/persona`, so `chat` keeps the assemble family cohesive without a `chat → persona` edge (DAG
+ *  CONFLICT resolved: 3 docs to 1). */
+export interface AssemblePersona {
+  name: string;
+  description: string;
+}
+
+/** A world-info entry projected onto the assembler contract. `scope` is the `WorldInfoScope` axis
+ *  (`#world-info`); `inject` (opt-in WI-at-depth) reuses the SHARED `InjectionPlacement` `{depth, role}`
+ *  primitive (`@orb/kit/injection`, D32) — set ⇒ the always-scope entry splices into history instead of
+ *  rendering into the system half. */
+export interface AssembleWorldEntry {
+  /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC). Optional for fixtures. */
+  id?: string;
+  content: string;
+  scope: WorldInfoScope;
+  keys: string[];
+  priority: number;
+  enabled: boolean;
+  /** When true, the entry bypasses the per-turn WI token budget (must-have lore). Absent ⇒ false. */
+  ignoreBudget?: boolean;
+  /** Where this entry was attached — `character` = card-derived (anchor persona); `chat` = user-attached
+   *  (active persona). Drives the dual-persona macro routing. */
+  source: "character" | "chat";
+  /** Which ALWAYS-scope system-half anchor bucket this joins (ST worldInfoBefore/After). Defaults `before`. */
+  position: "before" | "after";
+  /** WI-at-depth: when set, splice into the chat HISTORY at this placement instead of the system half. */
+  inject?: InjectionPlacement | null;
+}
+
+/** One positional injection for a turn — a `chat_injections` row OR a WI/section converted at build time.
+ *  Position semantics: `before_prompt` PREPENDs to the static system block; `in_static` APPENDs to it;
+ *  `in_prompt` APPENDs to the dynamic suffix; `in_chat` splices into history at `depth` (the pipeline owns
+ *  the splice). `role` is the canonical `MessageRole` axis (no inline re-spell). */
+export interface ChatInjection {
+  position: "before_prompt" | "in_static" | "in_prompt" | "in_chat";
+  /** Only meaningful when `position === "in_chat"`. 0 = at the tail (just before the new turn). */
+  depth: number;
+  role: MessageRole;
+  content: string;
+  /** Priority WITHIN a depth (ST `injection_order`); co-located `in_chat` injections splice DESC. */
+  order?: number;
+}
+
+/** Debug metadata about what assembly did — NOT the prompt text. Answers "why did/didn't this fire?"
+ *  without dumping RP content (the host/admin-only trace surface). */
+export interface AssembleTrace {
+  staticSections: string[];
+  dynamicSections: string[];
+  worldInfoIncluded: number;
+  worldInfoDropped: { id: string; reason: "budget" }[];
+  matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
+  compactSummaryIncluded: boolean;
+  memoryIncluded: boolean;
+  guidedInstructionIncluded: boolean;
+  /** Volatile macros that landed in the STATIC half — each busts prompt cache every turn. */
+  staticCacheBusters: string[];
+  chatInjectionsIncluded: number;
+  afterHistorySections: string[];
+  /** Resolved source of each room-overrideable field ("room override" / "from <Name>" / "merged"). */
+  overrideSources?: {
+    mainPrompt?: string;
+    postHistory?: string;
+    scenario?: string;
+    authorsNote?: string;
+  };
+}
+
+/** The product of the BUILD stage. `static` is the cache-stable prefix; `dynamic` the per-turn suffix;
+ *  `afterHistory` the sections that splice into history as `in_chat` injections. Consumed by a
+ *  `message_variants.promptSnapshot` (D26). */
+export interface AssembledPrompt {
+  static: string;
+  dynamic: string;
+  afterHistory: ChatInjection[];
+  /** `false` only when a `chat_history` marker is present AND disabled (absent ⇒ true). */
+  sendHistory: boolean;
+  trace: AssembleTrace;
+}
+
+/** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
+ *  fields are optional so hand-built / preview / solo contexts degrade to byte-identical output (the §10.4
+ *  degenerate-case doctrine: solo is the trivial cast, never an `if(isGroup)` branch). */
+export interface AssembleContext {
+  /** The active/primary character for this turn. */
+  character: AssembleCharacter;
+  /** The resolved generation config the BUILD walk renders against (the reorderable section model). The
+   *  `chat → preset` edge (DAG §1): assembly always builds against a `PromptConfig`. */
+  promptConfig: PromptConfig;
+  /** All character members (primary first). A roster-of-one solo chat is exactly `[character]`. */
+  cast?: AssembleCharacter[];
+  /** Per-cast-member identity, index-aligned with `cast`. Null for an un-backfilled legacy member. */
+  castCharacterIds?: (CharacterId | null)[];
+  /** The non-muted subset of `cast` — drives `{{groupNotMuted}}`. Absent ⇒ falls back to the full cast. */
+  castNotMuted?: AssembleCharacter[];
+  /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
+   *  = the whole cast). Solo is always `single`. */
+  speaker?:
+    | { kind: "single"; character: AssembleCharacter }
+    | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
+  /** Other present cast whose cards merge into THIS turn's character section (`cardScope: "merged"`). */
+  coSpeakers?: AssembleCharacter[] | undefined;
+  /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
+   *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
+  activeSpeakerCharacterId?: CharacterId | null | undefined;
+  /** Host-level per-room overrides (room > card > preset). Absent ⇒ no room tier. */
+  roomOverrides?: RoomOverrides;
+  /** Resolved source of the author's-note depth injection ("room override" / "from <Name>"). */
+  authorsNoteSource?: string;
+  /** `{{user}}` in CARD-derived sections — the chat-open ("anchor") persona. */
+  pinnedPersona?: AssemblePersona | null;
+  /** `{{user}}` in USER-authored sections — the speaking participant's active persona. */
+  activePersona?: AssemblePersona | null;
+  /** Whether the `persona` marker should emit the active persona's description (false ⇒ it rode an
+   *  injection; marker stays silent to avoid double-inject). Absent ⇒ true. */
+  personaMarkerActive?: boolean;
+  /** Recent message texts, for keyword-WI matching at build time. */
+  recentMessages: string[];
+  currentInput?: string | undefined;
+  lastMessage?: string | undefined;
+  lastUserMessage?: string | undefined;
+  lastCharMessage?: string | undefined;
+  /** IANA timezone for `{{time}}`/`{{date}}`. Absent ⇒ server-local. */
+  timezone?: string | undefined;
+  /** Fixed clock for `{{time}}`/`{{date}}`, epoch-ms UTC. Absent ⇒ live wall clock. */
+  nowMs?: number | undefined;
+  /** The chat's compaction summary (the `{{compact_summary}}` marker). Null/absent ⇒ nothing rendered. */
+  compactSummary?: string | null;
+  /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
+  memory?: string | null;
+  /** Per-chat ChoiceBlock variable values (`{{get::<name>}}`). */
+  variableValues?: Record<string, string> | undefined;
+  /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
+  guidedInstruction?: string | null;
+  /** Per-speaker group nudge fence — set FRESH per speaker (never accumulates), never persisted/rendered. */
+  groupNudge?: string | null;
+  /** The turn's generation type (the ST `injection_trigger` gate). Absent ⇒ `normal`. */
+  generationType?: GenerationType;
+  /** Pre-rendered ALWAYS-scope WI for the `world_info_before`/`world_info_after` anchor markers. */
+  worldInfoBefore?: string;
+  worldInfoAfter?: string;
+  /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
+  chatInjections?: ChatInjection[];
+  /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. */
+  wiTrace?: {
+    included: number;
+    dropped: { id: string; reason: "budget" }[];
+    matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
+  };
+}
+
+/** One section's render preview (the COMPOSER/editor surface) — scoped to a single section. */
+export interface SectionPreview {
+  rendered: string;
+  half: "static" | "dynamic";
+  trace: AssembleTrace;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE MESSAGE / VARIANT WIRE CONTRACT (D26) — `messages` is a pure SLOT; ALL content/economics live on
+// `message_variants`. `MessageView` is the slot joined with its SELECTED variant.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+const SEQ_MIN = 0;
+
+/** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
+ *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a
+ *  content copy). Attribution (`authorUserId`/`characterId`/`personaId`) is slot-level — a swipe never
+ *  changes the voiced speaker. The schema is a plain `z.object` (strips unknown keys), so an attempt to
+ *  carry a `content` field on the slot is dropped at the boundary — the D26 invariant made unrepresentable. */
+export const messageSlotSchema = z.object({
+  id: typeIdSchema(ID_PREFIX.message),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  seq: z.number().int().min(SEQ_MIN),
+  role: messageRoleSchema,
+  /** The human who SENT a user message (server-stamped). Null on assistant/system rows. */
+  authorUserId: brandedId<UserId>().nullable(),
+  /** The AI identity that VOICED an assistant message (keyed on `characters.id`). Null on user/system. */
+  characterId: typeIdSchema(ID_PREFIX.character).nullable(),
+  /** Which persona authored a user message. Null on assistant/system / no-persona chats. */
+  personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
+  selectedVariantId: typeIdSchema(ID_PREFIX.messageVariant),
+  /** When true, the slot is held out of the assembled prompt (a hidden message). */
+  excludedFromPrompt: z.boolean(),
+  createdAt: z.number().int(),
+  editedAt: z.number().int().nullable(),
+});
+export type MessageSlot = z.infer<typeof messageSlotSchema>;
+
+/** A `message_variants` row (D26) — the full generation record. Holds ALL content + economics +
+ *  `promptSnapshot` (per-swipe). NO `characterId`/`authorUserId` — attribution is the SLOT's. A read view
+ *  (server-produced, client-read), so it is an interface, not an inbound zod schema. */
+export interface MessageVariant {
+  id: MessageVariantId;
+  messageId: MessageId;
+  /** 0-based position among this slot's variants (swipes). */
+  idx: number;
+  content: string;
+  reasoning: string | null;
+  model: string | null;
+  provider: string | null;
+  reasoningEffort: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  costUsd: number | null;
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  ttftMs: number | null;
+  finishReason: string | null;
+  stopReason: string | null;
+  terminalReason: string | null;
+  /** The recorded generation params (D26 `params (UserIntent)`). */
+  params: UserIntent | null;
+  /** The per-variant assembled-prompt snapshot (D26 — now works per swipe). */
+  promptSnapshot: AssembledPrompt | null;
+  createdAt: number;
+}
+
+/** The client read-model: the SLOT joined with its SELECTED variant (D26). The slot owns attribution + the
+ *  `selectedVariantId` pointer; the joined variant supplies the displayed content + the per-turn economics
+ *  readout. `variantCount`/`selectedVariantIdx` drive the "3 / 5" swipe counter. The cost/latency readout is
+ *  exact for whichever swipe is shown (the economics live on each variant — D26 ends the swipe-overwrite). */
+export interface MessageView {
+  // ── slot ────────────────────────────────────────────────────────────────
+  id: MessageId;
+  chatId: ChatId;
+  seq: number;
+  role: MessageRole;
+  authorUserId: UserId | null;
+  characterId: CharacterId | null;
+  personaId: PersonaId | null;
+  excludedFromPrompt: boolean;
+  createdAt: number;
+  editedAt: number | null;
+  // ── selected-variant projection (the join) ───────────────────────────────
+  selectedVariantId: MessageVariantId;
+  /** Which swipe is shown (the selected variant's `idx`). */
+  selectedVariantIdx: number;
+  /** Total variants for this slot (1 = single generation). */
+  variantCount: number;
+  content: string;
+  reasoning: string | null;
+  model: string | null;
+  provider: string | null;
+  finishReason: string | null;
+  stopReason: string | null;
+  terminalReason: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  contextWindow: number | null;
+  costUsd: number | null;
+  ttftMs: number | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE CHAT STREAM DELTA + THE CHAT BUS UNION
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A stream delta wrapped inside a `ChatBusEvent` of `type: "delta"`. */
+export type ChatDeltaEvent =
+  | { chatId: ChatId; kind: "text"; text: string }
+  | { chatId: ChatId; kind: "reasoning"; text: string };
+
+/** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
+export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
+export type TurnIntent = (typeof TURN_INTENTS)[number];
+
+/** Why a turn aborted. */
+export const TURN_ABORT_REASONS = ["user", "error", "stale"] as const;
+export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
+
+/** The chat bus union — the room-public event stream (`streamMessages` fans these out; the durable log
+ *  replays them). It EMBEDS `WiBusEvent` (`#world-info`) so the WI domain emits without importing chat.
+ *
+ *  BUS-PAYLOAD ALLOWLIST (Part III inv §11): every member is a closed object literal of branded ids, enum
+ *  literals, plain scalars, and `MessageView` — there is NO `unknown`/`Record`/index field. Credentials /
+ *  secrets / baseUrls are therefore TYPE-LEVEL UNREPRESENTABLE: a producer cannot place an `apiKey` into a
+ *  bus event because no member declares a field to carry it. (The `.contract.test` pins this.) No member
+ *  carries a caller id — turn attribution lives on the turn path (`triggeredBy`/`runAsUserId`), never the
+ *  public bus (D19). */
+export type ChatBusEvent =
+  // ── Streaming ──────────────────────────────────────────────────────────────
+  | { type: "delta"; chatId: ChatId; delta: ChatDeltaEvent }
+  // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
+  | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  | { type: "variantSelected"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  | { type: "messagesDeleted"; chatId: ChatId; messageIds: MessageId[] }
+  | { type: "messagesReordered"; chatId: ChatId }
+  | { type: "reasoningEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  | { type: "reasoningCleared"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  | { type: "reasoningStreamDone"; chatId: ChatId }
+  // ── Turn lifecycle (the extensibility seam) ─────────────────────────────────
+  | {
+      type: "turnStarted";
+      chatId: ChatId;
+      intent: TurnIntent;
+      api: ChatApi;
+      source: ChatSource;
+      model: string;
+      /** For swipe/continue, the message this turn rerolls/extends (the ghost-slot id). Null otherwise. */
+      targetMessageId: MessageId | null;
+    }
+  | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
+  | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason }
+  // ── Persona (per-participant active persona switched; carries old + new) ─────
+  | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
+  // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
+  | WiBusEvent
+  // ── Chat existence ──────────────────────────────────────────────────────────
+  | { type: "chatCreated"; chatId: ChatId }
+  | { type: "chatDeleted"; chatId: ChatId }
+  // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
+  | { type: "historyTruncated"; chatId: ChatId }
+  // ── Catch-all for low-payload chat-row changes (star/archive/title/variables/injections/compact) ──
+  | { type: "chatUpdated"; chatId: ChatId };
+
+/** Valid bus discriminators, derived from the union. The `satisfies Record<ChatBusEvent["type"], true>`
+ *  makes `tsc` error if a member is added without a matching entry — keeping the replay guard exhaustive
+ *  (the durable log is untyped JSON; corrupt/legacy rows are filtered against this set before re-emit). */
+export const CHAT_BUS_EVENT_TYPES = {
+  delta: true,
+  messageCommitted: true,
+  messageEdited: true,
+  variantSelected: true,
+  messagesDeleted: true,
+  messagesReordered: true,
+  reasoningEdited: true,
+  reasoningCleared: true,
+  reasoningStreamDone: true,
+  turnStarted: true,
+  turnCompleted: true,
+  turnAborted: true,
+  personaSwitched: true,
+  wiBookAttached: true,
+  wiBookDetached: true,
+  wiEntryAttached: true,
+  wiEntryDetached: true,
+  wiEntryScopeChanged: true,
+  chatCreated: true,
+  chatDeleted: true,
+  historyTruncated: true,
+  chatUpdated: true,
+} satisfies Record<ChatBusEvent["type"], true>;
+
+/** True when `t` is a known `ChatBusEvent` discriminator (see {@link CHAT_BUS_EVENT_TYPES}). */
+export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
+  return Object.hasOwn(CHAT_BUS_EVENT_TYPES, t);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// MISFILED-FROM-SETTINGS CHAT SHAPES (shared-dissolution §7 #4) — chatMetadata sub-blobs / start-chat
+// unions consumed by chat verbs + assemble types + client chat forms, NOT the settings KV.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// ── Room overrides (host-only; exactly four fields — the Part III §9 allowlist) ──
+const OVERRIDE_FIELD_MAX = 100_000;
+const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
+
+/** The host-only per-room overrides — exactly four fields ("jailbreak" IS post_history). `.strict()`
+ *  default-denies a stray key (an enforcer, not prose). Each field absent ⇒ inherit the card/scope
+ *  fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean JSON sub-blob). */
+export const roomOverridesSchema = z
+  .object({
+    scenario: overrideField.optional(),
+    mainPrompt: overrideField.optional(),
+    postHistory: overrideField.optional(),
+    authorsNote: overrideField.optional(),
+  })
+  .strict();
+export type RoomOverrides = z.infer<typeof roomOverridesSchema>;
+
+/** Empty ⇒ inherit everything (the off path is byte-identical). */
+export const DEFAULT_ROOM_OVERRIDES: RoomOverrides = {};
+
+// ── Member card visibility (D22 — the host-set per-room dial) ──
+/** How much of a roster character's card a present human member may read (Part III §11; D22). Levels
+ *  widen left→right: `name-avatar` (the conservative floor) → `sheet` (presentable identity) → `sheet+lore`
+ *  (+ the character's world-info) → `full` (+ prompt-steering internals). Host-set; the owner/host always
+ *  sees `full`; the member view is read-only + while-present. */
+export const MEMBER_CARD_VISIBILITY_LEVELS = [
+  "name-avatar",
+  "sheet",
+  "sheet+lore",
+  "full",
+] as const;
+export type MemberCardVisibility = (typeof MEMBER_CARD_VISIBILITY_LEVELS)[number];
+export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS);
+
+// ── Group config (the `chatMetadata.group` sub-blob) ──
+/** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
+ *  applied BEFORE the policy. `smart` (side-LLM) falls back to `natural` until wired. */
+export const groupPolicySchema = z
+  .enum(["natural", "list", "pooled", "manual", "smart"])
+  .catch("natural")
+  .default("natural");
+export type GroupPolicy = z.infer<typeof groupPolicySchema>;
+
+// Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (the narrator arm is `.strict()`).
+// Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
+const AUTO_MODE_MAX_TURNS_MIN = 1;
+const AUTO_MODE_MAX_TURNS_MAX = 20;
+const AUTO_MODE_MAX_TURNS_DEFAULT = 6;
+const AUTO_MODE_DELAY_MS_MIN = 0;
+const AUTO_MODE_DELAY_MS_MAX = 60_000;
+const AUTO_MODE_DELAY_MS_DEFAULT = 1500;
+const autoModeFields = {
+  autoMode: z.boolean().catch(false).default(false),
+  autoModeMaxTurns: z
+    .number()
+    .int()
+    .min(AUTO_MODE_MAX_TURNS_MIN)
+    .max(AUTO_MODE_MAX_TURNS_MAX)
+    .catch(AUTO_MODE_MAX_TURNS_DEFAULT)
+    .default(AUTO_MODE_MAX_TURNS_DEFAULT),
+  autoModeDelayMs: z
+    .number()
+    .int()
+    .min(AUTO_MODE_DELAY_MS_MIN)
+    .max(AUTO_MODE_DELAY_MS_MAX)
+    .catch(AUTO_MODE_DELAY_MS_DEFAULT)
+    .default(AUTO_MODE_DELAY_MS_DEFAULT),
+  allowSelfResponses: z.boolean().catch(false).default(false),
+} as const;
+
+// The synthetic group character's identity id (Part III §10) — narrator turns are AUTHORED by it (a real
+// id, never NULL). Optional KEY (absent until minted); on BOTH arms (the narrator arm is `.strict()`).
+const groupCharacterIdField = {
+  groupCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+} as const;
+
+// `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (narrator is `.strict()`).
+const memberCardVisibilityField = {
+  memberCardVisibility: memberCardVisibilitySchema.catch("sheet").default("sheet"),
+} as const;
+
+/** Per-room generation behavior. `output` is the discriminator: a `narrator` turn voices the whole cast in
+ *  one message and has NO per-speaker card-scope — the `narrator ⇒ merged` constraint is made
+ *  unrepresentable by OMITTING `cardScope` from that arm (and `.strict()` REJECTS a stray `cardScope`, an
+ *  enforcer not prose). `per-speaker` (default) emits one message per speaker and carries `cardScope`. */
+export const groupConfigSchema = z.discriminatedUnion("output", [
+  z
+    .object({
+      output: z.literal("narrator"),
+      policy: groupPolicySchema,
+      speakerTags: z.boolean().catch(true).default(true),
+      groupNudge: z.boolean().catch(true).default(true),
+      ...autoModeFields,
+      ...groupCharacterIdField,
+      ...memberCardVisibilityField,
+    })
+    .strict(),
+  z.object({
+    output: z.literal("per-speaker"),
+    policy: groupPolicySchema,
+    cardScope: z.enum(["merged", "scoped"]).catch("merged").default("merged"),
+    speakerTags: z.boolean().catch(false).default(false),
+    groupNudge: z.boolean().catch(true).default(true),
+    ...autoModeFields,
+    ...groupCharacterIdField,
+    ...memberCardVisibilityField,
+  }),
+]);
+export type GroupConfig = z.infer<typeof groupConfigSchema>;
+/** The LENIENT input (pre-default): callers may omit the defaulted knobs; `setGroupConfig` parses to
+ *  {@link GroupConfig} before persisting, so a stored blob is always fully-defaulted. */
+export type GroupConfigInput = z.input<typeof groupConfigSchema>;
+
+/** The default room behavior (Part III §7): per-speaker × merged, natural arbitration, no speaker tags,
+ *  group-nudge on, auto-mode OFF, member cards visible at `sheet` (D22). */
+export const DEFAULT_GROUP_CONFIG: GroupConfig = {
+  output: "per-speaker",
+  policy: "natural",
+  cardScope: "merged",
+  speakerTags: false,
+  groupNudge: true,
+  autoMode: false,
+  autoModeMaxTurns: AUTO_MODE_MAX_TURNS_DEFAULT,
+  autoModeDelayMs: AUTO_MODE_DELAY_MS_DEFAULT,
+  allowSelfResponses: false,
+  memberCardVisibility: "sheet",
+  // groupCharacterId omitted — a clean optional key, absent until the synthetic group character is minted.
+};
+
+// ── Opening policy (HOW a new room opens — the start-chat union) ──
+/** Opening policy for a chat's founding cast. `greet-all` = each founding AI greets (the group default);
+ *  `generate` = the model writes a cast-aware opening; `none` = seed no greeting; `first-message` = the
+ *  solo degenerate (the primary's greeting at seq 1). No `.catch`/`.default`: optional at every boundary,
+ *  the server resolves absent → greet-all-vs-first-message by roster size. */
+export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);
+export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE UNIFIED-ROSTER WIRE (D16) — the participant roster, the membership-gated member card (D22), invites,
+// and the group-macro context. The LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A participant's room authority. `host` = the ONE home for `requireHost` + the `runAsUserId`/funding
+ *  source (D18); `member` = everyone else. Server-forced on the membership chokepoint (never client-set). */
+export const PARTICIPANT_ROLES = ["host", "member"] as const;
+export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
+
+/** How much history a (re)joining member sees: `from-join` (only from their `joinSeq`) or `full`. */
+export const JOIN_HISTORY_VISIBILITIES = ["from-join", "full"] as const;
+export type JoinHistoryVisibility = (typeof JOIN_HISTORY_VISIBILITIES)[number];
+export const joinHistoryVisibilitySchema = z.enum(JOIN_HISTORY_VISIBILITIES);
+
+const TALKATIVENESS_MIN = 0;
+const TALKATIVENESS_MAX = 1;
+/** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
+export const TALKATIVENESS_DEFAULT = 0.5;
+/** The 0–1 talkativeness weight schema (default {@link TALKATIVENESS_DEFAULT}). */
+export const talkativenessSchema = z
+  .number()
+  .min(TALKATIVENESS_MIN)
+  .max(TALKATIVENESS_MAX)
+  .catch(TALKATIVENESS_DEFAULT)
+  .default(TALKATIVENESS_DEFAULT);
+
+/** The roster read-model (one `chat_participants` row, resolved for display). `kind` is the XOR
+ *  discriminator (`userId` set for `human`, `characterId` for `character`); `talkativeness`/`disabled` feed
+ *  arbitration + `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing" predicate). */
+export interface ParticipantView {
+  id: ChatParticipantId;
+  chatId: ChatId;
+  kind: ParticipantKind;
+  userId: UserId | null;
+  characterId: CharacterId | null;
+  role: ParticipantRole;
+  activePersonaId: PersonaId | null;
+  talkativeness: number;
+  disabled: boolean;
+  joinedAt: number;
+  joinSeq: number;
+  leftSeq: number | null;
+  joinHistoryVisibility: JoinHistoryVisibility;
+  /** Resolved display name (persona/handle for a human, character name for an agent). */
+  displayName: string;
+  /** A human's public handle (null for an agent). */
+  handle: Handle | null;
+  /** The avatar asset (the floor — always member-visible via the D21 blob route's roster exception). */
+  avatarAssetId: AssetId | null;
+}
+
+/** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
+ *  effective `visibility` level are `null` (the producer clamps `getRosterCardView` to
+ *  `chatMetadata.group.memberCardVisibility`; the owner/host always gets `full`). Read-only +
+ *  while-present; viewing ≠ owning (edit/clone/export stay owner-only). Self-contained — it is a clamped
+ *  PROJECTION, not the full `CharacterCard`, so `chat` needs no `→ character` edge for it. */
+export interface MemberCardView {
+  characterId: CharacterId;
+  /** The level this projection was clamped to — the consumer reads it to know which fields are populated. */
+  visibility: MemberCardVisibility;
+  // ── name-avatar floor (always present) ───────────────────────────────────
+  name: string;
+  avatarAssetId: AssetId | null;
+  // ── sheet (>= `sheet`) ───────────────────────────────────────────────────
+  description: string | null;
+  personality: string | null;
+  scenario: string | null;
+  greetings: string[] | null;
+  exampleMessages: string | null;
+  tags: string[] | null;
+  creatorNotes: string | null;
+  // ── sheet+lore (>= `sheet+lore`) ─────────────────────────────────────────
+  /** The character's world-info entry contents (rendered), or null below `sheet+lore`. */
+  lore: string[] | null;
+  // ── full (== `full`): the prompt-steering internals ──────────────────────
+  systemPrompt: string | null;
+  postHistoryInstructions: string | null;
+  authorsNoteDepth: number | null;
+}
+
+// ── Invites & the membership chokepoint (Part III §2; D16) ──
+const INVITE_MAX_USES_MIN = 1;
+const INVITE_MAX_USES_MAX = 10_000;
+const INVITE_TOKEN_MIN = 1;
+
+/** Invite lifecycle status (the db `chat_invites.status` column mirrors this). */
+export const INVITE_STATUSES = ["pending", "accepted", "declined", "revoked", "expired"] as const;
+export type InviteStatus = (typeof INVITE_STATUSES)[number];
+export const inviteStatusSchema = z.enum(INVITE_STATUSES);
+
+/** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
+ *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the
+ *  server — NEVER a client input, never returned in a view. `role` is server-forced `member` on redeem. */
+export const createInviteSchema = z.object({
+  maxUses: z.number().int().min(INVITE_MAX_USES_MIN).max(INVITE_MAX_USES_MAX).optional(),
+  expiresAt: z.number().int().nullable().optional(),
+  /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
+  invitedHandle: brandedId<Handle>().nullable().optional(),
+});
+export type CreateInviteInput = z.infer<typeof createInviteSchema>;
+
+/** Preview an invite before confirming (the accept = preview-then-confirm flow). Carries the raw token. */
+export const previewInviteSchema = z.object({
+  token: z.string().min(INVITE_TOKEN_MIN),
+});
+export type PreviewInviteInput = z.infer<typeof previewInviteSchema>;
+
+/** Redeem an invite (the ONE participant-insert chokepoint, atomic). Carries the raw token. */
+export const redeemInviteSchema = z.object({
+  token: z.string().min(INVITE_TOKEN_MIN),
+});
+export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
+
+/** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode
+ *  label ONLY. NO roster identities, NO history (Part III §2 — those replay from `joinSeq` AFTER accept). */
+export interface InvitePreview {
+  chatId: ChatId;
+  roomName: string;
+  hostHandle: Handle;
+  memberCount: number;
+  /** A human-readable mode label (e.g. the output × policy summary) — never the raw config. */
+  modeLabel: string;
+}
+
+/** An invite as the host manages it. NEVER carries the token (raw or hashed) — a leak would let anyone
+ *  redeem. `remainingUses` is `maxUses` minus redemptions (null = unlimited). */
+export interface InviteView {
+  id: ChatInviteId;
+  chatId: ChatId;
+  status: InviteStatus;
+  maxUses: number | null;
+  remainingUses: number | null;
+  expiresAt: number | null;
+  /** The targeted user when created by handle; null for an open share-link. */
+  invitedUserId: UserId | null;
+  createdAt: number;
+}
+
+// ── Group macros context (Part III §8 — data-fed, volatile) ──
+/** The resolved roster + presence fed to the `{{group}}` family of macros (volatile — they must NOT sit in
+ *  the cached static half). `castName` is the narrator turn-level `{{char}}` = the joined PRESENT cast,
+ *  collapsing to the single name when the cast is 1 (so narrator-of-one == solo). `humans` backs the
+ *  separate `{{party}}`/`{{humans}}` surface — humans are NOT in `{{group}}`/`{{notChar}}`. */
+export interface GroupMacroContext {
+  /** `{{group}}` — the FULL cast (a muted member still contributes; it just isn't a named active speaker). */
+  group: string[];
+  /** `{{groupNotMuted}}` — the present + active cast (drives arbitration the same way). */
+  groupNotMuted: string[];
+  /** `{{party}}`/`{{humans}}` — the present human cast. */
+  humans: string[];
+  /** The current speaker's name, to derive `{{notChar}}` (cast minus current speaker). Null off-turn. */
+  currentSpeaker: string | null;
+  /** `{{char}}`-as-cast — the comma-joined present cast (collapses to the single name when cast = 1). */
+  castName: string;
+}
