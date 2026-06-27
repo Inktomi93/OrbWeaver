@@ -327,6 +327,18 @@ module.exports = {
       to: { path: ["^tests/", TEST_FILES] },
     },
     {
+      name: "not-to-dev-dep",
+      comment:
+        "Production code (packages/*/src) must not import a devDependency — devDeps are build/test-only and won't ship, so a runtime import of one is a prod crash waiting to happen. depcruise resolves per-package: a module that is a package's real `dependency` (e.g. drizzle-orm in @orb/db) is `npm`, not `npm-dev`, and stays allowed — only PURE devDeps (drizzle-kit, vitest, …) fire. Type-only imports + @types are exempt. (recommended-strict OMITS this rule — it lives only in dep-cruiser's --init template; neo-tavern had it — restored 2026-06-27.)",
+      severity: "error",
+      from: { path: "^packages/[^/]+/src/", pathNot: TEST_FILES },
+      to: {
+        dependencyTypes: ["npm-dev"],
+        dependencyTypesNot: ["type-only"],
+        pathNot: ["node_modules/@types/"],
+      },
+    },
+    {
       // Override the recommended-strict no-orphans (error): the placeholder scaffold tree is ALL orphans
       // (comment-only stubs with no imports/importers). knip is the dead-code authority (ENFORCEMENT
       // backlog, post-Phase-1); re-enable this as warn once the tree wires up.

@@ -1,26 +1,49 @@
-// Plugin: no-inline-types — an EXPORTED `type` / `interface` / `z.object` / `z.enum` /
-// `z.discriminatedUnion` declared OUTSIDE a type home. Feature types live in the feature's `contract/`
-// (or `@orb/contracts`); the canonical type homes are `**/contract/**`, `packages/{kit,contracts,db}`,
-// and `**/server/src/kit/**`. Anywhere else (a verb, a service, a component) an exported type is a
-// boundary leak — move it to the contract and import it. §7.4 (types-in-contract / no-inline-types).
-// Skips tests. Non-exported, file-local type aliases are fine (not matched — only `export`ed ones).
+// Plugin: no-inline-types — an EXPORTED type declared OUTSIDE its canonical home.
+// Feature types live in the feature's `contract/` (or `@orb/contracts`); the canonical type homes are
+// `**/contract/**`, `packages/{kit,contracts,db}`, and `**/server/src/kit/**`. Anywhere else (a verb, a
+// service, a component) an exported type is a boundary leak — move it to the contract and import it. §7.4.
+//
+// TWO matchers, because Biome rewrites object `type X = {…}` into `interface X {…}`
+// (useConsistentTypeDefinitions: interface), so the dominant leak form is an interface:
+//   1. `export type` / `export const = z.{object,enum,discriminatedUnion}` — flagged ANYWHERE outside a
+//      type home (the broad rule).
+//   2. `export interface` — flagged only inside a DOMAIN feature (packages/server/src/domain/**) outside
+//      its `contract/`. Scoped narrower because infra/ + foundation/ LEGITIMATELY export port interfaces
+//      (Cas, SecretBox, ImageAdapter — their DI surface), and client components export prop interfaces;
+//      those are not feature-type leaks.
+//
+// GritQL gotcha (VERIFIED, Biome 2.5 — do NOT "simplify" the interface arm back to a snippet): a snippet
+// for an interface (`export interface $n { $_ }`, `{ $... }`, body-as-metavar) COMPILES BUT SILENTLY
+// MATCHES NOTHING. The node primitive `TsInterfaceDeclaration()` is the one that works; `within JsExport()`
+// restricts to exported ones (`within `export $_`` also matches nothing). Same failure class as the dead
+// `if ($x) $_` arm fixed in no-if-is-group.grit — structured statements need the Js*/Ts* node primitive.
+//
+// Skips tests/tooling/scripts. Non-exported, file-local types are fine (not matched).
 // Refs: spine/types-and-schemas.md §7.4.
 language js
 
 or {
-  `export type $name = $_` as $node,
-  `export const $name = z.object($_)` as $node,
-  `export const $name = z.enum($_)` as $node,
-  `export const $name = z.discriminatedUnion($_)` as $node
-} where {
-  $filename <: not or {
-    r".*/contract/.*",
-    r".*/packages/(?:kit|contracts|db)/.*",
-    r".*/server/src/kit/.*",
-    r".*\.test\.tsx?$",
-    r".*/tests/.*",
-    r".*/scripts/.*",
-    r".*/tools/.*"
+  or {
+    `export type $name = $_` as $node,
+    `export const $name = z.object($_)` as $node,
+    `export const $name = z.enum($_)` as $node,
+    `export const $name = z.discriminatedUnion($_)` as $node
+  } where {
+    $filename <: not or {
+      r".*/contract/.*",
+      r".*/packages/(?:kit|contracts|db)/.*",
+      r".*/server/src/kit/.*",
+      r".*\.test\.tsx?$",
+      r".*/tests/.*",
+      r".*/scripts/.*",
+      r".*/tools/.*"
+    },
+    register_diagnostic(span=$node, message="exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
   },
-  register_diagnostic(span=$node, message="exported type/interface/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
+  TsInterfaceDeclaration() as $node where {
+    $filename <: r".*/packages/server/src/domain/.*",
+    $filename <: not or { r".*/contract/.*", r".*\.test\.tsx?$", r".*/tests/.*" },
+    $node <: within JsExport(),
+    register_diagnostic(span=$node, message="exported interface in a domain feature outside contract/ — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/substrate. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
+  }
 }

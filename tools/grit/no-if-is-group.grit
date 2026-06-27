@@ -18,7 +18,10 @@ or {
     $name <: r"^(?:isGroup|isGroupChat|isGroupMode|is_group)$",
     register_diagnostic(span=$decl, message="`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on explicit roster/cast size that NO-OPS at roster=1 (so byte-identity holds). See domains/chat.md (unified group chat).", severity="error")
   },
-  `if ($name) $_` as $ref where {
+  // block form only: `if ($name) $_` (anon consequent) silently matches NOTHING in Biome GritQL (verified
+  // 2026-06-27 — same failure class as no-inline-types' interface arm). Non-block `if (x) stmt;` cannot
+  // exist here anyway (biome useBlockStatements:error), so `{ $... }` is full coverage.
+  `if ($name) { $... }` as $ref where {
     $filename <: not or { r".*\.test\.tsx?$", r".*\.spec\.tsx?$", r".*/tests/.*", r".*/tools/.*", r".*/scripts/.*" },
     $name <: r"^(?:isGroup|isGroupChat|isGroupMode|is_group)$",
     register_diagnostic(span=$ref, message="`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it. Gate on roster/cast size that NO-OPS at roster=1. See domains/chat.md.", severity="error")
