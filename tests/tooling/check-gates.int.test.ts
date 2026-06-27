@@ -90,6 +90,16 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_seal/x.ts",
     `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
   );
+  // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
+  fx(
+    "packages/server/src/domain/__g_env.ts",
+    `import process from "node:process";\nexport const x = process.env["FOO"];\n`,
+  );
+  // assumes-single-replica: a module-scope mutable cache in a file with no ASSUMES(single-replica).
+  fx(
+    "packages/server/src/domain/__g_replica.ts",
+    "export const cache = new Map<string, number>();\n",
+  );
 }
 
 let registry = new Set<string>();
