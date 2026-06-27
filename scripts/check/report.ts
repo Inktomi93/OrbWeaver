@@ -7,6 +7,7 @@ import { commentedCode } from "./gates/commented-code.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
 import { testDeterminism } from "./gates/test-determinism.ts";
 import { testLayout } from "./gates/test-layout.ts";
@@ -26,4 +27,5 @@ runChecks([
   commentedCode,
   schemaBranding,
   dbStructure,
+  providersRunnerSeal,
 ]);
