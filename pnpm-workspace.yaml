@@ -8,6 +8,14 @@ allowBuilds:
   lefthook: true
   # sharp (infra/image): native libvips binding install/check — approve so the binary is wired on install.
   sharp: true
+  # onnxruntime-node (infra/providers/backends/local-light): transformers.js's native ONNX runtime —
+  # postinstall fetches the platform binary (CPU; CUDA EP when present). Approve so local-light can run.
+  onnxruntime-node: true
+  # @openrouter/sdk: the OR client's postinstall (setup/codegen) — approve so the backend resolves whole.
+  "@openrouter/sdk": true
+  # protobufjs: transitive via onnxruntime-node; its postinstall is non-critical but approved to silence
+  # the ignored-build gate (no half-installed state).
+  protobufjs: true
 
 # Centralized version source of truth. package.json deps reference these via "catalog:".
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
@@ -71,6 +79,16 @@ catalog:
   # infra/image (Phase 4b — tiers/infra.md D6): the sharp adapter (decode/resize/format-normalize/
   # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
   sharp: ^0.34.4
+  # --- infra/providers backends (Phase 4b-ii-b — tiers/providers.md) ---
+  # @anthropic-ai/claude-agent-sdk: the agent-sdk backend (the Max sub + the OR-Anthropic skin + agent
+  # mode). Its env firewall is the load-bearing credential seam (providers.md Esoteric §1).
+  "@anthropic-ai/claude-agent-sdk": ^0.3.195
+  # @openrouter/sdk: the openrouter backend (stateless chat.send / beta.responses + embed/rerank/image).
+  # `^0.13.0` (not pinned to .20) so the minimumReleaseAge guard auto-picks the latest >24h-old 0.13.x.
+  "@openrouter/sdk": ^0.13.0
+  # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
+  # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
+  "@huggingface/transformers": ^4.2.0
   # --- client ---
   react: ^19.2.7
   react-dom: ^19.2.7
