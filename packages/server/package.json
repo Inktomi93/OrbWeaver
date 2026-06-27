@@ -24,6 +24,8 @@
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "pino": "catalog:",
+    "sharp": "catalog:",
+    "undici": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

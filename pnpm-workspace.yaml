@@ -6,6 +6,8 @@ packages:
 allowBuilds:
   esbuild: true
   lefthook: true
+  # sharp (infra/image): native libvips binding install/check — approve so the binary is wired on install.
+  sharp: true
 
 # Centralized version source of truth. package.json deps reference these via "catalog:".
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
@@ -47,6 +49,10 @@ catalog:
   # --- server ---
   hono: ^4.12.27
   "@trpc/server": ^11.18.0
+  # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
+  # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
+  # dispatcher swap requires the package; tracks Node 24's bundled undici major (7.x).
+  undici: ^7.16.0
   # foundation/env — the sole process.env reader loads a local .env (override:true) before parsing.
   dotenv: ^16.4.7
   # --- foundation observability (Phase 4a — tiers/foundation.md › Runtime dependencies) ---
@@ -62,6 +68,9 @@ catalog:
   "@opentelemetry/context-async-hooks": ^2.7.1
   "@opentelemetry/resources": ^2.7.1
   "@opentelemetry/semantic-conventions": ^1.41.1
+  # infra/image (Phase 4b — tiers/infra.md D6): the sharp adapter (decode/resize/format-normalize/
+  # strip-metadata) behind the injected `imageTransform` op. Native libvips binding — pnpm builds it.
+  sharp: ^0.34.4
   # --- client ---
   react: ^19.2.7
   react-dom: ^19.2.7

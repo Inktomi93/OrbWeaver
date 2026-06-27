@@ -53,6 +53,7 @@
     "drizzle-orm": "catalog:",
     "jscpd": "catalog:",
     "lefthook": "catalog:",
+    "sharp": "catalog:",
     "ts-morph": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
