@@ -5,10 +5,11 @@
 // ABSENT on the 5 derived tables); the theme_clusters.centroid vector32 1024-dim round-trip; the
 // digest_theme_assignments composite PK + its CASCADE to both parents.
 //
-// `relation` (`duplicate | forked`) is mirrored against the canonical members LITERALLY (not an import):
-// `@orb/contracts/discovery` is empty today, so the schema declares the tuple locally — see the slice
-// report. When contracts/discovery is populated, this test imports the tuple and the schema derives it.
+// `relation` (`duplicate | forked`) is the db↔contracts mirror: the column DERIVES `RELATIONS` from
+// `@orb/contracts/discovery` (D34 one-home) and this test pins `duplicate_chat_pairs.relation.enumValues`
+// to that imported tuple. `relation` lives ONLY on the chat table (characters have no fork lineage, D28).
 
+import { RELATIONS } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import {
   characterKeywordProfiles,
@@ -110,10 +111,11 @@ async function seedThemeCluster(db: Db, seed: ThemeClusterSeed): Promise<ThemeCl
 }
 
 // ── relation test-mirror (the column enum === the canonical `duplicate | forked` tuple) ────────────────
-test("relation lives ONLY on duplicate_chat_pairs (canonical [duplicate, forked]); the character table has none", () => {
+test("relation lives ONLY on duplicate_chat_pairs and derives the contracts RELATIONS tuple; the character table has none", () => {
   // Chats have fork lineage (parentChatId, D27) so a chat pair can be `forked`; characters do not (D28),
-  // so a character pair is always a `duplicate` and carries NO relation column.
-  expect(duplicateChatPairs.relation.enumValues).toEqual(["duplicate", "forked"]);
+  // so a character pair is always a `duplicate` and carries NO relation column. The db column DERIVES the
+  // ONE canonical tuple in @orb/contracts/discovery (D34) — this is the db↔contracts mirror.
+  expect(duplicateChatPairs.relation.enumValues).toEqual([...RELATIONS]);
   expect("relation" in duplicateCharacterPairs).toBe(false);
 });
 
