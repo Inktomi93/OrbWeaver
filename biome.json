@@ -317,7 +317,14 @@
     },
     {
       "includes": ["packages/server/src/foundation/env/**"],
-      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "off",
+            "useNamingConvention": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["packages/client/**"],
