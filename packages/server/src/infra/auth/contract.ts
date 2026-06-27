@@ -135,6 +135,18 @@ export interface ResolveDeps {
 }
 
 /**
+ * The uniform shape every mode strategy implements: headers + parsed config + the injected verification
+ * deps → a pre-row `ResolvedIdentity` (or `null` when the mode resolves nothing). `dispatch.ts` keys the
+ * dispatcher `Record<AuthConfig["mode"], ModeResolver>` — exhaustive over the modes (invariant #4). The
+ * one cross-mode shape, homed here with the rest of the contract (tiers/infra.md), not file-local.
+ */
+export type ModeResolver = (
+  headers: Headers,
+  config: AuthConfig,
+  deps: ResolveDeps,
+) => Promise<ResolvedIdentity | null>;
+
+/**
  * The VERIFICATION-tier OUTPUT (spine §1): the pre-row identity PLUS the per-request signals the seam
  * needs. Carries NO `userId` and NO `role` (invariant #3) — the seam (`entry/auth/seam.ts`) resolves the
  * row + mints the `Principal` from this.

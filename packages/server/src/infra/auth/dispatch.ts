@@ -9,9 +9,8 @@
 // owner. In `single-user` the fallback is unconditional (the only way in). `isLocalOrigin` reads `Host`
 // (NOT `X-Forwarded-Host`) deliberately — a proxy-rewritten Host can only REMOVE trust, never grant it.
 
-import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "#infra/network";
-import type { AuthConfig, ResolveDeps } from "./contract";
+import type { AuthConfig, ModeResolver } from "./contract";
 import { normalizeHost } from "./host";
 import { resolveForwardHeader } from "./modes/forward-header";
 import { resolveLocal } from "./modes/local";
@@ -19,15 +18,6 @@ import { resolveOidc } from "./modes/oidc";
 import { resolveSingleUser } from "./modes/single-user";
 
 const LOCALHOST = "localhost";
-
-/** The uniform shape every mode resolver follows: headers + config + the injected verification deps →
- *  a pre-row `ResolvedIdentity` (or `null` when the mode resolves nothing). File-local — the `Record`
- *  below is the only consumer; not a boundary type. */
-type ModeResolver = (
-  headers: Headers,
-  config: AuthConfig,
-  deps: ResolveDeps,
-) => Promise<ResolvedIdentity | null>;
 
 /**
  * The ONE dispatch point: one entry per `AuthConfig["mode"]`. The mapped-type `Record` makes a missing

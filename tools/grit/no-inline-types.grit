@@ -1,6 +1,7 @@
 // Plugin: no-inline-types — an EXPORTED type declared OUTSIDE its canonical home.
 // Feature types live in the feature's `contract/` (or `@orb/contracts`); the canonical type homes are
-// `**/contract/**`, `packages/{kit,contracts,db}`, and `**/server/src/kit/**`. Anywhere else (a verb, a
+// `**/contract/**` + a tier's `**/contract.ts` file, `packages/{kit,contracts,db}`, and
+// `**/server/src/kit/**`. Anywhere else (a verb, a
 // service, a component) an exported type is a boundary leak — move it to the contract and import it. §7.4.
 //
 // TWO matchers, because Biome rewrites object `type X = {…}` into `interface X {…}`
@@ -31,6 +32,7 @@ or {
   } where {
     $filename <: not or {
       r".*/contract/.*",
+      r".*/contract\.ts$",
       r".*/packages/(?:kit|contracts|db)/.*",
       r".*/server/src/kit/.*",
       r".*\.test\.tsx?$",
