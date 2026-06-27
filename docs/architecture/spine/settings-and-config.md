@@ -249,9 +249,11 @@ invariant lists in `settings.md` and `foundation.md` — this is the cross-cutti
    their schemas.
 
 5. **Memory tuning split — keep it.** Write-side knobs (`blockSize`/`mode`/`summarizer` — they determine
-   the SHAPE of stored digests) are `AppSettings.memoryDefaults` (admin, cross-chat); the per-chat on/off
-   (`UserSettings.memory.enabled`, `chats.memoryEnabled`) is separate. Flipping a write-side knob mid-chat
-   would put mismatched digests in `chat_digests` — that's why it's admin/subsystem-level, not per-chat.
+   the SHAPE of stored digests) are `AppSettings.memoryDefaults` (admin, cross-chat). Enable/disable is
+   GLOBAL (D36): the master on/off is `AppSettings.memoryDefaults.mode` (`'off'` disables — no separate
+   `enabled` boolean); a per-user opt-out (`UserSettings.memory.enabled`, JSON not a column) layers under it. **NO `chats.memoryEnabled`** — the
+   per-chat layer was rejected. Flipping a write-side knob mid-chat would put mismatched digests in
+   `chat_digests` — that's why it's admin/subsystem-level, not per-chat.
 
 6. **Additive namespace, NO version bump.** UserSettings namespaces added via `.prefault({})` (e.g.
    `onboarding`, `groupDefaults`, `workloads`, `profile`) need no version bump — a pre-existing blob

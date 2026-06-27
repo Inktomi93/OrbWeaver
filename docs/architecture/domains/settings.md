@@ -309,9 +309,12 @@ This domain IS the §7.2 spine made concrete. The headline rulings it implements
   these explicitly (env-mirrored → `env`; born-in-DB → schema defaults).
 - **Memory tuning is correctly split** and stays split: the WRITE-side knobs (`blockSize`/`mode`/
   `summarizer` — they determine the SHAPE of stored digests) are `AppSettings.memoryDefaults`
-  (admin-managed, cross-chat); the per-chat on/off (`UserSettings.memory.enabled`) and the per-chat
-  `chats.memoryEnabled` are separate. Changing a write-side knob mid-chat would put mismatched digests
-  in `chat_digests` — that's why it is admin/subsystem-level, not per-chat. Preserve the split.
+  (admin-managed, cross-chat). **Enable/disable is GLOBAL, not per-chat (D36):** the master on/off is
+  `AppSettings.memoryDefaults.mode` (`'off'` disables — no separate `enabled` boolean, which would double
+  with `mode`); a per-USER opt-out (`UserSettings.memory.enabled`, a JSON field — NOT a column) layers under it. **There is NO
+  `chats.memoryEnabled` column** (the per-chat layer was rejected — one fewer scattered knob). Changing a
+  write-side knob mid-chat would put mismatched digests in `chat_digests` — that's why it is
+  admin/subsystem-level, not per-chat. Preserve the split.
 - **One `defineVersionedConfig` for all three tiers** (AppSettings/UserSettings/PromptConfig) — the
   primitive lives in `contracts/versioned-config`; the three configs are `defineVersionedConfig(...)`
   call-sites in their respective contracts modules.

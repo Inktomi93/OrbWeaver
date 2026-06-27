@@ -52,10 +52,11 @@ const RECENCY_BIAS_FLOOR = 0;
 const TEMPERATURE_FLOOR = 0;
 const TEMPERATURE_CEIL = 2;
 
-/** Within-chat digest memory tuning. Subsystem-level (admin sets once; every chat with `memoryEnabled`
- *  reads it). WRITE-side knobs (blockSize/mode/summarizer determine the SHAPE of stored digests) —
- *  changing them retroactively would mismatch `chat_digests`, which is why they are admin/cross-chat,
- *  not per-chat (the per-chat on/off is `UserSettings.memory.enabled` + `chats.memoryEnabled`). */
+/** Within-chat digest memory tuning. Subsystem-level (admin sets once; every chat reads it). WRITE-side
+ *  knobs (blockSize/mode/summarizer determine the SHAPE of stored digests) — changing them retroactively
+ *  would mismatch `chat_digests`, which is why they are admin/cross-chat, not per-chat. Enable/disable is
+ *  GLOBAL via `mode` (`'off'` disables memory entirely — D36); there is NO `chats.memoryEnabled` column.
+ *  A per-USER opt-out (`UserSettings.memory.enabled`, a JSON field — not a column) layers under it. */
 export const memoryDefaultsSchema = z.object({
   blockSize: z
     .number()

@@ -4,6 +4,7 @@
 // backlog lives in docs/architecture/reports/ENFORCEMENT.md.
 
 import { commentedCode } from "./gates/commented-code.ts";
+import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
@@ -24,4 +25,5 @@ runChecks([
   testDeterminism,
   commentedCode,
   schemaBranding,
+  dbStructure,
 ]);
