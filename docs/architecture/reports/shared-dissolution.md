@@ -138,7 +138,7 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 | `shared/_kit/assets.ts` (policy) | `BLOB_WIDTHS`, `snapBlobWidth` | `domain/assets` | variant-sizing policy, not a kit primitive |
 | `shared/_kit/assets.ts` (wire union) | `AssetKind` (`'card'\|'avatar'\|'export'`) | `@orb/contracts/assets` (+ `assetKindSchema`) | **CORRECTED 2026-06-25**: NOT feature-internal — it's a cross-boundary wire union re-spelled inline across the db enum (`db/schema/assets.ts`), the http route (`http/assets.ts`), the client (`client/lib/assets.ts`), AND the assets domain. → contracts (§7.5 one-home). `StoredAsset` (client redeclares as `UploadedAsset`) → contracts too. |
 | `shared/character/character-schema.ts` | `resolveCharacterDepthPrompt` | `@orb/server/kit/serde` | **CORRECTED 2026-06-25**: server-only but TWO domain consumers (export + chat/assembly) → `character/substrate` would force a cross-feature import; → `server/kit` (pure, server-only, uses zod) |
-| `shared/settings/app-settings.ts` | `resolveGuidedActions` projection | `domain/settings/substrate` | pulls preset defaults; server-only |
+| `shared/settings/app-settings.ts` | `resolveGuidedActions` projection | **RETIRED — D33** | The neo projection read `AppSettings.guidedActions`, a field that never existed (phantom fallback). Guided actions have ONE home — the preset (`contracts/preset`); resolution is `activePreset.guidedActions ?? DEFAULT_GUIDED_ACTIONS` at the consumer, NOT a settings substrate. |
 
 ---
 

@@ -78,8 +78,9 @@ deletable like any other credential; **the env value is the first-run seed, not 
 ## (b) runtime toggles → AppSettings — env floor, DB override wins
 
 Non-secret, non-bootstrap operational knobs an admin can flip at runtime. Today: `corpusAutoindex`,
-`importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `guidedActions`, `memoryDefaults`,
-`memorySummarizer`.
+`importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `memoryDefaults`, `memorySummarizer`
+(**NOT `guidedActions`** — those live ONLY on the preset, D33; neo's `AppSettings.guidedActions`
+fallback was a phantom that never existed).
 
 - **Home: the `settings` domain (`AppSettings`).** The override blob lives under the reserved
   `APP_SETTINGS_KEY = "app"` row; resolution is `layer(overrides)` over `envDefaults()` →
@@ -87,10 +88,10 @@ Non-secret, non-bootstrap operational knobs an admin can flip at runtime. Today:
   NOT in foundation — it is the read-side twin of `updateAppSettings` and belongs with the tier it
   resolves. Foundation owns the env *read*; settings owns the env⊕DB *resolution*. (Full detail:
   `settings.md`; foundation explicitly disclaims it: `foundation.md`.)
-- **"env is the floor" is only HALF-TRUE — flag it.** `envDefaults()` returns seven fields but only
+- **"env is the floor" is only HALF-TRUE — flag it.** `envDefaults()` returns six fields but only
   THREE are env-mirrored (`corpusAutoindex ← CORPUS_AUTOINDEX`, `importSkipCharacters ←
-  IMPORT_SKIP_CHARACTERS`, `logLevel ← LOG_LEVEL`, `app-config.ts:46-50`). The other four are
-  **born-in-DB defaults** with no env source: `forbidExternalMedia:false`, `guidedActions:DEFAULT_…`,
+  IMPORT_SKIP_CHARACTERS`, `logLevel ← LOG_LEVEL`, `app-config.ts:46-50`). The other three are
+  **born-in-DB defaults** with no env source: `forbidExternalMedia:false`,
   `memoryDefaults:{}`, `memorySummarizer:{}` (`app-config.ts:51-56`). The floor is "env where an env var
   exists, else the baked-in default." Orbweaver makes this legible: env-mirrored fields read `env`;
   born-in-DB fields read **schema defaults** on `appSettingsSchema` (not literal objects buried in a

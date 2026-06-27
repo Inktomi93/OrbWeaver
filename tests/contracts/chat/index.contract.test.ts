@@ -38,17 +38,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "vitest";
 
-// ── Compile-time identity helpers (type-level pins) ───────────────────────────
-type Assert<T extends true> = T;
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
-/** Distributes over each union member M; `K extends keyof M` is `false` for every member unless one
- *  declares K. The union collapses to `false` only when NO member has K. */
-type UnionMemberHasKey<U, K extends PropertyKey> = U extends unknown
-  ? K extends keyof U
-    ? true
-    : false
-  : never;
+// Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
+// allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (spine/testing.md §1). This
+// file keeps the runtime round-trips, the schema strip backstops, and the value-level shape checks.
 
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
 const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);
@@ -112,11 +104,31 @@ test("a content field is STRIPPED from the slot at the boundary (D26 — slot ha
   expect("reasoning" in parsed).toBe(false);
 });
 
-test("MessageSlot has no `content` key at the type level (D26)", () => {
-  type _NoContentOnSlot = Assert<Equal<UnionMemberHasKey<MessageSlot, "content">, false>>;
-  // The JOIN view (slot + selected variant) DOES carry content — that is the read model.
-  type _ViewHasContent = Assert<Equal<UnionMemberHasKey<MessageView, "content">, true>>;
-  expect(true).toBe(true);
+// SECRET-STRIP BACKSTOP (bus-payload-allowlist, mirrors the notifications strip test). `ChatBusEvent` is a
+// schema-less TS union (validated only via `isChatBusEventType`, never zod-parsed — its secret-free shape is
+// pinned at the type level in `index.test-d.ts`). `messageSlotSchema` is the canonical chat payload that DOES
+// cross a zod boundary: it is a plain `z.object` (NOT `.loose()`), so an injected secret-bearing field is
+// STRIPPED at parse — it can never ride into the durable row or the stream. If someone loosens it, this goes
+// red. The values are obvious non-secret literals (noSecrets); the field NAMES are what an exfil would use.
+test("an injected secret field is stripped from a chat payload at the schema boundary", () => {
+  const slotWithSecret = {
+    id: SAMPLE_MESSAGE_ID,
+    chatId: SAMPLE_CHAT_ID,
+    seq: 1,
+    role: "assistant" as const,
+    authorUserId: null,
+    characterId: SAMPLE_CHARACTER_ID,
+    personaId: null,
+    selectedVariantId: SAMPLE_VARIANT_ID,
+    excludedFromPrompt: false,
+    createdAt: 1,
+    editedAt: null,
+    apiKey: "injected-extra-field",
+    token: "injected-extra-field",
+  };
+  const parsed = messageSlotSchema.parse(slotWithSecret);
+  expect("apiKey" in parsed).toBe(false);
+  expect("token" in parsed).toBe(false);
 });
 
 test("MessageView is the slot joined with its selected variant (content + economics present)", () => {
@@ -240,8 +252,8 @@ test("InviteView / InvitePreview pin the host + accept-flow shapes (no token lea
     createdAt: 1,
   };
   // The InviteView wire shape exposes NO token (raw or hashed) — a leak would let anyone redeem.
+  // (Type-level no-token pin: see index.test-d.ts.)
   expect("token" in inviteView).toBe(false);
-  type _NoToken = Assert<Equal<UnionMemberHasKey<InviteView, "token">, false>>;
   const preview: InvitePreview = {
     chatId: SAMPLE_CHAT_ID,
     roomName: "The Tavern",
@@ -347,18 +359,10 @@ test("a representative ChatBusEvent round-trips its public, secret-free shape", 
   expect("callerUserId" in turnStarted).toBe(false);
 });
 
-test("credentials / secrets are TYPE-LEVEL UNREPRESENTABLE in ChatBusEvent (bus-payload allowlist)", () => {
-  // No bus member declares a secret-bearing field; each check collapses to `false`. If a member gained
-  // one, the union would widen to `boolean` and Equal<…, false> would fail `tsc`.
-  type _NoApiKey = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "apiKey">, false>>;
-  type _NoSecret = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "secret">, false>>;
-  type _NoCredential = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "credential">, false>>;
-  type _NoToken = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "token">, false>>;
-  type _NoBaseUrl = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "baseUrl">, false>>;
-  type _NoPassword = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "password">, false>>;
-  type _NoCallerId = Assert<Equal<UnionMemberHasKey<ChatBusEvent, "callerUserId">, false>>;
-  expect(true).toBe(true);
-});
+// The compile-time pin that credentials / secrets / caller id are UNREPRESENTABLE in ChatBusEvent moved to
+// index.test-d.ts (bus-payload allowlist). The runtime secret-strip backstop lives on messageSlotSchema above
+// (ChatBusEvent itself is schema-less — never zod-parsed), and the no-caller-id check sits in the
+// representative-round-trip test above.
 
 // ═══ the 8 assemble shapes (slim projections) ══════════════════════════════════
 

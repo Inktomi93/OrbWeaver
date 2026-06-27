@@ -22,6 +22,8 @@ import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { regexScriptSchema } from "#regex";
+// memory retrieval-mode axis is single-homed in #search; settings derives its enum (no inline re-spell).
+import { MEMORY_RETRIEVAL_MODES } from "#search";
 import { defineVersionedConfig } from "#versioned-config";
 
 // The chat role's `source` is the canonical `ChatSource`/`CredentialSource` axis (D31). Connection
@@ -74,7 +76,7 @@ export const memoryDefaultsSchema = z.object({
     .optional()
     .describe("Recent messages used as the retrieval query for mixB/mixC (default 2)."),
   mode: z
-    .enum(["off", "mixA", "mixB", "mixC", "tiered"])
+    .enum(MEMORY_RETRIEVAL_MODES)
     .optional()
     .describe(
       "off | mixA (all tier-0, chronological) | mixB (+vector retrieve) | mixC (+rerank) | tiered (consolidation bridge). Default mixC.",
