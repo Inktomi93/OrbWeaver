@@ -3,12 +3,14 @@
 // The cookie-validation read path is identical, so both modes delegate to `cookie-session`. The PASSWORD
 // half (mint/verify) lives in `../password.ts` and is consumed by the entry login route, not here.
 
-import type { ResolveDeps, ValidatedSession } from "../contract";
+import type { ResolvedIdentity } from "@orb/contracts/identity";
+import type { AuthConfig, ResolveDeps } from "../contract";
 import { resolveCookieSession } from "./cookie-session";
 
 export function resolveLocal(
   headers: Headers,
+  _config: AuthConfig,
   deps: ResolveDeps,
-): Promise<ValidatedSession | null> {
+): Promise<ResolvedIdentity | null> {
   return resolveCookieSession(headers, deps);
 }

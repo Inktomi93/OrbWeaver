@@ -43,12 +43,10 @@ function jwksAllowlistFromEnv(): string[] {
   return [];
 }
 
-/** The owner-handle set: `OWNER_HANDLES`, defaulting to `[DEFAULT_USER_HANDLE]` when unset (the
- *  single-user / owner-fallback handle is always an owner — D17). */
-function ownerHandlesFromEnv(): string[] {
-  const explicit = parseCsv(env.OWNER_HANDLES);
-  return explicit.length > 0 ? explicit : [env.DEFAULT_USER_HANDLE];
-}
+// The owner-handle / owner-group env (`OWNER_HANDLES` / `OWNER_GROUP`) is NOT read here: the owner-ROLE
+// decision (`determineRole`) is the RESOLUTION tier's (`domain/sessions/substrate/role-policy.ts`, 4c),
+// not verification's. Verification only stamps the `defaultHandle` on the `via:"fallback"` identity; the
+// seam mints the owner from that discriminant (invariant #7).
 
 /** Build the live `AuthConfig` from the frozen env. */
 export function authConfigFromEnv(): AuthConfig {
@@ -56,8 +54,6 @@ export function authConfigFromEnv(): AuthConfig {
     mode: env.AUTH_MODE,
     fallback: env.AUTH_FALLBACK,
     defaultHandle: env.DEFAULT_USER_HANDLE,
-    ownerHandles: ownerHandlesFromEnv(),
-    ...(env.OWNER_GROUP !== undefined ? { ownerGroup: env.OWNER_GROUP } : {}),
     verifyForwardJwt: env.FORWARD_AUTH_VERIFY_JWT,
     trustedLocalHosts: parseHostList(env.TRUSTED_LOCAL_HOSTS),
     trustedPrivateRanges: parseCsv(env.TRUSTED_PRIVATE_RANGES),

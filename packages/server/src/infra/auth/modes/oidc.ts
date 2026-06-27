@@ -6,11 +6,16 @@
 // injected store (replay-proof — a second callback with the same state finds nothing) and hand back the
 // PKCE `codeVerifier` + `nonce` the route needs for the exchange.
 
-import type { OidcTransaction, ResolveDeps, ValidatedSession } from "../contract";
+import type { ResolvedIdentity } from "@orb/contracts/identity";
+import type { AuthConfig, OidcTransaction, ResolveDeps } from "../contract";
 import { resolveCookieSession } from "./cookie-session";
 
 /** Steady-state resolve: the live `__Host-orb_session` cookie (the mode-agnostic read path). */
-export function resolveOidc(headers: Headers, deps: ResolveDeps): Promise<ValidatedSession | null> {
+export function resolveOidc(
+  headers: Headers,
+  _config: AuthConfig,
+  deps: ResolveDeps,
+): Promise<ResolvedIdentity | null> {
   return resolveCookieSession(headers, deps);
 }
 

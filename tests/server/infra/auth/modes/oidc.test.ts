@@ -1,5 +1,3 @@
-import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { OidcTransaction, OidcTransactionStore, ResolveDeps } from "@orb/server/infra/auth";
 import { verifyPkceState } from "@orb/server/infra/auth";
 import { describe, expect, test } from "vitest";
@@ -22,11 +20,7 @@ function store(consume: (state: string) => Promise<OidcTransaction | null>): Oid
 }
 
 function deps(over: Partial<ResolveDeps> = {}): ResolveDeps {
-  return {
-    upsertUser: () =>
-      Promise.resolve({ userId: castId<UserId>("u"), role: "user" as const, enabled: true }),
-    ...over,
-  };
+  return { ...over };
 }
 
 describe("verifyPkceState", () => {
