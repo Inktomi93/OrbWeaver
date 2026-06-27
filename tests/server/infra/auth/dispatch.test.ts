@@ -1,15 +1,18 @@
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthConfig, ResolveDeps, ValidatedSession } from "@orb/server/infra/auth";
-import { dispatchMode, isLocalOrigin, ownerFallbackAllowed } from "@orb/server/infra/auth";
+import type { AuthConfig, ResolveDeps } from "@orb/server/infra/auth";
+import { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe, expect, test } from "vitest";
+
+// The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the
+// origin-gated owner-fallback predicate. Each resolver yields a pre-row `ResolvedIdentity | null`
+// (NO userId/role).
 
 function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
   return {
     mode: "single-user",
     fallback: "owner",
     defaultHandle: "owner",
-    ownerHandles: ["owner"],
     verifyForwardJwt: false,
     trustedLocalHosts: [],
     trustedPrivateRanges: [],
@@ -19,65 +22,38 @@ function cfg(over: Partial<AuthConfig> = {}): AuthConfig {
   };
 }
 
-const session: ValidatedSession = {
-  userId: castId<UserId>("u"),
-  handle: castId<Handle>("alice"),
-  externalId: castId<ExternalId>("sub"),
-  role: "user",
-  enabled: true,
-};
-
-function deps(over: Partial<ResolveDeps> = {}): ResolveDeps {
-  return {
-    upsertUser: () =>
-      Promise.resolve({ userId: castId<UserId>("u"), role: "user" as const, enabled: true }),
-    ...over,
-  };
-}
-
 const headers = (init: Record<string, string> = {}): Headers => new Headers(init);
 
-describe("dispatchMode — one exhaustive branch point over AUTH_MODE", () => {
-  test("single-user → none (delegates to the unconditional owner fallback)", async () => {
-    expect(await dispatchMode(headers(), cfg({ mode: "single-user" }), deps())).toEqual({
-      kind: "none",
-    });
+describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
+  test("has exactly the four modes (a 5th would fail tsc on the mapped-type Record)", () => {
+    expect(Object.keys(MODE_RESOLVERS).sort()).toEqual([
+      "forward-header",
+      "local",
+      "oidc",
+      "single-user",
+    ]);
   });
 
-  test("local: a live cookie → a session outcome", async () => {
-    const out = await dispatchMode(
-      headers({ cookie: "__Host-orb_session=tok" }),
-      cfg({ mode: "local" }),
-      deps({ validateCookie: () => Promise.resolve(session) }),
-    );
-    expect(out).toEqual({ kind: "session", session });
+  test("single-user resolves to null (delegates to the unconditional owner fallback)", async () => {
+    expect(await MODE_RESOLVERS["single-user"](headers(), cfg(), {})).toBeNull();
   });
 
-  test("local: no cookie → none", async () => {
-    const out = await dispatchMode(
-      headers(),
-      cfg({ mode: "local" }),
-      deps({ validateCookie: () => Promise.resolve(null) }),
-    );
-    expect(out).toEqual({ kind: "none" });
+  test("cookie modes return the injected validateCookie result, else null", async () => {
+    const identity = { externalId: null, handle: castId<Handle>("alice"), groups: [] };
+    const deps: ResolveDeps = { validateCookie: () => Promise.resolve(identity) };
+    expect(
+      await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), deps),
+    ).toEqual(identity);
+    expect(await MODE_RESOLVERS.oidc(headers(), cfg(), {})).toBeNull();
   });
 
-  test("oidc: a live cookie → a session outcome", async () => {
-    const out = await dispatchMode(
-      headers({ cookie: "__Host-orb_session=tok" }),
-      cfg({ mode: "oidc" }),
-      deps({ validateCookie: () => Promise.resolve(session) }),
-    );
-    expect(out).toEqual({ kind: "session", session });
-  });
-
-  test("forward-header: a trusted header → an identity outcome", async () => {
-    const out = await dispatchMode(
+  test("forward-header returns a pre-row identity from a trusted header", async () => {
+    const res = await MODE_RESOLVERS["forward-header"](
       headers({ "x-authentik-username": "alice" }),
       cfg({ mode: "forward-header" }),
-      deps(),
+      {},
     );
-    expect(out.kind).toBe("identity");
+    expect(res).toEqual({ externalId: null, handle: "alice", groups: [] });
   });
 });
 

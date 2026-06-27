@@ -1,6 +1,7 @@
-// The AUTH_MODE dispatcher — ONE branch point over `config.mode`, exhaustive via `assertNever` (a 5th
-// mode that isn't handled fails `tsc`). Modes never import each other; they meet only here. Plus the
-// origin-gated owner-fallback predicate.
+// The AUTH_MODE dispatcher — ONE branch point via the `MODE_RESOLVERS` Record (invariant #4: exhaustive
+// over `AuthConfig["mode"]` — a 5th mode that isn't mapped fails `tsc`). Each resolver produces a pre-row
+// `ResolvedIdentity | null` (NO `userId`, NO `role` — invariant #3); modes never import each other. Plus
+// the origin-gated owner-fallback predicate.
 //
 // ORIGIN-GATED FALLBACK (load-bearing safety): in any SSO mode the owner fallback is granted ONLY for a
 // LOCAL origin (the raw-LAN-IP path). On the public FQDN an un-credentialed request resolves to nothing
@@ -10,7 +11,7 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "#infra/network";
-import type { AuthConfig, ResolveDeps, ValidatedSession } from "./contract";
+import type { AuthConfig, ResolveDeps } from "./contract";
 import { normalizeHost } from "./host";
 import { resolveForwardHeader } from "./modes/forward-header";
 import { resolveLocal } from "./modes/local";
@@ -19,57 +20,27 @@ import { resolveSingleUser } from "./modes/single-user";
 
 const LOCALHOST = "localhost";
 
-/**
- * What the per-mode dispatch resolves to, BEFORE the owner-fallback step (file-local — an infra-internal
- * shape, never a boundary type):
- *   - `session`  — a live cookie session (the row id + role already resolved): `local`/`oidc`.
- *   - `identity` — a pre-row SSO identity needing an upsert to mint a `userId`: `forward-header`.
- *   - `none`     — nothing resolved → the owner-fallback step decides (`single-user`, or an
- *                  anonymous/invalid request under any mode).
- */
-type ModeOutcome =
-  | { kind: "session"; session: ValidatedSession }
-  | { kind: "identity"; identity: ResolvedIdentity }
-  | { kind: "none" };
-
-/** Compile-time exhaustiveness guard: a `config.mode` the switch doesn't handle makes this argument
- *  non-`never`, a `tsc` error (exhaustive-dispatch). */
-function assertNever(value: never): never {
-  throw new Error(`Unhandled AUTH_MODE: ${String(value)}`);
-}
-
-/**
- * Run the mode-specific resolver for `config.mode` and shape the result into a `ModeOutcome`:
- *   - cookie modes (`local`/`oidc`) → a `session` (the row id + role already resolved) or `none`.
- *   - `forward-header` → a pre-row `identity` (needs an upsert to mint a userId) or `none`.
- *   - `single-user` → always `none` (the unconditional owner fallback takes over).
- */
-export async function dispatchMode(
+/** The uniform shape every mode resolver follows: headers + config + the injected verification deps →
+ *  a pre-row `ResolvedIdentity` (or `null` when the mode resolves nothing). File-local — the `Record`
+ *  below is the only consumer; not a boundary type. */
+type ModeResolver = (
   headers: Headers,
   config: AuthConfig,
   deps: ResolveDeps,
-): Promise<ModeOutcome> {
-  switch (config.mode) {
-    case "single-user": {
-      resolveSingleUser();
-      return { kind: "none" };
-    }
-    case "local": {
-      const session = await resolveLocal(headers, deps);
-      return session !== null ? { kind: "session", session } : { kind: "none" };
-    }
-    case "oidc": {
-      const session = await resolveOidc(headers, deps);
-      return session !== null ? { kind: "session", session } : { kind: "none" };
-    }
-    case "forward-header": {
-      const identity = await resolveForwardHeader(headers, config, deps);
-      return identity !== null ? { kind: "identity", identity } : { kind: "none" };
-    }
-    default:
-      return assertNever(config.mode);
-  }
-}
+) => Promise<ResolvedIdentity | null>;
+
+/**
+ * The ONE dispatch point: one entry per `AuthConfig["mode"]`. The mapped-type `Record` makes a missing
+ * arm a `tsc` error (invariant #4 — exhaustive dispatch). `single-user` resolves to `null` (the
+ * unconditional owner fallback in `resolve` takes over); the cookie modes share the validate path; only
+ * `forward-header` does header/JWT verification.
+ */
+export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
+  "single-user": resolveSingleUser,
+  local: resolveLocal,
+  oidc: resolveOidc,
+  "forward-header": resolveForwardHeader,
+};
 
 /**
  * Whether the un-credentialed owner fallback may be granted. `single-user`: always (the only way in).

@@ -3,7 +3,8 @@
 // login), not how it's READ. So the read path is one file, used by two mode resolvers. The db validate
 // is INJECTED (`deps.validateCookie`) → infra stays db-free.
 
-import type { ResolveDeps, ValidatedSession } from "../contract";
+import type { ResolvedIdentity } from "@orb/contracts/identity";
+import type { ResolveDeps } from "../contract";
 
 /** The browser-session cookie NAME (orbweaver-namespaced; was neo's `__Host-neo_session`). The `__Host-`
  *  prefix pins it to Secure + host-only + path=/ (no Domain). The WRITE side (set/clear) lives at the
@@ -37,13 +38,14 @@ function readCookie(headers: Headers, name: string): string | null {
   return null;
 }
 
-/** Read the `__Host-orb_session` cookie + validate it via the injected sessions service. Returns null
+/** Read the `__Host-orb_session` cookie + validate it via the injected sessions service. Returns the
+ *  pre-row `ResolvedIdentity` (NO `userId`/`role` — invariant #3; the seam resolves the row), or null
  *  when there's no cookie, no injected validator, or the validator says the session is gone (revoked /
  *  expired / disabled). Both `local` + `oidc` call this; the cookie itself is mode-agnostic. */
 export function resolveCookieSession(
   headers: Headers,
   deps: ResolveDeps,
-): Promise<ValidatedSession | null> {
+): Promise<ResolvedIdentity | null> {
   if (deps.validateCookie === undefined) {
     return Promise.resolve(null);
   }
