@@ -85,6 +85,11 @@ function writeFixtures(): void {
   // The banned call is assembled so the literal isn't present in THIS file's source (which the gate
   // also scans) — only the written fixture resolves to the ambient-clock call.
   fx("tests/tooling/__g_det.test.ts", `export const t = ${["Date", "now"].join(".")}();\n`);
+  // providers-runner-seal: a domain consumer (above infra) importing a sealed runner symbol.
+  fx(
+    "packages/server/src/domain/__g_seal/x.ts",
+    `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
+  );
 }
 
 let registry = new Set<string>();
