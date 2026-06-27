@@ -38,6 +38,7 @@
     "@orb/db": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
+    "zod": "catalog:",
     "@biomejs/biome": "catalog:",
     "@playwright/experimental-ct-react": "catalog:",
     "@playwright/test": "catalog:",
