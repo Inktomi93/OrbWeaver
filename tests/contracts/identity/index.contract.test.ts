@@ -1,5 +1,5 @@
-import type { Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import { USER_ROLES, userRoleSchema } from "@orb/contracts/identity";
+import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "vitest";
@@ -28,6 +28,31 @@ test("userRoleSchema round-trips every valid role and rejects non-members", () =
   expect(userRoleSchema.safeParse("host").success).toBe(false);
   expect(userRoleSchema.safeParse("guest").success).toBe(false);
   expect(userRoleSchema.safeParse("").success).toBe(false);
+});
+
+// The auth-mode axis is EXACTLY the 4 SSO mechanisms; `foundation/env` + `infra/auth` DERIVE from this
+// one tuple (no inline re-spell — the no-inline-union-redecl gate now catches a z.enum/union duplicate).
+test("AUTH_MODES is exactly [single-user, local, forward-header, oidc]", () => {
+  expect(AUTH_MODES).toEqual(["single-user", "local", "forward-header", "oidc"]);
+  expect(authModeSchema.options).toEqual(AUTH_MODES);
+});
+
+const MODE_SEEN: Record<AuthMode, true> = {
+  "single-user": true,
+  local: true,
+  "forward-header": true,
+  oidc: true,
+};
+test("AuthMode has no member beyond the tuple (exhaustive over the 4 modes)", () => {
+  expect(Object.keys(MODE_SEEN).sort()).toEqual([...AUTH_MODES].sort());
+});
+
+test("authModeSchema round-trips every mode and rejects non-members", () => {
+  for (const mode of AUTH_MODES) {
+    expect(authModeSchema.parse(mode)).toBe(mode);
+  }
+  expect(authModeSchema.safeParse("saml").success).toBe(false);
+  expect(authModeSchema.safeParse("").success).toBe(false);
 });
 
 // Sample branded values built at the untyped seam (castId is the sanctioned cast) — no pasted secrets.

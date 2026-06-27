@@ -10,6 +10,7 @@
 // scoped to this glob). NEVER written; parsed once, frozen, read down as the floor.
 
 import process from "node:process";
+import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
@@ -113,7 +114,7 @@ const envSchema = z
     // The active auth mechanism. single-user (DEFAULT, no SSO) | local (app-stored password accounts,
     // cookie/BFF sessions) | forward-header (caddy+authentik/authelia forward-auth) | oidc (the app is an
     // OIDC client over HTTPS, cookie/BFF sessions).
-    AUTH_MODE: z.enum(["single-user", "local", "forward-header", "oidc"]).default("single-user"),
+    AUTH_MODE: z.enum(AUTH_MODES).default("single-user"),
     // What an UN-credentialed request gets. owner (DEFAULT) → the owner; deny → 401 (SSO mandatory). In an
     // SSO mode the `owner` fallback is ORIGIN-GATED (granted only on a local origin, never the public
     // FQDN) — that is what makes oidc+owner = "SSO on the domain AND owner on the raw LAN IP" SAFE.

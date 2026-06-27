@@ -15,7 +15,7 @@
 // OIDC PKCE store) arrives INJECTED via `ResolveDeps`, wired at `entry/auth/seam.ts`.
 //
 // NEW MODE CHECKLIST (adding a 5th mode — SAML, token-introspection, …):
-//   1. Add the mode literal to `AuthConfig.mode`.
+//   1. Add the mode to `AUTH_MODES` in `@orb/contracts/identity` (AuthConfig.mode + MODE_RESOLVERS derive).
 //   2. Add `modes/<mode>.ts` exporting the resolver (`(headers, config, deps) => ResolvedIdentity|null`).
 //   3. Add the entry to `dispatch.ts:MODE_RESOLVERS` — the `Record<AuthConfig["mode"], ModeResolver>`
 //      mapped type makes the omission a `tsc` error (invariant #4, exhaustive dispatch).
@@ -23,7 +23,7 @@
 //   5. The brand cast seam lives in the resolver — every raw header/claim value becomes
 //      `castId<Handle>(…)` / `castId<ExternalId>(…)` BEFORE constructing a `ResolvedIdentity`.
 
-import type { ResolvedIdentity } from "@orb/contracts/identity";
+import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
 
 /**
  * The parsed auth config the resolver needs, passed explicitly so unit tests can vary mode/fallback
@@ -32,7 +32,7 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
  * owner-ROLE decision (`determineRole`) is the RESOLUTION tier's (`domain/sessions`), not verification's.
  */
 export interface AuthConfig {
-  mode: "single-user" | "local" | "forward-header" | "oidc";
+  mode: AuthMode;
   fallback: "owner" | "deny";
   /** The single-user identity + the owner-fallback handle (env `DEFAULT_USER_HANDLE`). The seam mints
    *  the owner from the `via:"fallback"` discriminant — this is just the handle that fallback stamps. */
