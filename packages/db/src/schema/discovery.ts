@@ -38,6 +38,7 @@
 // provenance stamp on each recompute, born via `(unixepoch() * 1000)`. Floats (`cslsScore`/`similarity`)
 // are `real(...)`. `*Id` columns carry the type-only TypeID brand (`$type<XId>()`); the SQL is plain TEXT.
 
+import { RELATIONS } from "@orb/contracts/discovery";
 import type {
   CharacterId,
   CharacterKeywordProfileId,
@@ -68,10 +69,9 @@ import { chatDigests } from "./embeddings";
 import { users } from "./users";
 
 // The dedup `relation` axis — a near-duplicate look-alike (`duplicate`) vs a shared-fork-root family
-// member (`forked`, via the path-compressed lineage walk). Declared LOCALLY: `@orb/contracts/discovery`
-// is empty today (see header). A CHECK list is built from the same tuple (never a re-spelled union); a
-// `.int` test-mirror pins `relation.enumValues` to it.
-const RELATIONS = ["duplicate", "forked"] as const;
+// member (`forked`, via the path-compressed lineage walk). DERIVES `RELATIONS` from
+// `@orb/contracts/discovery` (D34 one-home — the canonical tuple); the SQL CHECK list is built from the
+// same tuple (never a re-spelled union), and a `.int` test-mirror pins `relation.enumValues` to it.
 const RELATION_CHECK_LIST = RELATIONS.map((relation) => `'${relation}'`).join(", ");
 
 // The one 1024-dim space (Qwen3-VL — knowledge-cluster.md §1). A theme centroid is a MEAN of digest
