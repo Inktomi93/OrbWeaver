@@ -19,6 +19,15 @@ export type UserRole = (typeof USER_ROLES)[number];
 /** The wire schema for the role axis — `z.enum` over the canonical tuple (consumed by tRPC + forms). */
 export const userRoleSchema = z.enum(USER_ROLES);
 
+// The ONE auth-mode axis — the SSO mechanism selector. The single tuple is the one home (§7.5,
+// string-union-dispatch.md §125 names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
+// `AUTH_MODE` var + its superRefine, and `infra/auth`'s `AuthConfig.mode` + the `MODE_RESOLVERS` dispatch
+// DERIVE from it — no inline re-spell anywhere.
+export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
+export type AuthMode = (typeof AUTH_MODES)[number];
+/** The env/wire schema for the auth-mode axis — `z.enum` over the canonical tuple. */
+export const authModeSchema = z.enum(AUTH_MODES);
+
 /**
  * The VERIFICATION-tier output (`infra/auth`, sealed + db-free): identity resolved to its stable SSO
  * fields, BEFORE the `users` row exists. Carries NO `userId` by design (invariant #3 — infra must not
