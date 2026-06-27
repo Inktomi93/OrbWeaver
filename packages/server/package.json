@@ -14,8 +14,19 @@
     "@orb/kit": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/context-async-hooks": "catalog:",
+    "@opentelemetry/resources": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@opentelemetry/semantic-conventions": "catalog:",
     "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
     "hono": "catalog:",
+    "pino": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "pino-pretty": "catalog:"
   }
 }
