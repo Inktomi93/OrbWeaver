@@ -360,13 +360,11 @@ CREATE TABLE `duplicate_character_pairs` (
 	`character_id_b` text NOT NULL,
 	`csls_score` real NOT NULL,
 	`similarity` real NOT NULL,
-	`relation` text NOT NULL,
 	`model` text NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`character_id_a`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`character_id_b`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "duplicate_character_pairs_canonical_check" CHECK(character_id_a < character_id_b),
-	CONSTRAINT "duplicate_character_pairs_relation_check" CHECK(relation in ('duplicate', 'forked'))
+	CONSTRAINT "duplicate_character_pairs_canonical_check" CHECK(character_id_a < character_id_b)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `duplicate_character_pairs_pair_unique` ON `duplicate_character_pairs` (`character_id_a`,`character_id_b`);--> statement-breakpoint

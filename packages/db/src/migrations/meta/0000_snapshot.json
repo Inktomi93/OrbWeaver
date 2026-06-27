@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e5bd3259-d0bc-44d8-a7be-138339f10a7d",
+  "id": "c7ffaa4d-7398-4eca-9cb8-61e4515764ed",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2362,13 +2362,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "relation": {
-          "name": "relation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "model": {
           "name": "model",
           "type": "text",
@@ -2428,10 +2421,6 @@
         "duplicate_character_pairs_canonical_check": {
           "name": "duplicate_character_pairs_canonical_check",
           "value": "character_id_a < character_id_b"
-        },
-        "duplicate_character_pairs_relation_check": {
-          "name": "duplicate_character_pairs_relation_check",
-          "value": "relation in ('duplicate', 'forked')"
         }
       }
     },
