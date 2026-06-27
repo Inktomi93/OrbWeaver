@@ -347,7 +347,7 @@
       "linter": { "rules": { "style": { "useNamingConvention": "off" } } }
     },
     {
-      "includes": ["*.config.ts", "*.config.js", "playwright*.config.ts"],
+      "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts"],
       "linter": {
         "rules": {
           "style": {

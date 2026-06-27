@@ -49,6 +49,8 @@
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "dependency-cruiser": "catalog:",
+    "drizzle-kit": "catalog:",
+    "drizzle-orm": "catalog:",
     "jscpd": "catalog:",
     "lefthook": "catalog:",
     "ts-morph": "catalog:",

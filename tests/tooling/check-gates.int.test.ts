@@ -70,6 +70,8 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_brand.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gBrand = sqliteTable("g_brand", { id: text("id").primaryKey() });\n',
   );
+  // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
+  fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).
