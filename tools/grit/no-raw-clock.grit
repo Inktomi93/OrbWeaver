@@ -11,7 +11,7 @@ or {
   `new Date()`
 } as $node where {
   $filename <: not or {
-    r".*/packages/kit/src/time\.ts$",
+    r".*/packages/kit/src/time/.*",
     r".*/packages/server/src/entry/.*",
     r".*\.test\.tsx?$",
     r".*/tests/.*",

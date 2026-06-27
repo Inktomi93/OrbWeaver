@@ -9,6 +9,6 @@ or {
   `Intl.DateTimeFormat`,
   `Intl.RelativeTimeFormat`
 } as $call where {
-  $filename <: not r".*/packages/kit/src/time\.ts$",
+  $filename <: not r".*/packages/kit/src/time/.*",
   register_diagnostic(span=$call, message="raw Intl.{DateTimeFormat,RelativeTimeFormat} — use @orb/kit/time (the one seam for time display + zone resolution). Time is epoch-ms UTC everywhere, rendered through one helper. See spine/typescript-style.md.")
 }

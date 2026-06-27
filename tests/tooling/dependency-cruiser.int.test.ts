@@ -135,6 +135,13 @@ function writeAllFixtures(): void {
   }
   fx(`${S}/domain/stats/__dc.ts`, `import "../../../../db/src/schema/embeddings.ts";\n`);
   fx("packages/kit/src/__dc/totest.ts", `import "../../../../tests/support/clock.ts";\n`);
+
+  // not-to-dev-dep: a production src file importing a PURE devDependency. drizzle-kit is db's devDep;
+  // db's runtime drizzle-orm resolves as `npm` (not `npm-dev`) so it would NOT fire — only pure devDeps do.
+  fx(
+    "packages/db/src/__dc/devdep.ts",
+    `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`,
+  );
 }
 
 interface Violation {
