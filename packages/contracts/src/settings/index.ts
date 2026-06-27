@@ -243,20 +243,29 @@ export function parseAppSettings(raw: unknown): AppSettings {
 
 // ── Per-role provider assignment shapes ──
 // One shape (`{ source, model }`) for ALL roles; the chat role additionally carries `api` (its three
-// wire protocols) + `providerRouting`. Restricted source arms (vllm-only / openrouter-only) are genuine
-// per-role subsets of the source axis, not a redeclaration of the canonical `CredentialSource` union.
-const roleSourceSchema = z.enum(["vllm", "openrouter"]);
-const roleConfigSchema = z.object({
-  source: roleSourceSchema.optional(),
-  model: z.string().min(1).optional(),
+// wire protocols) + `providerRouting`. Restricted source arms are genuine per-role subsets of the source
+// axis, not a redeclaration of the canonical `CredentialSource` union, and they MIRROR the runtime
+// firewall (`infra/providers/roles/firewall.ts` ROLE_SOURCE_POLICY) — input-validation here, the
+// fail-closed belt there (the cake forbids contracts importing the server-side policy, so this is
+// deliberate defense-in-depth, not a one-home break). embed/rerank/imageEmbed accept the three
+// inference-capable sources {openrouter, vllm, local-light} (D39 — local-light is the in-process tier;
+// imageEmbed was wrongly vllm-only before, narrower than its own firewall arm — corrected). summarize is
+// a chat-turn shaper so it never runs on the chat-less local-light tier; generateImage is hosted-only.
+// Per-field `.catch(undefined)` so a stale/invalid stored source (e.g. a role re-pointed off a tier the
+// user dropped, or `local-light` left on `summarize`) heals to "no preference" instead of nuking the
+// blob — the same self-healing the chat role config and the rest of the settings tree use.
+const inferenceRoleSourceSchema = z.enum(["openrouter", "vllm", "local-light"]);
+const inferenceRoleConfigSchema = z.object({
+  source: inferenceRoleSourceSchema.optional().catch(undefined),
+  model: z.string().min(1).optional().catch(undefined),
 });
-const localOnlyRoleConfigSchema = z.object({
-  source: z.literal("vllm").optional(),
-  model: z.string().min(1).optional(),
+const summarizeRoleConfigSchema = z.object({
+  source: z.enum(["openrouter", "vllm"]).optional().catch(undefined),
+  model: z.string().min(1).optional().catch(undefined),
 });
 const openrouterOnlyRoleConfigSchema = z.object({
-  source: z.literal("openrouter").optional(),
-  model: z.string().min(1).optional(),
+  source: z.literal("openrouter").optional().catch(undefined),
+  model: z.string().min(1).optional().catch(undefined),
 });
 const chatRoleConfigSchema = z.object({
   // The chat role: api × source × model (+ provider-routing). Per-field `.catch` so a stale/invalid
@@ -273,10 +282,10 @@ const chatRoleConfigSchema = z.object({
 const roleDefaultsSchema = z
   .object({
     chat: chatRoleConfigSchema.optional(),
-    embed: roleConfigSchema.optional(),
-    rerank: roleConfigSchema.optional(),
-    imageEmbed: localOnlyRoleConfigSchema.optional(),
-    summarize: roleConfigSchema.optional(),
+    embed: inferenceRoleConfigSchema.optional(),
+    rerank: inferenceRoleConfigSchema.optional(),
+    imageEmbed: inferenceRoleConfigSchema.optional(),
+    summarize: summarizeRoleConfigSchema.optional(),
     generateImage: openrouterOnlyRoleConfigSchema.optional(),
   })
   .prefault({});

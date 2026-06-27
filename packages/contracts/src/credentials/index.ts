@@ -4,10 +4,12 @@
 // node: contracts is the one place both consumers can reach without an infra→domain edge.
 //
 // TWO distinct axes live here — never conflate them (credentials.md §7.5):
-//   • CredentialSource (CRED_SOURCES) — the DISPATCH axis. The 4 sources the turn-time resolver has a
-//     runner arm for: `max-pro-sub | openrouter | vllm | custom_openai`. THE provider-source axis
-//     (D31); `@orb/contracts/connection` re-exports it verbatim as `ChatSource` rather than declaring
-//     a second tuple — routing's `source` IS the credential source.
+//   • CredentialSource (CRED_SOURCES) — the DISPATCH axis. The 5 sources the turn-time resolver has a
+//     runner arm for: `max-pro-sub | openrouter | vllm | local-light | custom_openai`. THE
+//     provider-source axis (D31/D39); `@orb/contracts/connection` re-exports it verbatim as
+//     `ChatSource` rather than declaring a second tuple — routing's `source` IS the credential source.
+//     `vllm` + `local-light` are the two KEYLESS local-compute tiers (the owner's box, D17): vllm is
+//     the supervised-subprocess GPU engine, local-light the in-process transformers.js/ONNX tier.
 //   • CredProvider (CRED_PROVIDERS) — the STORAGE axis. The broader set of providers a row may be
 //     persisted under: `openrouter | anthropic | openai | google_vertex | custom_openai`. The
 //     `anthropic`/`openai`/`google_vertex` members are forward-compat storage slots with NO resolver
@@ -37,7 +39,13 @@ const MIN_NON_EMPTY = 1;
 // The dispatch axis: every member has a resolver arm + an infra/providers runner. Adding a source is
 // a member here + a resolver arm + a runner arm — `tsc` (the resolver's `assertNever`) red-flags any
 // of the three left undone. `@orb/contracts/connection` re-exports `CredentialSource` as `ChatSource`.
-export const CRED_SOURCES = ["max-pro-sub", "openrouter", "vllm", "custom_openai"] as const;
+export const CRED_SOURCES = [
+  "max-pro-sub",
+  "openrouter",
+  "vllm",
+  "local-light",
+  "custom_openai",
+] as const;
 export type CredentialSource = (typeof CRED_SOURCES)[number];
 export const credentialSourceSchema = z.enum(CRED_SOURCES);
 
@@ -143,6 +151,14 @@ export type VllmCredential = CredentialBrand & {
   readonly credentialId: null;
 };
 
+/** In-process transformers.js/ONNX engine (CPU+CUDA) — a pure routing marker; no key, no row. The
+ *  owner's-box local-light compute tier (D17/D39): like vllm but in-process (no supervised subprocess),
+ *  the "any box" embed/rerank/imageEmbed path for a GPU-less, key-less user. */
+export type LocalLightCredential = CredentialBrand & {
+  readonly source: "local-light";
+  readonly credentialId: null;
+};
+
 /**
  * User-defined OpenAI-compatible endpoint. The active `custom_openai` row IS the endpoint selection.
  * `apiKey` is `null` for no-auth local servers; `headers` carries the per-endpoint request transform
@@ -159,10 +175,11 @@ export type CustomOpenAiCredential = CredentialBrand & {
 /**
  * The decrypted-credential shape every provider runner consumes, discriminated by `source` and
  * brand-protected. Constructed ONLY inside `domain/credentials/verbs/resolve.ts` (+ the boot helpers
- * `mint-vllm` / `build-keyless-catalog`). One credential = one backend = N roles.
+ * `mint-vllm` / `mint-local-light` / `build-keyless-catalog`). One credential = one backend = N roles.
  */
 export type ResolvedCredential =
   | MaxProSubCredential
   | OpenRouterCredential
   | VllmCredential
+  | LocalLightCredential
   | CustomOpenAiCredential;
