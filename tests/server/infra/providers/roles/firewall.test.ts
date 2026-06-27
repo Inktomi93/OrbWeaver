@@ -12,6 +12,7 @@ const ALL_SOURCES: readonly CredentialSource[] = [
   "max-pro-sub",
   "openrouter",
   "vllm",
+  "local-light",
   "custom_openai",
 ];
 
@@ -27,9 +28,10 @@ function captureError(fn: () => void): ProviderError {
 }
 
 describe("assertCredentialAllowed — source × role compatibility (fail-closed)", () => {
-  test("embed: only openrouter + vllm are permitted; max-pro-sub and custom_openai are denied", () => {
-    expect(() => assertCredentialAllowed({ role: "embed", source: "openrouter" })).not.toThrow();
-    expect(() => assertCredentialAllowed({ role: "embed", source: "vllm" })).not.toThrow();
+  test("embed: openrouter + vllm + local-light are permitted; max-pro-sub and custom_openai are denied", () => {
+    for (const source of ["openrouter", "vllm", "local-light"] as const) {
+      expect(() => assertCredentialAllowed({ role: "embed", source })).not.toThrow();
+    }
     // The owner sub credential does not authenticate embed endpoints (wrong-source-for-role).
     expect(() => assertCredentialAllowed({ role: "embed", source: "max-pro-sub" })).toThrow(
       ProviderError,
@@ -40,13 +42,25 @@ describe("assertCredentialAllowed — source × role compatibility (fail-closed)
     );
   });
 
-  test("rerank / imageEmbed / summarize mirror embed (openrouter + vllm only)", () => {
-    for (const role of ["rerank", "imageEmbed", "summarize"] as const) {
-      expect(() => assertCredentialAllowed({ role, source: "vllm" })).not.toThrow();
+  test("rerank / imageEmbed mirror embed (openrouter + vllm + local-light)", () => {
+    for (const role of ["rerank", "imageEmbed"] as const) {
+      for (const source of ["openrouter", "vllm", "local-light"] as const) {
+        expect(() => assertCredentialAllowed({ role, source })).not.toThrow();
+      }
       expect(() => assertCredentialAllowed({ role, source: "max-pro-sub" })).toThrow(ProviderError);
       expect(() => assertCredentialAllowed({ role, source: "custom_openai" })).toThrow(
         ProviderError,
       );
+    }
+  });
+
+  test("summarize is a chat-turn shaper: openrouter + vllm only, NOT the chat-less local-light tier", () => {
+    expect(() =>
+      assertCredentialAllowed({ role: "summarize", source: "openrouter" }),
+    ).not.toThrow();
+    expect(() => assertCredentialAllowed({ role: "summarize", source: "vllm" })).not.toThrow();
+    for (const source of ["local-light", "max-pro-sub", "custom_openai"] as const) {
+      expect(() => assertCredentialAllowed({ role: "summarize", source })).toThrow(ProviderError);
     }
   });
 

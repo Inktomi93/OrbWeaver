@@ -114,6 +114,29 @@ test("storedVersion beats the in-blob probe: a v2 blob with no in-blob version d
   expect(parsed.routing.roleDefaults.chat?.source).toBe("openrouter");
 });
 
+// ── Per-role source subsets mirror the providers firewall (D39 — local-light is routable) ──
+
+test("embed/rerank/imageEmbed roleDefaults accept the three inference sources incl. local-light (D39)", () => {
+  for (const role of ["embed", "rerank", "imageEmbed"] as const) {
+    for (const source of ["openrouter", "vllm", "local-light"] as const) {
+      const parsed = parseUserSettings(
+        { routing: { roleDefaults: { [role]: { source } } } },
+        SCHEMA_VERSION_V2,
+      );
+      expect(parsed.routing.roleDefaults[role]?.source).toBe(source);
+    }
+  }
+});
+
+test("summarize roleDefault rejects local-light (chat-less tier) — heals to no preference", () => {
+  // The subset omits local-light; an invalid stored source drops via the optional arm (no throw).
+  const parsed = parseUserSettings(
+    { routing: { roleDefaults: { summarize: { source: "local-light" } } } },
+    SCHEMA_VERSION_V2,
+  );
+  expect(parsed.routing.roleDefaults.summarize?.source).toBeUndefined();
+});
+
 // ── groupDefaults carries the D22 memberCardVisibility default 'sheet' ──
 
 test("UserSettings.groupDefaults carries the D22 memberCardVisibility default 'sheet'", () => {

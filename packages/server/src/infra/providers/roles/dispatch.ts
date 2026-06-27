@@ -36,6 +36,13 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           // The sub (its only legal path), the OpenRouter Anthropic skin, and the local loopback all
           // run through the one stateful agent-sdk backend (participants-agents-identity.md §0).
           return "agent-sdk";
+        case "local-light":
+          throw new ProviderError({
+            kind: "invalid",
+            retryable: false,
+            message:
+              'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
+          });
         case "custom_openai":
           throw new ProviderError({
             kind: "invalid",
@@ -53,6 +60,13 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           return "vllm";
         case "custom_openai":
           return "custom-openai";
+        case "local-light":
+          throw new ProviderError({
+            kind: "invalid",
+            retryable: false,
+            message:
+              'the "local-light" tier serves only embed/rerank/imageEmbed, never a chat turn',
+          });
         case "max-pro-sub":
           throw new ProviderError({
             kind: "invalid",
@@ -68,6 +82,7 @@ export function deriveRunner(api: ChatApi, source: CredentialSource): BackendKey
           return "openrouter";
         case "max-pro-sub":
         case "vllm":
+        case "local-light":
         case "custom_openai":
           throw new ProviderError({
             kind: "invalid",
@@ -94,6 +109,8 @@ export function backendForSource(source: CredentialSource): BackendKey {
       return "openrouter";
     case "vllm":
       return "vllm";
+    case "local-light":
+      return "local-light";
     case "custom_openai":
       return "custom-openai";
     case "max-pro-sub":

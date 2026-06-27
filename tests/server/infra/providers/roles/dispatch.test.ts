@@ -40,8 +40,14 @@ describe("deriveRunner — ChatApi × CredentialSource → the sealed backend ke
 
   test("the responses api is OpenRouter-only", () => {
     expect(deriveRunner("responses", "openrouter")).toBe("openrouter");
-    for (const source of ["max-pro-sub", "vllm", "custom_openai"] as const) {
+    for (const source of ["max-pro-sub", "vllm", "local-light", "custom_openai"] as const) {
       expect(() => deriveRunner("responses", source)).toThrow(ProviderError);
+    }
+  });
+
+  test("local-light is never a chat/agent runner (it serves only embed/rerank/imageEmbed)", () => {
+    for (const api of ["agent-sdk", "chat-completions", "responses"] as const) {
+      expect(() => deriveRunner(api, "local-light")).toThrow(ProviderError);
     }
   });
 });
@@ -51,6 +57,7 @@ describe("backendForSource — the non-chat role axis", () => {
     const cases: readonly (readonly [CredentialSource, BackendKey])[] = [
       ["openrouter", "openrouter"],
       ["vllm", "vllm"],
+      ["local-light", "local-light"],
       ["custom_openai", "custom-openai"],
       ["max-pro-sub", "agent-sdk"],
     ];

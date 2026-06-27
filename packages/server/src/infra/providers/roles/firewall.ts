@@ -31,12 +31,13 @@ const ROLE_SOURCE_POLICY: Record<ProviderRole, readonly CredentialSource[]> = {
   chat: ["max-pro-sub", "openrouter", "vllm", "custom_openai"],
   // Agent mode is the agent-sdk backend only: the sub, the skin, or the local loopback — not a BYO key.
   agent: ["max-pro-sub", "openrouter", "vllm"],
-  // Embeddings: a hosted key or the local engine. `max-pro-sub` doesn't authenticate embed endpoints;
-  // a BYO chat endpoint doesn't serve them either.
-  embed: ["openrouter", "vllm"],
-  rerank: ["openrouter", "vllm"],
-  imageEmbed: ["openrouter", "vllm"],
-  // Summarize is a chat-turn shaper on the user's hosted/local backend (never the metered sub).
+  // Embeddings: a hosted key or either local engine (vLLM / the in-process local-light tier, D39).
+  // `max-pro-sub` doesn't authenticate embed endpoints; a BYO chat endpoint doesn't serve them either.
+  embed: ["openrouter", "vllm", "local-light"],
+  rerank: ["openrouter", "vllm", "local-light"],
+  imageEmbed: ["openrouter", "vllm", "local-light"],
+  // Summarize is a chat-turn shaper on the user's hosted/local-heavy backend — never the metered sub,
+  // and never the chat-less local-light tier (it has no chat surface to shape).
   summarize: ["openrouter", "vllm"],
   // Image generation is hosted-primary (OpenRouter image models) today.
   generateImage: ["openrouter"],

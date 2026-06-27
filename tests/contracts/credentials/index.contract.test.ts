@@ -15,7 +15,13 @@ test("credentialSourceSchema round-trips every dispatch source", () => {
   for (const source of CRED_SOURCES) {
     expect(credentialSourceSchema.parse(source)).toBe(source);
   }
-  expect(CRED_SOURCES).toEqual(["max-pro-sub", "openrouter", "vllm", "custom_openai"]);
+  expect(CRED_SOURCES).toEqual([
+    "max-pro-sub",
+    "openrouter",
+    "vllm",
+    "local-light",
+    "custom_openai",
+  ]);
 });
 
 test("credentialProviderSchema round-trips every storable provider", () => {
@@ -32,9 +38,10 @@ test("credentialProviderSchema round-trips every storable provider", () => {
 });
 
 test("the source axis and the storage axis are NOT conflated", () => {
-  // Sources with no storable-provider row: dispatch-only.
+  // Sources with no storable-provider row: dispatch-only (the keyless local tiers + the sub).
   expect(credentialProviderSchema.safeParse("max-pro-sub").success).toBe(false);
   expect(credentialProviderSchema.safeParse("vllm").success).toBe(false);
+  expect(credentialProviderSchema.safeParse("local-light").success).toBe(false);
   // Storable providers with no resolver arm: storage-only.
   for (const storageOnly of ["anthropic", "openai", "google_vertex"]) {
     expect(credentialSourceSchema.safeParse(storageOnly).success).toBe(false);
