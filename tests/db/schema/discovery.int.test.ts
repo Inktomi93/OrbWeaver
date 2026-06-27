@@ -110,9 +110,11 @@ async function seedThemeCluster(db: Db, seed: ThemeClusterSeed): Promise<ThemeCl
 }
 
 // ── relation test-mirror (the column enum === the canonical `duplicate | forked` tuple) ────────────────
-test("duplicate_*_pairs.relation enum is the canonical [duplicate, forked] tuple on both tables", () => {
-  expect(duplicateCharacterPairs.relation.enumValues).toEqual(["duplicate", "forked"]);
+test("relation lives ONLY on duplicate_chat_pairs (canonical [duplicate, forked]); the character table has none", () => {
+  // Chats have fork lineage (parentChatId, D27) so a chat pair can be `forked`; characters do not (D28),
+  // so a character pair is always a `duplicate` and carries NO relation column.
   expect(duplicateChatPairs.relation.enumValues).toEqual(["duplicate", "forked"]);
+  expect("relation" in duplicateCharacterPairs).toBe(false);
 });
 
 // ── D24 duplicate_character_pairs: per-type FK round-trip + DERIVE ownerId + CASCADE ───────────────────
@@ -129,7 +131,6 @@ test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/simila
     characterIdB: b,
     cslsScore: 0.91,
     similarity: 0.88,
-    relation: "duplicate",
     model: MODEL,
   });
 
@@ -142,7 +143,6 @@ test("duplicate_character_pairs round-trips a per-type FK pair (cslsScore/simila
   expect(rows[0]?.characterIdB).toBe(b);
   expect(rows[0]?.cslsScore).toBeCloseTo(0.91);
   expect(rows[0]?.similarity).toBeCloseTo(0.88);
-  expect(rows[0]?.relation).toBe("duplicate");
   // computedAt is an epoch-MS NUMBER born at insert (not a Date).
   expect(rows[0]?.computedAt).toBeTypeOf("number");
   // DERIVE (D23/D24) — no ownerId column on a per-type FK pair (owner reachable via the entity FK).
@@ -160,7 +160,6 @@ test("deleting a character CASCADEs its duplicate_character_pairs rows (D24 — 
     characterIdB: b,
     cslsScore: 0.9,
     similarity: 0.9,
-    relation: "forked",
     model: MODEL,
   });
 
@@ -168,17 +167,17 @@ test("deleting a character CASCADEs its duplicate_character_pairs rows (D24 — 
   expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(0);
 });
 
-test("duplicate_character_pairs.relation CHECK rejects a non-member value", async () => {
+test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () => {
+  // The relation CHECK is covered on the chat table — the only one carrying the column.
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_dcp_rel");
-  const a = await seedCharacter(db, ownerId, "character_aaa");
-  const b = await seedCharacter(db, ownerId, "character_bbb");
+  const a = await seedChat(db, "chat_aaa");
+  const b = await seedChat(db, "chat_bbb");
   let caught: unknown;
   try {
-    await db.insert(duplicateCharacterPairs).values({
-      id: castId<DuplicateCharacterPairId>("duplicate_character_pair_badrel"),
-      characterIdA: a,
-      characterIdB: b,
+    await db.insert(duplicateChatPairs).values({
+      id: castId<DuplicateChatPairId>("duplicate_chat_pair_badrel"),
+      chatIdA: a,
+      chatIdB: b,
       cslsScore: 0.5,
       similarity: 0.5,
       relation: "nope" as never,
@@ -205,7 +204,6 @@ test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a se
       characterIdB: a,
       cslsScore: 0.5,
       similarity: 0.5,
-      relation: "duplicate",
       model: MODEL,
     });
   } catch (err) {
@@ -222,7 +220,6 @@ test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a se
       characterIdB: a,
       cslsScore: 0.5,
       similarity: 0.5,
-      relation: "duplicate",
       model: MODEL,
     });
   } catch (err) {
@@ -244,7 +241,6 @@ test("duplicate_character_pairs enforces its FKs (a missing character is rejecte
       characterIdB: castId<CharacterId>("character_zzz_missing"),
       cslsScore: 0.5,
       similarity: 0.5,
-      relation: "duplicate",
       model: MODEL,
     });
   } catch (err) {
@@ -264,7 +260,6 @@ test("duplicate_character_pairs unique index rejects the same canonical pair twi
     characterIdB: b,
     cslsScore: 0.9,
     similarity: 0.9,
-    relation: "duplicate",
     model: MODEL,
   });
   let caught: unknown;
@@ -275,7 +270,6 @@ test("duplicate_character_pairs unique index rejects the same canonical pair twi
       characterIdB: b,
       cslsScore: 0.7,
       similarity: 0.7,
-      relation: "forked",
       model: MODEL,
     });
   } catch (err) {

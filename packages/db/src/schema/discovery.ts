@@ -21,11 +21,13 @@
 //                       chat → host), character_keyword_profiles (via characters.ownerId),
 //                       character_summaries (via characters.ownerId), digest_theme_assignments (via
 //                       digest → chat → host).
-//   • The `relation` axis (`duplicate | forked`) on each duplicate_*_pairs table is a single union, NOT a
-//     polymorphic discriminator. Its canonical home would be `@orb/contracts/discovery`, but that
-//     namespace is currently EMPTY (only a `.gitkeep`) — so the tuple is declared LOCALLY here (a `[...]
-//     as const`) and a `.int` test-mirror pins the column enum to it. When contracts/discovery is
-//     populated, derive `relation` from there (import-and-derive), mirroring `image_embeddings.lens`.
+//   • The `relation` axis (`duplicate | forked`) lives ONLY on `duplicate_chat_pairs` — chats have fork
+//     lineage (`parentChatId`, D27), so a chat pair can be a known fork family; characters do NOT (they use
+//     snapshots, D28), so a character pair is always an accidental `duplicate` and carries NO `relation`
+//     column. It is a single union, NOT a polymorphic discriminator. Its canonical home would be
+//     `@orb/contracts/discovery`, but that namespace is currently EMPTY (only a `.gitkeep`) — so the tuple
+//     is declared LOCALLY here (`[...] as const`) and a `.int` test-mirror pins the column enum to it. When
+//     contracts/discovery is populated, derive `relation` from there, mirroring `image_embeddings.lens`.
 //   • `theme_clusters.centroid` is a `vector32` F32_BLOB — but a k-means MEAN rollup, NOT a primary
 //     vector store (those four live in `schema/embeddings.ts`). It lives here because it is discovery's
 //     own derived signal. `level` (`scene | arc`, the ThemeLevel union) is the clustering level; its
@@ -100,8 +102,10 @@ export const duplicateCharacterPairs = sqliteTable(
     // The CSLS hub-adjusted similarity (the rank key) + the raw cosine — both floats (`real`).
     cslsScore: real("csls_score").notNull(),
     similarity: real("similarity").notNull(),
-    // `duplicate | forked` — derives the local RELATIONS tuple (+ the CHECK below). `enum` is type-only.
-    relation: text("relation", { enum: RELATIONS }).notNull(),
+    // NO `relation` column — characters have no fork lineage (forks are a CHAT concept, D27; characters use
+    // snapshots, D28). A character pair is ALWAYS an accidental look-alike, so a `duplicate|forked` label
+    // would be a dead constant. `relation` lives ONLY on `duplicate_chat_pairs`. (Vestige of neo's single
+    // polymorphic `duplicate_pairs`, dissolved by D24 into these per-type tables.)
     // The embedding-space tag the pair was computed in (a pair is only meaningful within one space).
     model: text("model").notNull(),
     // Provenance: the epoch-MS stamp of the recompute that wrote this row.
@@ -115,11 +119,6 @@ export const duplicateCharacterPairs = sqliteTable(
     index("duplicate_character_pairs_b_idx").on(t.characterIdB),
     // Canonical ordering A<B (lexicographic on TEXT) — also forbids a self-pair (a == b).
     check("duplicate_character_pairs_canonical_check", sql`character_id_a < character_id_b`),
-    // SQL-side enum guard derived from the tuple (mirrors the drizzle `{ enum }` type-side).
-    check(
-      "duplicate_character_pairs_relation_check",
-      sql.raw(`relation in (${RELATION_CHECK_LIST})`),
-    ),
   ],
 );
 
