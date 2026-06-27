@@ -262,7 +262,7 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > were added with `spine/testing.md` (2026-06-26). They are gate *candidates* — implemented as
 > dep-cruiser/biome rules + `tsc` patterns at scaffold time. (`no-internal-mocks` stays advisory in
 > `spine/testing.md §3`, not a hard gate.) **This table is the constitution; the full implemented-gate
-> catalog — these + `commented-code`, `schema-branding`, the 19 grit plugins, and the 28 dep-cruiser
+> catalog — these + `commented-code`, `schema-branding`, `db-structure`, `sole-env-reader`, `assumes-single-replica`, `providers-runner-seal`, the 19 grit plugins, and the 29 dep-cruiser
 > rules — is `reports/ENFORCEMENT.md`** (the single enforcement source of truth).
 
 ---

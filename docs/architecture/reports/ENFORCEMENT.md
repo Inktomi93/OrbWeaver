@@ -63,15 +63,20 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `test-determinism` | no ambient clock/random/unseeded-id under `tests/` (support/+e2e/ exempt) | new |
 | `commented-code` | no parked code in `//` comments (prose only) | neo (ported) |
 | `schema-branding` | db `*Id` columns carry `.$type<XId>()` (PK + cross-brand FK) | neo (ported) |
+| `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | neo (ported) |
+| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader — AST gate catching the `process["env"]` bracket form biome's `noProcessEnv` misses (ignores comments) | new (4a) |
+| `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (non-literal-seed) carries `ASSUMES(single-replica)` in its file | new (4a) |
+| `providers-runner-seal` | no `domain`/`transport`/`entry` imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — providers.md inv #3 | new (4b) |
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 
-The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 28 rules:
+The import-graph backstop ("boundaries are physics"), wired into `pnpm check` + CI + pre-push. 29 rules:
 the 5-package cake (kit←contracts←db←server←client), server tier direction
 (entry→transport→domain→infra→foundation→kit), kit-purity, infra-no-db, foundation-reaches-up-to-nothing,
 drivers-through-domain, domain isolation (no-cross-feature/-verb/-subsystem + front-door + substrate
 mediation), providers public-surface + strategy-isolation + the transitive credential firewall
-(openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables. Every rule is **pinned by
+(openrouter ↛ agent-sdk), persistence-no-io, stats-no-vector-tables, and `not-to-dev-dep` (prod `packages/*/src` must not import a
+pure devDependency — restored from neo; `recommended-strict` omits it). Every rule is **pinned by
 `tests/tooling/dependency-cruiser.int.test.ts`** (derives the rule set from the config, fires each on a
 fixture — anti-drift). The full feature set (err-long, mermaid graph, `--focus`/`--reaches`/`--affected`)
 + deliberate non-adoptions are documented in the config header.
@@ -105,15 +110,10 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 
 | Gate | What it does | Activates when |
 |---|---|---|
-| `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | db schema files land (Phase 1 db) |
-| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader — ts-morph AST gate catching the property form AND the `process["env"]` bracket trick biome's `noProcessEnv` can miss (ignores comments naming it) | **BUILT (4a)**; allowlist domain/sessions' call-time reads (foundation.md inv #1) when they land |
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
 | `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
-| `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (not an immutable array-literal seed) must live in a file carrying `ASSUMES(single-replica)`; custom ring/cache CLASSES carry it by convention/review (out of structural reach) | **BUILT (4a)** |
-| `providers-runner-seal` | no `domain`/`transport`/`entry` module imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — tiers/providers.md inv #3 | **BUILT (4b)** |
-| `not-to-dev-dep` (dep-cruiser) | `packages/*/src` must not import a pure devDependency (type-only + @types exempt) — restored from neo; `recommended-strict` omits it | **BUILT** |
-| `dead-code` | unused exports (the seam tsc + knip leave open) | post-Phase-1 (false-fires while everything is a placeholder) |
+| `dead-code` (knip) | unused exports / files / deps | **DEFERRED to ~4c–6** — knip false-fires now: `contracts`/`db`/`kit` export symbols the domains (4c), transport/entry (4d/4e), and client (6) don't consume yet (same reason `no-orphans` is set to `ignore`). When the consuming tiers land, adopt a workspace knip config seeded from neo's `.config/knip.json` (entry: routes / shadcn / provider barrels; ignore: CSS-only deps). |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
 | `monotonic-tests` | test-count baseline only grows (behavior lock) | first real test suite + baseline file |
 | `suppressions` | `biome-ignore` count ratchet + audit (reasons are already biome-native) | post-Phase-1 baseline (count-down ratchet needs existing code) |
@@ -138,7 +138,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `entity-editor` | entity-editor checklist ratchet | client entity editors built |
 | `audit-client-tests` | client test audit | client tests exist |
 | `doc-tables` | docs ↔ code table-consistency | a docs-table convention is adopted |
-| `no-inline-union-redecl` (full set-dedup) | the ACTIVE gate is a v1 PROXY — it flags inline ≥3-member string-union *type aliases*, but NOT a 2nd `as const` tuple or `z.enum([…])` re-spelling of an existing axis's member set. The ledger §5 decision is the stronger "exactly one declaration site per member set." | strengthen when the first real union axes land + can be measured (the measured-pain axes from §7.5) |
+| `no-inline-union-redecl` (tuple-vs-tuple) | **UPGRADED (4b)**: the active gate now flags an inline union (any position, incl. interface property) OR a `z.enum([…])` literal array that re-spells an EXISTING canonical tuple's member set (the AUTH_MODE class). Remaining: a 2nd `as const` TUPLE duplicating a 1st's members — doctrinally contested (distinct axes may legitimately share a member set, e.g. `REASONING_DISPLAY_MODES`/`THINKING_DISPLAYS`, ledger §5 vs D5), so left unbuilt pending that policy call. | decide the distinct-axis-vs-dup policy |
 | `dangling-refs` | prose pointers (paths/symbols) that lead nowhere | revisit (risk: doc-path refs); candidate post-Phase-1 |
 | `abandoned-comments` | comments that lost their code anchor (report-only metric) | optional; revisit if churn warrants |
 | `comment-density` | comment-density metric (report-only) | optional; revisit if a cap is agreed |
