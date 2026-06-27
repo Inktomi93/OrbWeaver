@@ -138,6 +138,61 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
   expect(isConstraintViolation(caught)?.kind).toBe("not-null");
 });
 
+test("character_embeddings is UNIQUE per (characterId, model) — a duplicate collides (upsert target)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_cem");
+  const characterId = await seedCharacter(db, ownerId, "character_cem");
+
+  await db.insert(characterEmbeddings).values({
+    id: castId<CharacterEmbeddingId>("character_embedding_cem_a"),
+    characterId,
+    embedding: rampVector(),
+    contentHash: "h",
+    model: MODEL,
+    dim: DIM,
+  });
+
+  // A second row for the same (characterId, model) collides on the unique index (the ON CONFLICT target).
+  let caught: unknown;
+  try {
+    await db.insert(characterEmbeddings).values({
+      id: castId<CharacterEmbeddingId>("character_embedding_cem_b"),
+      characterId,
+      embedding: rampVector(),
+      contentHash: "h2",
+      model: MODEL,
+      dim: DIM,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+});
+
+test("character_embeddings.hubScore is a FLOAT — a fractional value round-trips as a number", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_hub");
+  const characterId = await seedCharacter(db, ownerId, "character_hub");
+  const id = castId<CharacterEmbeddingId>("character_embedding_hub");
+  // A CSLS mean-cosine FLOAT (the `real` column type) — discovery would write it; here we assert the type.
+  const hubScore = 0.73;
+  await db.insert(characterEmbeddings).values({
+    id,
+    characterId,
+    embedding: rampVector(),
+    contentHash: "h",
+    hubScore,
+    model: MODEL,
+    dim: DIM,
+  });
+
+  const row = (
+    await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.id, id))
+  )[0];
+  expect(row?.hubScore).toBeTypeOf("number");
+  expect(row?.hubScore).toBeCloseTo(hubScore);
+});
+
 // ── NO ownerId on ANY vector row (D20 — scope derives from the producer FK) ───────────────────────────
 test("no vector table carries an ownerId column (D20 — owner-scope derives from the producer FK)", async () => {
   const db = await freshDb();

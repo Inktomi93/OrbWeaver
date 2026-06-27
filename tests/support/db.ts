@@ -1,9 +1,9 @@
-// tests/support/db — freshDb (spine/testing.md §2): a migrated libSQL `:memory:` db per call for the
-// `.int` lane. There is no `0000_baseline` migration yet (it's generated once every Wave-1 table lands),
-// so freshDb PUSHES the schema: it diffs the live `@orb/db/schema` against an empty snapshot via
-// drizzle-kit's programmatic API and applies the resulting CREATE statements over the real createDb
-// handle. This keeps tests independent of migration files (which lag the schema). When the baseline
-// lands, this can switch to `runMigrations` with no test changes.
+// tests/support/db — freshDb (spine/testing.md §2): a libSQL `:memory:` db per call for the `.int` lane.
+// freshDb PUSHES the LIVE schema (it diffs `@orb/db/schema` against an empty snapshot via drizzle-kit's
+// programmatic API and applies the resulting CREATE statements over the real createDb handle), so a slice
+// test always runs against the current schema regardless of whether `0000_baseline.sql` has been
+// regenerated yet — fast + drift-proof for per-table tests. The committed baseline + the `runMigrations`
+// FK-dance + `assertReferentialIntegrity`'s throw path are covered separately by `tests/db/migration.int.test.ts`.
 
 import type { Db } from "@orb/db";
 import { createDb } from "@orb/db";

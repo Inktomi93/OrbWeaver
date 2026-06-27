@@ -51,6 +51,7 @@ import {
   integer,
   // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use primaryKey({ columns }).
   primaryKey,
+  real,
   sqliteTable,
   text,
   uniqueIndex,
@@ -89,18 +90,18 @@ export const characterEmbeddings = sqliteTable(
     embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
     // The staleness gate + cross-chat collapse key (replaces neo's `sourceText` comparison). NOT NULL.
     contentHash: text("content_hash").notNull(),
-    // The advisory-stale CSLS ranking signal — written ONLY by `discovery` via `writeHubScores`, read by
-    // `search`. A vector write (`embeddings.store`) MUST NOT touch it (the neo reset bug); nullable, never
-    // defaulted by a store. Do NOT add a default or write it from the store path.
-    hubScore: integer("hub_score"),
+    // The advisory-stale CSLS mean-cosine ranking signal (a FLOAT) — written ONLY by `discovery` via
+    // `writeHubScores`, read by `search`. A vector write (`embeddings.store`) MUST NOT touch it (the neo
+    // reset bug); nullable, never defaulted by a store. Do NOT add a default or write it from the store path.
+    hubScore: real("hub_score"),
     // The `(model, dim)` space tag — `search`/`memory` compare only within one space.
     model: text("model").notNull(),
     dim: integer("dim").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The producer-scoped lookup + the within-space staleness probe (one row per character per space).
-    index("character_embeddings_character_idx").on(t.characterId),
+    // One row per character per embedding space — the hash-gated upsert's ON CONFLICT target.
+    uniqueIndex("character_embeddings_character_model_unique").on(t.characterId, t.model),
   ],
 );
 
@@ -133,10 +134,10 @@ export const imageEmbeddings = sqliteTable(
     // The staleness/collapse key. Both lenses for one asset share a content_hash (the resized bytes), so a
     // re-index de-dups. NOT NULL.
     contentHash: text("content_hash").notNull(),
-    // Advisory-stale CSLS hub score — RESERVED for image↔image use only (cross-modal cosine scale mismatch
-    // means `search` deliberately omits it on text→image paths; knowledge-cluster esoteric #2). Written
-    // ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted by a store.
-    hubScore: integer("hub_score"),
+    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — RESERVED for image↔image use only (cross-modal
+    // cosine scale mismatch means `search` deliberately omits it on text→image paths; knowledge-cluster
+    // esoteric #2). Written ONLY by `discovery`; a vector write MUST NOT null it. Nullable, never defaulted.
+    hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
     dim: integer("dim").notNull(),
@@ -185,8 +186,8 @@ export const chatDigests = sqliteTable(
     embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
-    // Advisory-stale CSLS hub score — discovery-only write, never nulled by a store. Nullable.
-    hubScore: integer("hub_score"),
+    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
+    hubScore: real("hub_score"),
     // The mandatory first line of the digest (`[entities — scene]`) — kept as a retrieval facet.
     topicAnchor: text("topic_anchor"),
     // The 15–30 distinctive retrieval keywords (always a list; the lexical retrieval anchors).
@@ -229,8 +230,8 @@ export const chatSegments = sqliteTable(
     embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
-    // Advisory-stale CSLS hub score — discovery-only write, never nulled by a store. Nullable.
-    hubScore: integer("hub_score"),
+    // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
+    hubScore: real("hub_score"),
     // The `(model, dim)` space tag.
     model: text("model").notNull(),
     dim: integer("dim").notNull(),

@@ -40,6 +40,7 @@ import type {
 import { sql } from "drizzle-orm";
 import {
   check,
+  index,
   integer,
   // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use primaryKey({ columns }).
   primaryKey,
@@ -133,6 +134,8 @@ export const characterTags = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.characterId, t.tagId] }),
     check("character_tags_status_check", sql.raw(`status in (${checkList(TAG_STATUSES)})`)),
+    // The `tagId` FK cascade child (delete tag → junction); the composite PK leads with characterId.
+    index("character_tags_tag_idx").on(t.tagId),
   ],
 );
 
@@ -166,7 +169,11 @@ export const chatTags = sqliteTable(
   },
   // The composite PK `(chatId, tagId, ownerId)` IS the D30 `unique(chatId, tagId, ownerId)` — per-tagger
   // uniqueness, cross-tagger coexistence. No separate unique index (it would duplicate the PK).
-  (t) => [primaryKey({ columns: [t.chatId, t.tagId, t.ownerId] })],
+  (t) => [
+    primaryKey({ columns: [t.chatId, t.tagId, t.ownerId] }),
+    // The `tagId` FK cascade child (delete tag → junction); tagId is not the PK's leading column.
+    index("chat_tags_tag_idx").on(t.tagId),
+  ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -188,7 +195,11 @@ export const worldBookTags = sqliteTable(
       .references(() => tags.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [primaryKey({ columns: [t.worldBookId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.worldBookId, t.tagId] }),
+    // The `tagId` FK cascade child (delete tag → junction); the composite PK leads with worldBookId.
+    index("world_book_tags_tag_idx").on(t.tagId),
+  ],
 );
 
 export const personaTags = sqliteTable(
@@ -204,7 +215,11 @@ export const personaTags = sqliteTable(
       .references(() => tags.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [primaryKey({ columns: [t.personaId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.personaId, t.tagId] }),
+    // The `tagId` FK cascade child (delete tag → junction); the composite PK leads with personaId.
+    index("persona_tags_tag_idx").on(t.tagId),
+  ],
 );
 
 export const presetTags = sqliteTable(
@@ -220,5 +235,9 @@ export const presetTags = sqliteTable(
       .references(() => tags.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [primaryKey({ columns: [t.presetId, t.tagId] })],
+  (t) => [
+    primaryKey({ columns: [t.presetId, t.tagId] }),
+    // The `tagId` FK cascade child (delete tag → junction); the composite PK leads with presetId.
+    index("preset_tags_tag_idx").on(t.tagId),
+  ],
 );

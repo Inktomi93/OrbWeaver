@@ -24,10 +24,10 @@
 //   • The `relation` axis (`duplicate | forked`) lives ONLY on `duplicate_chat_pairs` — chats have fork
 //     lineage (`parentChatId`, D27), so a chat pair can be a known fork family; characters do NOT (they use
 //     snapshots, D28), so a character pair is always an accidental `duplicate` and carries NO `relation`
-//     column. It is a single union, NOT a polymorphic discriminator. Its canonical home would be
-//     `@orb/contracts/discovery`, but that namespace is currently EMPTY (only a `.gitkeep`) — so the tuple
-//     is declared LOCALLY here (`[...] as const`) and a `.int` test-mirror pins the column enum to it. When
-//     contracts/discovery is populated, derive `relation` from there, mirroring `image_embeddings.lens`.
+//     column. It is a single union, NOT a polymorphic discriminator. It DERIVES the canonical `RELATIONS`
+//     tuple from `@orb/contracts/discovery` (D34 — now populated, the one home); the column carries the
+//     drizzle `{ enum }` (type-side) AND a CHECK built from the same tuple (SQL-side), and a `.int`
+//     test-mirror pins `relation.enumValues` to it — mirroring `image_embeddings.lens ← IMAGE_LENSES`.
 //   • `theme_clusters.centroid` is a `vector32` F32_BLOB — but a k-means MEAN rollup, NOT a primary
 //     vector store (those four live in `schema/embeddings.ts`). It lives here because it is discovery's
 //     own derived signal. `level` (`scene | arc`, the ThemeLevel union) is the clustering level; its
@@ -165,7 +165,8 @@ export const duplicateChatPairs = sqliteTable(
 // keyword_cooccurrence — owner × keyword-PAIR tallies (keyword×keyword within a tier-0 digest's
 // `keywords[]`, hub-token-filtered, content-collapsed). KEEP ownerId (D23 — a parentless per-user
 // aggregate: owner × a non-entity dimension, no owning-entity parent, so `ownerId` IS its own key, not a
-// mirror). Canonical A<B for the keyword pair (the unique index).
+// mirror). The keyword pair is normalized A<B by the PRODUCER before insert (unlike the duplicate_*_pairs
+// tables, there is NO `check(keywordA < keywordB)` — the unique index alone does NOT enforce the ordering).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const keywordCooccurrence = sqliteTable(
@@ -179,7 +180,8 @@ export const keywordCooccurrence = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    // The two co-occurring keywords (free-form strings, normalized upstream). Canonical A<B per the unique.
+    // The two co-occurring keywords (free-form strings). Ordering A<B is normalized by the producer before
+    // insert — there is NO CHECK; the unique index alone does not enforce the ordering.
     keywordA: text("keyword_a").notNull(),
     keywordB: text("keyword_b").notNull(),
     // How many tier-0 digests the pair co-occurred in (the co-occurrence weight).

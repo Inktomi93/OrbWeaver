@@ -40,7 +40,7 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-import { check, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { characters } from "./character";
 import { chats } from "./chat";
 import { personas } from "./persona";
@@ -62,21 +62,28 @@ const DEFAULT_BOOK_ROLE = "auxiliary";
 // per-character-attachment property that rides on `character_books` (BookAttachmentView).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const worldBooks = sqliteTable("world_books", {
-  // TypeID PK (`world_book_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-  id: text("id").$type<WorldBookId>().primaryKey(),
-  // KEEP `ownerId` (D23). User hard-delete cascades the owner's books (→ entries + junctions).
-  ownerId: text("owner_id")
-    .$type<UserId>()
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  name: text("name").notNull(),
-  description: text("description"),
-  // NOTE: a book carries NO `role` — role is a per-character-ATTACHMENT property (`character_books.role`,
-  // BookAttachmentView), "only meaningful on the character scope" (contracts/world-info). One book can be
-  // primary for char A and auxiliary for char B, so role cannot live on the book.
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const worldBooks = sqliteTable(
+  "world_books",
+  {
+    // TypeID PK (`world_book_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
+    id: text("id").$type<WorldBookId>().primaryKey(),
+    // KEEP `ownerId` (D23). User hard-delete cascades the owner's books (→ entries + junctions).
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    // NOTE: a book carries NO `role` — role is a per-character-ATTACHMENT property (`character_books.role`,
+    // BookAttachmentView), "only meaningful on the character scope" (contracts/world-info). One book can be
+    // primary for char A and auxiliary for char B, so role cannot live on the book.
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // Owner-scoped list (`fetchOwned`).
+    index("world_books_owner_idx").on(t.ownerId),
+  ],
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // world_entries — a single keyword-triggered lore entry inside a book. NO `ownerId` (D23 — owned via the
@@ -85,32 +92,39 @@ export const worldBooks = sqliteTable("world_books", {
 // from an empty trigger set). `worldBookId` CASCADEs on book delete.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const worldEntries = sqliteTable("world_entries", {
-  // TypeID PK (`world_entry_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-  id: text("id").$type<WorldEntryId>().primaryKey(),
-  // The owning book. CASCADE: deleting a book removes its entries (entries have no independent existence).
-  worldBookId: text("world_book_id")
-    .$type<WorldBookId>()
-    .notNull()
-    .references(() => worldBooks.id, { onDelete: "cascade" }),
-  title: text("title").notNull(),
-  // Author-facing memo (= ST's `comment`); rendered in the entry list, NEVER injected. Nullable.
-  description: text("description"),
-  // What the model sees when the entry fires.
-  content: text("content").notNull(),
-  // Keyword triggers for `scope: keyword` entries. NULLABLE list (absent ⇒ null, NOT `[]`) — the
-  // parseStringArrayColumn asymmetry; mirrors `EntryView.keys: string[] | null`.
-  keys: text("keys", { mode: "json" }).$type<string[]>(),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
-  priority: integer("priority").notNull().default(0),
-  // Opt-out of the per-turn WI token budget — must-have lore that should never be silently dropped.
-  ignoreBudget: integer("ignore_budget", { mode: "boolean" }).notNull().default(false),
-  // The typed per-entry blob (`EntryMetadata`): { scopeMode?, position?, inject? {depth, role?} } + any
-  // preserved unknown ST keys. NOT columns — read at the `@orb/db/kit` seam / the `@orb/kit/world-info`
-  // resolvers, never trusted raw.
-  metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const worldEntries = sqliteTable(
+  "world_entries",
+  {
+    // TypeID PK (`world_entry_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
+    id: text("id").$type<WorldEntryId>().primaryKey(),
+    // The owning book. CASCADE: deleting a book removes its entries (entries have no independent existence).
+    worldBookId: text("world_book_id")
+      .$type<WorldBookId>()
+      .notNull()
+      .references(() => worldBooks.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    // Author-facing memo (= ST's `comment`); rendered in the entry list, NEVER injected. Nullable.
+    description: text("description"),
+    // What the model sees when the entry fires.
+    content: text("content").notNull(),
+    // Keyword triggers for `scope: keyword` entries. NULLABLE list (absent ⇒ null, NOT `[]`) — the
+    // parseStringArrayColumn asymmetry; mirrors `EntryView.keys: string[] | null`.
+    keys: text("keys", { mode: "json" }).$type<string[]>(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    priority: integer("priority").notNull().default(0),
+    // Opt-out of the per-turn WI token budget — must-have lore that should never be silently dropped.
+    ignoreBudget: integer("ignore_budget", { mode: "boolean" }).notNull().default(false),
+    // The typed per-entry blob (`EntryMetadata`): { scopeMode?, position?, inject? {depth, role?} } + any
+    // preserved unknown ST keys. NOT columns — read at the `@orb/db/kit` seam / the `@orb/kit/world-info`
+    // resolvers, never trusted raw.
+    metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // Entry-by-book hot path + the `worldBookId` FK cascade child (delete book → its entries).
+    index("world_entries_book_idx").on(t.worldBookId),
+  ],
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // The four scope junctions — a book is attached at exactly one scope per junction row; the per-turn pool
@@ -133,7 +147,11 @@ export const chatBooks = sqliteTable(
       .references(() => worldBooks.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [primaryKey({ columns: [t.chatId, t.worldBookId] })],
+  (t) => [
+    primaryKey({ columns: [t.chatId, t.worldBookId] }),
+    // The `worldBookId` FK cascade child (the composite PK leads with chatId).
+    index("chat_books_book_idx").on(t.worldBookId),
+  ],
 );
 
 // character_books — book attached to a character. D28: keys on `characters.id` (live identity — there is NO
@@ -157,18 +175,25 @@ export const characterBooks = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.characterId, t.worldBookId] }),
     check("character_books_role_check", sql.raw(`role in (${checkList(WORLD_BOOK_ROLES)})`)),
+    // The `worldBookId` FK cascade child (the composite PK leads with characterId).
+    index("character_books_book_idx").on(t.worldBookId),
   ],
 );
 
 // global_books — book attached at the deployment-global scope (fires for every chat). One row per book; the
 // PK IS the book id (a book is either global or not — no second key).
-export const globalBooks = sqliteTable("global_books", {
-  worldBookId: text("world_book_id")
-    .$type<WorldBookId>()
-    .primaryKey()
-    .references(() => worldBooks.id, { onDelete: "cascade" }),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const globalBooks = sqliteTable(
+  "global_books",
+  {
+    worldBookId: text("world_book_id")
+      .$type<WorldBookId>()
+      .primaryKey()
+      .references(() => worldBooks.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  // No secondary index: unlike the other three junctions (where the book id is the NON-leading PK column),
+  // here `worldBookId` IS the single-column PK — already indexed; a `*_book_idx` would just duplicate it.
+);
 
 // persona_books — book attached to a persona (pool's persona-book slice; `{{user}}` resolves against the
 // speaking participant's active persona — a pool.ts source-tagging detail, not a schema concern).
@@ -185,5 +210,9 @@ export const personaBooks = sqliteTable(
       .references(() => worldBooks.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [primaryKey({ columns: [t.personaId, t.worldBookId] })],
+  (t) => [
+    primaryKey({ columns: [t.personaId, t.worldBookId] }),
+    // The `worldBookId` FK cascade child (the composite PK leads with personaId).
+    index("persona_books_book_idx").on(t.worldBookId),
+  ],
 );

@@ -16,66 +16,83 @@ import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contr
 import type { RegexScript } from "@orb/contracts/regex";
 import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-// biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { assets } from "./assets";
 import { personas } from "./persona";
 import { users } from "./users";
 
-export const characters = sqliteTable("characters", {
-  // ── Identity (D28 flat row) ──────────────────────────────────────────────
-  // TypeID PK (`character_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
-  id: text("id").$type<CharacterId>().primaryKey(),
-  // plain-id: the character handle is a free-form label (incl. the synthetic `__group__<chatId>`
-  // namespace), NOT a branded entity id — so it carries no `.$type<…Id>()`.
-  handle: text("handle").notNull(),
-  // KEEP `ownerId` (D23). User hard-delete cascades the owner's characters.
-  ownerId: text("owner_id")
-    .$type<UserId>()
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  starred: integer("starred", { mode: "boolean" }).notNull().default(false),
-  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
-  // The `synthetic=true` hidden per-room group-memory identity (filtered from every user-facing query).
-  synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false),
-  // Tri-state: null = inherit the deployment default, true = forbid, false = allow.
-  forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
-  importedFrom: text("imported_from"),
-  // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
-  importHash: text("import_hash"),
-  // The semantic-fields hash (always present — computed at create/edit).
-  contentHash: text("content_hash").notNull(),
-  // ── Card content (FLAT on the row — D28; mirrors @orb/contracts/character `characterCardSchema`) ──
-  name: text("name").notNull(),
-  description: text("description"),
-  personality: text("personality"),
-  scenario: text("scenario"),
-  // ALWAYS a list (greetings[0] = first message, rest = alternates); default `[]`, never null.
-  greetings: text("greetings", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
-  exampleMessages: text("example_messages"),
-  systemPrompt: text("system_prompt"),
-  postHistoryInstructions: text("post_history_instructions"),
-  // Character's Note @ Depth — the shared `{depth, role?}` directive + note text, or null.
-  depthPrompt: text("depth_prompt", { mode: "json" }).$type<CardDepthPrompt>(),
-  creatorNotes: text("creator_notes"),
-  creator: text("creator"),
-  // Card author's freeform version STRING (e.g. "1.2") — NEVER an int counter (D28).
-  cardVersion: text("card_version"),
-  // Typed promotion (D28): the card's regex scripts. ALWAYS a list; default `[]`, never null.
-  regexScripts: text("regex_scripts", { mode: "json" })
-    .$type<RegexScript[]>()
-    .notNull()
-    .default(sql`'[]'`),
-  // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
-  extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
-  // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
-  avatarAssetId: text("avatar_asset_id")
-    .$type<AssetId>()
-    .references(() => assets.id, { onDelete: "set null" }),
-  // CardRefinery pipeline signals (derived, not user-authored).
-  refinery: text("refinery", { mode: "json" }).$type<RefinerySignals>(),
-  createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
+export const characters = sqliteTable(
+  "characters",
+  {
+    // ── Identity (D28 flat row) ──────────────────────────────────────────────
+    // TypeID PK (`character_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
+    id: text("id").$type<CharacterId>().primaryKey(),
+    // plain-id: the character handle is a free-form label (incl. the synthetic `__group__<chatId>`
+    // namespace), NOT a branded entity id — so it carries no `.$type<…Id>()`.
+    handle: text("handle").notNull(),
+    // KEEP `ownerId` (D23). User hard-delete cascades the owner's characters.
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    starred: integer("starred", { mode: "boolean" }).notNull().default(false),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    // The `synthetic=true` hidden per-room group-memory identity (filtered from every user-facing query).
+    synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false),
+    // Tri-state: null = inherit the deployment default, true = forbid, false = allow.
+    forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
+    importedFrom: text("imported_from"),
+    // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
+    importHash: text("import_hash"),
+    // The semantic-fields hash (always present — computed at create/edit).
+    contentHash: text("content_hash").notNull(),
+    // ── Card content (FLAT on the row — D28; mirrors @orb/contracts/character `characterCardSchema`) ──
+    name: text("name").notNull(),
+    description: text("description"),
+    personality: text("personality"),
+    scenario: text("scenario"),
+    // ALWAYS a list (greetings[0] = first message, rest = alternates); default `[]`, never null.
+    greetings: text("greetings", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
+    exampleMessages: text("example_messages"),
+    systemPrompt: text("system_prompt"),
+    postHistoryInstructions: text("post_history_instructions"),
+    // Character's Note @ Depth — the shared `{depth, role?}` directive + note text, or null.
+    depthPrompt: text("depth_prompt", { mode: "json" }).$type<CardDepthPrompt>(),
+    creatorNotes: text("creator_notes"),
+    creator: text("creator"),
+    // Card author's freeform version STRING (e.g. "1.2") — NEVER an int counter (D28).
+    cardVersion: text("card_version"),
+    // Typed promotion (D28): the card's regex scripts. ALWAYS a list; default `[]`, never null.
+    regexScripts: text("regex_scripts", { mode: "json" })
+      .$type<RegexScript[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
+    extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
+    // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
+    avatarAssetId: text("avatar_asset_id")
+      .$type<AssetId>()
+      .references(() => assets.id, { onDelete: "set null" }),
+    // CardRefinery pipeline signals (derived, not user-authored).
+    refinery: text("refinery", { mode: "json" }).$type<RefinerySignals>(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // Per-owner handle namespace (neo `characters_owner_handle_unq`) — the `__group__${chatId}` synthetic-
+    // group mint/find relies on per-owner handle uniqueness.
+    uniqueIndex("characters_owner_handle_unique").on(t.ownerId, t.handle),
+    // Owner-scoped list hot path (`fetchOwned`).
+    index("characters_owner_idx").on(t.ownerId),
+  ],
+);
 
 // character_snapshots — the git-commit-style history log (D28). Append-only; ONE opaque JSON blob per
 // snapshot (the full card snapshot — NOT a parallel set of typed columns). Restore copies a blob → the
@@ -112,5 +129,9 @@ export const characterPersonas = sqliteTable(
       .references(() => personas.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (table) => [primaryKey({ columns: [table.characterId, table.personaId] })],
+  (table) => [
+    primaryKey({ columns: [table.characterId, table.personaId] }),
+    // Reverse lookup + the personaId-side FK cascade child (the composite PK leads with characterId).
+    index("character_personas_persona_idx").on(table.personaId),
+  ],
 );
