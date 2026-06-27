@@ -27,7 +27,7 @@ Layer 6). Enforced (they fail the build), just not in the pre-commit budget.
 Format + lint + import-organize. See `biome.json` and `docs/architecture/spine/typescript-style.md`.
 Notable ratchets: `noUnresolvedImports`, `useConsistentTypeDefinitions: interface` (object shapes are
 interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `useMaxParams: 4`,
-`useTopLevelRegex`, `useExplicitType`, `noMagicNumbers`. `noConsole` is a **total ban by default**
+`useTopLevelRegex`, `useExplicitReturnType`, `noMagicNumbers`. `noConsole` is a **total ban by default**
 (`allow: []` — server/db/contracts/kit log through the logger/pino, never raw console); relaxed only
 for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
 off for `scripts/**` + `tests/**` (console is their output channel).
@@ -106,11 +106,13 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | Gate | What it does | Activates when |
 |---|---|---|
 | `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | db schema files land (Phase 1 db) |
-| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader (biome no-restricted-globals/grep — dep-cruiser can't see non-import access) | foundation/env built (4a); the sessions call-time reads are allowlisted (foundation.md inv #1) |
+| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader — ts-morph AST gate catching the property form AND the `process["env"]` bracket trick biome's `noProcessEnv` can miss (ignores comments naming it) | **BUILT (4a)**; allowlist domain/sessions' call-time reads (foundation.md inv #1) when they land |
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
 | `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
-| `assumes-single-replica` | every module-scope ring/cache/counter carries the `ASSUMES(single-replica)` annotation | the first single-replica in-memory state lands (foundation rings, §A1) |
+| `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (not an immutable array-literal seed) must live in a file carrying `ASSUMES(single-replica)`; custom ring/cache CLASSES carry it by convention/review (out of structural reach) | **BUILT (4a)** |
+| `providers-runner-seal` | no `domain`/`transport`/`entry` module imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — tiers/providers.md inv #3 | **BUILT (4b)** |
+| `not-to-dev-dep` (dep-cruiser) | `packages/*/src` must not import a pure devDependency (type-only + @types exempt) — restored from neo; `recommended-strict` omits it | **BUILT** |
 | `dead-code` | unused exports (the seam tsc + knip leave open) | post-Phase-1 (false-fires while everything is a placeholder) |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
 | `monotonic-tests` | test-count baseline only grows (behavior lock) | first real test suite + baseline file |
