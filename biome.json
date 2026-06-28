@@ -327,6 +327,10 @@
       }
     },
     {
+      "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts"],
+      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+    },
+    {
       "includes": ["packages/client/**"],
       "linter": {
         "rules": {

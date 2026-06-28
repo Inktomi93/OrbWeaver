@@ -1,0 +1,44 @@
+import type { ValidatedSession } from "../contract/results";
+import type { SessionsContext, SessionsService } from "../contract/service";
+import { selectForValidation, slideExpiry } from "../persistence/sessions";
+
+// The Route-A identity-resolution step (ledger D40): cookie token → the caller's principal-fields incl.
+// `userId`. The `entry/auth/seam` calls this DIRECTLY (it returns `userId`, unlike the removed infra
+// `validateCookie` port) and mints the one `Principal` from it. Every gate (revoked / expired / disabled)
+// re-runs EVERY request, so logout / admin-disable / role-change propagate on the NEXT request — orbweaver
+// is NOT JWT-baked. The expiry slide WRITE is throttled; `onSlide` reports the new expiry so the route can
+// refresh the cookie Max-Age (else the cookie would die 30d after LOGIN regardless of activity).
+
+export function createValidate(ctx: SessionsContext): Pick<SessionsService, "validate"> {
+  async function validate(
+    token: string,
+    onSlide?: (expiresAt: number) => void,
+  ): Promise<ValidatedSession | null> {
+    const now = ctx.now();
+    const session = await selectForValidation(ctx.db, ctx.hashToken(token));
+    // Per-request gates: missing / revoked / expired / disabled → unauthenticated. Gating `enabled` to
+    // null here IS how disable takes effect next request (invariant #8).
+    if (
+      session === undefined ||
+      session.revokedAt !== null ||
+      session.expiresAt <= now ||
+      !session.enabled
+    ) {
+      return null;
+    }
+    if (now - session.lastSeenAt > ctx.slideThrottleMs) {
+      const slidExpiresAt = now + ctx.ttlMs;
+      await slideExpiry(ctx.db, session.sessionId, now, slidExpiresAt);
+      onSlide?.(slidExpiresAt);
+    }
+    // The Route-A payload: `userId` carried (the seam never re-queries), `role`/`enabled` re-read fresh.
+    return {
+      userId: session.userId,
+      role: session.role,
+      handle: session.handle,
+      externalId: session.externalId,
+      enabled: session.enabled,
+    };
+  }
+  return { validate };
+}
