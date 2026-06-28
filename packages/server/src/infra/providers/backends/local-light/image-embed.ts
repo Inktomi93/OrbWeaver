@@ -1,15 +1,15 @@
 // infra/providers/backends/local-light/image-embed — the local-light JOINT image+text embedding role
-// (CLIP / SigLIP via transformers.js). A PURE transform over the model cache: image and text inputs are
-// embedded into the ONE shared image/text space the CLIP model defines (an image embed and a text embed
-// from the SAME model compare directly), then L2-normalized (one home: `@orb/kit/vector-math`). Empty
-// text inputs filter to `null` (aligned to request order). Carries `model` provenance so `embeddings`
-// can tag the space (a CPU CLIP space is its OWN space — never compared with a vLLM/Qwen space). No
-// vector COMPARISON here.
+// (the jina-clip-v2 multimodal model via transformers.js). A PURE transform over the model cache: image
+// and text inputs are embedded into the ONE shared 1024-dim image/text space jina-clip defines (an image
+// embed and a text embed from the SAME model compare directly), then L2-normalized (one home:
+// `@orb/kit/vector-math`). Empty text inputs filter to `null` (aligned to request order). Carries
+// `model` provenance so `embeddings` can tag the space (a CPU jina-clip space is its OWN space — never
+// compared with a vLLM/Qwen space). No vector COMPARISON here.
 //
 // FLAGGED not-supported: the `multimodal` kind (a joint image+text PAIR → one vector) is reserved for
-// natively-multimodal families (vLLM Qwen3-VL). CLIP has two separate towers and does NOT define a
-// single fused image+text vector, so this backend throws a typed not-supported rather than inventing a
-// fusion the model never learned (providers.md: flag, don't fake).
+// natively-multimodal families (vLLM Qwen3-VL). jina-clip has two separate encoders (text + image) and
+// does NOT define a single fused image+text vector, so this backend throws a typed not-supported rather
+// than inventing a fusion the model never learned (providers.md: flag, don't fake).
 
 import type { ImageEmbedInput, ImageInput } from "@orb/contracts/role-clients";
 import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract";
@@ -17,9 +17,10 @@ import { ProviderError } from "../../contract";
 import type { LocalLightModelCache } from "./model-cache";
 import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache";
 
-/** The "any box" default joint image+text embedder — CLIP ViT-B/32, 512-dim shared space. Overridable
- *  via `req.model`. */
-export const DEFAULT_IMAGE_EMBED_MODEL = "Xenova/clip-vit-base-patch32";
+/** The "any box" default joint image+text embedder — jina-clip-v2, 1024-dim shared space (the SAME model
+ *  the embed role defaults to: one model, both modalities, ONE joint space → text↔image comparable, and
+ *  it fits the `F32_BLOB(1024)` column). Overridable via `req.model`. */
+export const DEFAULT_IMAGE_EMBED_MODEL = "jinaai/jina-clip-v2";
 
 /** Compile-time exhaustiveness: an unhandled `kind` makes this a type error AND fails loud at runtime. */
 function assertNeverKind(value: never): never {
@@ -93,7 +94,7 @@ async function embedByKind(
         kind: "invalid",
         retryable: false,
         message:
-          'local-light CLIP does not support joint image+text PAIR embedding; use kind "image" or "text", or a natively-multimodal backend (vLLM Qwen3-VL)',
+          'local-light jina-clip does not support joint image+text PAIR embedding; use kind "image" or "text", or a natively-multimodal backend (vLLM Qwen3-VL)',
       });
     default:
       return assertNeverKind(input);
