@@ -62,7 +62,7 @@ cleanup() {
   wait 2>/dev/null
   echo "engines: stopped."
 }
-trap cleanup INT TERM
+trap cleanup INT TERM HUP
 
 wait_health() { # name port
   for _ in $(seq 1 180); do
