@@ -73,6 +73,9 @@ export interface ConnHarness {
   readonly setRoleDefaults: (roleDefaults: RoleDefaults) => void;
   /** Set the OR catalog the faked `fetchOrCatalog` returns. */
   readonly setOrCatalog: (models: ModelCatalogEntry[]) => void;
+  /** Toggle the boot vLLM-availability fact the resolver reads (default `true`). `false` drives the
+   *  no-GPU derive fallback (embed/rerank/imageEmbed vllm → local-light). */
+  readonly setVllmAvailable: (available: boolean) => void;
   /** Every `source` the resolver asked `resolveCredential` for — proves the selection routed to it. */
   readonly credentialCalls: ChatSource[];
 }
@@ -82,6 +85,7 @@ export function makeConnHarness(db: Db): ConnHarness {
   const clock = createFrozenClock();
   let roleDefaults: RoleDefaults = DEFAULT_USER_SETTINGS.routing.roleDefaults;
   let orCatalog: ModelCatalogEntry[] = [];
+  let vllmAvailable = true;
   const credentialCalls: ChatSource[] = [];
 
   const ctx: ConnectionContext = {
@@ -94,6 +98,10 @@ export function makeConnHarness(db: Db): ConnHarness {
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     loadUserSettings: () =>
       Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
+    // The resolver reads this lazily per call, so a `setVllmAvailable(false)` before `resolveRole` lands.
+    get vllmAvailable(): boolean {
+      return vllmAvailable;
+    },
   };
 
   return {
@@ -104,6 +112,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     },
     setOrCatalog: (models: ModelCatalogEntry[]): void => {
       orCatalog = models;
+    },
+    setVllmAvailable: (available: boolean): void => {
+      vllmAvailable = available;
     },
     credentialCalls,
   };

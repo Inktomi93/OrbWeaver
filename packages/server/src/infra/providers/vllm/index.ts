@@ -31,6 +31,9 @@ import { createVllmImageEmbed } from "./surfaces/image-embed";
 import { createVllmRerank } from "./surfaces/rerank";
 import { createVllmSummarize } from "./surfaces/summarize";
 
+// The boot GPU-presence probe — re-exported so the providers front door surfaces it to entry. The supervisor
+// reads the same `engine/gpu` home, so there is exactly ONE `nvidia-smi` probe in the codebase.
+export { detectGpu } from "./engine";
 export { createVllmChat } from "./surfaces/chat";
 export { createVllmEmbed } from "./surfaces/embed";
 export { createVllmImageEmbed } from "./surfaces/image-embed";

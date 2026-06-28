@@ -33,7 +33,7 @@
 // inputs) and unit-tested; the IO shell below drives them.
 
 import type { ChildProcess } from "node:child_process";
-import { execFile, execFileSync, spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdirSync, readlinkSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -44,6 +44,7 @@ import { registerVllmEngineController } from "./engine-control";
 import type { ENGINE_LIFECYCLE_STATUSES } from "./engine-status";
 import { setEngineStatus } from "./engine-status";
 import { VLLM_ENGINES } from "./engines";
+import { detectGpu } from "./gpu";
 
 // One `ss` row's pid field — hoisted (the rule forbids a per-call regex literal in a hot function).
 const SS_PID_RE = /pid=(\d+)/;
@@ -241,16 +242,6 @@ export function findOrphanedEngineCores(
 
 // ── IO shell ──────────────────────────────────────────────────────────────────────────────────────────
 
-/** Cheap GPU presence probe (mirrors the stack supervisor's gpu_present). */
-function hasNvidiaGpu(): boolean {
-  try {
-    execFileSync("nvidia-smi", ["-L"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 interface EngineState {
   engine: VllmEngine;
   status: EngineLifecycleStatus;
@@ -333,7 +324,7 @@ export function startVllmEngines(opts: { repoRoot: string; now: () => number }):
 
   // No GPU → no engines: idle with an honest status instead of crash-looping spawns every breaker
   // half-open window (vLLM is the only local inference family; a CPU box just lacks it, runners fail typed).
-  if (!hasNvidiaGpu()) {
+  if (!detectGpu()) {
     log.warn("vllm-engines: no NVIDIA GPU detected — supervisor idle, engines unavailable");
     for (const engine of ENGINES) {
       setEngineStatus(engine, "down", "no GPU on this host", now());

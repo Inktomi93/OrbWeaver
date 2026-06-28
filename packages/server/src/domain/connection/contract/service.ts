@@ -61,6 +61,11 @@ export interface ConnectionContext {
   readonly resolveCredential: ResolveCredentialOp;
   readonly fetchOrCatalog: FetchOrCatalogOp;
   readonly loadUserSettings: LoadUserSettingsOp;
+  /** The boot GPU/vLLM-availability fact (`!VLLM_DISABLED && gpuPresent`), threaded from `entry/lifecycle`
+   *  via compose. When `false`, `resolveRole` reroutes the DERIVE roles (embed/rerank/imageEmbed) that
+   *  resolved to `vllm` onto the in-process `local-light` tier (the generation roles never fall back —
+   *  local-light has no generation). The ONE input the resolver reads for the no-GPU derive fallback. */
+  readonly vllmAvailable: boolean;
 }
 
 /** What `createConnectionService` receives from the entry root. Identical to {@link ConnectionContext} —

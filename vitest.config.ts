@@ -25,6 +25,12 @@ export default defineConfig({
   test: {
     exclude: IGNORE,
 
+    // Tests default the search-corpus auto-index OFF (the production env floor is ON). With the no-GPU
+    // derive-role fallback live, an ON indexer would turn every `character.create` in a test into a real
+    // local-light jina embed (multi-GB model load) on the fire-and-forget bus. OFF keeps unit/integration
+    // boots clean + deterministic; the compose-gate test flips it ON via a per-test AppSettings override.
+    env: { CORPUS_AUTOINDEX: "false" },
+
     // --- rigor defaults (inherited via `extends: true`) ---
     restoreMocks: true, // spies → original impl between tests (fake-at-edges, never-mock-internals doctrine)
     clearMocks: true, // clear mock call history each test
