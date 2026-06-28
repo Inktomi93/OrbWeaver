@@ -6,6 +6,7 @@
 //
 // Egress is the GLOBAL undici dispatcher (the firewall applies to this fetch too); we just fetch.
 
+import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
 import { redactHeaders } from "../kit";
 
@@ -16,29 +17,9 @@ const JSON_CONTENT_TYPE = "application/json";
 const CHAT_COMPLETIONS_PATH = "/chat/completions";
 const TRAILING_SLASH_RE = /\/$/;
 
-/** The inspector's result. File-local — the `no-inline-types` gate forbids a backend EXPORTING a type.
- *  FLAG: this is a cross-boundary diagnostic shape (the credentials/connection "Test endpoint" path reads
- *  it); when that path is wired it should be homed in `infra/providers/contract/` (or `@orb/contracts`),
- *  not here. Kept file-local for now so the backend creates no contract type. */
-interface CustomEndpointInspection {
-  /** True iff the endpoint answered with a 2xx. */
-  readonly ok: boolean;
-  readonly request: {
-    readonly url: string;
-    /** REDACTED — Authorization / key-shaped headers are masked (the key never leaves the server). */
-    readonly headers: Record<string, string>;
-    /** Pretty-printed JSON of the outbound body. */
-    readonly body: string;
-  };
-  /** The raw response, or null when the request never completed (DNS / refused / timeout). */
-  readonly response: {
-    readonly status: number;
-    readonly statusText: string;
-    readonly bodyPreview: string;
-  } | null;
-  /** Transport error message when `response` is null. */
-  readonly error?: string;
-}
+// The inspector's result is the cross-boundary `EndpointInspection` (the credentials/connection "Test
+// endpoint" path reads it through the providers diagnostic front door) — homed in `@orb/contracts/providers`,
+// not file-local here.
 
 /**
  * Real 1-message probe against a user-defined OpenAI-compatible endpoint. Sends a trivial non-streaming
@@ -53,7 +34,7 @@ export async function inspectCustomByoEndpoint(args: {
   readonly apiKey: string | null;
   readonly headers: Record<string, string> | null;
   readonly model: string;
-}): Promise<CustomEndpointInspection> {
+}): Promise<EndpointInspection> {
   const body: Record<string, unknown> = {
     model: args.model,
     messages: [{ role: "user", content: PING_CONTENT }],

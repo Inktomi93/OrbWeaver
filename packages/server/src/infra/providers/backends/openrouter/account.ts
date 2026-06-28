@@ -1,28 +1,17 @@
 // infra/providers/backends/openrouter/account — the diagnostic account surfaces (credits + per-generation
-// cost) the `credentials`/`account` domain verbs call THROUGH injection. Family-agnostic, credential-shaped
-// I/O adapters; they hold no state. Imports `backends/kit` DOWN; never a sibling backend.
+// cost) the `credentials`/`account` domain verbs call THROUGH the providers diagnostic front door (injection).
+// Family-agnostic, credential-shaped I/O adapters; they hold no state. Imports `backends/kit` DOWN; never a
+// sibling backend.
 //
-// FLAG (orchestrator): these result shapes (`OrCreditsSnapshot`, `OrGenerationCost`) are cross-boundary
-// (the credentials/account domain consumes them via injection) but have NO `@orb/contracts` home yet — they
-// live here as file-local interfaces because the `no-inline-types` gate forbids a backend EXPORTING a type
-// alias. When the account verb lands, these need a contract home (e.g. `@orb/contracts/credentials` or a
-// new account node). The activity / providers / endpoints diagnostics neo carried are DEFERRED (activity
-// needs a management key; not in scope for this slice).
+// The result shapes now live in `@orb/contracts/providers` as the family-neutral `AccountCredits` /
+// `GenerationCost` (the credentials/account domain consumes them through injection — cross-boundary, so they
+// are homed in contracts, not file-local here). The activity / providers / endpoints diagnostics neo carried
+// are DEFERRED (activity needs a management key; not in scope for this slice).
 
 import type { GenerationResponse } from "@openrouter/sdk/models";
 import type { GetCreditsResponse } from "@openrouter/sdk/models/operations";
+import type { AccountCredits, GenerationCost } from "@orb/contracts/providers";
 import { providerErrorFromHttp } from "../kit";
-
-// File-local cross-boundary shapes — see the header FLAG (no contract home yet).
-interface OrCreditsSnapshot {
-  readonly total: number;
-  readonly used: number;
-}
-interface OrGenerationCost {
-  readonly totalCost: number;
-  readonly tokensPrompt: number | null;
-  readonly tokensCompletion: number | null;
-}
 
 interface OrAccountClient {
   readonly credits: {
@@ -36,7 +25,7 @@ interface OrAccountClient {
 /** Read the credential's OpenRouter credit balance (`{ total, used }`). Works on any inference key. */
 export async function getOpenRouterCredits(
   client: Pick<OrAccountClient, "credits">,
-): Promise<OrCreditsSnapshot> {
+): Promise<AccountCredits> {
   let response: GetCreditsResponse;
   try {
     response = await client.credits.getCredits();
@@ -54,7 +43,7 @@ export async function getOpenRouterCredits(
 export async function getOpenRouterGenerationCost(
   client: Pick<OrAccountClient, "generations">,
   generationId: string,
-): Promise<OrGenerationCost> {
+): Promise<GenerationCost> {
   let response: GenerationResponse;
   try {
     response = await client.generations.getGeneration({ id: generationId });

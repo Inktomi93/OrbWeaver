@@ -13,16 +13,26 @@
 // The `credential.source` axis is NOT redeclared here — it is `CredentialSource` from
 // `@orb/contracts/credentials` (D31), imported by the dispatch + firewall.
 
-import type { ChatApi } from "@orb/contracts/connection";
-import type { CredentialSource } from "@orb/contracts/credentials";
+import type { ChatApi, ModelCatalogEntry } from "@orb/contracts/connection";
+import type { CredentialHealth, CredentialSource } from "@orb/contracts/credentials";
 import type {
+  AccountCredits,
   EmbedResult,
+  EndpointInspection,
+  GenerationCost,
   ImageEmbedResult,
   RerankResult,
   SummarizeResult,
 } from "@orb/contracts/providers";
 import type { AgentTurnRequest } from "./agent";
 import type { ChatRequest, ChatResult } from "./chat";
+import type {
+  AccountCreditsRequest,
+  FetchCatalogRequest,
+  GenerationCostRequest,
+  InspectRequest,
+  ProbeRequest,
+} from "./diagnostics";
 import type {
   EmbedRequest,
   ImageEmbedRequest,
@@ -61,10 +71,11 @@ export type ProviderRole = (typeof PROVIDER_ROLES)[number];
 // --- The sealed-backend contract ---------------------------------------------
 /**
  * The interface EVERY sealed backend implements. Each method is OPTIONAL: a backend implements only the
- * roles it serves (the remote backends serve `chat`; vLLM serves five; agent-sdk serves chat + agent).
- * The role dispatcher fail-closes with a typed {@link ProviderError} when a resolved backend doesn't
- * implement the requested role. Methods are property-style (no `this`), so a dispatcher can pull the
- * function off and call it directly.
+ * roles + diagnostics it serves (the remote backends serve `chat`; vLLM serves five roles; agent-sdk serves
+ * chat + agent; openrouter additionally serves probe/accountCredits/generationCost/fetchCatalog; custom-byo
+ * serves `inspect`). The role + diagnostic dispatchers fail-close with a typed {@link ProviderError} when a
+ * resolved backend doesn't implement the requested verb. Methods are property-style (no `this`), so a
+ * dispatcher can pull the function off and call it directly.
  *
  * The three backend agents each export a factory (e.g. `createOpenRouterBackend(deps): ProviderBackend`)
  * returning a `{ key, …role methods }` object; `entry/` wires them into a {@link BackendRegistry}.
@@ -81,6 +92,12 @@ export interface ProviderBackend {
   readonly generateImage?:
     | ((req: ImageGenerateRequest) => Promise<ImageGenerateResult>)
     | undefined;
+  // ── Diagnostics (the family-agnostic credential surfaces; a backend implements only what it serves) ──
+  readonly probe?: ((req: ProbeRequest) => Promise<CredentialHealth>) | undefined;
+  readonly accountCredits?: ((req: AccountCreditsRequest) => Promise<AccountCredits>) | undefined;
+  readonly generationCost?: ((req: GenerationCostRequest) => Promise<GenerationCost>) | undefined;
+  readonly inspect?: ((req: InspectRequest) => Promise<EndpointInspection>) | undefined;
+  readonly fetchCatalog?: ((req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>) | undefined;
 }
 
 /** The backend registry the composition root fills (one entry per WIRED backend). A role that resolves

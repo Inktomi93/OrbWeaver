@@ -97,3 +97,55 @@ export const summarizeResultSchema = z.object({
   model: z.string(),
 });
 export type SummarizeResult = z.infer<typeof summarizeResultSchema>;
+
+// --- Diagnostic result shapes (the account / inspect surfaces) ----------------
+// Family-NEUTRAL result shapes for the `infra/providers` diagnostic front door (probe / accountCredits /
+// generationCost / inspect / fetchOrCatalog). Cross-boundary: the `credentials`/`connection` domains
+// consume them through injection, so they land here (not file-local in a backend). `CredentialHealth`
+// (probe's result) + `ModelCatalogEntry` (the catalog fetch's result) already have homes — `probe` →
+// `@orb/contracts/credentials`, the catalog → `@orb/contracts/connection` — so only these three are net-new.
+
+/** A hosted credential's account balance — the `accountCredits` surface returns it. Family-neutral: any
+ *  hosted account that meters a balance maps onto `{ total, used }` (OpenRouter reports USD credits;
+ *  `total` is the lifetime granted, `used` the cumulative spend). */
+export const accountCreditsSchema = z.object({
+  total: z.number(),
+  used: z.number(),
+});
+export type AccountCredits = z.infer<typeof accountCreditsSchema>;
+
+/** The settled upstream cost of ONE generation — the `generationCost` surface returns it (the cost lands
+ *  a few seconds after the turn, read with the key that billed it). Token counts are `null` when the
+ *  provider doesn't break them out. */
+export const generationCostSchema = z.object({
+  totalCost: z.number(),
+  tokensPrompt: z.number().nullable(),
+  tokensCompletion: z.number().nullable(),
+});
+export type GenerationCost = z.infer<typeof generationCostSchema>;
+
+/** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the ACTUAL shaped
+ *  request (headers REDACTED — the key never leaves the server) plus the raw response, or a `null`
+ *  response + an `error` message when the request never completed (DNS / refused / timeout). */
+export const endpointInspectionSchema = z.object({
+  /** True iff the endpoint answered with a 2xx. */
+  ok: z.boolean(),
+  request: z.object({
+    url: z.string(),
+    /** REDACTED — Authorization / key-shaped headers are masked. */
+    headers: z.record(z.string(), z.string()),
+    /** Pretty-printed JSON of the outbound body. */
+    body: z.string(),
+  }),
+  /** The raw response, or `null` when the request never completed. */
+  response: z
+    .object({
+      status: z.number(),
+      statusText: z.string(),
+      bodyPreview: z.string(),
+    })
+    .nullable(),
+  /** Transport error message; present only when `response` is `null`. */
+  error: z.string().optional(),
+});
+export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;

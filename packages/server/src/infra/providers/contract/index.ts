@@ -8,7 +8,12 @@
 // (the role RESULTS, ResolvedCredential, CredentialHealth, ModelCapability) are RE-EXPORTS from
 // `@orb/contracts` so a consumer needs ONE import for the whole provider surface (providers.md).
 
-export type { ChatApi, ChatSource, ModelCapability } from "@orb/contracts/connection";
+export type {
+  ChatApi,
+  ChatSource,
+  ModelCapability,
+  ModelCatalogEntry,
+} from "@orb/contracts/connection";
 export type {
   CredentialHealth,
   CredentialSource,
@@ -16,7 +21,10 @@ export type {
 } from "@orb/contracts/credentials";
 // ── Cross-boundary RE-EXPORTS (canonical home is @orb/contracts; surfaced for one-import ergonomics) ─
 export type {
+  AccountCredits,
   EmbedResult,
+  EndpointInspection,
+  GenerationCost,
   ImageEmbedResult,
   RerankHit,
   RerankResult,
@@ -48,6 +56,15 @@ export type {
 } from "./chat";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab) ────────────────────────────
 export { NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "./chat";
+// ── Infra-internal: the diagnostic request shapes + the bound diagnostic surface ─────────────────
+export type {
+  AccountCreditsRequest,
+  FetchCatalogRequest,
+  GenerationCostRequest,
+  InspectRequest,
+  ProbeRequest,
+  ProviderDiagnostics,
+} from "./diagnostics";
 export type { ProviderErrorInit, ProviderErrorKind } from "./errors";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────
 export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors";
