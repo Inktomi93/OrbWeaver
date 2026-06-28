@@ -1,0 +1,72 @@
+// domain/search/contract/service — the typed API surface (read THIS to know everything the domain does;
+// search.md §"Verbs"). Holds:
+//   • SearchContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
+//   • SearchServiceDeps   what the entry root supplies (identical to the context — no transform)
+//   • SearchService       the authoritative verb interface (the front door re-exports the type)
+//
+// ── THE INJECTION MODEL (boundaries-are-physics) ───────────────────────────────────────────────────────
+// search is the ONE vector-retrieval engine (knowledge-cluster invariant #4). Its only cross-tier seam is
+// the `rolesClients` bundle (`@orb/contracts/role-clients`) — the GOLD-STANDARD composition seam the entry
+// root mints ONCE at boot and threads in. search calls:
+//   - `roleClients.embed(query, { inputType: "query" })` → the query vector (within-space scan key).
+//   - `roleClients.rerank(query, documents)`             → the optional cross-encoder reorder.
+//   - `roleClients.embedModel`                            → the active embed model = the space tag; the
+//     scan filters `character_embeddings.model = embedModel` so a query NEVER compares across spaces
+//     (providers.md §2b/§11 embedding-space invariant; the rerank pairs with the same embed space).
+// `roleClients` is a REQUIRED dep (search.md invariant 7): `createSearchService(ctx)` is typed so a
+// missing wire is a `tsc` error, not a silent `createDefaultRoleClients` fallback (that drawer is DELETED
+// in orbweaver — the entry root fills the bundle via `connection.resolveRole(role)` per role, Esoteric §2).
+//
+// ── BOUNDARY DEVIATION (flagged) ───────────────────────────────────────────────────────────────────────
+// search reads the vector tables DIRECTLY from `@orb/db/schema/embeddings` (a downward dep into the schema
+// — allowed; embeddings.md §"Cross-feature composition": "search reads the tables directly via @orb/db; it
+// does NOT call embeddings verbs"). It does NOT inject an `embeddings.query` op. The vector_distance_cos
+// SQL lives in `persistence/nearest.ts` and is search's alone (invariant #1: no domain outside search
+// issues that query). This is the AUTHORITATIVE-DOC boundary; the task prompt's "inject embeddings.query
+// type-only" was the older framing — the doc wins (CLAUDE.md: when a prompt conflicts with the spine, the
+// doc wins). No concurrent `domain/embeddings` file is touched or imported.
+//
+// ── DEFERRAL LEDGER (W2 core = within-space vector query + the discovery card primitive) ────────────────
+// FLAG[PD-35]: segment/digest/chat-scoped verbs (discover, digests, segments, corpus) → chat/memory
+//   (P5) when the membership-derived chat scope (`persistence/scope.ts`, D18: chats have no ownerId)
+//   lands; they consume `MemoryQueryOptions` (@orb/contracts/search, already declared) + the
+//   dedupe/collapse/scopeCond machinery — all memory-retrieval bits the task scopes out of W2.
+// FLAG[PD-36]: the cross-modal `images` verb → a later wave when the `imageEmbed` text→image path +
+//   the cross-modal-CSLS-skip exception are wired (search.md §"Cross-modal image search CSLS exception").
+// FLAG[PD-37]: the lexical BM25 `fields`/`suggest` engine → a later wave (needs the `minisearch`
+//   dependency, not in the workspace — a separate engine, not vector retrieval).
+// FLAG[PD-38]: the unified `search(UnifiedSearchParams)` dispatch + `SearchScope` axis → when the
+//   full verb set exists (the 7-branch result union + exhaustive `assertNever` dispatch is premature with
+//   a partial surface).
+
+import type { RoleClients } from "@orb/contracts/role-clients";
+import type { Db } from "@orb/db";
+import type { FindCharactersParams, KnnParams } from "./params";
+import type { CharacterCardHit, SearchHit } from "./results";
+
+/**
+ * The DI bundle the search verbs close over (wired at the entry composition root; surfaced through
+ * `context.ts`). `db` routes the vector + display reads through `persistence/`; `roleClients` is the
+ * required bound-callable inference bundle (embed + rerank + the embed-model space tag). search
+ * sideways-imports no sibling runtime (domain-no-cross-feature) and is READ-ONLY (invariant #3 — the
+ * bundle carries no write path to any vector table).
+ */
+export interface SearchContext {
+  readonly db: Db;
+  readonly roleClients: RoleClients;
+}
+
+/** What `createSearchService` receives from the entry root. Identical to {@link SearchContext} — no
+ *  deps→context transform; the name is kept for front-door surface symmetry with the other domains. */
+export type SearchServiceDeps = SearchContext;
+
+/**
+ * The search surface — the one parameterized retrieval engine (search.md §0). W2 CORE: `knn` (the generic
+ * within-space card scan → raw hits) + `findCharacters` (the same pipeline + distilled-facet enrichment,
+ * the primitive `discovery` consumes). The memory/discover/image/lexical verbs join as they land (see the
+ * deferral ledger above).
+ */
+export interface SearchService {
+  readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
+  readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
+}
