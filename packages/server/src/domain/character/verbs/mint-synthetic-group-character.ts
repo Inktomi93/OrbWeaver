@@ -5,12 +5,12 @@
 // winner. Never NULL author (always owner-stamped); never emits `character.updated` (synthetic rows are
 // filtered from the embed pass).
 
+import { cardContentHash } from "#kit/serde/card";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
 import type { MintGroupCharParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import { findByOwnerHandle } from "../persistence/queries";
-import { cardContentHash } from "../substrate/content-hash";
 import { buildGroupCard, groupHandle } from "../substrate/group-character";
 
 export function createMintSyntheticGroupCharacter(

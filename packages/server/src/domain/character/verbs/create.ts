@@ -7,12 +7,12 @@
 // avatar JOIN for the detail view.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import { cardContentHash } from "#kit/serde/card";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import { detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
-import { cardContentHash } from "../substrate/content-hash";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */

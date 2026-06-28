@@ -2,15 +2,14 @@
 // takes a positional `ownerId` that is ALWAYS the resolved `Principal.userId` (never client input — the
 // single-owner row-scoping invariant). Thin: validate → `ctx.services.stats.<verb>` → map errors.
 //
-// FLAG[PD-47]: `leaderboard.sort` + the `latency` verb → wire when the `stats` front door re-exports
-// `LEADERBOARD_SORTS` + a `latencyScopeSchema` (today it re-exports only the TYPES `LeaderboardSort`/
-// `LatencyScope`). A transport router must NOT deep-import `contract/params` (front-door rule) nor re-spell
-// the union inline (`no-inline-union-redecl`), so the wire enum can only derive once those tuples/schemas
-// are on the index. `leaderboard` ships with `limit` (default sort `assistantTurns`); `latency` is omitted.
+// `leaderboard.sort` derives its wire enum from the `LEADERBOARD_SORTS` tuple; `latency` re-parses the
+// `latencyScopeSchema` discriminated union — both come off the `stats` front door (§7.5 derive-don't-respell;
+// a transport router must NOT deep-import `contract/params` nor re-spell the union inline).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import { LEADERBOARD_SORTS, latencyScopeSchema } from "#domain/stats";
 import { authedProcedure, t } from "../trpc";
 
 export const statsRouter = t.router({
@@ -21,9 +20,16 @@ export const statsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.stats.character(ctx.auth.userId, input.characterId)),
 
   leaderboard: authedProcedure
-    .input(z.object({ limit: z.number().int().positive().optional() }).optional())
+    .input(
+      z
+        .object({
+          sort: z.enum(LEADERBOARD_SORTS).optional(),
+          limit: z.number().int().positive().optional(),
+        })
+        .optional(),
+    )
     .query(({ ctx, input }) =>
-      ctx.services.stats.leaderboard(ctx.auth.userId, { limit: input?.limit }),
+      ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit }),
     ),
 
   timeseries: authedProcedure
@@ -55,4 +61,8 @@ export const statsRouter = t.router({
   momentum: authedProcedure
     .input(z.object({ limit: z.number().int().positive().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
+
+  latency: authedProcedure
+    .input(latencyScopeSchema)
+    .query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
 });

@@ -5,6 +5,8 @@
 // `LatencyScope` (a discriminated union; the `readLatency` chain carries an `assertNever` default).
 
 import type { CharacterId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
+import { z } from "zod";
 
 /** The leaderboard sort axis — the canonical `as const` tuple is the ONE home (§7.5; no inline re-spell).
  *  The verb's `sortCols` mapped Record + the tRPC `z.enum(LEADERBOARD_SORTS)` both DERIVE from this. */
@@ -17,11 +19,15 @@ export const LEADERBOARD_SORTS = [
 ] as const;
 export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
 
-/** The entity a latency percentile scan is scoped to (discriminated union; `assertNever`-dispatched). */
-export type LatencyScope =
-  | { kind: "owner" }
-  | { kind: "character"; characterId: CharacterId }
-  | { kind: "model"; model: string; provider: string | null };
+/** The entity a latency percentile scan is scoped to (discriminated union; `assertNever`-dispatched). The
+ *  Zod schema is the ONE home (§7.5; the tRPC router re-parses it directly, deriving — not re-spelling — the
+ *  wire shape); `LatencyScope` derives via `z.infer`. */
+export const latencyScopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("owner") }),
+  z.object({ kind: z.literal("character"), characterId: brandedId<CharacterId>() }),
+  z.object({ kind: z.literal("model"), model: z.string(), provider: z.string().nullable() }),
+]);
+export type LatencyScope = z.infer<typeof latencyScopeSchema>;
 
 /** `leaderboard` opts — sort (default `assistantTurns`) + limit (default 50, capped 200). */
 export interface LeaderboardOpts {

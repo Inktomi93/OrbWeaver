@@ -3,6 +3,7 @@
 // to a fresh `contentHash`, write the flat row, and emit `character.updated` so the embeddings indexer
 // re-embeds. An empty edit re-reads without writing. Throws `CharacterNotFoundError` when not owned/found.
 
+import { cardContentHash } from "#kit/serde/card";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { UpdateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
@@ -14,7 +15,6 @@ import {
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
 import { flagEdits, mergeCard } from "../substrate/card-merge";
-import { cardContentHash } from "../substrate/content-hash";
 
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
   return async ({ principal, characterId, input }: UpdateCharacterParams) => {

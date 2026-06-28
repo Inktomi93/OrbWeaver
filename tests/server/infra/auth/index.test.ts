@@ -1,6 +1,4 @@
-import type { ExternalId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import type { AuthConfig, ResolveDeps } from "@orb/server/infra/auth";
+import type { AuthConfig } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
 import { describe, expect, test } from "vitest";
 
@@ -34,18 +32,13 @@ describe("resolve — the verification output never carries userId or role (inva
     expect(res.identity).not.toHaveProperty("role");
   });
 
-  test("a resolved cookie identity carries only {externalId, handle, groups}", async () => {
-    const identity = {
-      externalId: castId<ExternalId>("sub-alice"),
-      handle: castId<Handle>("alice"),
-      groups: ["staff"],
-    };
-    const deps: ResolveDeps = {
-      config: cfg({ mode: "local" }),
-      validateCookie: () => Promise.resolve(identity),
-    };
-    const res = await resolve(headers({ cookie: "__Host-orb_session=tok-abc" }), deps);
-    expect(res.identity).toEqual(identity);
+  test("a forward-header identity carries only {externalId, handle, groups} (no userId/role)", async () => {
+    // Infra never produces a cookie identity post-D40 (the seam owns that); the SSO header is the path that
+    // DOES mint a pre-row identity here, so it's where invariant #3 is exercised.
+    const res = await resolve(headers({ "x-authentik-username": "alice" }), {
+      config: cfg({ mode: "forward-header" }),
+    });
+    expect(res.identity).not.toBeNull();
     expect(Object.keys(res.identity ?? {}).sort()).toEqual(["externalId", "groups", "handle"]);
   });
 });
@@ -54,7 +47,6 @@ describe("resolve — owner fallback (the seam mints owner from via:'fallback')"
   test("SSO mode: the owner fallback is REFUSED on a public origin → identity null", async () => {
     const res = await resolve(headers({ host: "chat.example.com" }), {
       config: cfg({ mode: "oidc" }),
-      validateCookie: () => Promise.resolve(null),
     });
     expect(res.identity).toBeNull();
   });
@@ -62,7 +54,6 @@ describe("resolve — owner fallback (the seam mints owner from via:'fallback')"
   test("SSO mode: the owner fallback is GRANTED on a local origin → via:'fallback'", async () => {
     const res = await resolve(headers({ host: "localhost:8788" }), {
       config: cfg({ mode: "oidc" }),
-      validateCookie: () => Promise.resolve(null),
     });
     expect(res.via).toBe("fallback");
     expect(res.identity?.handle).toBe("owner");
@@ -77,16 +68,6 @@ describe("resolve — owner fallback (the seam mints owner from via:'fallback')"
 });
 
 describe("resolve — per-request signals", () => {
-  test("a live cookie session → via:'cookie' + viaCookie true (cross-site surface)", async () => {
-    const identity = { externalId: null, handle: castId<Handle>("alice"), groups: [] };
-    const res = await resolve(headers({ cookie: "__Host-orb_session=tok" }), {
-      config: cfg({ mode: "local" }),
-      validateCookie: () => Promise.resolve(identity),
-    });
-    expect(res.via).toBe("cookie");
-    expect(res.viaCookie).toBe(true);
-  });
-
   test("a forward-header identity → via:'header' + viaCookie false (no cross-site surface)", async () => {
     const res = await resolve(headers({ "x-authentik-username": "alice" }), {
       config: cfg({ mode: "forward-header" }),

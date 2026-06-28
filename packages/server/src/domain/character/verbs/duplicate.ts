@@ -5,6 +5,7 @@
 // flatten of the copied card. Emits `character.updated`. Throws `CharacterNotFoundError` when the source
 // isn't owned/found.
 
+import { cardContentHash } from "#kit/serde/card";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { DuplicateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
@@ -16,7 +17,6 @@ import {
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
-import { cardContentHash } from "../substrate/content-hash";
 
 const COPY_SUFFIX = "-copy";
 const FIRST_INCREMENT = 2;

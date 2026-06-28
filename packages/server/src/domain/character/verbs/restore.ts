@@ -4,6 +4,7 @@
 // the owned character, so a foreign/absent snapshot collapses to `CharacterNotFoundError` (no existence
 // leak), as does a non-owned character.
 
+import { cardContentHash } from "#kit/serde/card";
 import { CharacterNotFoundError } from "../contract/errors";
 import type { RestoreParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
@@ -15,7 +16,6 @@ import {
   loadOwnedCharacterWithAvatar,
   loadSnapshotContent,
 } from "../persistence/queries";
-import { cardContentHash } from "../substrate/content-hash";
 
 const PRE_RESTORE_LABEL = "auto: before restore";
 

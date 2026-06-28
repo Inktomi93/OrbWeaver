@@ -1,16 +1,13 @@
-// `local` (AUTH_MODE=local, app-stored username+password) reads the SAME `__Host-orb_session` cookie
-// `oidc` does — only HOW the session is minted differs (POST /api/auth/login here vs the OIDC callback).
-// The cookie-validation read path is identical, so both modes delegate to `cookie-session`. The PASSWORD
-// half (mint/verify) lives in `../password.ts` and is consumed by the entry login route, not here.
+// `local` (AUTH_MODE=local, app-stored username+password) shares the `__Host-orb_session` cookie with
+// `oidc`. Post-D40 the cookie read/validate is the seam's job (`entry/auth/seam.ts` calls
+// `sessions.validate` directly), so at the infra layer this mode resolves to `null` and `resolve` falls
+// through to the owner-fallback / unauth path. Both cookie modes delegate to the shared `cookie-session`
+// null-returner. The PASSWORD half (mint/verify) lives in `../password.ts`, consumed by the entry login
+// route, not here.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
-import type { AuthConfig, ResolveDeps } from "../contract";
 import { resolveCookieSession } from "./cookie-session";
 
-export function resolveLocal(
-  headers: Headers,
-  _config: AuthConfig,
-  deps: ResolveDeps,
-): Promise<ResolvedIdentity | null> {
-  return resolveCookieSession(headers, deps);
+export function resolveLocal(): Promise<ResolvedIdentity | null> {
+  return resolveCookieSession();
 }

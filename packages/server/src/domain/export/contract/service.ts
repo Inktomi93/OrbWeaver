@@ -20,11 +20,9 @@
 // DIRECTLY (sanctioned — same as import) and composes the lower-tier serde core. Its only runtime deps are
 // `db`, `cas`, and the `imageTransform` op.
 //
-// FLAG[PD-44]: `buildCardV3` / `exportBookEntry` are TEMPORARILY rolled local in
-// `substrate/card-serde.ts` because the shared serde home (`@orb/server/kit/serde/card` +
-// `.../world-entry`) is still an empty `.gitkeep` (the sibling import agent owns its creation). When that
-// lands, the local serde + its input types (`ExportCardFields` / `ExportWorldEntry`) MUST consolidate onto
-// `@orb/server/kit/serde` (export.md Movement table) — there must be exactly one card emitter.
+// PD-44 (resolved): `buildCardV3` / `exportBookEntry` (+ the `ExportCardFields` / `ExportWorldEntry` input
+// shapes) now live in the shared serde core (`@orb/server/kit/serde/card`) next to the `cardFromJson` IN
+// adapter — one card emitter, composed DOWN by `exportCharacter` (never re-implemented here).
 //
 // FLAG[image-inject]: export.md's literal text says `sharp` stays INLINE in `export-character.ts` for the
 // initial port, with a DEFERRED criterion to extract "iff a SECOND domain needs image transcode." That

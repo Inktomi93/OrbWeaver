@@ -1,21 +1,29 @@
-// @orb/server/kit/serde/card — the ONE home for the character-card serde IN-adapter + the card content
-// hash (shared-dissolution §1; import.md Movement "card hash homes in server/kit/serde"; PD-33). Server-
-// only PURE: no DB, no logger, no fs — it maps an already-JSON-parsed card object INTO the canonical
-// `@orb/contracts/character` shape, and hashes a canonical card's semantic fields. The byte surgery (PNG
-// tEXt extraction) is `@orb/kit/png-card-chunk`; the JSON.parse + the null-on-failure contract is the
-// import parser's job (`domain/import/substrate/card`). This file is the strict-shape pivot both directions
-// share — `cardFromJson` is the tolerant IN adapter (import); the strict OUT emitter (`buildCardV3`, export)
-// will live here too when `domain/export` lands (invariant 2 — the serde core is single-homed).
+// @orb/server/kit/serde/card — the ONE home for the character-card serde core: the tolerant IN-adapter
+// (`cardFromJson`), the strict OUT-emitter (`buildCardV3` + the `character_book` entry mapper
+// `exportBookEntry`), and the card content hash (`cardContentHash`). Co-located so the round-trip is a
+// one-file invariant (shared-dissolution §1; import.md Movement "card hash homes in server/kit/serde";
+// export.md "one card serde core"; PD-33 + PD-44). Server-only PURE: no DB, no logger, no fs — it maps an
+// already-JSON-parsed card object INTO / OUT of the canonical `@orb/contracts/character` shape and hashes a
+// canonical card's semantic fields. The byte surgery (PNG tEXt extraction) is `@orb/kit/png-card-chunk`;
+// the JSON.parse + the null-on-failure contract is the import parser's job (`domain/import/substrate/card`);
+// the PNG packaging + the DB reads are export's job (`domain/export`). Reaches UP to nothing
+// (server-kit-reaches-up-to-nothing) — it composes only DOWN: `@orb/kit/*` + `@orb/contracts/*` + node:*.
 //
-// PD-33: `cardContentHash` is the SINGLE home of the card semantic-fields hash. `domain/character`
-// (`substrate/content-hash.ts`) currently duplicates it byte-for-byte (its FLAG[PD-33] notes the promotion);
-// character imports THIS module as its follow-up. The two hash the SAME 10 semantic fields, so a re-import
-// of an app-authored card and the original hash identically (the dedup property the determinism tests pin).
+// PD-33: `cardContentHash` is the SINGLE home of the card semantic-fields hash — `domain/character` imports
+// it from here (no private copy). The IN/OUT halves hash-mirror: a re-import of an app-emitted card and the
+// original hash identically (the dedup property the determinism tests pin).
+// PD-44: `buildCardV3` / `exportBookEntry` (+ their `ExportCardFields` / `ExportWorldEntry` input shapes)
+// are the OUT half — promoted out of `domain/export/substrate/card-serde.ts` (the deleted stopgap) so there
+// is exactly one card emitter next to the one IN adapter.
 
 import { createHash } from "node:crypto";
-import type { CharacterCard } from "@orb/contracts/character";
+import type { CardDepthPrompt, CharacterCard, CharacterCardV3 } from "@orb/contracts/character";
+import { CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
+import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { messageRoleFromSt } from "@orb/kit/message-role";
+import { isPlainObject } from "@orb/kit/guards";
+import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
+import { resolveEntryInjection, resolveEntryScope } from "@orb/kit/world-info";
 
 // ── small pure string folds (dependency-free) ──────────────────────────────
 function str(v: unknown): string {
@@ -215,7 +223,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
   };
 }
 
-// ── cardContentHash (PD-33 — the one home; mirrors domain/character/substrate/content-hash.ts) ─────────
+// ── cardContentHash (PD-33 — the ONE home; character imports it from here, no private copy) ────────────
 
 /** Deterministic JSON: object keys sorted recursively (arrays keep order), so two logically-identical
  *  cards serialize identically regardless of key insertion order — the property the determinism +
@@ -258,4 +266,131 @@ export function cardContentHash(card: CharacterCard): string {
   return createHash("sha256")
     .update(stableStringify(semanticFields(card)))
     .digest("hex");
+}
+
+// ── the OUT half (PD-44 — `buildCardV3` + `exportBookEntry`; was domain/export/substrate/card-serde) ────
+
+/** The live-card columns the card emitter projects to the V3 wire (the OUT-emitter input). `greetings[0]`
+ *  is the first message; the rest are alternate greetings. `tags` are the ACCEPTED `character_tags` names
+ *  (export.md inv 4 — pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
+ *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob. */
+export interface ExportCardFields {
+  readonly name: string;
+  readonly description: string | null;
+  readonly personality: string | null;
+  readonly scenario: string | null;
+  readonly greetings: string[];
+  readonly exampleMessages: string | null;
+  readonly systemPrompt: string | null;
+  readonly postHistoryInstructions: string | null;
+  readonly creatorNotes: string | null;
+  readonly creator: string | null;
+  readonly cardVersion: string | null;
+  readonly tags: string[];
+  readonly extensions: Record<string, unknown> | null;
+  readonly regexScripts: RegexScript[];
+  readonly depthPrompt: CardDepthPrompt | null;
+}
+
+/** One attached lore entry projected for the OUT mapper. Carries the full round-trip payload — typed
+ *  columns PLUS the preserved `metadata` blob — so import → export → reimport doesn't strip
+ *  `constant` / `position` / vendor extensions. */
+export interface ExportWorldEntry {
+  readonly keys: string[];
+  readonly content: string;
+  readonly enabled: boolean;
+  readonly priority: number;
+  readonly title: string;
+  readonly ignoreBudget: boolean;
+  readonly metadata: Record<string, unknown> | null;
+}
+
+// ST's at-depth directive lives under `extensions.position = 4` with a sibling `depth`/`role` (the
+// world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
+const ST_POSITION_AT_DEPTH = 4;
+
+// The ST card spec_version this emitter writes. V3 spec, version "3.0".
+const SPEC_VERSION = "3.0";
+
+/**
+ * Map one live world-info entry → an ST V3 `character_book` entry (the OUT half). Preserves the entry's
+ * metadata blob as the base (so unknown ST fields ride through a round-trip), then overrides the keys the
+ * typed columns own. A depth-injecting entry is re-encoded into ST's `{position:4, depth, role}` (role
+ * through the bimap); `constant` derives from the resolved scope (`always` ⇒ `true`, the keyless-always-on
+ * heuristic vanilla ST needs to fire a keyless entry). This is the ONE place the at-depth encoding is
+ * written (export.md Esoteric — preserve it).
+ */
+export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
+  const meta = isPlainObject(entry.metadata) ? entry.metadata : {};
+  const scope = resolveEntryScope(meta, entry.keys.length > 0);
+  const inject = resolveEntryInjection(meta);
+  const baseExtensions = isPlainObject(meta["extensions"]) ? meta["extensions"] : {};
+  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
+  const extensions = inject
+    ? {
+        ...baseExtensions,
+        position: ST_POSITION_AT_DEPTH,
+        depth: inject.depth,
+        role: messageRoleToSt(inject.role),
+      }
+    : baseExtensions;
+  return {
+    ...meta,
+    keys: entry.keys,
+    content: entry.content,
+    enabled: entry.enabled,
+    insertion_order: entry.priority,
+    comment: entry.title,
+    constant: scope === "always",
+    ...(entry.ignoreBudget ? { ignoreBudget: true } : {}),
+    extensions,
+  };
+  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
+}
+
+/**
+ * Build the strict ST V3 character card (the OUT emitter). The typed columns OWN their `extensions` keys:
+ * any stale `depth_prompt`/`regex_scripts` in the preserved blob is stripped first, then the columns'
+ * values are written (a null `depthPrompt` therefore DROPS the key — the §7.3 lossiness fix). The result
+ * is `characterCardV3Schema.parse`d so a malformed projection fails loud at the boundary, not silently on
+ * the wire.
+ */
+export function buildCardV3(
+  fields: ExportCardFields,
+  entries: ExportWorldEntry[],
+): CharacterCardV3 {
+  // biome-ignore-start lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
+  const {
+    depth_prompt: _staleDepthPrompt,
+    regex_scripts: _staleRegexScripts,
+    ...baseExtensions
+  } = fields.extensions ?? {};
+  const extensions: Record<string, unknown> = {
+    ...baseExtensions,
+    regex_scripts: fields.regexScripts,
+    ...(fields.depthPrompt ? { depth_prompt: fields.depthPrompt } : {}),
+  };
+  const data: Record<string, unknown> = {
+    name: fields.name,
+    description: fields.description ?? "",
+    personality: fields.personality ?? "",
+    scenario: fields.scenario ?? "",
+    first_mes: fields.greetings[0] ?? "",
+    mes_example: fields.exampleMessages ?? "",
+    system_prompt: fields.systemPrompt ?? "",
+    post_history_instructions: fields.postHistoryInstructions ?? "",
+    creator: fields.creator ?? "",
+    creator_notes: fields.creatorNotes ?? "",
+    character_version: fields.cardVersion ?? "",
+    alternate_greetings: fields.greetings.slice(1),
+    tags: fields.tags,
+    extensions,
+    ...(entries.length > 0 ? { character_book: { entries: entries.map(exportBookEntry) } } : {}),
+  };
+  return characterCardV3Schema.parse({
+    spec: CHARA_CARD_V3_SPEC,
+    spec_version: SPEC_VERSION,
+    data,
+  });
+  // biome-ignore-end lint/style/useNamingConvention: ST Character-Card-V3 wire field names (snake_case)
 }

@@ -1,22 +1,21 @@
-// `oidc` (AUTH_MODE=oidc, the app is an OIDC client) reads the SAME `__Host-orb_session` cookie `local`
-// does — the steady-state read side is just "is the cookie a live session?", so the resolver delegates
-// to `cookie-session`. The MINT side (discovery + code exchange via `openid-client`) is the route tier's
-// (`entry/http/auth-routes.ts`, 4e). What lives here is the db-free PKCE/STATE VERIFY: the callback
-// hands us the returned `state`, we atomically CONSUME the matching single-use transaction from the
-// injected store (replay-proof — a second callback with the same state finds nothing) and hand back the
-// PKCE `codeVerifier` + `nonce` the route needs for the exchange.
+// `oidc` (AUTH_MODE=oidc, the app is an OIDC client) shares the `__Host-orb_session` cookie with `local`.
+// Post-D40 the steady-state cookie read/validate is the seam's job (`entry/auth/seam.ts` calls
+// `sessions.validate` directly), so at the infra layer this mode resolves to `null` (→ owner-fallback /
+// unauth in `resolve`); it delegates to the shared `cookie-session` null-returner. The MINT side
+// (discovery + code exchange via `openid-client`) is the route tier's (`entry/http/auth-routes.ts`, 4e).
+// What still lives HERE is the db-free PKCE/STATE VERIFY: the callback hands us the returned `state`, we
+// atomically CONSUME the matching single-use transaction from the injected store (replay-proof — a second
+// callback with the same state finds nothing) and hand back the PKCE `codeVerifier` + `nonce` for the
+// exchange.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
-import type { AuthConfig, OidcTransaction, ResolveDeps } from "../contract";
+import type { OidcTransaction, ResolveDeps } from "../contract";
 import { resolveCookieSession } from "./cookie-session";
 
-/** Steady-state resolve: the live `__Host-orb_session` cookie (the mode-agnostic read path). */
-export function resolveOidc(
-  headers: Headers,
-  _config: AuthConfig,
-  deps: ResolveDeps,
-): Promise<ResolvedIdentity | null> {
-  return resolveCookieSession(headers, deps);
+/** Steady-state resolve: post-D40 the seam owns the cookie read (`sessions.validate`), so the infra cookie
+ *  mode resolves to `null` (→ owner-fallback / unauth in `resolve`). Delegates to the shared cookie path. */
+export function resolveOidc(): Promise<ResolvedIdentity | null> {
+  return resolveCookieSession();
 }
 
 /**

@@ -25,8 +25,8 @@ import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch";
 /**
  * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + the seam's
  * signals). `identity === null` ⇒ the caller is unauthenticated (the seam/transport 401s). Three paths:
- *   - COOKIE (`local`/`oidc`) — `validateCookie` returns the pre-row identity (NO userId/role); a
- *     missing/invalid session falls through to the owner fallback.
+ *   - COOKIE (`local`/`oidc`) — resolves to `null` at infra (post-D40 the seam validates the cookie via
+ *     `sessions.validate` BEFORE calling here), so cookie modes fall through to the owner fallback / unauth.
  *   - SSO HEADER (`forward-header`) — the verified header/JWT identity (NO upsert here — that's the seam).
  *   - OWNER FALLBACK — the origin-gated un-credentialed owner identity, stamped `via:"fallback"` (the seam
  *     mints the owner from this discriminant — invariant #7); `single-user` is unconditional.
