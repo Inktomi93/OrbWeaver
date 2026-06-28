@@ -19,8 +19,13 @@ import type {
   EmbedResult,
   ProviderBackend,
 } from "@orb/server/infra/providers";
-import { createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
+import {
+  createBackendRegistry,
+  createProviderExecutor,
+  ProviderError,
+} from "@orb/server/infra/providers";
 import { describe, expect, test } from "vitest";
+import { createFrozenClock } from "../../../support/clock.ts";
 
 // The dispatch + firewall read only `credential.source`; the brand is irrelevant at runtime (these
 // `.test.ts` files run through esbuild, not tsc), so a cast keeps the fakes terse.
@@ -188,5 +193,46 @@ describe("createProviderExecutor — routing through the firewall + sealed dispa
       mcpServer: {},
     } as AgentTurnRequest);
     expect(calls).toEqual(["agent-sdk:agent"]);
+  });
+});
+
+describe("createBackendRegistry — the boot-binder factory behind the sealed door", () => {
+  // The four always-on backends are keyed off each backend's OWN `.key` (the BackendKey axis is sealed —
+  // entry can't enumerate it). vLLM is the engine-bearing fifth, gated by the §D3 escape hatch.
+  const nonVllmKeys = ["openrouter", "agent-sdk", "custom-openai", "local-light"] as const;
+
+  test("vllmDisabled:false wires all five backends + a live engine handle, each under its own key", () => {
+    const clock = createFrozenClock();
+    const { backends, vllmEngine } = createBackendRegistry({
+      now: clock.now,
+      vllmDisabled: false,
+    });
+
+    for (const key of nonVllmKeys) {
+      // keyed off the returned object's `.key`, not an external enumeration
+      expect(backends.get(key)?.key).toBe(key);
+    }
+    expect(backends.get("vllm")?.key).toBe("vllm");
+    expect(backends.size).toBe(5);
+
+    // the engine lifecycle handle is returned so entry/lifecycle can start/stop the supervisor
+    expect(vllmEngine).not.toBeNull();
+    expect(typeof vllmEngine?.start).toBe("function");
+  });
+
+  test("vllmDisabled:true omits the vllm backend and returns a null engine (the §D3 escape hatch)", () => {
+    const clock = createFrozenClock();
+    const { backends, vllmEngine } = createBackendRegistry({
+      now: clock.now,
+      vllmDisabled: true,
+    });
+
+    for (const key of nonVllmKeys) {
+      expect(backends.get(key)?.key).toBe(key);
+    }
+    expect(backends.has("vllm")).toBe(false);
+    expect(backends.size).toBe(4);
+    // no engine to supervise — a role resolving to vllm then fail-closes on the unwired key (correct).
+    expect(vllmEngine).toBeNull();
   });
 });
