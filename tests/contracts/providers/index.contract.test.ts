@@ -1,11 +1,17 @@
 import type {
+  AccountCredits,
   EmbedResult,
+  EndpointInspection,
+  GenerationCost,
   ImageEmbedResult,
   RerankResult,
   SummarizeResult,
 } from "@orb/contracts/providers";
 import {
+  accountCreditsSchema,
   embedResultSchema,
+  endpointInspectionSchema,
+  generationCostSchema,
   imageEmbedResultSchema,
   rerankResultSchema,
   summarizeResultSchema,
@@ -98,4 +104,48 @@ test("summarizeResultSchema parses, round-trips, and is index-aligned with cost 
 test("summarizeResultSchema rejects an item whose usage omits costUsd", () => {
   const bad = { items: [{ text: "x", usage: { tokensIn: 1, tokensOut: 1 } }], model: "m" };
   expect(summarizeResultSchema.safeParse(bad).success).toBe(false);
+});
+
+test("accountCreditsSchema parses + round-trips the balance", () => {
+  const value: AccountCredits = { total: 10, used: 3 };
+  expect(accountCreditsSchema.parse(value)).toEqual(value);
+  // Both halves are required — a missing `used` is invalid.
+  expect(accountCreditsSchema.safeParse({ total: 10 }).success).toBe(false);
+});
+
+test("generationCostSchema parses, round-trips, and keeps the nullable token counts", () => {
+  const value: GenerationCost = { totalCost: 0.012, tokensPrompt: 100, tokensCompletion: 40 };
+  expect(generationCostSchema.parse(value)).toEqual(value);
+  // Token counts are nullable (a provider that doesn't break them out).
+  const nulled: GenerationCost = { totalCost: 0.05, tokensPrompt: null, tokensCompletion: null };
+  expect(generationCostSchema.parse(nulled)).toEqual(nulled);
+  // totalCost is required + numeric.
+  expect(generationCostSchema.safeParse({ tokensPrompt: 1, tokensCompletion: 1 }).success).toBe(
+    false,
+  );
+});
+
+test("endpointInspectionSchema parses a success result + round-trips (no error field)", () => {
+  const value: EndpointInspection = {
+    ok: true,
+    request: { url: "https://x.example/chat/completions", headers: { "x-h": "v" }, body: "{}" },
+    response: { status: 200, statusText: "OK", bodyPreview: "{}" },
+  };
+  expect(endpointInspectionSchema.parse(value)).toEqual(value);
+});
+
+test("endpointInspectionSchema parses a transport-failure result (null response + error)", () => {
+  const value: EndpointInspection = {
+    ok: false,
+    request: { url: "https://x.example/chat/completions", headers: {}, body: "{}" },
+    response: null,
+    error: "ECONNREFUSED",
+  };
+  const parsed = endpointInspectionSchema.parse(value);
+  expect(parsed).toEqual(value);
+  expect(parsed.response).toBeNull();
+});
+
+test("endpointInspectionSchema rejects a result missing the request envelope", () => {
+  expect(endpointInspectionSchema.safeParse({ ok: true, response: null }).success).toBe(false);
 });

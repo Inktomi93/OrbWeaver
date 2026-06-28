@@ -18,15 +18,23 @@
 
 import type { ChatRequest as SdkChatRequest } from "@openrouter/sdk/models";
 import type {
+  AccountCredits,
+  AccountCreditsRequest,
   ChatRequest,
   ChatResult,
+  CredentialHealth,
   EmbedRequest,
   EmbedResult,
+  FetchCatalogRequest,
+  GenerationCost,
+  GenerationCostRequest,
   ImageEmbedRequest,
   ImageEmbedResult,
   ImageGenerateRequest,
   ImageGenerateResult,
+  ModelCatalogEntry,
   OpenRouterChatRequest,
+  ProbeRequest,
   ProviderBackend,
   RerankRequest,
   RerankResult,
@@ -35,9 +43,12 @@ import type {
 } from "../../contract";
 import { ProviderError } from "../../contract";
 import { extractChatReply, parseChatCompletionResult } from "../kit";
+import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
+import { fetchOrCatalog } from "./catalog";
 import type { OrClient } from "./client";
 import { createClientCache } from "./client";
 import { requireOpenRouterApiKey } from "./credential-guard";
+import { probeOpenRouterCredential } from "./probe";
 import { runChatCompletionTurn } from "./runners/chat/chat-completions";
 import { runResponsesTurn } from "./runners/chat/responses";
 import type { OpenRouterChatDeps } from "./runners/chat/shared";
@@ -165,5 +176,18 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
       await runSummarize(clientFor(req.credential, "summarize"), req),
     generateImage: async (req: ImageGenerateRequest): Promise<ImageGenerateResult> =>
       await runGenerateImage(clientFor(req.credential, "generateImage"), req),
+    // ── Diagnostics: credit/cost/probe bind the client off the resolved credential (fail-closed on a
+    //    wrong source); fetchCatalog uses a keyless ("") client — the OR `/models` endpoint is public. ──
+    probe: async (req: ProbeRequest): Promise<CredentialHealth> =>
+      await probeOpenRouterCredential(clientFor(req.credential, "probe"), deps.now),
+    accountCredits: async (req: AccountCreditsRequest): Promise<AccountCredits> =>
+      await getOpenRouterCredits(clientFor(req.credential, "accountCredits")),
+    generationCost: async (req: GenerationCostRequest): Promise<GenerationCost> =>
+      await getOpenRouterGenerationCost(
+        clientFor(req.credential, "generationCost"),
+        req.generationId,
+      ),
+    fetchCatalog: async (_req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> =>
+      await fetchOrCatalog(getClient("")),
   };
 }

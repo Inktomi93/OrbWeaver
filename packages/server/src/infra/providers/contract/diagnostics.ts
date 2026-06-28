@@ -1,0 +1,61 @@
+// infra/providers/contract/diagnostics — the infra-internal REQUEST shapes for the diagnostic front door
+// (probe · accountCredits · generationCost · inspect · fetchOrCatalog) plus the bound surface
+// `ProviderDiagnostics` the `credentials`/`connection` domains call. Mirrors the role contract split: the
+// credential-shaped requests carry the turn-time `credential` + a cancellation `signal` and stay infra
+// (they hold a branded `ResolvedCredential` + an `AbortSignal`, neither a wire shape); the cross-boundary
+// RESULT shapes (`AccountCredits`/`GenerationCost`/`EndpointInspection`) live in `@orb/contracts/providers`,
+// `CredentialHealth` in `@orb/contracts/credentials`, `ModelCatalogEntry` in `@orb/contracts/connection`.
+//
+// The dispatcher (`createProviderDiagnostics`) discriminates probe/accountCredits/generationCost/inspect by
+// `credential.source` (reusing `backendForSource`); `fetchOrCatalog` is OpenRouter-fixed (no credential).
+
+import type { ModelCatalogEntry } from "@orb/contracts/connection";
+import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
+import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
+
+/** Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation
+ *  hook (carried for parity with the role requests; the OpenRouter SDK diagnostic ports + the BYO inspector
+ *  don't yet accept request-level options, so it is not threaded for those today — see the front-door FLAG). */
+interface DiagnosticRequestCommon {
+  /** Resolved by credentials, handed in — discriminated by `source` at the dispatcher. */
+  readonly credential: ResolvedCredential;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** `probe(req)` — credential-health round-trip. Distinct named alias per verb (one home per surface). */
+export type ProbeRequest = DiagnosticRequestCommon;
+
+/** `accountCredits(req)` — the hosted account's balance. */
+export type AccountCreditsRequest = DiagnosticRequestCommon;
+
+/** `generationCost(req)` — the settled cost of one generation; read with the key that billed it. */
+export interface GenerationCostRequest extends DiagnosticRequestCommon {
+  /** The upstream generation id whose cost to settle. */
+  readonly generationId: string;
+}
+
+/** `inspect(req)` — the "Test endpoint" probe against a user-wired BYO endpoint. The credential carries
+ *  the base URL / key / headers; `model` is the model the ping is shaped for. */
+export interface InspectRequest extends DiagnosticRequestCommon {
+  readonly model: string;
+}
+
+/** `fetchOrCatalog(req)` — the live OpenRouter `/models` fetch. NO credential: the `/models` endpoint is
+ *  public (the backend uses a keyless client); connection owns the snapshot + TTL cache above. */
+export interface FetchCatalogRequest {
+  readonly signal?: AbortSignal | undefined;
+}
+
+/**
+ * The bound diagnostic surface — `createProviderDiagnostics(deps)` returns this. probe/accountCredits/
+ * generationCost/inspect dispatch on `credential.source` (fail-closed via the dispatch helpers when the
+ * resolved backend doesn't implement the verb); `fetchOrCatalog` routes to the OpenRouter backend directly.
+ * Consumers (credentials/connection) call these through the front door and never see a backend key.
+ */
+export interface ProviderDiagnostics {
+  readonly probe: (req: ProbeRequest) => Promise<CredentialHealth>;
+  readonly accountCredits: (req: AccountCreditsRequest) => Promise<AccountCredits>;
+  readonly generationCost: (req: GenerationCostRequest) => Promise<GenerationCost>;
+  readonly inspect: (req: InspectRequest) => Promise<EndpointInspection>;
+  readonly fetchOrCatalog: (req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>;
+}

@@ -8,9 +8,9 @@
 // agent-sdk / vllm+local-light) each export a `ProviderBackend` factory and `entry/` wires them into the
 // registry — they fulfill the {@link ProviderBackend} contract WITHOUT touching this core.
 //
-// NOT here yet (separate slices): the sealed backends (`backends/`, `vllm/`), `resolve-chat.ts` (the
-// intent×capability wire-knob funnel), `scripted-override.ts`, and the diagnostic surfaces
-// (account/probe/inspect/catalog-fetch). The CORE is role dispatch + contract + firewall only.
+// The diagnostic FRONT DOOR (`createProviderDiagnostics` — probe/accountCredits/generationCost/inspect/
+// fetchOrCatalog) is composed here too. NOT here yet (separate slices): the sealed backends (`backends/`,
+// `vllm/`), `resolve-chat.ts` (the intent×capability wire-knob funnel), `scripted-override.ts`.
 
 import type { ProviderDeps, ProviderExecutor } from "./contract";
 import { createAgentRole } from "./roles/agent";
@@ -38,8 +38,12 @@ export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
   };
 }
 
+// ── The live OpenRouter `/models` fetch verb (OR-fixed; connection injects it for refreshCatalog) ─
+export { fetchOrCatalog } from "./backends/openrouter";
 // ── The contract surface (request/result/error/event vocab + the sealed-backend contract + re-exports) ─
 export * from "./contract";
+// ── The diagnostic front door (probe/accountCredits/generationCost/inspect/fetchOrCatalog) ───────
+export { createProviderDiagnostics } from "./diagnostics";
 // ── The individual role-dispatcher factories (composed above; exported for targeted wiring/tests) ─
 export { createAgentRole } from "./roles/agent";
 export { createChatRole } from "./roles/chat";
