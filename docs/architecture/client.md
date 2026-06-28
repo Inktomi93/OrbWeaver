@@ -168,6 +168,54 @@ transition/animation above.
 
 ---
 
+## 4b. Responsive doctrine — the FOUR axes (code once; desktop · widescreen · mobile from one build)
+"Mobile just works" is NOT one technique — it's using the RIGHT tool per axis instead of a `max-width`
+ladder. **The code-once guarantee: a feature author writes ONLY axis 1; axes 2–4 live once in the
+shell/token/primitive layer.** There is no separate mobile build — one set of placement-agnostic surfaces +
+one shell that reflows + a touch-first token baseline + platform CSS in three primitives.
+
+| Axis | What varies | Tool | Where it's written |
+|---|---|---|---|
+| **1 — component layout** | a surface in a wide pane vs a narrow drawer | **`@container`** + container-query units (`cqi`) + `clamp()` | **features** (the ONLY responsive thing they write) |
+| **2 — macro structure** | 3-pane desktop ⇄ stacked mobile; side-drawer ⇄ bottom-sheet (vaul) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
+| **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
+| **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
+
+**Axis 1 (the core — verified 2026 standard, 95%+ support).** A surface adapts to *its container*, not the
+screen — same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant,
+no `compact`/`inDrawer` prop (`no-layout-context-props`). Fluid type/spacing INSIDE a component use container
+units `cqi`+`clamp()`, not viewport units.
+
+**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny
+(neo: one `clamp()` width var + the overlay model, §11.2). `no-media-queries-in-features` keeps it there.
+
+**Axis 3 — capability, NOT size (the "do it right once" inversion).** hover/pointer are media-query-only
+(container queries can't see them). **Touch-first baseline:** interactive primitives meet the ≥44px touch
+floor *unconditionally* via token control-heights; `data-density="compact"` *tightens* for fine pointers —
+so there's nothing to branch (invert the usual desktop-first→bolt-on-mobile). Hover is only ever an
+*enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (the kebab IS the tap
+path). Base UI suppresses tooltips on touch for free. *Gate `touch-target-floor`: interactive primitives may
+not set a control-height below the touch token.*
+
+**Axis 4 — mobile platform CSS, baked into 3 primitives:**
+- **`dvh`/`svh` units, not `vh`** (with a `vh` fallback line) — `svh` where above-fold must stay visible,
+  `dvh` for the adaptive shell. Use intentionally (dvh recalcs on toolbar expand/collapse).
+- **The keyboard gotcha (verified):** `dvh`/`svh` are NOT shrunk by the virtual keyboard (it shrinks the
+  *visual* viewport, not the *layout* viewport these units reference) → set **`interactive-widget=resizes-content`**
+  in the viewport meta so the composer reflows above the keyboard (Android/Chromium); `visualViewport` API
+  only for precise composer-pinning if ever needed.
+- **`env(safe-area-inset-*)`** padding on shell + composer (notch / home-indicator); **`overscroll-behavior:
+  contain`** on every scroll region (no pull-to-refresh / scroll-chaining fighting the app); `inputmode`/
+  `type=` on inputs (Base UI fields set these).
+
+**Why no second build:** Base UI gives touch/keyboard/pointer *interaction* correctness for free (focus,
+touch-dismiss, tooltip-on-touch, ARIA); we own only *layout* (axes 1–2) + *platform CSS* (axis 4), and axes
+2–4 are all shell/token/primitive-level. A feature writes a `@container` surface, drops it in an anchor, and
+mobile works — macro reflow is the shell's, touch sizing is the token baseline, keyboard/safe-area/overscroll
+are the composer/scroll primitives'. (D42 §4 + D43 §11.2; verified 2026-06.)
+
+---
+
 ## 5. State
 - **Server state → TanStack Query** (+ tRPC via `@trpc/tanstack-react-query`). NEVER in zustand.
 - **Client/UI state → Zustand** (DECIDED — D42; not Jotai/TanStack Store: gated-zustand is more
@@ -228,7 +276,52 @@ consistent" review.
 - **VERIFY-AT-BUILD (untrusted content):** Streamdown's built-in sanitization is tuned for AI output
   (semi-trusted). The app also renders UNTRUSTED markdown (user-uploaded character cards, other users'
   messages — D21 "no leaks ever"). Confirm Streamdown's security config is strict enough for the untrusted
-  threat model, or layer `rehype-sanitize` behind the `@orb/ui/markdown` seam if not. (ledger D42.)
+  threat model, or layer `rehype-sanitize` behind the `@orb/ui/markdown` seam if not. (ledger D42; the
+  concrete two-policy answer is §11.6.)
+
+#### 6.3.1 The streaming-reveal stack — the three layers, and who owns each (D43; verified 2026-06)
+neo had real **markdown-parse + streaming display bugs** (unterminated-fence flashes, partial-markdown
+mis-render, an O(n²) full-reparse-per-token lag) — and the audit shows *why*: it hand-rolled the parse/repair
+layer (`repairStreamingTail` + a custom `incremental` block-memoize) that is now a **solved problem**. Split
+the stack into three layers with one owner each; **Streamdown replaces the layer that broke**, and we keep
+only the one piece neo did better than the ecosystem:
+1. **Parse · repair · incremental · fade · security → Streamdown (owns this).** Its incomplete-markdown
+   repair, incremental DOM, per-word animation (`fadeIn`/`blurIn`/`slideUp`, configurable), and
+   sanitize+harden are purpose-built for streaming AI markdown. **DELETE neo's `repairStreamingTail`, the
+   hand-rolled `incremental` reparse, AND the `.stream-word` CSS** — Streamdown does all three, robustly.
+   This is the fix for "streaming got weird," not a re-port of it.
+2. **Pacing → KEEP neo's `useSmoothText`, sealed as a pure `@orb/ui` primitive.** Streamdown has **no
+   pacing** (it animates whatever it's handed per render — verified at streamdown.ai/docs/animation); an
+   external pacer "works seamlessly". `useSmoothText` is the genuinely best-of-best layer: adaptive
+   backlog-drain (calm slow models / near-realtime fast), **grapheme-cluster safety** (no torn emoji/ZWJ —
+   *no library does this*), trailing-partial-word + tag-aware hold-back, hidden-tab flush, reduced-motion
+   passthrough, the dt-honesty single-loop fix. It is domain-free string-math + rAF → belongs in `@orb/ui`.
+   Pipeline: tokens → `useSmoothText` (reveal cadence + cut-point) → Streamdown (repair + render + fade the
+   new words). Do NOT swap it for AI SDK `smoothStream` (server-side, fixed-delay, cruder, drags in a
+   transport we don't use).
+3. **TTFT affordance → keep the "Thinking…" shimmer** (cheap, domain-agnostic; the pre-first-token state).
+- **VERIFY-AT-BUILD:** confirm Streamdown's fade granularity (`sep:"word"`) composes with the pacer's
+  word-snapping — both think in words, so newly-committed paced text should fade once, not double-animate.
+- **Re-pin or retire the tag-aware hold-back** (`trailingOpenTagStart`) by whether orbweaver's chat keeps
+  neo's `<speaker>`-span wire format; it exists only to stop a partial `<spea…` flashing as literal text.
+
+**HONEST RISK — Streamdown's open bugs cluster in code-blocks-while-streaming, the SAME spot neo's did
+(verified 2026-06; ~37 open issues).** Capability is complete (GFM tables/tasklists/strikethrough · Shiki
+code highlighting — best-in-class, an upgrade on neo's Prism · KaTeX · Mermaid · incomplete-block repair),
+but the streaming-time code-block path is its soft spot: #473 fenced blocks buffer-not-incremental, #402
+Shiki re-highlight flicker per frame, #195 huge code blocks freeze the tab, #343 lazy code/mermaid chunks
+crash after deploy (stale hashes + missing error boundary). So Streamdown is "trade hand-rolled bugs for a
+maintained library's upstream-fixed bugs," NOT "weirdness solved." It is still the right call — the
+alternative (hand-wiring react-markdown+remark+rehype+Shiki) is more code and re-inherits neo's repair
+problem — but adopt with these **guards as build-gates, not assumptions:**
+  1. **Pin a version floor ≥ 2.5** (where the code-block + long-line + unknown-language-fallback fixes landed).
+  2. **The pacer mitigates the flicker (#402/#473):** feeding Streamdown word-snapped ~30fps commits (not
+     raw per-token deltas) cuts the re-highlight churn — make this an explicit reason the pacer sits in front.
+  3. **Wrap the lazy `CodeBlock`/`Mermaid` chunks in an error boundary** inside `@orb/ui/markdown` (#343) —
+     orbweaver wants this anyway; it converts a deploy-time white-screen into a graceful fallback.
+  4. **Large-code-block perf guard (#195):** a max-render/virtualize threshold for pathological blocks.
+  5. **Golden-test streaming code fences** against the #473/#402 scenarios before chat commits to it — the
+     audit's "test the streaming code-block path" is a Phase-5 checkpoint, not a hope.
 
 ---
 
@@ -264,6 +357,17 @@ After these, the chosen libs have zero un-gated footguns.
 - the **zustand-selector** gate (§7), `client-feature-front-door`, `client-features-no-cross`,
   `state:files`, `design-token-parity`, `entity-editor`, `icons-lucide-only`, `tanstack-form-only-in-shared`.
 
+**Ratified from the audit (D43 — §11; full list + rationale there).** Physics: dep-cruiser bans
+`@tanstack/react-virtual` / `@nivo/*` / `@dnd-kit/*` outside their `@orb/ui` seals, and `client ⇏ @orb/server`
+(wire types come from `@orb/contracts`). Lint belts: `no-array-literal-querykey` · `no-inline-invalidate-outside-seam`
+· `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` ·
+`no-form-reset-in-autosave` · `no-client-wire-redeclare` · `persist-shape-needs-version` · `no-fake-disabled-id`
+· client-determinism (no `Date.now()`/`new Date()`/`Math.random()` in render — seeded PRNG allowed) ·
+`check:registry-pairing` · the typed-`testId` gate · `touch-target-floor` (interactive primitives meet the
+≥44px touch token — §4b) · the token gates extended to ALL feature+ui TSX
+(no `components/ui/`-style exemption) + named-non-token-color ban (`--scrim`). **No directory is exempt from a
+boundary rule** (the `_shared` + `components/ui/` exemptions are what rotted neo — §11.0).
+
 ---
 
 ## 9. What we explicitly do NOT carry from neo
@@ -279,6 +383,376 @@ replaces it).
 - **Token enforcement level** — DEFAULT: Tailwind v4 + DTCG + lint. Deferred upgrade: Panda `strictTokens`
   (type-level). Revisit only if lint-bypass is observed. (§3)
 - **Streamdown sanitization for untrusted content** — verify-at-build; layer `rehype-sanitize` behind the
-  seam if the built-in policy is too lax. (§6.3)
+  seam if the built-in policy is too lax. (§6.3) **PROMOTED by D43 (§11.6) to a HARD checkpoint when chat
+  markdown lands** — the audit confirmed chat is the *only* untrusted-markdown render path (character/persona
+  fields render as escaped text), so this is no longer a soft default: it governs what gets rendered.
 - **DECIDED (not forks):** Base UI as the primitive · Zustand for client state · Streamdown for markdown ·
   single-route shell · the container model · the `@orb/ui` package + DTCG tokens.
+
+---
+
+## 11. Ratified from the full neo-client audit (ledger D43)
+**Provenance.** Ten general-purpose agents read **every file** in neo's client in full (~51k LOC: `state` ·
+`lib` · `routes` · `components` · `styles` · all 13 features) against a shared KEEP / DUMP / IMPLICIT-CONVENTION
+/ CROSS-LIB-FOOTGUN / ENFORCEABLE-RULE contract. This section is the ratified synthesis; D43 is the decision
+record. **The findings converged across slices** — the same root causes recur in chat, character, corpus,
+credentials, app-shell — which is what makes them load-bearing rather than slice-local.
+
+### 11.0 Why neo rotted *despite* being structured + enforced (the three root causes)
+The whole point of reading neo is that it had feature-slices, dep-cruiser, a token system, and ~104 gated
+queryKeys — and still became a mess. It rotted in exactly three seams, and orbweaver closes all three by
+construction:
+
+1. **Exemption zones become rot zones.** Two directories were carved OUT of the rules: `features/_shared/`
+   was exempt from `client-no-cross-feature` (dep-cruiser `pathNot`), and `components/ui/` was exempt from
+   the four token gates. **Every documented production bug, every raw style value, and the entire
+   cross-feature-coupling mess lived in those two exempt zones.** The rule herded the rot INTO the drawer
+   (`_shared`'s own litmus was "if it imports a feature, it goes here"). ⇒ **orbweaver rule: no directory is
+   exempt from a boundary rule.** `@orb/ui` is a real package under the same token gates (no allowlist);
+   there is no `_shared` drawer.
+
+2. **Consumer-obligation footguns leak as comments and rot; library-owned ones don't.** The form toolkit
+   *fixes* the footguns it owns (single-instance context, Select sentinel, rollback-removeQueries). The four
+   that require the **call site** to remember something — `reset(value)`-after-submit, silent `setValue` for
+   non-user writes, `onFieldUnmount` flush, `key={entityId}` remount — leaked as prose, and **only one of
+   the four editors honored all of them.** Forgetting `reset(value)` silently bricks the save bar and reverts
+   Discard to pre-save values (data loss) with a green `check`. ⇒ **orbweaver rule: every footgun is carried
+   by STRUCTURE (a factory/primitive the call site cannot bypass), never by a remembered convention.**
+
+3. **The cross-feature CONTRACT was unrecognized, so coupling pooled.** neo conflated "imports another
+   feature's React module" with "couples to another feature," so a legit cross-feature *read* — which only
+   calls `trpc.worldInfo.*`, the server's public front door — had no legal home and got dumped in
+   `_shared/world-book-attachments/`, `_shared/persona-connections/`, etc. ⇒ **orbweaver rule: the tRPC
+   router + `@orb/contracts` ARE the cross-feature contract; calling a procedure is not coupling.** ~29 of
+   neo's 66 `_shared` files evaporate as a *category*, not by tidying.
+
+### 11.1 KEEP-BY-CONSTRUCTION (neo got these right — lock as physics, don't let them re-rot)
+- **queryKeys are 100% tRPC-codegen-derived.** The "~104 sites = mess" worry was **wrong**: all 104 are
+  `trpc.X.Y.queryKey()`; there are **zero** ad-hoc `queryKey:[...]` arrays in the entire client. The tRPC
+  proxy IS the key factory. *Gate `no-array-literal-querykey`* (force the proxy; lock the win).
+- **The stream/turn lifecycle is the reference — carry it almost verbatim.** `applyChatBusEvent(event,deps)`
+  is a **pure, extracted, exhaustive switch** over a server-authoritative discriminated union, node-testable
+  against a real QueryClient with no SSE; the hook is a thin transport adapter. Slot lifecycle is owned by
+  the **terminal** turn events (Stop stays live across the whole turn incl. TTFT); `openSlot` is idempotent
+  with a **lazy** id factory (no UUID per token). *Gate: all chat-cache writes route through the pure
+  reducer — `no-inline-cache-surgery-in-stream` (no `setQueryData`/store-set inside a subscription/component
+  body).*
+- **Per-mutation error channels, never multiplexed.** TanStack v5 mutation errors are *sticky* until the
+  next fire; a `a.error ?? b.error` fed into a dialog leaks action A's failure into B's surface (neo's
+  `[V9-cluster]`). One error slot per mutation. *Gate `no-multiplexed-mutation-error`.*
+- **Registry-as-data shell + derive-don't-respell registries.** `TOP_NAV_SLOTS`/`MODAL_SLOTS`,
+  `ROLE_REGISTRY`, `PROVIDER_META: Record<Enum,…>` — the array/record IS the panel; a missing member is a
+  `tsc` error, not a stale `<Select>`. Carry.
+- **The clamp-width overlay shell is the SHELL-tier reference (and needs ZERO `@media`).** One master
+  `--width-shell-content: clamp(680px, ${chatWidthPct}dvw, 100dvw)` var at the root; drawer width *derives*
+  (`max(360px, (100dvw − content)/2)`); closed overlays are `absolute` + `-translate-x-full` so they consume
+  zero width and never reflow. neo achieves the "3-pane resizable" feel with **no media queries and no
+  `react-resizable-panels`** in the macro shell. This is how the SHELL tier hits "viewport-aware in one place."
+- **The bus→cache sync seam (`use-workload-events`) is the only sanctioned SSE shape.** A subscription
+  `onData` may (a) buffer transient progress in **local** state and (b) `invalidateQueries(readKey)` — it
+  must **never** become a second store. The invalidation key must be produced by the same `*.queryKey(args)`
+  the reader uses (neo's `[V9-2]` shipped from a key-shape mismatch). *Gate `bus-onData-no-store-write`.*
+
+### 11.2 The container model is a near-zero-cost FREEZE, not an unwind (the audit's happy surprise)
+The plan assumed it must unwind neo's `compact`/`inDrawer`/`density` prop threading. **It doesn't exist in
+the hot paths:** chat has **0** occurrences of those props and **0** `@media`/`@container`; the macro shell
+needs **0** `@media`. Total viewport-responsive sites client-wide: ~6 (four `sm:max-w-dialog`, two
+`md:grid-cols-2`). So `no-media-queries-in-features` + `no-layout-context-props` are a **freeze of an existing
+property at ~6 sites' cost** — pin them NOW, before features regrow the threading when a drawer/sheet host
+lands. **Correction to D42 §4:** features MAY use `@container`; only the SHELL tier may use viewport
+`@media`. The two `md:grid-cols-2` settings panels respond to *panel* width, not viewport → container queries.
+
+### 11.3 NEW structural primitives — convert every leaked convention into an API the call site can't bypass
+These are the §11.0-rule-2 fixes. Each ships in `@orb/ui` / the client foundation **before** feature agents run.
+- **`@orb/ui/virtual-list`** seals `useVirtualizer` + the **two** mandatory incantations (`"use no memo"` for
+  the React-Compiler bail + the `react-hooks/incompatible-library` disable) + the `scrollMargin`-from-rect
+  measuring + the unbounded-window tripwire **as a thrown error** (neo's was a dev `console.warn` and the
+  list rotted to a 200ms commit once already). *Physics: dep-cruiser bans `@tanstack/react-virtual` outside
+  this primitive.* **7 client sites → 1.**
+- **`@orb/ui/charts`** seals `@nivo/*` and **injects the token theme internally** so omission is impossible
+  (neo's `theme={nivoTheme}` was voluntary → a new chart silently rendered white-on-transparent, invisible in
+  dark mode); owns `<ChartTooltip>` (5 copy-pasted tooltip divs) + a **token categorical ramp** (kills the
+  `genre-color.ts` 14-hex palette + nivo `scheme:"set2"` + `RISE="#10b981"`). Plus **`@orb/ui/meter`** for
+  1-D magnitude bars (neo hand-rolled the same `width:%` span in 5 files — don't force these through nivo).
+  *Physics: dep-cruiser bans `@nivo/*` outside `@orb/ui/charts`.* The seal's whole footprint is **`corpus`
+  only** (9 charts / 6 nivo packages — verified repo-wide); the seam API must cover bar · line · heatmap ·
+  **calendar** · scatter · **force-directed network**, which is why the verified swap target is **ECharts**
+  (the only single lib that does all six natively), not Recharts — see §11.8.
+- **`@orb/ui/sortable`** seals `@dnd-kit` (sensors / strategy / `CSS.Transform.toString` / `arrayMove`).
+  *Physics: dep-cruiser bans `@dnd-kit/*` outside it.* (Only one sortable list exists today — seal it before
+  the second one re-improvises different sensor constants.)
+- **TWO named editor factories** so the four divergent strategies neo grew (preset `withFieldGroup`
+  button-gated · standalone section form · world-entry **autosave** · create-book dialog) can't be improvised
+  by whichever neighbor an agent opens first:
+  - `createSavedEntityForm` — button-gated; **bakes** seed-on-load, `key`-remount, **`reset(value)` after
+    submit**, structural-equality re-baseline, and the `DirtyPill/Discard/Save` chrome.
+  - `createAutosaveEntityForm` — listener-debounced; **bakes** the draft-mirror, `onFieldUnmount` flush, and
+    no-op-write guard — and **`reset` is removed from its type** (calling it is the autosave infinite-loop).
+  - Keep neo's one structural win here verbatim: the single `createFormHook`/`createFormHookContexts`
+    instance (`tanstack-form-only-in-shared` — multiple instances split context wiring and bound fields
+    silently lose state). *Gate `no-form-reset-in-autosave`.*
+- **`ChatHandle` — the true `this_chid` successor.** neo killed the *URL-coupled* `this_chid` (single-route
+  shell, `center-pane-store` as sole writer) but **resurrected the same disease as an ambient `isOptimistic`
+  boolean** read+branched in 15+ sites and propped up by a hand-written "A7" lint. Replace with a
+  discriminated handle `{ kind:"committed"; id } | { kind:"draft"; id; meta }` threaded from the composition
+  root; the draft path and committed path become **different functions that don't typecheck against each
+  other** — forgetting the branch (→ a 409 against a non-existent row, or a seed-clobber) **cannot compile**.
+- **The central invalidation seam.** queryKeys are solved (§11.1) but **invalidation is the real sprawl**:
+  81 `invalidateQueries` across 40 files, no map, several arg-less (`trpc.persona.get.queryKey()` nukes every
+  detail). One `client/invalidation.ts` maps domain-event → `queryFilter()`s; mutation `onSettled` + bus
+  handlers call `invalidate(event)`. *Gate `no-inline-invalidate-outside-seam`.*
+- **`@orb/contracts` owns every wire DTO; the client never imports `#server/*`.** neo had no contracts layer,
+  so the client imported server-domain return types directly (`CharacterDetail`, `EntryView`,
+  `StartWorkloadInput`, `AdminUserView`, …) and **re-declared wire schemas** (`CustomOpenAiMetadata` had
+  THREE homes; `addCredentialSchema` was an admitted hand-mirror). orbweaver's cake makes this physics.
+  *Physics: dep-cruiser `client ⇏ @orb/server`. Gate `no-client-wire-redeclare` (a client `z.object` whose
+  field set overlaps a contract input, or a client `interface` duplicating a contract type name).*
+
+### 11.4 Close the token hole + extend gates past `globals.css`
+neo's design-token check only ever inspected `globals.css` (parity), **never feature TSX** — so raw
+`size-[1.5rem]`, `z-10`, `min-w-[8rem]`, `bg-black/50` drifted everywhere, the files' own "§9 no raw scale"
+comments notwithstanding. Ratified: (a) `@orb/ui` lives under the same token gates as features, **no
+`components/ui/` exemption**; (b) **generate** the Tailwind utility namespaces + the `tailwind-merge`
+class-groups from the DTCG source (dead token = build error); (c) the token gates (`no-raw-spacing` /
+`-typography` / `-z-index` / icon-size / arbitrary `[Npx|Nrem|Nvh]`) apply to **all** feature + ui TSX; (d)
+widen `no-color-literals` past arbitrary hex to ban named non-token colors (`bg-black`/`bg-white`) and add a
+theme-aware **`--scrim`** token (a `bg-black/50` scrim is invisible on a true-black theme); (e) a small CSS
+structure test pins the three "one edit silently breaks it" `globals.css` footguns (the `dark:` theme
+enumeration, the **unlayered** reduced-motion floor, per-theme `color-scheme`).
+
+### 11.5 The smaller HIGH-value gates (persist · determinism · sentinels · keystones)
+- **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
+  shape with **no `version`/`migrate`**; a future field rename rehydrates a mis-shaped blob *over* server
+  data, silently — and once stale blobs are in users' `localStorage` you can't migrate from a version line
+  you never shipped. *Gate `persist-shape-needs-version` (non-primitive `partialize` ⇒ `version`+`migrate`
+  required).* Plus a `STORAGE_KEYS` registry asserting key uniqueness (neo deliberately reused `neo:active-chat`).
+- **Determinism reaches the client.** Extend the server's `no Date.now()/new Date()/Math.random()` rule to
+  client render + optimistic code (seeded PRNG allowed — neo already does `mulberry32` for sort). neo has
+  live `Date.now()` in optimistic merges (`revokedAt: Date.now()`) and a `fmtSince` formatter that can't be
+  snapshot-tested.
+- **`castId<X>("")` empty-id sentinel → `skipToken`.** The fake branded id paired with `enabled:` appears
+  ~10× as the disabled-query input; if the `enabled` guard is ever dropped the empty id hits the server. A
+  `useGatedQuery(id, optsFn)` that refuses to build the key when `id` is null removes the sentinel entirely.
+  *Gate `no-fake-disabled-id`.*
+- **Zustand selector stability** — D42 already seals `createEntityDraftStore`'s frozen `EMPTY`; extend the
+  zustand-selector gate to **all** keyed stores (a selector returning a fresh `{}`/`[]` spins
+  `useSyncExternalStore` → infinite re-render — runtime-only, no compile signal). And split per-token stream
+  fields from lifecycle fields so chrome physically *cannot* subscribe to token churn (the hot-path-selector
+  perf cliff).
+- **Registry-pairing keystone.** `TOP_NAV_SLOTS` ↔ `MODAL_SLOTS` id-pairing is the shell's keystone and was
+  **unguarded** (a missing body shipped as "the panel won't open", caught only by a defensive `?? null`).
+  *Gate `check:registry-pairing` (every `kind:"modal"` slot has a `MODAL_SLOTS` entry + the id is in the union).*
+- **Typed test-id registry.** Freeform `data-testid` strings (hundreds, hand-typed) mean a typo silently
+  breaks an e2e selector and never trips `tsc`. A `testId(...)` helper / typed map makes a typo a type error.
+
+### 11.6 Streamdown + untrusted content — the deferral becomes a CONCRETE two-policy spec (verified 2026-06)
+The audit **confirms** D21's threat surface is chat-only: every character-card field renders as **escaped
+text / input values** in the editors (zero `dangerouslySetInnerHTML`/markdown in character/persona/world-info
+slices) — the only untrusted-markdown render is chat's message body. **Online verification of Streamdown's
+actual security model (streamdown.ai/docs/security) sharpens the §6.3/§10 deferral from "verify it sanitizes"
+into a precise requirement:** Streamdown runs `rehype-sanitize` (GitHub's schema) **+ `rehype-harden` BY
+DEFAULT** — so we are NOT "layering rehype-sanitize behind the seam", it's already there. **But the default
+config is deliberately PERMISSIVE** (all link/image/protocol prefixes allowed) — *suitable for our own
+semi-trusted AI output, explicitly NOT safe for fully-untrusted content* (character cards, other users'
+messages). Therefore the `@orb/ui/markdown` seam must expose **two trust policies**, not one:
+- **`trusted` (own AI output):** Streamdown defaults — maximum functionality.
+- **`untrusted` (D21 — cards / other users):** `allowedLinkPrefixes` + `allowedImagePrefixes` restricted to
+  known hosts, **`allowDataImages:false`** (kills base64 tracking pixels / embedded payloads), and the
+  protocol allowlist tightened to `http`/`https`/`mailto` (drop `irc`/`xmpp`/`tel`). This is the
+  data-exfiltration-via-image/link prompt-injection defense Vercel's own `harden-react-markdown` guidance
+  prescribes.
+
+This is now a **hard checkpoint when chat markdown lands** (it governs what gets rendered, per-trust-level —
+not a reversible impl seam). Also re-pin **`remark-gfm { singleTilde:false }`** (else prose like `10~20°C`
+renders struck-through). Do NOT port neo's hand-rolled word-stagger / fence-aware re-parse — Streamdown ships
+incremental parse natively (confirm before deleting the streaming-tail repair, or the ghost regresses).
+
+### 11.8 Stack-currency verification (2026-06 — checked the load-bearing bets are best-practice, not stale)
+Every foundational choice was re-verified against current (June 2026) reality, since the design predates it:
+- **Base UI** — ✅ `@base-ui/react` is correct (renamed from the stale `@base-ui-components/react`); **1.0
+  stable shipped 2025-12-11, now 1.6.x**, 35 a11y components, MUI-backed long-term-maintenance commitment.
+  The primitive foundation is real and production-stable.
+- **React Compiler × TanStack Virtual** — ✅ still a **fundamental** incompatibility (interior mutability of
+  `useVirtualizer`'s return; on React's official non-compat list; ESLint `incompatible-library` fires). It is
+  NOT getting fixed — which *validates* sealing it in `@orb/ui/virtual-list` (§11.3) rather than hoping.
+- **React 19.2 `<Activity>` + `useEffectEvent`** — ✅ both **stable** in 19.2 (Oct 2025), no longer
+  experimental. The §4a bets (pane-preserve + the seam-effect fix) stand.
+- **DTCG + Style Dictionary v4 + Tailwind v4 `@theme`** — ✅ DTCG **first stable spec (2025.10)** published
+  2025-10-28; Style Dictionary v4 has first-class DTCG support; Tailwind v4 `@theme`→CSS-vars. The §3
+  single-source→derived-theme pipeline is exactly the 2026 best-practice "three-tier W3C tokens" path.
+- **Streamdown** — ✅ real + security-first by default (§11.6); stronger than the plan assumed (bundles
+  sanitize+harden), but needs the two-policy config above for untrusted content.
+- **nivo — ⚠️ the one asterisk (kept, with the seal as the hedge).** nivo is **still v0.99** (no 1.0 after
+  years); 2026 community default has moved to **Recharts** (v3, ~2.4M wk dl); nivo's headline 2026 knock is an
+  unresolved **RSC / Next App-Router incompatibility** (#2626). **That knock does NOT apply to orbweaver** —
+  we're a Vite **SPA** (single-route shell, no RSC), so the "every chart needs `'use client'`" problem is moot,
+  and nivo's strengths (polished defaults, WCAG-grade dataviz) are exactly the corpus/analytics need (a
+  deliberate "it has the features I want" call). The mitigation is already in the plan: **`@orb/ui/charts`
+  sealing nivo behind `<BarChart>`/`<ScatterChart>` makes a swap a `@orb/ui`-internal change, app untouched.**
+  **The verified exit ramp is Apache ECharts, NOT Recharts** — corpus uses nivo for exactly the two chart
+  types Recharts cannot do (a `@nivo/calendar` GitHub-style year heatmap + a `@nivo/network` force-directed
+  similarity graph) plus `@nivo/{bar,line,heatmap,scatterplot}`. The full neo set is: 9 charts / 6 packages,
+  **confined entirely to `corpus`** (nothing else imports nivo; the simple 1-D bars are plain CSS). ECharts is
+  the *only* mainstream single library that natively covers the whole set incl. calendar (`calendar` coord +
+  heatmap series) and force-directed graph (`graph` series, `force` layout) — Canvas-rendered (a perf win for
+  the dense `corpus-galaxy` scatter), ~100kB-gz tree-shakeable, `echarts-for-react`. visx is the
+  max-control-but-hand-build fallback (no built-in calendar; `@visx/network` has no force layout). If only the
+  similarity graph ever outgrows nivo, split it to **Reagraph**/**react-force-graph** (WebGL). Net: keep nivo;
+  the charts seal is now *doubly* justified — token-theme enforcer AND the nivo→ECharts exit ramp.
+
+---
+
+## 12. User theming & rich message content (ledger D44) — specced BEFORE Phase 5
+**Why here, why now.** SillyTavern's expressive surface — custom CSS (global + per-character), rich HTML
+"cards" (stat-blocks / styled mini-UIs), and inline images — is a real product need, redesigned to orbweaver
+rigor. It is specced **before Phase 5** because the chat message-content model, composer, and assembly all
+*depend* on these decisions; left unspecced, the chat phase would reinvent them ad hoc (and almost certainly
+copy ST's bypassable approach). Read with §11.6 (the Streamdown two-policy security spec) — this section is
+its content-side companion.
+
+### 12.0 The governing principle — two trust tiers, isolation by PHYSICS not string-munging
+Every user-supplied rendering input is exactly one trust level, and that determines the mechanism:
+- **TRUSTED** = authored by the box owner / this user (global theme CSS, own persona theme, own uploaded
+  images). Risk is self-inflicted + design-system integrity, not security.
+- **UNTRUSTED** = from an imported character card, another participant, or the LLM (per-character CSS, card
+  HTML, external image URLs, message markdown). Risk is D21 "no leaks ever" — CSS exfiltration, clickjacking,
+  tracking pixels, mutation-XSS.
+**Rule:** untrusted content is contained by a *browser-enforced boundary* (sandboxed iframe · CSP ·
+token-validation), NEVER by ST's regex-sanitize-and-scope (which the research + ST's own source show is
+bypassable string-munging — `.custom-` class renaming, `://` stripping). How ST does it (verified from
+`chats.js`/`power-user.js`) is prior art to learn from, not copy.
+
+### 12.1 Theming — the CSS story (decided: scopes = Global owner + Per-character)
+- **Tier A (default): a curated, Zod-validated TOKEN-OVERRIDE API — not raw CSS.** Expose a fixed subset of
+  DTCG tokens (accent · bubble bg/fg · name color · quote color · font from an allowlist · radius ·
+  background asset/allowlisted-URL · density) applied as **scoped CSS custom properties** via an `@orb/ui`
+  `<ThemeScope>` on the target subtree. Custom-property *values* can't select/execute/exfiltrate; values are
+  parsed+clamped at the boundary (a color must parse as a color — reject `url()`/`expression()`; dims snap to
+  the token scale). Covers the *vibe* (~90% of per-character styling) with **zero injection surface**, stays
+  inside the token system (container model + `no-raw-value` gates still hold). ST has no safe tier like this.
+- **Tier B (opt-in trust): raw CSS only inside the sandboxed-iframe card (12.2)** — never injected into the
+  app document.
+- **Global owner CSS** (trusted): a settings field → one scoped `<style>` under a known app root, run through
+  the same validator (warn-on-`@import` like ST; reject shell-breaking `position:fixed` on chrome). Trusted,
+  but still fenced from accidentally wrecking the shell.
+- **Resolution order:** character > global > default. (Per-persona / per-chat scopes are deliberately
+  deferred — the order is built to accept them later without rework.)
+
+### 12.2 Rich message content — the HTML story (two tiers; Tier B = sandboxed iframe, NOT Shadow DOM)
+The isolation-primitive choice is settled by research (§ research note below): **Shadow DOM is encapsulation,
+not a security boundary** (JS gets full page access, `position:fixed` escapes, CSS `url()` still exfils,
+custom props pierce the boundary); a **sandboxed `<iframe>` IS the boundary** (separate realm, `sandbox` minus
+`allow-same-origin`, per-frame CSP) — the proven industry standard for untrusted LLM HTML (Claude Artifacts,
+CodePen, JSFiddle). ChatGPT Canvas refuses to render HTML inline at all; the sandboxed iframe is the only
+safe-inline-render pattern anyone ships.
+- **Tier A (default, main DOM): a tight INERT sanitized allowlist via Streamdown** (its `rehype-raw` →
+  `rehype-sanitize` → `rehype-harden` pipeline, configured to OUR explicit allowlist, not its permissive
+  default): structural (`div/span/details/summary/table`-family/`blockquote`/`hr`) · text formatting · icons
+  (mapped to **lucide**, not raw FontAwesome classes) · links (`rel=noopener` + prefix-allowlist) · images
+  (via `MessageImage`, 12.3). **Forbidden in Tier A:** `<script>` · `on*` handlers · `<style>` · inline
+  `style=` · `<iframe>/<object>/<embed>/<form>/<input>`. Covers ~90% of "cards" (structured/styled text + icons).
+- **Tier B (opt-in per-character trust): elaborate self-contained HTML+CSS mini-UI → `@orb/ui/sandbox-frame`**
+  = sandboxed iframe + per-frame CSP (`connect-src 'none'`, `img-src` allowlist), **render-on-complete** (hold
+  the block until close — the iframe enforces this naturally; skeleton during stream), the validated
+  theme-token subset injected so the card's `var(--accent)` tracks the active theme, postMessage auto-height,
+  **lazy-mounted + virtualized** in the message list (the one real cost — a realm per card — bounded to opt-in
+  rich cards only). This is the Claude-Artifacts model.
+- **Explicit NON-GOALS v1** (the dangerous ST features deliberately not carried): card JS / event handlers ·
+  **action-buttons wired to app commands** (ST's QR/STscript surface) · forms · card-spawned iframes · inline
+  `style`. **Doored, not walled:** because Tier B is already an iframe, interactivity later = flip
+  `allow-scripts` for a *trusted* card (the Artifacts experience) — no re-architecture, just a gate change.
+
+### 12.3 Images AND native media in chat — also two trust tiers (the new dimension)
+Covers `<img>` **and native `<audio controls>` / `<video controls>`** — verified from ST source as the
+mechanism behind "a card generated an inline music player": it was **raw HTML+CSS, a native `<audio controls>`
+element** (browser-native play/seek controls = interactive with ZERO card JS; ST allows audio/video/source/
+track in sanitized message HTML and gates the external `src`). Native media is the one HTML class that's
+interactive *declaratively*, so it sidesteps the no-JS rule — and it carries the same external-load risk as
+images plus two extras (autoplay = tracking beacon + annoyance, and bandwidth).
+- **TRUSTED = own uploads / assets → render freely from our store.** The "supporting pictures/media in
+  messages" case: the user attaches in the composer → stored via the **`assets` domain (4c)** with
+  variants/thumbnails from the **`infra/image` sharp adapter (4b)** → referenced as `asset://<id>` → served
+  from our own origin. Same path feeds the **multimodal send** (attach an image to a vision-capable model).
+- **UNTRUSTED = external URLs** (LLM markdown `![](url)`, untrusted card `<img>`/`<audio>`/`<video>`) → gated,
+  defaulting to SAFE:
+  - **`forbidExternalMedia: true` by default** (mirrors ST + D21): external media does NOT auto-load — the
+    *load itself* is the exfil/tracking-pixel (the remote server sees IP + timing). Render a click-to-load
+    "external media — load from `<host>`?" placeholder.
+  - **`autoplay` is FORCED OFF and `controls` REQUIRED on untrusted audio/video, always** (even when media is
+    allowed) — an untrusted autoplaying `<audio>` is a tracking beacon + a hostile-noise vector; ST forces
+    `autoplay=false; pause()` and we harden that into a non-overridable rule for untrusted media.
+  - When permitted (per-character `override ?? global`, extending the D21 `forbidExternalMedia` tri-state, or
+    owner opt-in): only `allowedMediaPrefixes` hosts load · `allowDataImages:false` (no base64 tracking
+    pixels) · **CSP `img-src` + `media-src` `'self' <allowlist>` is the network backstop** (§11.6).
+  - A bare image-URL link auto-embeds only if allowlisted+allowed, else renders as a plain link.
+- **Primitive `@orb/ui/MessageMedia`** (covers image + native audio/video): dispatches asset-ref vs
+  external-gated · lazy-load · intrinsic size/aspect reservation (no layout shift, container-model max-width)
+  · `autoplay`-off + `controls`-on for untrusted A/V · broken-media fallback · click-to-zoom **lightbox**
+  (sealed `@orb/ui` viewer) for images/video. Inside a Tier-B `sandbox-frame`, media is additionally governed
+  by the frame's own `img-src`/`media-src` CSP (defense-in-depth).
+- **A JS-driven custom player** (custom seek logic, not native controls) is the one case that needs Tier B's
+  sandboxed iframe + `allow-scripts` — the native-element path (Tier A) covers the common "card music player"
+  declaratively, no iframe needed.
+
+### 12.4 The message-content model (Phase-5 touchpoint — `@orb/contracts`, born-compliant)
+A message body is a **typed sequence of content blocks, NOT one HTML string** (ST's fatal simplification):
+```
+MessageContentBlock =
+  | { kind: "markdown"; md: string }
+  | { kind: "media"; media: "image" | "audio" | "video"; src: AssetRef | ExternalUrl; alt: string; dims?: {w;h} }
+  | { kind: "html-card"; html: string; css?: string; trust: "tierA" | "tierB" }
+```
+The block model is what makes the trust-tier × render-tier dispatch type-safe and clean. The composer (P5)
+emits image blocks from attachments; markdown stays markdown; card HTML carries its own trust level. The
+`forbidExternalMedia` + per-character `cardTrust` overrides resolve at chat **assembly** (`override ?? global`,
+extending D21). **This block union must land in the `@orb/contracts` pass, not be invented inside chat.**
+
+### 12.5 Where each piece lives (the cake)
+| Concern | Home |
+|---|---|
+| `ThemeOverride` schema (token subset, Zod-validated) · `MessageContentBlock` union | `@orb/contracts` |
+| `<ThemeScope>` (validated tokens → scoped custom props) · `@orb/ui/sandbox-frame` · `@orb/ui/MessageMedia` (img+native a/v) + lightbox | `@orb/ui` |
+| Tier-A HTML+media sanitize allowlist (Streamdown config) | `@orb/ui/markdown` |
+| asset storage + thumbnails/variants | `assets` domain (4c) + `infra/image` sharp (4b) |
+| composer image attach · multimodal send · `forbidExternalMedia`/`cardTrust` resolution | chat domain (Phase 5; extends D21) |
+| CSP headers (`img-src` · `connect-src` · `style-src`) | `entry/http` |
+
+### 12.6 New gates (machine-enforceable — the rigor)
+- **`no-untrusted-html-in-main-dom`** — a raw/untrusted HTML string may reach ONLY `@orb/ui/sandbox-frame`;
+  never `dangerouslySetInnerHTML`, a `<head>` `<style>`, or main-DOM injection.
+- **`no-external-media-without-gate`** — any `<img>`/`<audio>`/`<video>` with an external `src` must route
+  through `MessageMedia` (the `forbidExternalMedia` gate + forced `autoplay`-off for untrusted A/V); no raw
+  external `<img>/<audio>/<video>`.
+- **`theme-override-only-via-scope`** — a `ThemeOverride` applies only via `<ThemeScope>` (validated), never
+  spread as raw `style`.
+- **CSP-headers-present** test (the `img-src`/`connect-src`/`style-src` headers exist + are tight).
+- Extend the existing `no-raw-value` / no-inline-`style` gates to message-render code.
+
+### 12.7 Streaming interplay (ties to §6.3.1)
+- **HTML-card blocks render-on-complete** (hold until the block closes) — the `sandbox-frame` enforces this;
+  show skeleton/plain text during stream (avoids the half-rendered-`<div>` flash, worse than the code-fence one).
+- **Images reserve space from known dims** (asset images known-size; external use a fixed placeholder box) so
+  mid-stream image arrival doesn't shift layout.
+
+### 12.8 Sequencing (born-compliant — non-negotiable)
+The `@orb/ui` primitives (`ThemeScope`, `sandbox-frame`, `MessageImage`), the `@orb/contracts`
+`MessageContentBlock`/`ThemeOverride`, the CSP wiring, and the 12.6 gates ship in the **foundation/`@orb/ui`
++ contracts passes, BEFORE Phase 5 wires chat content** — same rule as §11.7. `assets` (4c) + `infra/image`
+(4b) are prerequisites already in the plan. A Phase-5 agent assembles messages against this spec; it does not
+get to invent the content model or copy ST's string-blob.
+
+> **Research note (2026-06, why Tier B is an iframe):** Shadow DOM is *composability*, not isolation —
+> "prevent accidental interference, not enforce separation"; JS in a shadow tree has full page access, custom
+> props pierce it, and there's a 2026 CSS sandbox-escape CVE. A sandboxed iframe is a separate realm and the
+> decade-proven primitive CodePen/JSFiddle/**Claude Artifacts** use for untrusted rendered HTML/CSS/JS. No
+> all-in-one library does parse+sanitize+isolate for inline content — compose Streamdown/DOMPurify (sanitize)
+> + a small OWNED `sandbox-frame` (we own the exact `sandbox`/CSP attributes — don't depend on a generic lib
+> for the security boundary). `react-shadow`/`react-shadow-root` exist but are for our OWN design-system
+> encapsulation, the wrong tool for untrusted content.
+
+### 11.7 Sequencing (born-compliant — the non-negotiable)
+Every §11.3 primitive, the §11.4 codegen, and all new gates ship in the **`@orb/ui` + client-foundation
+wave, BEFORE any feature agent runs.** The audit's verdict is unambiguous: *neo rotted in the gap between
+"feature shipped" and "gate written."* For orbweaver these are a **prerequisite of Phase 6**, sequenced like
+the Phase-0 backend gates were — a feature that lands before its gate is enforced retroactively, which is the
+exact ts-morph-out-of-a-mess this whole exercise exists to prevent.

@@ -4,7 +4,10 @@
 > `/home/inktomi/inktomi-stack/development/neo-tavern`; orbweaver is at
 > `/home/inktomi/inktomi-stack/development/orbweaver`). **We are BUILDING** — Phases 0–4b are committed
 > (planning is done; the design docs below remain authoritative). This file is the index + the locked
-> decisions + the NEXT action. **Latest decision: D40** (the Phase-0→4b audit remediation).
+> decisions + the NEXT action. **Latest decision: D44** (user theming + rich message content — custom CSS /
+> sandboxed-iframe HTML cards / inline images, two-trust-tier, specced before Phase 5; see `client.md` §12).
+> Recent: D42 (Phase-6 client foundation), D43 (full neo-client audit → machine-enforceable plan, `client.md`
+> §11), D44 (theming + rich message content, §12).
 
 ## Why a remake
 neo-tavern's architecture was sound but rotted in place: `domain/_shared` became a junk drawer; concepts
