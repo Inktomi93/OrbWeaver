@@ -5,7 +5,6 @@
 // assembly, sampling projection, the reasoning request (adaptive/budget guard), the provider-routing pin,
 // the customParameters overlay, the mandatory-reasoning detector, and the SDK→kit chunk reshape.
 
-import type { ModelCapability } from "@orb/contracts/connection";
 import {
   buildHistoryMessages,
   buildReasoningRequest,
@@ -19,12 +18,6 @@ import {
 import { describe, expect, test } from "vitest";
 
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
-const CAPABILITY: ModelCapability = {
-  reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] },
-  sampling: {},
-  output: { maxTokens: { min: 1, max: 4096 } },
-  context: { window: 200_000 },
-};
 
 describe("buildSystemMessage", () => {
   test("Anthropic + static → per-block cache on the static block, plain dynamic block", () => {
@@ -58,49 +51,44 @@ describe("buildHistoryMessages", () => {
   });
 });
 
-describe("chatSamplingFields", () => {
-  test("emits only the set knobs; maps maxOutputTokens → maxCompletionTokens", () => {
-    expect(chatSamplingFields({ temperature: 0.5, maxOutputTokens: 256 })).toEqual({
+describe("chatSamplingFields — projects the RESOLVED sampling (gating already ran upstream)", () => {
+  test("emits the present resolved knobs; maps the resolved cap → maxCompletionTokens", () => {
+    expect(chatSamplingFields({ temperature: 0.5, topK: 40 }, 256)).toEqual({
       temperature: 0.5,
+      topK: 40,
       maxCompletionTokens: 256,
     });
   });
 
-  test("an empty intent yields no fields", () => {
-    expect(chatSamplingFields({})).toEqual({});
+  test("empty sampling + no cap yields no fields", () => {
+    expect(chatSamplingFields({}, undefined)).toEqual({});
+  });
+
+  test("copies the stop array (no shared reference back into the resolved knobs)", () => {
+    const stop = ["END"];
+    const out = chatSamplingFields({ stop }, undefined);
+    expect(out.stop).toEqual(["END"]);
+    expect(out.stop).not.toBe(stop);
   });
 });
 
-describe("buildReasoningRequest — the adaptive/budget guard", () => {
-  test("adaptive model DROPS an explicit thinkingBudgetTokens", () => {
-    const req = buildReasoningRequest(
-      { effort: "high", thinkingBudgetTokens: 4096 },
-      { ...CAPABILITY, reasoning: { mode: "adaptive", enabled: true } },
-    );
-    expect(req.budgetTokens).toBeUndefined();
-    expect(req.enabled).toBe(true);
+describe("buildReasoningRequest — thin map from the resolved decision to the kit shape", () => {
+  test("carries enabled + an explicit budget through (no effort)", () => {
+    expect(buildReasoningRequest({ mode: "budget", enabled: true, budgetTokens: 4096 })).toEqual({
+      enabled: true,
+      budgetTokens: 4096,
+    });
   });
 
-  test("budget-mode model keeps the explicit budget", () => {
-    expect(
-      buildReasoningRequest(
-        { thinkingBudgetTokens: 4096 },
-        { ...CAPABILITY, reasoning: { mode: "budget", enabled: true } },
-      ).budgetTokens,
-    ).toBe(4096);
+  test("effort rides through without a budget", () => {
+    expect(buildReasoningRequest({ mode: "effort", enabled: true, effort: "high" })).toEqual({
+      enabled: true,
+      effort: "high",
+    });
   });
 
-  test("a reasoning:none-capability model is never enabled", () => {
-    expect(
-      buildReasoningRequest(
-        { effort: "high" },
-        { ...CAPABILITY, reasoning: { mode: "none", enabled: false } },
-      ).enabled,
-    ).toBe(false);
-  });
-
-  test("effort:none disables reasoning", () => {
-    expect(buildReasoningRequest({ effort: "none" }, CAPABILITY).enabled).toBe(false);
+  test("a disabled decision maps to enabled:false with no depth knobs", () => {
+    expect(buildReasoningRequest({ mode: "none", enabled: false })).toEqual({ enabled: false });
   });
 });
 

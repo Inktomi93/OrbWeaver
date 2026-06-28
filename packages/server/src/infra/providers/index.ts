@@ -51,3 +51,5 @@ export { createGenerateImageRole } from "./roles/generate-image";
 export { createImageEmbedRole } from "./roles/image-embed";
 export { createRerankRole } from "./roles/rerank";
 export { createSummarizeRole } from "./roles/summarize";
+// ── The RUNNER_OVERRIDE dev/test seam (entry injects it as runChatTurn when env.RUNNER_OVERRIDE is set) ─
+export { buildScriptedOverrideRunner } from "./scripted-override";

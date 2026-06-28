@@ -16,6 +16,7 @@ import type {
   ChatResult,
   ChatUsage,
   RateLimitSnapshot,
+  ResolvedWarning,
 } from "../../contract";
 import { normalizeFinishReason, ProviderError } from "../../contract";
 import type { SessionCache } from "./session";
@@ -90,7 +91,7 @@ export async function runChatTurn(
   const chatId = req.chatId;
   // `await` (not a bare return) so a synchronous throw from `query()` / the reducer surfaces as a
   // rejected promise at the call site rather than a sync throw.
-  return await consumeTurnStream(stream, {
+  const result = await consumeTurnStream(stream, {
     model: req.model,
     resumed: resume !== undefined,
     now: deps.now,
@@ -103,6 +104,30 @@ export async function runChatTurn(
     configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
     configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
   });
+  // Surface resolve-chat's dropped/ignored-knob notes (from `toSdkGeneration`) as `warning` events on the
+  // reduced result + via `onEvent` — never silently dropped. (The OR runners do the equivalent; the
+  // strategy-isolation seal forbids sharing the openrouter builder, so this backend owns its own.)
+  return appendWarnings(result, gen.warnings, deps.now(), req.onEvent);
+}
+
+/** Append resolve-chat's `warning` events to the reduced result and fire `onEvent` for each. Returns the
+ *  result unchanged when there are no warnings. */
+function appendWarnings(
+  result: ChatResult,
+  warnings: readonly ResolvedWarning[],
+  at: number,
+  onEvent: ((event: ChatEvent) => void) | undefined,
+): ChatResult {
+  if (warnings.length === 0) {
+    return result;
+  }
+  const events = warnings.map(
+    ({ code, message }): ChatEvent => ({ kind: "warning", at, code, message }),
+  );
+  for (const event of events) {
+    onEvent?.(event);
+  }
+  return { ...result, events: [...result.events, ...events] };
 }
 
 /**

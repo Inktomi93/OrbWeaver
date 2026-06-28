@@ -9,7 +9,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { runResponsesTurn } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
@@ -117,7 +117,9 @@ describe("runResponsesTurn — wire shaping", () => {
       client,
       makeRequest({
         capability: { ...CAPABILITY, reasoning: { mode: "budget", enabled: true } },
-        params: { thinkingBudgetTokens: 2048 },
+        // `effort` is the on-switch (resolve-chat enables reasoning on a real effort); `budget` is the
+        // depth — a budget-mode model rides maxTokens, never the effort dial (the XOR).
+        params: { effort: "high", thinkingBudgetTokens: 2048 },
       }),
       DEPS,
     );
@@ -158,6 +160,27 @@ describe("runResponsesTurn — wire shaping", () => {
     expect(Array.isArray(input)).toBe(true);
     const first = Array.isArray(input) ? input[0] : undefined;
     expect(first).toEqual({ role: "user", content: "" });
+  });
+
+  test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {
+    const { client } = streamingClient(OK_EVENTS);
+    const onEvent = vi.fn();
+    // CAPABILITY exposes no temperature range → resolve-chat drops it + warns.
+    const result = await runResponsesTurn(
+      client,
+      makeRequest({ params: { effort: "high", temperature: 0.5 }, onEvent }),
+      DEPS,
+    );
+    const warnings = result.events.filter((e) => e.kind === "warning");
+    expect(warnings).toEqual([
+      {
+        kind: "warning",
+        at: FIXED_NOW,
+        code: "sampling_knob_dropped",
+        message: "temperature ignored: model does not expose a temperature range",
+      },
+    ]);
+    expect(onEvent).toHaveBeenCalledWith(warnings[0]);
   });
 });
 

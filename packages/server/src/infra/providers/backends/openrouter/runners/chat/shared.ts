@@ -14,8 +14,7 @@ import type {
   ProviderPreferences,
   ReasoningDetailUnion,
 } from "@openrouter/sdk/models";
-import type { ModelCapability, OpenRouterProviderRouting } from "@orb/contracts/connection";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
 import {
@@ -23,6 +22,12 @@ import {
   effectiveProviderRouting,
   extractHttpErrorDiagnostic,
 } from "../../../../backends/kit";
+import type {
+  ChatEvent,
+  ResolvedReasoning,
+  ResolvedSampling,
+  ResolvedWarning,
+} from "../../../../contract";
 
 /** The clock + jitter seams the composition root injects (no ambient `Date.now`/`Math.random`). `random`
  *  is optional — omitted in production (the retry kit defaults to `Math.random`), passed by tests for
@@ -101,49 +106,56 @@ export function buildHistoryMessages(
 }
 
 // ── Sampling projection ──────────────────────────────────────────────────────────────────────────
-/** The chat-completions sampling slice (camelCase — the SDK serializes to snake_case). Each field is
- *  emitted only when the user set it. `maxCompletionTokens` (not the deprecated `maxTokens`) carries the
- *  output cap. Capability-gating (dropping a knob the model can't honor) is `resolve-chat`'s job upstream;
- *  this projects what the user set and lets OpenRouter ignore the rest. */
-export function chatSamplingFields(params: UserIntent): Partial<ChatRequest> {
+/** The chat-completions sampling slice (camelCase — the SDK serializes to snake_case). Consumes the
+ *  capability-RESOLVED sampling (`resolve-chat` already clamped/gated every knob — invariant #9), so this
+ *  is a pure passthrough of what survived. `maxCompletionTokens` (not the deprecated `maxTokens`) carries
+ *  the resolved, range-clamped output cap. Each field is emitted only when the resolved knob is present. */
+export function chatSamplingFields(
+  sampling: ResolvedSampling,
+  maxOutputTokens: number | undefined,
+): Partial<ChatRequest> {
   return {
-    ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
-    ...(params.topP !== undefined ? { topP: params.topP } : {}),
-    ...(params.topK !== undefined ? { topK: params.topK } : {}),
-    ...(params.frequencyPenalty !== undefined ? { frequencyPenalty: params.frequencyPenalty } : {}),
-    ...(params.presencePenalty !== undefined ? { presencePenalty: params.presencePenalty } : {}),
-    ...(params.repetitionPenalty !== undefined
-      ? { repetitionPenalty: params.repetitionPenalty }
+    ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
+    ...(sampling.topP !== undefined ? { topP: sampling.topP } : {}),
+    ...(sampling.topK !== undefined ? { topK: sampling.topK } : {}),
+    ...(sampling.frequencyPenalty !== undefined
+      ? { frequencyPenalty: sampling.frequencyPenalty }
       : {}),
-    ...(params.seed !== undefined ? { seed: params.seed } : {}),
-    ...(params.logitBias !== undefined ? { logitBias: params.logitBias } : {}),
-    ...(params.stop !== undefined ? { stop: params.stop } : {}),
-    ...(params.maxOutputTokens !== undefined
-      ? { maxCompletionTokens: params.maxOutputTokens }
+    ...(sampling.presencePenalty !== undefined
+      ? { presencePenalty: sampling.presencePenalty }
       : {}),
+    ...(sampling.repetitionPenalty !== undefined
+      ? { repetitionPenalty: sampling.repetitionPenalty }
+      : {}),
+    ...(sampling.seed !== undefined ? { seed: sampling.seed } : {}),
+    ...(sampling.logitBias !== undefined ? { logitBias: sampling.logitBias } : {}),
+    ...(sampling.stop !== undefined ? { stop: [...sampling.stop] } : {}),
+    ...(maxOutputTokens !== undefined ? { maxCompletionTokens: maxOutputTokens } : {}),
   };
 }
 
-// ── Reasoning request (the Opus 4.8 adaptive/budget guard, Esoteric §8) ────────────────────────────
+// ── Reasoning request (thin map from the resolved decision) ────────────────────────────────────────
 /**
- * Build the kit {@link ReasoningRequest} the wire-block builders project. THE ADAPTIVE GUARD: an Opus-4.8
- * -class model whose capability reports `reasoning.mode === "adaptive"` rejects an explicit
- * `budget_tokens` (live 400) — so for an adaptive model the budget is DROPPED (effort-only); other modes
- * keep the user's `thinkingBudgetTokens` when present. `enabled` is the on/off axis: reasoning runs unless
- * the capability says the model can't reason or the user picked `effort:"none"`.
+ * Map the capability-RESOLVED {@link ResolvedReasoning} → the kit {@link ReasoningRequest} the wire-block
+ * builders project. ALL the policy (the on/off decision, the effort-levels clamp, and the Opus-4.8
+ * adaptive/budget guard — Esoteric §8) already ran in `resolve-chat`; this is a pure shape map. The OR
+ * effort/max_tokens XOR still lives in the kit's `effortToResponsesReasoning` (a wire-shape concern).
  */
-export function buildReasoningRequest(
-  params: UserIntent,
-  capability: ModelCapability,
-): ReasoningRequest {
-  const enabled = capability.reasoning.mode !== "none" && params.effort !== "none";
-  const isAdaptive = capability.reasoning.mode === "adaptive";
-  const budgetTokens = isAdaptive ? undefined : params.thinkingBudgetTokens;
+export function buildReasoningRequest(reasoning: ResolvedReasoning): ReasoningRequest {
   return {
-    enabled,
-    ...(params.effort !== undefined ? { effort: params.effort } : {}),
-    ...(budgetTokens !== undefined ? { budgetTokens } : {}),
+    enabled: reasoning.enabled,
+    ...(reasoning.effort !== undefined ? { effort: reasoning.effort } : {}),
+    ...(reasoning.budgetTokens !== undefined ? { budgetTokens: reasoning.budgetTokens } : {}),
   };
+}
+
+// ── Warning events (resolve-chat's dropped/ignored-knob notes) ─────────────────────────────────────
+/** Build the per-turn `warning` {@link ChatEvent}s from resolve-chat's structured notes (the `code`
+ *  rides through for machine dispatch; `message` is the readable detail). PURE — the runner fires
+ *  `onEvent` and merges these into `ChatResult.events` (this module stays clock-free; the runner passes
+ *  the resolved `at`). Both OR chat runners (chat-completions + responses) share this one builder. */
+export function warningEvents(warnings: readonly ResolvedWarning[], at: number): ChatEvent[] {
+  return warnings.map(({ code, message }) => ({ kind: "warning", at, code, message }));
 }
 
 // ── Provider routing (the cache-pin, Esoteric §5/§7) ───────────────────────────────────────────────

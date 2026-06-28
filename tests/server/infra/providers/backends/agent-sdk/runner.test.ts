@@ -160,4 +160,23 @@ describe("createAgentSdkBackend", () => {
     const wrongApi = { api: "chat-completions" } as unknown as ChatRequest;
     await expect(run(wrongApi)).rejects.toBeInstanceOf(ProviderError);
   });
+
+  test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {
+    const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
+    const backend = createAgentSdkBackend({ now: () => FIXED_NOW, query: fakeQuery as never });
+    const run = backend.runChatTurn as ChatTurn;
+    const onEvent = vi.fn();
+    // CAPABILITY (reasoning none, sampling {}) exposes no temperature range → resolve-chat drops it + warns.
+    const result = await run({ ...buildReq("chat-warn"), params: { temperature: 0.7 }, onEvent });
+    const warnings = result.events.filter((e) => e.kind === "warning");
+    expect(warnings).toEqual([
+      {
+        kind: "warning",
+        at: FIXED_NOW,
+        code: "sampling_knob_dropped",
+        message: "temperature ignored: model does not expose a temperature range",
+      },
+    ]);
+    expect(onEvent).toHaveBeenCalledWith(warnings[0]);
+  });
 });
