@@ -34,6 +34,43 @@ describe("create", () => {
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");
   });
 
+  test("stamps + round-trips import provenance when provided (the PD-43 import wire)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const importHash = "a".repeat(64);
+    const detail = await svc.create({
+      principal: principal(owner),
+      input: { handle: "aria", name: "Aria", description: "imported" },
+      provenance: { importedFrom: "Aria.png", importHash },
+    });
+
+    expect(detail.importedFrom).toBe("Aria.png");
+    expect(detail.importHash).toBe(importHash);
+
+    // Persisted, not just echoed: re-read through `get` confirms the columns landed.
+    const reread = await svc.get({ principal: principal(owner), characterId: detail.id });
+    expect(reread.importedFrom).toBe("Aria.png");
+    expect(reread.importHash).toBe(importHash);
+  });
+
+  test("a null importedFrom with a hash persists (PNG-less / unlabeled import)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const importHash = "b".repeat(64);
+    const detail = await svc.create({
+      principal: principal(owner),
+      input: { handle: "nameless", name: "Nameless", description: "bare json card" },
+      provenance: { importedFrom: null, importHash },
+    });
+
+    expect(detail.importedFrom).toBeNull();
+    expect(detail.importHash).toBe(importHash);
+  });
+
   test("a duplicate per-owner handle throws CharacterOperationError(handle_conflict)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);

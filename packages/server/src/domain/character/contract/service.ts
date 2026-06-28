@@ -33,6 +33,7 @@ import type {
   BulkRemoveParams,
   CreateCharacterParams,
   DuplicateCharacterParams,
+  FindByImportHashParams,
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
@@ -94,9 +95,10 @@ export interface CharacterContext {
 
 export interface CharacterService {
   // ── CRUD ──────────────────────────────────────────────────────────────────
-  /** Create a character owned by the caller (app-authored: import provenance null, `contentHash`
-   *  computed). Emits `character.updated`. Throws `CharacterOperationError("handle_conflict")` on a
-   *  per-owner handle collision. */
+  /** Create a character owned by the caller (`contentHash` computed). Optional `provenance` stamps the
+   *  `imported_from`/`import_hash` columns (the import composition-root wire — PD-43); omit it for an
+   *  app-authored card (provenance stays null). Emits `character.updated`. Throws
+   *  `CharacterOperationError("handle_conflict")` on a per-owner handle collision. */
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
   /** One owned character by id. Throws `CharacterNotFoundError` when missing OR not the caller's. */
   readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
@@ -132,6 +134,11 @@ export interface CharacterService {
   /** The live card for an owned character, or `null` for not-owned / mid-delete (contract invariant —
    *  callers treat `null` as "skip, not an error"; it NEVER throws). */
   readonly getCard: (params: GetCardParams) => Promise<CharacterCard | null>;
+
+  // ── Re-import dedup (import-injected, internal) ─────────────────────────────
+  /** The owner's existing character that already carries `importHash` (the re-import dedup oracle), or
+   *  `null`. Owner-scoped: a different owner's same-hash card is never returned. A read — never throws. */
+  readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
 
   // ── Synthetic group identity (chat-injected, internal) ──────────────────────
   /** Find-or-mint the hidden `synthetic=true` `__group__${chatId}` character (the scoped-group memory

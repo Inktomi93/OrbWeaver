@@ -100,6 +100,22 @@ export async function findByOwnerHandle(
   return rows[0];
 }
 
+/** The id of the owner's character that already carries `importHash` (the re-import dedup oracle), or
+ *  undefined when none. Owner-scoped in the WHERE (a different owner's same-hash card is never returned).
+ *  Selects only the id — the dedup caller wants the identity, not the row. */
+export async function findByOwnerImportHash(
+  db: Db,
+  ownerId: UserId,
+  importHash: string,
+): Promise<CharacterId | undefined> {
+  const rows = await db
+    .select({ id: characters.id })
+    .from(characters)
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.importHash, importHash)))
+    .limit(LIMIT_ONE);
+  return rows[0]?.id;
+}
+
 /** Every handle the owner already uses — the duplicate verb derives a free `<handle>-copy[-n]` from this
  *  (small per-owner set; computed in JS to avoid LIKE-wildcard handling on user-controlled handles). */
 export async function listOwnerHandles(db: Db, ownerId: UserId): Promise<string[]> {

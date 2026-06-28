@@ -1,22 +1,37 @@
-// verb: create — mint a new character owned by the caller (app-authored: import provenance null). Ownership
-// is scoped off `principal.userId` (the §7.1 source of truth — never a `users` read). The injected
-// `newCharacterId`/`now` keep it deterministic. The card is built from the wire input (defaults applied),
-// the `contentHash` is the FLATTEN of that card (NOT NULL column), and `character.updated` is emitted so the
-// embeddings indexer re-embeds. Re-reads with the avatar JOIN for the detail view.
+// verb: create — mint a new character owned by the caller. Ownership is scoped off `principal.userId` (the
+// §7.1 source of truth — never a `users` read). The injected `newCharacterId`/`now` keep it deterministic.
+// The card is built from the wire input (defaults applied), the `contentHash` is the FLATTEN of that card
+// (NOT NULL column), and `character.updated` is emitted so the embeddings indexer re-embeds. Import
+// provenance (`importedFrom`/`importHash`) is stamped when the optional `provenance` arrives (the import
+// composition-root wire — PD-43); app-authored cards omit it and the columns stay null. Re-reads with the
+// avatar JOIN for the detail view.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { CharacterNotFoundError } from "../contract/errors";
-import type { CreateCharacterParams } from "../contract/params";
+import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import { detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 import { cardContentHash } from "../substrate/content-hash";
 
+/** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
+ *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */
+function provenanceColumns(provenance: CharacterImportProvenance | undefined): {
+  readonly importedFrom: string | null;
+  readonly importHash: string | null;
+} {
+  if (provenance === undefined) {
+    return { importedFrom: null, importHash: null };
+  }
+  return { importedFrom: provenance.importedFrom, importHash: provenance.importHash };
+}
+
 export function createCreate(ctx: CharacterContext): CharacterService["create"] {
-  return async ({ principal, input }: CreateCharacterParams) => {
+  return async ({ principal, input, provenance }: CreateCharacterParams) => {
     const ownerId = principal.userId;
     const at = ctx.now();
     const characterId = ctx.newCharacterId();
+    const { importedFrom, importHash } = provenanceColumns(provenance);
 
     const card: CharacterCard = {
       name: input.name,
@@ -42,6 +57,8 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       handle: input.handle,
       ownerId,
       contentHash: cardContentHash(card),
+      importedFrom,
+      importHash,
       createdAt: at,
       ...card,
     });
