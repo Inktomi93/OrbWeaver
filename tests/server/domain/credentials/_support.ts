@@ -1,0 +1,141 @@
+// Shared test harness for the credentials domain (NOT a test file — no `.test` suffix, so test-layout
+// ignores it). Builds a real-db `CredentialContext` with: injected determinism (frozen clock + seeded
+// ids), the REAL AES-256-GCM `SecretBox` over a known key (so the AAD round-trip + wrong-AAD failure are
+// exercised for real, not mocked), the REAL `requireOwner` guard (so the owner-gate is the production
+// one), and FAKE recording provider/network ops (probe/inspect/fetchModels) — the sanctioned "fake at the
+// edges, inject at the root" doctrine (testing §3). The fakes RECORD their calls so tests assert behavior.
+
+import type {
+  CredentialHealth,
+  ResolvedCredential,
+} from "../../../../packages/contracts/src/credentials/index.ts";
+import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
+import type { EndpointInspection } from "../../../../packages/contracts/src/providers/index.ts";
+import type { Db } from "../../../../packages/db/src/client.ts";
+import { users } from "../../../../packages/db/src/schema/index.ts";
+import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
+import { castId } from "../../../../packages/kit/src/ids/index.ts";
+import { requireOwner } from "../../../../packages/server/src/domain/admin/index.ts";
+import type {
+  CredentialContext,
+  FetchModelsArgs,
+} from "../../../../packages/server/src/domain/credentials/contract/service.ts";
+import { createSecretBox } from "../../../../packages/server/src/infra/crypto/secrets.ts";
+import { createFrozenClock } from "../../../support/clock.ts";
+
+const FROZEN_AT = 1_750_000_000_000;
+// A fixed 32-byte key so the SecretBox is enabled + deterministic across runs.
+const TEST_KEY = Buffer.alloc(32, 7);
+
+// A PROCESS-MONOTONIC credential-id counter (deterministic, no clock/random — testing §3). Per-harness
+// reset would collide across tests in a file: the health throttle Map is module-scope (per-process), so a
+// reused credentialId would hit a stale throttle window. A monotonic counter keeps every minted id unique.
+let credentialIdCounter = 0;
+function nextCredentialId(): UserCredentialId {
+  credentialIdCounter += 1;
+  return castId<UserCredentialId>(`user_credential_${credentialIdCounter}`);
+}
+
+interface InspectCall {
+  readonly credential: ResolvedCredential;
+  readonly model: string;
+}
+
+/** The harness: the CredentialContext + the recorders/setters for the faked injected ops. */
+export interface CredentialHarness {
+  readonly ctx: CredentialContext;
+  /** Credentials handed to the faked `probe` op (testHealth). */
+  readonly probed: ResolvedCredential[];
+  /** Set the next `probe` result. */
+  readonly setProbeResult: (result: CredentialHealth) => void;
+  /** Args handed to the faked `inspect` op. */
+  readonly inspected: InspectCall[];
+  /** Args handed to the faked `fetchModels` op. */
+  readonly fetched: FetchModelsArgs[];
+  /** Set the next `fetchModels` result. */
+  readonly setModels: (models: string[]) => void;
+  /** Set the next `inspect` result. */
+  readonly setInspectResult: (result: EndpointInspection) => void;
+  /** Advance the injected clock (e.g. past the 60s health throttle window). */
+  readonly advance: (ms: number) => void;
+}
+
+interface SeedUserOverrides {
+  readonly id?: string;
+  readonly handle?: string;
+  readonly role?: UserRole;
+}
+
+/** Insert a `users` row (the FK target for `user_credentials.ownerId`); returns its branded id. */
+export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
+  const id = castId<UserId>(overrides.id ?? `user_${overrides.role ?? "x"}`);
+  await db.insert(users).values({
+    id,
+    handle: castId<Handle>(overrides.handle ?? id),
+    role: overrides.role ?? "user",
+    enabled: true,
+    passwordHash: null,
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+/** Build a Principal for a user id + role (cookie-resolved by default). */
+export function principal(userId: UserId, role: UserRole = "user"): Principal {
+  return { userId, role, handle: castId<Handle>(userId), externalId: null, via: "cookie" };
+}
+
+/** Build the CredentialContext over a real db with the real SecretBox/guard + recording fake ops. */
+export function makeHarness(db: Db): CredentialHarness {
+  const clock = createFrozenClock(FROZEN_AT);
+  const probed: ResolvedCredential[] = [];
+  const inspected: InspectCall[] = [];
+  const fetched: FetchModelsArgs[] = [];
+  let probeResult: CredentialHealth = { status: "ok", checkedAt: FROZEN_AT };
+  let models: string[] = [];
+  let inspectResult: EndpointInspection = {
+    ok: true,
+    request: { url: "https://example.test/v1/chat/completions", headers: {}, body: "{}" },
+    response: { status: 200, statusText: "OK", bodyPreview: "{}" },
+  };
+
+  const ctx: CredentialContext = {
+    db,
+    now: (): number => clock.now(),
+    newCredentialId: (): UserCredentialId => nextCredentialId(),
+    box: createSecretBox(TEST_KEY),
+    requireOwner,
+    probe: (credential: ResolvedCredential): Promise<CredentialHealth> => {
+      probed.push(credential);
+      return Promise.resolve(probeResult);
+    },
+    inspect: (req: InspectCall): Promise<EndpointInspection> => {
+      inspected.push(req);
+      return Promise.resolve(inspectResult);
+    },
+    fetchModels: (args: FetchModelsArgs): Promise<string[]> => {
+      fetched.push(args);
+      return Promise.resolve(models);
+    },
+  };
+
+  return {
+    ctx,
+    probed,
+    setProbeResult: (result: CredentialHealth): void => {
+      probeResult = result;
+    },
+    inspected,
+    fetched,
+    setModels: (next: string[]): void => {
+      models = next;
+    },
+    setInspectResult: (result: EndpointInspection): void => {
+      inspectResult = result;
+    },
+    advance: (ms: number): void => {
+      clock.advance(ms);
+    },
+  };
+}

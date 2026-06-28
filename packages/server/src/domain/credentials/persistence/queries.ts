@@ -1,0 +1,233 @@
+// domain/credentials/persistence/queries — ALL db access for `user_credentials` (queries only; no crypto,
+// no I/O, no in-memory state — `persistence-no-io` / `persistence-no-in-memory-state`). The SecretBox
+// seal/open happens in the VERBS (business logic); this slot stores/reads the sealed bytes. `fetchOwned`
+// (@orb/db/kit) is the owner-scoped single-row read shared by every single-owned table — a non-owner gets
+// `undefined`, never another user's row (the ownership belt is the WHERE, not a post-filter). `toCredentialView`
+// is the ONLY projection to the wire shape — it DROPS `ciphertext`/`iv`/`tag` (the plaintext-never-leaks
+// belt, invariant #4). `CredentialRow` is file-local (drizzle `$inferSelect`) — never exported (no-inline-types).
+
+import type { CredProvider, ProviderMetadata } from "@orb/contracts/credentials";
+import type { Db } from "@orb/db";
+import { userCredentials } from "@orb/db";
+import { batchMany, fetchOwned } from "@orb/db/kit";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import { and, asc, eq } from "drizzle-orm";
+import type { Sealed } from "#infra/crypto";
+import type { CredentialView } from "../contract/views";
+
+type CredentialRow = typeof userCredentials.$inferSelect;
+
+const LIMIT_ONE = 1;
+
+/** Owner-scoped fetch of one credential by id (active OR inactive) — `undefined` if missing/not-owned. */
+export function fetchOwnedCredential(
+  db: Db,
+  ownerId: UserId,
+  credentialId: UserCredentialId,
+): Promise<CredentialRow | undefined> {
+  return fetchOwned(db, userCredentials, credentialId, ownerId);
+}
+
+/** The user's ACTIVE credential for a provider, or `undefined`. The partial unique index guarantees at
+ *  most one active row per `(owner, provider)`, so this is at most one row. */
+export async function loadActiveCredential(
+  db: Db,
+  ownerId: UserId,
+  provider: CredProvider,
+): Promise<CredentialRow | undefined> {
+  const rows = await db
+    .select()
+    .from(userCredentials)
+    .where(
+      and(
+        eq(userCredentials.ownerId, ownerId),
+        eq(userCredentials.provider, provider),
+        eq(userCredentials.active, true),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** Every credential the user owns, ordered `(provider, createdAt)` for a stable list view. */
+export function listOwnedCredentials(db: Db, ownerId: UserId): Promise<CredentialRow[]> {
+  return db
+    .select()
+    .from(userCredentials)
+    .where(eq(userCredentials.ownerId, ownerId))
+    .orderBy(asc(userCredentials.provider), asc(userCredentials.createdAt));
+}
+
+/** The existing row in this `(owner, provider, label)` slot (the rotate-vs-insert decision), or `undefined`. */
+export async function findSlotLabelRow(
+  db: Db,
+  ownerId: UserId,
+  provider: CredProvider,
+  label: string,
+): Promise<{ id: UserCredentialId } | undefined> {
+  const rows = await db
+    .select({ id: userCredentials.id })
+    .from(userCredentials)
+    .where(
+      and(
+        eq(userCredentials.ownerId, ownerId),
+        eq(userCredentials.provider, provider),
+        eq(userCredentials.label, label),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** Does the user already have any credential in this `(owner, provider)` slot? (first-in-slot ⇒ active). */
+export async function hasAnyInSlot(
+  db: Db,
+  ownerId: UserId,
+  provider: CredProvider,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: userCredentials.id })
+    .from(userCredentials)
+    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, provider)))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/** Rotate the sealed secret in place (preserve id/active; CLEAR revocation — a fresh key voids it). */
+export function rotateSealed(
+  db: Db,
+  args: {
+    readonly credentialId: UserCredentialId;
+    readonly sealed: Sealed;
+    readonly metadata: ProviderMetadata;
+    readonly now: number;
+  },
+): Promise<unknown> {
+  return db
+    .update(userCredentials)
+    .set({
+      ciphertext: args.sealed.ciphertext,
+      iv: args.sealed.iv,
+      tag: args.sealed.tag,
+      metadata: args.metadata,
+      revokedAt: null,
+      updatedAt: args.now,
+    })
+    .where(eq(userCredentials.id, args.credentialId));
+}
+
+/** Insert a fresh sealed credential row. Throws the libSQL constraint error on a slot collision (the
+ *  TOCTOU loser of two concurrent first-adds) — the caller classifies it via `isConstraintViolation`. */
+export function insertSealed(
+  db: Db,
+  args: {
+    readonly id: UserCredentialId;
+    readonly ownerId: UserId;
+    readonly provider: CredProvider;
+    readonly label: string;
+    readonly sealed: Sealed;
+    readonly metadata: ProviderMetadata;
+    readonly active: boolean;
+    readonly now: number;
+  },
+): Promise<unknown> {
+  return db.insert(userCredentials).values({
+    id: args.id,
+    ownerId: args.ownerId,
+    provider: args.provider,
+    label: args.label,
+    ciphertext: args.sealed.ciphertext,
+    iv: args.sealed.iv,
+    tag: args.sealed.tag,
+    active: args.active,
+    revokedAt: null,
+    metadata: args.metadata,
+    createdAt: args.now,
+    updatedAt: args.now,
+  });
+}
+
+/** Promote `credentialId` to active, atomically demoting any other active row in its `(owner, provider)`
+ *  slot. One `batch` (demote-then-promote) — between the two there are zero active rows, so the partial
+ *  unique index never sees a two-active state even under a concurrent promote. */
+export function promoteActive(
+  db: Db,
+  args: {
+    readonly ownerId: UserId;
+    readonly credentialId: UserCredentialId;
+    readonly provider: CredProvider;
+    readonly now: number;
+  },
+): Promise<unknown> {
+  return db.batch(
+    batchMany([
+      db
+        .update(userCredentials)
+        .set({ active: false, updatedAt: args.now })
+        .where(
+          and(
+            eq(userCredentials.ownerId, args.ownerId),
+            eq(userCredentials.provider, args.provider),
+          ),
+        ),
+      db
+        .update(userCredentials)
+        .set({ active: true, updatedAt: args.now })
+        .where(eq(userCredentials.id, args.credentialId)),
+    ]),
+  );
+}
+
+/** Delete a credential (owner-scoped). Nothing references credential rows by FK, so a plain DELETE is the
+ *  whole operation (a chat resolves the user's ACTIVE credential at turn time — no per-chat pin). */
+export function deleteOwnedCredential(
+  db: Db,
+  ownerId: UserId,
+  credentialId: UserCredentialId,
+): Promise<unknown> {
+  return db
+    .delete(userCredentials)
+    .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
+}
+
+/** Mark a credential revoked by id — the RUNNER path (NO owner scope; the runner proved access by holding
+ *  the id from a completed turn). Sets `revokedAt` only (orbweaver's schema has no `revoked_reason` column;
+ *  the reason is logged, never persisted). Idempotent. */
+export function setRevokedById(
+  db: Db,
+  credentialId: UserCredentialId,
+  revokedAt: number,
+): Promise<unknown> {
+  return db
+    .update(userCredentials)
+    .set({ revokedAt, updatedAt: revokedAt })
+    .where(eq(userCredentials.id, credentialId));
+}
+
+/** Clear a revocation (owner-scoped) — the user knows the key is good again. */
+export function clearRevokedOwned(
+  db: Db,
+  ownerId: UserId,
+  credentialId: UserCredentialId,
+  now: number,
+): Promise<unknown> {
+  return db
+    .update(userCredentials)
+    .set({ revokedAt: null, updatedAt: now })
+    .where(and(eq(userCredentials.id, credentialId), eq(userCredentials.ownerId, ownerId)));
+}
+
+/** Project a row to the wire-shape `CredentialView` — DROPS every secret field (ciphertext/iv/tag). The
+ *  plaintext-never-leaks belt lives HERE (invariant #4), so no verb can return a raw row by accident. */
+export function toCredentialView(row: CredentialRow): CredentialView {
+  return {
+    id: row.id,
+    provider: row.provider,
+    label: row.label,
+    active: row.active,
+    hasMetadata: row.metadata !== null,
+    revokedAt: row.revokedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
