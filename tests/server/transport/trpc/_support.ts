@@ -1,0 +1,56 @@
+// Shared substrate for the transport/trpc tests (NOT a test file — the test-layout gate collects only
+// *.test kinds; this is imported, never run). Transport is a THIN driver, so the unit tests inject a FAKE
+// `Services` bundle (only the verbs under test, as typed `vi.fn`s) + a constructed `Principal` + a no-op
+// rate-limit gate, and drive the real `appRouter` through `createCaller` — exercising the real middleware
+// ladder + router wiring without a db or HTTP. (No determinism seam needed: transport reads no clock.)
+
+import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { Context, RateLimitGate, Services } from "@orb/server/transport/trpc";
+import { createCaller } from "@orb/server/transport/trpc";
+
+/** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */
+export function principal(role: UserRole, overrides: Partial<Principal> = {}): Principal {
+  const userId = overrides.userId ?? castId<UserId>(`user_${role}`);
+  return {
+    userId,
+    role,
+    handle: castId<Handle>(userId),
+    externalId: null,
+    via: "header",
+    ...overrides,
+  };
+}
+
+/** A rate-limit gate that always allows (the default; the rate-limit primitive is a separate slice). */
+export const allowAll: RateLimitGate = { enforce: () => Promise.resolve() };
+
+/** A rate-limit gate that rejects with the given error (to prove the middleware wires the injected gate). */
+export function denyRateLimit(error: Error): RateLimitGate {
+  return { enforce: () => Promise.reject(error) };
+}
+
+/** Build a transport Context from only the parts a test cares about; the fake services are a partial cast
+ *  (a thin router calls exactly one verb, so the unstubbed remainder is never reached). */
+export function makeContext(parts: {
+  auth?: Principal | null;
+  services?: { [K in keyof Services]?: Partial<Services[K]> };
+  rateLimit?: RateLimitGate;
+  csrfHeaderPresent?: boolean;
+  clientIp?: string | null;
+}): Context {
+  return {
+    auth: parts.auth ?? null,
+    // biome-ignore lint/suspicious/noExplicitAny: a thin router reaches exactly one verb; the rest of the partial Services is never read.
+    services: (parts.services ?? {}) as any as Services,
+    rateLimit: parts.rateLimit ?? allowAll,
+    csrfHeaderPresent: parts.csrfHeaderPresent ?? false,
+    clientIp: parts.clientIp ?? "127.0.0.1",
+  };
+}
+
+/** The server-side caller through the full middleware ladder. */
+export function caller(ctx: Context): ReturnType<typeof createCaller> {
+  return createCaller(ctx);
+}
