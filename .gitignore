@@ -35,6 +35,9 @@ coverage/
 # architecture docs in docs/architecture/reports/ (the ledger, ENFORCEMENT, etc.).
 /reports/
 .stryker-tmp/
+# Stryker's per-worker setup files leak to the repo root (the mutation runner); generated + transient,
+# never committed. Biome (useIgnoreFile) skips them too, so they stop reddening the gate.
+/stryker-setup-*.js
 
 # --- caches ---
 .turbo/

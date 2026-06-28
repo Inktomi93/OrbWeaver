@@ -20,16 +20,34 @@
 #   • pre-push → `pnpm check` AND `pnpm test` (the unit/integration/contract run, ~3.5min) — the full
 #     green-to-commit bar before code leaves the machine; kept off pre-commit only for commit speed.
 # Bypass for genuine emergencies only: `git commit --no-verify` / `git push --no-verify`.
+#
+# OUTPUT is tuned for agent/CI consumption (the recurring pain: lefthook's truecolor banner blew the
+# commit output to ~30KB of ANSI, which truncates to a useless preview — you can't even tell the commit
+# landed). `colors:false` drops lefthook's own ANSI; `output` keeps only the summary + a FAILED command's
+# output (no banner, no per-step chrome); `NO_COLOR:"1"` on each command makes the gate tools
+# (Biome/tsc/depcruise/vitest) emit plain, greppable text. A pass is ~1 line; a fail shows the actual
+# errors and nothing else. An interactive `pnpm check` in a TTY is unaffected (still colorizes).
+colors: false
+output:
+  - summary
+  - failure
+  - execution_out
 
 pre-commit:
   commands:
     check:
       run: pnpm check
+      env:
+        NO_COLOR: "1"
 
 pre-push:
   piped: true
   commands:
     check:
       run: pnpm check
+      env:
+        NO_COLOR: "1"
     test:
       run: pnpm test
+      env:
+        NO_COLOR: "1"
