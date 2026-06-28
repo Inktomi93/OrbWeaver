@@ -57,7 +57,7 @@ function chatReq(overrides: Partial<ChatRequest> = {}): ChatRequest {
     capability: CAP,
     params: {},
     systemPrompt: { static: "you are terse", dynamic: "" },
-    history: [{ role: "user", content: "hi" }],
+    history: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
     ...overrides,
   } as ChatRequest;
 }

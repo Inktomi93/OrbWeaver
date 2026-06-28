@@ -49,7 +49,7 @@ function makeRequest(overrides: Partial<OpenRouterChatRequest> = {}): OpenRouter
     capability: CAPABILITY,
     params: { temperature: 0.7, effort: "high" },
     systemPrompt: { static: "You are a bot.", dynamic: "Be terse." },
-    history: [{ role: "user", content: "Hi" }],
+    history: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
   };
   return { ...base, ...overrides };
 }

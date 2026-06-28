@@ -16,6 +16,7 @@ import type {
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
+  ChatHistoryMessage,
   ChatResult,
   ChatUsage,
   OpenRouterChatRequest,
@@ -25,6 +26,7 @@ import { normalizeFinishReason, ProviderError } from "../../../../contract";
 import { resolveChat } from "../../../../resolve-chat";
 import {
   ANTHROPIC_CACHE_5M,
+  chatHistoryText,
   effortToResponsesReasoning,
   isAnthropicModel,
   providerErrorFromHttp,
@@ -70,15 +72,14 @@ interface OpenRouterResponsesClient {
 // Assemble the Responses `input` from the assembled view. The SDK's `EasyInputMessage` carries no per-
 // participant `name` (unlike chat-completions), so the completion-name label is dropped on this path — see
 // the FLAG in index.ts. An assistant-first view gets a placeholder user turn prepended.
-function buildResponsesInput(
-  history: ReadonlyArray<{ readonly role: "user" | "assistant"; readonly content: string }>,
-): EasyInputMessage[] {
+function buildResponsesInput(history: readonly ChatHistoryMessage[]): EasyInputMessage[] {
   const items: EasyInputMessage[] = [];
   for (const turn of history) {
-    if (turn.content.trim().length === 0) {
+    const text = chatHistoryText(turn.content);
+    if (text.trim().length === 0) {
       continue;
     }
-    items.push({ role: turn.role, content: turn.content });
+    items.push({ role: turn.role, content: text });
   }
   if (items[0]?.role === "assistant") {
     items.unshift({ role: USER_ROLE, content: ASSISTANT_FIRST_PLACEHOLDER });

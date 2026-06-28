@@ -152,6 +152,11 @@ export const modelCapabilitySchema = z.object({
     stop: z.boolean().optional(),
   }),
   verbosity: z.array(verbositySchema).optional(),
+  /** Input-modality axis (D45). `vision` = the model accepts image content-parts; absent ⇒ no vision.
+   *  The GATE for the multimodal send: assembly drops image parts for a model whose `input.vision` is not
+   *  true (a non-vision model never receives them). Optional so existing constructors default to no-vision;
+   *  a vision-capable model declares `input: { vision: true }`. */
+  input: z.object({ vision: z.boolean() }).optional(),
   output: z.object({ maxTokens: rangeSchema }),
   context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
 });

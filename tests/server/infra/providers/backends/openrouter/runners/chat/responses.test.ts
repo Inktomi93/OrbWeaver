@@ -39,7 +39,7 @@ function makeRequest(overrides: Partial<OpenRouterChatRequest> = {}): OpenRouter
     capability: CAPABILITY,
     params: { effort: "high" },
     systemPrompt: { static: "Sys.", dynamic: "" },
-    history: [{ role: "user", content: "Hi" }],
+    history: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
   };
   return { ...base, ...overrides };
 }
@@ -150,8 +150,8 @@ describe("runResponsesTurn — wire shaping", () => {
       client,
       makeRequest({
         history: [
-          { role: "assistant", content: "Greetings" },
-          { role: "user", content: "Hi" },
+          { role: "assistant", content: [{ type: "text", text: "Greetings" }] },
+          { role: "user", content: [{ type: "text", text: "Hi" }] },
         ],
       }),
       DEPS,

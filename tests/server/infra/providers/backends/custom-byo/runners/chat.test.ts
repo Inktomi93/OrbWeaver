@@ -56,7 +56,7 @@ function makeRequest(overrides: Partial<ChatCompletionsRequest> = {}): ChatCompl
     capability: CAPABILITY,
     params: { temperature: 0.7 },
     systemPrompt: { static: "You are a bot.", dynamic: "" },
-    history: [{ role: "user", content: "Hi" }],
+    history: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
     ...overrides,
   };
 }

@@ -40,9 +40,9 @@ describe("buildSystemMessage", () => {
 describe("buildHistoryMessages", () => {
   test("drops empty-content turns and carries the per-participant name", () => {
     const messages = buildHistoryMessages([
-      { role: "user", content: "hi", name: "Alice" },
-      { role: "assistant", content: "   " },
-      { role: "assistant", content: "yo" },
+      { role: "user", content: [{ type: "text", text: "hi" }], name: "Alice" },
+      { role: "assistant", content: [{ type: "text", text: "   " }] },
+      { role: "assistant", content: [{ type: "text", text: "yo" }] },
     ]);
     expect(messages).toEqual([
       { role: "user", content: "hi", name: "Alice" },

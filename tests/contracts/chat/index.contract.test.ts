@@ -25,6 +25,7 @@ import {
   isChatBusEventType,
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
+  messageContentBlockSchema,
   messageRoleSchema,
   messageSlotSchema,
   openingPolicySchema,
@@ -416,4 +417,14 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
   expect(assembled.afterHistory[0]?.role).toBe("user");
   expect(entry.inject?.role).toBe("system");
   expect(sectionPreview.half).toBe("static");
+});
+
+test("messageContentBlockSchema — round-trips its three kinds (D44)", () => {
+  for (const block of [
+    { kind: "markdown", md: "hi" },
+    { kind: "media", media: "image", src: { kind: "external", url: "https://x/y.png" }, alt: "y" },
+    { kind: "html-card", html: "<div></div>", css: ".a{}", trust: "tierB" },
+  ]) {
+    expect(messageContentBlockSchema.parse(block)).toEqual(block);
+  }
 });

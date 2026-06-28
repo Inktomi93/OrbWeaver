@@ -599,8 +599,9 @@ ModelCapability = {
     minP?: Range; seed?: boolean; logitBias?: boolean; stop?: boolean;
   },
   verbosity?: Verbosity[],                               // REAL axis (OpenAI) — not vapor
-  input: { vision: boolean },                            // input-modality axis (D45) — accepts image
-                                                         //   content-parts? the GATE for the multimodal send
+  input?: { vision: boolean },                           // input-modality axis (D45) — accepts image
+                                                         //   content-parts? the GATE for the multimodal send.
+                                                         //   optional: absent ⇒ no vision; capable models set it
   output: { maxTokens: Range },
   context: { window: number; supports1M?: boolean },
 }
