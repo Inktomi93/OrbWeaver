@@ -1,10 +1,14 @@
 // verb: attachCardTagByName — the internal resolve-or-create-by-name card-tag attach. The ONE home for every
 // by-name attach: character's `AttachCardTagOp` (bulkAddCardTag), import's card-tag carry, and the seeded
-// default cards all route here (no parallel tag-attach flow). Two steps, both race-safe + idempotent:
-//   1. RESOLVE-OR-CREATE the owner's tag by NAME — try-insert (no-op on the `(ownerId, name)` unique), then
-//      fall back to the existing row. The unique index is the race guard: a concurrent create loses the INSERT
-//      (empty RETURNING) and re-reads the winner — never a duplicate tag (tag.md invariant #1). `source` is
-//      stamped ONLY on first create (a tag's source is set once); an existing tag keeps its source.
+// default cards all route here (no parallel tag-attach flow) — THE chokepoint where every source's tag name is
+// canonicalized. The name is run through `normalizeTagName` (trim + whitespace-collapse, display casing kept)
+// FIRST, then resolved case-INsensitively, so "Female"/" female "/"FEMALE" all collapse onto one tag row
+// regardless of the source. Two steps, both race-safe + idempotent:
+//   1. RESOLVE-OR-CREATE the owner's tag by NAME — try-insert (no-op on the `(ownerId, lower(name))` functional
+//      unique), then fall back to the existing row via a `lower(name)` match. The functional unique is the race
+//      guard: a concurrent OR case-variant create loses the INSERT (empty RETURNING) and re-reads the winner —
+//      never a duplicate tag (tag.md invariant #1). `source` is stamped ONLY on first create (a tag's source is
+//      set once); an existing tag keeps its source.
 //   2. ATTACH it to the character at `status`, reporting whether it was NEWLY attached (the boolean
 //      character.bulkAddCardTag counts as updated-vs-skipped). The attach is `onConflictDoNothing` → a
 //      re-attach NEVER downgrades an already-`accepted` row to `pending` (a card re-import can't un-accept).
@@ -15,6 +19,7 @@
 // name is a no-op (returns false) — the boundary guard against minting an empty-named tag.
 
 import { DomainOperationError } from "@orb/kit/errors";
+import { normalizeTagName } from "@orb/kit/tag";
 import type { AttachCardTagByNameParams } from "../contract/params";
 import type { TagContext, TagService } from "../contract/service";
 import { attachCharacterTag } from "../persistence/junctions";
@@ -28,7 +33,7 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
     source = "manual",
     status = "accepted",
   }: AttachCardTagByNameParams): Promise<boolean> => {
-    const name = tagName.trim();
+    const name = normalizeTagName(tagName);
     if (name === "") {
       return false;
     }
@@ -41,7 +46,8 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
     });
     const tagId = created ?? (await findTagIdByName(ctx.db, ownerId, name));
     if (tagId === undefined) {
-      // Unreachable: the INSERT conflicted on `(ownerId, name)`, so an owned row with that name exists.
+      // Unreachable: the INSERT conflicted on `(ownerId, lower(name))`, so an owned row that folds to this
+      // name exists; the `lower(name)` lookup re-reads it.
       throw new DomainOperationError(
         "tag_resolve_failed",
         `resolve-or-create tag "${name}" found no row after a unique conflict`,

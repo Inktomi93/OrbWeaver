@@ -41,9 +41,12 @@ function toText(input: Uint8Array | string): string {
 }
 
 /** Pull the card's author-shipped tag names off the raw card JSON (V2/V3 `data.tags`, or a bare top-level
- *  `tags`), normalized like ST's `importTags`: trimmed, empties dropped, deduped case-insensitively (first
- *  occurrence's casing kept). orbweaver has no ST-internal ROOT/TAVERN tags to exclude. Non-strings are
- *  skipped (tolerant IN). The result feeds the card/pending junction carry, NOT the canonical card. */
+ *  `tags`) — RAW strings, no normalization here. Only non-strings are skipped (tolerant IN). Trim +
+ *  whitespace-collapse + case-insensitive dedupe are NOT done here on purpose: the tag resolve-or-create
+ *  chokepoint (`@orb/kit/tag`'s `normalizeTagName` + the `(ownerId, lower(name))` functional unique) owns the
+ *  one canonicalization, so the import loop attaching each raw name idempotently collapses within-card AND
+ *  cross-card dupes there — one home, no second normalize knob. Feeds the card/pending junction carry, NOT
+ *  the canonical card. */
 function extractCardTags(raw: unknown): string[] {
   if (typeof raw !== "object" || raw === null) {
     return [];
@@ -56,21 +59,7 @@ function extractCardTags(raw: unknown): string[] {
   const fromData = Array.isArray(data["tags"]) ? data["tags"] : [];
   const rootTags = root["tags"];
   const candidate = fromData.length > 0 || !Array.isArray(rootTags) ? fromData : rootTags;
-  const seen = new Set<string>();
-  const names: string[] = [];
-  for (const entry of candidate) {
-    if (typeof entry !== "string") {
-      continue;
-    }
-    const name = entry.trim();
-    const key = name.toLowerCase();
-    if (name === "" || seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    names.push(name);
-  }
-  return names;
+  return candidate.filter((entry): entry is string => typeof entry === "string");
 }
 
 /** Parse already-decoded card JSON text → the canonical card + its tags, or null on malformed JSON /

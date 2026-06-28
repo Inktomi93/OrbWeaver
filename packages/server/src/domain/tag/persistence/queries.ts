@@ -52,9 +52,10 @@ export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
     .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
 }
 
-/** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, name)` unique conflict, and RETURN the new id —
- *  or `undefined` if the row already existed (a prior/concurrent create won the unique). The unique index is
- *  the race guard, so no duplicate tag is ever minted (tag.md invariant #1); the caller falls back to
+/** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, lower(name))` functional unique conflict, and
+ *  RETURN the new id — or `undefined` if the row already existed (a prior/concurrent OR case-variant create
+ *  won the unique). The functional unique is the race guard, so no duplicate tag is ever minted (tag.md
+ *  invariant #1); the caller falls back to
  *  {@link findTagIdByName} for the existing row. `source` is the provenance stamped ONLY on this first create
  *  (a tag's source is set once); an existing row's source is left untouched by the no-op conflict. */
 export async function insertTagIfAbsent(args: {
@@ -65,16 +66,20 @@ export async function insertTagIfAbsent(args: {
   readonly source: TagSource;
 }): Promise<TagId | undefined> {
   const { db, ownerId, name, tagId, source } = args;
+  // Conflict target is the `(ownerId, lower(name))` FUNCTIONAL unique — so a case-variant ("Female" vs
+  // "female") no-ops onto the existing row exactly like an exact-name dup. The caller passes an
+  // already-`normalizeTagName`d name; the fold is the case-insensitive half.
   const inserted = await db
     .insert(tags)
     .values({ id: tagId, ownerId, name, source })
-    .onConflictDoNothing({ target: [tags.ownerId, tags.name] })
+    .onConflictDoNothing({ target: [tags.ownerId, sql`lower(${tags.name})`] })
     .returning({ id: tags.id });
   return inserted[0]?.id;
 }
 
-/** The owner's tag id for `name`, or `undefined` — owner-scoped (a different owner's same-name tag is never
- *  returned; the `(ownerId, name)` predicate is in the WHERE, never a post-filter). */
+/** The owner's tag id whose name folds to `name` (CASE-INSENSITIVE — `lower(name)` both sides, matching the
+ *  functional unique), or `undefined` — owner-scoped (a different owner's same-name tag is never returned; the
+ *  `(ownerId, lower(name))` predicate is in the WHERE, never a post-filter). */
 export async function findTagIdByName(
   db: Db,
   ownerId: UserId,
@@ -83,7 +88,7 @@ export async function findTagIdByName(
   const rows = await db
     .select({ id: tags.id })
     .from(tags)
-    .where(and(eq(tags.ownerId, ownerId), eq(tags.name, name)));
+    .where(and(eq(tags.ownerId, ownerId), sql`lower(${tags.name}) = lower(${name})`));
   return rows[0]?.id;
 }
 

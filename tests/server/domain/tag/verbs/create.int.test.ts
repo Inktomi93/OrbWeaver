@@ -45,4 +45,27 @@ describe("createTag", () => {
       svc.createTag({ principal: principal(b), input: { name: "shared" } }),
     ).resolves.toMatchObject({ name: "shared" });
   });
+
+  test("normalizes the name before insert (trim + whitespace-collapse, casing kept)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+
+    const view = await svc.createTag({
+      principal: principal(owner),
+      input: { name: "  Female   Knight  " },
+    });
+    expect(view.name).toBe("Female Knight");
+  });
+
+  test("a case-variant duplicate is a conflict (the case-insensitive functional unique)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    await svc.createTag({ principal: principal(owner), input: { name: "Female" } });
+
+    await expect(
+      svc.createTag({ principal: principal(owner), input: { name: "female" } }),
+    ).rejects.toThrow(DomainConflictError);
+  });
 });

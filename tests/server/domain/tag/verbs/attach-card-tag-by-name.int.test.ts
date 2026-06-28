@@ -7,7 +7,7 @@ import { createTagService } from "@orb/server/domain/tag";
 import { eq } from "drizzle-orm";
 import { describe, expect, test } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { makeTagHarness, seedCharacter, seedTag, seedUser } from "../_support.ts";
+import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 describe("attach card tag by name", () => {
   test("a brand-new name creates the owner's tag, attaches it accepted, and reports newly-attached", async () => {
@@ -183,5 +183,78 @@ describe("attach card tag by name", () => {
       false,
     );
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(0);
+  });
+
+  test("normalizes whitespace (trim + collapse) before resolve — ' Mentor ' and 'mentor' are ONE tag", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "  Mentor  " });
+    await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "mentor" });
+
+    const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+    expect(tagRows).toHaveLength(1);
+    // First-write casing + whitespace-collapse is the stored display form.
+    expect(tagRows[0]?.name).toBe("Mentor");
+    const junction = await db
+      .select()
+      .from(characterTags)
+      .where(eq(characterTags.characterId, characterId));
+    expect(junction).toHaveLength(1);
+  });
+});
+
+// The unified chokepoint: every SOURCE (manual createTag + card-import attachCardTagByName) canonicalizes the
+// name the same way + dedupes on the `(ownerId, lower(name))` functional unique, so a manual "Female" and a
+// card "female" collapse onto ONE row — the whole point of this refactor.
+describe("cross-source tag dedupe", () => {
+  test("'Female' via createTag + 'female' via attachCardTagByName → ONE tag (the second resolves to the first)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    const manual = await svc.createTag({ principal: principal(owner), input: { name: "Female" } });
+    await svc.attachCardTagByName({
+      ownerId: owner,
+      characterId,
+      tagName: "female",
+      source: "card",
+      status: "pending",
+    });
+
+    const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+    expect(tagRows).toHaveLength(1);
+    expect(tagRows[0]?.id).toBe(manual.id); // the card attach reused the manually-created row
+    expect(tagRows[0]?.name).toBe("Female"); // first-write display casing kept
+
+    const junction = await db
+      .select()
+      .from(characterTags)
+      .where(eq(characterTags.characterId, characterId));
+    expect(junction).toHaveLength(1);
+    expect(junction[0]?.tagId).toBe(manual.id);
+  });
+
+  test("the `(ownerId, lower(name))` functional unique is enforced — a case-variant createTag is a conflict", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    // Seed a card-sourced "female", then a manual create of "FEMALE" must collide on the folded key.
+    await svc.attachCardTagByName({
+      ownerId: owner,
+      characterId,
+      tagName: "female",
+      source: "card",
+    });
+    await expect(
+      svc.createTag({ principal: principal(owner), input: { name: "FEMALE" } }),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
   });
 });

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "95a9193b-3bfc-4f04-a2ee-2a49141b34cf",
+  "id": "cd6917fa-19a4-482e-9a44-1f781e12e507",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2685,7 +2685,12 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "keyword_cooccurrence_canonical_check": {
+          "name": "keyword_cooccurrence_canonical_check",
+          "value": "keyword_a < keyword_b"
+        }
+      }
     },
     "theme_clusters": {
       "name": "theme_clusters",
@@ -4994,7 +4999,7 @@
       "indexes": {
         "tags_owner_name_unique": {
           "name": "tags_owner_name_unique",
-          "columns": ["owner_id", "name"],
+          "columns": ["owner_id", "lower(\"name\")"],
           "isUnique": true
         }
       },
@@ -5701,6 +5706,14 @@
     "columns": {}
   },
   "internal": {
-    "indexes": {}
+    "indexes": {
+      "tags_owner_name_unique": {
+        "columns": {
+          "lower(\"name\")": {
+            "isExpression": true
+          }
+        }
+      }
+    }
   }
 }
