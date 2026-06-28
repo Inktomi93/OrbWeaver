@@ -121,6 +121,13 @@ const ringStream = new Writable({
 export const logger: Logger = pino(
   {
     level: env.LOG_LEVEL,
+    // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable + readable in any
+    // viewer/aggregator without a level map. pino-pretty renders both; this is for the raw JSON.
+    formatters: { level: (label) => ({ level: label }) },
+    // ISO-8601 timestamps in the JSON (aggregator-friendly + human-readable raw) over epoch ms.
+    timestamp: pino.stdTimeFunctions.isoTime,
+    // An Error logged under `err` serializes to { type, message, stack } — full traces, not `{}`.
+    serializers: { err: pino.stdSerializers.err },
     // Auth/secrets only — RP bodies are never logged, so there is nothing else to scrub. Top-level keys +
     // one-level `*.x` wildcards: pino redact is NOT recursive, so a bare "apiKey" misses a nested
     // `{ credential: { apiKey } }`. Defense-in-depth (current call sites log ids/source, never plaintext).

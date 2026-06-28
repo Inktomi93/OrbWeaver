@@ -56,6 +56,6 @@ ENGINES_PID=$!
 # stamps, and --singleLine so each log (with its bound requestId/userId) is ONE
 # scannable line instead of an exploded object. Prod (`pnpm start`) stays raw JSON.
 "$BIN/tsx" watch "$REPO/packages/server/src/entry/index.ts" \
-  > >("$BIN/pino-pretty" --colorize --translateTime 'SYS:HH:MM:ss.l' --ignore 'pid,hostname' --singleLine) &
+  > >("$BIN/pino-pretty" --config "$REPO/scripts/dev/pino-pretty.json") &
 SERVER_PID=$!
 wait "$SERVER_PID"

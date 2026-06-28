@@ -1,0 +1,9 @@
+{
+  "colorize": true,
+  "translateTime": "SYS:HH:MM:ss.l",
+  "ignore": "pid,hostname,requestId,component",
+  "singleLine": true,
+  "messageFormat": "{if requestId}[{requestId}] {end}{if component}[{component}] {end}{msg}",
+  "errorLikeObjectKeys": ["err", "error"],
+  "customColors": "err:red,error:red,warn:yellow,info:green,debug:blue,trace:gray"
+}
