@@ -1,0 +1,19 @@
+// verb: get — one owned character by id (owner-scoped). Throws `CharacterNotFoundError` when it doesn't
+// exist OR isn't the caller's — the two collapse into one answer (no foreign-existence leak). A read: no
+// audit, no emit. Owner-only (viewing ≠ owning — a member reads a roster card through the deferred
+// `getRosterCardView`, not this verb).
+
+import { CharacterNotFoundError } from "../contract/errors";
+import type { GetCharacterParams } from "../contract/params";
+import type { CharacterContext, CharacterService } from "../contract/service";
+import { detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
+
+export function createGet(ctx: CharacterContext): CharacterService["get"] {
+  return async ({ principal, characterId }: GetCharacterParams) => {
+    const row = await loadOwnedCharacterWithAvatar(ctx.db, principal.userId, characterId);
+    if (row === undefined) {
+      throw new CharacterNotFoundError(characterId);
+    }
+    return detailOf(row);
+  };
+}

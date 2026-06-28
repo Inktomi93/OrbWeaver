@@ -1,0 +1,79 @@
+// verb: duplicate — clone an owned character into a FRESH local card. The card content is copied verbatim;
+// the handle gets a free `<handle>-copy[-n]` (per-owner unique); identity flags reset (not starred/archived)
+// and import provenance is CLEARED (`importedFrom`/`importHash` null — the clone is app-authored, not
+// imported), but the deployment media policy (`forbidExternalMedia`) carries forward. `contentHash` is the
+// flatten of the copied card. Emits `character.updated`. Throws `CharacterNotFoundError` when the source
+// isn't owned/found.
+
+import { CharacterNotFoundError } from "../contract/errors";
+import type { DuplicateCharacterParams } from "../contract/params";
+import type { CharacterContext, CharacterService } from "../contract/service";
+import { insertCharacter } from "../persistence/card";
+import {
+  cardOf,
+  detailOf,
+  listOwnerHandles,
+  loadOwnedCharacterRow,
+  loadOwnedCharacterWithAvatar,
+} from "../persistence/queries";
+import { cardContentHash } from "../substrate/content-hash";
+
+const COPY_SUFFIX = "-copy";
+const FIRST_INCREMENT = 2;
+
+/** First free `<handle>-copy[-n]` not already used by the owner. */
+function freeCopyHandle(sourceHandle: string, taken: ReadonlySet<string>): string {
+  const base = `${sourceHandle}${COPY_SUFFIX}`;
+  if (!taken.has(base)) {
+    return base;
+  }
+  let n = FIRST_INCREMENT;
+  while (taken.has(`${base}-${n}`)) {
+    n += 1;
+  }
+  return `${base}-${n}`;
+}
+
+export function createDuplicate(ctx: CharacterContext): CharacterService["duplicate"] {
+  return async ({ principal, characterId }: DuplicateCharacterParams) => {
+    const ownerId = principal.userId;
+    const source = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
+    if (source === undefined) {
+      throw new CharacterNotFoundError(characterId);
+    }
+
+    const taken = new Set(await listOwnerHandles(ctx.db, ownerId));
+    const handle = freeCopyHandle(source.handle, taken);
+    const card = cardOf(source);
+    const newId = ctx.newCharacterId();
+    const at = ctx.now();
+
+    await insertCharacter(ctx.db, {
+      id: newId,
+      handle,
+      ownerId,
+      contentHash: cardContentHash(card),
+      forbidExternalMedia: source.forbidExternalMedia,
+      createdAt: at,
+      ...card,
+    });
+
+    ctx.emit({ type: "character.updated", characterId: newId });
+    await ctx.audit(
+      {
+        actorUserId: ownerId,
+        action: "character.duplicate",
+        entityType: "character",
+        entityId: newId,
+        metadata: { from: characterId, handle },
+      },
+      at,
+    );
+
+    const row = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, newId);
+    if (row === undefined) {
+      throw new CharacterNotFoundError(newId);
+    }
+    return detailOf(row);
+  };
+}

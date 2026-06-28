@@ -1,0 +1,58 @@
+// verb: update — edit the live card IN PLACE (D28 — always safe; no CAS, no COW). The merge (clear-vs-keep
+// semantics) + the identity-flag extraction live in `substrate/card-merge`; here we flatten the merged card
+// to a fresh `contentHash`, write the flat row, and emit `character.updated` so the embeddings indexer
+// re-embeds. An empty edit re-reads without writing. Throws `CharacterNotFoundError` when not owned/found.
+
+import { CharacterNotFoundError } from "../contract/errors";
+import type { UpdateCharacterParams } from "../contract/params";
+import type { CharacterContext, CharacterService } from "../contract/service";
+import { writeCardInPlace } from "../persistence/card";
+import {
+  cardOf,
+  detailOf,
+  loadOwnedCharacterRow,
+  loadOwnedCharacterWithAvatar,
+} from "../persistence/queries";
+import { flagEdits, mergeCard } from "../substrate/card-merge";
+import { cardContentHash } from "../substrate/content-hash";
+
+export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
+  return async ({ principal, characterId, input }: UpdateCharacterParams) => {
+    const ownerId = principal.userId;
+    const current = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
+    if (current === undefined) {
+      throw new CharacterNotFoundError(characterId);
+    }
+
+    if (Object.keys(input).length > 0) {
+      const next = mergeCard(cardOf(current), input);
+      const at = ctx.now();
+      const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
+        ...next,
+        contentHash: cardContentHash(next),
+        ...flagEdits(input),
+      });
+      if (!written) {
+        throw new CharacterNotFoundError(characterId);
+      }
+
+      ctx.emit({ type: "character.updated", characterId });
+      await ctx.audit(
+        {
+          actorUserId: ownerId,
+          action: "character.update",
+          entityType: "character",
+          entityId: characterId,
+          metadata: { fields: Object.keys(input) },
+        },
+        at,
+      );
+    }
+
+    const updated = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);
+    if (updated === undefined) {
+      throw new CharacterNotFoundError(characterId);
+    }
+    return detailOf(updated);
+  };
+}
