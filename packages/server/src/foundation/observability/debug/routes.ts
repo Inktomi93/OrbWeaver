@@ -4,14 +4,14 @@
 // ports (`AssetInspector`, `AdminAuthChecker`) whose impls `entry/` supplies (their sources are UP-stack).
 // The DB probes need NO port — they read @orb/db DOWN (ledger drops neo's DbInspector port).
 //
-// NOTE: /api/_debug/info reports `openrouter.configured` only — the DEFAULT_*_MODEL_ID constants are
-// DEFERRED out of `@orb/contracts/connection` (its node comment: "out of scope for this node"), so
-// foundation cannot yet read them DOWN. Wire them into /info once the connection DAG lands them (the edge
-// stays strictly downward — never a foundation→infra import).
+// /api/_debug/info reports `openrouter.configured` + the default model ids (read DOWN from
+// `@orb/contracts/connection` — the connection DAG landed `DEFAULT_*_MODEL_ID` there, PD-10/D38; the edge
+// is strictly downward, contracts is below foundation, never a foundation→infra import).
 
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
+import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -195,6 +195,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
         // OpenRouter readiness = key present; the live catalog is a separate fetch. agent-sdk auth is the
         // host `claude login` — not cheaply probed here.
         openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
+        defaultModels: { chat: DEFAULT_CHAT_MODEL_ID, openrouter: DEFAULT_OR_CHAT_MODEL_ID },
       },
     }),
   );
