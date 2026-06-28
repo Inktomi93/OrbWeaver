@@ -90,6 +90,11 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_seal/x.ts",
     `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
   );
+  // pd-citation-integrity: a code FLAG[PD-n] citing an id with no registry row (orphan).
+  fx(
+    "packages/server/src/__g_pd.ts",
+    "// FLAG[PD-9999] — orphan citation, no registry row.\nexport const x = 1;\n",
+  );
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
   fx(
     `${D}/__g_users/persistence/x.ts`,

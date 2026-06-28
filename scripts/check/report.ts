@@ -9,6 +9,7 @@ import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
@@ -32,6 +33,7 @@ runChecks([
   dbStructure,
   providersRunnerSeal,
   noDirectUsersRead,
+  pdCitationIntegrity,
   soleEnvReader,
   assumesSingleReplica,
 ]);
