@@ -60,14 +60,15 @@ function notBuilt(label: string): () => Promise<never> {
 /** Assemble the cross-feature `WorkloadRunnerEnv` ONCE at boot (the worker threads it into every dispatch). */
 export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   return {
-    // FLAG[PD-48]: no backing bulk embed-pass verb on EmbeddingsService (the embeddings write-path
-    // population gap — same family as the unsubscribed indexer in services.ts).
+    // FLAG[PD-53]: no backing bulk embed-pass verb on EmbeddingsService (only the single-row `store`). The
+    // on-write indexer subscription (PD-48) is now wired in services.ts; this is the SEPARATE bulk catch-up
+    // sweep workload (the content_hash re-index pass) — a larger piece, deliberately still inert.
     embeddings: {
       embedCorpus: notBuilt(
-        "embeddings.embedCorpus not built (FLAG[PD-48]) — bulk corpus embed pass",
+        "embeddings.embedCorpus not built (FLAG[PD-53]) — bulk corpus embed pass",
       ),
       embedAssets: notBuilt(
-        "embeddings.embedAssets not built (FLAG[PD-48]) — bulk asset embed pass",
+        "embeddings.embedAssets not built (FLAG[PD-53]) — bulk asset embed pass",
       ),
     },
     discovery: {

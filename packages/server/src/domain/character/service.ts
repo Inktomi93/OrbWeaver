@@ -23,6 +23,7 @@ import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
 import { createList } from "./verbs/list";
 import { createListSnapshots } from "./verbs/list-snapshots";
+import { createLoadCardText } from "./verbs/load-card-text";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character";
 import { createRemove } from "./verbs/remove";
 import { createRestore } from "./verbs/restore";
@@ -44,6 +45,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     listSnapshots: createListSnapshots(ctx),
     restore: createRestore(ctx),
     getCard: createGetCard(ctx),
+    loadCardText: createLoadCardText(ctx),
     findByImportHash: createFindByImportHash(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),

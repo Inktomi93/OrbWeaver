@@ -13,6 +13,7 @@
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createGetMetadata } from "./verbs/get-metadata";
+import { createLoadAssetBytes } from "./verbs/load-asset-bytes";
 import { createResolveVariant } from "./verbs/resolve-variant";
 import { createStore } from "./verbs/store";
 
@@ -21,5 +22,6 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     store: createStore(ctx),
     getMetadata: createGetMetadata(ctx),
     resolveVariant: createResolveVariant(ctx),
+    loadAssetBytes: createLoadAssetBytes(ctx),
   };
 }

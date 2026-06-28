@@ -85,6 +85,22 @@ export async function loadOwnedCharacterRow(
   return rows[0];
 }
 
+/** One character row by id ALONE — NO owner scope (D20). The embeddings indexer is a trusted SYSTEM consumer:
+ *  vectors carry no `ownerId`, so the card-text re-read happens un-principal, keyed only by the branded id the
+ *  `character.updated` event carried. This is NOT a user-facing surface — it is never routed through `can()`/
+ *  owner-gating; the only caller is `loadCardText` (the indexer's canon re-reader). Undefined when absent. */
+export async function loadCharacterRowById(
+  db: Db,
+  characterId: CharacterId,
+): Promise<CharacterRow | undefined> {
+  const rows = await db
+    .select()
+    .from(characters)
+    .where(eq(characters.id, characterId))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
 /** Find a character by (ownerId, handle) — the synthetic-group find-or-mint + the duplicate handle dedup
  *  rely on the per-owner handle unique index. Undefined when absent. */
 export async function findByOwnerHandle(

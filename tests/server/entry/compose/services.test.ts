@@ -4,15 +4,32 @@
 // wires (the 15 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
 import { tmpdir } from "node:os";
+import type { DomainEvent } from "@orb/contracts/events";
+import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createServices } from "@orb/server/entry/compose";
+import type { AssetsService } from "@orb/server/domain/assets";
+import { createAssetsService } from "@orb/server/domain/assets";
+import type { CharacterService } from "@orb/server/domain/character";
+import { createCharacterService } from "@orb/server/domain/character";
+import type { EmbeddingsService } from "@orb/server/domain/embeddings";
+import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
+import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { expect, test } from "vitest";
+import type { Mock } from "vitest";
+import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
+import {
+  makeHarness as makeAssetsHarness,
+  pngBytes,
+  principal,
+  seedUser,
+} from "../../domain/assets/_support.ts";
+import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
+import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts";
 
 const SERVICE_KEYS = [
   "admin",
@@ -136,4 +153,115 @@ test("the backend registry sources the resolved vLLM concurrency from AppSetting
   // in-flight is min(resolved embed concurrency = 2, 6) === 2 — the override, NOT the default 4.
   await result.roleClients.embed(["a", "b", "c", "d", "e", "f"]);
   expect(peak).toBe(2);
+});
+
+// ── The embeddings indexer SUBSCRIPTION (PD-48) ──────────────────────────────────────────────────────────
+// The composition root subscribes the indexer to the in-process domain-event bus and wires its UN-PRINCIPAL
+// canon re-readers (character.loadCardText / assets.loadAssetBytes) into the indexer context. These tests
+// reproduce that exact wiring over a fresh db with a STUB embeddings store (the inference edge is the seam we
+// cut), then assert an emitted event drives the indexer THROUGH the real loaders to a store call. The emit is
+// fire-and-forget + error-isolated (event-bus.ts), so we drain the IO queue deterministically (bounded
+// setImmediate flushes — no wall-clock) before asserting.
+
+function assertNeverEvent(event: never): never {
+  throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
+}
+
+interface IndexerWiring {
+  readonly character: CharacterService;
+  readonly assets: AssetsService;
+  readonly store: Mock<EmbeddingsService["store"]>;
+  readonly cleanup: () => Promise<void>;
+  readonly emit: (event: DomainEvent) => void;
+}
+
+/** Reproduce the composition root's indexer wiring: real character/assets services (their UN-PRINCIPAL canon
+ *  re-readers feed the indexer), a STUB store recording calls, subscribed to a real bus via the same
+ *  dispatcher entry/compose/services.ts uses. */
+async function wireIndexer(db: Db): Promise<IndexerWiring> {
+  const bus = createDomainEventBus();
+  const character = createCharacterService(makeCharHarness(db).ctx);
+  const assetsH = await makeAssetsHarness(db);
+  const assets = createAssetsService(assetsH.ctx);
+  const store: Mock<EmbeddingsService["store"]> = vi.fn<EmbeddingsService["store"]>(() =>
+    Promise.resolve({ outcome: "written", contentHash: "stub-hash" }),
+  );
+  const indexer = createEmbeddingsIndexer({
+    store,
+    loadCardText: async (characterId): Promise<string | undefined> =>
+      (await character.loadCardText(characterId)) ?? undefined,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
+      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    roleClients: makeRoleClients(),
+    embedDim: EMBED_DIM,
+    imageEmbedDim: EMBED_DIM,
+  });
+  bus.subscribe((event: DomainEvent): Promise<void> => {
+    switch (event.type) {
+      case "character.updated":
+        return indexer.onCharacterUpdated(event);
+      case "asset.created":
+        return indexer.onAssetCreated(event);
+      default:
+        return assertNeverEvent(event);
+    }
+  });
+  return { character, assets, store, cleanup: assetsH.cleanup, emit: bus.emit };
+}
+
+/** Drain the fire-and-forget bus dispatch deterministically: flush the IO queue until `done` (bounded). */
+async function drain(done: () => boolean): Promise<void> {
+  for (let i = 0; i < 50 && !done(); i += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: a deterministic bounded drain of fire-and-forget dispatch.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+}
+
+describe("embeddings indexer bus subscription (PD-48)", () => {
+  test("character.updated drives the indexer to store the card-text projection", async () => {
+    const db = await freshDb();
+    const w = await wireIndexer(db);
+    onTestFinished(w.cleanup);
+    const owner = await seedUser(db, { handle: "owner" });
+    const created = await w.character.create({
+      principal: principal(owner),
+      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+    });
+    const expected = await w.character.loadCardText(created.id);
+
+    w.emit({ type: "character.updated", characterId: created.id });
+    await drain(() => w.store.mock.calls.length > 0);
+
+    expect(w.store).toHaveBeenCalledTimes(1);
+    const params = w.store.mock.calls[0]?.[0];
+    expect(params?.kind).toBe("card");
+    expect(params?.lens).toBe("card-text");
+    expect(params?.content).toBe(expected);
+  });
+
+  test("asset.created drives the indexer to store both image lenses from the real CAS bytes", async () => {
+    const db = await freshDb();
+    const w = await wireIndexer(db);
+    onTestFinished(w.cleanup);
+    const owner = await seedUser(db, { handle: "owner" });
+    const bytes = pngBytes(7, 7, 7, 7);
+    const stored = await w.assets.store({
+      principal: principal(owner),
+      bytes,
+      kind: "avatar",
+      mime: "image/png",
+    });
+
+    w.emit({ type: "asset.created", assetId: stored.assetId });
+    await drain(() => w.store.mock.calls.length >= 2);
+
+    expect(w.store).toHaveBeenCalledTimes(2);
+    const lenses = w.store.mock.calls.map((c) => c[0]?.lens);
+    expect(lenses).toEqual(["image-raw", "image-captioned"]);
+    for (const call of w.store.mock.calls) {
+      const content = call[0]?.content;
+      // CAS returns the bytes as a Buffer (a Uint8Array subclass) — compare by value, not subtype.
+      expect(content instanceof Uint8Array && Array.from(content)).toEqual(Array.from(bytes));
+    }
+  });
 });
