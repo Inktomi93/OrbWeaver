@@ -1,0 +1,118 @@
+// transport/trpc/routers/character — the character-card surface (tiers/transport.md). authed; owner-scoped.
+// Thin: validate → `ctx.services.character.<verb>` → map errors. Input shapes derive from
+// `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
+// resolved room `ownerId`, not a request principal) — NOT exposed here.
+
+import { createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
+import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
+import { z } from "zod";
+import { authedProcedure, t } from "../trpc";
+
+export const characterRouter = t.router({
+  create: authedProcedure
+    .input(z.object({ input: createCharacterSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.create({ principal: ctx.auth, input: input.input }),
+    ),
+
+  get: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId }),
+    ),
+
+  list: authedProcedure.query(({ ctx }) => ctx.services.character.list({ principal: ctx.auth })),
+
+  update: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.update({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        input: input.input,
+      }),
+    ),
+
+  remove: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.remove({ principal: ctx.auth, characterId: input.characterId }),
+    ),
+
+  duplicate: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.duplicate({ principal: ctx.auth, characterId: input.characterId }),
+    ),
+
+  bulkRemove: authedProcedure
+    .input(z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1) }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.bulkRemove({ principal: ctx.auth, characterIds: input.characterIds }),
+    ),
+
+  bulkArchive: authedProcedure
+    .input(
+      z.object({ characterIds: z.array(brandedId<CharacterId>()).min(1), archived: z.boolean() }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.bulkArchive({
+        principal: ctx.auth,
+        characterIds: input.characterIds,
+        archived: input.archived,
+      }),
+    ),
+
+  bulkAddCardTag: authedProcedure
+    .input(
+      z.object({
+        tagName: z.string().min(1),
+        characterIds: z.array(brandedId<CharacterId>()).min(1),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.bulkAddCardTag({
+        principal: ctx.auth,
+        tagName: input.tagName,
+        characterIds: input.characterIds,
+      }),
+    ),
+
+  snapshot: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), label: z.string().nullish() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.snapshot({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        ...(input.label !== undefined ? { label: input.label } : {}),
+      }),
+    ),
+
+  listSnapshots: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId }),
+    ),
+
+  restore: authedProcedure
+    .input(
+      z.object({
+        characterId: brandedId<CharacterId>(),
+        snapshotId: brandedId<CharacterSnapshotId>(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.restore({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        snapshotId: input.snapshotId,
+      }),
+    ),
+
+  getCard: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.character.getCard({ principal: ctx.auth, characterId: input.characterId }),
+    ),
+});
