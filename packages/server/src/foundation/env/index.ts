@@ -104,13 +104,12 @@ const envSchema = z
     // Import curation: comma-separated character names (case-insensitive) to EXCLUDE at import (the card +
     // its chats are dropped). Default skips non-RP utility cards; set to "" to import all.
     IMPORT_SKIP_CHARACTERS: z.string().default("Wren,Assistant"),
-    // IMPORT_DEFAULT_SOURCE (the import chat-writer's default `ChatSource`) is DEFERRED to the import slice
-    // (Phase 4c) — explicitly, NOT silently dropped (D40). It is a `z.enum(CRED_SOURCES)` env FLOOR with a
-    // NODE_ENV-conditional default (`max-pro-sub` in dev/test, `openrouter` in prod — settings-and-config.md
-    // "NODE_ENV auto-default"; ledger §2 "stays the env floor"), the AppSettings override layering on top
-    // (import.md "IMPORT_DEFAULT_SOURCE → AppSettings — DEFERRED"). It lands HERE (the sole env reader) when
-    // `domain/import` is built: the conditional default needs a post-parse transform (unlike the two simple
-    // toggles above), so it is co-located with its consumer rather than guessed early into the boot floor.
+    // IMPORT_DEFAULT_SOURCE — DROPPED (Alex 2026-06-28, PD-15 cleared): neo-jank. ST chats carry provenance
+    // PER MESSAGE (each assistant message's `extra` records its own model/api/tokens at generation time), and
+    // D26 homes economics on `message_variants` per-variant — so chat-import maps each message's OWN recorded
+    // source/model → that variant's provenance, never a single chat-level default. The live connection for
+    // NEW turns in an imported chat is resolved the normal way (`connection.resolveChat` → user roleDefaults
+    // → system default), so no per-chat source pin + no env floor is needed. There is nothing to default.
 
     // ── Auth / tenancy (spine/identity-auth-permission). The app only CONSUMES identity (never an IdP).
     // AUTH_MODE picks the SSO mechanism; AUTH_FALLBACK decides the un-credentialed case. Every var has a
