@@ -4,10 +4,16 @@
 // OAuth token could land on a paid endpoint. We don't re-test the builders' internals here (env.test.ts
 // owns those); we lock that the SWITCH routes each source to its builder and throws on the rest.
 
+import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "@orb/server/infra/providers";
 import { disciplineOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, expect, test } from "vitest";
+// `toSdkGeneration` is an @internal helper (not on the agent-sdk barrel), so — like resolve-chat /
+// local-light's model-cache — the test reaches it by relative path. It MAPS resolve-chat's resolved
+// decision into the SDK's typed Options; we lock that SDK-shape mapping here (the policy itself is
+// covered by resolve-chat.test.ts).
+import { toSdkGeneration } from "../../../../../../packages/server/src/infra/providers/backends/agent-sdk/translate.ts";
 
 const OR_KEY = "sk-or-translate-test";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
@@ -86,5 +92,83 @@ describe("disciplineOptions — runtime overrides thread through to the builder"
   test("a maxOutputTokens override lands on the spawn env", () => {
     const opts = disciplineOptions(VLLM_CRED, { maxOutputTokens: 256 });
     expect(opts.env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"]).toBe("256");
+  });
+});
+
+// toSdkGeneration MAPS resolve-chat's resolved decision → the SDK's typed Options + the env overrides.
+// The gating policy is resolve-chat's (resolve-chat.test.ts); here we lock the SDK-VOCAB shape mapping.
+const EFFORT_CAP: ModelCapability = {
+  reasoning: { mode: "effort", enabled: true, effortLevels: ["minimal", "low", "high"] },
+  sampling: {},
+  output: { maxTokens: { min: 1, max: 4096 } },
+  context: { window: 200_000 },
+};
+
+describe("toSdkGeneration — maps the resolved decision into SDK Options", () => {
+  test("effort mode ON: thinking enabled, effort rides options.effort, env un-disables thinking", () => {
+    const gen = toSdkGeneration({ effort: "high" }, EFFORT_CAP);
+    expect(gen.options.thinking).toEqual({ type: "enabled" });
+    expect(gen.options.effort).toBe("high");
+    expect(gen.envOverrides.disableThinking).toBe(false);
+  });
+
+  test("the SDK effort vocab: 'minimal' aliases to the SDK's 'low'", () => {
+    expect(toSdkGeneration({ effort: "minimal" }, EFFORT_CAP).options.effort).toBe("low");
+  });
+
+  test("adaptive: thinking {type:'adaptive'} carries NO budget even when one is requested; effort rides", () => {
+    const cap: ModelCapability = {
+      ...EFFORT_CAP,
+      reasoning: { mode: "adaptive", enabled: true, effortLevels: ["high"] },
+    };
+    const gen = toSdkGeneration({ effort: "high", thinkingBudgetTokens: 4096 }, cap);
+    expect(gen.options.thinking).toEqual({ type: "adaptive" });
+    expect(gen.options.effort).toBe("high");
+  });
+
+  test("budget mode: thinking {type:'enabled', budgetTokens} clamped; effort dial stays off", () => {
+    const cap: ModelCapability = {
+      ...EFFORT_CAP,
+      reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 8192 } },
+    };
+    const gen = toSdkGeneration({ effort: "high", thinkingBudgetTokens: 99_999 }, cap);
+    expect(gen.options.thinking).toEqual({ type: "enabled", budgetTokens: 8192 });
+    expect(gen.options.effort).toBeUndefined();
+  });
+
+  test("the display knob rides into thinking when the model supports it", () => {
+    const cap: ModelCapability = {
+      ...EFFORT_CAP,
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["high"],
+        displayModes: ["summarized"],
+      },
+    };
+    const gen = toSdkGeneration({ effort: "high", thinkingDisplay: "summarized" }, cap);
+    expect(gen.options.thinking).toEqual({ type: "enabled", display: "summarized" });
+  });
+
+  test("OFF when no effort: thinking disabled, no effort, env leaves disableThinking unset", () => {
+    const gen = toSdkGeneration({}, EFFORT_CAP);
+    expect(gen.options.thinking).toEqual({ type: "disabled" });
+    expect(gen.options.effort).toBeUndefined();
+    expect(gen.envOverrides.disableThinking).toBeUndefined();
+  });
+
+  test("the resolved, range-clamped output cap lands on the env overrides", () => {
+    expect(
+      toSdkGeneration({ maxOutputTokens: 999_999 }, EFFORT_CAP).envOverrides.maxOutputTokens,
+    ).toBe(4096);
+  });
+
+  test("forwards resolve-chat's warnings (the runner emits them as `warning` events)", () => {
+    // EFFORT_CAP exposes no temperature range → resolve-chat drops it + warns.
+    const gen = toSdkGeneration({ effort: "high", temperature: 0.7 }, EFFORT_CAP);
+    expect(gen.warnings).toContainEqual({
+      code: "sampling_knob_dropped",
+      message: "temperature ignored: model does not expose a temperature range",
+    });
   });
 });

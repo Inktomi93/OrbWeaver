@@ -16,7 +16,7 @@ import {
   placeHistoryCacheBreakpoint,
   runChatCompletionTurn,
 } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
@@ -24,9 +24,11 @@ const OPENAI_MODEL = "openai/gpt-5";
 const CACHE_MIN = 1024;
 const DEPS = { now: (): number => FIXED_NOW, random: (): number => 0.5 };
 
+// The runner now consumes `resolve-chat`'s GATED sampling, so the capability must expose the ranges for
+// any knob the wire-shaping tests expect to survive (a knob with no range is dropped — see resolve-chat).
 const CAPABILITY: ModelCapability = {
   reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] },
-  sampling: {},
+  sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 } },
   output: { maxTokens: { min: 1, max: 4096 } },
   context: { window: 200_000 },
 };
@@ -164,6 +166,27 @@ describe("runChatCompletionTurn — wire shaping", () => {
     expect(captured.chatRequest?.["plugins"]).toEqual([
       { id: "context-compression", enabled: false },
     ]);
+  });
+
+  test("surfaces a resolve-chat dropped knob as a `warning` event (in events AND via onEvent)", async () => {
+    const { client } = streamingClient(OK_STREAM);
+    const onEvent = vi.fn();
+    // CAPABILITY exposes no `seed` flag → resolve-chat drops it + warns.
+    const result = await runChatCompletionTurn(
+      client,
+      makeRequest({ params: { effort: "high", seed: 5 }, onEvent }),
+      DEPS,
+    );
+    const warnings = result.events.filter((e) => e.kind === "warning");
+    expect(warnings).toEqual([
+      {
+        kind: "warning",
+        at: FIXED_NOW,
+        code: "sampling_knob_dropped",
+        message: "seed ignored: model does not support seed",
+      },
+    ]);
+    expect(onEvent).toHaveBeenCalledWith(warnings[0]);
   });
 });
 

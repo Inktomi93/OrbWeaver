@@ -15,8 +15,14 @@ import type {
 } from "@openrouter/sdk/models";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatResult, ChatUsage, OpenRouterChatRequest } from "../../../../contract";
+import type {
+  ChatResult,
+  ChatUsage,
+  OpenRouterChatRequest,
+  ResolvedChatKnobs,
+} from "../../../../contract";
 import { normalizeFinishReason, ProviderError } from "../../../../contract";
+import { resolveChat } from "../../../../resolve-chat";
 import {
   ANTHROPIC_CACHE_5M,
   effortToResponsesReasoning,
@@ -33,6 +39,7 @@ import {
   joinSystemPrompt,
   mergeCustomParameters,
   resolveProviderPreferences,
+  warningEvents,
 } from "./shared";
 
 const USER_ROLE = "user";
@@ -86,18 +93,18 @@ function promptCacheKey(model: string, instructions: string): string {
     .slice(0, PROMPT_CACHE_KEY_LEN);
 }
 
-// Build the typed Responses body. `includeReasoning` is false on the mandatory-reasoning replay. The
-// reasoning block carries the XOR-enforced effort|maxTokens (the kit builder) plus a `summary:"auto"`.
+// Build the typed Responses body from the capability-RESOLVED knobs (`resolve-chat` gated sampling/
+// reasoning/output upstream). `includeReasoning` is false on the mandatory-reasoning replay. The reasoning
+// block carries the XOR-enforced effort|maxTokens (the kit builder) plus a `summary:"auto"`.
 function buildResponsesBody(
   req: OpenRouterChatRequest,
+  resolved: ResolvedChatKnobs,
   includeReasoning: boolean,
 ): ResponsesRequest {
   const isAnthropic = isAnthropicModel(req.model);
   const instructions = joinSystemPrompt(req.systemPrompt);
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
-  const reasoningBlock = effortToResponsesReasoning(
-    buildReasoningRequest(req.params, req.capability),
-  );
+  const reasoningBlock = effortToResponsesReasoning(buildReasoningRequest(resolved.reasoning));
   const owned: ResponsesRequest = {
     model: req.model,
     input: buildResponsesInput(req.history),
@@ -109,10 +116,12 @@ function buildResponsesBody(
     ...(!isAnthropic && instructions.length > 0
       ? { promptCacheKey: promptCacheKey(req.model, instructions) }
       : {}),
-    ...(req.params.temperature !== undefined ? { temperature: req.params.temperature } : {}),
-    ...(req.params.topP !== undefined ? { topP: req.params.topP } : {}),
-    ...(req.params.maxOutputTokens !== undefined
-      ? { maxOutputTokens: req.params.maxOutputTokens }
+    ...(resolved.sampling.temperature !== undefined
+      ? { temperature: resolved.sampling.temperature }
+      : {}),
+    ...(resolved.sampling.topP !== undefined ? { topP: resolved.sampling.topP } : {}),
+    ...(resolved.maxOutputTokens !== undefined
+      ? { maxOutputTokens: resolved.maxOutputTokens }
       : {}),
     ...(includeReasoning ? { reasoning: { ...reasoningBlock, summary: REASONING_SUMMARY } } : {}),
     ...(provider !== undefined ? { provider } : {}),
@@ -346,13 +355,18 @@ export async function runResponsesTurn(
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
   };
-  const reasoningBlock = effortToResponsesReasoning(
-    buildReasoningRequest(req.params, req.capability),
-  );
+  // The ONE intent×capability funnel call for this turn (sampling/reasoning/output all gated here).
+  const resolved = resolveChat(req.params, req.capability);
+  const reasoningBlock = effortToResponsesReasoning(buildReasoningRequest(resolved.reasoning));
   const run = (includeReasoning: boolean): Promise<ResponsesDrain> =>
     runWithPreCommitRetry(
       (markCommitted) =>
-        drainOnce({ client, body: buildResponsesBody(req, includeReasoning), req, markCommitted }),
+        drainOnce({
+          client,
+          body: buildResponsesBody(req, resolved, includeReasoning),
+          req,
+          markCommitted,
+        }),
       (err): ProviderError =>
         err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model)),
       retryOpts,
@@ -369,11 +383,18 @@ export async function runResponsesTurn(
     }
   }
 
-  return mapResponsesToTurnResult(drain, {
+  const turn = mapResponsesToTurnResult(drain, {
     model: req.model,
     startedAt,
     now: deps.now(),
     contextWindow: req.capability.context.window,
     maxOutputTokens: req.capability.output.maxTokens.max,
   });
+  // Surface resolve-chat's dropped/ignored-knob notes as `warning` events (the mapper returns `events:[]`,
+  // so they merge in here) and fire `onEvent` for each — never silently dropped.
+  const warnings = warningEvents(resolved.warnings, deps.now());
+  for (const event of warnings) {
+    req.onEvent?.(event);
+  }
+  return warnings.length > 0 ? { ...turn, events: [...turn.events, ...warnings] } : turn;
 }

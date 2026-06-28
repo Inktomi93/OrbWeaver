@@ -4,16 +4,11 @@
 //     both the roleplay runner and the agent runner start from; the asymmetry the agent runner adds
 //     (an MCP server + maxTurns) is the only difference.
 //   • buildSystemPrompt — join our static/dynamic halves into the one string the SDK sends.
-//   • toSdkGeneration — project the SDK-free `UserIntent` × `ModelCapability` into the SDK's typed
-//     generation Options (thinking/effort/maxBudgetUsd) + the env overrides (output/context caps,
-//     compaction, the escape hatch). ZERO model-quirk hunting beyond reading the descriptor.
-//
-// FLAG (boundary): in neo the runner consumed an already-resolved `ResolvedChat`; orbweaver's request
-// carries the RAW `UserIntent` + the `ModelCapability` descriptor, and `infra/providers/resolve-chat.ts`
-// (the funnel that owns intent→knob POLICY) is a separate, not-yet-built slice. So this projection lives
-// here for now — conservative + descriptor-driven (it honors `reasoning.mode`/`effortLevels`/
-// `displayModes`/`output.maxTokens`). When resolve-chat lands, the policy half should move there and this
-// file should consume the resolved shape.
+//   • toSdkGeneration — call the ONE funnel (`infra/providers/resolve-chat.ts`) that owns intent→knob
+//     POLICY, then MAP its resolved decision into the SDK's two output surfaces: the typed generation
+//     Options (thinking/effort/maxBudgetUsd) + the env overrides (output/context caps, compaction, the
+//     escape hatch). ALL the gating/clamp/guard logic now lives in resolve-chat (invariant #9); this file
+//     keeps only the SDK-vocab SHAPE mapping (`toSdkEffort`, the `ThinkingConfig` build).
 
 import type { EffortLevel, ThinkingConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { ModelCapability } from "@orb/contracts/connection";
@@ -21,7 +16,9 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
+import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract";
 import { ProviderError } from "../../contract";
+import { resolveChat } from "../../resolve-chat";
 import type { ClaudeRuntimeOverrides } from "./env";
 import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, buildClaudeVllmEnv } from "./env";
 import type { DisciplineOptions } from "./types";
@@ -144,58 +141,24 @@ function toSdkEffort(effort: UserIntent["effort"]): EffortLevel | undefined {
   }
 }
 
-/** The display knob is Anthropic-only — gate it on the descriptor so a non-Anthropic model (reachable
- *  via the OR skin) never receives an unsupported field. */
-function resolveDisplay(
-  params: UserIntent,
-  capability: ModelCapability,
-): "summarized" | "omitted" | undefined {
-  const wanted = params.thinkingDisplay;
-  if (wanted === undefined) {
-    return;
-  }
-  return capability.reasoning.displayModes?.includes(wanted) === true ? wanted : undefined;
-}
-
-/** Only emit an effort level the model actually lists (when it publishes a set); otherwise pass it
- *  through (the model/SDK applies its own default). */
-function gateEffort(
-  effort: EffortLevel | undefined,
-  capability: ModelCapability,
-): EffortLevel | undefined {
-  if (effort === undefined) {
-    return;
-  }
-  const levels = capability.reasoning.effortLevels;
-  if (levels !== undefined && !levels.includes(effort)) {
-    return;
-  }
-  return effort;
-}
-
-/** Build the SDK thinking Option from the descriptor's reasoning mode. The adaptive/budget guard
- *  (providers.md Esoteric §8) is honored structurally: the `adaptive` arm NEVER carries `budgetTokens`,
- *  so Opus-4.8-class models that 400 on `enabled + budget_tokens` get clean `adaptive`. */
-function buildThinking(params: UserIntent, capability: ModelCapability): ThinkingConfig {
-  const display = resolveDisplay(params, capability);
-  const displayPart = display !== undefined ? { display } : {};
-  // if-blocks (not a `switch`) on the descriptor mode: biome's `noUnnecessaryConditions` under-resolves
-  // the cross-package `z.infer` `ReasoningMode` union on a switch discriminant and false-flags the
+/** Map the capability-RESOLVED reasoning decision → the SDK `ThinkingConfig`. The policy (the
+ *  effort-levels clamp, the display gate, and the Opus-4.8 adaptive/budget guard — providers.md Esoteric
+ *  §8) already ran in `resolve-chat`; this is a pure SDK-shape map. The `adaptive` arm NEVER carries a
+ *  budget (resolve-chat dropped it), so Opus-4.8-class models that 400 on `enabled + budget_tokens` get a
+ *  clean `adaptive`. */
+function buildThinking(reasoning: ResolvedReasoning): ThinkingConfig {
+  const displayPart = reasoning.display !== undefined ? { display: reasoning.display } : {};
+  // if-blocks (not a `switch`) on the resolved mode: biome's `noUnnecessaryConditions` under-resolves the
+  // cross-package `z.infer` `ReasoningMode` union on a switch discriminant and false-flags the
   // adaptive/budget cases as unreachable — tsc sees all four members (verified via a type probe).
-  const mode = capability.reasoning.mode;
+  const { mode } = reasoning;
   if (mode === "adaptive") {
     return { type: "adaptive", ...displayPart };
   }
   if (mode === "budget") {
-    const range = capability.reasoning.budgetRange;
-    const requested = params.thinkingBudgetTokens ?? range?.max;
-    const budgetTokens =
-      requested !== undefined && range !== undefined
-        ? Math.min(Math.max(requested, range.min), range.max)
-        : requested;
     return {
       type: "enabled",
-      ...(budgetTokens !== undefined ? { budgetTokens } : {}),
+      ...(reasoning.budgetTokens !== undefined ? { budgetTokens: reasoning.budgetTokens } : {}),
       ...displayPart,
     };
   }
@@ -204,25 +167,20 @@ function buildThinking(params: UserIntent, capability: ModelCapability): Thinkin
   return { type: "enabled", ...displayPart };
 }
 
-/** Whether thinking engages for this turn: the model must SUPPORT reasoning AND the user must have asked
- *  for it (a real effort, not `none`). The single source the options + env builders share. */
-function isThinkingOn(params: UserIntent, capability: ModelCapability): boolean {
-  return capability.reasoning.enabled && params.effort !== undefined && params.effort !== "none";
-}
-
-/** The typed SDK generation Options half of the projection (thinking + effort + budget). */
+/** The typed SDK generation Options half of the projection (thinking + effort + budget). Consumes the
+ *  resolved decision: thinking engages exactly when `resolved.reasoning.enabled`; the effort level (only
+ *  populated by resolve-chat for effort/adaptive modes, already clamped) is mapped to SDK vocab. */
 function buildGenerationOptions(
   params: UserIntent,
-  capability: ModelCapability,
+  resolved: ResolvedChatKnobs,
 ): SdkGenerationOptions {
   const options: SdkGenerationOptions = {};
-  if (isThinkingOn(params, capability)) {
-    options.thinking = buildThinking(params, capability);
-    if (capability.reasoning.mode === "effort" || capability.reasoning.mode === "adaptive") {
-      const effort = gateEffort(toSdkEffort(params.effort), capability);
-      if (effort !== undefined) {
-        options.effort = effort;
-      }
+  const { reasoning } = resolved;
+  if (reasoning.enabled) {
+    options.thinking = buildThinking(reasoning);
+    const effort = toSdkEffort(reasoning.effort);
+    if (effort !== undefined) {
+      options.effort = effort;
     }
   } else {
     options.thinking = { type: "disabled" };
@@ -233,10 +191,11 @@ function buildGenerationOptions(
   return options;
 }
 
-/** The env-overrides half of the projection (output/context caps, compaction, the escape hatch). */
+/** The env-overrides half of the projection (output/context caps, compaction, the escape hatch). The
+ *  output cap is the resolve-chat-clamped value; `disableThinking` mirrors the resolved on/off. */
 function buildEnvOverrides(
   params: UserIntent,
-  capability: ModelCapability,
+  resolved: ResolvedChatKnobs,
 ): ClaudeRuntimeOverrides {
   const compMode = params.compaction?.mode;
   const disableAutoCompact = compMode === "off" || compMode === "managed";
@@ -246,43 +205,35 @@ function buildEnvOverrides(
       ? Math.round(thresholdPct * PCT_SCALE)
       : undefined;
   return {
-    maxOutputTokens: clampOutput(params.maxOutputTokens, capability),
+    maxOutputTokens: resolved.maxOutputTokens,
     maxContextTokens: params.maxContextTokens,
     // The env DISABLE_THINKING floor must yield to our typed Option when thinking is ON; leave undefined
     // when OFF so the env default (disable) engages and matches `thinking:{type:'disabled'}`.
-    disableThinking: isThinkingOn(params, capability) ? false : undefined,
+    disableThinking: resolved.reasoning.enabled ? false : undefined,
     disableAutoCompact: disableAutoCompact ? true : undefined,
     autoCompactPct,
     ...(params.advanced?.claudeEnv !== undefined ? { userEnv: params.advanced.claudeEnv } : {}),
   };
 }
 
-/** Clamp a requested output cap into the descriptor's allowed range (the descriptor is the truth for
- *  "what this model accepts"); pass through untouched when unset. */
-function clampOutput(
-  requested: number | undefined,
-  capability: ModelCapability,
-): number | undefined {
-  if (requested === undefined) {
-    return;
-  }
-  const { min, max } = capability.output.maxTokens;
-  return Math.min(Math.max(requested, min), max);
-}
-
 /**
  * Project `UserIntent` × `ModelCapability` into the agent-sdk's two output surfaces — the typed SDK
  * Options (thinking/effort/maxBudgetUsd) and the env overrides (output/context caps, compaction, the
- * escape hatch). Thinking engages only when the model SUPPORTS reasoning (`capability.reasoning.enabled`)
- * AND the user asked for it (a real effort, not `none`); otherwise it stays off (and the env default
- * `CLAUDE_CODE_DISABLE_THINKING` matches `thinking:{type:'disabled'}`).
+ * escape hatch). Calls the ONE `resolve-chat` funnel for the gated decision, then MAPS it to SDK shape.
  */
 export function toSdkGeneration(
   params: UserIntent,
   capability: ModelCapability,
-): { envOverrides: ClaudeRuntimeOverrides; options: SdkGenerationOptions } {
+): {
+  envOverrides: ClaudeRuntimeOverrides;
+  options: SdkGenerationOptions;
+  warnings: readonly ResolvedWarning[];
+} {
+  const resolved = resolveChat(params, capability);
   return {
-    envOverrides: buildEnvOverrides(params, capability),
-    options: buildGenerationOptions(params, capability),
+    envOverrides: buildEnvOverrides(params, resolved),
+    options: buildGenerationOptions(params, resolved),
+    // resolve-chat's dropped/ignored-knob notes — the agent-sdk runner surfaces them as `warning` events.
+    warnings: resolved.warnings,
   };
 }

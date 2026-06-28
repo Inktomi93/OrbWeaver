@@ -10,6 +10,8 @@
 // shape at its boundary. The streaming token-delta shape (`ChatDeltaEvent`) is re-exported from
 // `@orb/contracts/chat` (its canonical home) so a runner's `onDelta` signature lines up with the domain.
 
+import type { WarningCode } from "./resolve";
+
 /** The streaming token-delta the chat domain consumes — canonical home is `@orb/contracts/chat`. */
 export type { ChatDeltaEvent } from "@orb/contracts/chat";
 
@@ -78,4 +80,13 @@ export type ChatEvent =
       readonly at: number;
       readonly requested: string;
       readonly billed: readonly string[];
+    }
+  | {
+      // resolve-chat dropped/ignored a knob the model can't honor (e.g. a temperature the model exposes
+      // no range for — the old `agentSdkHonorsTemperature` surface). Metadata only; the UI can toast it.
+      // `code` is the machine-dispatchable reason; `message` is the readable detail.
+      readonly kind: "warning";
+      readonly at: number;
+      readonly code: WarningCode;
+      readonly message: string;
     };

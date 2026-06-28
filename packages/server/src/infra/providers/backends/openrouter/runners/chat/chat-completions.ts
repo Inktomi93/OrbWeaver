@@ -9,8 +9,9 @@ import type { ChatMessages, ChatRequest, ChatStreamChunk } from "@openrouter/sdk
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { ChatResult, OpenRouterChatRequest } from "../../../../contract";
+import type { ChatResult, OpenRouterChatRequest, ResolvedChatKnobs } from "../../../../contract";
 import { ProviderError } from "../../../../contract";
+import { resolveChat } from "../../../../resolve-chat";
 import type { ChatCompletionResult, StreamReduceOptions } from "../../../kit";
 import {
   cacheControlBlock,
@@ -33,6 +34,7 @@ import {
   mergeCustomParameters,
   reshapeChatStreamChunk,
   resolveProviderPreferences,
+  warningEvents,
 } from "./shared";
 
 // Anthropic's minimum cacheable prefix (~1024 tokens for Claude). A breakpoint below it only burns one of
@@ -78,10 +80,15 @@ export function placeHistoryCacheBreakpoint(
   return replaced;
 }
 
-// Assemble the typed `ChatRequest` body. `includeReasoning` is false on the mandatory-reasoning replay
-// (the endpoint rejected the `none` block). The user's `customParameters` are overlaid UNDER the
-// runner-owned fields (owned wins — the preset-hijack firewall).
-function buildChatBody(req: OpenRouterChatRequest, includeReasoning: boolean): ChatRequest {
+// Assemble the typed `ChatRequest` body from the capability-RESOLVED knobs (`resolve-chat` already gated
+// sampling/reasoning/output). `includeReasoning` is false on the mandatory-reasoning replay (the endpoint
+// rejected the `none` block). The user's `customParameters` are overlaid UNDER the runner-owned fields
+// (owned wins — the preset-hijack firewall).
+function buildChatBody(
+  req: OpenRouterChatRequest,
+  resolved: ResolvedChatKnobs,
+  includeReasoning: boolean,
+): ChatRequest {
   const isAnthropic = isAnthropicModel(req.model);
   const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropic);
   const history =
@@ -99,9 +106,9 @@ function buildChatBody(req: OpenRouterChatRequest, includeReasoning: boolean): C
     model: req.model,
     messages,
     stream: true,
-    ...chatSamplingFields(req.params),
+    ...chatSamplingFields(resolved.sampling, resolved.maxOutputTokens),
     ...(includeReasoning
-      ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(req.params, req.capability)) }
+      ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning)) }
       : {}),
     ...(provider !== undefined ? { provider } : {}),
     plugins: withContextCompressionPlugin(req.params),
@@ -199,13 +206,20 @@ export async function runChatCompletionTurn(
     now: deps.now,
     ...(deps.random !== undefined ? { random: deps.random } : {}),
   };
-  const reasoning = effortToOpenAIReasoning(buildReasoningRequest(req.params, req.capability));
+  // The ONE intent×capability funnel call for this turn (sampling/reasoning/output all gated here).
+  const resolved = resolveChat(req.params, req.capability);
+  const reasoning = effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning));
   const run = (
     includeReasoning: boolean,
   ): Promise<{ view: ChatCompletionResult; reasoning: string }> =>
     runWithPreCommitRetry(
       (markCommitted) =>
-        streamOnce({ client, body: buildChatBody(req, includeReasoning), req, markCommitted }),
+        streamOnce({
+          client,
+          body: buildChatBody(req, resolved, includeReasoning),
+          req,
+          markCommitted,
+        }),
       (err): ProviderError =>
         err instanceof ProviderError ? err : providerErrorFromHttp(err, errorPrefix(req.model)),
       retryOpts,
@@ -222,7 +236,7 @@ export async function runChatCompletionTurn(
     }
   }
 
-  return mapChatCompletionToTurnResult(result.view, {
+  const turn = mapChatCompletionToTurnResult(result.view, {
     model: req.model,
     startedAt,
     now: deps.now(),
@@ -230,4 +244,11 @@ export async function runChatCompletionTurn(
     maxOutputTokens: req.capability.output.maxTokens.max,
     reasoning: result.reasoning,
   });
+  // Surface resolve-chat's dropped/ignored-knob notes as `warning` events (the mapper returns `events:[]`,
+  // so they merge in here) and fire `onEvent` for each — never silently dropped.
+  const warnings = warningEvents(resolved.warnings, deps.now());
+  for (const event of warnings) {
+    req.onEvent?.(event);
+  }
+  return warnings.length > 0 ? { ...turn, events: [...turn.events, ...warnings] } : turn;
 }

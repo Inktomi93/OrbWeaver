@@ -53,6 +53,15 @@ export type { ProviderErrorInit, ProviderErrorKind } from "./errors";
 export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors";
 // ── Infra-internal: per-turn observability vocab ─────────────────────────────────────────────────
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
+export type {
+  ResolvedChatKnobs,
+  ResolvedReasoning,
+  ResolvedSampling,
+  ResolvedWarning,
+  WarningCode,
+} from "./resolve";
+// ── Infra-internal: the resolve-chat funnel's output shapes ──────────────────────────────────────
+export { WARNING_CODES } from "./resolve";
 // ── Infra-internal: the non-chat role requests + image-gen result ────────────────────────────────
 export type {
   EmbedRequest,
