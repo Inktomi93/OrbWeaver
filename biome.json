@@ -269,7 +269,26 @@
         "useExplicitReturnType": "error",
         "noMisleadingReturnType": "error",
         "noDrizzleDeleteWithoutWhere": "error",
-        "noDrizzleUpdateWithoutWhere": "error"
+        "noDrizzleUpdateWithoutWhere": "error",
+        "useTestHooksInOrder": "error",
+        "useTestHooksOnTop": "error",
+        "noPlaywrightElementHandle": "error",
+        "noPlaywrightEval": "error",
+        "noPlaywrightForceOption": "error",
+        "noPlaywrightMissingAwait": "error",
+        "noPlaywrightNetworkidle": "error",
+        "noPlaywrightPagePause": "error",
+        "noPlaywrightUselessAwait": "error",
+        "noPlaywrightWaitForNavigation": "error",
+        "noPlaywrightWaitForSelector": "error",
+        "noPlaywrightWaitForTimeout": "error",
+        "usePlaywrightValidDescribeCallback": "error",
+        "useRegexpTest": "error",
+        "useRegexpExec": "error",
+        "noExcessiveNestedCallbacks": "error",
+        "useDisposables": "error",
+        "useUnicodeRegex": "info",
+        "useNamedCaptureGroup": "info"
       }
     }
   },
