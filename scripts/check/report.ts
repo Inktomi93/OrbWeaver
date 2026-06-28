@@ -7,6 +7,7 @@ import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
+import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
@@ -30,6 +31,7 @@ runChecks([
   schemaBranding,
   dbStructure,
   providersRunnerSeal,
+  noDirectUsersRead,
   soleEnvReader,
   assumesSingleReplica,
 ]);
