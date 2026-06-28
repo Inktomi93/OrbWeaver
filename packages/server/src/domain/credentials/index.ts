@@ -4,7 +4,7 @@
 //   • the service contract + its DI bundle/deps types (client consumes views via tRPC inference)
 //   • CredentialView (the secret-free read-model)
 //   • createCredentialsService (the factory the entry root wires)
-// The cross-boundary types — ResolvedCredential, CredentialHealth, ProviderMetadata, CredProvider,
+// The cross-boundary types — ResolvedCredential, CredentialHealth, ProviderMetadata, CredentialProvider,
 // CredentialSource — live in `@orb/contracts/credentials`; callers import them from there directly, NOT
 // through this front door (§7.4 — one home, contracts is the cross-boundary node).
 

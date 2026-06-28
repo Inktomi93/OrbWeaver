@@ -102,7 +102,7 @@ real code):**
 | connection (api/source/model/providerRouting) | `connection` domain (NEW; absorbs `models`) |
 | generation config (params/sections) | `preset` (never the connection) |
 | credential | `credentials` (un-inverted — owns resolve+CRUD+metadata) |
-| roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRoleConnection(role)` |
+| roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRole(role)` |
 | regex | a regex *library* + scope junctions; engine is `kit/regex` |
 | world info | one books/entries store + scope junctions (already right) |
 | descriptive labels | `tag` (proposed = a *status*, not a parallel store) |
@@ -137,7 +137,7 @@ misses (those feed the adversary).
   as the off-switch; translated twice); `routing.ts` keyed on **`runner`** (infra-internal vocab leak);
   4 scattered `derive*Profile`; **panel ignores capabilities**; 5 roles + buddy **hard-pin** instead of
   reading settings. Target: ONE capability descriptor (distinct reasoning/sampling/verbosity axes) drives
-  translation AND panel; `resolveRoleConnection`. (Authoritative: `domains/connection.md`.)
+  translation AND panel; `resolveRole`. (Authoritative: `domains/connection.md`.)
 - **providers** (infra): the pipeline knows each backend's guts (`dispatchAgentSdk`, seed-frames,
   per-runner name-stamping/cache); **custom-openai hardcodes** window/tier/thinking + assumes OpenAI
   response shape (despite a "user owns the truth" comment); embed/rerank/summarize/imageEmbed

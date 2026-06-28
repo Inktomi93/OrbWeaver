@@ -10,13 +10,13 @@
 //     `ChatSource` rather than declaring a second tuple — routing's `source` IS the credential source.
 //     `vllm` + `local-light` are the two KEYLESS local-compute tiers (the owner's box, D17): vllm is
 //     the supervised-subprocess GPU engine, local-light the in-process transformers.js/ONNX tier.
-//   • CredProvider (CRED_PROVIDERS) — the STORAGE axis. The broader set of providers a row may be
+//   • CredentialProvider (CRED_PROVIDERS) — the STORAGE axis. The broader set of providers a row may be
 //     persisted under: `openrouter | anthropic | openai | google_vertex | custom_openai`. The
 //     `anthropic`/`openai`/`google_vertex` members are forward-compat storage slots with NO resolver
 //     arm yet — storable, never dispatched. The two axes overlap only on `openrouter` + `custom_openai`.
 //
 // AAD invariant (credentials.md "AES-256-GCM AAD invariant"): the at-rest ciphertext is bound to
-// `${userId}|${provider}` where `provider` is a CredProvider. No wire shape in THIS node carries the
+// `${userId}|${provider}` where `provider` is a CredentialProvider. No wire shape in THIS node carries the
 // AAD — it is a domain `persistence/aad.ts` concern — but the storage axis defined here is the
 // `provider` half of that binding, so the CRED_PROVIDERS tuple must stay byte-stable.
 //
@@ -53,7 +53,7 @@ export const credentialSourceSchema = z.enum(CRED_SOURCES);
 // The broader storable set (the `user_credentials.provider` enum derives from this tuple). Distinct
 // from CredentialSource: `anthropic`/`openai`/`google_vertex` are storable with no resolver arm yet —
 // a row with one is persisted but never reached at turn time (do NOT add a partial runner; see
-// credentials.md Open decisions). The neo `CredProvider` re-export collapses to this one home.
+// credentials.md Open decisions). The neo `CredProvider` re-export collapses (now `CredentialProvider`) to this one home.
 export const CRED_PROVIDERS = [
   "openrouter",
   "anthropic",
@@ -61,9 +61,7 @@ export const CRED_PROVIDERS = [
   "google_vertex",
   "custom_openai",
 ] as const;
-export type CredProvider = (typeof CRED_PROVIDERS)[number];
-/** Spelled-out alias of {@link CredProvider} (credentials.md §7.5 names it `CredentialProvider`). */
-export type CredentialProvider = CredProvider;
+export type CredentialProvider = (typeof CRED_PROVIDERS)[number];
 export const credentialProviderSchema = z.enum(CRED_PROVIDERS);
 
 // --- Provider metadata (the `metadata` JSON column wire shape) ----------------

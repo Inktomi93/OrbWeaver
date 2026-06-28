@@ -275,7 +275,7 @@ analytics (all-pairs via `@orb/kit/vector-math`), not the per-user retrieval eng
 **`roleClients` (rerank role) is wired at `entry/`:**
 
 `search` receives the `rerank` role client as a dep at composition time. The `connection` domain's
-`resolveRoleConnection('rerank')` supplies it. `search` never constructs a role client.
+`resolveRole('rerank')` supplies it. `search` never constructs a role client.
 
 **`collapseByContentHash` — where it moves:**
 

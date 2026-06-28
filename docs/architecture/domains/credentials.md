@@ -41,7 +41,7 @@
   lives in `entry/` in orbweaver (not in the domain).
 
 This domain does **not** own: the AES-256-GCM engine (that is `infra/crypto/secrets` — the `SecretBox`
-injectable); `CredProvider` / `CredentialSource` type definitions (those are `@orb/contracts`, the
+injectable); `CredentialProvider` / `CredentialSource` type definitions (those are `@orb/contracts`, the
 cross-boundary wire type); `ResolvedCredential` brand type (that is `@orb/contracts`, consumed by
 `infra/providers` runners); the per-turn `maybeRevokeOnAuthFailed` call-site wiring (chat engine and
 compaction verbs call `credentials.maybeRevokeOnAuthFailed` through the composition-root injection, not
@@ -68,7 +68,7 @@ reach `domain/credentials/persistence/`. The fix in orbweaver is the injection m
 | `mintVllmCredential` | entry/_shared/role-clients-binder | `domain/credentials/verbs/mint-vllm.ts`; injected into the vLLM role-clients builder at the composition root |
 | `buildKeylessCatalogCredential` | models/persistence/snapshot | `domain/credentials/verbs/build-keyless-catalog.ts`; injected into `connection.context` at the composition root |
 | `parseProviderMetadata`, `providerMetadataSchema` | credentials/* own feature | `domain/credentials/contract/params.ts` (the schema) + `domain/credentials/substrate/parse-metadata.ts` (the parser) |
-| `CredProvider` re-export | credentials/contract/params, credentials/contract/views | `@orb/contracts/credentials` (the canonical source) |
+| `CredentialProvider` re-export | credentials/contract/params, credentials/contract/views | `@orb/contracts/credentials` (the canonical source) |
 
 ---
 
@@ -235,7 +235,7 @@ export type { CredentialView } from './contract/views'
 export { createCredentialsService } from './service'
 ```
 
-**`ResolvedCredential`, `CredentialHealth`, `ProviderMetadata`, `CredProvider`** live in
+**`ResolvedCredential`, `CredentialHealth`, `ProviderMetadata`, `CredentialProvider`** live in
 `@orb/contracts/credentials` — they are cross-boundary types consumed by `infra/providers` runners
 and by the `connection` domain. They are NOT re-exported from this front door; callers import from
 `@orb/contracts` directly.
@@ -262,7 +262,7 @@ has provisioned the owner at entry, and is never imported by any domain.
 | `_shared/credentials.ts` — `mintVllmCredential` | stays domain feature | `domain/credentials/verbs/mint-vllm.ts` | A named credentials verb (mint a boot-time vLLM loopback credential). The boot binder calls it through composition-root injection. | resolve-time |
 | `_shared/credentials.ts` — `buildKeylessCatalogCredential` | stays domain feature | `domain/credentials/verbs/build-keyless-catalog.ts` | A named credentials verb (mint a keyless OR catalog credential). Injected into `connection` at the composition root. | resolve-time |
 | `_shared/credentials.ts` — `providerMetadataSchema`, `parseProviderMetadata`, `ProviderMetadata` type | → `contracts` (schema/type) + domain substrate (parser) | `@orb/contracts/credentials` (schema + type); `domain/credentials/substrate/parse-metadata.ts` (the parser call) | `ProviderMetadata` is a cross-boundary wire type (client needs it for custom-endpoint form fields). The Zod schema is a cross-boundary validator. The `parse` call is a domain substrate helper. | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; client imports schema from there, not from server domain |
-| `_shared/credentials.ts` — `CredProvider` re-export | → `contracts` | `@orb/contracts/credentials` (canonical source) | `CredProvider` is a cross-boundary type; the re-export through `_shared` was double-homing. Callers import from `@orb/contracts` directly. | resolve-time |
+| `_shared/credentials.ts` — `CredentialProvider` re-export | → `contracts` | `@orb/contracts/credentials` (canonical source) | `CredentialProvider` is a cross-boundary type; the re-export through `_shared` was double-homing. Callers import from `@orb/contracts` directly. | resolve-time |
 | `_shared/credentials.ts` — `aadFor()` helper | stays domain feature | `domain/credentials/persistence/aad.ts` | The AAD binding `${userId}|${provider}` is a domain-persistence concern (one file, never inline). Must be a single canonical site to make the byte-identical invariant auditable. | test-time: round-trip crypto test asserts AAD format is stable |
 | `persistence/health-cache.ts` (module-scope LRU Maps) | stays domain feature, renamed | `domain/credentials/health/cache.ts` | In-memory throttle + strike state is NOT a DB query; belongs in a named subsystem not in `persistence/`. Adds the `ASSUMES(single-replica)` annotation. | lint-time: dep-cruiser `persistence-no-in-memory-state` rule (gate candidate) |
 | `persistence/openai-models.ts` (raw `fetch()`) | → `infra` | `infra/network/openai-models.ts` | A raw I/O adapter against a user-supplied URL is not a DB query. `persistence/` is queries only. The `fetch-models` verb calls it through an injected op. | lint-time: dep-cruiser `persistence-no-io` rule (gate candidate) |
@@ -357,7 +357,7 @@ where the key comes from.
   AND infra `probe()` return type).
 - `ProviderMetadata` type + `providerMetadataSchema` → `@orb/contracts/credentials` (cross-boundary;
   client needs the schema for custom-endpoint form fields).
-- `CredProvider` union → `@orb/contracts/credentials` (canonical source; no re-export through server).
+- `CredentialProvider` union → `@orb/contracts/credentials` (canonical source; no re-export through server).
 - `CredentialView` → `domain/credentials/contract/views.ts` (domain-internal view; re-exported from
   front door for client type-only use).
 - `ResolveCredentialArgs` / `AddCredentialParams` / `TestHealthParams` / etc. → `domain/credentials/
@@ -390,7 +390,7 @@ export type CredentialProvider = 'openrouter' | 'anthropic' | 'openai' | 'google
 ONE importable `CredentialSource` canonical union in `@orb/contracts/credentials` (no inline re-spelling).
 **It is the single home for the provider-source axis (D31): `@orb/contracts/connection` re-exports it as
 `ChatSource`** (routing's `source` IS the credential source — same 4 members), rather than declaring a
-second tuple. (Distinct from the broader `CredentialProvider`/`CredProvider` storable-provider union,
+second tuple. (Distinct from the broader `CredentialProvider` storable-provider union,
 which has members like `anthropic`/`openai`/`google_vertex` with no resolver arm yet — see the open
 decision below.) The resolver switch uses `assertNever` for exhaustiveness. Any new source arm = add to the
 union + add the switch arm + add the runner arm in `infra/providers` → `tsc` error if any of the three is

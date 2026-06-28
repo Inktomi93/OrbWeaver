@@ -3,7 +3,7 @@
 // domain/credentials — this isolates the boot wiring, the seam-test precedent). Covers: no-op when the key
 // is unset; adds when no openrouter row exists; idempotent (no second add when one already exists).
 
-import type { CredProvider } from "@orb/contracts/credentials";
+import type { CredentialProvider } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,7 +21,7 @@ const OWNER: Principal = {
 
 const KEY = "sk-or-test-key";
 
-function view(provider: CredProvider, id: string): CredentialView {
+function view(provider: CredentialProvider, id: string): CredentialView {
   return {
     id: castId<UserCredentialId>(id),
     provider,
@@ -39,7 +39,7 @@ interface Double {
     readonly list: (params: { principal: Principal }) => Promise<CredentialView[]>;
     readonly add: (params: {
       principal: Principal;
-      provider: CredProvider;
+      provider: CredentialProvider;
       key: string;
     }) => Promise<CredentialView>;
   };
@@ -48,7 +48,7 @@ interface Double {
 }
 
 /** An in-memory credentials double: `list` returns the store; `add` appends a minimal view. */
-function credentialsDouble(seed: readonly CredProvider[]): Double {
+function credentialsDouble(seed: readonly CredentialProvider[]): Double {
   const store: CredentialView[] = seed.map((provider, i) => view(provider, `cred_${i}`));
   return {
     store,

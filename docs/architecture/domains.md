@@ -13,7 +13,7 @@
 | **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
 | **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
 | **world-info** | keep | one books/entries store + scope junctions (already correct). |
-| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRoleConnection(role)` for all 7 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent). Absorbs **models** (the catalog = "what a connection can pick"). |
+| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRole(role)` for all 7 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent). Absorbs **models** (the catalog = "what a connection can pick"). |
 | **credentials** | keep (un-invert) | ALL credential logic — resolve + CRUD + metadata. No `_shared` guts. |
 | **tag** | keep (fix) | one tag namespace + per-entity junctions; **proposed = a status**, not a parallel store. Labels only — NOT analytics facets (those are `discovery`). |
 | **embeddings** | **NEW** | the vector substrate: embeds every source + owns the vector store + the event-driven indexer. The ONE write path. (Below.) |
@@ -233,7 +233,7 @@ clean line, confirmed sound against the real code:
 - **`resolveChat` is infra** (provider-quirk knowledge: effort/thinking/fastMode per model). It sits
   before `runChat`. The *profile derivation* feeding it is scattered across 4 dispatchers today →
   unify into one `resolveModelProfile(api, source, modelId)`.
-- **One `resolveRoleConnection(role)` for all 7 roles** (chat + embed/rerank/imageEmbed/summarize/
+- **One `resolveRole(role)` for all 7 roles** (chat + embed/rerank/imageEmbed/summarize/
   generateImage + agent). Feasible and anticipated by the code; today chat and the 4 bound role-clients
   use *two different* dispatch paths and 5 roles + buddy hard-pin instead of reading settings —
   unifying reconciles those.

@@ -226,7 +226,7 @@ The neo-tavern crunch was concepts with no single home. Orbweaver fixes the wors
 | **Connection** (api/source/model/providerRouting) | its own selection in user settings (a real `connection` domain owns resolution) | separate from the preset; one resolver; provider vocab is one derived map (runner/family derived from source+protocol) |
 | **Generation config** (params/customParameters/sections) | the **preset** | preset = "how to generate," NOT the connection |
 | **Credentials** | the `credentials` domain owns ALL of it (resolve + CRUD + metadata) | un-inverted: logic lives in the feature, not a `_shared` drawer |
-| **Roles** (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRoleConnection(role)` | all roles honor settings; buddy = the `agent` role |
+| **Roles** (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRole(role)` | all roles honor settings; buddy = the `agent` role |
 | **Regex** | a regex *library* + scope junctions (global/character/preset), assembled + executed by placement | the world-info pattern — one store, attached at scopes |
 | **World info** | one books/entries store + scope junctions | already the right shape in neo-tavern; keep it |
 | **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (discovery) |

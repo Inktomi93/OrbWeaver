@@ -79,7 +79,7 @@ Concretely, `infra/providers` owns:
 This tier does **NOT** own:
 
 - **Selection / routing / policy** — which backend a role uses, the per-agent connection, the model
-  pick, role defaults. That is `connection` (`resolveRoleConnection`). `runner`/`family`/`protocol`
+  pick, role defaults. That is `connection` (`resolveRole`). `runner`/`family`/`protocol`
   are derived INSIDE providers from the resolved `{backend}` and **never leak upward**.
 - **The capability descriptor** — `resolveModelCapability` + the curated Claude catalog + family
   detection move to `domain/connection/catalog/` (the synthesis reads the OR snapshot connection
@@ -551,7 +551,7 @@ seed-frames, per-runner name-stamping, per-runner cache logic), so touching one 
 > **Roles are the firewall. Backends are sealed strategies. The domain calls a role, never a backend.**
 
 - **Public surface = ROLES:** `chat` · `agent` · `embed` · `rerank` · `imageEmbed` · `summarize` ·
-  `generateImage` (the 7 roles `connection.resolveRoleConnection` resolves). Each is a thin contract.
+  `generateImage` (the 7 roles `connection.resolveRole` resolves). Each is a thin contract.
   `agent` is the chat turn **plus tools + a multi-turn loop** (opt-in, agent-sdk-only today — its
   contract `runAgentTurn(req)` rides the same firewall base as `runChatTurn`); a plain chat turn carries
   no `tools`. See §1 (the `tools?` field) and `participants-agents-identity.md §0`.
@@ -644,7 +644,7 @@ lone vLLM-only role, by capability). The vLLM lock is a **boot-binder default** 
 is read today ONLY for the `chat` role. So the gap is small and surgical: **make the binder read
 `routing.roleDefaults.<role>` per role (a one-site rebind the code already anticipates) + add the
 local-light backend** — NOT a dispatcher rewrite. Each role stays a thin contract with **multiple
-sealed backends across three hardware tiers**, picked **per role** by `resolveRoleConnection` from the
+sealed backends across three hardware tiers**, picked **per role** by `resolveRole` from the
 user's setup:
 
 | Role | local-light (transformers.js / ONNX, **CPU or CUDA**) | local-heavy (vLLM) | hosted (key) |
@@ -742,7 +742,7 @@ about agents, only `req`.
 - **Role-default vs per-agent connection resolution — RESOLVED.** Resolution lives entirely in
   `connection`; the role dispatcher takes the already-resolved `{backend, model, credential, capability}`
   and **never re-resolves** (the selection/execution split). Per-agent override is applied in
-  `connection.resolveRoleConnection`, not in the backend.
+  `connection.resolveRole`, not in the backend.
 - **summarize as a vLLM surface vs a request-shaper over the chat role — RESOLVED: a thin shaper.** It
   runs the chat role with a summarize prompt; it never duplicates chat logic (both the vLLM and OR paths
   converge on the shaper).

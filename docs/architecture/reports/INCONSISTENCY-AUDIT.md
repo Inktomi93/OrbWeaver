@@ -123,7 +123,7 @@ ledger §2 + `credentials.md:466` home it on `providerMetadataSchema.modelProfil
 - **Stale-open vs ledger §5:** `admin.md:169,363-368` + `identity-auth-permission.md §6:328-331` list the `can()` seam shape as OPEN though ledger §5:99 decided it (DomainForbiddenError, ResourceRef union, lives in `admin/guard.ts`).
 - **Broken §-refs:** `import.md:436` → character.md "§Version history mutations" (no such section); `chat.md:153-156,379-380` flags `knowledge-cluster §3/§8` as stale though it's already amended (kc:101-102).
 - **Schema homes unnamed in db.md:** `chat_locks` (chat.md:390-394) and `oidc_transactions` (sessions.md) are load-bearing but not enumerated in any schema-file listing.
-- **Misc naming:** `refreshCatalog`(connection.md:180) vs `refreshCatalogSnapshot`(transport/providers); `resolveRole` vs `resolveRoleConnection`; catalog-entry type spelled 4 ways (connection.md); `WorkloadModelsEnv` keeps "Models" though models→connection merged (workloads.md:278).
+- **Misc naming:** `refreshCatalog`(connection.md:180) vs `refreshCatalogSnapshot`(transport/providers); `resolveRole` vs `resolveRole`; catalog-entry type spelled 4 ways (connection.md); `WorkloadModelsEnv` keeps "Models" though models→connection merged (workloads.md:278).
 - **WI contract home:** `world-info.md:123-124` targets `WiBusEvent`/`WorldInfoScope` to `@orb/contracts/chat-bus`; canonical is `@orb/contracts/world-info` (shared-dissolution:112). `world-info.md:58 vs 114` internal contradiction on `WorldBookRole` home.
 - **preset.md:44** cites neo "migration 0002" as live (orbweaver starts from a fresh `0000_baseline`).
 - **discovery.md:341,601-602** shows the segmenter re-home as OPEN though ledger §2:64 committed `→ memory/substrate`.

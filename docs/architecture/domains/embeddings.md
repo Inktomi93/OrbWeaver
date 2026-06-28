@@ -31,7 +31,7 @@
   and `memory` compare only within one space. The active embed model is an explicit setting in
   `connection`; changing it to a different `(model, dim)` triggers the re-index workload.
 - **The embed role dispatcher** — `embeddings` wires the `embed` role call (via `connection`'s
-  `resolveRoleConnection('embed')`) and calls `infra/providers`'s sealed `embed` role impl. The domain
+  `resolveRole('embed')`) and calls `infra/providers`'s sealed `embed` role impl. The domain
   speaks user-vocab only (no runner/family knowledge); the role dispatcher in `infra/providers` owns
   the `switch (credential.source)` logic.
 - **The VECTOR_TABLES registry** — a compile-time–typed tuple of the four primary table names; consumed

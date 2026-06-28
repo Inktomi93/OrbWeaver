@@ -4,7 +4,11 @@
 // table (the `no-direct-users-read` chokepoint is RED on credentials). The KEY/label strings are raw here
 // (validated at the verb/transport boundary); ids/provider/source are branded.
 
-import type { CredentialSource, CredProvider, ProviderMetadata } from "@orb/contracts/credentials";
+import type {
+  CredentialProvider,
+  CredentialSource,
+  ProviderMetadata,
+} from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserCredentialId } from "@orb/kit/ids";
 
@@ -34,7 +38,7 @@ export interface MaybeRevokeParams {
 export interface ListCredentialsParams extends CredentialActorParams {}
 
 export interface AddCredentialParams extends CredentialActorParams {
-  readonly provider: CredProvider;
+  readonly provider: CredentialProvider;
   /** Optional — defaults to `"default"` inside the verb. Per-user labels disambiguate multiple keys. */
   readonly label?: string;
   /** The raw secret to seal (AES-256-GCM, AAD = `${ownerId}|${provider}`). Never persisted in clear. */

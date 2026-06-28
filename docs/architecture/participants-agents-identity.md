@@ -140,7 +140,7 @@ a swapped string.
 
 - **Per-agent connection (a new routing axis) — RESOLVED: default = the role default, per-agent override
   optional.** Routing/credential resolution becomes per-agent, resolved in
-  `connection.resolveRoleConnection` (the agent is a role — `agent` for buddy, the `chat` role default for
+  `connection.resolveRole` (the agent is a role — `agent` for buddy, the `chat` role default for
   a character — with an identity). A participant's own `{backend, model}` override wins over the role
   default when present; absent, it inherits the default. Aligns with `domains/connection.md §1` +
   `domains/connection.md §"Per-agent capability"`.
