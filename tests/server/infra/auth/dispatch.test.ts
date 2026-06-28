@@ -1,6 +1,4 @@
-import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import type { AuthConfig, ResolveDeps } from "@orb/server/infra/auth";
+import type { AuthConfig } from "@orb/server/infra/auth";
 import { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe, expect, test } from "vitest";
 
@@ -38,12 +36,10 @@ describe("MODE_RESOLVERS — exhaustive over AUTH_MODE", () => {
     expect(await MODE_RESOLVERS["single-user"](headers(), cfg(), {})).toBeNull();
   });
 
-  test("cookie modes return the injected validateCookie result, else null", async () => {
-    const identity = { externalId: null, handle: castId<Handle>("alice"), groups: [] };
-    const deps: ResolveDeps = { validateCookie: () => Promise.resolve(identity) };
+  test("cookie modes resolve to null at infra (the seam owns the cookie read — D40)", async () => {
     expect(
-      await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), deps),
-    ).toEqual(identity);
+      await MODE_RESOLVERS.local(headers({ cookie: "__Host-orb_session=t" }), cfg(), {}),
+    ).toBeNull();
     expect(await MODE_RESOLVERS.oidc(headers(), cfg(), {})).toBeNull();
   });
 

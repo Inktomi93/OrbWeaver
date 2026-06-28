@@ -11,8 +11,9 @@
 // JWT/JWKS + OIDC-PKCE ports, and the verification OUTPUT (`IdentityResolution`).
 //
 // LAYER RULE (structure.md §3): `infra` reaches DOWN (foundation, kit) only — NEVER `@orb/db`, NEVER a
-// domain. Every db-dependent VERIFICATION step (the cookie session validate; the JWT/JWKS crypto; the
-// OIDC PKCE store) arrives INJECTED via `ResolveDeps`, wired at `entry/auth/seam.ts`.
+// domain. Every db-dependent VERIFICATION step (the JWT/JWKS crypto; the OIDC PKCE store) arrives INJECTED
+// via `ResolveDeps`, wired at `entry/auth/seam.ts`. (Post-D40 the cookie→user read is NOT an infra step —
+// the seam calls `sessions.validate` directly; see `modes/cookie-session.ts`.)
 //
 // NEW MODE CHECKLIST (adding a 5th mode — SAML, token-introspection, …):
 //   1. Add the mode to `AUTH_MODES` in `@orb/contracts/identity` (AuthConfig.mode + MODE_RESOLVERS derive).
@@ -113,28 +114,16 @@ export interface ForwardJwtVerifier {
  * The db-dependent VERIFICATION steps, injected at `entry/auth/seam.ts` so this infra module stays free
  * of `@orb/db` + domain imports. ALL optional — each absent dep makes its layer inert (db-free fallback).
  *
- * There is deliberately NO `upsertUser` and NO `determineRole` here: those are the RESOLUTION tier's
- * (`domain/sessions`), invoked by the seam AFTER verification (invariant #1 — the seam is the only place
- * that turns a `ResolvedIdentity` into a row-backed `Principal`).
+ * There is deliberately NO `upsertUser`, NO `determineRole`, and NO `validateCookie` here: those are
+ * RESOLUTION-tier reads (`domain/sessions`). Per D40 the cookie→user read is `sessions.validate`, called
+ * DIRECTLY by the seam BEFORE `resolve` (it returns the `userId`); infra never reads the cookie. The seam
+ * turns a `ResolvedIdentity` into the one row-backed `Principal` AFTER verification (invariant #1).
  */
 export interface ResolveDeps {
-  /** `local`/`oidc`: validate the `__Host` session token → the pre-row identity, or `null`
-   *  (missing/revoked/expired). Returns a `ResolvedIdentity` — NO `userId`/`role` (invariant #3).
-   *  FLAG (D40 — reconcile at 4c/4e): a session cookie inherently resolves to a user ROW, so this port's
-   *  honest output includes `userId` — but invariant #3 forbids infra to carry a row id, so the id is
-   *  dropped here, recreating the neo "validate threw the id away" bug (sessions.md §"resolved twice"). PER
-   *  D40 the cookie→user resolution is a DOMAIN step (`sessions.validate`, which returns `userId`) the SEAM
-   *  calls directly; this infra port is REMOVED when 4c/4e land. Do NOT wire it as the `userId` source. */
-  validateCookie?: (
-    token: string,
-    onSlide?: (expiresAt: number) => void,
-  ) => Promise<ResolvedIdentity | null>;
   /** forward-header signed path: the jose-backed JWT/JWKS verifier (deferred to 4e — see the port). */
   verifyForwardJwt?: ForwardJwtVerifier;
   /** OIDC callback: the db-backed PKCE/state store (consumed by `verifyPkceState`, not by `resolve`). */
   oidcStore?: OidcTransactionStore;
-  /** Fired with the slid expiry on a throttled server-side session slide (cookie Max-Age refresh). */
-  onSessionSlide?: (expiresAt: number) => void;
   /** Test/override seam: the parsed `AuthConfig`. Production omits it → `authConfigFromEnv()`. */
   config?: AuthConfig;
 }

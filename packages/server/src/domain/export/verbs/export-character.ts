@@ -3,7 +3,7 @@
 // packaging (basePng + slug + the bytes envelope) are export's job; the card mapper (`buildCardV3`) and the
 // PNG byte codec (`writeCardChunk`) are COMPOSED from below (the serde core / kit), never re-implemented
 // here — crossing that line would re-create the second emitter this domain exists to kill (export.md
-// §"What export owns vs what is shared"). See FLAG[PD-44] in substrate/card-serde.ts.
+// §"What export owns vs what is shared"). The serde core is `@orb/server/kit/serde/card` (PD-44 resolved).
 //
 // Ownership is `principal.userId` (§7.1 — never a `users` read). `fetchOwned` puts the owner predicate in
 // the WHERE, so a non-owner / missing character both collapse to `undefined` → the verb returns `null`
@@ -22,10 +22,11 @@ import { fetchOwned, parseRecord, parseStringArray } from "@orb/db/kit";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { and, eq } from "drizzle-orm";
-import type { ExportCharacterParams, ExportWorldEntry } from "../contract/params";
+import type { ExportWorldEntry } from "#kit/serde/card";
+import { buildCardV3 } from "#kit/serde/card";
+import type { ExportCharacterParams } from "../contract/params";
 import type { ExportedCard } from "../contract/results";
 import type { ExportContext, ExportService } from "../contract/service";
-import { buildCardV3 } from "../substrate/card-serde";
 import { slug } from "../substrate/download-slug";
 import { PLACEHOLDER_PNG } from "../substrate/placeholder-png";
 
