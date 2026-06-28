@@ -11,10 +11,10 @@
 // silent data-loss event for every stored credential. NEVER re-derive it inline — every encrypt/decrypt in
 // this domain calls `aadFor`; the SecretBox CARRIES this value, it does not compute it.
 
-import type { CredProvider } from "@orb/contracts/credentials";
+import type { CredentialProvider } from "@orb/contracts/credentials";
 import type { UserId } from "@orb/kit/ids";
 
 /** The GCM AAD for a `(owner, provider)` slot — `${userId}|${provider}`, byte-identical, single-sited. */
-export function aadFor(userId: UserId, provider: CredProvider): string {
+export function aadFor(userId: UserId, provider: CredentialProvider): string {
   return `${userId}|${provider}`;
 }

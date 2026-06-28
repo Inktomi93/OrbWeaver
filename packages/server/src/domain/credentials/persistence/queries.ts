@@ -6,7 +6,7 @@
 // is the ONLY projection to the wire shape — it DROPS `ciphertext`/`iv`/`tag` (the plaintext-never-leaks
 // belt, invariant #4). `CredentialRow` is file-local (drizzle `$inferSelect`) — never exported (no-inline-types).
 
-import type { CredProvider, ProviderMetadata } from "@orb/contracts/credentials";
+import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
 import { userCredentials } from "@orb/db";
 import { batchMany, fetchOwned } from "@orb/db/kit";
@@ -33,7 +33,7 @@ export function fetchOwnedCredential(
 export async function loadActiveCredential(
   db: Db,
   ownerId: UserId,
-  provider: CredProvider,
+  provider: CredentialProvider,
 ): Promise<CredentialRow | undefined> {
   const rows = await db
     .select()
@@ -62,7 +62,7 @@ export function listOwnedCredentials(db: Db, ownerId: UserId): Promise<Credentia
 export async function findSlotLabelRow(
   db: Db,
   ownerId: UserId,
-  provider: CredProvider,
+  provider: CredentialProvider,
   label: string,
 ): Promise<{ id: UserCredentialId } | undefined> {
   const rows = await db
@@ -83,7 +83,7 @@ export async function findSlotLabelRow(
 export async function hasAnyInSlot(
   db: Db,
   ownerId: UserId,
-  provider: CredProvider,
+  provider: CredentialProvider,
 ): Promise<boolean> {
   const rows = await db
     .select({ id: userCredentials.id })
@@ -123,7 +123,7 @@ export function insertSealed(
   args: {
     readonly id: UserCredentialId;
     readonly ownerId: UserId;
-    readonly provider: CredProvider;
+    readonly provider: CredentialProvider;
     readonly label: string;
     readonly sealed: Sealed;
     readonly metadata: ProviderMetadata;
@@ -155,7 +155,7 @@ export function promoteActive(
   args: {
     readonly ownerId: UserId;
     readonly credentialId: UserCredentialId;
-    readonly provider: CredProvider;
+    readonly provider: CredentialProvider;
     readonly now: number;
   },
 ): Promise<unknown> {

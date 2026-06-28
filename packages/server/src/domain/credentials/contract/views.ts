@@ -5,7 +5,7 @@
 // into the wire by construction. Domain-internal (client gets it by inference, not a deep import) — it
 // stays here, not in `@orb/contracts`.
 
-import type { CredProvider } from "@orb/contracts/credentials";
+import type { CredentialProvider } from "@orb/contracts/credentials";
 import type { UserCredentialId } from "@orb/kit/ids";
 
 /**
@@ -18,7 +18,7 @@ import type { UserCredentialId } from "@orb/kit/ids";
  */
 export interface CredentialView {
   readonly id: UserCredentialId;
-  readonly provider: CredProvider;
+  readonly provider: CredentialProvider;
   /** User-facing label. Nullable at the column; `add` always writes one (default `"default"`). */
   readonly label: string | null;
   readonly active: boolean;
