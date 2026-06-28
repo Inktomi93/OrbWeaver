@@ -1,0 +1,371 @@
+// entry/compose/services — THE composition root's service graph (tiers/entry.md §"injection model" + §layout
+// "services.ts"). `createServices` constructs every domain service with its DI bundle and wires every
+// cross-feature injected op (the ONE tier above `domain-no-cross-feature`). It builds the infra handles
+// (SecretBox / CAS / variant cache / image adapter / the provider backend-registry → executor + diagnostics),
+// the in-process event bus, the boot-global owner `RoleClients` bundle, then the 15 transport-facing services
+// + the non-Services ones downstream wiring needs (sessions for the auth seam; embeddings + its indexer;
+// assets; export). Returns the `Services` bundle the transport `Context` reads, plus the boot handles the
+// lifecycle supervises (vLLM engine) / probes (SecretBox) / wires (event bus, indexer, runner-env).
+//
+// DETERMINISM: `now` is an injected param (compose NEVER calls `Date.now()`); id minters are built from the
+// kit `mintTypeId`/`newId` (the composition root is the sanctioned mint site). COMPOSE ORDER (D38): infra +
+// guards → sessions → settings → credentials → connection → roleClients → the leaf/heavy services.
+//
+// FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
+//   • FLAG[PD-48]: the embeddings INDEXER is built but NOT subscribed — its `loadCardText`/`loadAssetBytes`
+//     canon-readers need un-principal system by-id reads (character.getCard/assets.getMetadata are owner-
+//     gated). The bus + emit are wired; subscription is one line when those reads land. Same family: the
+//     `embedCorpus`/`embedAssets` runner-env bulk seams (runner-env.ts).
+//   • FLAG[PD-49]: character.attachCardTag is inert — `domain/tag` exposes no atomic resolve-or-create-tag-
+//     by-name op, so character.bulkAddCardTag's injected attach can't be wired (only bulkAddCardTag uses it).
+//   • character.reapAssets — assets GC is PD-26 (best-effort no-op until then; called on every delete).
+//   • tag.requireParticipant — chat membership gate is PD-19 (chat is P5).
+//   • import — its service is PER-OWNER (`ImportContext.ownerId`), built by the `entry/import` driver later.
+
+import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
+import type { EndpointInspection } from "@orb/contracts/providers";
+import type { RoleClients } from "@orb/contracts/role-clients";
+import type { SessionView } from "@orb/contracts/session";
+import type { Db } from "@orb/db";
+import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { createAdminService, requireAdmin, requireOwner } from "#domain/admin";
+import type { AssetsService } from "#domain/assets";
+import { createAssetsService } from "#domain/assets";
+import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
+import { createBuddyService } from "#domain/buddy";
+import { createCharacterService } from "#domain/character";
+import { createConnectionService } from "#domain/connection";
+import { createCredentialsService } from "#domain/credentials";
+import { createDiscoveryService } from "#domain/discovery";
+import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
+import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
+import type { ExportService } from "#domain/export";
+import { createExportService } from "#domain/export";
+import { createNotificationsService } from "#domain/notifications";
+import { createPersonaService } from "#domain/persona";
+import { createPresetService } from "#domain/preset";
+import { createSearchService } from "#domain/search";
+import type { SessionsService } from "#domain/sessions";
+import { createSessionsService } from "#domain/sessions";
+import { createSettingsService } from "#domain/settings";
+import { createStatsService } from "#domain/stats";
+import { createTagService } from "#domain/tag";
+import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
+import { createWorkloadService } from "#domain/workloads";
+import { createWorldInfoService } from "#domain/world-info";
+import { env } from "#foundation/env";
+import type { AuditEntry } from "#foundation/observability";
+import { logAudit } from "#foundation/observability";
+import { createPasswordHasher } from "#infra/auth";
+import type { SecretBox } from "#infra/crypto";
+import { createSecretBox } from "#infra/crypto";
+import { createImageAdapter } from "#infra/image";
+import { fetchOpenAiModels } from "#infra/network";
+import type { AgentToolSpec, BackendRegistryDeps, VllmEngineHandle } from "#infra/providers";
+import {
+  createAgentToolServer,
+  createBackendRegistry,
+  createProviderDiagnostics,
+  createProviderExecutor,
+} from "#infra/providers";
+import { createCas, createVariantCache } from "#infra/storage";
+import type { Services } from "../../transport/trpc/context";
+import type { EffectiveConfigWiring } from "./effective-config";
+import { createEffectiveConfigWiring } from "./effective-config";
+import type { DomainEventBus } from "./event-bus";
+import { createDomainEventBus } from "./event-bus";
+import { bindRoleClientsForUser } from "./role-clients";
+import { buildWorkloadRunnerEnv } from "./runner-env";
+
+/**
+ * What boot supplies to stand up the whole service graph. `now` + `secretBoxKey` + `casDir`/`variantDir` +
+ * the vLLM knobs are boot-resolved (crypto key path, data dirs, env); `ownerId` is the deployment owner the
+ * boot-global `RoleClients` bundle resolves against; `providerSeams` is the test/durable-override channel for
+ * the sealed backend registry (the only way to reach a sealed backend's deps).
+ */
+export interface ServicesDeps {
+  readonly db: Db;
+  readonly now: () => number;
+  readonly ownerId: UserId;
+  readonly secretBoxKey: Buffer | null;
+  readonly casDir: string;
+  readonly variantDir: string;
+  readonly sessionSecret: string | null;
+  readonly vllmDisabled: boolean;
+  readonly vllmConcurrency?: BackendRegistryDeps["vllmConcurrency"];
+  readonly repoRoot?: string;
+  readonly providerSeams?: Partial<BackendRegistryDeps>;
+}
+
+/** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
+ *  supervises/probes/wires (the auth seam consumes `sessions`; the indexer/bus are wired here; the runner-env
+ *  + vLLM engine go to the worker/lifecycle; the SecretBox is probed by the crypto boot step). */
+export interface ServicesResult {
+  readonly services: Services;
+  readonly sessions: SessionsService;
+  readonly embeddings: EmbeddingsService;
+  readonly indexer: EmbeddingsIndexer;
+  readonly assets: AssetsService;
+  readonly exportService: ExportService;
+  readonly eventBus: DomainEventBus;
+  readonly runnerEnv: WorkloadRunnerEnv;
+  readonly roleClients: RoleClients;
+  readonly effectiveConfig: EffectiveConfigWiring;
+  readonly secretBox: SecretBox;
+  readonly vllmEngine: VllmEngineHandle | null;
+}
+
+/** Build a production id minter for a TypeID prefix (the composition root is the sanctioned mint site). */
+function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
+  return (): TypeIdOf<P> => mintTypeId(prefix);
+}
+
+/** Construct the full service graph + the boot handles. ASYNC: the boot-global `RoleClients` bundle resolves
+ *  each derive-role's connection once (the PD-9 paydown) before the consumers that require it are built. */
+export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
+  const { db, now } = deps;
+
+  // ── Infra handles (the sealed I/O executors + the provider surfaces) ──────────────────────────────────
+  const registry = createBackendRegistry({
+    ...(deps.providerSeams ?? {}),
+    now,
+    vllmDisabled: deps.vllmDisabled,
+    ...(deps.vllmConcurrency !== undefined ? { vllmConcurrency: deps.vllmConcurrency } : {}),
+    ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
+  });
+  const executor = createProviderExecutor({ backends: registry.backends });
+  const diagnostics = createProviderDiagnostics({ backends: registry.backends });
+  const secretBox = createSecretBox(deps.secretBoxKey);
+  const cas = createCas(deps.casDir);
+  const variants = createVariantCache(deps.variantDir);
+  const imageAdapter = createImageAdapter();
+  const passwordHasher = createPasswordHasher(deps.sessionSecret);
+
+  // ── Shared seams (the bound audit writer, the user-id minter, the in-process event bus) ───────────────
+  const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
+  const newUserId = (): UserId => newId<UserId>();
+  const eventBus = createDomainEventBus();
+
+  // ── sessions → guards → settings → credentials → connection (the auth/config spine, D38) ──────────────
+  const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
+  const settings = createSettingsService({ db, now, audit, requireAdmin, requireOwner });
+  const credentials = createCredentialsService({
+    db,
+    now,
+    newCredentialId: minter(ID_PREFIX.userCredential),
+    box: secretBox,
+    requireOwner,
+    probe: (credential): Promise<CredentialHealth> => diagnostics.probe({ credential }),
+    inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
+    fetchModels: fetchOpenAiModels,
+  });
+  const connection = createConnectionService({
+    db,
+    now,
+    resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
+    fetchOrCatalog: diagnostics.fetchOrCatalog,
+    loadUserSettings: settings.loadUserSettings,
+  });
+
+  // ── The boot-global OWNER RoleClients bundle (resolved ONCE at boot; the search/embeddings/discovery dep) ─
+  const roleClients = await bindRoleClientsForUser({ connection, executor }, deps.ownerId);
+
+  // ── The vector substrate (embeddings) + its event indexer (built; subscription DEFERRED — see header) ──
+  const embeddings = createEmbeddingsService({
+    db,
+    roleClients,
+    now,
+    newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
+    newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
+  });
+  const indexer = createEmbeddingsIndexer({
+    store: embeddings.store,
+    // FLAG[PD-48]: indexer built but not subscribed — needs character system loadCardText(characterId) +
+    // assets loadAssetBytes(assetId) un-principal by-id reads; until then card/asset writes don't re-embed.
+    // These reject loudly if ever invoked.
+    loadCardText: (): Promise<string | undefined> =>
+      Promise.reject(
+        new Error(
+          "embeddings indexer loadCardText: no un-principal system by-id card-text read on domain/character (getCard is principal-scoped) — FLAG[PD-48]",
+        ),
+      ),
+    loadAssetBytes: (): Promise<Uint8Array | undefined> =>
+      Promise.reject(
+        new Error(
+          "embeddings indexer loadAssetBytes: no un-principal system by-id owned-bytes read on domain/assets — FLAG[PD-48]",
+        ),
+      ),
+    roleClients,
+    embedDim: env.VLLM_EMBED_DIM,
+    imageEmbedDim: env.VLLM_EMBED_DIM,
+  });
+
+  // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
+  const assets = createAssetsService({
+    db,
+    cas,
+    variants,
+    imageTransform: imageAdapter.transform,
+    emit: eventBus.emit,
+    now,
+    newAssetId: minter(ID_PREFIX.asset),
+  });
+  const character = createCharacterService({
+    db,
+    now,
+    newCharacterId: minter(ID_PREFIX.character),
+    newSnapshotId: minter(ID_PREFIX.characterSnapshot),
+    audit,
+    emit: eventBus.emit,
+    // INERT (flagged): assets GC is PD-26 — best-effort reap is a no-op until the GC verbs land.
+    reapAssets: (): Promise<void> => Promise.resolve(),
+    // FLAG[PD-49]: domain/tag exposes no atomic resolve-or-create-tag-by-name op, so character.bulkAddCardTag's
+    // injected attachCardTag is inert (only bulkAddCardTag uses it).
+    attachCardTag: (): Promise<boolean> =>
+      Promise.reject(
+        new Error(
+          "character.attachCardTag: domain/tag exposes no atomic resolve-or-create-tag-by-name op — FLAG[PD-49]",
+        ),
+      ),
+  });
+
+  // ── Leaf + remaining services ─────────────────────────────────────────────────────────────────────────
+  const persona = createPersonaService({ db, now, newPersonaId: minter(ID_PREFIX.persona), audit });
+  const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
+  const worldInfo = createWorldInfoService({
+    db,
+    now,
+    newBookId: minter(ID_PREFIX.worldBook),
+    newEntryId: minter(ID_PREFIX.worldEntry),
+    audit,
+  });
+  const tag = createTagService({
+    db,
+    newTagId: minter(ID_PREFIX.tag),
+    // INERT (flagged): the chat membership gate is PD-19 — chat (and its participant guard) is P5.
+    requireParticipant: (): Promise<void> =>
+      Promise.reject(
+        new Error("tag.requireParticipant: chat membership gate not built (PD-19) — chat is P5"),
+      ),
+  });
+  const stats = createStatsService(db);
+  const search = createSearchService({ db, roleClients });
+  const discovery = createDiscoveryService({
+    db,
+    now,
+    newDuplicateCharacterPairId: minter(ID_PREFIX.duplicateCharacterPair),
+    newThemeClusterId: minter(ID_PREFIX.themeCluster),
+    summarize: roleClients.summarize,
+    writeHubScores: embeddings.writeHubScores,
+  });
+  const notifications = createNotificationsService({ db, now });
+  const workloads = createWorkloadService({ db, now, newWorkloadId: minter(ID_PREFIX.workload) });
+
+  const admin = createAdminService({
+    db,
+    now,
+    newUserId,
+    hashPassword: passwordHasher.hash,
+    audit,
+    sessions: {
+      // The admin device list needs the `userId` SessionView deliberately omits — the caller already holds
+      // it, so re-stamp it onto each row (SessionAdminView = SessionView + userId).
+      listForUser: async (
+        userId: UserId,
+      ): Promise<readonly (SessionView & { userId: UserId })[]> => {
+        const views = await sessions.listForUser(userId);
+        return views.map((view): SessionView & { userId: UserId } => ({ ...view, userId }));
+      },
+      revoke: (sessionId: string): Promise<void> => sessions.revoke(castId<SessionId>(sessionId)),
+      revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
+    },
+    vllm: {
+      allEngineStatuses: (): ReturnType<VllmEngineHandle["status"]> =>
+        registry.vllmEngine === null ? {} : registry.vllmEngine.status(),
+      restartEngine: (name: string): Promise<string> =>
+        registry.vllmEngine === null
+          ? Promise.resolve("vllm supervisor not running")
+          : registry.vllmEngine.restart(name as Parameters<VllmEngineHandle["restart"]>[0]),
+    },
+  });
+
+  const buddy = createBuddyService({
+    db,
+    now,
+    newTurnId: minter(ID_PREFIX.buddyTurn),
+    newProposalId: minter("buddy_proposal"),
+    resolveAgentConnection: ({ principal }): Promise<ResolvedConnection> =>
+      connection.resolveRole({ role: "agent", principal }),
+    agentTurn: async (req): Promise<BuddyAgentResult> => {
+      const result = await executor.runAgentTurn({
+        credential: req.credential,
+        model: req.model,
+        systemPrompt: req.systemPrompt,
+        prompt: req.prompt,
+        mcpServer: req.toolServer,
+        ...(req.maxTurns !== undefined ? { maxTurns: req.maxTurns } : {}),
+        ...(req.maxOutputTokens !== undefined ? { maxOutputTokens: req.maxOutputTokens } : {}),
+        ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),
+        ...(req.signal !== undefined ? { signal: req.signal } : {}),
+      });
+      return { text: result.reply };
+    },
+    // Build the in-process MCP tool server via the seal-preserving providers front-door factory.
+    // `BuddyToolSpec` mirrors `AgentToolSpec` by design (buddy.md — name/description/inputSchema:ZodRawShape/
+    // handler→{content:[{type:'text',text}],isError?}); the cast bridges the readonly-array nominal gap only.
+    buildToolServer: (tools): BuddyToolServer =>
+      createAgentToolServer({ tools: tools as readonly AgentToolSpec[] }),
+    roleClients,
+    agentEnv: {
+      startWorkload: async ({ ownerId, kind }): Promise<{ readonly workloadId: WorkloadId }> => {
+        const input: StartWorkloadInput =
+          kind === "find-duplicates"
+            ? { kind: "find-duplicates", params: {} }
+            : { kind: "embed-corpus", params: {} };
+        const started = await workloads.start({ input, ownerId });
+        return { workloadId: started.id };
+      },
+    },
+  });
+
+  const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
+
+  // ── The cross-feature workload hub + the effective-config boot surface ─────────────────────────────────
+  const runnerEnv = buildWorkloadRunnerEnv({ db, now, cas, discovery, connection });
+  const effectiveConfig = createEffectiveConfigWiring(settings);
+
+  const services: Services = {
+    admin,
+    buddy,
+    character,
+    connection,
+    credentials,
+    discovery,
+    notifications,
+    persona,
+    preset,
+    search,
+    settings,
+    stats,
+    tag,
+    workloads,
+    worldInfo,
+  };
+
+  return {
+    services,
+    sessions,
+    embeddings,
+    indexer,
+    assets,
+    exportService,
+    eventBus,
+    runnerEnv,
+    roleClients,
+    effectiveConfig,
+    secretBox,
+    vllmEngine: registry.vllmEngine,
+  };
+}

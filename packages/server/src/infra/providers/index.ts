@@ -12,7 +12,13 @@
 // fetchOrCatalog) is composed here too. NOT here yet (separate slices): the sealed backends (`backends/`,
 // `vllm/`), `resolve-chat.ts` (the intent×capability wire-knob funnel), `scripted-override.ts`.
 
-import type { ProviderDeps, ProviderExecutor } from "./contract";
+import type { AgentSdkBackendDeps } from "./backends/agent-sdk";
+import { createAgentSdkBackend } from "./backends/agent-sdk";
+import { createCustomByoBackend } from "./backends/custom-byo";
+import { createLocalLightBackend } from "./backends/local-light";
+import type { OpenRouterBackendDeps } from "./backends/openrouter";
+import { createOpenRouterBackend } from "./backends/openrouter";
+import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor } from "./contract";
 import { createAgentRole } from "./roles/agent";
 import { createChatRole } from "./roles/chat";
 import { createEmbedRole } from "./roles/embed";
@@ -20,6 +26,8 @@ import { createGenerateImageRole } from "./roles/generate-image";
 import { createImageEmbedRole } from "./roles/image-embed";
 import { createRerankRole } from "./roles/rerank";
 import { createSummarizeRole } from "./roles/summarize";
+import type { VllmBackendDeps, VllmEngineHandle } from "./vllm";
+import { createVllmBackend } from "./vllm";
 
 /**
  * Compose the bound inference role surface from a wired backend registry. Each role function runs the
@@ -38,6 +46,103 @@ export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
   };
 }
 
+/**
+ * The deps the boot binder injects to build the wired backend registry. The four REQUIRED-for-production
+ * fields are `now` (the composition root owns the clock — the `no-raw-clock` determinism seam),
+ * `vllmDisabled` (the §D3 escape hatch — a GPU-less box runs without the local engine), and the vLLM
+ * supervisor knobs (`vllmConcurrency`/`repoRoot`). The remaining optional members are the per-backend DI
+ * seams threaded THROUGH the sealed front door — the only channel the composition root (or a test) has to
+ * reach a sealed backend's deps without importing it (e.g. a durable `sessionStore` for cross-restart
+ * resume, a fake `vllmClient` / `getClient` / `query` for deterministic tests). Each is derived from its
+ * backend's own deps type (one home, no re-spell).
+ */
+export interface BackendRegistryDeps {
+  readonly now: () => number;
+  readonly vllmDisabled: boolean;
+  readonly vllmConcurrency?: VllmBackendDeps["concurrency"];
+  readonly repoRoot?: VllmBackendDeps["repoRoot"];
+  // ── Pass-through DI seams (production durable overrides + test fakes; the sealed door's only channel) ──
+  readonly random?: OpenRouterBackendDeps["random"];
+  readonly getClient?: OpenRouterBackendDeps["getClient"];
+  readonly query?: AgentSdkBackendDeps["query"];
+  readonly sessionStore?: AgentSdkBackendDeps["sessionStore"];
+  readonly vllmClient?: VllmBackendDeps["client"];
+  readonly vllmEmbedDim?: VllmBackendDeps["embedDim"];
+  readonly vllmChunkSize?: VllmBackendDeps["chunkSize"];
+}
+
+/** What the boot binder gets back: the wired {@link BackendRegistry} for {@link createProviderExecutor},
+ *  plus the vLLM engine lifecycle handle `entry/lifecycle.ts` starts/stops — `null` when `vllmDisabled`. */
+export interface BackendRegistryResult {
+  readonly backends: BackendRegistry;
+  readonly vllmEngine: VllmEngineHandle | null;
+}
+
+// Per-backend deps assembled from the shared registry deps. Split out of the factory so each backend's
+// optional-seam spreads (omit-when-undefined, the exactOptionalPropertyTypes shape) live next to nothing
+// else — keeps `createBackendRegistry` under the cognitive-complexity gate.
+function openRouterDeps(deps: BackendRegistryDeps): OpenRouterBackendDeps {
+  return {
+    now: deps.now,
+    ...(deps.random !== undefined ? { random: deps.random } : {}),
+    ...(deps.getClient !== undefined ? { getClient: deps.getClient } : {}),
+  };
+}
+function agentSdkDeps(deps: BackendRegistryDeps): AgentSdkBackendDeps {
+  return {
+    now: deps.now,
+    ...(deps.query !== undefined ? { query: deps.query } : {}),
+    ...(deps.sessionStore !== undefined ? { sessionStore: deps.sessionStore } : {}),
+  };
+}
+function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
+  return {
+    now: deps.now,
+    ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
+    ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
+    ...(deps.vllmClient !== undefined ? { client: deps.vllmClient } : {}),
+    ...(deps.vllmEmbedDim !== undefined ? { embedDim: deps.vllmEmbedDim } : {}),
+    ...(deps.vllmChunkSize !== undefined ? { chunkSize: deps.vllmChunkSize } : {}),
+  };
+}
+
+/**
+ * Build the wired backend registry BEHIND the front door — the seal (`providers-runner-seal` /
+ * `providers-public-surface-only`) forbids `entry/` from importing `backends/<x>` or `vllm/`, and the
+ * `BackendKey` axis is sealed, so the registry MUST be keyed here off each backend's own `.key`. The four
+ * remote/in-process backends are always constructed; the local vLLM engine is constructed ONLY when not
+ * disabled (the §D3 escape hatch — when disabled it is absent from the map and a role that resolves to it
+ * fail-closes, which is correct). Returns the engine handle so the boot lifecycle can supervise it.
+ */
+export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistryResult {
+  const backends: ProviderBackend[] = [
+    createOpenRouterBackend(openRouterDeps(deps)),
+    createAgentSdkBackend(agentSdkDeps(deps)),
+    createCustomByoBackend({
+      now: deps.now,
+      ...(deps.random !== undefined ? { random: deps.random } : {}),
+    }),
+    createLocalLightBackend(),
+  ];
+
+  let vllmEngine: VllmEngineHandle | null = null;
+  if (!deps.vllmDisabled) {
+    const vllm = createVllmBackend(vllmDeps(deps));
+    backends.push(vllm);
+    vllmEngine = vllm.engine;
+  }
+
+  const registry: BackendRegistry = new Map(
+    backends.map((b): readonly [ProviderBackend["key"], ProviderBackend] => [b.key, b]),
+  );
+  return { backends: registry, vllmEngine };
+}
+
+// ── The agent-mode tool-server factory (entry adapts a domain's tool specs → the sealed MCP server the
+//    agent runner consumes; `createAgentToolServer` is a pure factory, NOT a sealed runner symbol, so the
+//    front door surfaces it — entry can't reach `backends/agent-sdk` directly). ─────────────────────────
+export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk";
+export { createAgentToolServer } from "./backends/agent-sdk";
 // ── The live OpenRouter `/models` fetch verb (OR-fixed; connection injects it for refreshCatalog) ─
 export { fetchOrCatalog } from "./backends/openrouter";
 // ── The contract surface (request/result/error/event vocab + the sealed-backend contract + re-exports) ─
@@ -57,3 +162,5 @@ export { createRerankRole } from "./roles/rerank";
 export { createSummarizeRole } from "./roles/summarize";
 // ── The RUNNER_OVERRIDE dev/test seam (entry injects it as runChatTurn when env.RUNNER_OVERRIDE is set) ─
 export { buildScriptedOverrideRunner } from "./scripted-override";
+// ── The vLLM engine lifecycle handle type (entry wires start/stop; it can't import `vllm/`) ───────
+export type { VllmEngineHandle } from "./vllm";
