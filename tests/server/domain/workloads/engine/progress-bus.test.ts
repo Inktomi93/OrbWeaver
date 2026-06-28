@@ -54,7 +54,7 @@ describe("progress-bus", () => {
     });
     const id = castId<WorkloadId>("workload_wake");
     emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 });
-    emitWorkloadEvent({ type: "succeeded", workloadId: id, kind: "reconcile-stats", at: T0 + 1 });
+    emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 + 1 });
     expect(wakes).toBe(2);
     unsubscribe();
     emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 + 2 });

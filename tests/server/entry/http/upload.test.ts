@@ -27,7 +27,7 @@ const CARD_JSON =
 interface MockCtx {
   readonly get: (key: string) => Principal | null;
   readonly json: (body: unknown, status?: number) => Response;
-  readonly body: (data: BodyInit | null, status?: number) => Response;
+  readonly body: (data: string | Uint8Array | null, status?: number) => Response;
   readonly req: { readonly formData: () => Promise<FormData> };
 }
 type Handler = (c: MockCtx) => Promise<Response> | Response;
@@ -40,7 +40,8 @@ function makeCtx(principal: Principal | null, form: FormData): MockCtx {
         status,
         headers: { "content-type": "application/json" },
       }),
-    body: (data: BodyInit | null, status = 200): Response => new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response =>
+      new Response(data, { status }),
     req: { formData: (): Promise<FormData> => Promise.resolve(form) },
   };
 }
