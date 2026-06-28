@@ -77,6 +77,23 @@ modes (the JOIN already has it — the old code threw it away), `provisionIdenti
 Record<AuthConfig["mode"], ModeResolver>` mapped record in `infra/auth`, one branch point — and this
 redesign does not touch them; it changes only what the seam does with their output.
 
+**Where each mode's `userId` is resolved (ledger D40 — the identity-resolution invariant).** `infra/auth`
+yields NO `userId`/`role` in every mode; the row read is always a tier below it:
+
+| mode | infra produces | injected port returns | `userId` resolved by |
+|---|---|---|---|
+| forward-header | `ResolvedIdentity` (no id) | `ForwardJwtClaims` — no userId | domain `provisionIdentity` → seam |
+| oidc (login) | — | `OidcTransaction` — no userId | route code-exchange → cookie mint |
+| single-user / fallback | `{externalId:null, handle, groups:[]}` | — | seam `ensureUser` (handle→UserId) |
+| cookie (local/oidc steady) | `ResolvedIdentity` (no id) | — (no infra port; D40) | domain `sessions.validate` → seam |
+
+Three of four modes already obeyed this; the cookie path was the deviation — an infra
+`ResolveDeps.validateCookie` (typed `=> ResolvedIdentity`, no `userId`) wired to `sessions.validate`
+(which DOES return `userId`) would force the seam to re-query or drop the id. **Resolution (D40, Route A
+— Spring's verify→`UserDetailsService`→construct split): the cookie→user read is DOMAIN resolution
+(`sessions.validate`) the seam calls directly; the `validateCookie` port is removed at 4c/4e (FLAG
+planted at `infra/auth/contract.ts`).**
+
 **BFF session ≠ SDK chat session.** Two unrelated concepts wear the word "session." The revocable
 browser login (`sessions` table, identity + live login state, owned by `domain/sessions`) is THIS
 doc's concern. The prompt-cache lineage of a stateful agent-sdk turn (`session_entries` table,
@@ -159,8 +176,13 @@ enforcer. (`single-user` has one identity, no peers; multi-user rows come from `
 ### Verification (`infra/auth`) — sealed, db-free, fails closed
 The mode dispatcher applies the origin-gated owner fallback after the resolver runs. It produces a
 `ResolvedIdentity` with **no `userId`** (compile-time invariant: the type has no such field). The
-db-dependent steps (cookie-validate, the user upsert) are **injected in** via `ResolveDeps` so infra
-never imports `domain/sessions` or `@orb/db`. **JWKS fails closed three+ ways** (a JWT without its
+db/crypto-dependent VERIFICATION steps it needs (the OIDC PKCE/state consume, the forward-header JWT
+verify) are **injected in** via `ResolveDeps` so infra never imports `domain/sessions` or `@orb/db`.
+**The cookie→user read is NOT one of them (ledger D40):** a cookie's validation IS a `users`-row read —
+RESOLUTION, not verification — so it is the DOMAIN step `sessions.validate` (which returns `userId`) the
+seam calls DIRECTLY; an infra `ResolveDeps.validateCookie` port would be forced to drop the `userId` (the
+no-row-ids invariant), recreating neo's "validate threw the id away" bug, so that port is removed at
+4c/4e. **JWKS fails closed three+ ways** (a JWT without its
 JWKS → reject; an empty allowlist → refuse the request-supplied JWKS; bad-JSON/non-https/off-allowlist
 URL → null; verified-but-no-`preferred_username` → reject rather than fall through to the unsigned path;
 verify throws → reject). A present-but-invalid JWT NEVER silently downgrades to the unsigned path.
@@ -271,8 +293,9 @@ risk) is preserved on every routing path regardless.
    RED).*
 2. **Three tiers stay distinct.** Verification (`infra/auth`, db-free) / resolution + upsert
    (`domain/sessions`) / minting (the `entry/` seam) / boot owner-seed (`entry/boot`). *Enforcement:
-   resolve-time (`infra/auth` declares no domain/`@orb/db` dep — db steps injected via `ResolveDeps`;
-   cookie I/O is route-tier; the seam is `entry/`).*
+   resolve-time (`infra/auth` declares no domain/`@orb/db` dep — its db/crypto VERIFICATION steps inject
+   via `ResolveDeps`; the cookie→user RESOLUTION step is the seam's direct `sessions.validate` call, not
+   an infra port, D40; cookie I/O is route-tier; the seam is `entry/`).*
 3. **`ResolvedIdentity` carries NO `userId`.** *Enforcement: compile-time (the type has no such field;
    the seam adds it when building `Principal`).*
 4. **The 4 modes dispatch through one exhaustive record.** `MODE_RESOLVERS: Record<AuthConfig["mode"],

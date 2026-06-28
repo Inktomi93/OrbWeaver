@@ -444,3 +444,11 @@ shape, owned by chat) — the row shape is a contract both sides honor.
   floor, DB override on top). *Criterion to confirm at build:* the NODE_ENV auto-pick (`max-pro-sub` in dev,
   `openrouter` in prod) is preserved as the AppSettings DEFAULT value (the floor), with a DB override on
   top; verify the dev/prod default matrix matches steady before deleting the `env` read.
+  *Env-floor status (D40):* the floor itself is ALSO deferred to this (import) slice — it does NOT yet live in
+  `foundation/env`. It is a `z.enum(CRED_SOURCES)` env floor with a NODE_ENV-conditional default
+  (`max-pro-sub` dev/test, `openrouter` prod) that needs a post-parse transform (unlike env's two simple
+  import toggles `IMPORT_SKIP_CHARACTERS`/`CORPUS_AUTOINDEX`), so it lands in `foundation/env` — co-located
+  with its consumer — when `domain/import` is built, rather than guessed early into the boot floor.
+  `foundation/env` carries a spec'd placeholder comment at the import-toggles block in the meantime; this is
+  EXPLICIT deferral, not a silent drop. (The "delete the env read" criterion above thus first presumes the
+  floor lands here.)

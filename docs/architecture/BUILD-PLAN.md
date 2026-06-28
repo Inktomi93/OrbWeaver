@@ -10,6 +10,9 @@
 > `kit → contracts → db → server (foundation → infra → domain[leaf-first] → transport → entry) → client`,
 > with **chat + memory LAST** behind the differential oracle. The cake is validated at resolve-time on the
 > empty tree (Phase 0) before any feature code exists.
+>
+> **Progress (2026-06-27):** Phases 0–4b are BUILT + committed; **Phase 4c (domain, leaf-first) is NEXT.**
+> See `_STATUS.md` and ledger **D40** (the Phase-0→4b audit remediation) for the exact state.
 
 ---
 
@@ -17,7 +20,7 @@
 The highest-leverage phase: stand up the fences before the code, so the cake is physics from commit one.
 1. `pnpm` workspace + the 5 packages (`kit·contracts·db·server·client`) with `package.json` + `tsconfig`.
    **Pin versions now** — 2026-latest stable of the toolchain + core stack: Node/TS/Hono/Drizzle/tRPC (`ledger §3`; `@orb/*` already decided). UI engine stays deferred to Phase 6. **Per-tier runtime libs join the catalog as their tier is built**, not all here — e.g. observability's `pino`/`pino-pretty` + `@opentelemetry/*` land at 4a (`tiers/foundation.md` › Runtime dependencies), `sharp` at 4b.
-2. Stand up the **gate suite** (`structure.md §7`, 13 gates) + the bespoke domain rules as dep-cruiser/biome/`tsc` patterns, wired into a **blocking `check`** (pre-commit + CI + a PreToolUse hook since agents author). `CHECKLIST §A1`.
+2. Stand up the **gate suite** (`structure.md §7`, 13 gates) + the bespoke domain rules as dep-cruiser/biome/`tsc` patterns, wired so they **BLOCK**: the full `pnpm check` runs at **pre-push** (lefthook) + in **CI**, a fast Biome pass runs at **pre-commit** on staged files, and — since agents author — a **PostToolUse Biome belt** fires on every `Edit\|Write` (`exit 2`). `CHECKLIST §A1`.
 3. Stand up **`tests/support/`** (composed `test.extend` → `freshDb`, frozen `clock`, seeded `ids`, factories) + the Vitest **node** projects in one `vitest.config.ts` via `test.projects` (`unit` `.test` · `integration` `.int.test` · `contract` `.contract.test` · `types` `.test-d.ts` · `parity` `.parity.test`, opt-in) + the `test-presence`/`test-determinism` gates. **Browser = Playwright, not Vitest** (it hangs): `playwright-ct.config.ts` (`.ct.tsx`) + `playwright.config.ts` (`.spec.ts`), separate runners, not in `check`. `CHECKLIST §A4`, `spine/testing.md`.
 4. Reserve the AI-native seams in code (`ClipKind`/`clip.scope` types, `WorkloadKind:'world-state'` stub, `observer` participant kind). `CHECKLIST §A2`.
 

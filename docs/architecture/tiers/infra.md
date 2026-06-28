@@ -37,7 +37,9 @@ helpers (JWKS cache, cookie read, CSRF signal, host normalize, config parse, pas
   ONE branch point; modes never import each other.
 - **The four mode resolvers** — `single-user` (always-null → unconditional fallback), `local` + `oidc`
   (both delegate to the shared cookie resolver; only the MINT side differs), `forward-header` (the
-  signed-JWT and unsigned-network-trust paths). *(The `oidc` MINT side — discovery + PKCE + code
+  signed-JWT and unsigned-network-trust paths). *(Per ledger **D40** the cookie modes' token→user read is
+  being lifted OUT of infra to the seam's direct `sessions.validate` call at 4c/4e — infra carries no
+  `userId`; see the seam table. The `oidc` MINT side — discovery + PKCE + code
   exchange via `openid-client` v6 — lives at `entry/http/auth-routes.ts` (`tiers/entry.md` › Runtime
   dependencies), not here: infra owns **verify** with `jose`, entry owns the client-side mint.)*
 - **JWT/JWKS verification** — `jwksFor` (build a jose keyset from the forwarded `X-Authentik-Meta-Jwks`
@@ -97,9 +99,12 @@ helpers (JWKS cache, cookie read, CSRF signal, host normalize, config parse, pas
 
 This tier does **NOT** own:
 
-- **Identity RESOLUTION + the `users`-row upsert** — `provisionIdentity` / `ensureUser` /
+- **Identity RESOLUTION + the `users`-row upsert** — `provisionIdentity` / `ensureUser` / `validate` /
   `determineRole`. That is `domain/sessions`. `infra/auth` *produces* a `ResolvedIdentity` and *injects
-  out* the need for a `users` row; the upsert is wired in via `ResolveDeps.validateSessionCookie`.
+  out* the need for a `users` row. The cookie→user resolution is NOT an infra port: per ledger **D40** it
+  is the DOMAIN step `sessions.validate` (which returns `userId`), called DIRECTLY by the seam — equating
+  it with an injected `ResolveDeps` port would force the row id to be dropped (infra carries no `userId`,
+  invariant #3), recreating neo's "validate threw the id away" bug.
 - **The composition-root auth SEAM** — `createAuthResolver` / `resolveOwner` (today `auth-context.ts`).
   The ONE place allowed to wire `infra/auth` + `domain/sessions` together. → `entry/auth/seam.ts`.
 - **Cookie I/O + the mint routes** — `setSessionCookie` / `clearSessionCookie` / `refreshSessionCookie`
@@ -124,9 +129,13 @@ This tier does **NOT** own:
 > from infra is RED.** Domains consume infra through handles injected at `entry/`; the db-dependent
 > steps an adapter needs are injected IN (never imported).
 
-The cleanest proof is `infra/auth`: it must validate session cookies (a DB read) and provision users
-(a DB write), yet it imports neither `domain/sessions` nor `@orb/db`. Both steps arrive through
-`ResolveDeps.validateSessionCookie`, wired at the `entry/` seam. The same pattern holds for storage
+The cleanest proof is `infra/auth`: it must verify a forwarded JWT (crypto) and consume an OIDC
+PKCE/state transaction (a DB read), yet it imports neither `domain/sessions` nor `@orb/db`. Those steps
+arrive through `ResolveDeps` (`verifyForwardJwt`, `oidcStore`), wired at the `entry/` seam. (The
+cookie→user read is deliberately NOT one of these injected steps: per ledger **D40** it is RESOLUTION,
+not verification — the DOMAIN step `sessions.validate` the seam calls directly, because a cookie's
+validation IS a `users`-row read and infra must not carry the resulting `userId`, invariant #3.) The
+same pattern holds for storage
 (the `assets` row upsert is the *domain's* job, around a `cas.putBytes` call) and crypto (the box gets
 its key from `entry/`, the AAD value from the domain). *Enforcement: resolve-time* — `@orb/server`'s
 infra tier declares no dep that would let it resolve `domain/*` or reach `@orb/db` (package + subpath
@@ -148,7 +157,7 @@ infra/
 │   │   ├── oidc.ts              delegates to cookie-session
 │   │   └── forward-header.ts    signed-JWT path + unsigned network-trust path + opt-in IP gate
 │   ├── jwks.ts                  jwksFor (fail-closed JWKS build) + the LRU (ASSUMES single-replica)
-│   ├── cookie-session.ts        read __Host cookie → injected validateSessionCookie
+│   ├── cookie-session.ts        read __Host cookie (validate is DOMAIN: seam calls sessions.validate — D40, port removed 4c/4e)
 │   ├── csrf.ts                  hasCsrfHeader (the viaCookie-gated mutation signal)
 │   ├── host.ts                  normalizeHost (port-strip, IPv6-bracket-aware)   ← kit candidate (pure)
 │   ├── config.ts                authConfigFromEnv (reads foundation/env DOWN) + CSV/host-list parse
@@ -179,9 +188,9 @@ gates on beyond the handle type).
 |---|---|---|---|---|
 | `auth/trust-header.ts` — `resolveIdentity` (MODE_RESOLVERS) + `ownerFallbackAllowed` + `isLocalOrigin` | stays infra, renamed | `infra/auth/dispatch.ts` | The one branch point of the verification strategy. Pure dispatch + the origin gate; no db. | resolve-time (infra below domain) + compile-time (the `Record<AuthConfig["mode"], ModeResolver>` mapped type) |
 | `auth/identity.ts` — `AuthConfig`, `ResolveDeps`, `IdentityResolution`, `ModeResolver`, NEW MODE CHECKLIST | stays infra | `infra/auth/contract.ts` | The infra-internal cross-mode contract (mode shape + the injected db-deps). Not cross-package — infra-internal. | resolve-time |
-| `auth/{single-user,local,oidc,forward-header}/resolver.ts` | stays infra | `infra/auth/modes/<mode>.ts` | The four pluggable mode strategies. db-free; cookie modes inject `validateSessionCookie`. | resolve-time + compile-time (each `satisfies ModeResolver`) |
+| `auth/{single-user,local,oidc,forward-header}/resolver.ts` | stays infra | `infra/auth/modes/<mode>.ts` | The pluggable mode strategies. db-free; per **D40** the cookie modes' token→user read moves to the seam's direct `sessions.validate` call (the `validateCookie` injection is removed at 4c/4e), leaving infra the verify paths only. | resolve-time + compile-time (each `satisfies ModeResolver`) |
 | `auth/_shared/jwks-cache.ts` — `jwksFor` + the LRU | stays infra | `infra/auth/jwks.ts` | JWT/JWKS verification is the core infra job. The per-process LRU is `ASSUMES(single-replica)` state. | lint-time (`infra-jwks-cache` ASSUMES marker, same gate pattern as credentials' health cache) |
-| `auth/_shared/cookie-resolver.ts` — `resolveCookieSession` | stays infra | `infra/auth/cookie-session.ts` | Reads the opaque token from the cookie header; the DB validate is INJECTED (`deps.validateSessionCookie`). Keeps infra db-free. | resolve-time |
+| `auth/_shared/cookie-resolver.ts` — `resolveCookieSession` | stays infra (until 4c/4e) | `infra/auth/cookie-session.ts` | Reads the opaque token from the cookie header. Per **D40** the cookie→user read is RESOLUTION, not verification: the `validateCookie` injection is REMOVED at 4c/4e and the seam calls `sessions.validate` directly (which returns `userId`). | resolve-time |
 | `auth/_shared/csrf.ts` — `hasCsrfHeader` | stays infra | `infra/auth/csrf.ts` | Produces the per-request CSRF SIGNAL. The gate (403 on cookie-mutation w/o header) is enforced at the seam/route. | resolve-time |
 | `auth/_shared/host.ts` — `normalizeHost` | stays infra (kit candidate) | `infra/auth/host.ts` | Pure host normalize used by the origin gate + JWKS allowlist match. Pure → could be `@orb/kit/net`; only infra consumers today. | resolve-time (see Open decisions) |
 | `auth/_shared/config.ts` — `authConfigFromEnv` + parse helpers | stays infra | `infra/auth/config.ts` | env → `AuthConfig`. Reads `foundation/env` DOWN (allowed). The fail-closed `jwksAllowlistFromEnv` lives here. | resolve-time (foundation is below infra) |
@@ -236,11 +245,23 @@ an opaque handle on the domain's `context.ts`.
 
 | Handle | Wired at | Direction | Used for |
 |---|---|---|---|
-| `resolveIdentity` | `entry/auth/seam.ts` | the seam CALLS infra | header → `ResolvedIdentity` |
-| `ResolveDeps.validateSessionCookie` (= `sessions.validate`) | `entry/auth/seam.ts` | injected INTO infra | the cookie modes' token→identity step — keeps infra db-free |
+| `resolveIdentity` | `entry/auth/seam.ts` | the seam CALLS infra | headers → `IdentityResolution` (pre-row identity + signals) |
+| `ResolveDeps.verifyForwardJwt` | `entry/auth/seam.ts` | injected INTO infra | the forward-header SIGNED path's jose JWT/JWKS verify — keeps infra crypto-dep-free |
+| `ResolveDeps.oidcStore` | `entry/auth/seam.ts` | injected INTO infra | the db-backed OIDC PKCE/state single-use consume — keeps infra db-free |
+
+**NOT an infra port (ledger D40):** the cookie→user step is the DOMAIN call `sessions.validate` (which
+returns `userId`), invoked DIRECTLY by the seam — never injected into infra. The former
+`ResolveDeps.validateSessionCookie` (= `sessions.validate`) equation was the defect: a cookie's
+validation IS a `users`-row read, so an infra port for it would be forced to DROP the `userId`
+(invariant #3), recreating neo's "validate threw the id away" bug. The port is REMOVED from `ResolveDeps`
+when 4c/4e land (the FLAG is planted at `contract.ts`'s `validateCookie` now). `infra/auth` owns only the
+db-free verification paths: single-user, the forward-header verify, the OIDC PKCE verify, and the
+origin-gated owner fallback.
 
 The asymmetry is the point: storage/crypto/network are *called by* domains; `infra/auth` is *composed
-at the seam* and has the db step injected *into* it. All four obey the same physics (no domain/db import).
+at the seam* and has its db/crypto-dependent VERIFICATION steps injected *into* it (the cookie→user
+RESOLUTION step is the seam's own direct domain call, not an injection). All obey the same physics (no
+domain/db import).
 
 ---
 
@@ -253,12 +274,15 @@ doc enforces from below:
 
 - **Verification = `infra/auth`** (this tier). JWT/JWKS, the mode dispatch, the origin gate, the CSRF
   signal. Produces a `ResolvedIdentity` with **NO `userId`**.
-- **Resolution + the `users` upsert = `domain/sessions`** (`provisionIdentity` / `ensureUser`).
+- **Resolution + the `users` upsert = `domain/sessions`** (`provisionIdentity` / `ensureUser` /
+  `validate` — the cookie→user read that returns `userId`, called directly by the seam per D40).
 - **Minting + the owner-fallback `Principal` = `entry/auth/seam.ts`**; the boot owner-seed = `entry/boot`.
 
 The 4 modes stay one clean dispatcher: `MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver>`. A
-5th mode is a `tsc`-checked addition (the NEW MODE CHECKLIST in `contract.ts`). The seam injects the db
-steps via `ResolveDeps` so verification never imports domain/db.
+5th mode is a `tsc`-checked addition (the NEW MODE CHECKLIST in `contract.ts`). The seam injects the
+genuine VERIFICATION db/crypto steps (`oidcStore`, `verifyForwardJwt`) via `ResolveDeps` so verification
+never imports domain/db; the cookie→user RESOLUTION step is the seam's direct `sessions.validate` call,
+NOT an injected port (D40 — infra carries no `userId`).
 
 ### §7.2 settings / config — the `CREDENTIALS_KEY_AUTO` boot path is infra/crypto's
 
@@ -382,9 +406,12 @@ feeds the tRPC seam + the local-login throttle so all three gate on one observed
 1. **infra reaches DOWN only — no domain import, no `@orb/db` import.** *Enforcement: resolve-time
    (package + subpath physics) + lint backstop (dep-cruiser `infra-no-domain` + `infra-no-db`). The
    `oidc-store.ts` case is the proof: because it imports `@orb/db`, it CANNOT stay in infra.*
-2. **The db-dependent auth steps are INJECTED, never imported.** `infra/auth` resolves session cookies
-   and provisions users without importing `domain/sessions` or `@orb/db` — both arrive via `ResolveDeps`.
-   *Enforcement: compile-time (`ResolveDeps` is the only db seam) + resolve-time (`infra-no-db`).*
+2. **The db/crypto-dependent VERIFICATION steps are INJECTED, never imported.** `infra/auth` verifies
+   forwarded JWTs and consumes the OIDC PKCE/state store without importing `domain/sessions` or
+   `@orb/db` — they arrive via `ResolveDeps` (`verifyForwardJwt`, `oidcStore`). The cookie→user step is
+   NOT among them: per D40 it is RESOLUTION (`sessions.validate`, returns `userId`), the seam's direct
+   domain call — never an infra port. *Enforcement: compile-time (`ResolveDeps` is the only db seam) +
+   resolve-time (`infra-no-db`).*
 3. **`ResolvedIdentity` carries NO `userId`.** Infra must not know DB row ids. *Enforcement: compile-time
    (the type has no `userId` field; the seam adds it when building `Principal`).*
 4. **`MODE_RESOLVERS` is exhaustive over `AuthConfig["mode"]`.** *Enforcement: compile-time (the

@@ -407,7 +407,8 @@ CREATE TABLE `keyword_cooccurrence` (
 	`keyword_b` text NOT NULL,
 	`count` integer NOT NULL,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "keyword_cooccurrence_canonical_check" CHECK(keyword_a < keyword_b)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `keyword_cooccurrence_owner_pair_unique` ON `keyword_cooccurrence` (`owner_id`,`keyword_a`,`keyword_b`);--> statement-breakpoint

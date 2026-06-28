@@ -41,7 +41,7 @@ typed columns now, so `raw` is reserved for genuinely-unknown vendor extras (res
 | **Card mapper** | `buildCardV3` (export) ≠ `cardFromJson` (import), test-coupled | `@orb/server/kit/serde/card` — `cardFromJson` (IN) + `buildCardV3` (OUT) adjacent | Server-only pure (no client consumer), uses zod internally → `server/kit`, not `kit`. |
 | **WI-entry mapper** | hand-duplicated import vs export | `@orb/server/kit/serde/world-entry` — `loreEntryColumns`/`loreEntryMetadata` (IN) + `exportBookEntry` (OUT) | Same serde core; both directions adjacent. |
 | **PNG codec** | chunk-walk copied 2× + inline `isPng` 3rd | `@orb/kit/png-card-chunk` — `isPng`/`readCardChunk`/`writeCardChunk` (+`crc32`/`makeChunk`/`PNG_SIGNATURE`) | **String-based, so it NEVER imports the card type** → isomorphic-pure → `kit`. Operates on `Uint8Array` + an isomorphic base64/latin1 codec — **NO `node:buffer`** (the kit-purity gate forbids all `node:*`; see §3). |
-| **ST role bimap** | written 4× (`persona.ts`, `lore.ts`, `card-v3.ts`, `card.ts`) | `@orb/kit/world-info` — `injectionRoleFromSt`/`injectionRoleToSt` | ONE bimap `{0:system,1:user,2:assistant}`; the most cross-shared union (character+persona+world-info). Verified single-homed in steady (`world-info-schema.ts:80/88`). |
+| **ST role bimap** | written 4× (`persona.ts`, `lore.ts`, `card-v3.ts`, `card.ts`) | `@orb/kit/message-role` — `messageRoleFromSt`/`messageRoleToSt` | ONE bimap `{0:system,1:user,2:assistant}` on the canonical `system\|user\|assistant` axis; the most cross-shared union (character+persona+world-info). **Homed in the NEUTRAL `kit/message-role` per D32** (NOT `kit/world-info` — that made world-info the artificial owner and forced a backwards `persona → world-info` dep); world-info CONSUMES it downward. |
 | **`resolveCharacterDepthPrompt`** | `shared/character/character-schema.ts` | `@orb/server/kit/serde` | **CORRECTED 2026-06-25** (verified): TWO server consumers — `export/verbs/export-character.ts` AND `chat/assembly/context.ts` — so a `character/substrate` home would force a cross-feature import. Server-only, uses zod → `server/kit`. Fold the unknown→`{prompt,depth,role}` coercion into the canonical card / serde so the export verb stops calling it directly. |
 
 ### The emit/read pairs (the shared core), per entity
@@ -52,7 +52,7 @@ typed columns now, so `raw` is reserved for genuinely-unknown vendor extras (res
 | `loreEntryColumns`/`loreEntryMetadata` ⟷ `exportBookEntry` | `@orb/server/kit/serde/world-entry` | character writer | export verb |
 | `readCardChunk` ⟷ `writeCardChunk` | `@orb/kit/png-card-chunk` | `readCardChunk` (decode) | `writeCardChunk` (encode) |
 | `CharacterCard` + `characterCardV3Schema` | `@orb/contracts/character` | parser return type | emit/validate |
-| `injectionRoleFromSt` ⟷ `injectionRoleToSt` | `@orb/kit/world-info` | serde + persona parser | serde |
+| `messageRoleFromSt` ⟷ `messageRoleToSt` | `@orb/kit/message-role` | serde + persona parser | serde |
 
 The two consuming domains keep only their **own** halves: import keeps the tolerant byte/format parsers
 (`parseCardPng`/`parseChatJsonl`/`parseStPersonas` + `cardContentHash`); export keeps the OUT assembly
@@ -157,7 +157,7 @@ pure, below the domains, above the codec). The **canonical card schema** is cros
 
 1. **The serde core is single-homed** — `cardFromJson`/`buildCardV3` exist ONLY in
    `@orb/server/kit/serde/card`; the WI-entry mapper ONLY in `@orb/server/kit/serde/world-entry`; the PNG
-   codec ONLY in `@orb/kit/png-card-chunk`; the ST role bimap ONLY in `@orb/kit/world-info`. No second
+   codec ONLY in `@orb/kit/png-card-chunk`; the ST role bimap ONLY in `@orb/kit/message-role` (D32). No second
    card↔wire mapper can exist (there is one exported symbol).
    *Enforcement: resolve-time (the modules are the only export sites) + a `serde-core` lint that fails on a
    duplicate mapper declaration.*
@@ -240,7 +240,7 @@ The serde thread is **one core with four homes**: the canonical card shape in `@
 (already fully typed — `raw` dropped, verified done), the card + WI-entry mappers in
 `@orb/server/kit/serde/*` (emit/read pairs adjacent so the round-trip is a one-file invariant), the
 string-based PNG codec in `@orb/kit/png-card-chunk` (kit *because* it never imports the card type), and the
-ST role bimap in `@orb/kit/world-info` (one copy, was 4×). Import is the tolerant IN consumer (the `RawCard`
+ST role bimap in `@orb/kit/message-role` (one copy on the canonical role axis, was 4×; D32). Import is the tolerant IN consumer (the `RawCard`
 adapter normalizes INTO the canonical model, never a parallel lossy shape); export is the strict OUT
 consumer; both read `@orb/db` directly as sanctioned bulk serializers. The two consumer-side shifts serde
 unlocks: **import becomes a canon-write that emits `character.updated` + enqueues a memory backfill** (so

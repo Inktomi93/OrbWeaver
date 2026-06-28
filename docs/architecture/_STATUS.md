@@ -1,9 +1,10 @@
-# Orbweaver — planning status & handoff (read first)
+# Orbweaver — build status & handoff (read first)
 
 > **Session handoff.** Orbweaver is the ground-up remake of **neo-tavern** (the live code is at
 > `/home/inktomi/inktomi-stack/development/neo-tavern`; orbweaver is at
-> `/home/inktomi/inktomi-stack/development/orbweaver`). We are in **planning** — no code yet, a set of
-> architecture design docs. This file is the index + the locked decisions + the NEXT action.
+> `/home/inktomi/inktomi-stack/development/orbweaver`). **We are BUILDING** — Phases 0–4b are committed
+> (planning is done; the design docs below remain authoritative). This file is the index + the locked
+> decisions + the NEXT action. **Latest decision: D40** (the Phase-0→4b audit remediation).
 
 ## Why a remake
 neo-tavern's architecture was sound but rotted in place: `domain/_shared` became a junk drawer; concepts
@@ -69,29 +70,34 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
   cache-token counts (the §8 lesson — catches silent perf/behavior regressions a from-prose rebuild
   misses). The steady clone stays the reference to diff against; it is not deleted.
 
-## Where we are (updated 2026-06-25) — docs complete, next is SCAFFOLD
-The planning docs are **complete and reconciled**. Done:
-- **Boundary scan** (ts-morph over the steady clone) — the 5-package cake is already clean (0 upward
-  edges, 0 cycles); the only real entanglement was the `_shared` drawer (reached 245×). Build order:
-  `kit → contracts → db → server (foundation→infra→domain→transport→entry) → client`. (`reports/boundary-scan.md`.)
-- **Dissolution inventory** — every `_shared` + `shared/*` symbol has a home + gate. (`reports/shared-dissolution.md`.)
-- **Per-domain target docs** — all 20 under `domains/` (8-slot layout + movement table + invariants each).
-- **Tier surveys** — `tiers/{providers,infra,foundation,transport,db}.md`.
-- **Spine threads** — §7.1–7.5 (identity-auth-permission · settings-and-config · serialization-core ·
-  types-and-schemas · string-union-dispatch) + `spine/testing.md` (the consolidated test policy:
-  suffix lanes, the `test-presence` gate, mock/determinism doctrine, factory contract — `DECISIONS-LEDGER §6`)
-  + `spine/typescript-style.md` (house TS mined from the handbook: utility-type policy, narrowing,
-  erasable forbidden set, async-generators, the staged-config triggers).
-- **Reconciliation + de-dup** — cross-doc conflicts resolved; the 3 doubled docs (chat/connection/providers)
-  merged into their single homes; `structure.md §7` gate table extended. Decisions ledger: `reports/DECISIONS-LEDGER.md`.
+## Where we are (updated 2026-06-27) — Phases 0–4b BUILT, next is Phase 4c (domain)
+The planning docs are **complete and reconciled**, and the build is underway. **Built + committed
+(`pnpm check` + `pnpm test` — 1142 tests — green):**
+- **Phase 0** — pnpm workspace + the 5 packages + the **13-gate suite** (the cake is physics at
+  resolve-time; biome ratcheted to MAX, dep-cruiser, `tsc`, structure gates, lefthook + the PostToolUse belt).
+- **Phase 1 — `@orb/kit`** — the pure leaf (ids/errors → macro/regex/guided → `message-role` (D32 role axis
+  + ST bimap) / `injection` / `world-info` / `png-card-chunk` / tokens / vector-math / … ).
+- **Phase 2 — `@orb/contracts`** — the cross-boundary wire types + zod schemas (the DAG in `ledger §4`).
+- **Phase 3 — `@orb/db`** — born-whole `0000_baseline` (no migration replay), derive-don't-stamp ownership,
+  per-type FKs (D24), enums derived from contracts tuples (D34).
+- **Phase 4a — server `foundation`** — observability · config · env base.
+- **Phase 4b — server `infra`** — crypto · network · storage · image · auth (VERIFICATION-ONLY per the
+  3-tier split) + `providers` (roles · sealed-backend contract · credential firewall; backends incl.
+  vllm / local-light).
 
-**NEXT ACTION = scaffold — follow `BUILD-PLAN.md`** (the ordered runbook). In short: stand up the pnpm
-workspace + the 5 packages + the **full gate suite (`structure.md §7`, 13 gates)** FIRST (validates the
-cake at resolve-time on the empty tree), then build bottom-up (`kit` → `contracts` → `db` → server tiers
-leaf-first → `client`), with **chat + memory LAST** behind the differential oracle against the steady
-neo-tavern clone. Stack decisions: package scope `@orb/*` (DECIDED); UI engine + 2026 version pins are
-package-creation-time acts (`ledger §3`). The directory skeleton already exists on disk (the 5-package
-cake + tests mirror); Phase 0 fills it with manifests + gates.
+**Built docs/decisions still authoritative — DO NOT re-derive:**
+- **Boundary scan** (ts-morph) — the cake is clean (0 upward edges, 0 cycles). (`reports/boundary-scan.md`.)
+- **Dissolution inventory** — every `_shared`/`shared/*` symbol has a home + gate. (`reports/shared-dissolution.md`.)
+- **Per-domain target docs** (all 20 under `domains/`), **tier surveys** (`tiers/*`), **spine threads**
+  (§7.1–7.5 + `spine/testing.md` + `spine/typescript-style.md`), and the cross-doc **reconciliation/de-dup**.
+  Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D40**, the Phase-0→4b audit remediation).
+
+**NEXT ACTION = Phase 4c (server `domain`) — follow `BUILD-PLAN.md`** (the ordered runbook). The domain
+dirs currently hold only 1-line scaffold stubs; build them **leaf-first in dependency waves** per the
+BUILD-PLAN order (`credentials/tag/persona/preset/world-info/assets/sessions/stats/settings/admin →
+embeddings/search → discovery/workloads/import/export/buddy`), then **4d transport → 4e entry → Phase 5
+chat+memory** (LAST, built WHOLE, behind the differential oracle against the steady neo-tavern clone) →
+**Phase 6 client**. Multi-agent dispatch in dependency tiers, disjoint file sets per agent.
 
 **Recon method that worked (keep for scaffold verification):** general-purpose agents reading whole files
 top-to-bottom (not grep-skim), structured `file:line` returns, then verify/synthesize. Verifying claims

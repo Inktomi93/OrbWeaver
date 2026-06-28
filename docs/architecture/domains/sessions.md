@@ -55,7 +55,9 @@ This domain does **NOT** own:
 - **Auth VERIFICATION** — JWT/JWKS validation, the mode-resolver dispatch, cookie/CSRF/host parsing
   (`auth/trust-header.ts`, `auth/<mode>/resolver.ts`, `auth/_shared/{jwks-cache,cookie,csrf,host,config}.ts`).
   That is `infra/auth` — a sealed, db-free Strategy executor. It produces a `ResolvedIdentity`; it never
-  touches a `users` row (the upsert is injected into it via `ResolveDeps`).
+  touches a `users` row. The db/crypto verification steps it needs (OIDC PKCE consume, JWT verify) arrive
+  injected via `ResolveDeps`; the cookie→user read is NOT injected — per **D40** it is the DOMAIN step
+  `sessions.validate` (returns `userId`) the seam calls directly.
 - **Cookie I/O** — `setSessionCookie` / `clearSessionCookie` / `refreshSessionCookie` and the
   `__Host-neo_session` name. That is the **route layer** (`entry/http` + the OIDC/local route handlers).
   This domain is pure DB + crypto — it returns a token string; the route sets the cookie.
@@ -208,7 +210,7 @@ injected `SessionAdminPort` (structural subset). The OIDC/local route handlers c
 | `_shared/users.ts` — `ownerHandles`, `determineRole` | stays a feature, re-homed | `domain/sessions/substrate/role-policy.ts` | Pure role-derivation policy (the one access-control decision the app owns). The sanctioned call-time `process.env` reads of the owner-role trio live here, isolated to one file. | lint-time (env-reader exception list = exactly these vars in this one substrate file) |
 | `_shared/users.ts` — the removed `withOwner` HOC (comment) | drop | — | Already removed 2026-06-02; the inline 2-line form is the live pattern. Do not resurrect. | n/a |
 | `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution` | → `entry` (the seam) | `entry/auth/seam.ts` | The composition-root seam: the ONE place allowed to wire `infra/auth` (verification) + `domain/sessions` (resolution/upsert/validate). Produces the one `Principal`. `entry/` is the topmost tier; it may import both. | resolve-time (`entry/` only) |
-| `auth/*` (`trust-header.ts` dispatcher, `<mode>/resolver.ts`, `_shared/{jwks-cache,cookie,csrf,host,config,password}.ts`) | → `infra` | `infra/auth/` | Auth VERIFICATION is a sealed, db-free Strategy executor. The db-dependent steps (cookie-validate, user upsert) are INJECTED via `ResolveDeps` so infra never imports domain/db. | resolve-time (infra is below domain; injection only) |
+| `auth/*` (`trust-header.ts` dispatcher, `<mode>/resolver.ts`, `_shared/{jwks-cache,cookie,csrf,host,config,password}.ts`) | → `infra` | `infra/auth/` | Auth VERIFICATION is a sealed, db-free Strategy executor. Its db/crypto VERIFICATION steps (OIDC PKCE consume, JWT verify) are INJECTED via `ResolveDeps` so infra never imports domain/db. Per **D40** the cookie→user read is NOT injected — it is RESOLUTION (`sessions.validate`, returns `userId`) called directly by the seam (the `validateCookie` port is removed at 4c/4e). | resolve-time (infra is below domain; injection only) |
 | `auth/_shared/oidc-store.ts` (`createOidcStore`) | → **`domain/sessions/persistence`** (NOT `infra/auth`) | `domain/sessions/persistence/oidc-store.ts` | **CORRECTED 2026-06-25** (verified + flagged by tiers/infra.md): it imports `@orb/db` (`Db` + `oidcTransactions`) — stateful PKCE/state KV persistence, NOT db-free verification, so it cannot be sealed `infra/auth`. The `oidc` route calls it through the sessions domain. Reconciles the §esoteric note that already acknowledged it's a DB table. | resolve-time (infra stays db-free; the DB write is the domain's) |
 | `auth/_shared/cookie.ts` (set/clear/refresh + `__Host-` name) + the OIDC/local route handlers | → `entry`/route layer | `entry/http/auth-routes.ts` | Cookie I/O is the route layer's job; the domain returns a token string. The §11 `__Host-` contract is route-tier. | resolve-time |
 | `auth-context.ts` owner-fallback identity mint (`{ externalId:null, handle, groups:[] }`, `viaFallback:true`) | → the seam (`entry`) | `entry/auth/seam.ts` | The un-credentialed owner path mints a `Principal` with `via:"fallback"` and NO DB touch (the owner is the owner by definition, not a revocable user). `via:"fallback"` is the safe "this IS the owner" discriminator. | compile-time (`Principal.via` discriminant) |
@@ -227,12 +229,20 @@ The sessions domain sits at the bottom of the identity stack: `infra/auth` is in
 its verbs, the `entry/` seam composes it, and `admin` consumes a slice of it. No feature reaches into
 `domain/sessions/persistence/` or `verbs/` directly.
 
-**Injected INTO `infra/auth` (`ResolveDeps`) at the `entry/` seam:**
+**Injected INTO `infra/auth` (`ResolveDeps`) at the `entry/` seam** — the genuine db/crypto-dependent
+VERIFICATION steps only:
 
 | Op injected | Provided by | Used for |
 |---|---|---|
-| `sessions.validate` (as `validateSessionCookie`) | sessions domain | the cookie modes' (`oidc`/`local`) token→identity step; keeps `infra/auth` db-free |
-| `onSessionSlide` callback | the route layer | refresh the cookie's `Max-Age` when a throttled server-side slide actually wrote |
+| OIDC PKCE/state store (`oidcStore`) | sessions domain (`persistence/oidc-store.ts`) | the OIDC callback's single-use state consume — a db-backed *verification* step; keeps `infra/auth` db-free |
+| `verifyForwardJwt` | the route/entry layer (jose, 4e) | the forward-header signed path's JWT/JWKS verify; keeps `infra/auth` crypto-dep-free |
+
+**`sessions.validate` is NOT in this table (ledger D40).** The cookie→user read is RESOLUTION, not
+verification: equating it with an injected `ResolveDeps.validateCookie` port would force the `userId` to
+be dropped (infra invariant #3), recreating the "threw the id away" bug. So the seam calls
+`sessions.validate` (which returns `userId`) DIRECTLY — see the next table — and the `validateCookie`
+port is removed at 4c/4e (FLAG planted at `infra/auth/contract.ts`). The cookie-slide callback
+(`onSessionSlide`) travels with that direct call.
 
 **Consumed at the `entry/` seam (to build the one `Principal`):**
 
@@ -428,11 +438,17 @@ fresh session + revoke the old at that transition.
   (SSO groups are consumed into `users.role` at login; downstream needs only `role`). Lean: drop
   `groups` from `Principal` — `role` is the sole carried authz axis. Revisit only if a downstream
   consumer needs live group membership (none today).
-- **Does `validate` return `userId` directly, or a full `Principal`?** The cookie-validate JOIN already
-  has `users.id`; returning it kills the re-query (invariant #2). But header/SSO modes resolve `userId`
-  via `provisionIdentity`, and the fallback mints it with no DB touch — so the `Principal` is assembled
-  at the seam from three return shapes, not by `validate` alone. Confirm `validate`'s result type
-  (`{ userId, role, handle, externalId, enabled }`) vs the legacy `ResolvedIdentity`.
+- **Does `validate` return `userId` directly, or a full `Principal`? — RESOLVED (ledger D40): YES, it
+  returns `userId`.** `sessions.validate` returns the principal-fields incl. `userId` (`{ userId, role,
+  handle, externalId, enabled }`) — the cookie→user resolution is a DOMAIN step the `entry/auth/seam`
+  calls DIRECTLY (not an injected infra port), and the seam constructs the one `Principal` from it.
+  `infra/auth` holds NO `userId`-bearing cookie port: the former `ResolveDeps.validateCookie` (typed
+  `=> ResolvedIdentity`, no `userId`) would have FORCED the id to be dropped (infra invariant #3),
+  recreating the neo "validate threw the id away" bug (§"resolved twice / threw the id away") — so it is
+  REMOVED at 4c/4e (FLAG planted at `infra/auth/contract.ts` now). Header/SSO modes still resolve `userId`
+  via `provisionIdentity`, and the owner-fallback mints it with no DB touch — the `Principal` is assembled
+  at the seam from these three return shapes (cookie→`validate`, header→`provisionIdentity`,
+  fallback→`ensureUser`), not by `validate` alone.
 - **`provisionAgentPrincipal` + `users.isAgent`/`kind` (§8.6).** The agent-principal mint belongs in
   this domain (precedent: synthetic group character). Needs a non-loginable `users` flavor in `@orb/db`
   and the guarantee that no auth mode ever resolves an agent row. **Credential inheritance** (agent

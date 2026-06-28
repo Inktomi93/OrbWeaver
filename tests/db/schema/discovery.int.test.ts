@@ -230,6 +230,41 @@ test("duplicate_character_pairs canonical CHECK rejects a non-A<B order and a se
   expect(isConstraintViolation(caughtSelf)?.kind).toBe("check");
 });
 
+test("keyword_cooccurrence canonical CHECK rejects a non-A<B order and a self-pair", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_kc_canon");
+
+  // keywordA="knight" > keywordB="dragon" violates `keyword_a < keyword_b` (reversed order).
+  let caughtOrder: unknown;
+  try {
+    await db.insert(keywordCooccurrence).values({
+      id: castId<KeywordCooccurrenceId>("keyword_cooccurrence_unordered"),
+      ownerId,
+      keywordA: "knight",
+      keywordB: "dragon",
+      count: 1,
+    });
+  } catch (err) {
+    caughtOrder = err;
+  }
+  expect(isConstraintViolation(caughtOrder)?.kind).toBe("check");
+
+  // keyword_a === keyword_b (a self-pair) also fails the strict A<B CHECK.
+  let caughtSelf: unknown;
+  try {
+    await db.insert(keywordCooccurrence).values({
+      id: castId<KeywordCooccurrenceId>("keyword_cooccurrence_self"),
+      ownerId,
+      keywordA: "dragon",
+      keywordB: "dragon",
+      count: 1,
+    });
+  } catch (err) {
+    caughtSelf = err;
+  }
+  expect(isConstraintViolation(caughtSelf)?.kind).toBe("check");
+});
+
 test("duplicate_character_pairs enforces its FKs (a missing character is rejected)", async () => {
   const db = await freshDb();
   const ownerId = await seedOwner(db, "user_dcp_fk");
