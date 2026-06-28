@@ -146,13 +146,13 @@ export type ModeResolver = (
  * row + mints the `Principal` from this.
  *   - `identity` — the resolved `ResolvedIdentity`, or `null` when the caller is unauthenticated (→ 401).
  *   - `via` — how it resolved; the seam maps it to `Principal.via` and mints the OWNER on `"fallback"`
- *     (invariant #7 — the SAFE "this IS the owner" discriminator, never `externalId === null`).
- *   - `viaCookie` — the CSRF-relevant signal (a cookie request has a cross-site surface; `via === "cookie"`).
+ *     (invariant #7 — the SAFE "this IS the owner" discriminator, never `externalId === null`). Infra
+ *     NEVER resolves a cookie post-D40 (the seam does, via `sessions.validate`), so infra only ever yields
+ *     `"header"` (forward-header) or `"fallback"` (owner belt) — `"cookie"` is the SEAM's own `Principal.via`.
  *   - `hasCsrfHeader` — whether the custom CSRF header was present; the seam GATES on it (invariant #9).
  */
 export interface IdentityResolution {
   identity: ResolvedIdentity | null;
-  via: "cookie" | "header" | "fallback";
-  viaCookie: boolean;
+  via: "header" | "fallback";
   hasCsrfHeader: boolean;
 }

@@ -68,12 +68,11 @@ describe("resolve — owner fallback (the seam mints owner from via:'fallback')"
 });
 
 describe("resolve — per-request signals", () => {
-  test("a forward-header identity → via:'header' + viaCookie false (no cross-site surface)", async () => {
+  test("a forward-header identity → via:'header' (infra never resolves a cookie post-D40)", async () => {
     const res = await resolve(headers({ "x-authentik-username": "alice" }), {
       config: cfg({ mode: "forward-header" }),
     });
     expect(res.via).toBe("header");
-    expect(res.viaCookie).toBe(false);
   });
 
   test("the CSRF header signal is captured (the GATE is the seam's — invariant #9)", async () => {
