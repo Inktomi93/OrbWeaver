@@ -1,12 +1,17 @@
 # Orbweaver — SillyTavern feature-gap register
 
-> **Status: REFERENCE / inventory (not a plan).** This is the catalog of SillyTavern (ST) features that
-> orbweaver does NOT currently have, each tagged with its real add-back cost, so a cold agent (or Nate)
-> can make scope calls without re-auditing ST from scratch. It is the evidence base behind any "should we
-> add X?" decision. It is **not** a blanket commitment — but two sets ARE now committed: the
-> scripting/automation/variables surface (**ledger D46** / `proposals/scripting-automation-extensibility.md`)
-> and the seven cheap/high-value features in §7 (**ledger D47**). Everything else is un-decided unless a
-> ledger D-entry says otherwise; the **Data Bank / document-RAG is the one explicit OPEN call** (D47).
+> **Status: CLOSED, CANONICAL inventory (ledger D49, 2026-06-28).** This is the **complete** catalog of
+> SillyTavern (ST) features orbweaver would ever consider — Nate: *"anything we identified is the sum total
+> of what we would want."* Every row carries a DISPOSITION: `committed` (a ledger D-entry / a `proposed/`
+> domain) · `deferred-with-a-reserved-home` (a `FLAG[PD-x]` row + a `proposed/` doc) · `by-design-out`
+> (rejected by a decision/the constitution). **A cold agent does NOT re-audit ST** — re-opening "should we
+> add X from ST?" without a row here is out of bounds; if a genuinely new ST feature surfaces, ADD a row
+> with its disposition rather than re-running the audit. **Committed/adjudicated sets:** the
+> scripting/automation/variables surface (**D46** / `proposals/scripting-automation-extensibility.md`); the
+> seven cheap features in §7 (**D47**); image *display*/theming + vision *input* (**D44/D45**); tool/function
+> calling + structured output (**D48**); and this round's five picks — imagery · gallery/media-surfaces ·
+> background · expressions · **Data Bank (the former OPEN call, now DECIDED build-as-additive-graft)** —
+> adjudicated in **D49** with homes in `domains/proposed/{image-studio,media-surfaces,expression-stage,databank,tool-use}/`.
 >
 > **Provenance:** compiled 2026-06-28 from a source-level audit (5 parallel agents reading ST's real
 > `public/scripts/**` + orbweaver's `packages/**` + docs). Difficulty ratings are grounded in orbweaver's
@@ -77,7 +82,7 @@ inference role that doesn't exist.
 | Gallery | per-character image grid | ABSENT | MODERATE | per-user CAS backend exists; a Phase-6 `@orb/ui` surface |
 | Image-gen in chat (txt2img portrait/"selfie") | SD ext generate-from-chat | ABSENT | MODERATE | the `generateImage` role exists (hosted); needs a Phase-5 chat caller |
 | Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | ABSENT | ARCHITECTURAL | needs a classify/vision role + the dropped VN compositor + a per-turn hook |
-| Backgrounds | chat scene background image | ABSENT | PAINFUL | resurrects the VN scene layer + a new shell slot + per-chat persistence |
+| Backgrounds (app background image) | set an app/chat-chrome background image | DEFERRED-CHEAP (D49) | TRIVIAL | **was wrongly rated PAINFUL** — Nate clarified it's app-chrome theming, NOT the VN scene-compositor. A D44 `ThemeOverride.background` token (`AssetRef\|ExternalUrl` + `fit`), per-user global + per-chat lock, via `<ThemeScope>` (never raw `url()`). `proposed/expression-stage/` |
 | Audio / BGM / blip sounds | scene/char music + typing blips | ABSENT | PAINFUL | player is trivial; "which track for this scene" needs new persistence + VN coupling |
 | TTS (text-to-speech) | ~30 providers + narrate pipeline | ABSENT | ARCHITECTURAL | a new inference role **and** a streaming-audio transport (SSE is text/JSON) + Phase-5 hook |
 | STT (speech-recognition) | voice input | ABSENT | ARCHITECTURAL | new audio-in transport + role |
@@ -125,7 +130,7 @@ canon (it **is** canon), which is why the Data Bank class needs a parallel doc-s
 | Scrapers | web/file/youtube/wiki → Data Bank | ABSENT | MODERATE | simple fetchers, but **homeless without a Data Bank target** |
 | Web Search RAG | live search → inject results | ABSENT | MODERATE–PAINFUL | per-turn live ingestion; no orb seam |
 | Server doc text-extraction | pdf/docx/epub/html → text | ABSENT | MODERATE | a real sub-feature any Data Bank needs (vendored lib in a loader) |
-| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | ABSENT | ARCHITECTURAL | new domain + a **canon producer table** + a 5th embedding source-kind + a new search lens + a chunker |
+| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | DECIDED-BUILD (D49) | ARCHITECTURAL | the former OPEN call, now DECIDED (additive graft, P6/7): a single-owned `documents` producer + derived `document_chunks` + per-type FK scope junctions + chunker + db-free extraction loader. `proposed/databank/`, FLAG[PD-57] |
 | Vectors as file-RAG | chunk+embed+retrieve uploaded files | ABSENT | PAINFUL | embed/search plumbing reuses; the producer/canon shape doesn't fit (needs the doc-store above) |
 | assets ext (community downloader) | download chars/extensions/audio from a repo index | ABSENT | N/A | no extension system, no marketplace, no ambient-audio concept; the "download a character from URL" sliver = import-from-URL |
 
@@ -145,13 +150,13 @@ search, improved), image-captioning *capability* (inline in the indexer), the RA
 | Portrait/prompt-template modes (CHARACTER/FACE/SCENARIO/BACKGROUND) | LLM-extract → generate | ABSENT | MODERATE | a chat-domain two-step (extract→generate) atop the working role |
 | Inpainting / img2img | mask/init-image | ABSENT | MODERATE | `ImageGenerateRequest` is text→image only; contract widening + backend support |
 | `/imagine` slash surface | 4 commands | ABSENT | MODERATE | Phase-6 client command surface |
-| Tool/function calling — agent-sdk path | recursive multi-tool loop | PARTIAL | MODERATE | `createAgentToolServer` seam exists; needs a domain tool-registry + loop + persist to the reserved `toolCalls` col |
-| Tool/function calling — chat-completions/responses path | OpenAI-style tools + recurse | ABSENT | PAINFUL | no `tools`/`tool_choice` request fields, no tool-delta events, no `tool` history role; fights the stateless-turn model |
+| Tool/function calling — agent-sdk path | recursive multi-tool loop | COMMITTED (D47) | MODERATE | `createAgentToolServer` seam + reserved `toolCalls` col; the SDK owns the loop. One registry w/ the OpenAI path (D48) |
+| Tool/function calling — chat-completions/responses path | OpenAI-style tools + recurse | COMMITTED (D48) | MODERATE | the "PAINFUL/fights stateless-turn" framing is RESOLVED — the `tool` role lands on the WIRE axis + the **chat DOMAIN owns the recurse loop** (not infra). Gates landed; wire shape ships w/ the loop. `proposed/tool-use/` |
 | Reasoning data + streaming + resolve | native reasoning handling | COVERED | — | `message_variants.reasoning`/effort + `STREAM_DELTA_KINDS` + `resolve-chat.resolveReasoning` (D41) |
 | Reasoning `<think>` auto-parse (non-native models) | parse inline tags | ABSENT | MODERATE | a parse step in the chat turn |
 | Reasoning UI render / effort picker | collapsible blocks + effort UI | ABSENT (deferred) | MODERATE | data exists; Phase-6 client (Streamdown checkpoint) |
 | Vision / image INPUT (image→model) | `image_url` content parts | **COMMITTED (D45)** | born-compliant before Phase 5 | `ModelCapability.vision` axis (the gate) + `ChatHistoryMessage.content` `string`→content-parts; sealed translators map image parts. Shaped in the contracts pass before Phase 5 — see D45 / `client.md` §12.4 |
-| Structured-output via tools (`tool_choice:{type:tool}`) | forced JSON | ABSENT | MODERATE | no constrained-decoding/JSON-schema field |
+| Structured-output via tools (`tool_choice:{type:tool}`) | forced JSON | COMMITTED (D48) | MODERATE | a SEPARATE `response_format` axis (not via `tool_choice`); `ModelCapability.output.structured` gate landed. `proposed/tool-use/` |
 
 **Reserved-progress (born-compliant, partially in place):** `generateImage` role (done, hosted-only) ·
 `message_variants.toolCalls` column (reserved, D37 — exec loop not built) · reasoning fields (done; UI +

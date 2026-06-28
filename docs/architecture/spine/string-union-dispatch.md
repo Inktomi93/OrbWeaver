@@ -266,8 +266,11 @@ B; the *credential inheritance* question it raises is a §7.1 decision, parked t
   can't import contracts — §5 tuple-in-kit); the wire schema `messageRoleSchema = z.enum(MESSAGE_ROLES)`
   lives in `contracts/chat` and imports the tuple down. Chat assembly, preset/guided injection-role
   mapping, persona/world-info/depth-prompt/author-note/memory injection, and the provider wire all import
-  the ONE union. *(Open watch: a future `tool`/`developer` role would widen the tuple in the one place and
-  every `assertNever` dispatch grows an arm — exactly Gate B's point.)*
+  the ONE union. *(Open watch RESOLVED — D48: the tool-calling `tool` role does NOT widen `MESSAGE_ROLES`.
+  It lands on the separate infra **wire** axis — `ChatHistoryMessage.role` / a `HISTORY_ROLES` tuple in
+  `infra/providers/contract/chat.ts` — which already differs from `MESSAGE_ROLES` (it excludes `system`).
+  `tool` is not a valid injection role, so polluting the 6 `MESSAGE_ROLES` consumers is wrong; `messages.role`
+  stays `system|user|assistant`. The wire axis is where the `assertNever` arm grows, in providers only.)*
 - **The axis registry format for Gate A.** `no-inline-union-redecl` needs a machine-readable list of
   `{ canonicalPath, memberSet }` to count against. Decide whether that registry is a hand-maintained
   manifest, or inferred from "every exported `as const satisfies readonly T[]` tuple under
