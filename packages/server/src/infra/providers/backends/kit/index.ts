@@ -23,6 +23,8 @@ export {
   extractHttpErrorDiagnostic,
   providerErrorFromHttp,
 } from "./error-classify";
+// ── History content-part → text (D45 multimodal send; image parts wire-mapped per-backend later) ────
+export { chatHistoryText } from "./history";
 // ── Idle-abort wrapper for streaming HTTP runners ──────────────────────────────────────────────────
 export type { IdleAbort } from "./idle-timeout";
 export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout";

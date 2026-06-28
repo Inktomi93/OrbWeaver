@@ -17,11 +17,21 @@ import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
 
-/** One assembled history turn (OpenAI-spec shape) the stateless backends consume. `name` carries the
- *  per-participant label the egocentric view-builder stamped (COMPLETION names behaviour). */
+/** A single part of a history turn's content (D45 multimodal send). A turn is ALWAYS a content-part array;
+ *  a text-only turn is a one-element `[{ type:"text" }]` (no `if(hasImage)` branch — the no-special-case
+ *  discipline). `image.url` is the resolved, model-fetchable URL/data-URI the assembly produced (asset→URL
+ *  or a gated external URL); a non-vision model never receives image parts (assembly drops them, gated by
+ *  `ModelCapability.input.vision`). The per-backend image→wire mapping lands when vision-input is wired
+ *  (Phase 5); until then history is text-only. */
+export type ChatContentPart =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "image"; readonly url: string };
+
+/** One assembled history turn (OpenAI-spec shape) the stateless backends consume. `content` is a
+ *  content-part array (D45); `name` carries the per-participant label the egocentric view-builder stamped. */
 export interface ChatHistoryMessage {
   readonly role: "user" | "assistant";
-  readonly content: string;
+  readonly content: readonly ChatContentPart[];
   readonly name?: string | undefined;
 }
 

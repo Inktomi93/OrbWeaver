@@ -27,7 +27,7 @@ function makeRequest(overrides: Partial<ChatRequest> = {}): ChatRequest {
     params: {} satisfies UserIntent,
     systemPrompt: { static: "", dynamic: "" },
     api: "chat-completions",
-    history: [{ role: "user", content: "hi" }],
+    history: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
   } as unknown as ChatRequest;
   return { ...base, ...overrides } as ChatRequest;
 }

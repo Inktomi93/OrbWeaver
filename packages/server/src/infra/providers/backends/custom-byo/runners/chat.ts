@@ -31,6 +31,7 @@ import type {
 import {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
+  chatHistoryText,
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
   providerErrorFromHttp,
@@ -204,12 +205,13 @@ function buildMessages(
     messages.push({ role: SYSTEM_ROLE, content: systemText });
   }
   for (const turn of req.history) {
-    if (turn.content.trim().length === 0) {
+    const text = chatHistoryText(turn.content);
+    if (text.trim().length === 0) {
       continue;
     }
     messages.push({
       role: turn.role,
-      content: turn.content,
+      content: text,
       ...(turn.name !== undefined ? { name: turn.name } : {}),
     });
   }

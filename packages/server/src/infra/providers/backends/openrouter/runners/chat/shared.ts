@@ -19,11 +19,13 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
 import {
   cacheControlBlock,
+  chatHistoryText,
   effectiveProviderRouting,
   extractHttpErrorDiagnostic,
 } from "../../../../backends/kit";
 import type {
   ChatEvent,
+  ChatHistoryMessage,
   ResolvedReasoning,
   ResolvedSampling,
   ResolvedWarning,
@@ -84,21 +86,16 @@ export function joinSystemPrompt(systemPrompt: {
 /** Map the assembled view turns → SDK chat messages, filtering empty-content turns FIRST (so the
  *  cache-breakpoint offset-from-end the chat pipeline computed still lines up). The per-participant `name`
  *  rides through (COMPLETION names behaviour). */
-export function buildHistoryMessages(
-  history: ReadonlyArray<{
-    readonly role: "user" | "assistant";
-    readonly content: string;
-    readonly name?: string | undefined;
-  }>,
-): ChatMessages[] {
+export function buildHistoryMessages(history: readonly ChatHistoryMessage[]): ChatMessages[] {
   const messages: ChatMessages[] = [];
   for (const turn of history) {
-    if (turn.content.trim().length === 0) {
+    const text = chatHistoryText(turn.content);
+    if (text.trim().length === 0) {
       continue;
     }
     messages.push({
       role: turn.role,
-      content: turn.content,
+      content: text,
       ...(turn.name !== undefined ? { name: turn.name } : {}),
     });
   }

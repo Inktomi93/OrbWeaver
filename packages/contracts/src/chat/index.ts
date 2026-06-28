@@ -734,3 +734,44 @@ export interface GroupMacroContext {
   /** `{{char}}`-as-cast — the comma-joined present cast (collapses to the single name when cast = 1). */
   castName: string;
 }
+
+// ── Message content blocks (D44 §12.4) ────────────────────────────────────────────────────────────
+// A message body is a typed SEQUENCE of content blocks, NOT one HTML string (ST's fatal simplification).
+// This is the RENDER model — how a stored message is *displayed*. It is distinct from the provider-send
+// model (`ChatHistoryMessage.content` → content-parts, D45 — what the model receives as input); the two
+// share one stored asset but are different contracts in opposite directions. Chat assembles these (P5).
+
+export const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
+export type MessageMediaKind = z.infer<typeof messageMediaKindSchema>;
+
+/** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (client.md §12.2). */
+export const cardTrustSchema = z.enum(["tierA", "tierB"]);
+export type CardTrust = z.infer<typeof cardTrustSchema>;
+
+/** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by
+ *  `forbidExternalMedia` at render, D44 §12.3 — never auto-loaded for untrusted content). */
+export const messageMediaSrcSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
+  z.object({ kind: z.literal("external"), url: z.string() }),
+]);
+export type MessageMediaSrc = z.infer<typeof messageMediaSrcSchema>;
+
+/** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
+ *  native audio/video; `markdown` is the default text path. (D44 §12.4 — born-compliant before Phase 5.) */
+export const messageContentBlockSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("markdown"), md: z.string() }),
+  z.object({
+    kind: z.literal("media"),
+    media: messageMediaKindSchema,
+    src: messageMediaSrcSchema,
+    alt: z.string(),
+    dims: z.object({ w: z.number(), h: z.number() }).optional(),
+  }),
+  z.object({
+    kind: z.literal("html-card"),
+    html: z.string(),
+    css: z.string().optional(),
+    trust: cardTrustSchema,
+  }),
+]);
+export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
