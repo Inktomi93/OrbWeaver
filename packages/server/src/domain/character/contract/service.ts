@@ -18,9 +18,9 @@
 //   of `can()` + `requireParticipant` + `chatMetadata.group.memberCardVisibility` exist. Building it now
 //   would collapse the chat tier into character (a forbidden tier collapse — the persona setActivePersona
 //   precedent). NOT in `CharacterService` yet.
-// FLAG[PD-32]: the default-card `seeder/` subsystem (character.md §8-slot) → its own slice: it needs
-//   the injected settings `isSeeded`/`markSeeded` ports + the 5 authored default cards, and uses the real
-//   `create` path. Self-contained and separable; not part of the CRUD+mint+provenance+emit scope here.
+// The default-card `seeder/` subsystem (PD-32, character.md §8-slot) lives in `seeder/` + `contract/seeder.ts`
+//   — it's reached by ENTRY over this service's `create`/`findByHandle` verbs (the injected settings latch
+//   ops are wired at the composition root), NOT a character verb, so no tier collapse here.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
@@ -33,6 +33,7 @@ import type {
   BulkRemoveParams,
   CreateCharacterParams,
   DuplicateCharacterParams,
+  FindByHandleParams,
   FindByImportHashParams,
   FindGroupCharParams,
   GetCardParams,
@@ -146,6 +147,11 @@ export interface CharacterService {
   /** The owner's existing character that already carries `importHash` (the re-import dedup oracle), or
    *  `null`. Owner-scoped: a different owner's same-hash card is never returned. A read — never throws. */
   readonly findByImportHash: (params: FindByImportHashParams) => Promise<CharacterRef | null>;
+
+  // ── By-handle resolve (seeder-injected, internal) ───────────────────────────
+  /** The owner's character carrying `handle` (the default-card seeder's partial-rerun resolve path), or
+   *  `null`. Owner-scoped: a different owner's same-handle card is never returned. A read — never throws. */
+  readonly findByHandle: (params: FindByHandleParams) => Promise<CharacterRef | null>;
 
   // ── Synthetic group identity (chat-injected, internal) ──────────────────────
   /** Find-or-mint the hidden `synthetic=true` `__group__${chatId}` character (the scoped-group memory

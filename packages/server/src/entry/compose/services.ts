@@ -33,7 +33,8 @@ import type { AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
 import { createBuddyService } from "#domain/buddy";
-import { createCharacterService } from "#domain/character";
+import type { DefaultCharacterSeeder } from "#domain/character";
+import { createCharacterService, createDefaultCharacterSeeder } from "#domain/character";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
 import { createDiscoveryService } from "#domain/discovery";
@@ -117,6 +118,10 @@ export interface ServicesResult {
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   readonly vllmEngine: VllmEngineHandle | null;
+  /** The default-card seeder (PD-32) — the ONE instance both boot (`ensureSeeded(owner)`) and the app
+   *  first-request hook (`ensureSeeded(principal)`) share, so the in-process memo + persisted latch hold
+   *  across both call sites. Constructed over the built `character` service + the settings latch ops. */
+  readonly characterSeeder: DefaultCharacterSeeder;
 }
 
 /** Build a production id minter for a TypeID prefix (the composition root is the sanctioned mint site). */
@@ -244,6 +249,32 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
     // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
+  });
+
+  // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.
+  //    The settings latch lives in a SIBLING domain (domain-no-cross-feature), so the read/write are injected
+  //    here as closures over the settings front door. `markSeeded` mirrors neo: stamp the latch, then point
+  //    seeds.welcomeAssistantCharacterId at the seeded Assistant ONLY when the user hasn't already picked one
+  //    (never clobber an explicit choice). `create` requires the acting Principal → ensureSeeded takes it. ──
+  const characterSeeder = createDefaultCharacterSeeder({
+    characters: character,
+    isSeeded: async (principal): Promise<boolean> =>
+      (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
+    markSeeded: async (principal, welcomeAssistantId): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultCharactersSeeded: true } },
+      });
+      if (welcomeAssistantId !== null) {
+        const current = (await settings.getUserSettings({ principal })).config;
+        if (current.seeds.welcomeAssistantCharacterId === null) {
+          await settings.updateUserSettingsSection({
+            principal,
+            input: { section: "seeds", patch: { welcomeAssistantCharacterId: welcomeAssistantId } },
+          });
+        }
+      }
+    },
   });
 
   // ── The embeddings indexer (the event SUBSCRIBER) + its bus subscription (PD-48 paid down) ─────────────
@@ -400,5 +431,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     effectiveConfig,
     secretBox,
     vllmEngine: registry.vllmEngine,
+    characterSeeder,
   };
 }

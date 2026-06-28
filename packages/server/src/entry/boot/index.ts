@@ -9,6 +9,7 @@ export type { ReclaimLocksDeps } from "./reclaim-locks";
 export { reclaimLocksOnBoot } from "./reclaim-locks";
 export type { SeedCredentialDeps } from "./seed-credential";
 export { seedCredentialFromEnv } from "./seed-credential";
+export type { SeedDefaultCharactersDeps } from "./seed-default-characters";
 export { seedDefaultCharacters } from "./seed-default-characters";
 export type { SeedDefaultPresetDeps } from "./seed-default-preset";
 export { seedDefaultPreset } from "./seed-default-preset";

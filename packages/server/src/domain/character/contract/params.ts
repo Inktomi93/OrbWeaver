@@ -107,3 +107,11 @@ export interface FindByImportHashParams {
   readonly ownerId: UserId;
   readonly importHash: string;
 }
+
+/** By-handle lookup (seeder-injected, internal): the owner's character carrying `handle` — the default-card
+ *  seeder's partial-rerun resolve path (a crashed prior run may have created some handles). Acts on the
+ *  resolved `ownerId` (not a request principal — the import-hash/synthetic-find precedent). */
+export interface FindByHandleParams {
+  readonly ownerId: UserId;
+  readonly handle: string;
+}
