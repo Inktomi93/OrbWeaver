@@ -17,6 +17,7 @@ import { createBulkArchive } from "./verbs/bulk-archive";
 import { createBulkRemove } from "./verbs/bulk-remove";
 import { createCreate } from "./verbs/create";
 import { createDuplicate } from "./verbs/duplicate";
+import { createFindByImportHash } from "./verbs/find-by-import-hash";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
 import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
@@ -43,6 +44,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     listSnapshots: createListSnapshots(ctx),
     restore: createRestore(ctx),
     getCard: createGetCard(ctx),
+    findByImportHash: createFindByImportHash(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),
   };

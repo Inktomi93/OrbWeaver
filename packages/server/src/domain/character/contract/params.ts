@@ -22,8 +22,18 @@ export interface CharacterActorParams {
   readonly principal: Principal;
 }
 
+/** Import provenance stamp for `create` — present only when an import (not the app) authored the card.
+ *  `importHash` is the whole-file sha-256 (the re-import dedup key, DISTINCT from `contentHash`);
+ *  `importedFrom` is the source label/filename, or null. Omit for app-authored cards (columns stay null). */
+export interface CharacterImportProvenance {
+  readonly importedFrom: string | null;
+  readonly importHash: string;
+}
+
 export interface CreateCharacterParams extends CharacterActorParams {
   readonly input: CreateCharacterInput;
+  /** Optional import provenance — undefined for app-authored cards (`imported_from`/`import_hash` ⇒ null). */
+  readonly provenance?: CharacterImportProvenance;
 }
 
 export interface GetCharacterParams extends CharacterActorParams {
@@ -89,4 +99,11 @@ export interface MintGroupCharParams {
 export interface FindGroupCharParams {
   readonly ownerId: UserId;
   readonly chatId: string;
+}
+
+/** Re-import dedup lookup (import-injected, internal): the owner's character already carrying `importHash`,
+ *  acting on the resolved `ownerId` (not a request principal — the synthetic-find precedent). */
+export interface FindByImportHashParams {
+  readonly ownerId: UserId;
+  readonly importHash: string;
 }
