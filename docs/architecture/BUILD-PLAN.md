@@ -89,12 +89,13 @@ Build in the dissolution boot-order (`shared-dissolution.md §8`):
 
 ---
 
-## Phase 6 — `@orb/client` (deferred rebuild)
-1. Pick the UI headless engine (recommended: Base UI) — `ledger §3`.
-2. Feature-sliced layout; convert any copied shadcn atoms to `#` imports (no `@/`).
-3. Client component tests = **Playwright CT** (`.ct.tsx` at the `tests/client/` mirror); e2e = **Playwright** (`.spec.ts` under `tests/e2e/`). No Vitest browser. Client pure-logic stays node `.test.ts`.
+## Phase 6 — `@orb/client` + `@orb/ui` (deferred rebuild)
+**Authoritative spec: `docs/architecture/client.md` (ledger D42).** Build against it. In short:
+1. Stand up **`@orb/ui`** (NEW package — the frontend cake leaf: `kit ← contracts ← ui ← client`): domain-agnostic primitives over **Base UI** (`@base-ui/react`) — **NO shadcn, NO Radix**; the satellites (cmdk/vaul/sonner/react-resizable-panels/@dnd-kit/nivo) + **Streamdown** (`@orb/ui/markdown`) sealed behind it; CVA variant-unions; DTCG tokens → derived Tailwind v4 `@theme`. The UI boundaries are resolver PHYSICS (client's `package.json` lacks the primitive libs → cannot import them).
+2. `@orb/client` — carry neo's STRUCTURE (feature-slice · surfaces/anchors · `state:files` · intent tokens · the gate battery); **container-driven** layout (4-tier; `@media` only in app-shell); Query (server) + gated Zustand (client); TanStack Router **minimal** (single-route shell, no file-based codegen); the 4 sealed cross-lib gotchas. `#` imports, no `@/`.
+3. Client component tests = **Playwright CT** (`.ct.tsx` at the `tests/client/` mirror); e2e = **Playwright** (`.spec.ts` under `tests/e2e/`). No Vitest browser. Client pure-logic stays node `.test.ts`. Add **visual-regression** (Playwright screenshots) as a gate.
 
-**✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green.
+**✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green; the UI-boundary physics hold (an app→raw-primitive import fails to resolve).
 
 ---
 
