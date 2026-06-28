@@ -21,11 +21,15 @@
 # (`-a`) yields a SELF-CONSISTENT copy: the copy's node_modules resolves into the copy's own packages — no
 # `pnpm install`, no native-rebuild, no lefthook/`prepare` (we exclude .git) needed.
 #
-# The copy is PERSISTENT and incrementally re-synced (`--delete`), so only the first run pays the full
-# ~2.1G node_modules copy; later runs sync just what changed (seconds). Stryker's own incremental cache
-# lives in the copy's reports/ and survives between runs too. Override the location with ORB_MUTATION_DIR.
+# RESULTS + CLEANUP: the copy is PERSISTENT and incrementally re-synced (`--delete`), so only the first run
+# pays the full ~2.1G node_modules copy; later runs sync just what changed (seconds), and Stryker's
+# incremental cache rides along in reports/ both ways for fast re-runs. After the run (success OR a
+# break-threshold failure) the `finish` trap copies the report + incremental cache back into the working
+# tree's reports/ (the "proper place" the htmlReporter points at) and deletes the copy's transient sandbox
+# + leaked per-worker setup files. Set ORB_MUTATION_WIPE=1 to delete the whole copy too (slower next run).
+# Override the copy location with ORB_MUTATION_DIR.
 
-set -euo pipefail
+set -uo pipefail
 SRC="$(cd "$(dirname "$0")/../.." && pwd)"
 DST="${ORB_MUTATION_DIR:-/tmp/orb-mutation}"
 CONFIG="${1:-stryker.config.json}"
@@ -35,10 +39,22 @@ if [ "$DST" = "$SRC" ]; then
   exit 1
 fi
 
-echo "mutation: syncing working tree → $DST (incremental; node_modules included, caches excluded)…"
+finish() {
+  # Bring results into the working tree's reports/ even on a non-zero exit (e.g. break threshold).
+  if [ -d "$DST/reports" ]; then
+    mkdir -p "$SRC/reports"
+    rsync -a "$DST/reports/" "$SRC/reports/" 2>/dev/null || true
+  fi
+  # Clean the copy's transient junk (sandbox + leaked setup files). Source + node_modules stay for fast
+  # incremental re-runs unless a full wipe is requested.
+  rm -rf "$DST/.stryker-tmp" "$DST"/stryker-setup-*.js 2>/dev/null || true
+  [ "${ORB_MUTATION_WIPE:-0}" = "1" ] && rm -rf "$DST"
+  return 0
+}
+trap finish EXIT
+
+echo "mutation: syncing working tree → $DST (incremental; node_modules included, big caches excluded)…"
 mkdir -p "$DST"
-# Preserve symlinks (-a includes -l) so the relative workspace/.pnpm links stay valid in the copy. Exclude
-# .git (no hooks/install needed), the multi-GB model/venv caches, and per-run output dirs.
 rsync -a --delete \
   --exclude '.git/' \
   --exclude '.cache/' \
@@ -48,13 +64,13 @@ rsync -a --delete \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \
   --exclude '.claude/' \
-  "$SRC/" "$DST/"
+  "$SRC/" "$DST/" || { echo "mutation: rsync failed" >&2; exit 1; }
 
-cd "$DST"
+cd "$DST" || exit 1
 echo "mutation: running stryker --inPlace inside the copy (your working tree is untouched)…"
 # --inPlace is supplied HERE, never baked into the committed config — so a bare `stryker run` in the real
 # repo can never mutate it in place.
 node_modules/.bin/stryker run "$CONFIG" --inPlace "${@:2}"
 status=$?
-echo "mutation: done. HTML report → $DST/reports/mutation/"
+echo "mutation: report → $SRC/reports/mutation/  (exit $status)"
 exit "$status"
