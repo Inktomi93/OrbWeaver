@@ -95,6 +95,34 @@ const ROLE_SELECTORS: {
   }),
 };
 
+// The DERIVE roles — the only roles that may fall back to the in-process `local-light` tier when vLLM is
+// unavailable (no GPU). `local-light` runs jina-clip-v2 (text embed / image embed) + a cross-encoder rerank,
+// all 1024-dim — coherent with the `F32_BLOB(1024)` columns. The GENERATION roles (chat/agent/summarize/
+// generateImage) NEVER fall back: local-light cannot generate; a no-GPU user configures a hosted source via
+// their `roleDefaults` instead. Kept as a Set (one home; mirrored by the resolver test).
+const DERIVE_ROLES: ReadonlySet<ResolveRoleParams["role"]> = new Set<ResolveRoleParams["role"]>([
+  "embed",
+  "rerank",
+  "imageEmbed",
+]);
+
+/** The no-GPU derive fallback. When a DERIVE role resolved to `vllm` but the boot GPU-detect found no engine
+ *  (`vllmAvailable === false`), reroute it to `local-light` with NO model id (empty) so the local-light
+ *  backend self-defaults to jina-clip-v2 (1024-dim). A NON-derive role, a non-`vllm` selection, or an
+ *  available engine passes through untouched. This is the ONE home for every role's response to the fact. */
+function applyVllmFallback(
+  role: ResolveRoleParams["role"],
+  selection: RouteSelection,
+  vllmAvailable: boolean,
+): RouteSelection {
+  if (vllmAvailable || selection.source !== "vllm" || !DERIVE_ROLES.has(role)) {
+    return selection;
+  }
+  // Empty model → `healModel` carries it through verbatim (`"" ?? …` keeps `""`) and the local-light embed/
+  // rerank/imageEmbed surfaces self-default to their jina-clip-v2 / cross-encoder model.
+  return { ...selection, source: "local-light", model: "" };
+}
+
 /** Reject an incoherent `(api, source)` selection (the only thrown-error path). `agent-sdk` serves only the
  *  sub + the OR-skin; `chat-completions`/`responses` cannot run on the agent-sdk-only `max-pro-sub`. */
 function assertCoherent(api: ChatApi, source: ChatSource): void {
@@ -128,9 +156,10 @@ function healModel(selection: RouteSelection, now: number): ModelId {
 export function createResolveRole(ctx: ConnectionContext): ConnectionService["resolveRole"] {
   return async (params: ResolveRoleParams): Promise<ResolvedConnection> => {
     const settings = await ctx.loadUserSettings(params.principal.userId);
-    const selection = ROLE_SELECTORS[params.role](
-      settings.routing.roleDefaults,
-      params.agentOverride,
+    const selection = applyVllmFallback(
+      params.role,
+      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.agentOverride),
+      ctx.vllmAvailable,
     );
     assertCoherent(selection.api, selection.source);
 

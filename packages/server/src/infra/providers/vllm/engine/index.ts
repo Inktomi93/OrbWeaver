@@ -33,6 +33,7 @@ export {
   setEngineStatus,
 } from "./engine-status";
 export { VLLM_ENGINES } from "./engines";
+export { detectGpu } from "./gpu";
 export { sniffMime, toDataUri } from "./image";
 export {
   breakerAllows,

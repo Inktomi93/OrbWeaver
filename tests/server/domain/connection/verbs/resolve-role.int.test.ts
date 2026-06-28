@@ -54,3 +54,64 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     ).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 });
+
+// The no-GPU derive-role fallback: `vllmAvailable:false` reroutes embed/rerank/imageEmbed from vLLM to the
+// in-process local-light tier (jina-clip-v2, 1024-dim — fits F32_BLOB(1024)); the generation roles never
+// fall (local-light has no generation — a no-GPU user picks a hosted roleDefault for those).
+describe("resolveRole — derive-role local-light fallback when vLLM is unavailable", () => {
+  // Empty default roleDefaults → every derive role selects `vllm`; with no GPU it must reroute.
+  test.each([
+    "embed",
+    "rerank",
+    "imageEmbed",
+  ] as const)("a %s role resolving to vllm with vllmAvailable:false → local-light + empty (self-default) model", async (role) => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmAvailable(false);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role, principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("local-light");
+    expect(h.credentialCalls).toContain("local-light");
+    expect(h.credentialCalls).not.toContain("vllm");
+    // Empty model id → the local-light backend self-defaults to jina-clip-v2 (1024-dim).
+    expect(conn.model).toBe("");
+  });
+
+  test.each([
+    "chat",
+    "summarize",
+    "agent",
+  ] as const)("a %s (generation) role with vllmAvailable:false stays as resolved — NEVER local-light", async (role) => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmAvailable(false);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role, principal: principal("user_1") });
+
+    expect(conn.credential.source).not.toBe("local-light");
+    // chat/summarize default to vllm; agent defaults to the owner's sub — none fall to local-light.
+    expect(conn.credential.source).toBe(role === "agent" ? "max-pro-sub" : "vllm");
+  });
+
+  test("an embed role with vllmAvailable:true stays on vLLM (fallback only on no-GPU)", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmAvailable(true);
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("vllm");
+  });
+
+  test("only a vllm selection falls — an embed pinned to openrouter is untouched by no-GPU", async () => {
+    const h = makeConnHarness(await freshDb());
+    h.setVllmAvailable(false);
+    h.setRoleDefaults({ embed: { source: "openrouter", model: "openai/text-embedding-3-small" } });
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+
+    expect(conn.credential.source).toBe("openrouter");
+  });
+});

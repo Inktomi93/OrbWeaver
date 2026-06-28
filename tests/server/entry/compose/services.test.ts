@@ -6,7 +6,7 @@
 import { tmpdir } from "node:os";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import { characterTags, tags } from "@orb/db";
+import { characterEmbeddings, characterTags, tags } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
@@ -89,6 +89,29 @@ test("createServices builds the full graph: all 15 Services keys + the boot hand
 test("the boot-global RoleClients bundle resolves the derive roles to the vLLM floor model", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
+  // vLLM AVAILABLE (vllmDisabled:false) so the derive-role fallback does NOT fire — empty settings →
+  // roleDefaults default to the local vLLM source, so embed resolves to the env embed model. (No engine
+  // call: binding only RESOLVES each role's model.)
+  const result = await createServices({
+    db,
+    now: clock.now,
+    ownerId: castId<UserId>("u_owner"),
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    vllmDisabled: false,
+  });
+
+  expect(result.roleClients.embedModel).toBe(env.VLLM_EMBED_MODEL);
+  expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
+});
+
+test("with vLLM unavailable (no GPU) the boot-global derive bundle falls back to local-light", async () => {
+  const db = await freshDb();
+  const clock = createFrozenClock();
+  // vllmDisabled:true ⇒ vllmAvailable=false ⇒ the derive roles (embed) reroute to local-light (empty model,
+  // self-defaulting to jina); summarize (generation) stays on the vLLM floor model — never local-light.
   const result = await createServices({
     db,
     now: clock.now,
@@ -100,8 +123,7 @@ test("the boot-global RoleClients bundle resolves the derive roles to the vLLM f
     vllmDisabled: true,
   });
 
-  // Empty settings → roleDefaults default to the local vLLM source, so embed resolves to the env embed model.
-  expect(result.roleClients.embedModel).toBe(env.VLLM_EMBED_MODEL);
+  expect(result.roleClients.embedModel).toBe(""); // local-light self-default (jina-clip-v2, 1024-dim)
   expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
 });
 
@@ -311,9 +333,15 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
   return { character, assets, store, cleanup: assetsH.cleanup, emit: bus.emit };
 }
 
-/** Drain the fire-and-forget bus dispatch deterministically: flush the IO queue until `done` (bounded). */
+// Max event-loop turns the drain waits before giving up — generous so a real CAS disk read (the asset path:
+// loadAssetBytes → imageEmbed → caption → store) completes even under heavy parallel-suite contention, while
+// the `done` predicate still short-circuits the instant the work lands (well-behaved cases stay sub-ms).
+const DRAIN_MAX_TURNS = 2000;
+
+/** Drain the fire-and-forget bus dispatch deterministically: flush the IO queue until `done` (bounded — no
+ *  wall-clock; each turn is one `setImmediate` macrotask). */
 async function drain(done: () => boolean): Promise<void> {
-  for (let i = 0; i < 50 && !done(); i += 1) {
+  for (let i = 0; i < DRAIN_MAX_TURNS && !done(); i += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: a deterministic bounded drain of fire-and-forget dispatch.
     await new Promise<void>((resolve) => setImmediate(resolve));
   }
@@ -365,5 +393,92 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
       // CAS returns the bytes as a Buffer (a Uint8Array subclass) — compare by value, not subtype.
       expect(content instanceof Uint8Array && Array.from(content)).toEqual(Array.from(bytes));
     }
+  });
+});
+
+// ── The corpusAutoindex indexer GATE (Piece D) ───────────────────────────────────────────────────────────
+// The composition root subscribes the indexer to the bus ONLY when the effective-config `corpusAutoindex` is
+// true. These build the FULL graph vLLM-ENABLED with a deterministic fake engine client (so the embed path is
+// offline + cheap — vllmAvailable=true ⇒ NO local-light load), create a character (whose `character.updated`
+// emit rides the same bus), drain the fire-and-forget dispatch, and assert a card-text embedding row is
+// persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
+// ON case flips it via a stored AppSettings override the boot reload resolves.
+
+/** A deterministic, offline fake vLLM engine client: every /v1/embeddings returns one full-dim vector per
+ *  input so the embed → store chain completes without a GPU or a network. */
+function fakeEmbedClient(): VllmEngineClient {
+  return {
+    enginePost: <T>(_engine: unknown, _path: string, body: unknown): Promise<T> => {
+      const { input } = body as { input: string[] };
+      return Promise.resolve({
+        data: input.map((_text, i) => ({
+          index: i,
+          embedding: Array.from({ length: env.VLLM_EMBED_DIM }, () => 0.01),
+        })),
+        model: "fake-embed",
+      } as T);
+    },
+    engineStream: () => Promise.reject(new Error("embed must not stream")),
+    baseUrl: () => "http://127.0.0.1:0",
+  };
+}
+
+function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
+  return createServices({
+    db,
+    now: createFrozenClock().now,
+    ownerId: castId<UserId>("u_owner"),
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    // vLLM ENABLED with the fake client → embed routes to vLLM (vllmAvailable=true), not local-light.
+    vllmDisabled: false,
+    providerSeams: { vllmClient: fakeEmbedClient() },
+  });
+}
+
+describe("corpusAutoindex indexer gate (Piece D)", () => {
+  test("corpusAutoindex ON → indexer subscribed; a character write embeds (row persisted)", async () => {
+    const db = await freshDb();
+    // The boot reload resolves this stored override into the effective-config the gate reads.
+    await writeAppOverride(
+      db,
+      { corpusAutoindex: true, schemaVersion: 2 },
+      createFrozenClock().now(),
+    );
+    const result = await buildGatedGraph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const created = await result.services.character.create({
+      principal: principal(owner),
+      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+    });
+    // Bounded, wall-clock-free flush of the fire-and-forget bus dispatch → the embed → the store write.
+    await drain(() => false);
+
+    const rows = await db
+      .select()
+      .from(characterEmbeddings)
+      .where(eq(characterEmbeddings.characterId, created.id));
+    expect(rows.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("corpusAutoindex OFF (the test default) → indexer NOT subscribed; the write embeds nothing", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db); // no override → env floor (false) resolves
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const created = await result.services.character.create({
+      principal: principal(owner),
+      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+    });
+    await drain(() => false);
+
+    const rows = await db
+      .select()
+      .from(characterEmbeddings)
+      .where(eq(characterEmbeddings.characterId, created.id));
+    expect(rows).toHaveLength(0);
   });
 });

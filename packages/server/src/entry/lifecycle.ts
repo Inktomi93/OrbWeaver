@@ -29,6 +29,7 @@ import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import { credentialsKeyFromEnv } from "#infra/crypto";
+import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler";
 import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
@@ -141,6 +142,15 @@ export function createLifecycle(): Lifecycle {
     }
     const ownerHandle = handles[0] ?? env.DEFAULT_USER_HANDLE;
 
+    // 4b. The ONE GPU/vLLM-availability fact (PD-tier: one fact, no knobs). Probe the host ONCE (the shared
+    //     `infra/providers` probe the supervisor also reads — no second `nvidia-smi`). `VLLM_DISABLED` is a
+    //     force-OFF override; effective disabled = forced OR no GPU. This single value drives BOTH the vLLM
+    //     backend build (compose → registry; no GPU ⇒ no engine ⇒ the supervisor isn't started) AND the
+    //     derive-role local-light fallback (compose derives `vllmAvailable = !vllmDisabled` for connection).
+    const gpuPresent = detectGpu();
+    const vllmDisabled = env.VLLM_DISABLED || !gpuPresent;
+    log.info({ gpuPresent, vllmDisabled }, "boot: gpu-detect → effective vLLM availability");
+
     // 5. compose the full service graph (+ the boot handles). `vllmConcurrency` comes from settings'
     //    effective-config, which is built INSIDE compose — not available pre-compose, so it is omitted here
     //    (compose's BackendRegistry default applies). repoRoot is the process cwd (the vLLM engine root).
@@ -152,7 +162,7 @@ export function createLifecycle(): Lifecycle {
       casDir: env.ASSETS_DIR,
       variantDir: join(dirname(env.ASSETS_DIR), "variants"),
       sessionSecret: env.SESSION_SECRET ?? null,
-      vllmDisabled: env.VLLM_DISABLED,
+      vllmDisabled,
       repoRoot: process.cwd(),
     });
 

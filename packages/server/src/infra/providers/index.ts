@@ -163,4 +163,6 @@ export { createSummarizeRole } from "./roles/summarize";
 // ── The RUNNER_OVERRIDE dev/test seam (entry injects it as runChatTurn when env.RUNNER_OVERRIDE is set) ─
 export { buildScriptedOverrideRunner } from "./scripted-override";
 // ── The vLLM engine lifecycle handle type (entry wires start/stop; it can't import `vllm/`) ───────
+//    + the boot GPU-presence probe (entry's ONE gpu-detect; the supervisor reads the same home). ──
 export type { VllmEngineHandle } from "./vllm";
+export { detectGpu } from "./vllm";

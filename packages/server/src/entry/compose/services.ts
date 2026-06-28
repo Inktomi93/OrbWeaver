@@ -80,7 +80,10 @@ import { buildWorkloadRunnerEnv } from "./runner-env";
 
 /**
  * What boot supplies to stand up the whole service graph. `now` + `secretBoxKey` + `casDir`/`variantDir` +
- * `vllmDisabled` are boot-resolved (crypto key path, data dirs, env); `ownerId` is the deployment owner the
+ * `vllmDisabled` are boot-resolved (crypto key path, data dirs, env); `vllmDisabled` is the EFFECTIVE fact
+ * (`env.VLLM_DISABLED || !gpuPresent` — entry/lifecycle's ONE gpu-detect), and compose derives its positive
+ * complement `vllmAvailable = !vllmDisabled` for the connection resolver's derive-role fallback; `ownerId`
+ * is the deployment owner the
  * boot-global `RoleClients` bundle resolves against; `providerSeams` is the test/durable-override channel for
  * the sealed backend registry (the only way to reach a sealed backend's deps). The vLLM `concurrency` is NOT
  * a boot dep — it is sourced from settings' resolved effective-config inside `createServices` (PD-14).
@@ -190,12 +193,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
     fetchModels: fetchOpenAiModels,
   });
+  // The ONE GPU fact in positive form — the connection resolver's no-GPU derive fallback reads it (the
+  // registry above reads its complement, `deps.vllmDisabled`). No re-probe: both arms share the boot fact.
+  const vllmAvailable = !deps.vllmDisabled;
   const connection = createConnectionService({
     db,
     now,
     resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
     loadUserSettings: settings.loadUserSettings,
+    vllmAvailable,
   });
 
   // ── The per-owner RoleClients binder (the ONE binder — no vLLM floor): pre-bound to the connection service
@@ -296,16 +303,24 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embedDim: env.VLLM_EMBED_DIM,
     imageEmbedDim: env.VLLM_EMBED_DIM,
   });
-  eventBus.subscribe((event: DomainEvent): Promise<void> => {
-    switch (event.type) {
-      case "character.updated":
-        return indexer.onCharacterUpdated(event);
-      case "asset.created":
-        return indexer.onAssetCreated(event);
-      default:
-        return assertNeverEvent(event);
-    }
-  });
+  // Gate the SUBSCRIPTION on the search-corpus knob (effective-config `corpusAutoindex`, the env/admin floor
+  // resolved above). OFF ⇒ the indexer is built but NOT subscribed ⇒ no embed-on-write (a clean boot; the
+  // seeder's character.updated writes never trigger inference — the path of the boot "vllm not wired"/local-
+  // light spam). ON ⇒ subscribe; the embed routes through the now-fallback-capable role-clients (vLLM when a
+  // GPU is present, local-light-jina otherwise). This is DISTINCT from `memoryDefaults.mode` (chat digests,
+  // P5): character/image search ⟂ chat-memory (decision (b) — two separate knobs).
+  if (resolved.corpusAutoindex) {
+    eventBus.subscribe((event: DomainEvent): Promise<void> => {
+      switch (event.type) {
+        case "character.updated":
+          return indexer.onCharacterUpdated(event);
+        case "asset.created":
+          return indexer.onAssetCreated(event);
+        default:
+          return assertNeverEvent(event);
+      }
+    });
+  }
 
   // ── Leaf + remaining services ─────────────────────────────────────────────────────────────────────────
   const persona = createPersonaService({ db, now, newPersonaId: minter(ID_PREFIX.persona), audit });
