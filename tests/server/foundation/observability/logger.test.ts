@@ -16,7 +16,7 @@ import {
 } from "@orb/server/foundation/observability";
 import { describe, expect, test } from "vitest";
 
-const WARN_LEVEL = 40; // pino numeric level for "warn"
+const WARN_LEVEL = "warn"; // string label (formatters.level stringifies pino's numeric 40)
 
 function rec(id: string): RequestRecord {
   return { id, method: "GET", path: `/${id}`, status: 200, durationMs: 1, at: 1 };
