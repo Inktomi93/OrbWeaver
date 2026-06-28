@@ -16,6 +16,7 @@ import type { TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
 import type {
+  AttachCardTagByNameParams,
   AttachTagParams,
   BulkAttachTagParams,
   CreateTagParams,
@@ -71,4 +72,11 @@ export interface TagService {
   readonly attachTag: (params: AttachTagParams) => Promise<void>;
   readonly detachTag: (params: DetachTagParams) => Promise<void>;
   readonly bulkAttachTag: (params: BulkAttachTagParams) => Promise<void>;
+  /**
+   * Resolve-or-create the owner's card-tag BY NAME (race-safe on the `(ownerId, name)` unique), then attach it
+   * to the character (status `accepted`), idempotently. Returns `true` if NEWLY attached, `false` if the
+   * character already carried it. The internal port `character.bulkAddCardTag` injects (`AttachCardTagOp`):
+   * NOT principal-gated — it trusts the caller-resolved `ownerId` (character already owner-verified the row).
+   */
+  readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
 }

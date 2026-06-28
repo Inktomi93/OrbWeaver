@@ -177,6 +177,25 @@ export async function insertJunctionRow(args: {
   await INSERTERS[args.targetType](args);
 }
 
+/** Attach ONE tag to a character (status `accepted`), idempotently, REPORTING whether it was newly attached.
+ *  `onConflictDoNothing` + RETURNING is the idempotent-with-signal idiom: a returned row ⇒ a NEW junction row
+ *  (true); an empty result ⇒ the `(characterId, tagId)` row already existed (false — the carrier already had
+ *  it, a true no-op that does NOT touch the existing row's status). Race-safe: the composite PK is the guard.
+ *  This is the by-name attach path (`attachCardTagByName`); the status-flipping {@link INSERTERS} path is the
+ *  principal-gated `attachTag` verb. */
+export async function attachCharacterTagAccepted(args: {
+  readonly db: Db;
+  readonly characterId: CharacterId;
+  readonly tagId: TagId;
+}): Promise<boolean> {
+  const inserted = await args.db
+    .insert(characterTags)
+    .values({ characterId: args.characterId, tagId: args.tagId, status: "accepted" })
+    .onConflictDoNothing({ target: [characterTags.characterId, characterTags.tagId] })
+    .returning({ tagId: characterTags.tagId });
+  return inserted.length > 0;
+}
+
 // ── bulk attach (many tags → one target, single multi-row insert) ────────────────────────────────────────
 
 interface BulkAttachArgs {

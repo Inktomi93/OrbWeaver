@@ -6,7 +6,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreateTagInput, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
-import type { TagId } from "@orb/kit/ids";
+import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */
 export interface TagActorParams {
@@ -66,4 +66,18 @@ export interface BulkAttachTagParams extends TagActorParams {
   readonly targetId: string;
   /** As {@link AttachTagParams.status} — honored only for `targetType: "character"`; default `accepted`. */
   readonly status?: TagStatus;
+}
+
+/**
+ * The internal resolve-or-create-by-name card-tag attach (the `attachCardTagByName` verb) — character's
+ * injected `AttachCardTagOp` (character.md / contract/service.ts). Deliberately NOT a {@link TagActorParams}:
+ * it carries the already-resolved `ownerId` directly (NOT a `principal`), because the caller
+ * (`character.bulkAddCardTag`) has ALREADY owner-verified the character. A trusted SYSTEM by-owner op wired at
+ * the composition root — the same "un-principal, by-id, owner already gated" posture as character's
+ * `loadCardText` / `mintSyntheticGroupCharacter`.
+ */
+export interface AttachCardTagByNameParams {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
 }
