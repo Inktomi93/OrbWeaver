@@ -90,6 +90,11 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_seal/x.ts",
     `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
   );
+  // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
+  fx(
+    `${D}/__g_users/persistence/x.ts`,
+    `import { users } from "@orb/db";\nexport const x = users;\n`,
+  );
   // sole-env-reader: a server file outside foundation/env touching process.env (bracket form).
   fx(
     "packages/server/src/domain/__g_env.ts",
