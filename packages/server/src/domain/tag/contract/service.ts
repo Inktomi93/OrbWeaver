@@ -73,10 +73,13 @@ export interface TagService {
   readonly detachTag: (params: DetachTagParams) => Promise<void>;
   readonly bulkAttachTag: (params: BulkAttachTagParams) => Promise<void>;
   /**
-   * Resolve-or-create the owner's card-tag BY NAME (race-safe on the `(ownerId, name)` unique), then attach it
-   * to the character (status `accepted`), idempotently. Returns `true` if NEWLY attached, `false` if the
-   * character already carried it. The internal port `character.bulkAddCardTag` injects (`AttachCardTagOp`):
-   * NOT principal-gated — it trusts the caller-resolved `ownerId` (character already owner-verified the row).
+   * Resolve-or-create the owner's tag BY NAME (race-safe on the `(ownerId, name)` unique), then attach it to
+   * the character, idempotently. The ONE by-name attach home shared by character's `bulkAddCardTag`, import's
+   * card-tag carry, and the seeded default cards (no parallel flow). `source`/`status` default to
+   * `manual`/`accepted` (the unchanged manual-add path); import / a seeded card pass `card`/`pending` to stage
+   * a suggestion. `source` is stamped only on first create; a re-attach never downgrades `accepted`→`pending`
+   * (`onConflictDoNothing`). Returns `true` if NEWLY attached, `false` if the character already carried it.
+   * NOT principal-gated — it trusts the caller-resolved `ownerId` (the caller already owner-verified the row).
    */
   readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
 }

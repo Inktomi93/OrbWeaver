@@ -19,6 +19,7 @@ import type {
   ImportAssetPort,
   ImportCharacterPort,
   ImportFile,
+  ImportTagPort,
   ProfileImportResult,
 } from "../import";
 import { runProfileImport } from "../import";
@@ -48,6 +49,8 @@ export interface UploadDeps {
   readonly assets: UploadAssetsPort & ImportAssetPort;
   /** The character create/dedup ops the import driver wires (passed through to run-profile-import). */
   readonly character: ImportCharacterPort;
+  /** The tag carry op the import driver wires (the `card.tags` → card/pending junction rows). */
+  readonly tag: ImportTagPort;
 }
 
 /** The request-context shape `app.ts` populates: the resolved caller (or `null` when anonymous). */
@@ -106,6 +109,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       principal,
       character: deps.character,
       assets: deps.assets,
+      tag: deps.tag,
       files,
     });
     return c.json(result);

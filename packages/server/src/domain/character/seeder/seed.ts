@@ -24,13 +24,16 @@
 // writes (`isSeeded`/`markSeeded`) go through injected callbacks so this file never imports `domain/settings`
 // (`domain-no-cross-feature`).
 
-import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
-import type { DefaultCharacterSeeder, DefaultCharacterSeederDeps } from "../contract/seeder";
+import type {
+  DefaultCharacterSeeder,
+  DefaultCharacterSeederDeps,
+  SeedCard,
+} from "../contract/seeder";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
 
 /** The outcome of seeding one card: its id (null only if a conflict resolved to a now-gone row) + whether
@@ -52,22 +55,32 @@ export function createDefaultCharacterSeeder(
   // and keeps the logs clean).
   const inFlight = new Map<UserId, Promise<void>>();
 
-  /** Create one card, tolerating the partial-rerun `handle_conflict` (resolve the existing id instead of
-   *  failing). Any other error rethrows so the latch is NOT set and the next touch retries. */
-  async function seedCard(principal: Principal, input: CreateCharacterInput): Promise<CardOutcome> {
+  /** Create one card + attach its native tags as card/pending suggestions, tolerating the partial-rerun
+   *  `handle_conflict` (resolve the existing id instead of failing). The tag attach is idempotent + never
+   *  downgrades an accepted row, so attaching on a resolved (re-run) id is safe. Any non-conflict create error
+   *  rethrows so the latch is NOT set and the next touch retries. */
+  async function seedCard(principal: Principal, card: SeedCard): Promise<CardOutcome> {
+    let outcome: CardOutcome;
     try {
-      const detail = await deps.characters.create({ principal, input });
-      return { id: detail.id, created: true };
+      const detail = await deps.characters.create({ principal, input: card.input });
+      outcome = { id: detail.id, created: true };
     } catch (err) {
       if (!(err instanceof CharacterOperationError) || err.code !== CHARACTER_HANDLE_CONFLICT) {
         throw err;
       }
       const existing = await deps.characters.findByHandle({
         ownerId: principal.userId,
-        handle: input.handle,
+        handle: card.input.handle,
       });
-      return { id: existing?.characterId ?? null, created: false };
+      outcome = { id: existing?.characterId ?? null, created: false };
     }
+    if (outcome.id !== null) {
+      for (const tagName of card.tags) {
+        // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
+        await deps.attachCardTag({ ownerId: principal.userId, characterId: outcome.id, tagName });
+      }
+    }
+    return outcome;
   }
 
   async function seed(principal: Principal): Promise<void> {
@@ -77,13 +90,13 @@ export function createDefaultCharacterSeeder(
 
     let welcomeAssistantId: CharacterId | null = null;
     let created = 0;
-    for (const input of DEFAULT_CHARACTER_CARDS) {
+    for (const card of DEFAULT_CHARACTER_CARDS) {
       // biome-ignore lint/performance/noAwaitInLoops: cards seed sequentially — the handle_conflict resolve depends on the prior attempt's row state.
-      const outcome = await seedCard(principal, input);
+      const outcome = await seedCard(principal, card);
       if (outcome.created) {
         created += 1;
       }
-      if (input.handle === WELCOME_ASSISTANT_HANDLE) {
+      if (card.input.handle === WELCOME_ASSISTANT_HANDLE) {
         welcomeAssistantId = outcome.id;
       }
     }

@@ -9,7 +9,7 @@ import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
-import type { ImportCharacterPort } from "@orb/server/entry/import";
+import type { ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
 import { describe, expect, test } from "vitest";
 
 const OWNER: Principal = {
@@ -79,7 +79,11 @@ const creatingCharacter: ImportCharacterPort = {
   create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
   findByImportHash: (): Promise<null> => Promise.resolve(null),
 };
-const okDeps: UploadDeps = { assets: okAssets, character: creatingCharacter };
+// A no-op tag port (the card/pending carry behavior is proven in the run-profile-import suite).
+const noopTag: ImportTagPort = {
+  attachCardTagByName: (): Promise<boolean> => Promise.resolve(true),
+};
+const okDeps: UploadDeps = { assets: okAssets, character: creatingCharacter, tag: noopTag };
 
 describe("registerUpload — asset upload", () => {
   test("anonymous → 401", async () => {
@@ -112,6 +116,7 @@ describe("registerUpload — asset upload", () => {
         },
       },
       character: creatingCharacter,
+      tag: noopTag,
     };
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "a.png", { type: "image/png" }));

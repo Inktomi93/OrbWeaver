@@ -5,7 +5,13 @@
 // branded ids. Owner scoping is `principal.userId` (§7.1) — tags are personal labels, no resource-role.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreateTagInput, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
+import type {
+  CreateTagInput,
+  TagSource,
+  TagStatus,
+  TagTargetType,
+  UpdateTagInput,
+} from "@orb/contracts/tag";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */
@@ -80,4 +86,17 @@ export interface AttachCardTagByNameParams {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly tagName: string;
+  /**
+   * The provenance stamped on the tag at FIRST create (resolve-or-create: an existing tag KEEPS its source —
+   * a tag's source is set once). Default `manual` (a user-typed add stays manual). Import / a seeded card pass
+   * `card` (author-shipped native tags); corpus distillation (PD-40) passes `auto`.
+   */
+  readonly source?: TagSource;
+  /**
+   * The `character_tags` junction surface. Default `accepted` (a manual add is a live tag); import / corpus
+   * distillation pass `pending` to stage a suggestion awaiting the user's "Accept". A re-attach NEVER
+   * downgrades an existing `accepted` row back to `pending` (the attach is `onConflictDoNothing`), so a card
+   * re-import can't un-accept a tag the user already accepted.
+   */
+  readonly status?: TagStatus;
 }

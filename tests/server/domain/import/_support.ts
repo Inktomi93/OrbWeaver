@@ -34,6 +34,12 @@ export interface FindCall {
   readonly importHash: string;
 }
 
+export interface TagAttachCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+}
+
 export interface ImportHarness {
   readonly ctx: ImportContext;
   readonly ownerId: UserId;
@@ -41,6 +47,8 @@ export interface ImportHarness {
   readonly creates: CreateCall[];
   readonly stores: StoreCall[];
   readonly finds: FindCall[];
+  /** Every card-tag attach the verb issued (the injected `attachCardTag` op, bound to card/pending). */
+  readonly tagAttaches: TagAttachCall[];
   /** Seed the dedup oracle: a byte-identical re-import with this `importHash` resolves to `characterId`. */
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
 }
@@ -51,6 +59,7 @@ export function makeHarness(): ImportHarness {
   const creates: CreateCall[] = [];
   const stores: StoreCall[] = [];
   const finds: FindCall[] = [];
+  const tagAttaches: TagAttachCall[] = [];
   const existing = new Map<string, CharacterId>();
   let created = 0;
 
@@ -69,6 +78,10 @@ export function makeHarness(): ImportHarness {
       stores.push(args);
       return Promise.resolve(STORED_ASSET_ID);
     },
+    attachCardTag: (args): Promise<boolean> => {
+      tagAttaches.push(args);
+      return Promise.resolve(true);
+    },
   };
 
   return {
@@ -78,6 +91,7 @@ export function makeHarness(): ImportHarness {
     creates,
     stores,
     finds,
+    tagAttaches,
     setExisting: (importHash, characterId): void => {
       existing.set(importHash, characterId);
     },

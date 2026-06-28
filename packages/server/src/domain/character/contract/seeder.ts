@@ -6,14 +6,32 @@
 // the constructed `CharacterService` (only `create` + `findByHandle`) and the settings latch ops INJECTED, so
 // `domain/character` never imports `domain/settings` (`domain-no-cross-feature`).
 
+import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterService } from "./service";
+
+/** One authored default card: the `create` input PLUS its author-shipped native tags. The tags are attached
+ *  as card/pending suggestions after the card is created (the same model as an imported card's `card.tags`)
+ *  — `CreateCharacterInput` carries no tags field (tags are the `character_tags` junction, D28 / tag.md),
+ *  so they ride alongside it here. */
+export interface SeedCard {
+  readonly input: CreateCharacterInput;
+  readonly tags: readonly string[];
+}
 
 export interface DefaultCharacterSeederDeps {
   /** The real character service — cards go through `create` (audit, the emit, no raw SQL); the seeder's
    *  partial-rerun resolve path uses `findByHandle`. Only those two verbs are needed. */
   readonly characters: Pick<CharacterService, "create" | "findByHandle">;
+  /** Attach one of a seeded card's native tags as a card/pending suggestion. Injected (tags live in the
+   *  SIBLING `domain/tag` — `domain-no-cross-feature`); the composition root binds it to
+   *  `tag.attachCardTagByName` with `source:'card'`, `status:'pending'`. Idempotent + never downgrades. */
+  readonly attachCardTag: (args: {
+    readonly ownerId: UserId;
+    readonly characterId: CharacterId;
+    readonly tagName: string;
+  }) => Promise<boolean>;
   /** Reads `UserSettings.onboarding.defaultCharactersSeeded` for the acting principal. Injected (settings
    *  live in a sibling domain — `domain-no-cross-feature`); the composition root wires the settings read. */
   readonly isSeeded: (principal: Principal) => Promise<boolean>;

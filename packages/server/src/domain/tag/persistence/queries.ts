@@ -4,7 +4,7 @@
 // target-access) is the sibling `junctions.ts`. The row→view projection lives here (`toTagView`) — the
 // persistence layer owns the read shape.
 
-import type { TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagSource, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import {
   batchMany,
@@ -55,16 +55,19 @@ export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
 /** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, name)` unique conflict, and RETURN the new id —
  *  or `undefined` if the row already existed (a prior/concurrent create won the unique). The unique index is
  *  the race guard, so no duplicate tag is ever minted (tag.md invariant #1); the caller falls back to
- *  {@link findTagIdByName} for the existing row. */
-export async function insertTagIfAbsent(
-  db: Db,
-  ownerId: UserId,
-  name: string,
-  tagId: TagId,
-): Promise<TagId | undefined> {
+ *  {@link findTagIdByName} for the existing row. `source` is the provenance stamped ONLY on this first create
+ *  (a tag's source is set once); an existing row's source is left untouched by the no-op conflict. */
+export async function insertTagIfAbsent(args: {
+  readonly db: Db;
+  readonly ownerId: UserId;
+  readonly name: string;
+  readonly tagId: TagId;
+  readonly source: TagSource;
+}): Promise<TagId | undefined> {
+  const { db, ownerId, name, tagId, source } = args;
   const inserted = await db
     .insert(tags)
-    .values({ id: tagId, ownerId, name })
+    .values({ id: tagId, ownerId, name, source })
     .onConflictDoNothing({ target: [tags.ownerId, tags.name] })
     .returning({ id: tags.id });
   return inserted[0]?.id;

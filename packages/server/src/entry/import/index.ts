@@ -9,6 +9,7 @@ export type {
   ImportCharacterPort,
   ImportedCard,
   ImportFile,
+  ImportTagPort,
   ProfileImportDeps,
   ProfileImportResult,
 } from "./run-profile-import";

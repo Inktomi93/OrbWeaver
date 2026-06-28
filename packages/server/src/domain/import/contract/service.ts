@@ -3,11 +3,12 @@
 //   • ImportContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 /
 //                     no-context-returntype; the conventional re-export home is context.ts)
 //   • ImportService   the verb interface (the front door re-exports the type)
-//   • the THREE injected cross-feature op TYPES (boundaries-are-physics: the runtime is wired at the
-//     composition root; import sideways-imports neither character nor assets — domain-no-cross-feature):
+//   • the FOUR injected cross-feature op TYPES (boundaries-are-physics: the runtime is wired at the
+//     composition root; import sideways-imports neither character, assets, nor tag — domain-no-cross-feature):
 //       - CreateImportedCharacter   character.create + the import-provenance stamp
 //       - FindCharacterByImportHash  the re-import dedup oracle (a character read, owner-scoped)
 //       - StoreImportAsset           assets.store for the card/avatar PNG (one blob, both roles)
+//       - AttachImportedCardTag      tag.attachCardTagByName (source:'card', status:'pending') for card.tags
 //
 // SCOPE (4c W3 — the SillyTavern character-card path): `importCharacter` (parse → validate/flatten →
 // dedup → store avatar → create with provenance). `importChats` / `importPersonas` (import.md §Verbs) are
@@ -63,17 +64,32 @@ export type StoreImportAsset = (args: {
 }) => Promise<AssetId>;
 
 /**
+ * Attach one author-shipped card tag (BY NAME) to the just-created character as a card/pending suggestion
+ * (the `proposedTags` → `character_tags.status` redesign — import.md §tag.md intersection). Injected type-only;
+ * the composition root (the import driver) binds it to `tag.attachCardTagByName` with `source:'card'`,
+ * `status:'pending'` (import never sideways-imports `domain/tag` — domain-no-cross-feature). Resolve-or-create
+ * + idempotent + race-safe; a re-attach never downgrades an `accepted` row. Returns whether NEWLY attached.
+ */
+export type AttachImportedCardTag = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+}) => Promise<boolean>;
+
+/**
  * The DI bundle every import verb closes over (wired at `service.ts` / the composition root). Explicit
  * interface (not `ReturnType<typeof …>`) per §7.4 + the `no-context-returntype` gate.
  *   - `ownerId` — the resolved principal id (ImportServiceDeps, collapsed; import.md §Verbs — identity is
  *     resolved ONCE at the edge, never re-resolved inside the domain). Import reads no `users` row.
- *   - `createCharacter` / `findByImportHash` / `storeAsset` — the injected cross-feature ops (type-only).
+ *   - `createCharacter` / `findByImportHash` / `storeAsset` / `attachCardTag` — the injected cross-feature
+ *     ops (type-only; the root binds the character / assets / tag runtimes).
  */
 export interface ImportContext {
   readonly ownerId: UserId;
   readonly createCharacter: CreateImportedCharacter;
   readonly findByImportHash: FindCharacterByImportHash;
   readonly storeAsset: StoreImportAsset;
+  readonly attachCardTag: AttachImportedCardTag;
 }
 
 export interface ImportService {

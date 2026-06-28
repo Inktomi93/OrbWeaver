@@ -34,6 +34,7 @@ const V3_CARD = {
     creator: "alex",
     creator_notes: "",
     character_version: "1.0",
+    tags: ["bard", "fantasy", "  Bard ", "", "music"],
     extensions: {},
   },
 };
@@ -48,17 +49,39 @@ const MINIMAL_PNG = Uint8Array.from([
   0xae, 0x42, 0x60, 0x82,
 ]);
 
+/** Unwrap a non-null parse result (the codebase guard idiom — narrows away the `| null` for both tsc and the
+ *  biome optional-chain rule). */
+function expectParsed<T>(value: T | null): T {
+  if (value === null) {
+    throw new Error("expected a parsed card");
+  }
+  return value;
+}
+
 describe("parseCardJson", () => {
   test("parses a bare V3 JSON card (bytes) → canonical card", () => {
-    const card = parseCardJson(encoder.encode(V3_JSON), "fallback");
-    expect(card?.name).toBe("Aria");
-    expect(card?.greetings).toEqual(["Hello there!", "Well met."]);
-    expect(card?.creator).toBe("alex");
+    const parsed = expectParsed(parseCardJson(encoder.encode(V3_JSON), "fallback"));
+    expect(parsed.card.name).toBe("Aria");
+    expect(parsed.card.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(parsed.card.creator).toBe("alex");
+  });
+
+  test("extracts card tags: trimmed, empties dropped, deduped case-insensitively (first casing kept)", () => {
+    // V3_CARD.data.tags = ["bard", "fantasy", "  Bard ", "", "music"] → "  Bard " dedupes to "bard", "" dropped.
+    const parsed = expectParsed(parseCardJson(encoder.encode(V3_JSON), "fallback"));
+    expect(parsed.tags).toEqual(["bard", "fantasy", "music"]);
+  });
+
+  test("a card with no tags field yields an empty tag list", () => {
+    const parsed = expectParsed(
+      parseCardJson('{"data":{"name":"NoTags","description":"x"}}', "fallback"),
+    );
+    expect(parsed.tags).toEqual([]);
   });
 
   test("strips a leading UTF-8 BOM before parsing", () => {
     const withBom = `﻿${V3_JSON}`;
-    expect(parseCardJson(withBom, "fallback")?.name).toBe("Aria");
+    expect(expectParsed(parseCardJson(withBom, "fallback")).card.name).toBe("Aria");
   });
 
   test("returns null on undecodable JSON", () => {
@@ -67,11 +90,12 @@ describe("parseCardJson", () => {
 });
 
 describe("parseCardPng", () => {
-  test("reads a card embedded in a PNG tEXt chunk → canonical card", () => {
+  test("reads a card embedded in a PNG tEXt chunk → canonical card + tags", () => {
     const png = writeCardChunk(MINIMAL_PNG, V3_JSON);
-    const card = parseCardPng(png, "fallback");
-    expect(card?.name).toBe("Aria");
-    expect(card?.greetings).toEqual(["Hello there!", "Well met."]);
+    const parsed = expectParsed(parseCardPng(png, "fallback"));
+    expect(parsed.card.name).toBe("Aria");
+    expect(parsed.card.greetings).toEqual(["Hello there!", "Well met."]);
+    expect(parsed.tags).toEqual(["bard", "fantasy", "music"]);
   });
 
   test("returns null for bytes carrying no card chunk", () => {

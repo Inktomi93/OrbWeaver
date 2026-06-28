@@ -113,6 +113,7 @@ export interface AuthSessionsPort {
 /** Local password verification (handle + password → the resolved userId, or `null`). DEFER(promotion):
  *  no `domain/sessions` verb provides this yet — see the file header. */
 export interface LocalAuthenticator {
+  // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
   (handle: string, password: string): Promise<UserId | null>;
 }
 

@@ -28,6 +28,7 @@ const V3_CARD = {
     creator: "alex",
     creator_notes: "",
     character_version: "1.0",
+    tags: ["bard", "fantasy"],
     extensions: {},
   },
 };
@@ -67,6 +68,40 @@ describe("importCharacter", () => {
     expect(call.importedFrom).toBe("Aria.png");
     expect(call.importHash).toBe(result.importHash);
     expect(call.importHash).toMatch(SHA256_HEX);
+    // the author-shipped card tags are carried (the injected op binds source:'card', status:'pending').
+    expect(h.tagAttaches.map((t) => t.tagName)).toEqual(["bard", "fantasy"]);
+    for (const attach of h.tagAttaches) {
+      expect(attach.ownerId).toBe(h.ownerId);
+      expect(attach.characterId).toBe(result.characterId);
+    }
+  });
+
+  test("a card with no tags carries none (no tag-attach calls)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const noTags = JSON.stringify({
+      spec: "chara_card_v2",
+      spec_version: "2.0",
+      data: { name: "Bare", description: "no tags here" },
+    });
+
+    await svc.importCharacter({ card: { bytes: encoder.encode(noTags), filename: "bare.json" } });
+
+    expect(h.tagAttaches).toHaveLength(0);
+  });
+
+  test("the dedup path attaches NO tags (tags landed on the first import)", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const bytes = encoder.encode(V3_JSON);
+
+    const first = await svc.importCharacter({ card: { bytes } });
+    h.tagAttaches.length = 0; // ignore the first import's attaches
+    h.setExisting(first.importHash, castId<CharacterId>("character_existing"));
+
+    await svc.importCharacter({ card: { bytes } });
+
+    expect(h.tagAttaches).toHaveLength(0);
   });
 
   test("a bare-JSON card stores no avatar (no image) and still creates", async () => {

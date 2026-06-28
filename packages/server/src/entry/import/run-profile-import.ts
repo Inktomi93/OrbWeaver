@@ -1,11 +1,12 @@
 // entry/import/run-profile-import — the bulk-import COMPOSITION DRIVER (tiers/entry.md §layout "import/";
 // DECISIONS-LEDGER §7 D3). It is the one place that constructs the PER-OWNER `ImportService` (import is
 // `ImportContext.ownerId`-scoped, built per request — services.ts §"import — its service is PER-OWNER")
-// and wires the THREE cross-feature injected ops the import verbs declared type-only (boundaries-are-
-// physics: `domain/import` sideways-imports neither character nor assets — the runtime is supplied HERE):
+// and wires the FOUR cross-feature injected ops the import verbs declared type-only (boundaries-are-
+// physics: `domain/import` sideways-imports neither character, assets, nor tag — the runtime is supplied HERE):
 //   • createCharacter  → `character.create` + the import-provenance stamp (PD-43, now landed) → map `.id`
 //   • findByImportHash → `character.findByImportHash` → `ref?.characterId ?? null` (the re-import oracle)
 //   • storeAsset       → `assets.store` (kind `avatar`; trusted import → `enforceMagic:false`) → `.assetId`
+//   • attachCardTag    → `tag.attachCardTagByName` (source:'card', status:'pending') — the `card.tags` carry
 // The HTTP multipart upload route DELEGATES here (D3); a future `import-st` job runner is the second caller.
 //
 // The acting `Principal` is threaded through (the upload route resolved it) and used directly for the
@@ -26,6 +27,7 @@
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportContext } from "#domain/import";
 import { createImportService } from "#domain/import";
@@ -54,6 +56,18 @@ export interface ImportAssetPort {
   }) => Promise<{ readonly assetId: AssetId }>;
 }
 
+/** The `tag` front-door slice the driver wires the import card-tag carry to (`tag.attachCardTagByName`). The
+ *  driver binds `source:'card'`, `status:'pending'` so each `card.tags` entry lands as a staged suggestion. */
+export interface ImportTagPort {
+  readonly attachCardTagByName: (params: {
+    readonly ownerId: UserId;
+    readonly characterId: CharacterId;
+    readonly tagName: string;
+    readonly source: TagSource;
+    readonly status: TagStatus;
+  }) => Promise<boolean>;
+}
+
 /** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
 export interface ImportFile {
   readonly bytes: Uint8Array;
@@ -61,10 +75,11 @@ export interface ImportFile {
 }
 
 export interface ProfileImportDeps {
-  /** The acting caller (the upload route resolved it); owner-scopes the character/assets verbs. */
+  /** The acting caller (the upload route resolved it); owner-scopes the character/assets/tag verbs. */
   readonly principal: Principal;
   readonly character: ImportCharacterPort;
   readonly assets: ImportAssetPort;
+  readonly tag: ImportTagPort;
   readonly files: readonly ImportFile[];
 }
 
@@ -92,7 +107,7 @@ export interface ProfileImportResult {
  * file, isolating per-card failures. Returns the per-card outcome (imported/deduped vs failed).
  */
 export async function runProfileImport(deps: ProfileImportDeps): Promise<ProfileImportResult> {
-  const { principal, character, assets, files } = deps;
+  const { principal, character, assets, tag, files } = deps;
 
   const ctx: ImportContext = {
     ownerId: principal.userId,
@@ -118,6 +133,9 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
       });
       return stored.assetId;
     },
+    // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
+    attachCardTag: ({ ownerId, characterId, tagName }) =>
+      tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
   };
 
   const service = createImportService(ctx);
