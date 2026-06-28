@@ -48,6 +48,14 @@ ENGINES_PID=$!
 # pino-pretty exits on its own when the pipe closes. Explicit bin paths so this
 # works whether invoked via `pnpm dev` or by hand. We then wait on the server so
 # its exit (or a signal) drives the trap.
-"$BIN/tsx" watch "$REPO/packages/server/src/entry/index.ts" > >("$BIN/pino-pretty") 2>&1 &
+#
+# ONLY stdout (the pino JSON stream) is piped to pino-pretty — stderr (tsx's
+# watch/compile chatter, Node warnings, uncaught stack traces) stays RAW on the
+# terminal instead of being blasted through the pretty parser as junk lines.
+# pino-pretty opts make it usable, not a firehose: drop pid/hostname, local-time
+# stamps, and --singleLine so each log (with its bound requestId/userId) is ONE
+# scannable line instead of an exploded object. Prod (`pnpm start`) stays raw JSON.
+"$BIN/tsx" watch "$REPO/packages/server/src/entry/index.ts" \
+  > >("$BIN/pino-pretty" --colorize --translateTime 'SYS:HH:MM:ss.l' --ignore 'pid,hostname' --singleLine) &
 SERVER_PID=$!
 wait "$SERVER_PID"
