@@ -306,7 +306,9 @@ imports it from there.
 `UnifiedSearchResult` must have an exhaustive `assertNever` guard in `service.ts`'s dispatch switch
 (the mapped-Record pattern from `workloads.kind` is the gold standard). The lens axis
 (`image-raw` | `image-captioned` | `segment` | `digest` | `card-text`) is owned by `embeddings`
-(`embeddings/contract/params.ts`, Rule 11) — search **imports** the union; it does NOT re-declare it.
+(`embeddings/contract/params.ts`, Rule 11) — search **imports** the union; it does NOT re-declare it. (The
+image subset `IMAGE_LENSES` lives in `@orb/contracts/embeddings` per D34 — the `image_embeddings.lens` db
+column derives it; the broad text-lens union stays domain-side.)
 
 ### knowledge-cluster.md invariant #4
 

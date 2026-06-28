@@ -118,6 +118,14 @@ packages/db/src/
     └── meta/_journal.json
 ```
 
+> **D37 reconciliation (2026-06-27) — the born-`0000_baseline` + the schema CODE already carry these
+> restored columns/indexes; this doc's older movement-table rows predate D37:** `chats.variableValues` +
+> `chats.importedFrom`/`importHash`; `message_variants.apiErrorStatus` + `toolCalls` (reserved); `sessions.
+> lastSeenAt` + `userAgent`; `unique(characterId, model)` on `character_embeddings`; `unique(ownerId, handle)`
+> on `characters`; `audit_logs` actor FK (`set null`) + the 3 hot-path indexes; `hub_score` is `real` on all
+> 4 vector tables. (A full per-row movement-table reconciliation remains a focused follow-up; the baseline +
+> code + ledger D37 are canonical.)
+
 `Db` (`LibSQLDatabase<typeof schema>`) is exported from `client.ts`; it is the handle every domain's
 `context.ts` closes over. `@orb/db/kit/parsers.ts` (RESOLVED home) is the generalization of neo-tavern's
 `parseProviderMetadata` pattern — the §8.4 zod-parse-at-the-DB-seam model.
@@ -288,8 +296,8 @@ leaking UP (a domain re-declaring a column shape, or a wire schema sneaking into
    `chat_participants` is the live truth; `anchorPersonaId` on `chats` is the stable POV.
    *Enforcement: compile-time — dropped column = read-site `tsc` error.*
 
-5. **All four primary vector tables carry `content_hash`** (the staleness gate) and `hub_score` (advisory,
-   never nulled by a write).
+5. **All four primary vector tables carry `content_hash`** (the staleness gate) and `hub_score` (advisory
+   `real` — `integer→real` corrected per D37 (CSLS mean-cosine float); never nulled by a write).
    *Enforcement: compile-time — `content_hash NOT NULL` in the DDL; `StoreParams` has no `hubScore` field.*
 
 6. **`character_tags.status` is the single proposed/accepted surface; `character_versions.proposedTags`

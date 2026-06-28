@@ -133,7 +133,8 @@ domain/admin/
 │   └── queries.ts      loadUser · listAllUsers (+ the userCols projection).
 │                         The atomic owner-immutability `WHERE role <> 'owner'` stays in the verbs (per-verb clauses).
 ├── substrate/          (none — admin has no pure feature-local helpers; the guards are db clauses)
-└── (no named subsystems)
+└── guard.ts            the `can(principal,action,resource)` seam + `requireAdmin`/`requireOwner` wrappers
+                        (the gate primitive — injected into other domains at the composition root, NOT imported)
 ```
 
 **Verbs (10):** listUsers · setRole · setEnabled · createUser · resetPassword · listSessions ·
@@ -369,7 +370,8 @@ gate must carry the exemption forward (admin + sessions are the only `users`-tab
 
 - **The `can(principal, action, resource)` seam + where the gate primitives live — RESOLVED (Q1).**
   `can(principal, action, resource)` and the global wrappers `requireAdmin` (owner ∪ admin) /
-  `requireOwner` (owner-only) live in **`domain/admin/guard.ts`** (imported DOWN by any domain); the seam
+  `requireOwner` (owner-only) live in **`domain/admin/guard.ts`** (injected into consuming domains at the
+  composition root — `domain-no-cross-feature` forbids a sideways import); the seam
   throws `DomainForbiddenError` and dispatches on a `ResourceRef` union. `requireParticipant`/`requireHost`
   are thin CHAT wrappers that load the roster and call `can(principal, 'read'|'host', { kind:'chat', roster })`
   — the privilege decision always lives in this one seam, only the data fetch is chat's; no cross-feature

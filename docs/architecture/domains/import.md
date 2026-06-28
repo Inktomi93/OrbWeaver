@@ -235,7 +235,7 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `_shared/batch.ts` — `batchStmt`/`batchMany` | → `@orb/db/kit` | `@orb/db/kit` | DB primitive (needs drizzle `BatchItem` types). The ~per-chat inline `BatchItem<"sqlite">` casts wire to it. | resolve-time |
 | `_shared/roster-rows.ts` — `buildInitialRosterRows` | → `domain/chat` (chat-private) | `domain/chat/persistence/roster` | Roster is chat's concern. Import (a bulk db writer) builds the same `chat_participants` row shape against `@orb/db` directly — it does NOT import chat's front door. | resolve-time: `domain-no-cross-feature`; the shape agreement is a contract |
 | `http/import.ts` — inline `isPng` (3rd copy) | → `@orb/kit` | `@orb/kit/png-card-chunk` | Dedupe with the codec's `isPng`. | resolve-time |
-| `env.IMPORT_DEFAULT_SOURCE` (read in chat-writer) | → AppSettings | `domain/settings` (AppSettings, env floor) | §7.2: a stranded env toggle that should be an AppSettings runtime toggle (env is the floor). | resolve-time: read via injected settings, not `env` |
+| `env.IMPORT_DEFAULT_SOURCE` (read in chat-writer) | **DROPPED (PD-15)** | — | **PD-15 (2026-06-28): neo-jank.** No chat-level default source — each imported ST message maps its per-message provenance → its `message_variant` (D26); the env comment was pulled from `foundation/env`. No AppSettings toggle. | — |
 | direct `@orb/db` reads/writes in the two writers | **sanctioned, stays** | `@orb/db` schema | Import is a bulk serializer (like export, `world-info/pool.ts`, `character/list` tag joins) — it reads/writes schema directly, not through sibling front doors. Enqueue still goes through workloads; events through the injected bus op. | lint-time: dep-cruiser exempts import/export persistence from the front-door rule but still forbids reaching another domain's `verbs/` |
 
 ---
@@ -440,10 +440,11 @@ shape, owned by chat) — the row shape is a contract both sides honor.
 
 ### Still open (deferred, with criterion)
 
-- **`IMPORT_DEFAULT_SOURCE` → AppSettings — DEFERRED.** The env→AppSettings move is locked (§7.2: env is the
-  floor, DB override on top). *Criterion to confirm at build:* the NODE_ENV auto-pick (`max-pro-sub` in dev,
-  `openrouter` in prod) is preserved as the AppSettings DEFAULT value (the floor), with a DB override on
-  top; verify the dev/prod default matrix matches steady before deleting the `env` read.
+- **`IMPORT_DEFAULT_SOURCE` — DROPPED (PD-15, 2026-06-28; supersedes the prior DEFERRED + the D40 env-floor
+  note that follows).** There is **no chat-level default source** and no AppSettings/env toggle — it was
+  neo-jank. Each imported ST message maps its **per-message provenance → its `message_variant`** (D26); the
+  env comment was pulled from `foundation/env`. The criterion + env-floor discussion below is **VOID** —
+  retained only as historical context.
   *Env-floor status (D40):* the floor itself is ALSO deferred to this (import) slice — it does NOT yet live in
   `foundation/env`. It is a `z.enum(CRED_SOURCES)` env floor with a NODE_ENV-conditional default
   (`max-pro-sub` dev/test, `openrouter` prod) that needs a post-parse transform (unlike env's two simple

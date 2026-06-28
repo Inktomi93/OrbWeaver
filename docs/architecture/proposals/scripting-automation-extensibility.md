@@ -1,14 +1,12 @@
 # Orbweaver — proposal: variables · scripting · automation · extensibility
 
-> **Status: PROPOSAL (not yet committed; not yet built).** This is a forward-looking design for the
-> scripting / automation / extensibility surface and the variable substrate it stands on. It is written
-> NOW — while `chat` (Phase 5) and `client` (Phase 6) are still unbuilt — for one reason: a few pieces
-> here must be **shaped into the Phase-5 chat substrate before it is built whole**, or adding them later
-> is a migration + a sweep instead of a born-compliant column. Everything else is genuinely additive and
-> deferred. This doc is the single home for that plan; if it is accepted, its committed calls graduate to
-> the ledger (`reports/DECISIONS-LEDGER.md`) as a D-entry and the build pieces graduate to `domains/` +
-> `BUILD-PLAN.md`. **Until then, nothing here is law** — but the §"Born-compliant prerequisites" list is
-> the part a Phase-5 agent MUST honor even if the rest is deferred.
+> **Status: COMMITTED (graduated to ledger D46, 2026-06-28; authoritative expansion).** This is the design
+> for the scripting / automation / extensibility surface and the variable substrate it stands on. It was
+> written while `chat` (Phase 5) and `client` (Phase 6) were still unbuilt because a few pieces must be
+> **shaped into the Phase-5 chat substrate before it is built whole**, or adding them later is a migration +
+> a sweep instead of a born-compliant column. **D46 makes the calls here law** — this doc is the
+> authoritative expansion; the ledger entry is the decision record. The §"Born-compliant prerequisites" list
+> is the part a Phase-5 agent MUST honor; the build pieces fold into `domains/` + `BUILD-PLAN.md` at their slices.
 >
 > **DECISIONS LOCKED 2026-06-28 (the three §10 judgment calls — RESOLVED):** (1) the variable
 > **delta-fold is ADOPTED** (not the mutable bag); (2) **Tier 2 (the code sandbox) is COMMITTED in-scope**

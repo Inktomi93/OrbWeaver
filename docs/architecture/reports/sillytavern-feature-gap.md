@@ -3,9 +3,10 @@
 > **Status: REFERENCE / inventory (not a plan).** This is the catalog of SillyTavern (ST) features that
 > orbweaver does NOT currently have, each tagged with its real add-back cost, so a cold agent (or Nate)
 > can make scope calls without re-auditing ST from scratch. It is the evidence base behind any "should we
-> add X?" decision. It is **not** a commitment to build any of these — committed scripting/automation work
-> lives in `proposals/scripting-automation-extensibility.md`; everything else here is un-decided unless a
-> ledger D-entry says otherwise.
+> add X?" decision. It is **not** a blanket commitment — but two sets ARE now committed: the
+> scripting/automation/variables surface (**ledger D46** / `proposals/scripting-automation-extensibility.md`)
+> and the seven cheap/high-value features in §7 (**ledger D47**). Everything else is un-decided unless a
+> ledger D-entry says otherwise; the **Data Bank / document-RAG is the one explicit OPEN call** (D47).
 >
 > **Provenance:** compiled 2026-06-28 from a source-level audit (5 parallel agents reading ST's real
 > `public/scripts/**` + orbweaver's `packages/**` + docs). Difficulty ratings are grounded in orbweaver's
@@ -149,7 +150,7 @@ search, improved), image-captioning *capability* (inline in the indexer), the RA
 | Reasoning data + streaming + resolve | native reasoning handling | COVERED | — | `message_variants.reasoning`/effort + `STREAM_DELTA_KINDS` + `resolve-chat.resolveReasoning` (D41) |
 | Reasoning `<think>` auto-parse (non-native models) | parse inline tags | ABSENT | MODERATE | a parse step in the chat turn |
 | Reasoning UI render / effort picker | collapsible blocks + effort UI | ABSENT (deferred) | MODERATE | data exists; Phase-6 client (Streamdown checkpoint) |
-| Vision / image INPUT (image→model) | `image_url` content parts | ABSENT | PAINFUL→ARCHITECTURAL | `ChatHistoryMessage.content` is `string`; content-parts ripples through all 3 sealed translators + assembly + storage + a `ModelCapability` vision flag |
+| Vision / image INPUT (image→model) | `image_url` content parts | **COMMITTED (D45)** | born-compliant before Phase 5 | `ModelCapability.vision` axis (the gate) + `ChatHistoryMessage.content` `string`→content-parts; sealed translators map image parts. Shaped in the contracts pass before Phase 5 — see D45 / `client.md` §12.4 |
 | Structured-output via tools (`tool_choice:{type:tool}`) | forced JSON | ABSENT | MODERATE | no constrained-decoding/JSON-schema field |
 
 **Reserved-progress (born-compliant, partially in place):** `generateImage` role (done, hosted-only) ·
@@ -182,8 +183,8 @@ logprobs, translate, standalone caption, gallery, image-gen-in-chat, portrait mo
 token-counter, tool-loop on agent-sdk, reasoning `<think>` parse. Defer freely; add when wanted.
 
 **Big lifts / need a subsystem (PAINFUL/ARCHITECTURAL):** any text-completion backend (Horde/NAI/Kobold),
-expressions/sprites, TTS/STT, the Data Bank doc-store, local SD backends, vision *input*
-(`ChatHistoryMessage.content` reshape), the chat-completions tool loop, backgrounds/BGM (VN layer).
+expressions/sprites, TTS/STT, the Data Bank doc-store, local SD backends, the chat-completions tool loop,
+backgrounds/BGM (VN layer). (Vision *input* is NOT in this list — it's committed/born-compliant per D45.)
 
 **The two with a *now* window** (cheap before Phase 5, painful after — flagged because the chat substrate
 is built whole):
@@ -191,9 +192,9 @@ is built whole):
    render model in `client.md` §12.3–12.4 (`MessageMedia` + a `media` block + `forbidExternalMedia`). The
    message-content block union + `MessageMedia` are the only before-Phase-5 born-compliant bits, and they're
    cheap/additive (they don't touch the send wire). **Vision INPUT to the model** (the model *sees* an
-   attached image) is a *separate, OPTIONAL* capability — NOT required for display and NOT being built; if
-   ever wanted, the `ChatHistoryMessage.content` → content-parts widening is cheapest before Phase 5
-   (client.md §12.4). A reservation, not a requirement.
+   attached image) is **COMMITTED — D45**: a separate **send-side** contract (`ModelCapability.vision` +
+   `ChatHistoryMessage.content` `string`→content-parts), born-compliant in the contracts pass **before
+   Phase 5** (client.md §12.4 / D45). Distinct from display, but no longer optional.
 2. **Tool-calling on the OpenAI path** — decide agent-sdk-only (cheap, seam exists) vs must-work-on-
    chat-completions (needs the `tool` role in `ChatHistoryMessage` + loop ownership) before the turn
    pipeline is built.

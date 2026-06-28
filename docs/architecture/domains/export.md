@@ -131,8 +131,8 @@ domain/export/
 │                          (exportCharacter: not-owned; exportChat: not-host — D29)
 ├── verbs/
 │   ├── export-character.ts  read character + books + accepted tags → buildCardV3 →
-│   │                          writeCardChunk; basePng (avatar fetch + transcode +
-│   │                          placeholder) inline
+│   │                          writeCardChunk; basePng (avatar fetch + placeholder; the image
+│   │                          transcode is the INJECTED infra/image imageTransform, D6 — not inline)
 │   └── export-chat.ts        read chat + messages + variants + persona/character names →
 │                              buildChatJsonl / buildChatTxt
 ├── substrate/          PURE feature-local (server-only; zero I/O)

@@ -37,7 +37,9 @@ The domain does NOT own:
   isomorphic; §Movement table)
 - **The entry runtime resolver functions** — `resolveEntryScope`, `resolveEntryInjection`,
   `resolveEntryPosition` move to `@orb/kit` (pure, zero-dep, multiple consumers: server pool +
-  potentially client preview)
+  potentially client preview). `resolveEntryInjection` **consumes** the `{depth,role}` placement shape from
+  `kit/injection` + the role axis from `kit/message-role` (D32) — world-info no longer owns the inject
+  role/placement, only scope/position/keyword.
 
 ---
 

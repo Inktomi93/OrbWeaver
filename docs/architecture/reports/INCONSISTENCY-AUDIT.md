@@ -2,9 +2,10 @@
 
 > **STATUS: REMEDIATED (2026-06-26).** All blockers, majors, and minors below were fixed in a two-phase
 > pass (authority docs locked first, then domain/core docs aligned by 6 agents). Questions Q1 and Q3–Q9
-> were resolved into the docs; **Q2 (ChatSource vs CredentialSource consolidation) is the only item left
-> open** — it changes the contracts dependency graph and awaits a direction decision. This file is kept as
-> the audit record; the findings text below is historical (it quotes the pre-fix state).
+> were resolved into the docs. **Q2 (ChatSource vs CredentialSource consolidation) was since RESOLVED by
+> D31** (CredentialSource canonical in `contracts/credentials`; `contracts/connection` re-exports it as
+> `ChatSource`). Q3 was resolved by D36, Q7 in export.md. This file is kept as the audit record; the
+> findings text below is historical (it quotes the pre-fix state).
 
 Method: 5 auditor agents read **every** `.md` in `docs/architecture/` **in full** (no grep-skimming).
 The 21 `domains/` docs were sliced one-per-auditor; all 26 non-domain "core" docs (roots + `spine/` +

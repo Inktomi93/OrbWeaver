@@ -108,7 +108,7 @@ though we `noEmit` — it shapes the types you see.
 ## Gate candidates (this doc)
 
 - ⚙️ **`no-decorators`** (biome) — legacy + Stage-3 decorators are erasable-illegal at runtime but the
-  `erasableSyntaxOnly` compiler flag is silent on them. Add to the Phase 0b gate suite.
+  `erasableSyntaxOnly` compiler flag is silent on them. Active now in the Phase-0 grit gate suite.
 - ⚙️ **`no-truthiness-narrowing-on-primitive`** (review/lint) — `if (str)` / `if (n)` (§3). Lower priority.
 - The `any` / non-null-`!` / `as` bans (§4) are covered by biome `noExplicitAny` + `noNonNullAssertion` (already on).
 

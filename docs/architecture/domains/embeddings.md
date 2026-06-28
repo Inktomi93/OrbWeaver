@@ -330,8 +330,14 @@ in `infra/providers`'s embed backend initialization.
 ### §7.5 string-union dispatch discipline
 
 `SourceKind` (`'card' | 'avatar' | 'chat-block'`) and `SourceLens` (`'card-text' | 'image-raw' |
-'image-captioned' | 'segment' | 'digest'`) are the two dispatch axes in `StoreParams`. Both must have:
-- ONE importable canonical union in `domain/embeddings/contract/params.ts` (no inline re-spelling).
+'image-captioned' | 'segment' | 'digest'`) are the two dispatch axes in `StoreParams`. Homes:
+- The broad `SourceKind`/`SourceLens` (the dispatch axes) → ONE importable canonical union in
+  `domain/embeddings/contract/params.ts` (no inline re-spelling).
+- **The image subset `IMAGE_LENSES` (`'image-raw' | 'image-captioned'`) → `@orb/contracts/embeddings` (D34)**
+  — it constrains the `image_embeddings.lens` db column, and `@orb/db` cannot import a `domain/*/contract`.
+  `IMAGE_LENSES` is the non-duplicated image subset of `SourceLens` (not a second spelling); the
+  `image_embeddings.lens` column + `unique(assetId, model, lens)` are owned here in embeddings' schema.
+  Both must also have:
 - A mapped-type record or `assertNever` exhaustive dispatch inside `store.ts` so a new kind/lens is a
   `tsc` error unless the table routing is also added.
 

@@ -445,13 +445,12 @@ decisions (this doc only locates the env READER). No double-claim.
   scripts + the `/traces` client structurally redeclare these (a drift hazard the source comments flag).
   Promoting them to `@orb/contracts/observability` retires the redeclare at the cost of a contracts
   namespace for a single-operator debug surface. Lean: defer until the client genuinely type-imports them.
-- **Drop the `DbInspector` structural port.** Now that the DB probes live in foundation and read
-  `@orb/db` down, the port is unnecessary. Lean: drop it; keep `AssetInspector` + `AdminAuthChecker`
-  (those remain genuine upward seams).
-- **`HOST_SECRET_ENV_KEYS` denylist split.** The `process.env`-reading baseline producer stays in
-  `env`; the *denylist contents* (the credential-firewall policy) belong with `infra/providers/backends/agent-sdk`.
-  Confirm the seam: does env expose a raw `processEnvSnapshot()` and claude-sdk compose the denylist, or
-  does env keep `hostEnvForClaudeChild` whole? Lean: env exposes the snapshot; the firewall owns the policy.
+- **`DbInspector` structural port — DECIDED (ledger §2): DROPPED.** The DB probes live in foundation and
+  read `@orb/db` down, so the port is unnecessary. `AssetInspector` + `AdminAuthChecker` stay (genuine
+  upward seams).
+- **`HOST_SECRET_ENV_KEYS` denylist split — DECIDED (ledger §2).** `foundation/env` exposes a raw
+  `processEnvSnapshot()`; `infra/providers/backends/agent-sdk` composes the denylist (policy travels with
+  the firewall). The reader stays under the single-env-reader roof; the policy is the firewall's.
 - **`DEFAULT_*_MODEL_ID` destination — DECIDED: `@orb/contracts/connection`** (connection vocab; kills
   the lone foundation→infra edge). (ledger R8; `domains/connection.md`.)
 - **Metrics — leave as trace-totals or add a real module?** There is no metrics module today; metrics

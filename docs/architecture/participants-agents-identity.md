@@ -146,7 +146,7 @@ a swapped string.
   `domains/connection.md §"Per-agent capability"`.
 - **Stateless-first vs the Max-sub cache — RESOLVED: backend owns the cache, no upward leak.** The
   agent-sdk session cache (the prompt-cache survival that makes Max-sub cheap) lives **backend-internal**
-  in `infra/providers/agent-sdk/session/`; it reseeds-from-canon when stale. Stateless-first is the domain
+  in `infra/providers/backends/agent-sdk/session/`; it reseeds-from-canon when stale. Stateless-first is the domain
   contract — the domain has no session concept. (Locked set — not re-opened.)
 - **Buddy unification scope — RESOLVED: agent is a PATTERN, not a domain.** There is **no `domain/agent`**;
   "agent" is the participant shape `(identity, connection, view, tools)` (§2). Buddy is the first consumer

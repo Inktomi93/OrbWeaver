@@ -253,7 +253,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   (`domains/embeddings.md`, `domains/discovery.md`, `knowledge-cluster.md §7`.)
 - **serialization core — RESOLVED:** ONE serde core shared by import+export — mappers →
   `@orb/server/kit/serde`, canonical card → `@orb/contracts/character`, PNG codec →
-  `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/world-info`.
+  `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/message-role` (D32).
   (`spine/serialization-core.md`.)
 - **bulk-import + proposedTags — RESOLVED:** the outer bulk-loop driver lives at
   `entry/import/run-profile-import.ts`; `proposedTags` becomes `character_tags.status` (export reads

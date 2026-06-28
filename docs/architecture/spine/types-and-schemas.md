@@ -44,8 +44,9 @@ Two derivation sub-rules the domain docs lean on:
 
 - **The kit↔contracts tuple rule** (`shared-dissolution.md` §7.5): a **const tuple** shared by a pure
   `kit` resolver AND a zod schema lives in `kit`; the `z.enum(TUPLE)` schema lives in `contracts` and
-  **imports the tuple downward**. Applies to `ENTRY_SCOPE_MODES` / `ENTRY_INJECTION_ROLES` /
-  `ENTRY_POSITIONS` (persona.md already does this for `PERSONA_DESCRIPTION_POSITIONS`). The inverse —
+  **imports the tuple downward**. Applies to `ENTRY_SCOPE_MODES` / `ENTRY_POSITIONS` (persona.md already
+  does this for `PERSONA_DESCRIPTION_POSITIONS`). The entry-injection ROLE is no longer a world-info tuple —
+  it's `MessageRole` in `kit/message-role` (D32). The inverse —
   kit importing the contracts schema — is illegal (`kit` has zero contracts deps); the executor stays
   generic via a kit-local structural input (`contracts/regex.RegexScript satisfies RegexScriptInput`).
 - **The DB-row read-seam rule**: a row TYPE (`typeof characters.$inferSelect`) is derived in

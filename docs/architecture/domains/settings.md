@@ -494,17 +494,13 @@ counter-intuitive boot-order edge, dissolution §8 — `contracts/chat` builds b
 
 ## Open decisions
 
-- **Promote the stranded (b) toggles to AppSettings?** `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`,
-  `VLLM_*_CONCURRENCY` are runtime-operational by nature but env-only today. Each could become an
-  AppSettings field (env floor + admin override). Lean: promote `IMPORT_DEFAULT_SOURCE` and the
-  `VLLM_*_CONCURRENCY` knobs (admin-tunable is genuinely useful); the `RATE_LIMIT_*` budgets may stay
-  boot-env (hot-reloading a rate limiter mid-flight is fiddly and rarely wanted). Decide per-knob at
-  build; each promotion adds a field to `appSettingsSchema` + a `layer()` arm.
-- **`envDefaults()` half-truth — split env-mirrored from born-in-DB.** Today `envDefaults()` mixes 3
-  env-mirrored fields with 3 born-in-DB literals (`forbidExternalMedia`/`memoryDefaults`
-  /`memorySummarizer`). Target: env-mirrored fields read `env`; born-in-DB defaults become schema
-  defaults on `appSettingsSchema` (so the "floor" is one legible thing, not a literal buried in a
-  resolver). Confirm at skeleton.
+- **Stranded (b) toggles — DECIDED (ledger §2).** Promote `VLLM_*_CONCURRENCY` to AppSettings (env floor +
+  admin override — admin-tunable is genuinely useful); `RATE_LIMIT_*` **STAYS boot-env** (hot-reloading a
+  limiter mid-flight is fiddly, rarely wanted). `IMPORT_DEFAULT_SOURCE` is **DROPPED entirely (PD-15)** —
+  neo-jank, no chat-level default source. Each promotion adds a field to `appSettingsSchema` + a `layer()` arm.
+- **`envDefaults()` split — DECIDED (ledger §2).** Env-mirrored fields read `env`; the 3 born-in-DB literals
+  (`forbidExternalMedia`/`memoryDefaults`/`memorySummarizer`) become `appSettingsSchema` defaults (the floor
+  is one legible thing). Implementation detail confirmed at the slice; not an open question.
 - **Where the sync `EffectiveAppConfig` cache lives and how hot paths read it.** Proposed: the
   `effective-config/` subsystem holds the cache; `getEffectiveConfig()` (sync) is on the service and
   injected into `chat.context`/`workloads.runner-env`; `entry/boot` calls `reloadEffectiveConfig` at

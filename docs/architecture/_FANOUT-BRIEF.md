@@ -292,7 +292,9 @@ Findings that fix the target:
   `loadOwnedChat`) — the exact assumption that breaks for multi-human + agents. Target: wire `host|member`
   as chat authority; replace owner-equality with **participant-membership**; introduce a real
   `can(principal, action, resource)` seam instead of scattered `role===admin` / `ownerId===userId`.
-- **LOCKED (user decision): agents are FIRST-CLASS PRINCIPALS.** Today the buddy is NOT a `users` row —
+- **LOCKED (user decision): agents are FIRST-CLASS PRINCIPALS** *(the MODEL is locked; the agent-principal
+  MINT mechanics are DEFERRED to v2 — v1 ships the borrowed-owner posture, ledger §3/§5/D17. This file is a
+  non-authoritative digest; the ledger + spine docs win on any conflict).* Today the buddy is NOT a `users` row —
   it's a per-owner row (`buddies.userId → users.id`) acting **as the owner** (kill-switch + propose/confirm
   gate + in-process rate-limit, firewalled OUT of chat `messages`). Orbweaver makes an agent a **real
   principal**: its own `users` row + identity, a seat in `chat_participants`, **self-attributed messages**

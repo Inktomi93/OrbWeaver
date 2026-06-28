@@ -140,6 +140,8 @@ infra/providers/                    THE EXECUTION TIER — sealed; domain reache
 │   │   ├── translate.ts · types.ts · verify.ts · index.ts
 │   ├── custom-byo/                 raw-fetch to a user-wired endpoint — FULLY config-driven
 │   │   ├── runners/chat.ts · inspect.ts · index.ts   (NO baked profile — §1a)
+│   ├── local-light/                KEYLESS in-process transformers.js/ONNX (D39) — embed/rerank/imageEmbed
+│   │   ├── surfaces/{embed,rerank,image-embed}.ts    NO chat surface (deriveRunner throws); loopback like vLLM
 │   └── kit/                        SHARED INFRA-PURE wire helpers (NOT a backend; below the backends)
 │       ├── openai-compat/{body,stream}.ts            the OpenAI SSE reducer/mapper BOTH openrouter
 │       │                                             + custom-byo import DOWN (the isolation seam)
@@ -322,9 +324,12 @@ Two dispatch axes are infra-sealed and stay so, gated:
   (already `assertNever`-gated, including the nested `api` switch). `runner = f(api, source)` is
   derived INSIDE providers from the resolved `{backend}` and **never leaves the tier**. *Gate:
   `exhaustive-dispatch` + a grep that `runner`/`family` never appear in `domain/connection/**`.*
-- **`credential.source` (`max-pro-sub | openrouter | vllm | custom_openai`)** — the non-chat role
-  dispatchers switch on it; each unsupported pairing throws a typed `ChatError` (imageEmbed is the
-  lone vLLM-only role, by capability). Adding a backend = add the source arm + the runner arm + the
+- **`credential.source` (`max-pro-sub | openrouter | vllm | local-light | custom_openai`, D39)** — the
+  non-chat role dispatchers switch on it; each unsupported pairing throws a typed `ChatError`. `local-light`
+  (keyless in-process transformers.js/ONNX) serves `embed`/`rerank`/`imageEmbed` only — no chat surface
+  (`deriveRunner` throws for it), so it is in this 5-member source axis but NOT the 4-member `runner` axis
+  above; it also joins `ROLE_SOURCE_POLICY`'s embed/rerank/imageEmbed arms (NOT summarize/generateImage).
+  Adding a backend = add the source arm + the runner arm + the
   credential arm simultaneously. *Gate: `exhaustive-dispatch` (the `assertNever` default arm).*
 
 ---
@@ -510,8 +515,9 @@ Two dispatch axes are infra-sealed and stay so, gated:
   `image`), not a bare string; each sealed chat translator (agent-sdk · openrouter-chat-completions ·
   custom-byo + the vLLM chat surface) maps `image` parts to its backend's wire (Anthropic image blocks ·
   OpenAI `image_url` · …). Gated by `ModelCapability.vision` (read off the request per the
-  connection→infra descriptor-on-request rule) — a non-vision model drops image parts at assembly with a
-  `warning` ChatEvent (D41), never a hard throw. The reshape is born-compliant before Phase 5 (it touches
+  connection→infra descriptor-on-request rule) — for a non-vision model the **runner** drops image parts and emits a
+  `warning` ChatEvent with a NEW 5th `WARNING_CODE` **`image_dropped`** (D45 adds it to D41's tuple — a real
+  emit site at the runner, not speculative), never a hard throw. The reshape is born-compliant before Phase 5 (it touches
   all three translators + the assembly seam).
 
 - **Custom/BYO response-mapping schema — DEFERRED (schema shape only).** §1a's user-declared response

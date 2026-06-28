@@ -105,8 +105,9 @@ domain/connection/
 │   │                               DEFAULT fallback; from routing.ts:136-147 (the dual-guard seam).
 │   └── or-model-cache.ts           the in-memory TTL OR catalog cache (the sync-guard for hot-path routing).
 └── catalog/                        named subsystem: the curated Claude catalog + OR synthesis
-    ├── chat-models.ts              CHAT_MODELS array, ChatModelId, getChatModel (3-stage lookup),
-    │                               DEFAULT_CHAT_MODEL_ID — migrated from providers/_shared/chat-models.ts.
+    ├── chat-models.ts              CHAT_MODELS array + getChatModel (3-stage lookup). Imports `ChatModelId`
+    │                               + `DEFAULT_CHAT_MODEL_ID` DOWN from `@orb/contracts/connection/catalog.ts`
+    │                               (CANONICAL — client picker needs them). Migrated from providers/_shared.
     │                               The 3-stage prefix-match lookup is load-bearing (§ esoteric).
     ├── model-family.ts             detectModelFamily (the regex, load-bearing anchor — §esoteric).
     │                               FAMILY_CAPS is DISSOLVED into resolveModelCapability.
@@ -233,7 +234,7 @@ compile time (`no-inline-union-redecl` gate — §7.5 spine).
 | `domain/chat/routing.ts — chatRoutingOverlay` projection | → `connection` | `domain/connection/verbs/resolve-chat.ts` | The UserSettings → `ChatRoutingOverlay` projection is routing logic, not chat domain logic. Moves with `resolveTurnRouting`. | resolve-time |
 | `domain/chat/routing.ts — pickOrModel` (the dual guard) | → `connection` | `domain/connection/substrate/pick-or-model.ts` | The two defensive guards (Claude-shortlist-is-agent-sdk-only + catalog guard with cold-cache skip) are connection-selection concerns. The cold-cache skip is load-bearing (§esoteric); preserve exactly. | test-time: unit tests assert the two guard paths (shortlist guard rejects non-agent-sdk, catalog guard skips on cold cache) |
 | `shared/providers/chat-routing.ts — CHAT_APIS, CHAT_SOURCES, chatApiSchema, chatSourceSchema` | → `contracts` (api here; source aliases credentials — D31) | `@orb/contracts/connection/routing.ts` | `ChatApi`/`CHAT_APIS`/`chatApiSchema` are canonical here. `ChatSource`/`CHAT_SOURCES`/`chatSourceSchema` are NOT redeclared — the source axis is the same 4 members as `CredentialSource`, so routing **re-exports `CredentialSource` as `ChatSource`** (D31; `CRED_SOURCES`/the credential source schema are the one source of truth in `@orb/contracts/credentials`). | compile-time: `no-inline-union-redecl` gate rejects any inline re-spelling of the `api`/`source` unions; `assertNever` in every dispatch switch |
-| `providers/_shared/chat-models.ts — CHAT_MODELS, ChatModelId, getChatModel, DEFAULT_CHAT_MODEL_ID` | → `connection` | `domain/connection/catalog/chat-models.ts` | The curated Claude catalog is a connection selection resource, not a provider implementation. The 3-stage prefix-match lookup is load-bearing (§esoteric — preserve exactly). `DEFAULT_CHAT_MODEL_ID` is also re-exported from `@orb/contracts/connection/catalog.ts` for client use. | resolve-time: `CHAT_MODELS` is no longer on the `providers/index.ts` barrel; callers import from `domain/connection` front door or `@orb/contracts` |
+| `providers/_shared/chat-models.ts — CHAT_MODELS, ChatModelId, getChatModel, DEFAULT_CHAT_MODEL_ID` | → `connection` | `domain/connection/catalog/chat-models.ts` | The curated Claude catalog is a connection selection resource, not a provider implementation. The 3-stage prefix-match lookup is load-bearing (§esoteric — preserve exactly). `DEFAULT_CHAT_MODEL_ID` + the `ChatModelId` brand are **canonical in `@orb/contracts/connection/catalog.ts`** (the client picker needs both); `domain/connection` imports them DOWN — only `CHAT_MODELS` + `getChatModel` live in the domain `catalog/`. | resolve-time: `CHAT_MODELS` is no longer on the `providers/index.ts` barrel; callers import from `domain/connection` front door or `@orb/contracts` |
 | `providers/_shared/model-family.ts — detectModelFamily` (the regex) | → `connection` | `domain/connection/catalog/model-family.ts` | Family detection is a connection-layer concern (used by `resolveModelCapability`). The regex anchor is load-bearing (§esoteric). | resolve-time |
 | `providers/_shared/model-family.ts — FAMILY_CAPS` | dissolved | `domain/connection/catalog/resolve-model-capability.ts` | `FAMILY_CAPS` is a partial precursor to `ModelCapability`; `hasFastMode` is dead (zero consumers outside the definition). The capability facts merge into `resolveModelCapability`. | compile-time: `FAMILY_CAPS` is deleted; any reference fails `tsc` |
 | `providers/_shared/model-family.ts — FAMILY_CAPS.hasFastMode` | deleted | — | Zero consumers outside the definition (confirmed). `ChatModel.thinking.fastMode` superseded it entirely. No preservation needed. | compile-time: deletion; any surviving reference fails `tsc` |
@@ -598,6 +599,8 @@ ModelCapability = {
     minP?: Range; seed?: boolean; logitBias?: boolean; stop?: boolean;
   },
   verbosity?: Verbosity[],                               // REAL axis (OpenAI) — not vapor
+  input: { vision: boolean },                            // input-modality axis (D45) — accepts image
+                                                         //   content-parts? the GATE for the multimodal send
   output: { maxTokens: Range },
   context: { window: number; supports1M?: boolean },
 }

@@ -1,6 +1,6 @@
 # Orbweaver — structure & enforcement (the constitution)
 
-> **Status: planning.** This is the canonical structure for Orbweaver — the ground-up remake of
+> **Status: authoritative (build in progress, Phase 4c).** This is the canonical structure for Orbweaver — the ground-up remake of
 > neo-tavern. It is written to be *enforced*, not aspirational: every rule below has (or will have) a
 > gate that goes RED when violated. Read this before creating any file.
 
@@ -229,7 +229,7 @@ The neo-tavern crunch was concepts with no single home. Orbweaver fixes the wors
 | **Roles** (chat/embed/rerank/summarize/imageEmbed/generateImage/agent) | one `resolveRoleConnection(role)` | all roles honor settings; buddy = the `agent` role |
 | **Regex** | a regex *library* + scope junctions (global/character/preset), assembled + executed by placement | the world-info pattern — one store, attached at scopes |
 | **World info** | one books/entries store + scope junctions | already the right shape in neo-tavern; keep it |
-| **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (corpus) |
+| **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (discovery) |
 | **Derived data** (digests/embeddings/themes) | an event-driven indexer (canon write → ContentChanged → coalesced workload) | "import just works"; no manual backfill scripts |
 | **Character cards** | the card IS a flat `characters` row (live identity + content); history = a standalone `character_snapshots` log that gates nothing | D28: no version table — git working-tree (`characters`) + commit-log (`character_snapshots`), browse + restore-in-place |
 
@@ -273,10 +273,8 @@ finding anything is a path derivation, and "where does this go?" has exactly one
   unscoped `orb-*` alternative buys nothing. (The full decision record is `reports/DECISIONS-LEDGER.md`.)
 - **shadcn `@/` — DECIDED: convert copied components to `#`** (we own them; one resolution model, no
   `paths` aliases, per principle #2). No `@/` carried into orbweaver.
-- **UI headless engine — DEFERRED to client scaffold (recommended: Base UI, the radix team's successor).**
-  Criterion: own the trivial atoms (button/badge/label/input) regardless; pick the engine only for the
-  hard ~10 (dialog/select/popover/dropdown/tooltip/tabs/…). This is a `client`-rebuild call, made when
-  the client package is stood up — it does not gate the kit→contracts→db→server build.
-- **Stack version pins — DEFERRED to scaffold (criterion: 2026-latest stable of Node/TS/Hono/Drizzle/
-  tRPC, pinned in the workspace at package-creation).** Irreducibly a scaffold-time act (you pin what's
-  current when you `pnpm init`), not a design ambiguity.
+- **UI headless engine — DECIDED: Base UI (D42).** Settled in the Phase-6 client spec (`client.md` / D42):
+  Base UI is THE headless primitive behind a new `@orb/ui` package; own the trivial atoms, Base UI behind
+  the seam for the hard ~10. A `client`-rebuild call — does not gate the kit→contracts→db→server build.
+- **Stack version pins — DONE (Phase 0).** Pinned at workspace creation (2026-latest stable of Node/TS/
+  Hono/Drizzle/tRPC); per-tier runtime libs join the catalog as their tier is built (BUILD-PLAN §0).

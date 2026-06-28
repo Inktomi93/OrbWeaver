@@ -4,8 +4,9 @@
 > `/home/inktomi/inktomi-stack/development/neo-tavern`; orbweaver is at
 > `/home/inktomi/inktomi-stack/development/orbweaver`). **We are BUILDING** — Phases 0–4b are committed
 > (planning is done; the design docs below remain authoritative). This file is the index + the locked
-> decisions + the NEXT action. **Latest decision: D44** (user theming + rich message content — custom CSS /
-> sandboxed-iframe HTML cards / inline images, two-trust-tier, specced before Phase 5; see `client.md` §12).
+> decisions + the NEXT action. **Latest decision: D45** (image INPUT to vision-capable models —
+> `ModelCapability.vision` axis + `ChatHistoryMessage.content`→content-parts, shaped before Phase 5; see
+> `client.md` §12.4). Recent: D44 (theming + rich message content; `client.md` §12), PD-11 (hosted rerank wired).
 > Recent: D42 (Phase-6 client foundation), D43 (full neo-client audit → machine-enforceable plan, `client.md`
 > §11), D44 (theming + rich message content, §12).
 
@@ -93,12 +94,14 @@ The planning docs are **complete and reconciled**, and the build is underway. **
 - **Dissolution inventory** — every `_shared`/`shared/*` symbol has a home + gate. (`reports/shared-dissolution.md`.)
 - **Per-domain target docs** (all 20 under `domains/`), **tier surveys** (`tiers/*`), **spine threads**
   (§7.1–7.5 + `spine/testing.md` + `spine/typescript-style.md`), and the cross-doc **reconciliation/de-dup**.
-  Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D40**, the Phase-0→4b audit remediation).
+  Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D45** + **PD-11**).
 
-**NEXT ACTION = Phase 4c (server `domain`) — follow `BUILD-PLAN.md`** (the ordered runbook). The domain
-dirs currently hold only 1-line scaffold stubs; build them **leaf-first in dependency waves** per the
-BUILD-PLAN order (`credentials/tag/persona/preset/world-info/assets/sessions/stats/settings/admin →
-embeddings/search → discovery/workloads/import/export/buddy`), then **4d transport → 4e entry → Phase 5
+**NEXT ACTION = Phase 4c (server `domain`) — follow `BUILD-PLAN.md` §4c** (the ordered runbook IS the
+authority for the wave order; don't re-list it here). Phase 4c **W1 is in progress** (sessions + admin
+committed; persona/preset/settings/notifications underway). Corrected order (D38 + D16): **W1
+(credentials/tag/persona/preset/world-info/assets/sessions/stats/settings/admin/character/notifications) →
+connection (W1.5) → W2 (embeddings → search) → W3 (discovery/workloads/import/export/buddy)**, then **4d
+transport → 4e entry → Phase 5
 chat+memory** (LAST, built WHOLE, behind the differential oracle against the steady neo-tavern clone) →
 **Phase 6 client**. Multi-agent dispatch in dependency tiers, disjoint file sets per agent.
 

@@ -133,7 +133,7 @@ transport/
         ├── workloads.ts       start/cancel/retry/get/list + subscribe (admin-gated; SSE)
         ├── credentials.ts     per-user CRUD + testHealth + inspectEndpoint (authed; admin for host-Claude)
         ├── search.ts          search/images + fields/suggest (→ search domain after the rewire)
-        ├── corpus.ts          read-side analytics + the embed write (→ discovery/embeddings owners)
+        ├── discovery.ts       read-side analytics + the embed write (→ discovery/embeddings owners; corpus→discovery rename)
         └── …                  character · persona · preset · settings · stats · tag · user-admin · world-info · buddy
 └── jobs/
     ├── workloads-worker.ts    the DRIVER: poll → nextRunnableWorkload → runWorkload → reap tick →

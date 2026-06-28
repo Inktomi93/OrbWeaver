@@ -92,7 +92,10 @@ being converted toward. **Do not touch its shape.** Adding a kind is five mechan
 compiler is the checklist:
 
 ```typescript
-// contract/workload-kind.ts — ONE canonical union + the runtime tuple (can't drift)
+// @orb/contracts/workloads/kind.ts — ONE canonical union + the runtime tuple (D34 — the workloads.kind/
+//   status db columns + the workloads_kind_active partial-index predicate derive these; NOT
+//   domain/workloads/contract, which @orb/db cannot import). WORKLOAD_STATUSES/ACTIVE_WORKLOAD_STATUSES
+//   live alongside it in @orb/contracts/workloads. The RUNNERS dispatch map below stays domain.
 export type WorkloadKind =
   | "embed-corpus" | "embed-assets" | "distill-characters" | "compute-themes"
   | "memory-backfill" | "group-character-backfill" | "compute-cooccurrence"
@@ -388,9 +391,11 @@ or vice versa, is a silent concurrency bug). Gate: `exhaustive-dispatch` + `no-i
 
 ### §7.4 types & schemas — one home, one direction
 
-- `WorkloadKind`/`WorkloadStatus`/`WorkloadError`/`WorkloadEvent`/`WorkloadProgress`/`Runner`/
-  `ParamsByKind`/`ResultByKind`/`StartWorkloadInput` → `domain/workloads/contract/` (domain-internal;
-  the tuples re-exported from the front door so tRPC can build wire schemas).
+- **`WORKLOAD_KINDS`/`WorkloadKind` + `WORKLOAD_STATUSES`/`WorkloadStatus` (+ `ACTIVE_WORKLOAD_STATUSES`)
+  → `@orb/contracts/workloads` (D34)** — the `workloads.kind`/`status` db columns + the
+  `workloads_kind_active` partial-index predicate derive them, and `@orb/db` cannot import a domain.
+- `WorkloadError`/`WorkloadEvent`/`WorkloadProgress`/`Runner`/`ParamsByKind`/`ResultByKind`/
+  `StartWorkloadInput` → `domain/workloads/contract/` (domain-internal).
 - `WorkloadRunnerEnv` + sub-interfaces → `domain/workloads/contract/runner-env.ts` (the seam type;
   consumed by `entry/`).
 - `WorkloadRowAnyKind` → `domain/workloads/persistence/queries.ts` (the typed DB-row projection;

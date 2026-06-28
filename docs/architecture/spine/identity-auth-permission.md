@@ -332,9 +332,11 @@ risk) is preserved on every routing path regardless.
     SDK-frame code. *Enforcement: resolve-time (no dep from `domain/sessions` on the claude-sdk strategy /
     `session_entries`).*
 14. **The server owner is unique + immutable** (D17). `determineRole` derives `owner` from `OWNER_*` only; `admin` is
-    granted by `setRole` (owner-only); the owner can't be demoted/removed; exactly one. *Enforcement: test (the
-    last-owner / owner-immutability guard; `setRole` from a non-owner → `DomainForbiddenError`; demoting the owner →
-    refused).*
+    granted by `setRole` (owner-only); the owner can't be demoted/removed; exactly one. *Enforcement: a **structural
+    enforcer** ships with the invariant (D40) — a **partial unique index `WHERE role = 'owner'`** on `users` so a
+    second owner cannot be inserted at the DB level (born-compliant; the cleaner enforcer over seed-only-mint
+    discipline) — PLUS the test belt (the last-owner / owner-immutability guard; `setRole` from a non-owner →
+    `DomainForbiddenError`; demoting the owner → refused). Confirm the partial-unique index lands with the users slice.*
 15. **The chat per-verb auth matrix is enforced default-deny over EVERY chatId surface** — verbs + SSE subscribe + bus
     delivery + lineage walkers + `forkChat` + `chat_injections` + anchor reassignment. *Enforcement: a `scripts/check`
     enforcer (every `chatId`-taking surface routes through the membership chokepoint; grep `ownerId ===` in chat → RED) +
@@ -373,9 +375,10 @@ risk) is preserved on every routing path regardless.
   `resolve` taking a `Principal` + injectable so the delegation arm has a home. (Local compute — the owner's
   vLLM/in-process tier — is NOT "inherited": it is shared-by-design + count-budgeted, D17.) Spans sessions +
   credentials + this spine. (ledger §3 + §7 D17.)
-- **`Principal` shape — does it carry `groups`?** Today `validate` returns `groups: []` by design (SSO
-  groups are consumed into `users.role` at login). Lean: drop `groups` — `role` is the sole carried
-  authz axis. Revisit only if a downstream consumer needs live group membership (none today).
+- **`Principal` shape — does it carry `groups`? RESOLVED (ledger §2): NO.** `validate` resolves SSO groups
+  into `users.role` at login; `role` is the sole carried authz axis, and the `Principal` interface body
+  already excludes `groups`. Recorded as decided (not open). Revisit only if a downstream consumer ever
+  needs live group membership (none today).
 - **Solo buddy chat under the principal model.** Does the `buddy_turns` transcript survive as the
   solo-chat case, or does solo buddy chat become a real chat room with the buddy as a participant? (Buddy
   doc surfaces; spine + chat decide.)

@@ -46,7 +46,7 @@ cross-boundary wire type); `ResolvedCredential` brand type (that is `@orb/contra
 `infra/providers` runners); the per-turn `maybeRevokeOnAuthFailed` call-site wiring (chat engine and
 compaction verbs call `credentials.maybeRevokeOnAuthFailed` through the composition-root injection, not
 through a sideways import); connection routing (that is the `connection` domain's
-`resolveRoleConnection` — it calls `credentials.resolve` through an injected op).
+`resolveRole` — it calls `credentials.resolve` through an injected op).
 
 ---
 
@@ -290,7 +290,7 @@ injection.
 
 | Op injected | Provided by | Used for |
 |---|---|---|
-| `credentials.resolve` | credentials domain | `resolveRoleConnection` — resolves the credential for any role's backend |
+| `credentials.resolve` | credentials domain | `resolveRole` — resolves the credential for any role's backend |
 | `credentials.buildKeylessCatalogCredential` | credentials domain | keyless OR catalog fetch (public endpoints) |
 
 **Injected into `chat.context` at the composition root:**

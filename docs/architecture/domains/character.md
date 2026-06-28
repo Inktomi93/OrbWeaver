@@ -258,7 +258,8 @@ Character emits a `character.updated` event on save; the `embeddings` indexer su
 Character does NOT call embeddings directly — zero reach into the knowledge cluster.
 
 **`tag` junction:** `character_tags` is owned by `tag` domain (a junction over `characters.id`). The
-`bulkAddCardTag` verb goes through the injected `tag.attachToCharacter` op, not a direct table write.
+`bulkAddCardTag` verb goes through the injected tag op (`tag.attachCardTagByName` — the by-name card path;
+`attachTag` is the polymorphic targetType-dispatched verb), not a direct table write.
 
 ---
 

@@ -44,9 +44,9 @@ without (a) gives you exhaustive switches that each re-spell the union, so the c
 | axis crosses… | home | example |
 |---|---|---|
 | a boundary (server ↔ client ↔ db wire) | `@orb/contracts/<ns>` | `ChatApi`/`ChatSource`, `CredProvider`, `AssetKind`, `TagTargetType`, `WorldBookRole`, `GuidedActionKind` |
-| only a pure engine (isomorphic, no I/O) | `@orb/kit/<engine>` | `RegexPlacement` (`kit/regex`), `EntryInjectionRole`/`EntryScopeMode`/`EntryPosition` (`kit/world-info`) |
-| only one domain (engine-internal to a feature) | `domain/<feature>/contract/` | `WorkloadKind`, `SourceKind`/`SourceLens`/`VectorTable` (embeddings) |
-| a db enum column | tuple in `kit`/`contracts`, `db` schema **derives** its enum from it | `AssetKind`, `TagSource` |
+| only a pure engine (isomorphic, no I/O) | `@orb/kit/<engine>` | `RegexPlacement` (`kit/regex`), `EntryScopeMode`/`EntryPosition` (`kit/world-info`); `MessageRole` + the `{depth,role}` inject shape (`kit/message-role` + `kit/injection`, D32) |
+| only one domain, NO db column (engine-internal to a feature) | `domain/<feature>/contract/` | the embeddings-internal `SourceKind`/`VectorTable` + the broad text-lens `SourceLens` (its image subset is a db column → next row) |
+| a db enum column | tuple in `kit`/`contracts`, `db` schema **derives** its enum from it (`@orb/db` cannot import a `domain/*/contract`) | `AssetKind`, `TagSource`; **`WORKLOAD_KINDS`/`WORKLOAD_STATUSES` → `@orb/contracts/workloads`**, **`IMAGE_LENSES` → `@orb/contracts/embeddings`** (D34) |
 
 One-directional cake; kit-purity LOCKED (a kit tuple may carry no zod, no contracts import — the
 `z.enum(TUPLE)` lives in `contracts` and imports the tuple *down*; `contracts/regex.RegexScript
@@ -76,9 +76,11 @@ was the tax.
 **The other gated axes** (already single-homed by `reports/shared-dissolution.md`, called out so they
 don't regress): `CredProvider`/`CRED_PROVIDERS` + `CredentialSource` → `contracts/credentials`;
 `RegexPlacement`/`REGEX_PLACEMENTS` → `kit/regex`; `AssetKind` (db enum + http route + client + domain
-re-spell it inline — CORRECTED to cross-boundary) → `contracts/assets`; `SourceKind`/`SourceLens` +
-`VectorTable` → `domain/embeddings/contract`; `WorkloadKind`/`WorkloadStatus` → `domain/workloads/
-contract` (the exemplar); `TagTargetType`/`TagSource`/`TagFolderType` → `contracts/tag`;
+re-spell it inline — CORRECTED to cross-boundary) → `contracts/assets`; the embeddings-internal
+`SourceKind`/`VectorTable` + the broad `SourceLens` → `domain/embeddings/contract`, but **`IMAGE_LENSES`
+(the db-column image subset) → `@orb/contracts/embeddings` (D34)**; **`WORKLOAD_KINDS`/`WORKLOAD_STATUSES`/
+`ACTIVE_WORKLOAD_STATUSES` → `@orb/contracts/workloads` (D34 — the `workloads.kind/status` db columns + the
+partial-index predicate derive them; NOT `domain/workloads/contract`, which `@orb/db` can't import)**; `TagTargetType`/`TagSource`/`TagFolderType` → `contracts/tag`;
 `WorldBookRole`/`EntryScopeMode`/`EntryPosition` → `contracts/world-info` + `kit/world-info`. **The
 at-depth injection ROLE is NOT a world-info type (D32):** `ENTRY_INJECTION_ROLES` collapses into the
 canonical `MessageRole` (the same `system|user|assistant` axis as `messageRole`) homed in the neutral
@@ -94,7 +96,8 @@ import it from there. The `{depth,role}` inject SHAPE lives in `kit/injection`.
 checklist:
 
 ```typescript
-// contract/workload-kind.ts — ONE canonical union + the runtime tuple (can't drift)
+// @orb/contracts/workloads/kind.ts — ONE canonical union + the runtime tuple (db derives it; D34 — NOT
+//   domain/workloads/contract, which @orb/db cannot import). The dispatch RUNNERS map below stays domain.
 export type WorkloadKind =
   | "embed-corpus" | "embed-assets" | "distill-characters" | /* … */ | "refresh-model-catalog";
 export const WORKLOAD_KINDS = [ /* … */ ] as const satisfies readonly WorkloadKind[];
@@ -186,13 +189,13 @@ single source of truth for *both* its shape and its fan-out.
 | `ChatSource` | **= `CredentialSource` (D31): canonical in `contracts/credentials`; `contracts/connection` re-exports it as `ChatSource`** (same 4-member axis; no second tuple) | already `assertNever`-gated — KEEP; kill the 11 re-decls | Gate A (dispatch already total) |
 | `ChatApi` | `ChatApi`/`CHAT_APIS` → `contracts/connection` | already `assertNever`-gated — KEEP; kill the 9 re-decls | Gate A |
 | `RoutingRoleKey` | NEW union → `contracts/connection` | `ROLE_RESOLVERS: { [K in RoutingRoleKey]: Resolver<K> }` | Gate B (mapped Record) |
-| `WorkloadKind` | `contract/workload-kind.ts` (the exemplar) | `RUNNERS: { [K in WorkloadKind]: Runner<K> }` | Gate B — preserve verbatim |
-| `SourceKind`/`SourceLens`/`VectorTable` | `domain/embeddings/contract/params.ts` | `assertNever` in `store.ts`/`clearTable` | both |
+| `WorkloadKind`/`WorkloadStatus` | tuples → `@orb/contracts/workloads` (D34 — db columns derive); the `RUNNERS` map stays `domain/workloads/engine` | `RUNNERS: { [K in WorkloadKind]: Runner<K> }` | Gate B — preserve the SHAPE verbatim |
+| `SourceKind`/`SourceLens`/`VectorTable` | `domain/embeddings/contract/params.ts` (broad/text); **`IMAGE_LENSES` (db-column image subset) → `@orb/contracts/embeddings`, D34** | `assertNever` in `store.ts`/`clearTable` | both |
 | `TagTargetType`/`TagSource`/`TagFolderType` | `contracts/tag` | `junctions: { [K in TagTargetType]: JunctionEntry<K> }` | both |
 | `CredProvider`/`CredentialSource` | `contracts/credentials` (**`CredentialSource` is THE provider-source axis — `ChatSource` aliases it, D31**) | role dispatchers `switch (credential.source)` exhaustively | both |
 | `AssetKind` | `contracts/assets` (db enum derives) | exhaustive over `AssetKind` | both |
 | `RegexPlacement` | `kit/regex` (`REGEX_PLACEMENTS`) | `assertNever` in the placement walk | both |
-| `WorldBookRole`/`EntryInjectionRole`/`EntryScopeMode`/`EntryPosition` | `contracts/world-info` + `kit/world-info` | resolvers + bimaps total over each axis | both |
+| `WorldBookRole`/`EntryScopeMode`/`EntryPosition` | `contracts/world-info` + `kit/world-info` (the entry-injection ROLE is `MessageRole` → `kit/message-role`, D32 — NOT a world-info type) | resolvers + bimaps total over each axis | both |
 
 ---
 

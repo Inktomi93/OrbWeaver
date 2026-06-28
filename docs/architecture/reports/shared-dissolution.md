@@ -193,7 +193,7 @@ Within the cake `kit ← contracts ← db ← server ← client`, there is an **
 - **`globalMacroRegistry`** single-tenant singleton → vitest single-worker for macro tests.
 - **`params: userIntentSchema.catch({})`** damage-bounding; **CONFIG_LIFTS v1→v2** three transforms (post-history-pivot guard).
 - **PNG dual-chunk** (chara V2 + ccv3 V3, V2 first, before IEND), CRC-32 `0xedb88320`.
-- **ST role bimap** `{0:system,1:user,2:assistant}` — was written 4×, now ONE in `kit/world-info`.
+- **ST role bimap** `{0:system,1:user,2:assistant}` — was written 4×, now ONE in `kit/message-role` (D32).
 - **`scopedCharacterId=''` sentinel** (not NULL) for the shared memory bucket (knowledge-cluster).
 - **two-layer prototype-pollution defense** (schema superRefine + `deepMergeRequestBody` runtime check).
 - **`parseNeoPresetFile` strict** vs `parsePromptConfig` lenient — both behaviors preserved.

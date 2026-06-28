@@ -108,7 +108,10 @@ sources, one review surface, no separate flow** (the "without a whole nother asp
 - **ONE parameterized attach op.** `tag.attachCardTagByName({ ownerId, characterId, tagName, source?, status? })`
   — defaults `source:'manual', status:'accepted'` (the user manual-add path, unchanged); import + the seeder
   pass `source:'card', status:'pending'`; distill (PD-40) will pass `source:'auto', status:'pending'`. Resolve-
-  or-create is race-safe (`INSERT … ON CONFLICT (ownerId, name)`); the attach is idempotent.
+  or-create is race-safe (`INSERT … ON CONFLICT (ownerId, name)`); the attach is idempotent. **(This op + its
+`source?`/`status?` params belong in the `TagService` interface + the verb list — the attach surface is
+`attachTag`/`attachCardTagByName`/`bulkAttachTag`; the "11 verbs / attachTag-only" listing below predates
+this built op and should be reconciled to include it.)**
 - **A re-import never un-accepts.** Re-attaching a tag the user already `accepted` does NOT downgrade it back
   to `pending` (a card re-import must not silently revert curation).
 - The **Accept/Reject UI** is the Phase-6 client surface; the server write side (import + seed → `card`/
