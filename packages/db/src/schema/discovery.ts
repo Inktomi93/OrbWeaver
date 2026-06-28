@@ -165,8 +165,9 @@ export const duplicateChatPairs = sqliteTable(
 // keyword_cooccurrence — owner × keyword-PAIR tallies (keyword×keyword within a tier-0 digest's
 // `keywords[]`, hub-token-filtered, content-collapsed). KEEP ownerId (D23 — a parentless per-user
 // aggregate: owner × a non-entity dimension, no owning-entity parent, so `ownerId` IS its own key, not a
-// mirror). The keyword pair is normalized A<B by the PRODUCER before insert (unlike the duplicate_*_pairs
-// tables, there is NO `check(keywordA < keywordB)` — the unique index alone does NOT enforce the ordering).
+// mirror). The keyword pair is canonical A<B, enforced in-DB by `check(keyword_a < keyword_b)` — mirroring
+// the duplicate_*_pairs tables (the unique index alone does NOT enforce the ordering; the CHECK is the
+// enforcer, so the invariant ships with it — D40).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const keywordCooccurrence = sqliteTable(
@@ -180,8 +181,8 @@ export const keywordCooccurrence = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    // The two co-occurring keywords (free-form strings). Ordering A<B is normalized by the producer before
-    // insert — there is NO CHECK; the unique index alone does not enforce the ordering.
+    // The two co-occurring keywords (free-form strings). Canonical A<B is enforced by the table CHECK below
+    // (the unique index alone does not enforce the ordering — D40).
     keywordA: text("keyword_a").notNull(),
     keywordB: text("keyword_b").notNull(),
     // How many tier-0 digests the pair co-occurred in (the co-occurrence weight).
@@ -192,6 +193,8 @@ export const keywordCooccurrence = sqliteTable(
     // One row per (owner, keyword-pair) — the idempotent recompute upsert key.
     uniqueIndex("keyword_cooccurrence_owner_pair_unique").on(t.ownerId, t.keywordA, t.keywordB),
     index("keyword_cooccurrence_owner_idx").on(t.ownerId),
+    // Canonical unordered pair: A<B enforced in-DB (mirrors duplicate_*_pairs; also rejects self-pairs) — D40.
+    check("keyword_cooccurrence_canonical_check", sql`keyword_a < keyword_b`),
   ],
 );
 

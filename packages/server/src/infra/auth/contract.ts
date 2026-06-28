@@ -119,7 +119,12 @@ export interface ForwardJwtVerifier {
  */
 export interface ResolveDeps {
   /** `local`/`oidc`: validate the `__Host` session token → the pre-row identity, or `null`
-   *  (missing/revoked/expired). Returns a `ResolvedIdentity` — NO `userId`/`role` (invariant #3). */
+   *  (missing/revoked/expired). Returns a `ResolvedIdentity` — NO `userId`/`role` (invariant #3).
+   *  FLAG (D40 — reconcile at 4c/4e): a session cookie inherently resolves to a user ROW, so this port's
+   *  honest output includes `userId` — but invariant #3 forbids infra to carry a row id, so the id is
+   *  dropped here, recreating the neo "validate threw the id away" bug (sessions.md §"resolved twice"). PER
+   *  D40 the cookie→user resolution is a DOMAIN step (`sessions.validate`, which returns `userId`) the SEAM
+   *  calls directly; this infra port is REMOVED when 4c/4e land. Do NOT wire it as the `userId` source. */
   validateCookie?: (
     token: string,
     onSlide?: (expiresAt: number) => void,
