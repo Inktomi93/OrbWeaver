@@ -1,7 +1,7 @@
 // infra/auth — FRONT DOOR. The sealed, db-free auth VERIFICATION executor (tiers/infra.md + spine
 // identity-auth-permission.md §1/§3). This tier does VERIFICATION ONLY: `resolve(headers, deps)` turns a
 // request's headers into an `IdentityResolution` — the pre-row `ResolvedIdentity` (NO `userId`, NO
-// `role` — invariant #3) + the per-request signals (`via`, `viaCookie`, `hasCsrfHeader`) — dispatching on
+// `role` — invariant #3) + the per-request signals (`via`, `hasCsrfHeader`) — dispatching on
 // AUTH_MODE and applying the origin-gated owner fallback. It does NOT upsert, does NOT derive a role,
 // does NOT mint a `Principal`. Those are LOWER tiers, invoked by the seam AFTER verification:
 //   • `determineRole` + the users-row upsert → RESOLUTION tier, `domain/sessions`
@@ -40,9 +40,9 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
   const csrf = hasCsrfHeader(headers);
 
   if (identity !== null) {
-    // A cookie request carries cross-site surface (the CSRF signal); a forward-header request does not.
-    const viaCookie = config.mode === "local" || config.mode === "oidc";
-    return { identity, via: viaCookie ? "cookie" : "header", viaCookie, hasCsrfHeader: csrf };
+    // A non-null identity from infra is always the forward-header path (post-D40 infra never resolves a
+    // cookie — the seam does). `via:"header"`.
+    return { identity, via: "header", hasCsrfHeader: csrf };
   }
 
   if (config.fallback === "owner" && ownerFallbackAllowed(headers, config)) {
@@ -51,14 +51,12 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
     return {
       identity: { externalId: null, handle: castId<Handle>(config.defaultHandle), groups: [] },
       via: "fallback",
-      viaCookie: false,
       hasCsrfHeader: csrf,
     };
   }
 
-  // Unauthenticated: no identity, no cross-site surface. `via` is inert when `identity === null` (the
-  // seam 401s before reading it).
-  return { identity: null, via: "header", viaCookie: false, hasCsrfHeader: csrf };
+  // Unauthenticated: no identity. `via` is inert when `identity === null` (the seam 401s before reading it).
+  return { identity: null, via: "header", hasCsrfHeader: csrf };
 }
 
 // Cross-boundary identity type re-exported type-only for ergonomics (canonical home: @orb/contracts).
