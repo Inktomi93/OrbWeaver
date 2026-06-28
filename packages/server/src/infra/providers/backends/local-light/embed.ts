@@ -1,6 +1,6 @@
-// infra/providers/backends/local-light/embed — the local-light TEXT-embedding role (BGE/MiniLM family
-// via transformers.js feature-extraction). A PURE transform over the model cache: filter empty inputs
-// to `null` (the EmbedResult contract — the local family filters; OpenRouter never emits null), apply an
+// infra/providers/backends/local-light/embed — the local-light TEXT-embedding role (the jina-clip-v2
+// text encoder via transformers.js). A PURE transform over the model cache: filter empty inputs to
+// `null` (the EmbedResult contract — the local family filters; OpenRouter never emits null), apply an
 // optional instruction prefix, honor MRL `dimensions` truncation (slice the leading coords + re-L2-
 // normalize, since truncation breaks unit length), and carry `model` provenance so `embeddings` can tag
 // the vector space. The model DEFINES the space; the dim is the vector length. No vector COMPARISON here.
@@ -10,9 +10,11 @@ import { ProviderError } from "../../contract";
 import type { LocalLightModelCache } from "./model-cache";
 import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache";
 
-/** The "any box" default text embedder — 384-dim, mean-pooled, symmetric (ST parity). Overridable via
+/** The "any box" default text embedder — the jina-clip-v2 text encoder, 1024-dim into the unified
+ *  text↔image joint space (fits the `F32_BLOB(1024)` column; the SAME model serves imageEmbed, so a
+ *  text embed and an image embed are cosine-comparable — the Qwen3-VL property, on CPU). Overridable via
  *  `req.model` (the connection/binder picks the model; this is the fallback when none was resolved). */
-export const DEFAULT_EMBED_MODEL = "Xenova/all-MiniLM-L6-v2";
+export const DEFAULT_EMBED_MODEL = "jinaai/jina-clip-v2";
 
 /** A non-empty input paired with its slot in the original request order. */
 interface KeptInput {

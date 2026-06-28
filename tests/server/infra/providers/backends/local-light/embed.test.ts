@@ -1,8 +1,11 @@
 // Unit tests for the local-light EMBED role — pure transform logic over an injected fake cache (no
 // network, no ONNX). Driven through the public `createLocalLightBackend` seam. Asserts the EmbedResult
-// contract: empty/whitespace → null (order preserved), single-string → one-element array, MRL
-// `dimensions` truncation + re-normalization, the expand-beyond-native rejection, instruction
-// prefixing, default-model fallback, abort, and the no-call short-circuit on an all-empty batch.
+// contract: empty/whitespace → null (order preserved), single-string → one-element array, the unified
+// 1024-dim jina-clip space (a fake jina cache → a 1024 unit-normalized vector tagged with the jina
+// model), MRL `dimensions` truncation + re-normalization, the expand-beyond-native rejection,
+// instruction prefixing, default-model fallback, abort, and the no-call short-circuit on an all-empty
+// batch. NOTE: the REAL jina-clip-v2 ONNX load (1024 text features) is verified by the opt-in,
+// network-gated `embed.int.test.ts` (ORB_LOCAL_LIGHT_E2E=1) — CI exercises only this fake-cache seam.
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
@@ -20,6 +23,8 @@ import { describe, expect, test } from "vitest";
 // unconstructable from a literal, so double-cast for the test).
 const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
 const MODEL = "Xenova/test-embed" as ModelId;
+// The unified embed space — every local-light vector must be this length to fit the F32_BLOB(1024) column.
+const VECTOR_DIM = 1024;
 
 /** A fake cache whose embedder returns a fixed 4-dim RAW vector per input and records the texts it saw. */
 function fakeCache(record: { texts?: readonly string[] }): LocalLightModelCache {
@@ -66,6 +71,29 @@ describe("createLocalLightEmbed", () => {
     expect(res.vectors[3]).toBeInstanceOf(Float32Array);
     expect(res.model).toBe(MODEL);
     expect(res.usage).toEqual({ promptTokens: null, totalTokens: null });
+  });
+
+  test("a fake jina-clip cache yields a 1024-dim, unit-normalized vector tagged with the jina model", async () => {
+    // The fake mirrors the real jina-clip text head: a RAW (un-normalized) 1024-dim vector per input.
+    const cache: LocalLightModelCache = {
+      embedTexts: (_modelId, texts): Promise<Float32Array[]> =>
+        Promise.resolve(
+          texts.map(() => Float32Array.from({ length: VECTOR_DIM }, (_v, i) => i + 1)),
+        ),
+      scorePairs: (): Promise<number[]> => Promise.resolve([]),
+      embedImages: (): Promise<Float32Array[]> => Promise.resolve([]),
+      embedClipTexts: (): Promise<Float32Array[]> => Promise.resolve([]),
+    };
+    const res = await embedOf(cache)({
+      credential: CRED,
+      model: DEFAULT_EMBED_MODEL as ModelId,
+      input: "into the unified space",
+    });
+
+    const vec = requireVector(res.vectors[0] ?? null);
+    expect(vec).toHaveLength(VECTOR_DIM);
+    expect(cosineSim(vec, vec)).toBeCloseTo(1, 5);
+    expect(res.model).toBe(DEFAULT_EMBED_MODEL);
   });
 
   test("a single string yields a one-element, L2-normalized vector array", async () => {

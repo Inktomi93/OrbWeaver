@@ -1,10 +1,17 @@
 // infra/providers/backends/local-light/model-cache — the lazy, memoized transformers.js/ONNX model
 // loader + the inference seam. THE single home for the `@huggingface/transformers` coupling: every raw
-// pipeline / model / tokenizer / processor load + run lives here, so the role files
-// (embed/rerank/image-embed) stay pure transforms over `Float32Array`/`number` and are unit-testable
-// with an injected fake cache (no network, no ONNX session). Load-once-reuse: a model loads on first
-// use and is memoized (bounded — see MODEL_CACHE_CAP); concurrent first calls share the one in-flight
-// load promise (the map stores the promise, not the resolved model).
+// model / tokenizer / processor load + run lives here, so the role files (embed/rerank/image-embed)
+// stay pure transforms over `Float32Array`/`number` and are unit-testable with an injected fake cache
+// (no network, no ONNX session). Load-once-reuse: a model loads on first use and is memoized (bounded —
+// see MODEL_CACHE_CAP); concurrent first calls share the one in-flight load promise (the map stores the
+// promise, not the resolved model).
+//
+// THE EMBED SPACE (decided 2026-06-28): the default text+image embedder is the ONE multimodal model
+// `jinaai/jina-clip-v2` (AutoModel → JinaCLIPModel) — a single model with a text encoder AND an image
+// encoder trained into the SAME 1024-dim joint space (text↔image cosine-comparable). It mirrors, on
+// CPU, vLLM's "one Qwen3-VL serves both embed + imageEmbed" design and fits the `F32_BLOB(1024)` column
+// (knowledge-cluster.md §1). One load serves BOTH roles: text features back the embed role, image
+// features back the imageEmbed role. (rerank stays a separate text-only cross-encoder — dim-agnostic.)
 //
 // DEVICE SELECTION (D39 — the CPU+CUDA "any box" tier): the resolved device (default "auto") is handed
 // straight to transformers.js, which maps it to an ONNX execution-provider list — on linux-x64 that is
@@ -19,13 +26,11 @@
 
 import type { DataType, DeviceType } from "@huggingface/transformers";
 import {
+  AutoModel,
   AutoModelForSequenceClassification,
   AutoProcessor,
   AutoTokenizer,
-  CLIPTextModelWithProjection,
-  CLIPVisionModelWithProjection,
   env,
-  pipeline,
   RawImage,
   Tensor,
 } from "@huggingface/transformers";
@@ -54,7 +59,8 @@ const DEFAULT_DTYPE: DataType = "fp32";
  * inject a deterministic fake implementing this interface; the real one is {@link createModelCache}.
  */
 export interface LocalLightModelCache {
-  /** Mean-pooled, RAW (un-normalized) text embeddings — one `Float32Array` per input, native dim. */
+  /** RAW (un-normalized) text embeddings from the unified jina-clip text encoder — one `Float32Array`
+   *  per input, native 1024 dim. Same encoder as {@link embedClipTexts} (one model, one joint space). */
   readonly embedTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
   /** Raw cross-encoder relevance logits — one score per document, index-aligned to `documents`. */
   readonly scorePairs: (
@@ -62,9 +68,11 @@ export interface LocalLightModelCache {
     query: string,
     documents: readonly string[],
   ) => Promise<number[]>;
-  /** RAW CLIP image-projection embeddings (joint space) — one `Float32Array` per image. */
+  /** RAW image embeddings from the unified jina-clip image encoder — the SAME 1024 joint space as the
+   *  text side (image↔text cosine-comparable) — one `Float32Array` per image. */
   readonly embedImages: (modelId: string, images: readonly ImageInput[]) => Promise<Float32Array[]>;
-  /** RAW CLIP text-projection embeddings (joint space) — one `Float32Array` per input. */
+  /** RAW jina-clip TEXT embeddings into the joint image/text space — one `Float32Array` per input.
+   *  Identical encoder to {@link embedTexts}; a distinct seam method for the imageEmbed role caller. */
   readonly embedClipTexts: (modelId: string, texts: readonly string[]) => Promise<Float32Array[]>;
 }
 
@@ -215,13 +223,14 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     env.cacheDir = config.cacheDir;
   }
 
-  const embedder = createMemo(
+  // The unified multimodal embedder (AutoModel → JinaCLIPModel for a jina-clip id): ONE model, two
+  // encoders into ONE 1024-dim joint space. One load serves BOTH the embed role (text features) and the
+  // imageEmbed role (image features) — mirroring vLLM's "one Qwen3-VL serves both" on CPU.
+  const jinaEmbedder = createMemo(
     (id) =>
-      loadWithCpuFallback(device, (dev) =>
-        pipeline("feature-extraction", id, { device: dev, dtype }),
-      ),
-    (p) => {
-      void p.dispose();
+      loadWithCpuFallback(device, (dev) => AutoModel.from_pretrained(id, { device: dev, dtype })),
+    (m) => {
+      void m.dispose();
     },
   );
   const reranker = createMemo(
@@ -233,25 +242,9 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       void m.dispose();
     },
   );
-  const clipText = createMemo(
-    (id) =>
-      loadWithCpuFallback(device, (dev) =>
-        CLIPTextModelWithProjection.from_pretrained(id, { device: dev, dtype }),
-      ),
-    (m) => {
-      void m.dispose();
-    },
-  );
-  const clipVision = createMemo(
-    (id) =>
-      loadWithCpuFallback(device, (dev) =>
-        CLIPVisionModelWithProjection.from_pretrained(id, { device: dev, dtype }),
-      ),
-    (m) => {
-      void m.dispose();
-    },
-  );
-  // Tokenizers + processors are CPU-only preprocessing (no ONNX EP), so no device/fallback needed.
+  // Tokenizers + processors are CPU-only preprocessing (no ONNX EP), so no device/fallback needed. The
+  // tokenizer serves rerank (the text-only cross-encoder); the processor (a JinaCLIPProcessor for a
+  // jina-clip id) tokenizes text AND preprocesses images for the unified embedder.
   const tokenizer = createMemo(
     (id) => AutoTokenizer.from_pretrained(id),
     () => undefined,
@@ -261,15 +254,23 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
     () => undefined,
   );
 
+  // Run the unified jina-clip TEXT encoder → RAW (un-normalized) 1024-dim `text_embeddings`. Both the
+  // embed role and the imageEmbed text side share this ONE encoder (one model, one joint space). A
+  // text-only call passes no images; JinaCLIPModel fills a zero-sized dummy image tensor and returns
+  // only the text head.
+  const embedJinaTexts = async (
+    modelId: string,
+    texts: readonly string[],
+  ): Promise<Float32Array[]> => {
+    const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
+    const inputs = await proc([...texts], null, { padding: true, truncation: true });
+    const out = (await model(inputs)) as Record<string, unknown>;
+    return tensorRows(requireTensor(out, "text_embeddings", modelId));
+  };
+
   return {
-    async embedTexts(modelId, texts): Promise<Float32Array[]> {
-      if (texts.length === 0) {
-        return [];
-      }
-      const extractor = await embedder(modelId);
-      // RAW pooled vectors (normalize:false) — the embed role L2-normalizes after any MRL truncation.
-      const output = await extractor([...texts], { pooling: "mean", normalize: false });
-      return tensorRows(output);
+    embedTexts(modelId, texts): Promise<Float32Array[]> {
+      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
     },
 
     async scorePairs(modelId, query, documents): Promise<number[]> {
@@ -291,21 +292,19 @@ export function createModelCache(config: ModelCacheConfig = {}): LocalLightModel
       if (images.length === 0) {
         return [];
       }
-      const [proc, model] = await Promise.all([processor(modelId), clipVision(modelId)]);
+      const [proc, model] = await Promise.all([processor(modelId), jinaEmbedder(modelId)]);
       const raws = await Promise.all(images.map((image) => RawImage.read(toImageSource(image))));
-      const inputs = await proc(raws);
+      // Image-only call (no text): the processor preprocesses pixels; JinaCLIPModel fills a zero-sized
+      // dummy text tensor and returns only the image head — the SAME 1024 joint space as the text side.
+      const inputs = await proc(null, raws);
       const out = (await model(inputs)) as Record<string, unknown>;
-      return tensorRows(requireTensor(out, "image_embeds", modelId));
+      return tensorRows(requireTensor(out, "image_embeddings", modelId));
     },
 
-    async embedClipTexts(modelId, texts): Promise<Float32Array[]> {
-      if (texts.length === 0) {
-        return [];
-      }
-      const [tok, model] = await Promise.all([tokenizer(modelId), clipText(modelId)]);
-      const inputs = tok([...texts], { padding: true, truncation: true });
-      const out = (await model(inputs)) as Record<string, unknown>;
-      return tensorRows(requireTensor(out, "text_embeds", modelId));
+    embedClipTexts(modelId, texts): Promise<Float32Array[]> {
+      // Identical encoder to embedTexts — the imageEmbed text side embeds into the joint space via the
+      // SAME jina-clip text head (text↔image comparable).
+      return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
     },
   };
 }
