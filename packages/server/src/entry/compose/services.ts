@@ -15,10 +15,6 @@
 // hoist is safe; the registry/executor still precede every consumer (credentials/connection) that needs them.
 //
 // FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
-//   • FLAG[PD-48]: the embeddings INDEXER is built but NOT subscribed — its `loadCardText`/`loadAssetBytes`
-//     canon-readers need un-principal system by-id reads (character.getCard/assets.getMetadata are owner-
-//     gated). The bus + emit are wired; subscription is one line when those reads land. Same family: the
-//     `embedCorpus`/`embedAssets` runner-env bulk seams (runner-env.ts).
 //   • FLAG[PD-49]: character.attachCardTag is inert — `domain/tag` exposes no atomic resolve-or-create-tag-
 //     by-name op, so character.bulkAddCardTag's injected attach can't be wired (only bulkAddCardTag uses it).
 //   • character.reapAssets — assets GC is PD-26 (best-effort no-op until then; called on every delete).
@@ -27,6 +23,7 @@
 
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
+import type { DomainEvent } from "@orb/contracts/events";
 import type { EndpointInspection } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
@@ -129,6 +126,12 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
   return (): TypeIdOf<P> => mintTypeId(prefix);
 }
 
+/** Exhaustiveness guard for the closed `DomainEvent` union — a new event member without a bus route is a
+ *  `tsc` error here (§7.5 string-union dispatch), not a silent drop. */
+function assertNeverEvent(event: never): never {
+  throw new Error(`unhandled domain event: ${JSON.stringify(event)}`);
+}
+
 /** Construct the full service graph + the boot handles. ASYNC: the boot-global `RoleClients` bundle resolves
  *  each derive-role's connection once (the PD-9 paydown) before the consumers that require it are built. */
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
@@ -199,34 +202,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bindRoleClientsForUser({ connection, executor }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
-  // ── The vector substrate (embeddings) + its event indexer (built; subscription DEFERRED — see header) ──
+  // ── The vector substrate (embeddings). Its event indexer is built AFTER the asset/character cluster below
+  //    (it injects their un-principal canon re-readers) and then subscribed to the bus. ─────────────────────
   const embeddings = createEmbeddingsService({
     db,
     roleClients,
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
-  });
-  const indexer = createEmbeddingsIndexer({
-    store: embeddings.store,
-    // FLAG[PD-48]: indexer built but not subscribed — needs character system loadCardText(characterId) +
-    // assets loadAssetBytes(assetId) un-principal by-id reads; until then card/asset writes don't re-embed.
-    // These reject loudly if ever invoked.
-    loadCardText: (): Promise<string | undefined> =>
-      Promise.reject(
-        new Error(
-          "embeddings indexer loadCardText: no un-principal system by-id card-text read on domain/character (getCard is principal-scoped) — FLAG[PD-48]",
-        ),
-      ),
-    loadAssetBytes: (): Promise<Uint8Array | undefined> =>
-      Promise.reject(
-        new Error(
-          "embeddings indexer loadAssetBytes: no un-principal system by-id owned-bytes read on domain/assets — FLAG[PD-48]",
-        ),
-      ),
-    roleClients,
-    embedDim: env.VLLM_EMBED_DIM,
-    imageEmbedDim: env.VLLM_EMBED_DIM,
   });
 
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
@@ -256,6 +239,33 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           "character.attachCardTag: domain/tag exposes no atomic resolve-or-create-tag-by-name op — FLAG[PD-49]",
         ),
       ),
+  });
+
+  // ── The embeddings indexer (the event SUBSCRIBER) + its bus subscription (PD-48 paid down) ─────────────
+  //    The canon re-readers are the UN-PRINCIPAL system by-id reads (D20 — the vector substrate carries no
+  //    ownerId; the indexer re-reads canon by the event's branded id with no owner gate). `?? undefined`
+  //    bridges the domains' `| null` "absent" convention to the indexer op's `| undefined` (a deleted source
+  //    is a silent skip either way). Subscribing wires character.updated → re-embed card-text, asset.created
+  //    → embed both image lenses; emit is fire-and-forget + error-isolated (event-bus.ts).
+  const indexer = createEmbeddingsIndexer({
+    store: embeddings.store,
+    loadCardText: async (characterId): Promise<string | undefined> =>
+      (await character.loadCardText(characterId)) ?? undefined,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
+      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    roleClients,
+    embedDim: env.VLLM_EMBED_DIM,
+    imageEmbedDim: env.VLLM_EMBED_DIM,
+  });
+  eventBus.subscribe((event: DomainEvent): Promise<void> => {
+    switch (event.type) {
+      case "character.updated":
+        return indexer.onCharacterUpdated(event);
+      case "asset.created":
+        return indexer.onAssetCreated(event);
+      default:
+        return assertNeverEvent(event);
+    }
   });
 
   // ── Leaf + remaining services ─────────────────────────────────────────────────────────────────────────

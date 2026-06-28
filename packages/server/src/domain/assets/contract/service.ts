@@ -68,4 +68,9 @@ export interface AssetsService {
    *  the webp bytes, or `undefined` (→ 404) for a non-hash, an off-ladder width, or a blob the caller
    *  doesn't own (per-user CAS keying is the physical gate). */
   readonly resolveVariant: (params: ResolveVariantParams) => Promise<Uint8Array | undefined>;
+  /** The image-embed canon re-reader: the CAS bytes of an asset by id ALONE (NO owner gate — D20: the vector
+   *  substrate carries no `ownerId`; the indexer is a trusted SYSTEM re-reader, never a user-facing surface).
+   *  `null` when the asset row is gone; a present-row-missing-blob is an integrity fault (`cas.read` throws).
+   *  NOT routed through `getMetadata`'s owner gate; wired only into the embeddings indexer at the root. */
+  readonly loadAssetBytes: (assetId: AssetId) => Promise<Uint8Array | null>;
 }

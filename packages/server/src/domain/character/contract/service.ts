@@ -135,6 +135,13 @@ export interface CharacterService {
    *  callers treat `null` as "skip, not an error"; it NEVER throws). */
   readonly getCard: (params: GetCardParams) => Promise<CharacterCard | null>;
 
+  // ── Card-text projection (embeddings indexer injects this — UN-PRINCIPAL, D20) ──
+  /** The card-text embed PROJECTION for a character, keyed by id ALONE (NO owner scope — D20: the vector
+   *  substrate carries no `ownerId`; the indexer is a trusted SYSTEM re-reader, never a user-facing surface).
+   *  `null` when the card is gone or synthetic. A read — never throws. NOT routed through `can()`/owner-gating;
+   *  wired only into the embeddings indexer at the composition root. */
+  readonly loadCardText: (characterId: CharacterId) => Promise<string | null>;
+
   // ── Re-import dedup (import-injected, internal) ─────────────────────────────
   /** The owner's existing character that already carries `importHash` (the re-import dedup oracle), or
    *  `null`. Owner-scoped: a different owner's same-hash card is never returned. A read — never throws. */

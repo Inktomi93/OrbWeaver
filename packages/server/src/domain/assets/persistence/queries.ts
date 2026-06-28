@@ -41,6 +41,29 @@ interface AssetMetadataRow {
   readonly size: number;
 }
 
+// File-local read shape (not exported): the CAS coordinates for an un-principal by-id bytes read.
+interface AssetCasRef {
+  readonly ownerId: UserId;
+  readonly hash: string;
+}
+
+/** The `(ownerId, hash)` CAS coordinates of an asset by id ALONE — NO owner scope (D20). The embeddings
+ *  indexer is a trusted SYSTEM consumer: vectors carry no `ownerId`, so the avatar-bytes re-read happens
+ *  un-principal, keyed only by the branded id the `asset.created` event carried (the owner is then derived
+ *  from the row to key the per-user CAS). NOT a user-facing surface — never routed through `getMetadata`'s
+ *  owner gate; the only caller is `loadAssetBytes` (the indexer's canon re-reader). Undefined when absent. */
+export async function loadAssetCasRefById(
+  db: Db,
+  assetId: AssetId,
+): Promise<AssetCasRef | undefined> {
+  const rows = await db
+    .select({ ownerId: assets.ownerId, hash: assets.hash })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
 /** The id of the caller's asset with this hash, or undefined when they have none. Owner-scoped. */
 export async function assetIdForHash(
   db: Db,
