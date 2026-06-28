@@ -103,6 +103,76 @@ describe("attach card tag by name", () => {
     expect(junction[0]?.tagId).toBe(ownerTags[0]?.id);
   });
 
+  test("defaults to source:'manual', status:'accepted' (the unchanged manual-add path)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "hero" });
+
+    const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+    expect(tagRows[0]?.source).toBe("manual");
+    const junction = await db
+      .select()
+      .from(characterTags)
+      .where(eq(characterTags.characterId, characterId));
+    expect(junction[0]?.status).toBe("accepted");
+  });
+
+  test("source:'card' + status:'pending' writes a card-sourced tag staged as a pending suggestion", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    const attached = await svc.attachCardTagByName({
+      ownerId: owner,
+      characterId,
+      tagName: "bard",
+      source: "card",
+      status: "pending",
+    });
+    expect(attached).toBe(true);
+
+    const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+    expect(tagRows[0]?.name).toBe("bard");
+    expect(tagRows[0]?.source).toBe("card");
+    const junction = await db
+      .select()
+      .from(characterTags)
+      .where(eq(characterTags.characterId, characterId));
+    expect(junction[0]?.status).toBe("pending");
+  });
+
+  test("a re-attach NEVER downgrades an accepted row back to pending (card re-import can't un-accept)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    // The user manual-adds the tag (accepted), then a card re-import re-attaches it as pending.
+    await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "bard" });
+    const reattached = await svc.attachCardTagByName({
+      ownerId: owner,
+      characterId,
+      tagName: "bard",
+      source: "card",
+      status: "pending",
+    });
+    expect(reattached).toBe(false); // already attached → a no-op, NOT a downgrade
+
+    const junction = await db
+      .select()
+      .from(characterTags)
+      .where(eq(characterTags.characterId, characterId));
+    expect(junction).toHaveLength(1);
+    expect(junction[0]?.status).toBe("accepted"); // still accepted — the no-op left it untouched
+    // the tag keeps the source it was born with (manual); a re-attach doesn't restamp source.
+    const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+    expect(tagRows[0]?.source).toBe("manual");
+  });
+
   test("a blank name is a no-op (returns false, no tag minted)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);

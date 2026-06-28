@@ -258,6 +258,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   //    (never clobber an explicit choice). `create` requires the acting Principal → ensureSeeded takes it. ──
   const characterSeeder = createDefaultCharacterSeeder({
     characters: character,
+    // Each default card's native tags land as card/pending suggestions (same carry as an imported card).
+    attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
+      tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),
     isSeeded: async (principal): Promise<boolean> =>
       (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
     markSeeded: async (principal, welcomeAssistantId): Promise<void> => {

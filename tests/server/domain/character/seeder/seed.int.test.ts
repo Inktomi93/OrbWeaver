@@ -19,11 +19,39 @@ import { describe, expect, test } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
-const ALL_HANDLES = DEFAULT_CHARACTER_CARDS.map((c) => c.handle);
+const ALL_HANDLES = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
+const ASSISTANT_CARD = DEFAULT_CHARACTER_CARDS.find(
+  (c) => c.input.handle === WELCOME_ASSISTANT_HANDLE,
+);
 
 interface MarkCall {
   readonly userId: UserId;
   readonly welcomeAssistantId: CharacterId | null;
+}
+
+interface TagAttachCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+}
+
+/** The injected card-tag attach for tests that don't assert on it (a no-op that reports newly-attached). */
+const noopAttach = (): Promise<boolean> => Promise.resolve(true);
+
+/** A recording stand-in for the injected card-tag attach (the source/status binding is a compose concern,
+ *  proven in the compose slice; here we assert the seeder CALLS the op with each card's tag names). */
+function recordingAttach(): {
+  readonly attachCardTag: (a: TagAttachCall) => Promise<boolean>;
+  readonly calls: TagAttachCall[];
+} {
+  const calls: TagAttachCall[] = [];
+  return {
+    calls,
+    attachCardTag: (a): Promise<boolean> => {
+      calls.push(a);
+      return Promise.resolve(true);
+    },
+  };
 }
 
 /** An in-memory stand-in for the settings latch (isSeeded/markSeeded), keyed by `principal.userId`. */
@@ -50,7 +78,11 @@ describe("createDefaultCharacterSeeder", () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
-    const seeder = createDefaultCharacterSeeder({ characters: svc, ...latch });
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
     const owner = await seedUser(db, { handle: "owner" });
     const actor = principal(owner);
 
@@ -65,7 +97,11 @@ describe("createDefaultCharacterSeeder", () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
-    const seeder = createDefaultCharacterSeeder({ characters: svc, ...latch });
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
     const owner = await seedUser(db, { handle: "owner" });
     const actor = principal(owner);
 
@@ -84,9 +120,17 @@ describe("createDefaultCharacterSeeder", () => {
     const actor = principal(owner);
 
     // First seeder seeds the pack + sets the latch.
-    await createDefaultCharacterSeeder({ characters: svc, ...latch }).ensureSeeded(actor);
+    await createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    }).ensureSeeded(actor);
     // A NEW seeder (fresh in-process memo) sharing the SAME persisted latch must NOT re-seed.
-    await createDefaultCharacterSeeder({ characters: svc, ...latch }).ensureSeeded(actor);
+    await createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    }).ensureSeeded(actor);
 
     const list = await svc.list({ principal: actor });
     expect(list).toHaveLength(ALL_HANDLES.length); // no duplicates
@@ -97,7 +141,11 @@ describe("createDefaultCharacterSeeder", () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
-    const seeder = createDefaultCharacterSeeder({ characters: svc, ...latch });
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
     const owner = await seedUser(db, { handle: "owner" });
     const actor = principal(owner);
     // A previous partial run already created the Assistant handle (latch NOT set — it crashed before marking).
@@ -124,10 +172,43 @@ describe("createDefaultCharacterSeeder", () => {
       create: (): Promise<CharacterDetail> => Promise.reject(new Error("db is on fire")),
       findByHandle: (): Promise<null> => Promise.resolve(null),
     };
-    const seeder = createDefaultCharacterSeeder({ characters: failing, ...latch });
+    const seeder = createDefaultCharacterSeeder({
+      characters: failing,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
     const actor = principal("usr_fresh" as UserId);
 
     await expect(seeder.ensureSeeded(actor)).resolves.toBeUndefined();
     expect(latch.marks).toHaveLength(0); // latch NOT set — the next touch retries
+  });
+
+  test("attaches each default card's native tags via the injected op (card/pending carry)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const latch = fakeLatch();
+    const attach = recordingAttach();
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: attach.attachCardTag,
+      ...latch,
+    });
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+
+    await seeder.ensureSeeded(actor);
+
+    // Every card's tags were attached (count = the sum across the pack), all owner-scoped.
+    const expectedTotal = DEFAULT_CHARACTER_CARDS.reduce((n, c) => n + c.tags.length, 0);
+    expect(attach.calls).toHaveLength(expectedTotal);
+    for (const call of attach.calls) {
+      expect(call.ownerId).toBe(owner);
+    }
+    // The welcome assistant's tags landed on the seeded assistant character.
+    const assistant = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
+    const assistantTags = attach.calls
+      .filter((c) => c.characterId === assistant?.characterId)
+      .map((c) => c.tagName);
+    expect(assistantTags).toEqual([...(ASSISTANT_CARD?.tags ?? [])]);
   });
 });

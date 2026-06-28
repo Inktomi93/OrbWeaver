@@ -6,11 +6,14 @@
 //      byte-identical re-import is safe + a no-op (import.md §Idempotency).
 //   4. PNG cards: CAS-store the SAME bytes as the avatar asset (one blob, both roles) → avatarAssetId.
 //   5. flatten + validate → CreateCharacterInput, then create via the injected op WITH the provenance stamp.
+//   6. carry the card's author-shipped tags: attach each parsed tag to the new character as a card/pending
+//      suggestion via the injected tag op (import.md §tag.md intersection — `card.tags` → `character_tags`
+//      `status:'pending'`, NOT a JSON column; the user's "Accept" later flips them to accepted).
 //
-// Boundaries-are-physics: the create / lookup / asset-store are INJECTED ops (context.ts) wired at the
-// composition root — import sideways-imports neither character nor assets, and never reads a db table (the
-// dedup lookup is the injected character read). Determinism: no clock/id/random here (the file hash is
-// content-derived; the id is minted by the injected create op).
+// Boundaries-are-physics: the create / lookup / asset-store / tag-attach are INJECTED ops (context.ts) wired
+// at the composition root — import sideways-imports neither character, assets, nor tag, and never reads a db
+// table (the dedup lookup is the injected character read). Determinism: no clock/id/random here (the file hash
+// is content-derived; the id is minted by the injected create op; the tag id by the injected tag op).
 
 import { isPng } from "@orb/kit/png-card-chunk";
 import { ImportCardError } from "../contract/errors";
@@ -52,10 +55,12 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
           : "bytes are not a readable V2/V3 character-card JSON",
       );
     }
+    const { card: characterCard, tags } = parsed;
 
     const importHash = importFileHash(bytes);
 
-    // Re-import dedup: a byte-identical card already imported by this owner is a no-op.
+    // Re-import dedup: a byte-identical card already imported by this owner is a no-op (the tags were
+    // attached on the first import; the attach is idempotent regardless, so nothing to redo here).
     const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });
     if (existing !== null) {
       return { characterId: existing, created: false, importHash };
@@ -66,13 +71,19 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME })
       : null;
 
-    const input = cardToCreateInput(parsed, avatarAssetId);
+    const input = cardToCreateInput(characterCard, avatarAssetId);
     const ref = await ctx.createCharacter({
       ownerId: ctx.ownerId,
       input,
       importedFrom: filename ?? null,
       importHash,
     });
+
+    // Carry the author-shipped tags as card/pending suggestions (the injected op binds source/status).
+    for (const tagName of tags) {
+      // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; card tag lists are short.
+      await ctx.attachCardTag({ ownerId: ctx.ownerId, characterId: ref.characterId, tagName });
+    }
 
     return { characterId: ref.characterId, created: true, importHash };
   };

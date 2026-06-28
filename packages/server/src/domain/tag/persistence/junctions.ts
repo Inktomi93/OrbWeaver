@@ -177,20 +177,23 @@ export async function insertJunctionRow(args: {
   await INSERTERS[args.targetType](args);
 }
 
-/** Attach ONE tag to a character (status `accepted`), idempotently, REPORTING whether it was newly attached.
+/** Attach ONE tag to a character at the given `status`, idempotently, REPORTING whether it was newly attached.
  *  `onConflictDoNothing` + RETURNING is the idempotent-with-signal idiom: a returned row ⇒ a NEW junction row
- *  (true); an empty result ⇒ the `(characterId, tagId)` row already existed (false — the carrier already had
- *  it, a true no-op that does NOT touch the existing row's status). Race-safe: the composite PK is the guard.
- *  This is the by-name attach path (`attachCardTagByName`); the status-flipping {@link INSERTERS} path is the
- *  principal-gated `attachTag` verb. */
-export async function attachCharacterTagAccepted(args: {
+ *  (true, born at `status`); an empty result ⇒ the `(characterId, tagId)` row already existed (false — a true
+ *  no-op that does NOT touch the existing row's status). That no-op-on-conflict is also the NO-DOWNGRADE belt:
+ *  a `pending` re-attach (a card re-import) leaves an already-`accepted` row accepted — it never un-accepts a
+ *  tag the user accepted. Race-safe: the composite PK is the guard. This is the by-name attach path
+ *  (`attachCardTagByName`: `accepted` for a manual add, `pending` for an import/seeded card suggestion); the
+ *  status-FLIPPING {@link INSERTERS} path (`onConflictDoUpdate`) is the principal-gated `attachTag` "Accept". */
+export async function attachCharacterTag(args: {
   readonly db: Db;
   readonly characterId: CharacterId;
   readonly tagId: TagId;
+  readonly status: TagStatus;
 }): Promise<boolean> {
   const inserted = await args.db
     .insert(characterTags)
-    .values({ characterId: args.characterId, tagId: args.tagId, status: "accepted" })
+    .values({ characterId: args.characterId, tagId: args.tagId, status: args.status })
     .onConflictDoNothing({ target: [characterTags.characterId, characterTags.tagId] })
     .returning({ tagId: characterTags.tagId });
   return inserted.length > 0;

@@ -84,6 +84,36 @@ the `character_tags` junction (exporting `accepted` rows). This collapses the tw
 surfaces into one, closes the round-trip gap, and makes "promote" a status flip rather
 than a copy. (See §Movement and §Invariants for the enforcement plan.)
 
+### DECIDED + the write side BUILT (Nate, 2026-06-28)
+
+The two-surface collapse is now the **decided, unified tag-provenance model**, and the *population* (write)
+side is built. The mechanism is exactly `tags.source` × `character_tags.status` — **one junction, three
+sources, one review surface, no separate flow** (the "without a whole nother aspect" constraint):
+
+| source | who writes it | status on write | meaning |
+|---|---|---|---|
+| **`card`** | **import** (an ST card's native `tags`) + **the default-character seeder** (the 5-card pack's author tags) | **`pending`** | author-shipped suggestions |
+| **`auto`** | the corpus **distill** pass (`discovery`, PD-40) | **`pending`** | machine-snagged suggestions |
+| **`manual`** | the user (`character.bulkAddCardTag`) | **`accepted`** | a deliberate user add — live immediately |
+
+- **The `pending` status replaces SillyTavern's import dialog.** ST (`references/sillytavern/.../tags.js`
+  `importTags`) gates card tags behind a 4-way `tag_import_setting` (ASK | NONE | ALL | ONLY_EXISTING) +
+  a blocking ASK dialog. Orbweaver is cleaner: **always import card tags as `pending` suggestions** and let
+  the user curate from the ONE pending-review surface (Accept → `accepted`) — no per-import setting, no
+  blocking dialog. (ST's `['ROOT','TAVERN']` internal-tag exclusion has no orbweaver analog; the carry only
+  trims empties + dedupes case-insensitively.)
+- **Import + distill JOIN on one surface, distinguished by `source`.** Both write `status:'pending'` rows to
+  `character_tags`; the user's Accept flips `pending→accepted` regardless of origin. `source` is the only
+  thing that differs — there is no second table, no parallel "proposed" store.
+- **ONE parameterized attach op.** `tag.attachCardTagByName({ ownerId, characterId, tagName, source?, status? })`
+  — defaults `source:'manual', status:'accepted'` (the user manual-add path, unchanged); import + the seeder
+  pass `source:'card', status:'pending'`; distill (PD-40) will pass `source:'auto', status:'pending'`. Resolve-
+  or-create is race-safe (`INSERT … ON CONFLICT (ownerId, name)`); the attach is idempotent.
+- **A re-import never un-accepts.** Re-attaching a tag the user already `accepted` does NOT downgrade it back
+  to `pending` (a card re-import must not silently revert curation).
+- The **Accept/Reject UI** is the Phase-6 client surface; the server write side (import + seed → `card`/
+  `pending`) is what's built now.
+
 ---
 
 ## 8-slot layout

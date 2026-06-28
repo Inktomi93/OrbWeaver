@@ -191,7 +191,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     credentialsKeyOk: deps.credentialsKeyOk,
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
-  registerUpload(app, { assets: deps.assets, character: deps.character });
+  registerUpload(app, {
+    assets: deps.assets,
+    character: deps.character,
+    tag: deps.services.tag,
+  });
   // single-user mode: no `authenticate` port (local-password login deferred) and no `oidc` bundle (PD-5),
   // so only the always-on logout route registers — login/oidc simply don't (the fail-closed posture).
   registerAuthRoutes(plain, { sessions: deps.sessions, now: deps.now });

@@ -4,9 +4,10 @@
 // card (the batch continues; the failure is recorded, never thrown) — import.md §"bulk driver" / inv 8.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImportAssetPort, ImportCharacterPort } from "@orb/server/entry/import";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
 import { describe, expect, test } from "vitest";
 
@@ -30,6 +31,33 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 const noopAssets: ImportAssetPort = {
   store: (): Promise<{ assetId: AssetId }> =>
     Promise.resolve({ assetId: castId<AssetId>("ast_x") }),
+};
+
+interface TagAttachCall {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+  readonly source: TagSource;
+  readonly status: TagStatus;
+}
+
+/** A recording tag port (the driver binds source:'card'/status:'pending'; tests assert exactly that). */
+function recordingTag(): { readonly tag: ImportTagPort; readonly calls: TagAttachCall[] } {
+  const calls: TagAttachCall[] = [];
+  return {
+    calls,
+    tag: {
+      attachCardTagByName: (params): Promise<boolean> => {
+        calls.push(params);
+        return Promise.resolve(true);
+      },
+    },
+  };
+}
+
+// A no-op tag port for tests that don't assert on the carry.
+const noopTag: ImportTagPort = {
+  attachCardTagByName: (): Promise<boolean> => Promise.resolve(true),
 };
 
 describe("runProfileImport", () => {
@@ -58,6 +86,7 @@ describe("runProfileImport", () => {
       principal: OWNER,
       character,
       assets,
+      tag: noopTag,
       files: [{ bytes: cardBytes(), filename: "Aria.png" }],
     });
 
@@ -89,6 +118,7 @@ describe("runProfileImport", () => {
       principal: OWNER,
       character,
       assets: noopAssets,
+      tag: noopTag,
       files: [{ bytes: cardBytes(), filename: "Aria.png" }],
     });
 
@@ -108,6 +138,7 @@ describe("runProfileImport", () => {
       principal: OWNER,
       character,
       assets: noopAssets,
+      tag: noopTag,
       files: [
         { bytes: garbageBytes(), filename: "bad.json" },
         { bytes: cardBytes(), filename: "ok.json" },
@@ -136,9 +167,38 @@ describe("runProfileImport", () => {
       principal: OWNER,
       character,
       assets: noopAssets,
+      tag: noopTag,
       files: [{ bytes: cardBytes() }],
     });
 
     expect(seenOwner).toBe(OWNER.userId);
+  });
+
+  test("carries the card's tags as card/pending suggestions to the created character", async () => {
+    const character: ImportCharacterPort = {
+      create: (): Promise<{ id: CharacterId }> =>
+        Promise.resolve({ id: castId<CharacterId>("chr_tagged") }),
+      findByImportHash: (): Promise<null> => Promise.resolve(null),
+    };
+    const tagged =
+      '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tagged","description":"x","tags":["bard","fantasy"]}}';
+    const rec = recordingTag();
+
+    await runProfileImport({
+      principal: OWNER,
+      character,
+      assets: noopAssets,
+      tag: rec.tag,
+      files: [{ bytes: new TextEncoder().encode(tagged), filename: "tagged.json" }],
+    });
+
+    expect(rec.calls).toHaveLength(2);
+    for (const call of rec.calls) {
+      expect(call.ownerId).toBe(OWNER.userId);
+      expect(call.characterId).toBe("chr_tagged");
+      expect(call.source).toBe("card");
+      expect(call.status).toBe("pending");
+    }
+    expect(rec.calls.map((c) => c.tagName)).toEqual(["bard", "fantasy"]);
   });
 });
