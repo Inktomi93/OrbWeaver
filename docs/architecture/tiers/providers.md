@@ -497,11 +497,22 @@ Two dispatch axes are infra-sealed and stay so, gated:
   It is a request-shaper over the chat role so it never duplicates chat logic (the vLLM surface already
   is one). The OR summarize converges on the same shaper shape (today a distinct runner — collapse it).
 
-- **rerank-hosted gap — RESOLVED (behavior is decided; the provider is the external gap).** OpenRouter
-  has no generic rerank endpoint, so the `rerank` role's **hosted arm throws a typed
-  `ChatError`/not-supported** until a rerank-specific provider (Cohere/Jina/Voyage) is wired; the local
-  (vLLM / ONNX cross-encoder) backends remain the rerank path. Flagged, not faked — the typed throw is
-  the contract, not a silent fallback.
+- **rerank-hosted — WIRED (PD-11, 2026-06-28; the prior "no endpoint" premise was stale).** `@openrouter/sdk`
+  ships `client.rerank.rerank`, so the `rerank` role's **hosted arm IS a real call** (text-only: the wire
+  `query` is a string, documents are scored on their text; an image-only query is a typed
+  `ProviderError({kind:"invalid"})`, never a crash). The local (vLLM / ONNX cross-encoder) backends remain
+  the **default keyless** rerank path; the OpenRouter arm serves when a role resolves to it. OpenRouter's
+  index-based results map back to each document's **caller id** (documents carry caller ids; hits preserve
+  them — never the raw array index). No silent fallback — a rerank rejection still propagates.
+
+- **Multimodal image input — IN SCOPE (D45); the chat translators map image content-parts.**
+  `ChatHistoryMessage.content` (`infra/providers/contract/chat.ts`) is a content-part array (`text` |
+  `image`), not a bare string; each sealed chat translator (agent-sdk · openrouter-chat-completions ·
+  custom-byo + the vLLM chat surface) maps `image` parts to its backend's wire (Anthropic image blocks ·
+  OpenAI `image_url` · …). Gated by `ModelCapability.vision` (read off the request per the
+  connection→infra descriptor-on-request rule) — a non-vision model drops image parts at assembly with a
+  `warning` ChatEvent (D41), never a hard throw. The reshape is born-compliant before Phase 5 (it touches
+  all three translators + the assembly seam).
 
 - **Custom/BYO response-mapping schema — DEFERRED (schema shape only).** §1a's user-declared response
   mappings (how to read content/usage/finish/stream from a non-standard response) = a subset of the
@@ -633,7 +644,7 @@ user's setup:
 | Role | local-light (transformers.js / ONNX, **CPU or CUDA**) | local-heavy (vLLM) | hosted (key) |
 |---|---|---|---|
 | **embed** | small models (BGE/MiniLM/…) — the "any box" tier (ST parity) *(own space)* | **Qwen3-VL** (multimodal, dual-lens avatar embeds) | **OpenRouter Qwen-embed (SAME space as vLLM)** · OpenAI · Cohere · Voyage |
-| **rerank** | ONNX cross-encoder *(own space)* | vLLM Qwen reranker | **OpenRouter Qwen reranker (likely — verify)** · Cohere/Jina/Voyage |
+| **rerank** | ONNX cross-encoder *(own space)* | vLLM Qwen reranker | **OpenRouter `rerank.rerank` (WIRED, PD-11)** · Cohere/Jina/Voyage (via OR's rerank router) |
 | **imageEmbed** | CLIP / SigLIP ONNX *(own space)* | Qwen3-VL | **OpenRouter Qwen-VL (SAME space as vLLM)** |
 | **generateImage** | — | — | **OpenRouter image models** (hosted-primary; don't pigeonhole) |
 | **summarize** | — *(not a model — it's a `chat` turn shaped, on whatever chat backend the user has)* | | |
@@ -645,13 +656,14 @@ plus image-gen — so every role has a hosted option, and the local-heavy and ho
 - **Re-add the lightweight in-process backend** (transformers.js/ONNX, CPU **and** CUDA) — the "works on
   any box" tier, so a no-GPU user never has to stand up vLLM. (neo-tavern removed it 2026-06-11; that
   removal is the regret.) **DECIDED (council 2026-06-25): this is a v1 scaffold PREREQUISITE, not a
-  later item** — without it a GPU-less, cloud-key-less user gets no working memory search + no rerank
-  (hosted rerank is a typed-throw), and the "strict superset" claim fails for the "any box" crowd
+  later item** — without it a GPU-less, **cloud-key-less** user gets no working memory search + no rerank
+  (hosted rerank needs an OpenRouter key), and the "strict superset" claim fails for the "any box" crowd
   (product seat's one real risk). Build it in the same wave as the other embed/rerank backends. (ledger §5.)
 - **`summarize` runs the `chat` role with a summarize prompt** on the user's chat backend — no separate
   engine. ("Summarize via OpenRouter" = just chat.)
-- **rerank-hosted is a genuine gap** — OpenRouter has no generic rerank; hosted rerank needs a
-  rerank-specific provider or falls back to a local backend. Flagged, not faked.
+- **rerank-hosted is WIRED (PD-11)** — `@openrouter/sdk` ships `client.rerank.rerank` (text-only); the
+  hosted arm is a real call when a role resolves to OpenRouter. The local cross-encoder remains the
+  default keyless path. (The earlier "OpenRouter has no generic rerank" note was stale.)
 - **Local compute is the OWNER's box resource — the second class of "whose box it is" (ledger D17).** Both
   local backends (vLLM + the in-process transformers.js/ONNX light tier) run on the **owner's hardware**;
   the vLLM role-client credential is keyless/loopback ("open to every authenticated user",

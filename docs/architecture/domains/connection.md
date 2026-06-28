@@ -34,7 +34,9 @@ Concretely, `connection` owns:
   `supportedParameters` + family otherwise; static for vLLM; **user-declared for custom/BYO**. Replaces
   `ChatModel` + `FAMILY_CAPS` + the three `derive*Profile` functions (OR/vLLM/custom-openai). Produces a
   `ModelCapability` value (defined in `@orb/contracts`) carrying distinct axes for reasoning /
-  sampling / verbosity / output / context. Sits **inside `connection`'s `catalog/` subsystem** —
+  sampling / verbosity / output / context / **input-modality** (the `vision` flag — whether the model
+  accepts image input; **D45**: the gate that decides whether a turn's `image` content-parts may be sent;
+  synthesized per `(model, backend)` like the other axes). Sits **inside `connection`'s `catalog/` subsystem** —
   connection holds the OR snapshot, so it synthesizes without reaching into provider internals — and is
   surfaced to the client through the connection catalog endpoint; the panel iterates the descriptor, never
   re-hardcodes slider ranges. The infra translator receives the resolved descriptor **on the request**

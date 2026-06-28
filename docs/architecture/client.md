@@ -567,6 +567,14 @@ not a reversible impl seam). Also re-pin **`remark-gfm { singleTilde:false }`** 
 renders struck-through). Do NOT port neo's hand-rolled word-stagger / fence-aware re-parse — Streamdown ships
 incremental parse natively (confirm before deleting the streaming-tail repair, or the ghost regresses).
 
+### 11.7 Sequencing (born-compliant — the non-negotiable)
+Every §11.3 primitive, the §11.4 codegen, and all new gates ship in the **`@orb/ui` + client-foundation
+wave, BEFORE any feature agent runs.** The audit's verdict is unambiguous: *neo rotted in the gap between
+"feature shipped" and "gate written."* For orbweaver these are a **prerequisite of Phase 6**, sequenced like
+the Phase-0 backend gates were — a feature that lands before its gate is enforced retroactively, which is the
+exact ts-morph-out-of-a-mess this whole exercise exists to prevent. (§12.8 is the §12-content companion to
+this rule.)
+
 ### 11.8 Stack-currency verification (2026-06 — checked the load-bearing bets are best-practice, not stale)
 Every foundational choice was re-verified against current (June 2026) reality, since the design predates it:
 - **Base UI** — ✅ `@base-ui/react` is correct (renamed from the stale `@base-ui-components/react`); **1.0
@@ -649,18 +657,25 @@ safe-inline-render pattern anyone ships.
   `rehype-sanitize` → `rehype-harden` pipeline, configured to OUR explicit allowlist, not its permissive
   default): structural (`div/span/details/summary/table`-family/`blockquote`/`hr`) · text formatting · icons
   (mapped to **lucide**, not raw FontAwesome classes) · links (`rel=noopener` + prefix-allowlist) · images
-  (via `MessageImage`, 12.3). **Forbidden in Tier A:** `<script>` · `on*` handlers · `<style>` · inline
+  (via `MessageMedia`, 12.3). **Forbidden in Tier A:** `<script>` · `on*` handlers · `<style>` · inline
   `style=` · `<iframe>/<object>/<embed>/<form>/<input>`. Covers ~90% of "cards" (structured/styled text + icons).
 - **Tier B (opt-in per-character trust): elaborate self-contained HTML+CSS mini-UI → `@orb/ui/sandbox-frame`**
   = sandboxed iframe + per-frame CSP (`connect-src 'none'`, `img-src` allowlist), **render-on-complete** (hold
   the block until close — the iframe enforces this naturally; skeleton during stream), the validated
   theme-token subset injected so the card's `var(--accent)` tracks the active theme, postMessage auto-height,
   **lazy-mounted + virtualized** in the message list (the one real cost — a realm per card — bounded to opt-in
-  rich cards only). This is the Claude-Artifacts model.
+  rich cards only; **verify-at-build:** a recycled virtual row remounts its iframe → reload + flicker + lost
+  frame state, so Tier-B cards need a stable key + likely a no-recycle / over-scan window in
+  `@orb/ui/virtual-list`). This is the Claude-Artifacts model.
 - **Explicit NON-GOALS v1** (the dangerous ST features deliberately not carried): card JS / event handlers ·
   **action-buttons wired to app commands** (ST's QR/STscript surface) · forms · card-spawned iframes · inline
   `style`. **Doored, not walled:** because Tier B is already an iframe, interactivity later = flip
   `allow-scripts` for a *trusted* card (the Artifacts experience) — no re-architecture, just a gate change.
+- **Two sandboxes, orthogonal — do NOT conflate:** this iframe isolates untrusted **display** (card
+  HTML/CSS/UI); the **QuickJS-WASM** sandbox in `proposals/scripting-automation-extensibility.md` §7
+  isolates untrusted **logic** (automation rules / plugins). Different threat models, different primitives.
+  A card's future interactivity flips THIS iframe's `allow-scripts` (the Artifacts model) — it does NOT
+  route through QuickJS.
 
 ### 12.3 Images AND native media in chat — also two trust tiers (the new dimension)
 Covers `<img>` **and native `<audio controls>` / `<video controls>`** — verified from ST source as the
@@ -672,7 +687,9 @@ images plus two extras (autoplay = tracking beacon + annoyance, and bandwidth).
 - **TRUSTED = own uploads / assets → render freely from our store.** The "supporting pictures/media in
   messages" case: the user attaches in the composer → stored via the **`assets` domain (4c)** with
   variants/thumbnails from the **`infra/image` sharp adapter (4b)** → referenced as `asset://<id>` → served
-  from our own origin. Same path feeds the **multimodal send** (attach an image to a vision-capable model).
+  from our own origin. The same stored asset also feeds the **multimodal send** — the image as model
+    *input* to a vision-capable model, via the *send-side* content-part model (distinct from the render
+    model; see §12.4).
 - **UNTRUSTED = external URLs** (LLM markdown `![](url)`, untrusted card `<img>`/`<audio>`/`<video>`) → gated,
   defaulting to SAFE:
   - **`forbidExternalMedia: true` by default** (mirrors ST + D21): external media does NOT auto-load — the
@@ -707,6 +724,42 @@ emits image blocks from attachments; markdown stays markdown; card HTML carries 
 `forbidExternalMedia` + per-character `cardTrust` overrides resolve at chat **assembly** (`override ?? global`,
 extending D21). **This block union must land in the `@orb/contracts` pass, not be invented inside chat.**
 
+**Scope: pictures in chat = DISPLAY (this is the feature). Model-vision = separate + optional.** The actual
+want is plain: **send a picture (your own upload), receive and display it, and display an online image by
+URL.** That is *entirely the render model* — a `media` block (`src: AssetRef` for an upload, `ExternalUrl`
+for a link), rendered by `MessageMedia`, with `forbidExternalMedia` gating external URLs (§12.3). The model
+is NOT involved; nothing beyond the block union + the asset path is needed. **This is the committed
+feature.**
+
+The **provider-send model** — what is transmitted *to the model as input* — is called out ONLY so it isn't
+conflated with display. Sending an image *to* the model (true multimodal vision) is a different contract
+running the other direction:
+
+| | Render model | Provider-send model |
+|---|---|---|
+| Contract | `MessageContentBlock` (this §) | `ChatHistoryMessage.content` (`@orb/contracts/chat`) |
+| Direction | stored message → client display | assembled turn → the model |
+| Shape | block union (markdown / media / html-card) | content-part array (text / image parts) |
+| Gated by | trust-tier × render-tier (§12.2) | `ModelCapability.vision` — image parts are sent ONLY to vision-capable models |
+
+**Model-vision is ALSO committed — ledger D45 (sending an image TO the model).** Separate from display:
+this is the **provider-send** reshape — `ChatHistoryMessage.content`: `string` → content-part array (`text`
+| `image` parts), gated by a new `ModelCapability.vision` axis. It is **server-side**, so it is NOT a
+client-doc concern to spec — the authoritative homes are **`domains/connection.md`** (the
+`ModelCapability.vision` axis — the gate) + **`tiers/providers.md`** (the sealed translators map image parts
+to each backend's wire) + **`@orb/contracts/chat`** (the message DTOs); this § only records the render↔send
+distinction. **Born-compliant before Phase 5:** that `content:string` field is consumed by all three sealed
+translators + the assembly seam, so widening it after chat is built whole is the cross-cutting retrofit
+we're avoiding. A text-only turn is a one-element `[{ type:"text" }]` array — no `if(hasImage)` branch — and
+a non-vision model drops image parts at assembly with a `warning` ChatEvent (D41). **One uploaded image is
+stored once** (`assets`) and used both as a render `media` block (display, above) AND an `image` send-part
+(D45).
+
+**Born-compliant for DISPLAY (the part that IS required before Phase 5):** the `MessageContentBlock` union
+itself (so a message is text + image, not a bare string) + `MessageMedia` + `forbidExternalMedia` land in
+the `@orb/contracts` + `@orb/ui` passes before chat assembles content. That's the picture-in-chat feature;
+it's cheap and additive, and it does not touch the send wire.
+
 ### 12.5 Where each piece lives (the cake)
 | Concern | Home |
 |---|---|
@@ -735,7 +788,7 @@ extending D21). **This block union must land in the `@orb/contracts` pass, not b
   mid-stream image arrival doesn't shift layout.
 
 ### 12.8 Sequencing (born-compliant — non-negotiable)
-The `@orb/ui` primitives (`ThemeScope`, `sandbox-frame`, `MessageImage`), the `@orb/contracts`
+The `@orb/ui` primitives (`ThemeScope`, `sandbox-frame`, `MessageMedia`), the `@orb/contracts`
 `MessageContentBlock`/`ThemeOverride`, the CSP wiring, and the 12.6 gates ship in the **foundation/`@orb/ui`
 + contracts passes, BEFORE Phase 5 wires chat content** — same rule as §11.7. `assets` (4c) + `infra/image`
 (4b) are prerequisites already in the plan. A Phase-5 agent assembles messages against this spec; it does not
@@ -749,10 +802,3 @@ get to invent the content model or copy ST's string-blob.
 > + a small OWNED `sandbox-frame` (we own the exact `sandbox`/CSP attributes — don't depend on a generic lib
 > for the security boundary). `react-shadow`/`react-shadow-root` exist but are for our OWN design-system
 > encapsulation, the wrong tool for untrusted content.
-
-### 11.7 Sequencing (born-compliant — the non-negotiable)
-Every §11.3 primitive, the §11.4 codegen, and all new gates ship in the **`@orb/ui` + client-foundation
-wave, BEFORE any feature agent runs.** The audit's verdict is unambiguous: *neo rotted in the gap between
-"feature shipped" and "gate written."* For orbweaver these are a **prerequisite of Phase 6**, sequenced like
-the Phase-0 backend gates were — a feature that lands before its gate is enforced retroactively, which is the
-exact ts-morph-out-of-a-mess this whole exercise exists to prevent.
