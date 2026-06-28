@@ -7,7 +7,12 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthRoutesDeps, AuthSessionsPort, OidcRoutesDeps } from "@orb/server/entry/http";
+import type {
+  AuthRoutesDeps,
+  AuthSessionsPort,
+  LocalAuthenticator,
+  OidcRoutesDeps,
+} from "@orb/server/entry/http";
 import {
   registerAuthRoutes,
   serializeClearedSessionCookie,
@@ -28,7 +33,7 @@ interface MockReq {
 interface MockCtx {
   readonly header: (name: string, value: string) => void;
   readonly json: (body: unknown, status?: number) => Response;
-  readonly body: (data: BodyInit | null, status?: number) => Response;
+  readonly body: (data: string | Uint8Array | null, status?: number) => Response;
   readonly redirect: (location: string, status?: number) => Response;
   readonly req: {
     readonly parseBody: () => Promise<Record<string, string>>;
@@ -44,7 +49,7 @@ function makeCtx(req: MockReq): MockCtx {
   const out = new Headers();
   const merge = (
     status: number,
-    body: BodyInit | null,
+    body: string | Uint8Array | null,
     extra?: Record<string, string>,
   ): Response => {
     const headers = new Headers(out);
@@ -59,7 +64,7 @@ function makeCtx(req: MockReq): MockCtx {
     },
     json: (body: unknown, status = 200): Response =>
       merge(status, JSON.stringify(body), { "content-type": "application/json" }),
-    body: (data: BodyInit | null, status = 200): Response => merge(status, data),
+    body: (data: string | Uint8Array | null, status = 200): Response => merge(status, data),
     redirect: (location: string, status = 302): Response => merge(status, null, { location }),
     req: {
       parseBody: (): Promise<Record<string, string>> => Promise.resolve(req.parseBody ?? {}),
@@ -143,7 +148,7 @@ describe("cookie I/O", () => {
 });
 
 const ownerAuth =
-  (userId: UserId | null): AuthRoutesDeps["authenticate"] =>
+  (userId: UserId | null): LocalAuthenticator =>
   (): Promise<UserId | null> =>
     Promise.resolve(userId);
 

@@ -27,7 +27,7 @@ interface MockReq {
 }
 interface MockCtx {
   readonly get: (key: string) => Principal | null;
-  readonly body: (data: BodyInit | null, status?: number) => Response;
+  readonly body: (data: string | Uint8Array | null, status?: number) => Response;
   readonly req: {
     readonly param: (name: string) => string;
     readonly query: (name: string) => string | undefined;
@@ -38,7 +38,8 @@ type Handler = (c: MockCtx) => Promise<Response> | Response;
 function makeCtx(principal: Principal | null, req: MockReq): MockCtx {
   return {
     get: (key: string): Principal | null => (key === "principal" ? principal : null),
-    body: (data: BodyInit | null, status = 200): Response => new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response =>
+      new Response(data, { status }),
     req: {
       param: (name: string): string => req.params?.[name] ?? "",
       query: (name: string): string | undefined => req.query?.[name],

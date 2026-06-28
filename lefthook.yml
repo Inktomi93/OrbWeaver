@@ -6,18 +6,30 @@
 # per-worktree setup. Commands run from the worktree root (lefthook resolves it per-worktree), so a
 # fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
 #
-# Split: pre-commit is the FAST structural gate on staged files (Biome, ~1s); pre-push is the
-# HEAVY full `pnpm check` (lint + typecheck + — as they land — dep-cruiser + the suffix test lanes).
-# Bypass for emergencies: `git commit --no-verify` / `git push --no-verify`.
+# GREEN-TO-COMMIT is enforced HERE, not by discipline (born-compliant doctrine — "won't pass check →
+# won't commit"). The 2026-06-28 incident: test-FILE type errors (a DOM-only `BodyInit`, a bad
+# WorkloadEvent literal) rode through ~10 commits because the old pre-commit ran ONLY Biome on staged
+# files — and `pnpm check` (which runs `test:types`, the vitest typecheck lane that catches exactly
+# those) only fired at pre-push, which never ran across a long no-push session.
+#
+# Split (type/structure gate at COMMIT, behavioral tests at PUSH):
+#   • pre-commit → the full `pnpm check`: lint (Biome, whole repo) + per-package `tsc` + `test:types`
+#     (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
+#     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot
+#     be committed. (No separate staged-Biome step — `pnpm check`'s lint covers the whole repo.)
+#   • pre-push → `pnpm check` AND `pnpm test` (the unit/integration/contract run, ~3.5min) — the full
+#     green-to-commit bar before code leaves the machine; kept off pre-commit only for commit speed.
+# Bypass for genuine emergencies only: `git commit --no-verify` / `git push --no-verify`.
 
 pre-commit:
-  parallel: true
-  commands:
-    biome:
-      glob: "*.{ts,tsx,js,jsx,json,jsonc,css}"
-      run: pnpm exec biome check --no-errors-on-unmatched {staged_files}
-
-pre-push:
   commands:
     check:
       run: pnpm check
+
+pre-push:
+  piped: true
+  commands:
+    check:
+      run: pnpm check
+    test:
+      run: pnpm test
