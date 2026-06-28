@@ -46,6 +46,7 @@ export type { WorkloadProgress } from "./contract/workload-state";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
+  subscribeWorkloadWake,
   workloadStreamEmitter,
 } from "./engine/progress-bus";
 export { reapOrphanedWorkloads } from "./engine/reaper";

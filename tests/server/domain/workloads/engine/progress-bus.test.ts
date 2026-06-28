@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
+  subscribeWorkloadWake,
 } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { T0 } from "../_support.ts";
 
@@ -44,5 +45,19 @@ describe("progress-bus", () => {
       "progress",
       "succeeded",
     ]);
+  });
+
+  test("subscribeWorkloadWake fires the listener on every event + the unsubscribe stops it", () => {
+    let wakes = 0;
+    const unsubscribe = subscribeWorkloadWake(() => {
+      wakes += 1;
+    });
+    const id = castId<WorkloadId>("workload_wake");
+    emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 });
+    emitWorkloadEvent({ type: "succeeded", workloadId: id, kind: "reconcile-stats", at: T0 + 1 });
+    expect(wakes).toBe(2);
+    unsubscribe();
+    emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 + 2 });
+    expect(wakes).toBe(2); // no further wake after unsubscribe
   });
 });

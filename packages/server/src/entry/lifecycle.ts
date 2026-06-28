@@ -18,12 +18,20 @@ import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "#domain/sessions";
+import {
+  loadWorkload,
+  nextRunnableWorkload,
+  reapOrphanedWorkloads,
+  runWorkload,
+  subscribeWorkloadWake,
+} from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler";
+import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
 import { createApp } from "./app";
 import { createAuthSeam } from "./auth";
 import {
@@ -96,6 +104,8 @@ export function createLifecycle(): Lifecycle {
   let db: Db | null = null;
   let server: ServerType | null = null;
   let stopScheduler: (() => void) | null = null;
+  // The workloads worker loop runs until its AbortSignal fires; shutdown aborts it to drain the in-flight row.
+  let stopWorker: AbortController | null = null;
   // The vLLM supervisor's graceful-drain closer is SYNCHRONOUS (VllmEngineHandle.start → () => void).
   let drainVllm: (() => void) | null = null;
   let booted = false;
@@ -195,13 +205,40 @@ export function createLifecycle(): Lifecycle {
       },
       checkIntervalMs: CATALOG_CHECK_INTERVAL_MS,
     });
-    //   • workloads WORKER: FLAG[PD-50] — BLOCKED on the binder rework. `startWorkloadsWorker` needs a
-    //     `bindRoleClients` dep, but the `ProviderExecutor` is built INSIDE compose and is NOT on
-    //     `ServicesResult` — entry cannot reach it, and building a second BackendRegistry here to mint one
-    //     would double-spawn the vLLM engine (harmful, unlike the stateless CAS handle re-built below). The
-    //     PD-50 commit (binder → async, collapse to the single `bindRoleClientsForUser`) ALSO exposes
-    //     `executor` on `ServicesResult` and starts the worker here. Until then the worker is NOT started
-    //     (the scheduler's enqueued rows wait for it — at most one queued per kind, idempotent).
+    //   • workloads WORKER: the claim→run poll loop. Its per-dispatch role-clients come from the single
+    //     async binder compose exposes (`built.bindRoleClients` — the PD-50 collapse); the engine ops + the
+    //     wake-subscribe arrive via the workloads front door (the driver never touches the bus directly). The
+    //     loop runs until `workerAbort` fires (shutdown); fire-and-forget, errors logged (it self-recovers).
+    const workerAbort = new AbortController();
+    stopWorker = workerAbort;
+    const scheduleTimer = (fn: () => void, ms: number): (() => void) => {
+      const handle = setInterval(fn, ms);
+      return () => {
+        clearInterval(handle);
+      };
+    };
+    void startWorkloadsWorker({
+      runnerDeps: {
+        db,
+        env: built.runnerEnv,
+        bindRoleClients: built.bindRoleClients,
+        loadUserSettings: built.services.settings.loadUserSettings,
+        now,
+      },
+      signal: workerAbort.signal,
+      nextRunnable: nextRunnableWorkload,
+      run: runWorkload,
+      reap: reapOrphanedWorkloads,
+      load: loadWorkload,
+      subscribeWake: subscribeWorkloadWake,
+      scheduleInterval: scheduleTimer,
+      scheduleTimeout: scheduleTimer,
+    }).catch((err: unknown) => {
+      log.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        "workloads worker loop exited",
+      );
+    });
 
     // 10. build + serve the app; the CAS handle for the blob route is re-built here (stateless, same dir —
     //     the documented `entry/ wires createCas(env.ASSETS_DIR)` pattern; compose does not expose its own).
@@ -243,6 +280,11 @@ export function createLifecycle(): Lifecycle {
     if (stopScheduler !== null) {
       stopScheduler();
       stopScheduler = null;
+    }
+    if (stopWorker !== null) {
+      // Aborts the poll loop AND the in-flight row's run (the signal threads into runWorkload → cancelled).
+      stopWorker.abort();
+      stopWorker = null;
     }
     if (drainVllm !== null) {
       drainVllm();

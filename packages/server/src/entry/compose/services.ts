@@ -112,6 +112,10 @@ export interface ServicesResult {
   readonly eventBus: DomainEventBus;
   readonly runnerEnv: WorkloadRunnerEnv;
   readonly roleClients: RoleClients;
+  /** The per-owner `RoleClients` binder, PRE-BOUND to the connection service + the executor (async — it
+   *  resolves each role's `{credential, model}` via `connection.resolveRole`). The workloads worker's
+   *  `WorkloadRunnerDeps.bindRoleClients` is wired from this; entry never touches the raw executor. */
+  readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClients>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   readonly vllmEngine: VllmEngineHandle | null;
@@ -169,8 +173,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     loadUserSettings: settings.loadUserSettings,
   });
 
-  // ── The boot-global OWNER RoleClients bundle (resolved ONCE at boot; the search/embeddings/discovery dep) ─
-  const roleClients = await bindRoleClientsForUser({ connection, executor }, deps.ownerId);
+  // ── The per-owner RoleClients binder (the ONE binder — no vLLM floor): pre-bound to the connection service
+  //    + the executor. The boot-global OWNER bundle resolves through it ONCE; the workloads worker rebinds
+  //    per acting-owner through the same thunk (so workload roles honor the user's per-role roleDefaults). ──
+  const bindRoleClients = (ownerId: UserId): Promise<RoleClients> =>
+    bindRoleClientsForUser({ connection, executor }, ownerId);
+  const roleClients = await bindRoleClients(deps.ownerId);
 
   // ── The vector substrate (embeddings) + its event indexer (built; subscription DEFERRED — see header) ──
   const embeddings = createEmbeddingsService({
@@ -364,6 +372,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     eventBus,
     runnerEnv,
     roleClients,
+    bindRoleClients,
     effectiveConfig,
     secretBox,
     vllmEngine: registry.vllmEngine,

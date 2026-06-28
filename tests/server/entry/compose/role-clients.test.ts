@@ -1,11 +1,11 @@
-// entry/compose/role-clients — the two RoleClients binders. These pin the wiring the gold-standard
-// composition seam depends on: the ASYNC per-user binder resolves each derive-role via
-// `connection.resolveRole` and binds a thunk that dispatches through the executor with the RESOLVED
-// credential+model (provenance correct on the `*Model` fields); the SYNC vLLM-floor binder uses the minted
-// vLLM credential + the env-pinned model ids. Stub executor + stub resolveRole isolate the wiring.
+// entry/compose/role-clients — THE single RoleClients binder. Pins the wiring the gold-standard composition
+// seam depends on: the ASYNC per-user binder resolves each derive-role via `connection.resolveRole` and binds
+// a thunk that dispatches through the executor with the RESOLVED credential+model (provenance correct on the
+// `*Model` fields). There is no sync vLLM floor — a sync floor silently routed workload roles to vLLM,
+// breaking providers.md invariant #6. Stub executor + stub resolveRole isolate the wiring.
 
 import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolvedCredential, VllmCredential } from "@orb/contracts/credentials";
+import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type {
   EmbedResult,
   ImageEmbedResult,
@@ -15,8 +15,7 @@ import type {
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
-import { bindRoleClientsForUser, createVllmFloorRoleClients } from "@orb/server/entry/compose";
-import { env } from "@orb/server/foundation/env";
+import { bindRoleClientsForUser } from "@orb/server/entry/compose";
 import type { EmbedRequest, ProviderExecutor } from "@orb/server/infra/providers";
 import { expect, test } from "vitest";
 
@@ -80,22 +79,4 @@ test("bindRoleClientsForUser carries provenance-correct *Model tags from the res
   expect(clients.rerankModel).toBe("model-rerank");
   expect(clients.imageEmbedModel).toBe("model-imageEmbed");
   expect(clients.summarizerModel).toBe("model-summarize");
-});
-
-test("createVllmFloorRoleClients uses the minted vLLM credential + the env vLLM model ids", async () => {
-  const { executor, embedCalls } = recordingExecutor();
-  const vllmCredential = { source: "vllm" } as unknown as VllmCredential;
-  const clients = createVllmFloorRoleClients(
-    { credentials: { mintVllmCredential: () => vllmCredential }, executor },
-    OWNER,
-  );
-
-  await clients.embed("x");
-
-  expect(embedCalls[0]?.credential).toBe(vllmCredential);
-  expect(embedCalls[0]?.model).toBe(env.VLLM_EMBED_MODEL);
-  expect(clients.embedModel).toBe(env.VLLM_EMBED_MODEL);
-  expect(clients.rerankModel).toBe(env.VLLM_RERANK_MODEL);
-  expect(clients.imageEmbedModel).toBe(env.VLLM_EMBED_MODEL);
-  expect(clients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
 });

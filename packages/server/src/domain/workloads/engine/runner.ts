@@ -56,16 +56,18 @@ function dispatchAndRun(
 }
 
 /** Build the per-dispatch runner context — roleClients PRE-BOUND for the row's acting user (or the synthetic
- *  system id), settings reader cached to the same user, the cross-feature env hub, the injected clock. */
-function buildRunnerContext(
+ *  system id), settings reader cached to the same user, the cross-feature env hub, the injected clock. ASYNC:
+ *  the bind resolves each role's `{credential, model}` via `connection.resolveRole` (honoring per-role
+ *  roleDefaults) — the eager `*Model` provenance the sync floor could never carry. */
+async function buildRunnerContext(
   deps: WorkloadRunnerDeps,
   row: WorkloadRowAnyKind,
-): WorkloadRunnerContext {
+): Promise<WorkloadRunnerContext> {
   const userId: UserId = row.ownerId ?? SYSTEM_OWNER_ID;
   return {
     db: deps.db,
     userId,
-    roleClients: deps.bindRoleClients(userId),
+    roleClients: await deps.bindRoleClients(userId),
     loadUserSettings: () => deps.loadUserSettings(userId),
     env: deps.env,
     now: deps.now,
@@ -198,7 +200,7 @@ export async function runWorkload(
   }
   emitWorkloadEvent({ type: "started", workloadId: row.id, kind: row.kind, at: deps.now() });
 
-  const ctx = buildRunnerContext(deps, row);
+  const ctx = await buildRunnerContext(deps, row);
 
   // Compose the cancel controller: the incoming (worker shutdown) signal + the DB cancel-poll both abort it.
   const controller = new AbortController();
