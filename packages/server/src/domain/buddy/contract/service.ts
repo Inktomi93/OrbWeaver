@@ -1,0 +1,105 @@
+// domain/buddy/contract/service — the typed API surface (read THIS to know everything the domain does;
+// buddy.md §"Verbs"). Holds:
+//   • BuddyService        the 8-verb authoritative interface (the front door re-exports the type)
+//   • BuddyContext        the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
+//   • BuddyServiceDeps    what the entry root supplies (identical to the context — no transform)
+//   • the injected cross-feature op TYPES (buddy sideways-imports NO sibling runtime; every edge is a
+//     type-only op wired at the entry composition root — `domain-no-cross-feature`).
+//
+// THE INJECTION MODEL (buddy.md §"Cross-feature composition"):
+//   - `resolveAgentConnection`  connection.resolveRole('agent') → the buddy's brain + the resolved
+//                               credential + the capability descriptor. RECONCILED with buddy.md's
+//                               injection table: that table listed `credentials.resolve` +
+//                               `mintVllmCredential` as SEPARATE injected ops, but the connection
+//                               contract's `ResolvedConnection` ALREADY carries `.credential` (resolved
+//                               inside `resolveRole`, where the D17 owner gate lives). Re-resolving the
+//                               credential here would DOUBLE the resolve (against derive-don't-double,
+//                               §7.4); buddy reads `conn.credential`/`conn.model`/`conn.capability`. The
+//                               entry binder fixes `role:'agent'` + the buddy's per-agent override, so
+//                               buddy carries NEITHER the model literal NOR the routing logic
+//                               (buddy.md resolved decision; `resolveBuddyRouting` is deleted).
+//   - `agentTurn` / `buildToolServer`  the sealed `infra/providers` agent-mode runner + tool-server
+//                               factory (the firewall lives in the sealed runner; buddy never imports it).
+//   - `roleClients`             the bound inference clients (`summarize` → soul-gen at hatch).
+//   - `agentEnv`                the cross-feature HANDS (`startWorkload`) for the confirm→workload arm.
+// `now`/`newTurnId`/`newProposalId` are the injected determinism seam (no ambient clock/id — testing §3).
+
+import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Principal } from "@orb/contracts/identity";
+import type { RoleClients } from "@orb/contracts/role-clients";
+import type { Db } from "@orb/db";
+import type { BuddyTurnId } from "@orb/kit/ids";
+import type { BuddyAgentEnv } from "./agent-env";
+import type { AgentTurnOp, BuildToolServerOp } from "./agent-turn";
+import type {
+  AskBuddyParams,
+  BuddyHistoryParams,
+  ClearBuddyChatParams,
+  ConfirmBuddyParams,
+  GetBuddyParams,
+  HatchBuddyParams,
+  SetAgencyParams,
+  SetReactionsParams,
+} from "./params";
+import type {
+  AskBuddyResult,
+  BuddyTurnView,
+  ClearBuddyChatResult,
+  ConfirmBuddyResult,
+} from "./results";
+import type { BuddyView } from "./views";
+
+/** Resolve the buddy's agent connection (`connection.resolveRole('agent')` with `role` + the per-agent
+ *  override fixed by the entry binder). Returns the resolved `{ api, model, credential, capability }` —
+ *  the credential is already owner-gated (D17) inside resolution. */
+export type ResolveAgentConnectionOp = (params: {
+  readonly principal: Principal;
+}) => Promise<ResolvedConnection>;
+
+/**
+ * The DI bundle the buddy verbs close over (wired at the entry composition root; surfaced through
+ * `context.ts` as an explicit interface, never `ReturnType<>` — `no-context-returntype`). `db` routes
+ * all queries through `persistence/`; the cross-feature ops are injected (buddy imports no sibling
+ * runtime); `now`/`newTurnId`/`newProposalId` are the determinism seam.
+ */
+export interface BuddyContext {
+  readonly db: Db;
+  readonly now: () => number;
+  readonly newTurnId: () => BuddyTurnId;
+  /** Mints the ephemeral (non-persisted, 5-min-TTL) proposal id matched at `confirm`. */
+  readonly newProposalId: () => string;
+  readonly resolveAgentConnection: ResolveAgentConnectionOp;
+  readonly agentTurn: AgentTurnOp;
+  readonly buildToolServer: BuildToolServerOp;
+  readonly roleClients: RoleClients;
+  readonly agentEnv: BuddyAgentEnv;
+}
+
+/** What `createBuddyService` receives from the entry root. Identical to {@link BuddyContext} — no
+ *  deps→context transform — kept for front-door surface symmetry with the other domains. */
+export type BuddyServiceDeps = BuddyContext;
+
+/**
+ * Caller-scoped buddy operations — each user has exactly one buddy (PK = userId). Bones are rolled
+ * deterministically from the user id; the soul is model-authored at hatch. `ask` is the tool-using
+ * agent turn (may surface a proposal); `confirm` is the SOLE executor of a proposed action (buddy.md
+ * invariant #3). The reaction engine is started out-of-band (DEFERRED with the observer), not a verb.
+ */
+export interface BuddyService {
+  /** The caller's buddy — `unhatched` preview (deterministic bones) if not hatched, else the stored view. */
+  readonly get: (params: GetBuddyParams) => Promise<BuddyView>;
+  /** Hatch: snapshot the rolled bones + a model-authored soul. Idempotent (PK-race → reload the winner). */
+  readonly hatch: (params: HatchBuddyParams) => Promise<BuddyView>;
+  /** Talk to the buddy — a tool-using agent turn; the reply may carry a `proposal` to confirm. */
+  readonly ask: (params: AskBuddyParams) => Promise<AskBuddyResult>;
+  /** Confirm or cancel a pending proposal. The ONLY path that executes a buddy action. */
+  readonly confirm: (params: ConfirmBuddyParams) => Promise<ConfirmBuddyResult>;
+  /** The caller's persisted transcript, oldest-first (for hydration on load). */
+  readonly history: (params: BuddyHistoryParams) => Promise<BuddyTurnView[]>;
+  /** Wipe the caller's buddy-chat transcript. */
+  readonly clearChat: (params: ClearBuddyChatParams) => Promise<ClearBuddyChatResult>;
+  /** Toggle whether the buddy reacts to app events (the observer toggle). Returns the updated view. */
+  readonly setReactions: (params: SetReactionsParams) => Promise<BuddyView>;
+  /** Toggle the buddy's "hands" (the capability-ceiling kill switch). Returns the updated view. */
+  readonly setAgency: (params: SetAgencyParams) => Promise<BuddyView>;
+}

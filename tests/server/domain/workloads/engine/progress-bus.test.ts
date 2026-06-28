@@ -1,0 +1,48 @@
+// Engine test: the progress bus — the defensive empty-id throw (invariant #10) + the per-workload replay
+// ring (ordered catch-up for a late subscriber).
+
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { describe, expect, test } from "vitest";
+import {
+  emitWorkloadEvent,
+  getRecentWorkloadEvents,
+} from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { T0 } from "../_support.ts";
+
+describe("progress-bus", () => {
+  test("throws on an empty workloadId", () => {
+    expect(() =>
+      emitWorkloadEvent({
+        type: "started",
+        workloadId: castId<WorkloadId>(""),
+        kind: "reconcile-stats",
+        at: T0,
+      }),
+    ).toThrow();
+  });
+
+  test("records + replays a workload's events in order", () => {
+    const id = castId<WorkloadId>("workload_bus");
+    emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 });
+    emitWorkloadEvent({
+      type: "progress",
+      workloadId: id,
+      kind: "reconcile-stats",
+      at: T0 + 1,
+      progress: { message: "halfway" },
+    });
+    emitWorkloadEvent({
+      type: "succeeded",
+      workloadId: id,
+      kind: "reconcile-stats",
+      at: T0 + 2,
+      result: { owners: 1, characters: 4 },
+    });
+    expect(getRecentWorkloadEvents(id).map((e) => e.type)).toEqual([
+      "started",
+      "progress",
+      "succeeded",
+    ]);
+  });
+});
