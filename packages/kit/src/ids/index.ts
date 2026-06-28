@@ -192,6 +192,20 @@ export function mintTypeId<P extends string>(prefix: P): TypeIdOf<P> {
 }
 
 /**
+ * Mint a fresh PLAIN (non-TypeID) branded id — for the brands that are deliberately
+ * prefix-less nanoids, not `prefix_…` TypeIDs (today: `UserId`, db.md §4). The
+ * companion to {@link mintTypeId}: both gates (`no-mint-via-cast`, `no-raw-id`) name
+ * `newId<T>()` as THE plain-id minter so a row id never has to be laundered through
+ * {@link castId}. Mints via `typeid-js` with an EMPTY prefix → a 26-char base32
+ * (UUIDv7-backed, time-sortable) opaque id with no `prefix_` — isomorphic, and avoids
+ * `globalThis.crypto` (kit's no-DOM/no-node lib does not type it). Mirrors
+ * {@link mintTypeId}'s sanctioned `as string as T` cast (the minter is the one home).
+ */
+export function newId<T extends Branded<string>>(): T {
+  return typeidUnboxed("") as string as T;
+}
+
+/**
  * Zod schema for a STRICT TypeID at a request boundary: validates the `prefix_…`
  * shape AND that the prefix matches, then types output as the brand. Runtime win
  * over {@link brandedId}: a `chat_…` where a `persona_…` is expected is REJECTED

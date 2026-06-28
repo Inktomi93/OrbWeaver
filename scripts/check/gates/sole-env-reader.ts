@@ -12,8 +12,28 @@ import type { Check, Violation } from "../harness.ts";
 const SERVER_SRC = "/packages/server/src/";
 const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//;
 
+// The ONE sanctioned call-time process.env EXCEPTION (sessions.md §Esoteric, invariant #10): the
+// role-derivation policy reads exactly these three vars at CALL time (not via the frozen `env`) so per-test
+// `vi.stubEnv` drives the role matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other key,
+// or any process.env read elsewhere in the domain, stays RED.
+const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/;
+const SANCTIONED_KEYS = new Set(["OWNER_HANDLES", "OWNER_GROUP", "RE_DERIVE_ROLE_ON_LOGIN"]);
+
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
+}
+
+// A `process.env` node is a sanctioned role-policy read iff it is the object of `process.env["<KEY>"]`
+// where KEY is one of the three allowlisted vars.
+function isSanctionedRolePolicyRead(node: Node): boolean {
+  const parent = node.getParent();
+  if (parent === undefined || !Node.isElementAccessExpression(parent)) {
+    return false;
+  }
+  const arg = parent.getArgumentExpression();
+  return (
+    arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText())
+  );
 }
 
 // Is this node a `process.env` access (property `process.env` or element `process["env"]`)?
@@ -37,8 +57,12 @@ function isProcessEnvAccess(node: Node): boolean {
 }
 
 function scan(sf: SourceFile, root: string, out: Violation[]): void {
+  const isRolePolicy = ROLE_POLICY.test(sf.getFilePath());
   for (const node of sf.getDescendants()) {
     if (isProcessEnvAccess(node)) {
+      if (isRolePolicy && isSanctionedRolePolicyRead(node)) {
+        continue;
+      }
       out.push({
         file: relPath(root, sf.getFilePath()),
         line: node.getStartLineNumber(),
