@@ -8,8 +8,11 @@
 // lifecycle supervises (vLLM engine) / probes (SecretBox) / wires (event bus, indexer, runner-env).
 //
 // DETERMINISM: `now` is an injected param (compose NEVER calls `Date.now()`); id minters are built from the
-// kit `mintTypeId`/`newId` (the composition root is the sanctioned mint site). COMPOSE ORDER (D38): infra +
-// guards → sessions → settings → credentials → connection → roleClients → the leaf/heavy services.
+// kit `mintTypeId`/`newId` (the composition root is the sanctioned mint site). COMPOSE ORDER (D38): guards →
+// sessions → settings → credentials → connection → roleClients → the leaf/heavy services. settings is built
+// (and its effective-config cache boot-warmed) BEFORE the infra backend-registry so the registry sources the
+// admin-resolved `vllmConcurrency` from AppSettings (PD-14) — settings' deps don't touch the registry, so the
+// hoist is safe; the registry/executor still precede every consumer (credentials/connection) that needs them.
 //
 // FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
 //   • FLAG[PD-48]: the embeddings INDEXER is built but NOT subscribed — its `loadCardText`/`loadAssetBytes`
@@ -81,9 +84,10 @@ import { buildWorkloadRunnerEnv } from "./runner-env";
 
 /**
  * What boot supplies to stand up the whole service graph. `now` + `secretBoxKey` + `casDir`/`variantDir` +
- * the vLLM knobs are boot-resolved (crypto key path, data dirs, env); `ownerId` is the deployment owner the
+ * `vllmDisabled` are boot-resolved (crypto key path, data dirs, env); `ownerId` is the deployment owner the
  * boot-global `RoleClients` bundle resolves against; `providerSeams` is the test/durable-override channel for
- * the sealed backend registry (the only way to reach a sealed backend's deps).
+ * the sealed backend registry (the only way to reach a sealed backend's deps). The vLLM `concurrency` is NOT
+ * a boot dep — it is sourced from settings' resolved effective-config inside `createServices` (PD-14).
  */
 export interface ServicesDeps {
   readonly db: Db;
@@ -94,7 +98,6 @@ export interface ServicesDeps {
   readonly variantDir: string;
   readonly sessionSecret: string | null;
   readonly vllmDisabled: boolean;
-  readonly vllmConcurrency?: BackendRegistryDeps["vllmConcurrency"];
   readonly repoRoot?: string;
   readonly providerSeams?: Partial<BackendRegistryDeps>;
 }
@@ -131,12 +134,35 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
   const { db, now } = deps;
 
-  // ── Infra handles (the sealed I/O executors + the provider surfaces) ──────────────────────────────────
+  // ── Shared seams (the bound audit writer, the user-id minter, the in-process event bus) ───────────────
+  const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
+  const newUserId = (): UserId => newId<UserId>();
+  const eventBus = createDomainEventBus();
+
+  // ── guards → sessions → settings (the auth/config spine head, D38). settings is hoisted ABOVE the infra
+  //    backend-registry so the registry can source the admin-resolved vLLM concurrency from the effective-
+  //    config (PD-14). Its deps (db/now/audit + the pure guard fns) never touch the registry → safe hoist. ──
+  const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
+  const settings = createSettingsService({ db, now, audit, requireAdmin, requireOwner });
+
+  // ── The effective-config boot surface: warm the resolved-config cache from the stored override so the SYNC
+  //    getEffectiveConfig() returns the floor⊕override config (incl. vllmConcurrency) before the registry reads
+  //    it. The cache is module-scoped + lazily env-floored, so this boot warm is what lets a DB override land. ─
+  const effectiveConfig = createEffectiveConfigWiring(settings);
+  await effectiveConfig.reload();
+  const resolved = effectiveConfig.getEffectiveConfig();
+
+  // ── Infra handles (the sealed I/O executors + the provider surfaces). The backend registry sources the
+  //    resolved vLLM batch concurrency from AppSettings — ResolvedVllmConcurrency {embed,summarize} (every
+  //    field present) maps onto the registry's optional {embed?,summarize?} concurrency shape (PD-14). ───────
   const registry = createBackendRegistry({
     ...(deps.providerSeams ?? {}),
     now,
     vllmDisabled: deps.vllmDisabled,
-    ...(deps.vllmConcurrency !== undefined ? { vllmConcurrency: deps.vllmConcurrency } : {}),
+    vllmConcurrency: {
+      embed: resolved.vllmConcurrency.embed,
+      summarize: resolved.vllmConcurrency.summarize,
+    },
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
   });
   const executor = createProviderExecutor({ backends: registry.backends });
@@ -147,14 +173,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const imageAdapter = createImageAdapter();
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
 
-  // ── Shared seams (the bound audit writer, the user-id minter, the in-process event bus) ───────────────
-  const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
-  const newUserId = (): UserId => newId<UserId>();
-  const eventBus = createDomainEventBus();
-
-  // ── sessions → guards → settings → credentials → connection (the auth/config spine, D38) ──────────────
-  const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
-  const settings = createSettingsService({ db, now, audit, requireAdmin, requireOwner });
+  // ── credentials → connection (the rest of the auth/config spine, D38) ─────────────────────────────────
   const credentials = createCredentialsService({
     db,
     now,
@@ -340,9 +359,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
 
-  // ── The cross-feature workload hub + the effective-config boot surface ─────────────────────────────────
+  // ── The cross-feature workload hub (the effective-config surface is built up-front for PD-14) ──────────
   const runnerEnv = buildWorkloadRunnerEnv({ db, now, cas, discovery, connection });
-  const effectiveConfig = createEffectiveConfigWiring(settings);
 
   const services: Services = {
     admin,

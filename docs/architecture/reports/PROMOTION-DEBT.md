@@ -27,7 +27,6 @@ Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting o
 | PD-8 | `inspect-chat` `InspectedParticipant.{kind,role}: string` | `foundation/observability/debug/inspect/inspect-chat.ts` | `@orb/contracts/chat` roster-kind / `host\|member` unions | chat lands (P5) | blocked:chat(P5) |
 | PD-12 | credentials `CustomModelProfile` (BYO model profile) | deferred (credentials.md) | `@orb/contracts/credentials` (NOT importing `ModelCapability` — D31 cycle) | BYO custom-endpoint form | blocked:connection/credentials |
 | PD-13 | custom-byo `CustomOpenAiResponseMap` + `includeBody`/`excludeBody` | engine built; config type deferred | `@orb/contracts` + the credential metadata | custom-endpoint form | blocked:connection/client |
-| PD-14 | `VLLM_*_CONCURRENCY` runtime injection (schema landed) | `@orb/contracts/settings` (`vllmConcurrencySchema`) | transport/binder injects it (vs the deps default) | transport(4d) / binder | blocked:transport(4d) |
 | PD-16 | providers diagnostic `signal?` threading | carried on the request shapes, unthreaded | thread through once reachable | SDK ports gain request options | blocked:upstream-sdk |
 | PD-17 | chat `agent` participant kind / agent-as-first-class-principal (`provisionAgentPrincipal`, `users.isAgent`/`kind`) | v1 borrowed-owner posture | `chat` + `users` + identity | agent split (P5+) | blocked:chat(P5) |
 | PD-18 | `reconcile-world-state` WorkloadKind + the P5 workload/presence/buddy seams (D38) | reserved tuple member / type stubs | activate in chat/workloads | v2 / P5 | blocked:P5 |
