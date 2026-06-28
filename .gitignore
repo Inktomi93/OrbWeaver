@@ -31,7 +31,9 @@ coverage/
 *.lcov
 
 # --- quality tooling output (jscpd reports, stryker sandbox + reports) ---
-reports/
+# Root-anchored: ignores the tool-output dir at repo root only, NOT the tracked
+# architecture docs in docs/architecture/reports/ (the ledger, ENFORCEMENT, etc.).
+/reports/
 .stryker-tmp/
 
 # --- caches ---
