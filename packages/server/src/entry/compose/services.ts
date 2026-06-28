@@ -15,8 +15,6 @@
 // hoist is safe; the registry/executor still precede every consumer (credentials/connection) that needs them.
 //
 // FLAGGED INERT WIRES (no backing front-door verb in the current slices — see the report, not papered over):
-//   • FLAG[PD-49]: character.attachCardTag is inert — `domain/tag` exposes no atomic resolve-or-create-tag-
-//     by-name op, so character.bulkAddCardTag's injected attach can't be wired (only bulkAddCardTag uses it).
 //   • character.reapAssets — assets GC is PD-26 (best-effort no-op until then; called on every delete).
 //   • tag.requireParticipant — chat membership gate is PD-19 (chat is P5).
 //   • import — its service is PER-OWNER (`ImportContext.ownerId`), built by the `entry/import` driver later.
@@ -212,6 +210,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
   });
 
+  // ── Tag (built BEFORE character so character's by-name card-tag attach port wires to the real tag verb —
+  //    PD-49 paid down; tag has no upward deps, so the hoist is safe) ─────────────────────────────────────
+  const tag = createTagService({
+    db,
+    newTagId: minter(ID_PREFIX.tag),
+    // INERT (flagged): the chat membership gate is PD-19 — chat (and its participant guard) is P5.
+    requireParticipant: (): Promise<void> =>
+      Promise.reject(
+        new Error("tag.requireParticipant: chat membership gate not built (PD-19) — chat is P5"),
+      ),
+  });
+
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
   const assets = createAssetsService({
     db,
@@ -231,14 +241,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emit: eventBus.emit,
     // INERT (flagged): assets GC is PD-26 — best-effort reap is a no-op until the GC verbs land.
     reapAssets: (): Promise<void> => Promise.resolve(),
-    // FLAG[PD-49]: domain/tag exposes no atomic resolve-or-create-tag-by-name op, so character.bulkAddCardTag's
-    // injected attachCardTag is inert (only bulkAddCardTag uses it).
-    attachCardTag: (): Promise<boolean> =>
-      Promise.reject(
-        new Error(
-          "character.attachCardTag: domain/tag exposes no atomic resolve-or-create-tag-by-name op — FLAG[PD-49]",
-        ),
-      ),
+    // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
+    // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
+    attachCardTag: tag.attachCardTagByName,
   });
 
   // ── The embeddings indexer (the event SUBSCRIBER) + its bus subscription (PD-48 paid down) ─────────────
@@ -277,15 +282,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBookId: minter(ID_PREFIX.worldBook),
     newEntryId: minter(ID_PREFIX.worldEntry),
     audit,
-  });
-  const tag = createTagService({
-    db,
-    newTagId: minter(ID_PREFIX.tag),
-    // INERT (flagged): the chat membership gate is PD-19 — chat (and its participant guard) is P5.
-    requireParticipant: (): Promise<void> =>
-      Promise.reject(
-        new Error("tag.requireParticipant: chat membership gate not built (PD-19) — chat is P5"),
-      ),
   });
   const stats = createStatsService(db);
   const search = createSearchService({ db, roleClients });

@@ -6,6 +6,7 @@
 import { tmpdir } from "node:os";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
+import { characterTags, tags } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
@@ -17,6 +18,7 @@ import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
+import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, expect, onTestFinished, test, vi } from "vitest";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
@@ -153,6 +155,45 @@ test("the backend registry sources the resolved vLLM concurrency from AppSetting
   // in-flight is min(resolved embed concurrency = 2, 6) === 2 — the override, NOT the default 4.
   await result.roleClients.embed(["a", "b", "c", "d", "e", "f"]);
   expect(peak).toBe(2);
+});
+
+test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not the inert throw", async () => {
+  const db = await freshDb();
+  const clock = createFrozenClock();
+  const result = await createServices({
+    db,
+    now: clock.now,
+    ownerId: castId<UserId>("u_owner"),
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    vllmDisabled: true,
+  });
+
+  const owner = await seedUser(db, { handle: "owner" });
+  const created = await result.services.character.create({
+    principal: principal(owner),
+    input: { handle: "hero-card", name: "Hero", description: "a card" },
+  });
+
+  // The injected attachCardTag port now reaches tag.attachCardTagByName (the inert throw is gone): a by-name
+  // add resolve-or-creates the owner's tag and writes the accepted junction row, end-to-end through compose.
+  await result.services.character.bulkAddCardTag({
+    principal: principal(owner),
+    tagName: "  favorites  ",
+    characterIds: [created.id],
+  });
+
+  const tagRows = await db.select().from(tags).where(eq(tags.ownerId, owner));
+  expect(tagRows.map((t) => t.name)).toEqual(["favorites"]); // trimmed, resolve-or-created via tag
+  const junction = await db
+    .select()
+    .from(characterTags)
+    .where(eq(characterTags.characterId, created.id));
+  expect(junction).toHaveLength(1);
+  expect(junction[0]?.tagId).toBe(tagRows[0]?.id);
+  expect(junction[0]?.status).toBe("accepted");
 });
 
 // ── The embeddings indexer SUBSCRIPTION (PD-48) ──────────────────────────────────────────────────────────

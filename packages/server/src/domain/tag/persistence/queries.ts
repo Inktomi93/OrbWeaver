@@ -52,6 +52,38 @@ export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
     .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
 }
 
+/** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, name)` unique conflict, and RETURN the new id —
+ *  or `undefined` if the row already existed (a prior/concurrent create won the unique). The unique index is
+ *  the race guard, so no duplicate tag is ever minted (tag.md invariant #1); the caller falls back to
+ *  {@link findTagIdByName} for the existing row. */
+export async function insertTagIfAbsent(
+  db: Db,
+  ownerId: UserId,
+  name: string,
+  tagId: TagId,
+): Promise<TagId | undefined> {
+  const inserted = await db
+    .insert(tags)
+    .values({ id: tagId, ownerId, name })
+    .onConflictDoNothing({ target: [tags.ownerId, tags.name] })
+    .returning({ id: tags.id });
+  return inserted[0]?.id;
+}
+
+/** The owner's tag id for `name`, or `undefined` — owner-scoped (a different owner's same-name tag is never
+ *  returned; the `(ownerId, name)` predicate is in the WHERE, never a post-filter). */
+export async function findTagIdByName(
+  db: Db,
+  ownerId: UserId,
+  name: string,
+): Promise<TagId | undefined> {
+  const rows = await db
+    .select({ id: tags.id })
+    .from(tags)
+    .where(and(eq(tags.ownerId, ownerId), eq(tags.name, name)));
+  return rows[0]?.id;
+}
+
 /** The subset of `ids` that the owner actually owns (the bulk-attach ownership belt — one query, not N). */
 export async function fetchOwnedTagIds(
   db: Db,

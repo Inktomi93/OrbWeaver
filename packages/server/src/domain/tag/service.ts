@@ -5,6 +5,7 @@
 
 import type { TagContext, TagService } from "./contract/service";
 import { createAttach } from "./verbs/attach";
+import { createAttachCardTagByName } from "./verbs/attach-card-tag-by-name";
 import { createCreate } from "./verbs/create";
 import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";
@@ -28,5 +29,6 @@ export function createTagService(ctx: TagContext): TagService {
     attachTag: attach.attachTag,
     detachTag: attach.detachTag,
     bulkAttachTag: attach.bulkAttachTag,
+    attachCardTagByName: createAttachCardTagByName(ctx),
   };
 }
