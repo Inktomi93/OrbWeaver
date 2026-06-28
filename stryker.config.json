@@ -4,7 +4,7 @@
 
   "packageManager": "pnpm",
   "testRunner": "vitest",
-  "vitest": { "configFile": "vitest.config.ts" },
+  "vitest": { "configFile": "vitest.stryker.config.ts" },
 
   "_plugins_comment": "Explicit plugin paths — pnpm's strict node_modules layout breaks Stryker's auto-discovery ('Cannot find Checker plugin typescript' even though it's installed).",
   "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
@@ -29,11 +29,13 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "ignorePatterns prune the sandbox copy — without this Stryker tries to copy node_modules (huge), .stryker-tmp (recursive!), reports/, coverage/, etc. Keep packages/ + tests/ + the configs.",
+  "_ignore_comment": "ignorePatterns prune the sandbox copy — Stryker COPIES the project tree into .stryker-tmp, so without this it tries to copy node_modules (huge), .stryker-tmp (recursive!), AND the in-repo model/venv caches: .cache/ holds the 8.8G vLLM venv (whose lib64 symlink crashes copyfile with EISDIR) and .models/ holds 25G of HF weights. Keep packages/ + tests/ + the configs.",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
     "node_modules/**",
+    ".cache/**",
+    ".models/**",
     "coverage/**",
     "dist/**",
     "reports/**",
@@ -43,8 +45,11 @@
     ".claude/**"
   ],
 
+  "_coverage_comment": "coverageAnalysis is deliberately NOT set — the @stryker-mutator/vitest-runner IGNORES it and always uses perTest (verified in its docs + the installed runner). Each mutant runs only its covering tests; the libSQL native binding survives the runner's forced pool:'threads'.",
+
   "ignoreStatic": true,
-  "concurrency": 4,
+  "_concurrency_comment": "Box = 24 logical cores / 125GB. Stryker's own default is n-1 (=23); the old pinned 4 used a sixth of the box. 16 → ~8 checker + ~8 runner processes, leaving headroom for the OS + GPU engines / dev work. Bump toward 20 for a dedicated run.",
+  "concurrency": 16,
   "timeoutMS": 10000,
 
   "incremental": true,

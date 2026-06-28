@@ -4,7 +4,7 @@
 
   "packageManager": "pnpm",
   "testRunner": "vitest",
-  "vitest": { "configFile": "vitest.config.ts" },
+  "vitest": { "configFile": "vitest.stryker.config.ts" },
 
   "_plugins_comment": "Explicit plugin paths — pnpm's strict layout breaks Stryker auto-discovery.",
   "plugins": ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker"],
@@ -23,11 +23,13 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "Prune the sandbox copy — same shape as the base config.",
+  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes.",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
     "node_modules/**",
+    ".cache/**",
+    ".models/**",
     "coverage/**",
     "dist/**",
     "reports/**",
@@ -37,8 +39,11 @@
     ".claude/**"
   ],
 
+  "_coverage_comment": "coverageAnalysis NOT set — the vitest-runner ignores it and always uses perTest.",
+
   "ignoreStatic": true,
-  "concurrency": 4,
+  "_concurrency_comment": "24-core / 125GB box; default is n-1 (=23). 16 → ~8 checker + ~8 runner processes with headroom. Bump toward 20 for a dedicated run.",
+  "concurrency": 16,
   "timeoutMS": 10000,
 
   "incremental": true,

@@ -13,8 +13,8 @@
     "dev": "bash scripts/dev/dev.sh",
     "start": "NODE_ENV=production tsx packages/server/src/entry/index.ts",
     "engines": "bash scripts/dev/engines.sh",
-    "typecheck": "pnpm -r exec tsc --noEmit",
-    "lint": "biome check .",
+    "typecheck": "pnpm -r exec tsc --noEmit --pretty false",
+    "lint": "biome check . --diagnostic-level=error --reporter=concise",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs --output-type err-long",
@@ -31,8 +31,8 @@
     "e2e": "playwright test -c playwright.config.ts",
     "cpd": "jscpd -c jscpd.json",
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
-    "test:mutation": "stryker run stryker.config.json",
-    "test:mutation:gate": "stryker run stryker.gate.config.json",
+    "test:mutation": "bash scripts/dev/mutation.sh stryker.config.json",
+    "test:mutation:gate": "bash scripts/dev/mutation.sh stryker.gate.config.json",
     "check": "pnpm lint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
