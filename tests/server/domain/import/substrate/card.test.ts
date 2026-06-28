@@ -66,10 +66,18 @@ describe("parseCardJson", () => {
     expect(parsed.card.creator).toBe("alex");
   });
 
-  test("extracts card tags: trimmed, empties dropped, deduped case-insensitively (first casing kept)", () => {
-    // V3_CARD.data.tags = ["bard", "fantasy", "  Bard ", "", "music"] → "  Bard " dedupes to "bard", "" dropped.
+  test("extracts card tags RAW (no trim/empty-drop/dedupe — the tag chokepoint owns canonicalization)", () => {
+    // V3_CARD.data.tags = ["bard", "fantasy", "  Bard ", "", "music"] — extraction now only filters
+    // non-strings; trim, empty-drop, and case-insensitive dedupe happen at the resolve-or-create chokepoint.
     const parsed = expectParsed(parseCardJson(encoder.encode(V3_JSON), "fallback"));
-    expect(parsed.tags).toEqual(["bard", "fantasy", "music"]);
+    expect(parsed.tags).toEqual(["bard", "fantasy", "  Bard ", "", "music"]);
+  });
+
+  test("skips non-string tag entries (tolerant IN) but keeps every string verbatim", () => {
+    const parsed = expectParsed(
+      parseCardJson('{"data":{"name":"X","description":"d","tags":["a",42,null,"  b  ",{}]}}', "x"),
+    );
+    expect(parsed.tags).toEqual(["a", "  b  "]);
   });
 
   test("a card with no tags field yields an empty tag list", () => {
@@ -95,7 +103,7 @@ describe("parseCardPng", () => {
     const parsed = expectParsed(parseCardPng(png, "fallback"));
     expect(parsed.card.name).toBe("Aria");
     expect(parsed.card.greetings).toEqual(["Hello there!", "Well met."]);
-    expect(parsed.tags).toEqual(["bard", "fantasy", "music"]);
+    expect(parsed.tags).toEqual(["bard", "fantasy", "  Bard ", "", "music"]);
   });
 
   test("returns null for bytes carrying no card chunk", () => {

@@ -76,6 +76,24 @@ describe("importCharacter", () => {
     }
   });
 
+  test("forwards RAW card tags to the chokepoint (no extraction-side dedupe/normalize)", async () => {
+    // Extraction is now dumb: it passes every string through verbatim — including a case-variant and a
+    // whitespace-padded name. The tag resolve-or-create chokepoint (normalizeTagName + the functional unique)
+    // is the ONE place that collapses "Female"/"female" and trims " NSFW " — proven against a real db in the
+    // tag domain's int test. Here we pin that the import loop does NOT pre-dedupe.
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const card = JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: { name: "Dup", description: "d", tags: ["Female", "female", " NSFW "] },
+    });
+
+    await svc.importCharacter({ card: { bytes: encoder.encode(card), filename: "dup.json" } });
+
+    expect(h.tagAttaches.map((t) => t.tagName)).toEqual(["Female", "female", " NSFW "]);
+  });
+
   test("a card with no tags carries none (no tag-attach calls)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);

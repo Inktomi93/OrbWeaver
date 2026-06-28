@@ -765,7 +765,7 @@ CREATE TABLE `tags` (
 	CONSTRAINT "tags_folder_type_check" CHECK(folder_type in ('NONE', 'OPEN', 'CLOSED'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `tags_owner_name_unique` ON `tags` (`owner_id`,`name`);--> statement-breakpoint
+CREATE UNIQUE INDEX `tags_owner_name_unique` ON `tags` (`owner_id`,lower("name"));--> statement-breakpoint
 CREATE TABLE `world_book_tags` (
 	`world_book_id` text NOT NULL,
 	`tag_id` text NOT NULL,

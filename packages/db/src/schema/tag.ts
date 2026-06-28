@@ -69,7 +69,8 @@ const DEFAULT_TAG_STATUS = "pending";
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // tags — the per-owner label namespace. Single-owned: `ownerId` is KEPT (D23 — the tag references its owner
 // directly; no owning parent to derive through), so a tag joins the `fetchOwned` category. `unique(ownerId,
-// name)` is the one-namespace-per-owner key (tag.md invariant #1). `color`/`color2`/`sortOrder` are NULLABLE
+// lower(name))` is the one-namespace-per-owner key — CASE-INSENSITIVE (tag.md invariant #1; the functional
+// fold makes "Female"/"female" one tag). `color`/`color2`/`sortOrder` are NULLABLE
 // (null = theme default / unordered name-fallback — mirrors TagView). `source` is a nullable provenance axis.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -102,8 +103,12 @@ export const tags = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One namespace per owner (tag.md invariant #1) — the create-tag conflict target.
-    uniqueIndex("tags_owner_name_unique").on(t.ownerId, t.name),
+    // One namespace per owner (tag.md invariant #1) — the create-tag conflict target. CASE-INSENSITIVE: a
+    // functional unique on `(ownerId, lower(name))`, so "Female" / "female" / "FEMALE" collapse to ONE tag
+    // (the first casing is the stored display; dedupe is on the folded key). `domain/tag` normalizes the name
+    // (trim + whitespace-collapse, casing kept) via `@orb/kit/tag`'s `normalizeTagName` before insert; THIS
+    // index is the folded-uniqueness half — together they are the one chokepoint every tag source dedupes at.
+    uniqueIndex("tags_owner_name_unique").on(t.ownerId, sql`lower(${t.name})`),
     check("tags_source_check", sql.raw(`source in (${checkList(TAG_SOURCES)})`)),
     check("tags_folder_type_check", sql.raw(`folder_type in (${checkList(TAG_FOLDER_TYPES)})`)),
   ],
