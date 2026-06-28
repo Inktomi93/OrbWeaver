@@ -1,0 +1,132 @@
+// verbs: getAppSettings / updateAppSettings — the admin-runtime tier. Load-bearing invariants asserted:
+// the admin gate (owner ∪ admin) on BOTH verbs; the OWNER-ONLY gate on a PATCH that touches a D17
+// governance field (the box-governance split); the floor⊕override resolution; the null=CLEAR sentinel
+// (a cleared override reads the env floor back); every successful write audits.
+
+import { DomainForbiddenError } from "@orb/kit/errors";
+import { env } from "@orb/server/foundation/env";
+import { beforeEach, describe, expect, test } from "vitest";
+import { __resetEffectiveConfigCache } from "../../../../../packages/server/src/domain/settings/effective-config/cache.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { makeHarness, principal, seedUser } from "../_support.ts";
+
+beforeEach(() => {
+  // The resolved-config cache is module-scope (ASSUMES single-replica); reset it so each test starts from
+  // the env floor regardless of order within this file.
+  __resetEffectiveConfigCache();
+});
+
+describe("getAppSettings", () => {
+  test("a non-admin (role:user) is REFUSED", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_u", role: "user" });
+    await expect(h.svc.getAppSettings({ principal: principal(u, "user") })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+  });
+
+  test("an admin reads the resolved config (env floor before any write)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    const cfg = await h.svc.getAppSettings({ principal: principal(a, "admin") });
+    expect(cfg.corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
+    expect(cfg.logLevel).toBe(env.LOG_LEVEL);
+    // D17 governance floors (born-in-DB).
+    expect(cfg.allowNonOwnerLocalCompute).toBe(true);
+    expect(cfg.allowNonOwnerMaxProSub).toBe(false);
+    expect(cfg.nonOwnerLocalComputeBudget).toBeNull();
+  });
+});
+
+describe("updateAppSettings — admin tier", () => {
+  test("an admin updates a NON-governance field; the resolved config + cache reflect it (audited)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    const resolved = await h.svc.updateAppSettings({
+      principal: principal(a, "admin"),
+      partial: { logLevel: "debug" },
+    });
+    expect(resolved.logLevel).toBe("debug");
+    // The sync cache reflects the write before the call returned.
+    expect(h.svc.getEffectiveConfig().logLevel).toBe("debug");
+    expect(h.audits.map((x) => x.entry.action)).toContain("settings.updateAppSettings");
+  });
+
+  test("a non-admin is REFUSED", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_u", role: "user" });
+    await expect(
+      h.svc.updateAppSettings({ principal: principal(u, "user"), partial: { logLevel: "warn" } }),
+    ).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("null=CLEAR: an override is set, then cleared, and the env floor reads back", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    await h.svc.updateAppSettings({
+      principal: principal(a, "admin"),
+      partial: { logLevel: "trace" },
+    });
+    expect(h.svc.getEffectiveConfig().logLevel).toBe("trace");
+    const cleared = await h.svc.updateAppSettings({
+      principal: principal(a, "admin"),
+      partial: { logLevel: null },
+    });
+    expect(cleared.logLevel).toBe(env.LOG_LEVEL);
+  });
+});
+
+describe("updateAppSettings — D17 owner-box governance split", () => {
+  test("a delegated admin touching a governance field is REFUSED (requireOwner)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    await expect(
+      h.svc.updateAppSettings({
+        principal: principal(a, "admin"),
+        partial: { allowNonOwnerMaxProSub: true },
+      }),
+    ).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("a delegated admin clearing a governance field (null) is ALSO refused (presence, not value)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    await expect(
+      h.svc.updateAppSettings({
+        principal: principal(a, "admin"),
+        partial: { allowNonOwnerLocalCompute: null },
+      }),
+    ).rejects.toThrow(DomainForbiddenError);
+  });
+
+  test("the owner flips a governance field; the resolved config reflects it (audited)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const o = await seedUser(db, { id: "user_owner", role: "owner" });
+    const resolved = await h.svc.updateAppSettings({
+      principal: principal(o, "owner"),
+      partial: { allowNonOwnerMaxProSub: true, nonOwnerLocalComputeBudget: 5 },
+    });
+    expect(resolved.allowNonOwnerMaxProSub).toBe(true);
+    expect(resolved.nonOwnerLocalComputeBudget).toBe(5);
+    expect(h.audits.map((x) => x.entry.action)).toContain("settings.updateAppSettings");
+  });
+
+  test("the owner may also update a non-governance field (owner ⊇ admin)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const o = await seedUser(db, { id: "user_owner", role: "owner" });
+    const resolved = await h.svc.updateAppSettings({
+      principal: principal(o, "owner"),
+      partial: { corpusAutoindex: false },
+    });
+    expect(resolved.corpusAutoindex).toBe(false);
+  });
+});

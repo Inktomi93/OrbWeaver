@@ -498,3 +498,57 @@ export const userSettingsConfig = defineVersionedConfig<UserSettings>({
 export function parseUserSettings(raw: unknown, storedVersion?: number): UserSettings {
   return userSettingsConfig.parse(raw, storedVersion);
 }
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// EffectiveAppConfig — the RESOLVED runtime config (env floor ⊕ stored override). Cross-boundary: the
+// client reads the resolved app settings; the server hot paths (engine/embedder/runners) read it sync.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The asymmetry with `AppSettings` is deliberate (settings.md §"Public surface"): the admin EDITS the
+// override blob (`AppSettings` — every field optional/nullable), but always READS BACK the fully-resolved
+// floor⊕override config (this shape — every field present). The resolver (`domain/settings/effective-
+// config/layer.ts`) is the ONLY producer; the override-shaped sub-types (`RateLimits`/`VllmConcurrency`)
+// resolve into these all-present twins.
+
+/** Resolved per-window rate-limit budgets — every field present (the `RateLimits` override is all-optional). */
+export interface ResolvedRateLimits {
+  general: number;
+  aiTurn: number;
+  publicIp: number;
+  authed: number;
+}
+
+/** Resolved vLLM batch concurrency — every field present (the `VllmConcurrency` override is all-optional). */
+export interface ResolvedVllmConcurrency {
+  embed: number;
+  summarize: number;
+}
+
+/**
+ * The fully-resolved runtime config (every field present) — what `getEffectiveConfig()` returns and the
+ * admin AppSettings verbs read back. Two default ORIGINS, kept legible (settings-and-config §b — "env is
+ * the floor" is only half-true): env-mirrored fields (`corpusAutoindex`/`importSkipCharacters`/`logLevel`,
+ * + the kept `rateLimits` env vars) read the env floor; born-in-DB fields (`forbidExternalMedia`,
+ * `memoryDefaults`, `memorySummarizer`, `vllmConcurrency`, the D17 governance toggles) read a code floor
+ * (the `DEFAULT_ALLOW_NON_OWNER_*` constants above) only an admin override moves.
+ */
+export interface EffectiveAppConfig {
+  corpusAutoindex: boolean;
+  importSkipCharacters: string[];
+  logLevel: LogLevel;
+  /** Block external (http/https) media URLs in rendered chat content — a privacy/SSRF guard. */
+  forbidExternalMedia: boolean;
+  /** Within-chat memory subsystem tuning. Empty = the baked-in resolver defaults at the consumer. */
+  memoryDefaults: MemoryDefaults;
+  memorySummarizer: MemorySummarizerConfig;
+  /** Per-window rate-limit budgets (env floor kept — settings-and-config §b; the limiter reads these). */
+  rateLimits: ResolvedRateLimits;
+  /** vLLM batch concurrency (born-in-DB; the embed/image-embed/summarize runners read it per-batch). */
+  vllmConcurrency: ResolvedVllmConcurrency;
+  /** D17 — may non-owner members drive the owner's shared LOCAL compute (floor: ON). */
+  allowNonOwnerLocalCompute: boolean;
+  /** D17 — the per-member local-compute COUNT budget; `null` = the domain floor (unbounded). */
+  nonOwnerLocalComputeBudget: number | null;
+  /** D17 — may non-owner members drive the owner's HOSTED `max-pro-sub` (floor: OFF). */
+  allowNonOwnerMaxProSub: boolean;
+}
