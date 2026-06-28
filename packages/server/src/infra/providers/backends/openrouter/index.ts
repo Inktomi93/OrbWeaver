@@ -4,13 +4,12 @@
 // else by the `providers-public-surface-only` cruiser rule). Load-bearing for the encapsulation invariant.
 //
 // infra/providers/backends/openrouter — THE STATELESS REMOTE CHAT BACKEND + the non-chat roles OpenRouter
-// serves (embed / imageEmbed / generateImage; rerank is a typed not-supported throw) + the summarize shaper
-// over chat. Sealed: no other backend imports it; it imports only the shared `backends/kit` wire helpers
-// DOWN + the `@openrouter/sdk`. NO `runAgentTurn` (agent mode is the agent-sdk backend's).
+// serves (embed / rerank / imageEmbed / generateImage) + the summarize shaper over chat. Sealed: no other
+// backend imports it; it imports only the shared `backends/kit` wire helpers DOWN + the `@openrouter/sdk`.
+// NO `runAgentTurn` (agent mode is the agent-sdk backend's).
 //
 // FLAG SUMMARY (orchestrator):
 //   • account.ts result shapes have no `@orb/contracts` home yet (see that file's FLAG).
-//   • rerank is a typed throw per the doc, though the SDK now ships a rerank endpoint (see rerank/runner).
 //   • provider-routing maps only the common knobs (snake→camel impedance — see shared.ts toProviderPreferences).
 //   • the Responses input drops the per-participant `name` (SDK `EasyInputMessage` has none — see responses).
 //   • OR `summarize` is a TEXT-only shaper here (images on a SummarizeRequestItem are dropped — OR vision
@@ -169,7 +168,8 @@ export function createOpenRouterBackend(deps: OpenRouterBackendDeps): ProviderBa
     },
     embed: async (req: EmbedRequest): Promise<EmbedResult> =>
       await runEmbed(clientFor(req.credential, "embed"), req),
-    rerank: async (req: RerankRequest): Promise<RerankResult> => await runRerank(req),
+    rerank: async (req: RerankRequest): Promise<RerankResult> =>
+      await runRerank(clientFor(req.credential, "rerank"), req),
     imageEmbed: async (req: ImageEmbedRequest): Promise<ImageEmbedResult> =>
       await runImageEmbed(clientFor(req.credential, "imageEmbed"), req),
     summarize: async (req: SummarizeRequest): Promise<SummarizeResult> =>
