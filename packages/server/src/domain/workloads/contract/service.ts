@@ -31,9 +31,11 @@ import type { WorkloadRowAnyKind } from "./workload-row";
 /** Mint a fresh `WorkloadId` — the injected determinism seam (no ambient `mintTypeId()` in a verb). */
 export type NewWorkloadId = () => WorkloadId;
 
-/** Bind a `RoleClients` bundle for a specific acting user (the per-role credential pins resolve off the
- *  workload's `ownerId`). REQUIRED — there is no `createDefaultRoleClients` fallback (invariant #7). */
-export type BindRoleClients = (ownerId: UserId) => RoleClients;
+/** Bind a `RoleClients` bundle for a specific acting user. ASYNC — the per-role `{credential, model}` pins
+ *  resolve off the workload's `ownerId` via `connection.resolveRole` (honoring the user's per-role
+ *  `routing.roleDefaults`, with eager `*Model` provenance), so the bind itself awaits. REQUIRED — there is no
+ *  `createDefaultRoleClients` fallback and no sync vLLM floor (invariant #6 / #7). */
+export type BindRoleClients = (ownerId: UserId) => Promise<RoleClients>;
 
 /** Read a user's parsed `UserSettings` (the §7.2 runner tunable-precedence source). Injected from `settings`. */
 export type LoadUserSettings = (userId: UserId) => Promise<UserSettings>;

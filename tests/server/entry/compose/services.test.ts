@@ -58,6 +58,7 @@ test("createServices builds the full graph: all 15 Services keys + the boot hand
   expect(result.eventBus).toBeDefined();
   expect(result.runnerEnv).toBeDefined();
   expect(result.roleClients).toBeDefined();
+  expect(result.bindRoleClients).toBeInstanceOf(Function);
   expect(result.effectiveConfig).toBeDefined();
   expect(result.secretBox).toBeDefined();
   // vLLM disabled → no engine handle for the lifecycle to supervise.

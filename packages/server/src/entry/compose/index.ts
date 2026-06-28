@@ -8,11 +8,8 @@ export type { EffectiveConfigWiring } from "./effective-config";
 export { createEffectiveConfigWiring } from "./effective-config";
 export type { DomainEventBus } from "./event-bus";
 export { createDomainEventBus } from "./event-bus";
-export type {
-  RoleClientsBinderDeps,
-  VllmFloorBinderDeps,
-} from "./role-clients";
-export { bindRoleClientsForUser, createVllmFloorRoleClients } from "./role-clients";
+export type { RoleClientsBinderDeps } from "./role-clients";
+export { bindRoleClientsForUser } from "./role-clients";
 export type { RunnerEnvDeps } from "./runner-env";
 export { buildWorkloadRunnerEnv } from "./runner-env";
 export type { ServicesDeps, ServicesResult } from "./services";
