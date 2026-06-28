@@ -335,8 +335,10 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("messageCommitted")).toBe(true);
   expect(isChatBusEventType("wiBookAttached")).toBe(true);
   expect(isChatBusEventType("credentialLeaked")).toBe(false);
-  // 17 chat-owned + 5 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(22);
+  expect(isChatBusEventType("worldInfoActivated")).toBe(true);
+  expect(isChatBusEventType("chatOpened")).toBe(true);
+  // 19 chat-owned + 5 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(24);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {
@@ -352,12 +354,24 @@ test("a representative ChatBusEvent round-trips its public, secret-free shape", 
     api: "chat-completions",
     source: "openrouter",
     model: "claude-sonnet",
+    speakerCharacterId: null,
     targetMessageId: null,
   };
   expect(committed.type).toBe("messageCommitted");
   expect(turnStarted.type).toBe("turnStarted");
   // turnStarted carries no caller id (D19 — attribution is on the turn path, never the public bus).
   expect("callerUserId" in turnStarted).toBe(false);
+});
+
+test("chatOpened + worldInfoActivated round-trip their id-only shapes (event-bus ST parity, D50)", () => {
+  const opened: ChatBusEvent = { type: "chatOpened", chatId: SAMPLE_CHAT_ID };
+  const wiFired: ChatBusEvent = {
+    type: "worldInfoActivated",
+    chatId: SAMPLE_CHAT_ID,
+    entryIds: [mintTypeId(ID_PREFIX.worldEntry)],
+  };
+  expect(opened.type).toBe("chatOpened");
+  expect(wiFired.entryIds).toHaveLength(1);
 });
 
 // The compile-time pin that credentials / secrets / caller id are UNREPRESENTABLE in ChatBusEvent moved to

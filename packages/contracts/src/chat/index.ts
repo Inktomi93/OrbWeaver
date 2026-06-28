@@ -36,6 +36,7 @@ import type {
   MessageVariantId,
   PersonaId,
   UserId,
+  WorldEntryId,
 } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
@@ -385,11 +386,17 @@ export type ChatBusEvent =
       api: ChatApi;
       source: ChatSource;
       model: string;
+      /** The roster character speaking this turn (group "whose turn is it" automation; ST GROUP_MEMBER_DRAFTED).
+       *  Null for a single-character chat or a non-character turn. */
+      speakerCharacterId: CharacterId | null;
       /** For swipe/continue, the message this turn rerolls/extends (the ghost-slot id). Null otherwise. */
       targetMessageId: MessageId | null;
     }
   | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
   | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason }
+  // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
+  //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
+  | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[] }
   // ── Persona (per-participant active persona switched; carries old + new) ─────
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
@@ -397,6 +404,10 @@ export type ChatBusEvent =
   // ── Chat existence ──────────────────────────────────────────────────────────
   | { type: "chatCreated"; chatId: ChatId }
   | { type: "chatDeleted"; chatId: ChatId }
+  // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
+  //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
+  //    open, set POV / run setup") ──
+  | { type: "chatOpened"; chatId: ChatId }
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
   // ── Catch-all for low-payload chat-row changes (star/archive/title/variables/injections/compact) ──
@@ -418,6 +429,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   turnStarted: true,
   turnCompleted: true,
   turnAborted: true,
+  worldInfoActivated: true,
   personaSwitched: true,
   wiBookAttached: true,
   wiBookDetached: true,
@@ -426,6 +438,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   wiEntryScopeChanged: true,
   chatCreated: true,
   chatDeleted: true,
+  chatOpened: true,
   historyTruncated: true,
   chatUpdated: true,
 } satisfies Record<ChatBusEvent["type"], true>;
