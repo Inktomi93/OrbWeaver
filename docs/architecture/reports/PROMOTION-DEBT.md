@@ -53,6 +53,11 @@ Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting o
 | PD-31 | character `getRosterCardView` (membership-gated, level-clamped `MemberCardView`, D22) | not built (not on `CharacterService`) | `domain/character` | needs chat's `requireParticipant` + `{kind:'chat',roster}` `can()` arm + `memberCardVisibility` | blocked:chat(P5) |
 | PD-32 | character default-card `seeder/` subsystem (`createDefaultCharacterSeeder` / welcome-assistant) | not built (separable slice) | `domain/character/seeder/` | injected settings `isSeeded`/`markSeeded` + authored default cards over the real `create` path | character seeder slice | blocked:settings-seed |
 | PD-33 | character `cardContentHash` → `@orb/server/kit/serde/card` (shared with the import domain's serde hash) | `domain/character/substrate/content-hash.ts` | `@orb/server/kit/serde/card` | the serde/card scaffold + the import domain | blocked:import(4c-W3) |
+| PD-34 | embeddings memory lenses — the `chat-block` SourceKind + `segment`/`digest` lenses + `newChatDigestId`/`newChatSegmentId` (the `satisfies Record<SourceLens,VectorTable>` belt + the store `assertNever` go red until added) | `domain/embeddings` (W2 = card/image only) | `domain/embeddings` store arms + indexer | chat/memory built whole (P5, D16) | blocked:chat(P5) |
+| PD-35 | search memory-retrieval verbs — `digests`/`segments`/`corpus`/`discover` + the `MemoryQueryOptions` consumers + mix modes + membership-derived chat scope (D18) | `domain/search` (W2 = card knn/findCharacters only); the `@orb/contracts/search` seam exists | `domain/search` verbs | chat/memory (P5) | blocked:chat(P5) |
+| PD-36 | search cross-modal `images` verb (text→image) + the cross-modal CSLS-skip exception | `domain/search` | `domain/search` | imageEmbed space + a later wave | blocked:later |
+| PD-37 | search lexical BM25 `fields`/`suggest` engine (`minisearch` not in the workspace) | `domain/search` | `domain/search` + the minisearch dep | a later lexical-search wave | blocked:later |
+| PD-38 | search unified `search(UnifiedSearchParams)` dispatch + `SearchScope` (premature with a partial verb set) | `domain/search` | `domain/search` | after the memory + lexical verbs land | blocked:chat(P5)/later |
 
 ## Cleared
 
