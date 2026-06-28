@@ -53,6 +53,9 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     sessions: stub,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
+    seedUserCharacters: (): void => {
+      // default: inert; the seed-hook test overrides this to record calls.
+    },
     ...overrides,
   };
 }
@@ -93,5 +96,23 @@ describe("createApp", () => {
     const app = createApp(deps({ seam }));
     await app.fetch(new Request("http://localhost/healthz"));
     expect(calls).toBe(1);
+  });
+
+  test("a resolved principal fires the per-new-user default-card seed hook (PD-32)", async () => {
+    const seeded: Principal[] = [];
+    const app = createApp(
+      deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }),
+    );
+    await app.fetch(new Request("http://localhost/healthz"));
+    expect(seeded).toEqual([OWNER]);
+  });
+
+  test("an anonymous request does NOT fire the seed hook (no principal)", async () => {
+    const seeded: Principal[] = [];
+    const app = createApp(
+      deps({ seam: fakeSeam(null), seedUserCharacters: (p): void => void seeded.push(p) }),
+    );
+    await app.fetch(new Request("http://localhost/healthz"));
+    expect(seeded).toHaveLength(0);
   });
 });

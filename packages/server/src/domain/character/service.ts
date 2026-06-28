@@ -7,9 +7,9 @@
 // FLAG[PD-31]: `getRosterCardView` (membership-gated MemberCardView, D22) is NOT wired — it needs the
 //   `{ kind: 'chat', roster }` resource arm of `can()` + chat's `requireParticipant` (not built). Building
 //   it now would collapse the chat tier into character. See contract/service.ts.
-// FLAG[PD-32]: the default-card `seeder/` subsystem is NOT wired here — it's a separable slice (needs
-//   the injected settings `isSeeded`/`markSeeded` ports + the authored default cards, over the real `create`
-//   path). See contract/service.ts + index.ts.
+// The default-card `seeder/` subsystem (PD-32) is NOT a verb here — it's reached by ENTRY over this service's
+//   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
+//   front door). See seeder/ + contract/seeder.ts.
 
 import type { CharacterContext, CharacterService } from "./contract/service";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag";
@@ -17,6 +17,7 @@ import { createBulkArchive } from "./verbs/bulk-archive";
 import { createBulkRemove } from "./verbs/bulk-remove";
 import { createCreate } from "./verbs/create";
 import { createDuplicate } from "./verbs/duplicate";
+import { createFindByHandle } from "./verbs/find-by-handle";
 import { createFindByImportHash } from "./verbs/find-by-import-hash";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
 import { createGet } from "./verbs/get";
@@ -38,6 +39,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     update: createUpdate(ctx),
     remove: createRemove(ctx),
     duplicate: createDuplicate(ctx),
+    findByHandle: createFindByHandle(ctx),
     bulkRemove: createBulkRemove(ctx),
     bulkArchive: createBulkArchive(ctx),
     bulkAddCardTag: createBulkAddCardTag(ctx),

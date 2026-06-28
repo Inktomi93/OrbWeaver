@@ -65,6 +65,11 @@ export interface AppDeps {
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
+  /** Per-new-user first-request default-card seed (PD-32). Fire-and-forget: the auth middleware calls it
+   *  AFTER the Principal resolves so an SSO/admin-created user gets the pack on first touch. MUST NOT block
+   *  the request — the seeder's in-process memo + persisted latch make it a Set lookup after the first run,
+   *  and `ensureSeeded` never throws. */
+  readonly seedUserCharacters: (principal: Principal) => void;
 }
 
 /** Derive the caller IP for the per-IP rate-limit key: the leftmost `x-forwarded-for` hop when present,
@@ -151,6 +156,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       },
     });
     c.set("principal", principal);
+    // First-authed-request default-card seed for a NEW user (SSO/admin-created). Fire-and-forget — never
+    // awaited (the seeder's memo+latch make it a Set lookup after the first touch; it never throws).
+    if (principal !== null) {
+      deps.seedUserCharacters(principal);
+    }
     await next();
   });
 

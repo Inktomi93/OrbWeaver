@@ -12,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
-import { createCharacterService } from "@orb/server/domain/character";
+import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
@@ -194,6 +194,67 @@ test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not 
   expect(junction).toHaveLength(1);
   expect(junction[0]?.tagId).toBe(tagRows[0]?.id);
   expect(junction[0]?.status).toBe("accepted");
+});
+
+// ── The default-card seeder (PD-32) wired over the REAL settings latch ───────────────────────────────────
+// The compose root constructs the ONE seeder instance and wires its isSeeded/markSeeded ops to the real
+// settings service. These prove that wiring end-to-end: the owner is seeded through the real character.create
+// path, the persisted latch lands, and the welcome-assistant stamp respects an explicit pick.
+
+function buildGraph(db: Db): ReturnType<typeof createServices> {
+  return createServices({
+    db,
+    now: createFrozenClock().now,
+    ownerId: castId<UserId>("u_owner"),
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    vllmDisabled: true,
+  });
+}
+
+describe("default-card seeder wiring (PD-32)", () => {
+  test("ensureSeeded seeds the owner's pack + lands the latch + stamps the welcome assistant", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+
+    expect(result.characterSeeder).toBeDefined();
+    await result.characterSeeder.ensureSeeded(actor);
+
+    // 5 cards through the real create path.
+    const list = await result.services.character.list({ principal: actor });
+    expect(list).toHaveLength(5);
+
+    // The persisted latch is set + the welcome-assistant id points at the seeded Assistant.
+    const settings = await result.services.settings.getUserSettings({ principal: actor });
+    expect(settings.config.onboarding.defaultCharactersSeeded).toBe(true);
+    const assistant = await result.services.character.findByHandle({
+      ownerId: owner,
+      handle: WELCOME_ASSISTANT_HANDLE,
+    });
+    expect(settings.config.seeds.welcomeAssistantCharacterId).toBe(assistant?.characterId);
+  });
+
+  test("markSeeded never clobbers an explicit welcome-assistant pick", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    // The user already chose a welcome assistant before the first-run seed fires.
+    await result.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "seeds", patch: { welcomeAssistantCharacterId: "chr_my_pick" } },
+    });
+
+    await result.characterSeeder.ensureSeeded(actor);
+
+    const settings = await result.services.settings.getUserSettings({ principal: actor });
+    expect(settings.config.onboarding.defaultCharactersSeeded).toBe(true); // latch still set
+    expect(settings.config.seeds.welcomeAssistantCharacterId).toBe("chr_my_pick"); // not clobbered
+  });
 });
 
 // ── The embeddings indexer SUBSCRIPTION (PD-48) ──────────────────────────────────────────────────────────

@@ -181,9 +181,10 @@ export function createLifecycle(): Lifecycle {
       openrouterApiKey: env.OPENROUTER_API_KEY,
     });
 
-    // 8. the idempotent boot packs + the single-replica lock reclaim.
+    // 8. the idempotent boot packs + the single-replica lock reclaim. The default-character pack seeds the
+    //    owner over the ONE seeder instance the app first-request hook also drives (shared memo + latch).
     await seedDefaultPreset({ db, now });
-    seedDefaultCharacters();
+    await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await reclaimLocksOnBoot({ db, now });
 
     // 9. supervisors.
@@ -254,6 +255,11 @@ export function createLifecycle(): Lifecycle {
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
+      // Per-new-user first-request seed (SSO/admin-created accounts). Fire-and-forget — ensureSeeded never
+      // throws and the memo+latch make it a Set lookup after the first touch; NEVER block the request.
+      seedUserCharacters: (principal: Principal): void => {
+        void built.characterSeeder.ensureSeeded(principal);
+      },
     });
 
     server = serve({ fetch: app.fetch, port: env.PORT });
