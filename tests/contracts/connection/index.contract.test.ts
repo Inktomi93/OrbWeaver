@@ -98,6 +98,31 @@ test("modelCapabilitySchema round-trips a descriptor with distinct reasoning/sam
   expect(modelCapabilitySchema.parse(capability)).toEqual(capability);
 });
 
+test("modelCapabilitySchema round-trips the input/tools/structured gates (D45 + D48)", () => {
+  const capability: ModelCapability = {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    input: { vision: true },
+    tools: { parallel: true },
+    output: { maxTokens: { min: 1, max: 8192 }, structured: true },
+    context: { window: 128_000 },
+  };
+  expect(modelCapabilitySchema.parse(capability)).toEqual(capability);
+});
+
+test("modelCapabilitySchema — the gate axes are optional (a no-tools/no-vision model omits them)", () => {
+  const capability: ModelCapability = {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    output: { maxTokens: { min: 1, max: 4096 } },
+    context: { window: 8192 },
+  };
+  const parsed = modelCapabilitySchema.parse(capability);
+  expect(parsed.input).toBeUndefined();
+  expect(parsed.tools).toBeUndefined();
+  expect(parsed.output.structured).toBeUndefined();
+});
+
 // --- ModelCatalogEntry — explicit shape, nullable prices ---------------------
 
 test("modelCatalogEntrySchema round-trips an entry with nullable pricing", () => {

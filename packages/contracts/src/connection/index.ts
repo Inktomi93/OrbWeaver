@@ -157,7 +157,17 @@ export const modelCapabilitySchema = z.object({
    *  true (a non-vision model never receives them). Optional so existing constructors default to no-vision;
    *  a vision-capable model declares `input: { vision: true }`. */
   input: z.object({ vision: z.boolean() }).optional(),
-  output: z.object({ maxTokens: rangeSchema }),
+  /** Tool-calling axis (D48). Present ⇒ the model/backend accepts a `tools[]` request and emits tool-call
+   *  parts; `parallel` = it may request several tool calls in one turn. Absent ⇒ no tool-calling (the GATE
+   *  the recurse loop reads: a model without it never receives `tools`, and tool-call parts are dropped
+   *  with a `tools_unsupported` warning when the loop lands). Optional so existing constructors default to
+   *  no-tools; the wire seams (`tool` history role · tool-call/tool-result content parts · the request
+   *  fields) + the warning code ship WITH the domain-owned loop, against this gate (see D48). */
+  tools: z.object({ parallel: z.boolean() }).optional(),
+  /** `structured` = the model accepts `response_format`/JSON-schema constrained output (D48) — a SEPARATE
+   *  axis from `tools` (not realized via `tool_choice`). Absent ⇒ no structured-output; the gate the
+   *  future `responseFormat` request field reads. */
+  output: z.object({ maxTokens: rangeSchema, structured: z.boolean().optional() }),
   context: z.object({ window: z.number(), supports1M: z.boolean().optional() }),
 });
 export type ModelCapability = z.infer<typeof modelCapabilitySchema>;
