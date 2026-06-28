@@ -41,6 +41,9 @@ coverage/
 .cache/
 .eslintcache
 
+# --- local model weights (HF cache; pinned in-repo by the vLLM dev scripts) ---
+.models/
+
 # --- logs ---
 *.log
 npm-debug.log*

@@ -32,8 +32,5 @@
     "sharp": "catalog:",
     "undici": "catalog:",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "pino-pretty": "catalog:"
   }
 }
