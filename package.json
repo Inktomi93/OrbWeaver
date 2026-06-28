@@ -10,6 +10,9 @@
   "scripts": {
     "prepare": "lefthook install",
     "worktree:bootstrap": "bash scripts/worktree-bootstrap.sh",
+    "dev": "tsx watch packages/server/src/entry/index.ts | pino-pretty",
+    "start": "NODE_ENV=production tsx packages/server/src/entry/index.ts",
+    "engines": "bash scripts/dev/engines.sh",
     "typecheck": "pnpm -r exec tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -53,6 +56,7 @@
     "drizzle-orm": "catalog:",
     "jscpd": "catalog:",
     "lefthook": "catalog:",
+    "pino-pretty": "catalog:",
     "sharp": "catalog:",
     "ts-morph": "catalog:",
     "tsx": "catalog:",
