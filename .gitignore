@@ -24,6 +24,9 @@ dist/
 build/
 out/
 *.tsbuildinfo
+# `build/` above is build OUTPUT; the memory "build" tier (digest/segment generation) is SOURCE — un-ignore it.
+!packages/server/src/domain/chat/memory/build/
+!tests/server/domain/chat/memory/build/
 
 # --- test / coverage ---
 coverage/
