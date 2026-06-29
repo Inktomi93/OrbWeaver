@@ -314,6 +314,8 @@ async function executeTurn(
     ]);
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
+      // The injected node:vm ReDoS watchdog (D53) — the RECEIVE AI_OUTPUT/REASONING regex passes run under it.
+      applyRegexReplace: ctx.applyRegexReplace,
       // Resolve image refs under the host's CAS (runAsUserId — the funded owner, like getCard's host scope).
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, ref }),
       assembleContext: prep.assembleContext,

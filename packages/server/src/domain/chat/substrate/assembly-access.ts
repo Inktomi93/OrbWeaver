@@ -12,6 +12,7 @@
 import { assemblePrompt, previewSection as previewSectionImpl } from "../assembly/assemble";
 import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/context";
 import { fitHistoryToWindow } from "../assembly/history-budget";
+import { buildTurnMacroContext as buildTurnMacroContextImpl } from "../assembly/macros";
 import { shape } from "../assembly/shape";
 
 /** RESOLVE→GATHER→BUILD: produce the IMMUTABLE per-turn `AssembleContext` (the turn ctx the SHAPE phase + the
@@ -34,6 +35,15 @@ export function buildPrompt(
 /** SHAPE: scope→splice→squash→name-stamp the wire history + compute the §8 breakpoint. */
 export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof shape> {
   return shape(...args);
+}
+
+/** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING
+ *  author-side macro pass — chat.md §2; macros run on the TEMPLATE, never on the model output). The legal
+ *  `engine/ → assembly/` bridge (a direct import is `domain-no-cross-subsystem`-illegal). */
+export function buildTurnMacroContext(
+  ...args: Parameters<typeof buildTurnMacroContextImpl>
+): ReturnType<typeof buildTurnMacroContextImpl> {
+  return buildTurnMacroContextImpl(...args);
 }
 
 /** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`

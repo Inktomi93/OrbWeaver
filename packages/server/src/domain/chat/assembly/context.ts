@@ -21,9 +21,18 @@
 //     field), • `personas` (anchor/active name+description — there is no persona-read op, only
 //     `setActivePersona`), • `memory` (the `{{memory}}` string — `ctx.searchDigests` returns block KEYS; the
 //     keys→text format step is the unbuilt `memory/` subsystem).
-// FLAG[wi-regex-vm]: `@orb/server/kit/regex` (the node:vm ReDoS-guarded `applyReplace`) is a placeholder;
-// the WORLD_INFO regex pass uses the kit executor's default native replace (the pre-compile heuristic is the
-// only ReDoS defense until that wrapper lands).
+// SEND (D53 step 2): the USER_INPUT regex pass runs HERE, between RESOLVE (`base` → the author-side macro ctx)
+// and GATHER (the WI keyword match) — chat.md §2 (`macro → set {{input}} → USER_INPUT regex → fold the POST-regex
+// text into the WI haystack + {{input}} → persist`). Running it inside the producer is what lets BOTH the haystack
+// the keyword match sees AND the user row the verb persists be the SAME post-regex text (no divergence; §3 rule 4
+// + §7 canon-mutating-at-write). The post-regex text is surfaced to the SEND verb via the {@link SendRegexResult}
+// out-param (it persists the row); the verbatim greeting path (start-chat) takes NO composer input, so USER_INPUT
+// regex never applies there.
+//
+// FLAG[wi-regex-vm] RESOLVED: the node:vm ReDoS watchdog now exists (`@orb/server/kit/regex`) and is INJECTED as
+// `ctx.applyRegexReplace` (D53) — both the WORLD_INFO pass (here) and the SEND USER_INPUT pass run their one
+// `text.replace` under the per-call timeout, so a catastrophic-backtracking host-tier pattern throws (→ the kit
+// executor's per-script try/catch) instead of hanging the turn.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
@@ -36,13 +45,14 @@ import type {
 } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroContext } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
-import type { ChatContext } from "../contract/context";
+import type { ApplyRegexReplaceOp, ChatContext } from "../contract/context";
 import { renderInjection } from "./injections";
 import { buildTurnMacroContext, renderMacros } from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
@@ -117,6 +127,8 @@ function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext): 
 
 interface WiConversionArgs {
   readonly regexScripts: readonly RegexScriptInput[];
+  /** The injected node:vm ReDoS watchdog (D53) — the WORLD_INFO regex pass runs its `text.replace` under it. */
+  readonly applyReplace: ApplyRegexReplaceOp;
   readonly wiFormat: string;
   readonly recentMessages: readonly string[];
   readonly names: readonly string[];
@@ -210,6 +222,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
     scripts: env.args.regexScripts,
     placement: "WORLD_INFO",
     ctx: env.regexCtx,
+    applyReplace: env.args.applyReplace,
   });
   return wiCandidate(entry, wrapWiFormat(afterRegex, env.args.wiFormat, env.ctx), env.args);
 }
@@ -309,6 +322,23 @@ interface BuildAssembleContextInput {
   readonly model: string;
   /** The per-turn injection token budget (0 ⇒ unbudgeted). */
   readonly injectionTokenBudget: number;
+  /** The effective HOST-TIER regex set (D53 — host-global ∪ chat-preset ∪ cast), resolved under the frozen
+   *  `runAsUserId` by the verb/root (FLAG[hosttier-regex-supply](PD-41-adjacent): the 3-source resolution is the
+   *  orchestrator's integration step, supplied as a resolved cross-domain input — like preset/personas/memory).
+   *  Applied at SEND (USER_INPUT, here) + copied onto the returned `AssembleContext` for RECEIVE (the pipeline).
+   *  Absent/empty ⇒ no host-tier regex this turn. */
+  readonly hostTierRegexScripts?: readonly RegexScript[] | undefined;
+}
+
+/** Out-param sink for the SEND USER_INPUT regex result (chat.md §2/§7 — canon-mutating at write). When the
+ *  caller supplies BOTH `pendingUserText` and `hostTierRegexScripts`, {@link buildAssembleContext} runs the
+ *  USER_INPUT regex (to fold the post-regex text into the WI haystack + {{input}}) and writes the result here so
+ *  the SEND verb can PERSIST that exact post-regex text — the haystack and the stored user row never diverge.
+ *  Unset otherwise (a no-op turn, no host scripts, or no pending text). A caller-owned scratch object, NOT a
+ *  mutation of any producer input. File-local (the `types-in-contract` gate) — callers pass a structural
+ *  `{ sendUserText?: string }`. */
+interface SendRegexResult {
+  sendUserText?: string;
 }
 
 function hasMarker(config: PromptConfig, marker: string): boolean {
@@ -396,6 +426,7 @@ function routeKept(kept: readonly InjectionCandidate[]): {
 export async function buildAssembleContext(
   ctx: ChatContext,
   input: BuildAssembleContextInput,
+  out?: SendRegexResult,
 ): Promise<AssembleContext> {
   // ── RESOLVE — cast (live cards via the injected getCard, D28). NO macros yet. ──
   const cards = await Promise.all(
@@ -420,6 +451,34 @@ export async function buildAssembleContext(
 
   const base = buildBaseContext(character, cast, input);
 
+  // ── SEND — USER_INPUT regex on the pending user text (chat.md §2: macro → set {{input}} → USER_INPUT regex
+  //    → fold the POST-regex text into the WI haystack + {{input}}). Between RESOLVE/base and GATHER so the
+  //    haystack AND the persisted row (surfaced via `out`) are BOTH post-regex — no divergence (§3 rule 4 / §7).
+  //    The replace-template macro ctx is author-side (macros-before-regex); the watchdog guards the regex (D53). ──
+  const hostScripts: readonly RegexScript[] = input.hostTierRegexScripts ?? [];
+  let pendingText = input.pendingUserText;
+  if (input.pendingUserText !== undefined && hostScripts.length > 0) {
+    const sendMacroCtx = buildTurnMacroContext({
+      assembleCtx: base,
+      model: input.model,
+      chatId: input.chatId,
+      input: input.pendingUserText,
+    });
+    const sendUserText = executeRegexScripts({
+      text: input.pendingUserText,
+      scripts: hostScripts,
+      placement: "USER_INPUT",
+      ctx: sendMacroCtx,
+      applyReplace: ctx.applyRegexReplace,
+    });
+    pendingText = sendUserText;
+    // §2: the post-regex text feeds {{input}} for the rest of ASSEMBLE (and the verb persists it via `out`).
+    base.currentInput = sendUserText;
+    if (out !== undefined) {
+      out.sendUserText = sendUserText;
+    }
+  }
+
   // ── BUILD — WI → injections (render once + keyword match), unify into ONE list, ONE budget pass. ──
   const wiFormat = input.promptConfig.formatStrings?.wiFormat ?? DEFAULT_FORMAT_STRINGS.wiFormat;
   const names = [
@@ -434,10 +493,12 @@ export async function buildAssembleContext(
         base,
         {
           regexScripts: input.promptConfig.regexScripts,
+          applyReplace: ctx.applyRegexReplace,
           wiFormat,
           recentMessages: input.recentMessages,
+          // POST-USER_INPUT-regex (chat.md §2 — the two-phase haystack sees the transformed pending text).
+          pendingUserText: pendingText,
           names,
-          pendingUserText: input.pendingUserText,
           lastUserMessage: input.lastUserMessage,
           hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
           hasAfterAnchor: hasMarker(input.promptConfig, "world_info_after"),
@@ -466,6 +527,11 @@ export async function buildAssembleContext(
     chatInjections,
     worldInfoBefore: beforeParts.join("\n"),
     worldInfoAfter: afterParts.join("\n"),
+    // Carry the resolved host-tier regex set onto the immutable ctx so RECEIVE (the pipeline) applies the same
+    // set (AI_OUTPUT/REASONING) the SEND pass used (USER_INPUT) — D53. Absent stays absent (preview/aux turns).
+    ...(input.hostTierRegexScripts !== undefined
+      ? { hostTierRegexScripts: input.hostTierRegexScripts }
+      : {}),
     wiTrace: {
       included: chatInjections.length + beforeParts.length + afterParts.length,
       dropped,

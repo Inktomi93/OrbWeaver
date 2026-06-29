@@ -13,8 +13,10 @@
 // single-speaker turns the engine MODES (D26) now back: `swipe`/regenerate (append-variant), `continueTurn`
 // (+ `undoContinue`/`revertContinue` restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE
 // `generate`. Every generating verb threads the active-turns abort signal into the engine (FLAG[abort-into-
-// engine] resolved). FLAG[guided-placement]/[send-regex]: the `guided` steer + the SEND/RECEIVE regex pass
-// stay seams for a later chunk (the `guided` param is accepted, not yet routed).
+// engine] resolved). FLAG[send-regex] RESOLVED (D53 step 2): SEND USER_INPUT regex runs in the producer (the
+// post-regex row is persisted via the `SendRegexSink`); host-tier scripts ride `resolveAssembleInputs` onto the
+// assemble ctx (RECEIVE applies AI_OUTPUT/REASONING in the pipeline). FLAG[guided-placement]: the `guided` steer
+// stays a seam for a later chunk (the `guided` param is accepted, not yet routed).
 //
 // DEPS NOT ON `ChatContext` (the second factory arg — the `invites.ts`/`roster.ts` precedent; FLAG
 // [turn-deps-not-on-ctx], all SHOULD be wired at the composition root):
@@ -102,7 +104,15 @@ type AssembleCrossInputs = Pick<
   | "variableValues"
   | "injectionTokenBudget"
   | "timezone"
+  | "hostTierRegexScripts"
 >;
+
+/** The SEND USER_INPUT regex out-param sink (chat.md §2/§7) — `buildAssembleContext` writes the post-regex user
+ *  text here so the verb persists THAT (the haystack + the stored row never diverge). Structural — the local
+ *  `SendRegexResult` in `assembly/context.ts` is file-local (the `types-in-contract` gate). */
+interface SendRegexSink {
+  sendUserText?: string;
+}
 
 /** The shared per-round identity + ctx the driver reuses by reference (the bridge's `base` shape — derived). */
 type RoundBase = Parameters<typeof driveRoundVia>[0]["base"];
@@ -225,30 +235,38 @@ async function buildTurnContext(
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
   },
+  /** SEND sink — when present + the round resolves host-tier scripts, `buildAssembleContext` writes the
+   *  post-USER_INPUT-regex user text here for the verb to PERSIST (chat.md §2/§7). */
+  out?: SendRegexSink,
 ): ReturnType<typeof buildAssembleContext> {
   const cross = await deps.resolveAssembleInputs({
     chatId: args.chatId,
     runAsUserId: args.runAsUserId,
     model: args.model,
   });
-  return await buildAssembleContext(ctx, {
-    ...cross,
-    chatId: args.chatId,
-    ownerId: args.runAsUserId,
-    castCharacterIds: args.castCharacterIds,
-    personaIds: args.personaIds,
-    model: args.model,
-    generationType: "normal",
-    nowMs: ctx.now(),
-    ...(args.pendingUserText !== undefined
-      ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText }
-      : {}),
-  });
+  return await buildAssembleContext(
+    ctx,
+    {
+      ...cross,
+      chatId: args.chatId,
+      ownerId: args.runAsUserId,
+      castCharacterIds: args.castCharacterIds,
+      personaIds: args.personaIds,
+      model: args.model,
+      generationType: "normal",
+      nowMs: ctx.now(),
+      ...(args.pendingUserText !== undefined
+        ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText }
+        : {}),
+    },
+    out,
+  );
 }
 
-/** Persist a user message (a fresh slot + its one variant — D26) and emit `messageCommitted`. FLAG[send-regex]:
- *  the SEND-context USER_INPUT regex pass (chat.md §2) is NOT applied — the regex engine is `@orb/kit/regex`
- *  but the per-chat active-script resolution + the SEND pipeline are unbuilt; the raw `content` is persisted. */
+/** Persist a user message (a fresh slot + its one variant — D26) and emit `messageCommitted`. FLAG[send-regex]
+ *  RESOLVED (D53 step 2): the SEND-context USER_INPUT regex pass runs inside `buildAssembleContext` (chat.md §2)
+ *  and the CALLER passes the post-regex text as `content` (via the `SendRegexSink`) — this fn persists exactly
+ *  what it is handed (the host-tier 3-source resolution is supplied via `resolveAssembleInputs`, root-wired). */
 async function persistUserMessage(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
@@ -413,21 +431,29 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     const group = membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
 
     // The ONE immutable assemble ctx — built with the pending user text in the WI haystack (two-phase, §3.4)
-    // BEFORE the user row commits; the engine reloads canon (incl. the committed row) for the wire history.
-    const assembleContext = await buildTurnContext(ctx, deps, {
-      chatId,
-      runAsUserId: identity.runAsUserId,
-      model: connection.model,
-      castCharacterIds: room.castCharacterIds,
-      personaIds: room.personaIds,
-      pendingUserText: content,
-    });
+    // BEFORE the user row commits; the engine reloads canon (incl. the committed row) for the wire history. The
+    // SEND USER_INPUT regex runs INSIDE the producer (chat.md §2) and writes the post-regex text to `sendOut`.
+    const sendOut: SendRegexSink = {};
+    const assembleContext = await buildTurnContext(
+      ctx,
+      deps,
+      {
+        chatId,
+        runAsUserId: identity.runAsUserId,
+        model: connection.model,
+        castCharacterIds: room.castCharacterIds,
+        personaIds: room.personaIds,
+        pendingUserText: content,
+      },
+      sendOut,
+    );
 
     const seq = await loadMaxMessageSeq(ctx.db, chatId);
     const userView = await persistUserMessage(ctx, deps.emit, {
       chatId,
       seq: seq + 1,
-      content,
+      // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
+      content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
       personaId: personaId ?? null,
     });
@@ -511,19 +537,26 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
       hostUserId: room.hostUserId,
     });
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-    const assembleContext = await buildTurnContext(ctx, deps, {
-      chatId,
-      runAsUserId: identity.runAsUserId,
-      model: connection.model,
-      castCharacterIds: room.castCharacterIds,
-      personaIds: room.personaIds,
-      pendingUserText: content,
-    });
+    const sendOut: SendRegexSink = {};
+    const assembleContext = await buildTurnContext(
+      ctx,
+      deps,
+      {
+        chatId,
+        runAsUserId: identity.runAsUserId,
+        model: connection.model,
+        castCharacterIds: room.castCharacterIds,
+        personaIds: room.personaIds,
+        pendingUserText: content,
+      },
+      sendOut,
+    );
     const seq = await loadMaxMessageSeq(ctx.db, chatId);
     const userView = await persistUserMessage(ctx, deps.emit, {
       chatId,
       seq: seq + 1,
-      content,
+      // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
+      content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
       personaId: personaId ?? null,
     });
@@ -904,8 +937,10 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *
  * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
  * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
- * `appendUserTurn`. FLAG[guided-placement]: the swipe/continue/impersonate `guided` steer + the SEND/RECEIVE
- * regex pass are left as seams for the guided-steering chunk (the `guided` param is accepted, not yet routed).
+ * `appendUserTurn`. FLAG[guided-placement]: the swipe/continue/impersonate `guided` steer is left a seam for the
+ * guided-steering chunk (the `guided` param is accepted, not yet routed). The SEND/RECEIVE regex pass is wired
+ * (D53 step 2): aux turns (swipe/continue/generate/force) carry the host-tier scripts onto the assemble ctx, so
+ * their generated output runs the RECEIVE AI_OUTPUT/REASONING regex + post-process in the pipeline.
  */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   return {

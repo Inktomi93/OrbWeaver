@@ -5,6 +5,8 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatInjection } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -80,6 +82,7 @@ interface InputOver {
   recentMessages?: string[];
   userInjections?: ChatInjection[];
   injectionTokenBudget?: number;
+  hostTierRegexScripts?: RegexScript[];
 }
 function inputOf(
   chatId: string,
@@ -101,7 +104,26 @@ function inputOf(
     model: "test-model",
     injectionTokenBudget: over.injectionTokenBudget ?? 0,
     ...(over.pendingUserText !== undefined ? { pendingUserText: over.pendingUserText } : {}),
+    ...(over.hostTierRegexScripts !== undefined
+      ? { hostTierRegexScripts: over.hostTierRegexScripts }
+      : {}),
   };
+}
+
+/** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
+function regexScript(
+  id: string,
+  find: string,
+  replace: string,
+  placement: "USER_INPUT" | "WORLD_INFO",
+): RegexScript {
+  return regexScriptSchema.parse({
+    id,
+    name: id,
+    findRegex: find,
+    replaceString: replace,
+    placement: [placement],
+  });
 }
 
 describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)", () => {
@@ -191,6 +213,96 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     expect(contents).not.toContain("BBBBBBBB"); // lower priority dropped
     expect(contents).toContain("OPERATOR"); // operator intent spared (ignoreBudget)
     expect(out.wiTrace?.dropped).toContainEqual({ id: "world_entry_lo", reason: "budget" });
+  });
+});
+
+describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)", () => {
+  test("the WI haystack + the out-param BOTH see the POST-regex text (no divergence)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // The entry is keyed on "dragon"; the RAW pending text says "wyrm". A USER_INPUT regex rewrites
+    // wyrm→dragon, so the keyword fires on the POST-regex text — proving the haystack sees the transform.
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out: { sendUserText?: string } = {};
+    const result = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], {
+        pendingUserText: "a wyrm appears",
+        hostTierRegexScripts: [regexScript("u", "wyrm", "dragon", "USER_INPUT")],
+      }),
+      out,
+    );
+    // The post-regex user text is surfaced for the verb to persist (canon-mutating at write — §7).
+    expect(out.sendUserText).toBe("a dragon appears");
+    // …and the keyword entry fired on it (the two-phase haystack saw the transformed text).
+    expect(result.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(result.wiTrace?.matchedKeys).toContainEqual({
+      key: "dragon",
+      matchedLatestUserMessage: true,
+    });
+  });
+
+  test("macros resolve in the USER_INPUT replace TEMPLATE (author-side; macros-before-regex)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out: { sendUserText?: string } = {};
+    await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], {
+        pendingUserText: "I greet NAME",
+        // The replace template `{{char}}` resolves to the cast primary (Aria) — macros run on the template.
+        hostTierRegexScripts: [regexScript("u", "NAME", "{{char}}", "USER_INPUT")],
+      }),
+      out,
+    );
+    expect(out.sendUserText).toBe("I greet Aria");
+  });
+
+  test("no host scripts → the raw pending text is used + the sink stays unset", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out: { sendUserText?: string } = {};
+    const result = await buildAssembleContext(
+      ctx,
+      inputOf(chatId, host, [charId], { pendingUserText: "a wyrm appears" }),
+      out,
+    );
+    expect(out.sendUserText).toBeUndefined();
+    // "wyrm" never became "dragon" → the keyword did NOT fire.
+    expect(result.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+  });
+});
+
+describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D53)", () => {
+  test("a throwing watchdog skips the WORLD_INFO script (the entry content is unchanged)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" }); // always-scope, always fires
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      regexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")],
+    };
+    // The injected watchdog THROWS → the kit executor's per-script try/catch skips it → "GOLD" survives. The
+    // default native replace would have produced "SILVER", so the unchanged content proves the seam was used.
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      applyRegexReplace: () => {
+        throw new Error("timed out");
+      },
+    });
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+    });
+    expect(out.chatInjections?.map((i) => i.content)).toContain("GOLD hoard");
   });
 });
 

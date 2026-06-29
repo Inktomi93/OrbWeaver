@@ -11,6 +11,10 @@ import {
   parseNeoPresetFile,
   parsePromptConfig,
   promptConfigSchema,
+  THINK_PREFIX_DEFAULT,
+  THINK_SUFFIX_DEFAULT,
+  toPresetFormValues,
+  toPromptConfig,
   userIntentSchema,
 } from "@orb/contracts/preset";
 import { expect, test } from "vitest";
@@ -241,4 +245,44 @@ test("parseNeoPresetFile is STRICT: a structurally-broken config is REJECTED (er
 test("parseNeoPresetFile rejects a non-object and a wrong schemaKind", () => {
   expect(parseNeoPresetFile(null).ok).toBe(false);
   expect(parseNeoPresetFile({ schemaKind: "something-else", config: {} }).ok).toBe(false);
+});
+
+// ── reasoningParse (D47 #3 / D53) — the inline <think> fallback config ──────────────────────────────
+
+test("reasoningParse defaults: autoParse OFF + the <think> tag pair", () => {
+  const parsed = promptConfigSchema.parse({ ...DEFAULT_PROMPT_CONFIG, reasoningParse: {} });
+  expect(parsed.reasoningParse).toEqual({
+    autoParse: false,
+    prefix: THINK_PREFIX_DEFAULT,
+    suffix: THINK_SUFFIX_DEFAULT,
+  });
+});
+
+test("reasoningParse round-trips through the flat form mappers (server → form → server)", () => {
+  const config = toPromptConfig(
+    {
+      sections: DEFAULT_PROMPT_CONFIG.sections,
+      reasoningAutoParse: true,
+      reasoningPrefix: "<reason>",
+      reasoningSuffix: "</reason>",
+    },
+    DEFAULT_PROMPT_CONFIG,
+  );
+  expect(config.reasoningParse).toEqual({
+    autoParse: true,
+    prefix: "<reason>",
+    suffix: "</reason>",
+  });
+  const form = toPresetFormValues(config);
+  expect(form.reasoningAutoParse).toBe(true);
+  expect(form.reasoningPrefix).toBe("<reason>");
+  expect(form.reasoningSuffix).toBe("</reason>");
+});
+
+test("an unengaged reasoningParse (all-default form) is omitted — round-trips to unset", () => {
+  const config = toPromptConfig(
+    { sections: DEFAULT_PROMPT_CONFIG.sections },
+    DEFAULT_PROMPT_CONFIG,
+  );
+  expect(config.reasoningParse).toBeUndefined();
 });

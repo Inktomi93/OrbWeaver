@@ -261,6 +261,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newEventId: mint<ChatEventId>("chat_event"),
     newStreamEventId: mint<ChatStreamEventId>("stream_event"),
     audit: () => Promise.resolve(),
+    // Default = the NATIVE replace (no node:vm) — deterministic + fast for tests. A test that exercises the
+    // D53 watchdog seam (WI/SEND/RECEIVE) overrides this with a fake that throws on a pathological pattern.
+    applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: notStubbed,
     resolveChat: notStubbed,
     resolveCredential: notStubbed,

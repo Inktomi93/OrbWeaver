@@ -47,6 +47,7 @@ import type { ChatApi, ChatSource } from "#connection";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
+import type { RegexScript } from "#regex";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
 // ── The roster participant kind (the chat-roster discriminator) ───────────────
@@ -227,6 +228,11 @@ export interface AssembleContext {
   worldInfoAfter?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
+  /** The effective HOST-TIER regex set (D53) — host-global ∪ chat-preset ∪ cast, resolved under the frozen
+   *  `runAsUserId` (D19, never the caller). A RESOLVED cross-domain input (the preset/persona/memory pattern):
+   *  the verb/root supplies it, assembly carries it through. Applied at SEND (USER_INPUT, in `buildAssembleContext`)
+   *  and RECEIVE (AI_OUTPUT/REASONING, in `engine/pipeline`). Absent ⇒ no host-tier regex this turn. */
+  hostTierRegexScripts?: readonly RegexScript[] | undefined;
   /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. */
   wiTrace?: {
     included: number;
