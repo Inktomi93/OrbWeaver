@@ -35,6 +35,9 @@ export const CHAT_OP_CODES = {
   notTurnOwner: "not_turn_owner",
   /** A turn was requested while the per-chat turn lock is held (a turn is already in flight). */
   locked: "locked",
+  /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
+   *  `lastContinuation*` snapshot columns are empty — D26; nothing to restore). */
+  noContinuation: "no_continuation",
   /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. */
   aborted: "aborted",
   /** A room-override write targeted a field outside the four-field host allowlist, or a `forbidRoomOverride`

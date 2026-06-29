@@ -227,6 +227,68 @@ export function appendVariantStatements(
 }
 
 /**
+ * Continue-in-place (D26): extend an EXISTING variant's content + record the undo snapshot. ONE `UPDATE` of
+ * the slot's SELECTED variant — `content`/`reasoning`/economics become the NEW (pre + continuation) generation;
+ * `preContinue*` snapshots the pre-continuation state (what `undoContinue` restores) and `lastContinuation*`
+ * records the appended continuation (what `revertContinue` re-applies). The caller computes the merged content;
+ * this writes it atomically alongside the snapshot so undo/revert round-trip. `idx`/`createdAt` are untouched
+ * (the variant keeps its identity — continue extends it, never appends a sibling).
+ */
+export function continueVariantStatements(
+  db: Db,
+  params: {
+    readonly variantId: MessageVariantId;
+    /** The NEW full variant (merged content + the continuation's economics). */
+    readonly variant: CanonVariantInput;
+    readonly preContinueContent: string;
+    readonly preContinueReasoning: string | null;
+    readonly lastContinuationContent: string;
+    readonly lastContinuationReasoning: string | null;
+  },
+): BatchStmt[] {
+  return [
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({
+          ...variantEconomics(params.variant),
+          params: params.variant.params ?? null,
+          promptSnapshot: params.variant.promptSnapshot ?? null,
+          preContinueContent: params.preContinueContent,
+          preContinueReasoning: params.preContinueReasoning,
+          lastContinuationContent: params.lastContinuationContent,
+          lastContinuationReasoning: params.lastContinuationReasoning,
+        })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
+  ];
+}
+
+/** Set a variant's `content`/`reasoning` directly (the `undoContinue`/`revertContinue` restore — a pointer-free
+ *  content swap from the `preContinue*`/`lastContinuation*` snapshot; D26). The economics/snapshot columns are
+ *  untouched so a restore is reversible by its twin. */
+export function setVariantContentStatement(
+  db: Db,
+  variantId: MessageVariantId,
+  content: string,
+  reasoning: string | null,
+): BatchStmt {
+  return batchStmt(
+    db.update(messageVariants).set({ content, reasoning }).where(eq(messageVariants.id, variantId)),
+  );
+}
+
+/** Merge a base + a continuation text/reasoning (continue/revert): null only when BOTH are null (so an
+ *  unreasoned continuation of an unreasoned base stays null), else the concatenation. One home (engine +
+ *  verbs both fold continue state through this). */
+export function combineReasoning(base: string | null, addition: string | null): string | null {
+  if (base === null && addition === null) {
+    return null;
+  }
+  return (base ?? "") + (addition ?? "");
+}
+
+/**
  * Reconstruct the `MessageView` for a FRESHLY-committed message (variantCount 1, the just-inserted variant
  * selected at idx 0) WITHOUT a re-read — byte-for-byte what `loadCanonHistory` would return for this slot.
  * `editedAt` is null (never edited); `selectedVariantIdx` 0 (the first variant).

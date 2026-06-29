@@ -20,10 +20,19 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
+import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedUser,
+} from "../_support";
 
 const CAPABILITY = {
   reasoning: { mode: "none", enabled: false },
@@ -368,5 +377,117 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
     await expect(h.turn.abort({ principal: principal(host), chatId })).resolves.toBeUndefined();
+  });
+});
+
+describe("swipe — append-variant on an existing assistant slot (D26)", () => {
+  test("appends a variant + advances the selection; slot attribution unchanged", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+    const { messageId } = await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: chars[0] as CharacterId,
+      content: "first take",
+    });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.swipe({ principal: principal(host), chatId, messageId });
+
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.id).toBe(messageId);
+    expect(outcome.messages[0]?.variantCount).toBe(2);
+    expect(outcome.messages[0]?.selectedVariantIdx).toBe(1);
+    expect(outcome.messages[0]?.content).toBe("Hi there");
+    expect(outcome.messages[0]?.characterId).toBe(chars[0]);
+    // No new slot — the canon length is unchanged.
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(2);
+  });
+
+  test("swiping a non-assistant slot is a leak-free NOT_FOUND", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "user",
+      authorUserId: host,
+      content: "hi",
+    });
+    const h = harness(db, names);
+    await expect(
+      h.turn.swipe({ principal: principal(host), chatId, messageId }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+  });
+});
+
+describe("continueTurn / undoContinue / revertContinue — extend in place (D26)", () => {
+  test("continue extends; undo restores the pre-continue state; revert re-applies it", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+    const { messageId } = await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: chars[0] as CharacterId,
+      content: "Once upon a time",
+    });
+    const h = harness(db, names);
+
+    const cont = await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+    expect(cont.messages[0]?.content).toBe("Once upon a timeHi there");
+
+    const undone = await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    expect(undone.content).toBe("Once upon a time");
+
+    const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    expect(reverted.content).toBe("Once upon a timeHi there");
+  });
+
+  test("undoContinue on a never-continued variant is refused no_continuation", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: chars[0] as CharacterId,
+      content: "plain",
+    });
+    const h = harness(db, names);
+    await expect(
+      h.turn.undoContinue({ principal: principal(host), chatId, messageId }),
+    ).rejects.toMatchObject({ code: "no_continuation" });
+  });
+});
+
+describe("impersonate — a model-generated role:user slot (D26)", () => {
+  test("commits a human-voiced user message authored by the caller", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    const outcome = await h.turn.impersonate({ principal: principal(host), chatId });
+
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("user");
+    expect(outcome.messages[0]?.authorUserId).toBe(host);
+    expect(outcome.messages[0]?.characterId).toBeNull();
+    expect(outcome.messages[0]?.content).toBe("Hi there");
+  });
+});
+
+describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () => {
+  test("commits while a foreign lock is held; a locked send is refused on the same chat", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+    // A concurrent (foreign) turn holds the per-chat lock.
+    await tryAcquireLock(db, {
+      chatId,
+      holder: "other-replica",
+      now: FROZEN_AT,
+      expiresAt: FROZEN_AT + 60_000,
+    });
+
+    // A locked path (simpleSend → the engine acquires the lock) is refused…
+    await expect(
+      h.turn.simpleSend({ principal: principal(host), chatId, content: "blocked" }),
+    ).rejects.toMatchObject({ code: "locked" });
+
+    // …but the lock-free generate commits concurrently.
+    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("assistant");
+    expect(outcome.messages[0]?.characterId).toBe(chars[0]);
   });
 });

@@ -7,11 +7,14 @@
 // is `principal.userId`, `runAsUserId` is the host (read from the roster), `triggeredBy` is the responsible
 // human (the caller for a direct send; the chain-starter for an auto-mode turn).
 //
-// THE BUNDLE (the `verb-naming` gate — ONE `createTurn(ctx, deps)` factory; `deps` is the second arg): this
-// chunk ships the verbs the DONE single-speaker engine (`engine.runTurn` — locked, NEW-assistant-slot persist)
-// genuinely supports: `send` (+ the group round + auto-mode chain), `simpleSend` (the byte-identical solo
-// path), `forceCharacterTurn` (host-only), and `abort` (the active-turns registry). The remaining turn verbs
-// need engine MODES the DONE engine does not expose — they are FLAGGED, not stubbed (see the file footer).
+// THE BUNDLE (the `verb-naming` gate — ONE `createTurn(ctx, deps)` factory; `deps` is the second arg): the
+// round-driving / control verbs `send` (+ the group round + auto-mode chain), `simpleSend` (the byte-identical
+// solo path), `forceCharacterTurn` (host-only), `abort` (the active-turns registry); PLUS the auxiliary
+// single-speaker turns the engine MODES (D26) now back: `swipe`/regenerate (append-variant), `continueTurn`
+// (+ `undoContinue`/`revertContinue` restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE
+// `generate`. Every generating verb threads the active-turns abort signal into the engine (FLAG[abort-into-
+// engine] resolved). FLAG[guided-placement]/[send-regex]: the `guided` steer + the SEND/RECEIVE regex pass
+// stay seams for a later chunk (the `guided` param is accepted, not yet routed).
 //
 // DEPS NOT ON `ChatContext` (the second factory arg — the `invites.ts`/`roster.ts` precedent; FLAG
 // [turn-deps-not-on-ctx], all SHOULD be wired at the composition root):
@@ -34,25 +37,39 @@ import type { ChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   AbortParams,
+  ContinueTurnParams,
   ForceCharacterTurnParams,
+  GenerateParams,
+  ImpersonateParams,
+  RevertContinueParams,
   SendParams,
   SimpleSendParams,
+  SwipeParams,
+  UndoContinueParams,
 } from "../contract/params";
-import type { TurnEngine, TurnOutcome } from "../contract/results";
+import type { TurnEngine, TurnOutcome, TurnPrep } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
   buildCommittedMessageView,
+  combineReasoning,
   insertCanonMessageStatements,
+  setVariantContentStatement,
 } from "../persistence/canon-write";
-import { loadCanonHistory, loadMaxMessageSeq } from "../persistence/queries";
+import {
+  loadCanonHistory,
+  loadContinueSnapshot,
+  loadMaxMessageSeq,
+  loadMessageView,
+  loadSlotTarget,
+} from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { buildAssembleContext } from "../substrate/assembly-access";
 import {
@@ -109,10 +126,28 @@ interface TurnDeps {
 }
 
 /** The turn-running slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
-type TurnVerbs = Pick<ChatService, "send" | "simpleSend" | "forceCharacterTurn" | "abort">;
+type TurnVerbs = Pick<
+  ChatService,
+  | "send"
+  | "simpleSend"
+  | "forceCharacterTurn"
+  | "abort"
+  | "swipe"
+  | "continueTurn"
+  | "impersonate"
+  | "generate"
+  | "undoContinue"
+  | "revertContinue"
+>;
 
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
+
+/** The synthetic trailing-user nudges (chat.md §6 — turn instructions; FLAG[guided-placement]: the guided-
+ *  steering chunk refines WHERE these land — for now they ride `appendUserTurn`). No magic strings (one home). */
+const CONTINUE_NUDGE =
+  "[Continue the previous message from exactly where it left off, without repeating it.]";
+const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
 
 /** The roster-derived turn substrate: the host (the D19 funding id), the character candidates (arbitration),
  *  their display names (@mention + name-stamp), the full present cast (WI cards), and the present personas. */
@@ -414,6 +449,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
             .characterId
         : null;
     const castName = joinedCastName(room.castNames);
+    // Register the handle BEFORE the base so the abort signal threads into EVERY round turn (FLAG[abort-into-
+    // engine] resolved): a `base.signal` rides each per-speaker prep + the auto-mode chain.
+    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
       assembleContext,
@@ -422,9 +460,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       runAsUserId: identity.runAsUserId,
       kind: "send",
       intent: intent ?? {},
+      signal: handle.signal,
     };
 
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     try {
       const round = await driveRoundVia({
         engine: deps.engine,
@@ -500,6 +538,7 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
         kind: "simple-send",
         intent: intent ?? {},
         speakerCharacterId: room.castNames[0]?.characterId ?? null,
+        signal: handle.signal,
       });
       return {
         messages: [userView, ...outcome.messages],
@@ -547,6 +586,7 @@ function createForceCharacterTurn(
       castCharacterIds: room.castCharacterIds,
       personaIds: room.personaIds,
     });
+    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
       assembleContext,
@@ -555,8 +595,8 @@ function createForceCharacterTurn(
       runAsUserId: identity.runAsUserId,
       kind: "force",
       intent: intent ?? {},
+      signal: handle.signal,
     };
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     try {
       const round = await driveRoundVia({
         engine: deps.engine,
@@ -594,25 +634,278 @@ function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
   };
 }
 
+// ── The single-speaker auxiliary turns (swipe / continue / impersonate / generate) ──────────────────────────
+// These four target ONE slot/speaker (no arbitration / round) and share a preamble + a registered engine run.
+
+/** The resolved single-turn substrate: the room, the D19 triple, the connection, and the ONE immutable
+ *  assemble ctx (the gate is the CALLER's — these helpers assume `requireParticipant`/`requireHost` ran). */
+interface TurnBase {
+  readonly room: Room;
+  readonly identity: { readonly triggeredBy: UserId; readonly runAsUserId: UserId };
+  readonly connection: ResolvedConnection;
+  readonly assembleContext: Awaited<ReturnType<typeof buildTurnContext>>;
+}
+
+/** Resolve the {@link TurnBase} for an auxiliary turn (loadRoom → D19 triple → connection → assemble ctx). The
+ *  AI runs as the host (D19). These turns add no new user line (the regen/continue/impersonate context is the
+ *  existing canon ± a synthetic nudge), so there is no `pendingUserText` to fold into the WI haystack. */
+async function resolveTurnBase(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  args: { readonly principal: SendParams["principal"]; readonly chatId: ChatId },
+): Promise<TurnBase> {
+  const { principal, chatId } = args;
+  const room = await loadRoom(ctx, chatId);
+  const identity = resolveTurnIdentityVia({
+    principalUserId: principal.userId,
+    hostUserId: room.hostUserId,
+  });
+  const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
+  const assembleContext = await buildTurnContext(ctx, deps, {
+    chatId,
+    runAsUserId: identity.runAsUserId,
+    model: connection.model,
+    castCharacterIds: room.castCharacterIds,
+    personaIds: room.personaIds,
+  });
+  return { room, identity, connection, assembleContext };
+}
+
+/** Run ONE engine turn under an active-turns registration, threading the abort signal into the engine (FLAG
+ *  [abort-into-engine] resolved at the verb seam) and releasing the handle in a `finally`. */
+async function runRegistered(
+  deps: TurnDeps,
+  chatId: ChatId,
+  triggeredBy: UserId,
+  prep: Omit<TurnPrep, "signal">,
+): Promise<TurnOutcome> {
+  const handle = deps.activeTurns.register(chatId, triggeredBy);
+  try {
+    return await deps.engine.runTurn({ ...prep, signal: handle.signal });
+  } finally {
+    handle.release();
+  }
+}
+
+/** The two-axis SHAPE for an auxiliary turn voicing a KNOWN roster character (swipe/continue keep the target
+ *  slot's speaker — D26 slot attribution unchanged). Returns undefined (⇒ the ctx primary) when the name can't
+ *  be resolved (a deleted character — the stamp falls back, never stamps an empty label). */
+function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep["shape"] {
+  const name = room.castNames.find((c) => c.characterId === characterId)?.name;
+  if (name === undefined || name.length === 0) {
+    return;
+  }
+  return { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: name };
+}
+
+// ── swipe / regenerate (append a NEW variant to an EXISTING assistant slot — D26) ────────────────────────────
+/** `swipe` — reroll an assistant slot: regenerate from the context BEFORE the slot and APPEND the result as a
+ *  new variant (selected). Slot attribution is unchanged (D26). `regenerate` is `swipe` on the last assistant
+ *  message — the same mode, the client passes that messageId. A non-assistant / missing target is NOT_FOUND. */
+function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
+  return async ({ principal, chatId, messageId, intent }: SwipeParams): Promise<TurnOutcome> => {
+    await requireParticipant(ctx, principal, chatId);
+    const target = await loadSlotTarget(ctx.db, messageId);
+    if (target === undefined || target.role !== "assistant") {
+      throw new ChatNotFoundError(chatId);
+    }
+    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+    });
+    const shape = speakerShapeFor(room, target.characterId);
+    return await runRegistered(deps, chatId, identity.triggeredBy, {
+      chatId,
+      assembleContext,
+      connection,
+      triggeredBy: identity.triggeredBy,
+      runAsUserId: identity.runAsUserId,
+      kind: "swipe",
+      intent: intent ?? {},
+      speakerCharacterId: target.characterId,
+      persist: { mode: "append-variant", targetMessageId: messageId },
+      ...(shape !== undefined ? { shape } : {}),
+    });
+  };
+}
+
+// ── continueTurn (extend the tail assistant message in place + the D26 continue snapshot) ────────────────────
+/** `continueTurn` — extend an assistant slot's selected variant in place: the model sees the canon THROUGH the
+ *  slot (+ a continue nudge) and the generated text is APPENDED to the variant, snapshotting `preContinue*` so
+ *  `undoContinue` can restore it (D26). A non-assistant / missing target is a leak-free NOT_FOUND. */
+function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["continueTurn"] {
+  return async ({
+    principal,
+    chatId,
+    messageId,
+    intent,
+  }: ContinueTurnParams): Promise<TurnOutcome> => {
+    await requireParticipant(ctx, principal, chatId);
+    const target = await loadSlotTarget(ctx.db, messageId);
+    if (target === undefined || target.role !== "assistant") {
+      throw new ChatNotFoundError(chatId);
+    }
+    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+    });
+    const shape = speakerShapeFor(room, target.characterId);
+    return await runRegistered(deps, chatId, identity.triggeredBy, {
+      chatId,
+      assembleContext,
+      connection,
+      triggeredBy: identity.triggeredBy,
+      runAsUserId: identity.runAsUserId,
+      kind: "continue",
+      intent: intent ?? {},
+      speakerCharacterId: target.characterId,
+      appendUserTurn: CONTINUE_NUDGE,
+      persist: { mode: "continue", targetMessageId: messageId },
+      ...(shape !== undefined ? { shape } : {}),
+    });
+  };
+}
+
+// ── impersonate (the model writes the USER's next message — a role:"user" slot, D26) ─────────────────────────
+/** `impersonate` — generate the user's next line in the active persona's voice and persist it as a `role:"user"`
+ *  slot (human-voiced, model-generated — D26). The steer reaches the model ONLY via `appendUserTurn`; the slot
+ *  is authored by the responsible human (`triggeredBy`) + the chosen persona. */
+function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["impersonate"] {
+  return async ({
+    principal,
+    chatId,
+    personaId,
+    intent,
+  }: ImpersonateParams): Promise<TurnOutcome> => {
+    await requireParticipant(ctx, principal, chatId);
+    const { identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+    });
+    return await runRegistered(deps, chatId, identity.triggeredBy, {
+      chatId,
+      assembleContext,
+      connection,
+      triggeredBy: identity.triggeredBy,
+      runAsUserId: identity.runAsUserId,
+      kind: "impersonate",
+      intent: intent ?? {},
+      speakerCharacterId: null,
+      appendUserTurn: IMPERSONATE_NUDGE,
+      persist: {
+        mode: "new-slot",
+        role: "user",
+        authorUserId: identity.triggeredBy,
+        personaId: personaId ?? null,
+      },
+    });
+  };
+}
+
+// ── generate (a LOCK-FREE auxiliary generation — runs CONCURRENT with a locked send) ─────────────────────────
+/** `generate` — a lock-free auxiliary assistant generation (chat.md active-turns): it does NOT acquire the
+ *  per-chat send lock, so it runs concurrent with a locked `send` (the active-turns registry is its only
+ *  concurrency control). Commits a new assistant slot for the named speaker (or the primary character). */
+function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
+  return async ({
+    principal,
+    chatId,
+    speakerCharacterId,
+    intent,
+  }: GenerateParams): Promise<TurnOutcome> => {
+    await requireParticipant(ctx, principal, chatId);
+    const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+    });
+    const speaker = speakerCharacterId ?? room.castNames[0]?.characterId ?? null;
+    const shape = speakerShapeFor(room, speaker);
+    return await runRegistered(deps, chatId, identity.triggeredBy, {
+      chatId,
+      assembleContext,
+      connection,
+      triggeredBy: identity.triggeredBy,
+      runAsUserId: identity.runAsUserId,
+      kind: "generate",
+      intent: intent ?? {},
+      speakerCharacterId: speaker,
+      lockFree: true,
+      ...(shape !== undefined ? { shape } : {}),
+    });
+  };
+}
+
+// ── undoContinue / revertContinue (restore from the D26 snapshot columns — no generation) ────────────────────
+/** Restore an assistant slot's selected variant from its continue snapshot (D26): `undo` → `preContinue*`
+ *  (drop the last continuation); `revert` → `preContinue* + lastContinuation*` (re-apply it). A variant that
+ *  was never continued (the snapshot columns are empty) is refused `no_continuation`. Emits `messageCommitted`. */
+async function restoreContinue(
+  ctx: ChatContext,
+  emit: TurnDeps["emit"],
+  args: {
+    readonly chatId: ChatId;
+    readonly messageId: MessageId;
+    readonly direction: "undo" | "revert";
+  },
+): Promise<MessageView> {
+  const { chatId, messageId, direction } = args;
+  const snap = await loadContinueSnapshot(ctx.db, messageId);
+  if (
+    snap === undefined ||
+    snap.preContinueContent === null ||
+    snap.lastContinuationContent === null
+  ) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.noContinuation,
+      `message ${messageId}: no continuation to ${direction}`,
+    );
+  }
+  const content =
+    direction === "undo"
+      ? snap.preContinueContent
+      : snap.preContinueContent + snap.lastContinuationContent;
+  const reasoning =
+    direction === "undo"
+      ? snap.preContinueReasoning
+      : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
+  await ctx.db.batch(
+    batchMany([setVariantContentStatement(ctx.db, snap.variantId, content, reasoning)]),
+  );
+  const view = await loadMessageView(ctx.db, messageId);
+  if (view === undefined) {
+    throw new ChatNotFoundError(chatId);
+  }
+  await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+  return view;
+}
+
+/** `undoContinue` — revert the last continuation on a slot's variant (restores `preContinue*` — D26). */
+function createUndoContinue(ctx: ChatContext, deps: TurnDeps): ChatService["undoContinue"] {
+  return async ({ principal, chatId, messageId }: UndoContinueParams): Promise<MessageView> => {
+    await requireParticipant(ctx, principal, chatId);
+    return await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "undo" });
+  };
+}
+
+/** `revertContinue` — re-apply the last reverted continuation (the redo twin — D26). */
+function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["revertContinue"] {
+  return async ({ principal, chatId, messageId }: RevertContinueParams): Promise<MessageView> => {
+    await requireParticipant(ctx, principal, chatId);
+    return await restoreContinue(ctx, deps.emit, { chatId, messageId, direction: "revert" });
+  };
+}
+
 /**
  * The turn-running verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root
- * spreads it into the full service. Ships the verbs the DONE engine supports; see the file footer for the
- * FLAGGED verbs that need engine modes the single-speaker core does not yet expose.
+ * spreads it into the full service. The single-speaker engine MODES (D26) the engine now exposes back the
+ * auxiliary turns: `swipe`/regenerate (append-variant), `continueTurn` (+ `undoContinue`/`revertContinue`
+ * restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE `generate`. `send`/`simpleSend`/
+ * `forceCharacterTurn`/`abort` are the round-driving / control verbs.
  *
- * FLAG[engine-modes-missing] — `swipe`/`continueTurn`/`undoContinue`/`revertContinue`/`generate`/`impersonate`
- * are NOT shipped here (deliberately un-stubbed). The DONE `engine.runTurn` only commits a NEW assistant slot
- * under the per-chat lock; each of these needs a turn MODE the engine does not expose:
- *   • swipe / regen     → APPEND a variant to an EXISTING slot (`appendVariantStatements` exists in
- *                         persistence, but the engine's persist step is hard-wired to `insertCanonMessageStatements`).
- *   • continueTurn      → EXTEND the tail variant in place + the per-variant continue snapshot.
- *   • impersonate       → persist a USER-role generation (the engine hard-codes `role:"assistant"`).
- *   • generate          → LOCK-FREE execution (the engine's `runTurn` unconditionally acquires the per-chat
- *                         lock, so a "lock-free generate concurrent with a locked send" is impossible via it).
- * All four require an engine extension (a parametrized persist step + a lock-free entry + a `TurnPrep.signal`)
- * — out of this chunk's disjoint set (engine/ is DONE/off-limits). Wiring them is the engine-extension chunk's.
- * `opening`/`generateOpening` is INTERNAL (injected into `startChat`, not on `ChatService`) — its home is the
- * `start-chat.ts` chunk; the engine path for it is a `kind:"opening"` `runTurn` with the opening instruction on
- * `appendUserTurn`.
+ * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
+ * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
+ * `appendUserTurn`. FLAG[guided-placement]: the swipe/continue/impersonate `guided` steer + the SEND/RECEIVE
+ * regex pass are left as seams for the guided-steering chunk (the `guided` param is accepted, not yet routed).
  */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   return {
@@ -620,5 +913,11 @@ export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
     simpleSend: createSimpleSend(ctx, deps),
     forceCharacterTurn: createForceCharacterTurn(ctx, deps),
     abort: createAbort(ctx, deps),
+    swipe: createSwipe(ctx, deps),
+    continueTurn: createContinueTurn(ctx, deps),
+    impersonate: createImpersonate(ctx, deps),
+    generate: createGenerate(ctx, deps),
+    undoContinue: createUndoContinue(ctx, deps),
+    revertContinue: createRevertContinue(ctx, deps),
   };
 }

@@ -21,7 +21,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatDetail, ChatVariables } from "./views";
 
@@ -64,12 +64,39 @@ export const TURN_KINDS = [
   "swipe",
   "continue",
   "generate",
+  "impersonate",
   "opening",
   "auto",
   "force",
   "simple-send",
 ] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
+
+/**
+ * The persist MODE for a turn's generated output (chat.md Part III — the per-MODE persist step the ONE engine
+ * lifecycle parametrizes; D26). ABSENT on a {@link TurnPrep} ⇒ `new-slot` assistant (the chunk-9 default: a
+ * fresh assistant slot at `maxSeq+1`). The belts → turnStarted → pipeline → emit spine is SHARED across all
+ * modes; only the persist step + the canon-context truncation differ:
+ *   • `new-slot`       — a fresh slot+variant at the canon tail. `role:"assistant"` (send/generate/force) or
+ *                        `role:"user"` (impersonate — human-voiced, D26). Context = the FULL canon.
+ *   • `append-variant` — swipe/regenerate: APPEND a variant to an EXISTING assistant slot + select it (slot
+ *                        attribution unchanged — D26). Context = the canon UP TO (excluding) the slot.
+ *   • `continue`       — extend the target slot's SELECTED variant in place: snapshot `preContinue*`, append
+ *                        the continuation, record `lastContinuation*` (D26 undo state). Context = the canon UP
+ *                        TO AND INCLUDING the slot (+ a continue nudge on `appendUserTurn`).
+ */
+export type TurnPersist =
+  | {
+      readonly mode: "new-slot";
+      /** The slot role — `assistant` (a normal turn) or `user` (impersonate; D26 — human-voiced). */
+      readonly role: MessageRole;
+      /** The human author for a `role:"user"` slot (impersonate — the responsible human); null otherwise. */
+      readonly authorUserId?: UserId | null | undefined;
+      /** The persona voicing a `role:"user"` slot (impersonate); null otherwise. */
+      readonly personaId?: PersonaId | null | undefined;
+    }
+  | { readonly mode: "append-variant"; readonly targetMessageId: MessageId }
+  | { readonly mode: "continue"; readonly targetMessageId: MessageId };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The role-call request/response (the ONE turn dispatch — chat.md §2)
@@ -179,6 +206,18 @@ export interface TurnPrep {
    *  the group round driver. ABSENT ⇒ the single-speaker core's pinned default (per-speaker/merged/primary
    *  name); solo stays byte-identical (D16). */
   readonly shape?: TurnSpeakerShape | undefined;
+  /** The persist MODE (D26 — see {@link TurnPersist}). ABSENT ⇒ `new-slot` assistant (the chunk-9 default —
+   *  a fresh assistant slot at the canon tail). swipe/regenerate set `append-variant`; continue sets
+   *  `continue`; impersonate sets `new-slot` with `role:"user"`. */
+  readonly persist?: TurnPersist | undefined;
+  /** Lock-free execution (chat.md active-turns) — `generate` runs CONCURRENT with a locked send (it does NOT
+   *  acquire the per-chat send lock; the active-turns registry is its only concurrency control). ABSENT/false
+   *  ⇒ the locked path (send/swipe/continue/impersonate/force). */
+  readonly lockFree?: boolean | undefined;
+  /** The caller's abort signal (the active-turns handle) threaded engine → pipeline → `runChatTurn`
+   *  (FLAG[abort-into-engine], resolved). The runner aborts its in-flight request when signalled; the engine
+   *  maps the resulting `AbortError` to `turnAborted(reason:"user")` then rethrows (never swallows). */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /**
