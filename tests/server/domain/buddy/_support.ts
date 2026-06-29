@@ -159,6 +159,7 @@ export function makeHarness(db: Db): BuddyHarness {
       rerankModel: "vllm-local",
       imageEmbedModel: "vllm-local",
       summarizerModel: "vllm-local",
+      summarizerContextTokens: 32_000,
     },
     agentEnv: {
       startWorkload: (args: {

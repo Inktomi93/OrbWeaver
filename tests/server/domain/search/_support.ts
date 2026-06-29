@@ -89,6 +89,7 @@ export function makeFakeRoleClients(controls: FakeRoleClientControls = {}): Role
     rerankModel: "test-rerank-model",
     imageEmbedModel: "test-image-embed-model",
     summarizerModel: "test-summarize-model",
+    summarizerContextTokens: 32_000,
   };
 }
 

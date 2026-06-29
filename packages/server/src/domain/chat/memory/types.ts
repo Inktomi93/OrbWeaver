@@ -6,9 +6,14 @@
 export type {
   BlockSpan,
   DigestRow,
+  MemoryBuildTrace,
   MemoryConfig,
+  MemoryLog,
+  MemoryLogEntry,
   MemoryPassCounts,
+  MemoryRecallTrace,
   MemoryScope,
   MsgRow,
   ResolvedMemoryConfig,
+  WitnessInterval,
 } from "../contract/memory";

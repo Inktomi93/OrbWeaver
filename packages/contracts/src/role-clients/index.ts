@@ -142,4 +142,9 @@ export interface RoleClients {
   imageEmbedModel: string;
   /** Model id baked into `summarize` — stored on `chat_digests.summarizerModel`. */
   summarizerModel: string;
+  /** The summarizer model's resolved context window in tokens (`ModelCapability.contextLength`, or a floor
+   *  when the catalog reports none). The memory build's TOKEN-GUARD reads this to fit each summarizer call to
+   *  the user's ACTUAL context — trim-to-fit / skip-and-flag, never silent truncation (knowledge-cluster §3a/
+   *  §10). A summarizer is a `chat`-turn on the user's own backend, so the context is the user's, not a pin. */
+  summarizerContextTokens: number;
 }

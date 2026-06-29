@@ -9,9 +9,11 @@ import {
   loadDigestSpeakers,
   loadDigestsForScope,
   loadSegmentHashes,
+  loadSegmentSpans,
+  loadWitnessHorizons,
 } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import { freshDb } from "../../../../../support/db";
-import { seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support";
 import { GROUP_CHAR, seedDigest, seedSegment } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
@@ -90,5 +92,35 @@ describe("memory/persistence/queries", () => {
     const map = await loadDigestSpeakers(db, [id]);
     expect(map.get(id)).toEqual([aria]);
     expect(await loadDigestSpeakers(db, [])).toEqual(new Map());
+  });
+
+  test("loadWitnessHorizons returns a character's join/leave intervals, joinSeq-ascending (kick→re-add)", async () => {
+    const chatId = await seedChat(db, "wh");
+    // Two presence episodes for aria (a kick→re-add): [1,9) then [17, present).
+    await seedParticipant(db, { chatId, key: "aria1", characterId: aria, joinSeq: 1, leftSeq: 9 });
+    await seedParticipant(db, {
+      chatId,
+      key: "aria2",
+      characterId: aria,
+      joinSeq: 17,
+      leftSeq: null,
+    });
+    const horizons = await loadWitnessHorizons(db, chatId, aria);
+    expect(horizons).toEqual([
+      { joinSeq: 1, leftSeq: 9 },
+      { joinSeq: 17, leftSeq: null },
+    ]);
+    // A character with no participant row has no horizons (never present).
+    expect(await loadWitnessHorizons(db, chatId, GROUP_CHAR)).toEqual([]);
+  });
+
+  test("loadSegmentSpans maps blockIdx → its seq-span (the recall witnessing filter's seq resolver)", async () => {
+    const chatId = await seedChat(db, "ss");
+    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
+    const spans = await loadSegmentSpans(db, chatId);
+    expect(spans.get(0)).toEqual({ seqStart: 1, seqEnd: 8 });
+    expect(spans.get(1)).toEqual({ seqStart: 9, seqEnd: 16 });
+    expect(spans.get(2)).toBeUndefined();
   });
 });

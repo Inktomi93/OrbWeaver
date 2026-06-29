@@ -47,7 +47,8 @@ function stubConnection(): Pick<ConnectionService, "resolveRole"> {
         api: "chat-completions" as ChatApi,
         model: castId<ModelId>(`model-${role}`),
         credential: { source: "vllm" } as unknown as ResolvedCredential,
-        capability: {} as unknown as ModelCapability,
+        // The binder reads `capability.context.window` for the summarizer token-guard tag — supply a minimal one.
+        capability: { context: { window: 32_000 } } as unknown as ModelCapability,
       };
       return Promise.resolve(resolved);
     },

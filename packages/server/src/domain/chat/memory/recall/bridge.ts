@@ -13,6 +13,7 @@
 // `candidates` param exists for the retrieval-combined case (see return note in `recall.ts`).
 
 import type { BlockKey } from "@orb/contracts/search";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { DigestRow, MemoryScope } from "../types";
 
 /**
@@ -26,11 +27,15 @@ export function computeBridge(
   fanOut: number,
 ): BlockKey[] {
   const present = new Set<string>();
+  // The per-(tier:blockIdx) bucket owner — each emitted key carries its OWN digest's `scopedCharacterId`, so a
+  // mode-switch UNION (a merged-era group-char block + a scoped-era speaker block) keys each correctly (§4).
+  const scopeOf = new Map<string, CharacterId>();
   let maxTier = 0;
   let lastTier0 = -1;
   let firstTier0 = Number.POSITIVE_INFINITY;
   for (const d of digests) {
     present.add(`${d.tier}:${d.blockIdx}`);
+    scopeOf.set(`${d.tier}:${d.blockIdx}`, d.scopedCharacterId);
     maxTier = Math.max(maxTier, d.tier);
     if (d.tier === 0) {
       lastTier0 = Math.max(lastTier0, d.blockIdx);
@@ -54,14 +59,14 @@ export function computeBridge(
       continue;
     }
     const span = fanOut ** t;
-    keys.push(toKey(scope, t, Math.floor(p / span)));
+    keys.push(toKey(scope.chatId, scopeOf, t, Math.floor(p / span)));
     p += span;
   }
 
   // ── recent past: the fine tier-0 blocks [fineStart, lastTier0] ──
   for (let b = fineStart; b <= lastTier0; b += 1) {
     if (present.has(`0:${b}`)) {
-      keys.push(toKey(scope, 0, b));
+      keys.push(toKey(scope.chatId, scopeOf, 0, b));
     }
   }
   return keys;
@@ -90,6 +95,18 @@ function highestCoveringTier(
   return null;
 }
 
-function toKey(scope: MemoryScope, tier: number, blockIdx: number): BlockKey {
-  return { chatId: scope.chatId, tier, blockIdx, scopedCharacterId: scope.scopedCharacterId };
+/** Emit a {@link BlockKey} carrying the block's OWN bucket owner (from `scopeOf`) — so a union of the shared
+ *  (group-char) + the speaker's scoped bucket keys each block to the digest that actually produced it. A
+ *  position with no recorded owner cannot reach here (only `present` positions are emitted). */
+function toKey(
+  chatId: ChatId,
+  scopeOf: ReadonlyMap<string, CharacterId>,
+  tier: number,
+  blockIdx: number,
+): BlockKey {
+  const scopedCharacterId = scopeOf.get(`${tier}:${blockIdx}`);
+  if (scopedCharacterId === undefined) {
+    throw new Error(`computeBridge: no scope owner for ${tier}:${blockIdx}`);
+  }
+  return { chatId, tier, blockIdx, scopedCharacterId };
 }
