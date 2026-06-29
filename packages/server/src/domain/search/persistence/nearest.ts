@@ -40,8 +40,9 @@ interface NearestCharactersParams {
   readonly limit: number;
 }
 
-/** Wrap a `Float32Array` as the raw little-endian blob libSQL's `vector32()` reads (custom-types §1). */
-function toVectorBlob(v: Float32Array): Uint8Array {
+/** Wrap a `Float32Array` as the raw little-endian blob libSQL's `vector32()` reads (custom-types §1).
+ *  Exported so the digest/segment scans (`digest-rows.ts`) bind the query vector identically — one home. */
+export function toVectorBlob(v: Float32Array): Uint8Array {
   return new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
 }
 

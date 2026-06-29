@@ -21,8 +21,26 @@ import type {
   SummarizeInput,
 } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characterSummaries, characters, users } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import {
+  assets,
+  characterEmbeddings,
+  characterSummaries,
+  characters,
+  chatDigests,
+  chatSegments,
+  chats,
+  users,
+} from "@orb/db";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatSegmentId,
+  Handle,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
   SearchContext,
@@ -216,6 +234,81 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
     size: 1,
     hash: overrides.hash ?? "hash_a",
     uploadedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+/** Insert a `chats` row (the producer FK the digest/segment rows scope to; D18 — no ownerId). */
+export async function seedChat(db: Db, id: string): Promise<ChatId> {
+  const chatId = castId<ChatId>(id);
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  return chatId;
+}
+
+interface SeedDigestOverrides {
+  readonly id?: string;
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly tier?: number;
+  readonly blockIdx: number;
+  readonly text?: string;
+  readonly embedding: Float32Array;
+  readonly hubScore?: number | null;
+  readonly model?: string;
+  readonly contentHash?: string;
+  readonly keywords?: readonly string[];
+}
+
+/** Insert a `chat_digests` row (the distilled lens `digests`/`corpus` scan). */
+export async function seedChatDigest(db: Db, o: SeedDigestOverrides): Promise<ChatDigestId> {
+  const id = castId<ChatDigestId>(
+    o.id ?? `chat_digest_${o.chatId}_${o.scopedCharacterId}_${o.tier ?? 0}_${o.blockIdx}`,
+  );
+  await db.insert(chatDigests).values({
+    id,
+    chatId: o.chatId,
+    scopedCharacterId: o.scopedCharacterId,
+    tier: o.tier ?? 0,
+    blockIdx: o.blockIdx,
+    text: o.text ?? "digest body",
+    embedding: o.embedding,
+    contentHash: o.contentHash ?? `digest_hash_${o.chatId}_${o.blockIdx}`,
+    hubScore: o.hubScore ?? null,
+    keywords: [...(o.keywords ?? [])],
+    model: o.model ?? EMBED_MODEL,
+    dim: VECTOR_DIM,
+    createdAt: FROZEN_AT,
+  });
+  return id;
+}
+
+interface SeedSegmentOverrides {
+  readonly id?: string;
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  readonly text?: string;
+  readonly embedding: Float32Array;
+  readonly hubScore?: number | null;
+  readonly model?: string;
+  readonly contentHash?: string;
+}
+
+/** Insert a `chat_segments` row (the verbatim lens `segments`/`corpus` scan). */
+export async function seedChatSegment(db: Db, o: SeedSegmentOverrides): Promise<ChatSegmentId> {
+  const id = castId<ChatSegmentId>(o.id ?? `chat_segment_${o.chatId}_${o.blockIdx}`);
+  await db.insert(chatSegments).values({
+    id,
+    chatId: o.chatId,
+    blockIdx: o.blockIdx,
+    seqStart: o.blockIdx * 10,
+    seqEnd: o.blockIdx * 10 + 9,
+    text: o.text ?? "verbatim transcript",
+    embedding: o.embedding,
+    contentHash: o.contentHash ?? `segment_hash_${o.chatId}_${o.blockIdx}`,
+    hubScore: o.hubScore ?? null,
+    model: o.model ?? EMBED_MODEL,
+    dim: VECTOR_DIM,
+    createdAt: FROZEN_AT,
   });
   return id;
 }

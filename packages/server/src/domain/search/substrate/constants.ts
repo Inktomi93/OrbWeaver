@@ -14,3 +14,9 @@ export const OWNER_OVERFETCH = 4;
 /** Rerank budget cap multiplier: the cross-encoder is the expensive step, so it scores only the top
  *  `RERANK_POOL_FACTOR × topN` CSLS-ranked candidates (CSLS pre-filters the long tail). */
 export const RERANK_POOL_FACTOR = 3;
+
+/** The hard cap on a chat-memory full-pool scan (`digests`/`segments`/`corpus` with NO `candidates`
+ *  restriction). The within-chat pool is small (one chat's aged-out blocks); the cross-chat corpus pool is
+ *  the owner's materialized set — bounded at this corpus scale. When `candidates` is present the cap is the
+ *  candidate count (the tiered bridge already bounds the scan). */
+export const SCOPED_POOL_K = 200;

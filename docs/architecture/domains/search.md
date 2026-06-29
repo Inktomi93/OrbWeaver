@@ -94,10 +94,10 @@ domain/search/
 │   ├── knn.ts              top-k vector scan — embed query → scan one table → CSLS → optional rerank
 │   ├── find-characters.ts  character-card vector search with distilled-facet enrichment
 │   ├── discover.ts         character discovery by best-segment group
-│   ├── digests.ts          membership-scoped digest scan (was: memory.ts digests) — scope =
-│   │                         `chatId ∈ {my/hosted chats}` (host-only v1, D18/D20); no `chats.ownerId`
-│   ├── segments.ts         membership-scoped segment scan (was: memory.ts segments) — same
-│   │                         `chatId ∈ {my/hosted chats}` derivation (host-only v1, D18/D20)
+│   ├── digests.ts          within-chat digest scan (recall's caller) — scope = the ONE authorized
+│   │                         `scope.chat` + egocentric `scopedCharacterId` + tiered `candidates`; owner
+│   │                         derives via the producer card (D20), no `chats.ownerId`
+│   ├── segments.ts         within-chat segment scan — same `scope.chat` derivation (D18/D20)
 │   ├── corpus.ts           hybrid digest+segment corpus search with joint rerank + block dedupe
 │   │                         (was: memory.ts corpus)
 │   ├── images.ts           cross-modal text→image search with pool-capped multimodal rerank
@@ -106,11 +106,13 @@ domain/search/
 ├── persistence/
 │   ├── display.ts          resolveSegmentDisplay, resolveCharacterDisplay — JOIN helpers producing
 │   │                         display shapes; was: context.ts mixed with DI wiring
-│   ├── scope.ts            scopeCond SQL-fragment builder (membership-derived chat scope —
-│   │                         `chatId ∈ {my/hosted chats}`, host-only v1 — vs character-scoped WHERE
-│   │                         clauses, incl. chat_digest_speakers OR-branch). No `chats.ownerId`; the
-│   │                         scope predicate is applied BEFORE cosine rank AND before `content_hash`
-│   │                         collapse (the no-leak invariant, D18/D20)
+│   ├── scope.ts            scopeCond SQL-fragment builder: within-chat = `chat_id = scope.chat`;
+│   │                         cross-chat (corpus) owner belt DERIVED via `characters.ownerId` through the
+│   │                         `scopedCharacterId` producer card (D20) — NEVER `chats.ownerId` (D18),
+│   │                         NEVER a `chat_participants` read (membership-gating is MATERIALIZED at BUILD
+│   │                         by the witnessing horizons, knowledge-cluster §6 "in full, not host-only v1");
+│   │                         incl. the chat_digest_speakers OR-branch. The scope predicate is applied
+│   │                         BEFORE cosine rank AND before `content_hash` collapse (the no-leak invariant)
 │   ├── nearest.ts          nearestCharacters, nearestSegments — raw SQL vector_distance_cos
 │   │                         queries; NearestCharacter, NearestSegment row shapes live here
 │   └── digest-rows.ts      MemoryDigestRow, MemorySegmentRow shapes + fetch helpers
@@ -343,8 +345,9 @@ relevant match).*
 
 Two scoped-group characters can produce digests for the same `(chatId, tier, blockIdx)` from
 different egocentric POVs. Without `scopedCharacterId` in the block key, one character's POV
-silently overwrites the other. The `''` sentinel (empty string, not NULL) is the shared-bucket
-sentinel — it must be preserved in the key comparison and in any schema migration.
+silently overwrites the other. The shared bucket is keyed by the synthetic group-as-character's REAL
+`CharacterId` (`__group__${chatId}`) — NOT a `''`/NULL sentinel (D28/§4: `scopedCharacterId` is always a
+real id) — and that real id must be preserved in the key comparison.
 
 *Enforcement: test-time — `substrate/dedupe.test.ts` asserts that two digests sharing `(chatId,
 tier, blockIdx)` but differing only in `scopedCharacterId` are NOT deduplicated.*
@@ -382,7 +385,8 @@ scoping by the co-star's characterId.*
    `hub_score` adjustment.
    *Enforcement: test-time (cross-modal ranking test — see §spine above).*
 
-5. **`dedupeRankedBlocks` key includes `scopedCharacterId`** — the `''` sentinel is preserved.
+5. **`dedupeRankedBlocks` key includes `scopedCharacterId`** — the real id (incl. the synthetic
+   group-as-character) is preserved; no `''` sentinel (D28/§4).
    *Enforcement: test-time (`substrate/dedupe.test.ts` — see §spine above).*
 
 6. **`collapseByContentHash` runs AFTER ranking, BEFORE k-cap** — consumer always gets k

@@ -16,6 +16,12 @@ import { DomainOperationError } from "@orb/kit/errors";
  *  nothing to scan against. */
 export const SEARCH_EMPTY_QUERY = "empty_query";
 
+/** A chat-memory verb that keys results back to a digest block (`segments` / `corpus`) was called without an
+ *  egocentric `scopedCharacterId`. The verbatim/segment lens has no `scopedCharacterId` column of its own, so
+ *  a segment hit can only form a real `BlockKey` (inv 8: ALWAYS a real `CharacterId`, never `''`/NULL) from
+ *  the caller's egocentric POV. Flag-don't-fake: we throw rather than mint an empty-string sentinel. */
+export const SEARCH_SCOPE_REQUIRED = "scope_required";
+
 export class SearchError extends DomainOperationError {
   constructor(code: string, message: string) {
     super(code, message);
