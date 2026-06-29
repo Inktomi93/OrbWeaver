@@ -1,0 +1,215 @@
+{
+  "$comment": "The §C3 group / multi-human fixture — a DATA snapshot for the chat .int suite (NOT the parity oracle; the multi-human/group/invite/notification/presence/arbitration surfaces are intentional rewrites, not byte-diffable). It enumerates exactly the §C3 obligations: a roster with >=2 humans + >=2 characters, an invite, a kick, a host-handoff, a narrator round + a per-speaker round, and a scoped-memory room. Future int tests seed from this (deterministic readable ids; the seed factory maps these to real typeids/rows). Aligns with domains/chat.md Part III: chat_participants (kind/role/joinSeq/leftSeq/talkativeness/disabled/activePersonaId/joinHistoryVisibility + the (chatId,userId) UNIQUE + XOR CHECK), chat_invites (hashed CSPRNG token), the group character authoring narrator turns (never NULL), messages-slot + message_variants (D26), scoped vs merged cardScope memory keying.",
+  "users": [
+    { "id": "user_host", "handle": "host", "role": "owner" },
+    { "id": "user_member", "handle": "member", "role": "user" }
+  ],
+  "personas": [
+    { "id": "persona_host", "ownerUserId": "user_host", "name": "Captain" },
+    { "id": "persona_member", "ownerUserId": "user_member", "name": "Scout" }
+  ],
+  "characters": [
+    { "id": "char_aria", "ownerUserId": "user_host", "name": "Aria", "synthetic": false },
+    { "id": "char_kai", "ownerUserId": "user_host", "name": "Kai", "synthetic": false },
+    {
+      "id": "char_group",
+      "ownerUserId": "user_host",
+      "name": "Narrator",
+      "synthetic": true,
+      "note": "the synthetic group character — authors narrator turns, never NULL (Part III §10). No card embedding."
+    }
+  ],
+  "chats": [
+    {
+      "id": "chat_group_room",
+      "title": "The Expedition",
+      "parentChatId": null,
+      "metadata": {
+        "group": {
+          "output": "per-speaker",
+          "cardScope": "merged",
+          "arbitration": "natural",
+          "memberCardVisibility": "sheet"
+        },
+        "roomOverrides": {}
+      },
+      "scopedMemory": false
+    },
+    {
+      "id": "chat_scoped_room",
+      "title": "Split Recon (scoped memory)",
+      "parentChatId": null,
+      "metadata": {
+        "group": {
+          "output": "per-speaker",
+          "cardScope": "scoped",
+          "arbitration": "natural",
+          "memberCardVisibility": "sheet"
+        },
+        "roomOverrides": {}
+      },
+      "scopedMemory": true,
+      "note": "cardScope=scoped => per-character egocentric digests keyed (chatId, scopedCharacterId, tier, blockIdx); scopedCharacterId='' is the shared-bucket sentinel. Egocentric-only recall (a character can't recall a scene it wasn't in)."
+    }
+  ],
+  "participants": [
+    {
+      "chatId": "chat_group_room",
+      "kind": "human",
+      "userId": "user_host",
+      "characterId": null,
+      "role": "host",
+      "activePersonaId": "persona_host",
+      "talkativeness": 0.5,
+      "disabled": false,
+      "joinSeq": 0,
+      "leftSeq": null,
+      "joinHistoryVisibility": "full"
+    },
+    {
+      "chatId": "chat_group_room",
+      "kind": "human",
+      "userId": "user_member",
+      "characterId": null,
+      "role": "member",
+      "activePersonaId": "persona_member",
+      "talkativeness": 0.5,
+      "disabled": false,
+      "joinSeq": 4,
+      "leftSeq": null,
+      "joinHistoryVisibility": "from-join",
+      "note": "joined mid-room via the invite below (joinSeq stamped at redeem); history replays from joinSeq."
+    },
+    {
+      "chatId": "chat_group_room",
+      "kind": "character",
+      "userId": null,
+      "characterId": "char_aria",
+      "role": "member",
+      "activePersonaId": null,
+      "talkativeness": 0.7,
+      "disabled": false,
+      "joinSeq": 0,
+      "leftSeq": null,
+      "joinHistoryVisibility": "from-join"
+    },
+    {
+      "chatId": "chat_group_room",
+      "kind": "character",
+      "userId": null,
+      "characterId": "char_kai",
+      "role": "member",
+      "activePersonaId": null,
+      "talkativeness": 0.3,
+      "disabled": false,
+      "joinSeq": 0,
+      "leftSeq": 9,
+      "joinHistoryVisibility": "from-join",
+      "note": "KICKED at seq 9 (leftSeq set; authored rows retained; subscription torn down). The present-and-contributing predicate drops it from every union thereafter."
+    }
+  ],
+  "invites": [
+    {
+      "id": "invite_member",
+      "chatId": "chat_group_room",
+      "tokenHash": "sha256:deterministic-fixture-hash-of-a-csprng-token",
+      "invitedUserId": "user_member",
+      "status": "accepted",
+      "maxUses": 1,
+      "remainingUses": 0,
+      "expiresAt": "2026-07-01T00:00:00.000Z",
+      "note": "token stored HASHED (CSPRNG >=128-bit, constant-time lookup — mirrors sessions). Redeem is the atomic conditional UPDATE ... WHERE remaining>0 AND not-expired RETURNING; role server-forced 'member'. This is the ONE participant-insert chokepoint."
+    }
+  ],
+  "lifecycleEvents": [
+    {
+      "kind": "invite-redeem",
+      "chatId": "chat_group_room",
+      "inviteId": "invite_member",
+      "atSeq": 4,
+      "joinedUserId": "user_member",
+      "forcedRole": "member"
+    },
+    {
+      "kind": "kick",
+      "chatId": "chat_group_room",
+      "actorUserId": "user_host",
+      "targetCharacterId": "char_kai",
+      "atSeq": 9
+    },
+    {
+      "kind": "host-handoff",
+      "chatId": "chat_group_room",
+      "fromUserId": "user_host",
+      "toUserId": "user_member",
+      "atSeq": 12,
+      "note": "two-party: nominate -> notify -> nominee accepts (un-spoofable 'what your credentials will power' confirmation) -> atomic role swap. Offline-nominee => deferred."
+    }
+  ],
+  "rounds": [
+    {
+      "kind": "per-speaker",
+      "chatId": "chat_group_room",
+      "triggeredBy": "user_host",
+      "describe": "A per-speaker round: each active speaker gets its OWN message slot ({{char}} = that speaker). Aria + Kai each author one. Per-character swipe just works (appends a variant on that slot).",
+      "messages": [
+        {
+          "id": "msg_ps_user",
+          "seq": 5,
+          "role": "user",
+          "authorUserId": "user_host",
+          "personaId": "persona_host",
+          "characterId": null,
+          "selectedVariantId": "var_ps_user",
+          "variants": [{ "id": "var_ps_user", "content": "Party, report in." }]
+        },
+        {
+          "id": "msg_ps_aria",
+          "seq": 6,
+          "role": "assistant",
+          "authorUserId": "user_host",
+          "personaId": null,
+          "characterId": "char_aria",
+          "selectedVariantId": "var_ps_aria_1",
+          "variants": [
+            { "id": "var_ps_aria_1", "content": "Aria: Ridge is clear." },
+            { "id": "var_ps_aria_2", "content": "Aria: All quiet up here." }
+          ]
+        },
+        {
+          "id": "msg_ps_kai",
+          "seq": 7,
+          "role": "assistant",
+          "authorUserId": "user_host",
+          "personaId": null,
+          "characterId": "char_kai",
+          "selectedVariantId": "var_ps_kai",
+          "variants": [{ "id": "var_ps_kai", "content": "Kai: River crossing is iced over." }]
+        }
+      ]
+    },
+    {
+      "kind": "narrator",
+      "chatId": "chat_group_room",
+      "triggeredBy": "user_host",
+      "describe": "A narrator round: ONE call voices the cast ({{char}} = comma-joined present cast), authored by the synthetic group character (char_group — a real id, NEVER NULL). narrator => merged (enforced as a Zod discriminated union).",
+      "messages": [
+        {
+          "id": "msg_narr",
+          "seq": 8,
+          "role": "assistant",
+          "authorUserId": "user_host",
+          "personaId": null,
+          "characterId": "char_group",
+          "selectedVariantId": "var_narr",
+          "variants": [
+            {
+              "id": "var_narr",
+              "content": "The wind picks up as Aria and Kai regroup at the waypoint."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

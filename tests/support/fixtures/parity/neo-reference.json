@@ -1,0 +1,1363 @@
+{
+  "$comment": "CAPTURED neo-tavern reference for the differential oracle. DO NOT hand-edit — regenerate via `scripts/dev/oracle-steady-clone.sh --capture`. Keyed by neoHead for provenance; no wall-clock (determinism). Each case is the SHAPE output of shapeCompletionHistory over breakpoint-cases.json, driven by neo's real transforms.",
+  "neoHead": "761a402c0060f55008c178ecda5266bffdbd1872",
+  "cacheMinTokens": 2048,
+  "cases": {
+    "solo-send-clean": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "cacheBreakpointFromEnd": 1,
+      "targetIdx": 2
+    },
+    "guided-depth0-injection": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: (steer: be terse)]"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)\n\n[Note from user: (steer: be terse)]"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)\n\n[Note from user: (steer: be terse)]"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)\n\n[Note from user: (steer: be terse)]"
+        }
+      ],
+      "cacheBreakpointFromEnd": 1,
+      "targetIdx": 2
+    },
+    "depth1-user-injection": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: OOC note]"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: OOC note]\n\nu2 the new turn (volatile)"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: OOC note]\n\nu2 the new turn (volatile)"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: OOC note]\n\nu2 the new turn (volatile)"
+        }
+      ],
+      "cacheBreakpointFromEnd": 1,
+      "targetIdx": 2
+    },
+    "depth2-injection-abort": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "user",
+          "content": "[Note from user: deep note]"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1\n\n[Note from user: deep note]",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1\n\n[Note from user: deep note]"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1\n\n[Note from user: deep note]"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "cacheBreakpointFromEnd": null,
+      "targetIdx": null
+    },
+    "depth1-assistant-boundary-squash-abort": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "assistant",
+          "content": "...continues"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip\n\n...continues",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip\n\n...continues"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip\n\n...continues"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn (volatile)"
+        }
+      ],
+      "cacheBreakpointFromEnd": null,
+      "targetIdx": null
+    },
+    "first-turn-no-stable-prefix": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "user",
+          "content": "first ever message"
+        }
+      ],
+      "injected": [
+        {
+          "role": "user",
+          "content": "first ever message"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "user",
+          "content": "first ever message"
+        }
+      ],
+      "named": [
+        {
+          "role": "user",
+          "content": "first ever message"
+        }
+      ],
+      "history": [
+        {
+          "role": "user",
+          "content": "first ever message"
+        }
+      ],
+      "cacheBreakpointFromEnd": null,
+      "targetIdx": null
+    },
+    "longer-prefix-invariant": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "g",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u3 volatile"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "g",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u3 volatile"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "g",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a1",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u3 volatile"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "g"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1"
+        },
+        {
+          "role": "user",
+          "content": "u2"
+        },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u3 volatile"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "g"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "a1"
+        },
+        {
+          "role": "user",
+          "content": "u2"
+        },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip"
+        },
+        {
+          "role": "user",
+          "content": "u3 volatile"
+        }
+      ],
+      "cacheBreakpointFromEnd": 1,
+      "targetIdx": 4
+    },
+    "group-per-speaker-nudge-abort": {
+      "multiCharacter": true,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "Aria's line",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai's line",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "Aria's line",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai's line",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "Aria's line\n\nKai's line",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "Aria: greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "Aria: Aria's line\n\nKai's line"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "Aria: greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "Aria: Aria's line\n\nKai's line"
+        },
+        {
+          "role": "user",
+          "content": "u2 the new turn\n\n[Write the next reply only as Aria.]"
+        }
+      ],
+      "cacheBreakpointFromEnd": null,
+      "targetIdx": null
+    },
+    "scoped-egocentric-history": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "user",
+          "content": "Aria: greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "user",
+          "content": "Aria: Aria replies"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        },
+        {
+          "role": "user",
+          "content": "u2 to Kai"
+        }
+      ],
+      "injected": [
+        {
+          "role": "user",
+          "content": "Aria: greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "user",
+          "content": "Aria: Aria replies"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        },
+        {
+          "role": "user",
+          "content": "u2 to Kai"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "user",
+          "content": "Aria: greeting\n\nu1\n\nAria: Aria replies"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        },
+        {
+          "role": "user",
+          "content": "u2 to Kai"
+        }
+      ],
+      "named": [
+        {
+          "role": "user",
+          "content": "Aria: greeting\n\nu1\n\nAria: Aria replies"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies"
+        },
+        {
+          "role": "user",
+          "content": "u2 to Kai"
+        }
+      ],
+      "history": [
+        {
+          "role": "user",
+          "content": "Aria: greeting\n\nu1\n\nAria: Aria replies"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies"
+        },
+        {
+          "role": "user",
+          "content": "u2 to Kai"
+        }
+      ],
+      "cacheBreakpointFromEnd": -1,
+      "targetIdx": 3
+    },
+    "narrator-round-continuation-abort": {
+      "multiCharacter": false,
+      "withTail": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "the cast acts",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        }
+      ],
+      "injected": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "the cast acts",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        }
+      ],
+      "squashed": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        },
+        {
+          "role": "user",
+          "content": "u1",
+          "authorName": "User"
+        },
+        {
+          "role": "assistant",
+          "content": "the cast acts",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        }
+      ],
+      "named": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "the cast acts"
+        }
+      ],
+      "history": [
+        {
+          "role": "assistant",
+          "content": "greeting"
+        },
+        {
+          "role": "user",
+          "content": "u1"
+        },
+        {
+          "role": "assistant",
+          "content": "the cast acts"
+        },
+        {
+          "role": "user",
+          "content": "[Continue the conversation.]"
+        }
+      ],
+      "cacheBreakpointFromEnd": null,
+      "targetIdx": null
+    }
+  },
+  "rollingPair": {
+    "turns": [
+      {
+        "name": "rolling-turn-1",
+        "multiCharacter": false,
+        "withTail": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          }
+        ],
+        "injected": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          }
+        ],
+        "squashed": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          }
+        ],
+        "named": [
+          {
+            "role": "assistant",
+            "content": "greeting"
+          },
+          {
+            "role": "user",
+            "content": "u1"
+          },
+          {
+            "role": "assistant",
+            "content": "a1"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          }
+        ],
+        "history": [
+          {
+            "role": "assistant",
+            "content": "greeting"
+          },
+          {
+            "role": "user",
+            "content": "u1"
+          },
+          {
+            "role": "assistant",
+            "content": "a1"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          }
+        ],
+        "cacheBreakpointFromEnd": 1,
+        "targetIdx": 2
+      },
+      {
+        "name": "rolling-turn-2",
+        "multiCharacter": false,
+        "withTail": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a2",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u3"
+          }
+        ],
+        "injected": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a2",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u3"
+          }
+        ],
+        "squashed": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u1",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u2",
+            "authorName": "User"
+          },
+          {
+            "role": "assistant",
+            "content": "a2",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          {
+            "role": "user",
+            "content": "u3"
+          }
+        ],
+        "named": [
+          {
+            "role": "assistant",
+            "content": "greeting"
+          },
+          {
+            "role": "user",
+            "content": "u1"
+          },
+          {
+            "role": "assistant",
+            "content": "a1"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          },
+          {
+            "role": "assistant",
+            "content": "a2"
+          },
+          {
+            "role": "user",
+            "content": "u3"
+          }
+        ],
+        "history": [
+          {
+            "role": "assistant",
+            "content": "greeting"
+          },
+          {
+            "role": "user",
+            "content": "u1"
+          },
+          {
+            "role": "assistant",
+            "content": "a1"
+          },
+          {
+            "role": "user",
+            "content": "u2"
+          },
+          {
+            "role": "assistant",
+            "content": "a2"
+          },
+          {
+            "role": "user",
+            "content": "u3"
+          }
+        ],
+        "cacheBreakpointFromEnd": 1,
+        "targetIdx": 4
+      }
+    ],
+    "delta": {
+      "offsetInvariant": true,
+      "turn1TargetIdx": 2,
+      "turn2TargetIdx": 4,
+      "placementAdvance": 2
+    }
+  }
+}

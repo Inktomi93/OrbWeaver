@@ -1,0 +1,337 @@
+{
+  "$comment": "INPUT fixture for the differential oracle (CHECKLIST §C1). Each case is a faithful set of `shapeCompletionHistory` inputs (neo pipeline.ts:1504-1578) — the SHAPE phase of ASSEMBLE. The capture script (scripts/dev/oracle-capture.ts, run inside /tmp/neo-tavern-steady) drives neo's REAL transforms (spliceInChatInjections · squashSameRole · applyNamesBehavior · computeHistoryBreakpoint) over these and emits neo-reference.json. orbweaver's assembly (Phase 5 step 2) must reproduce the same outputs. ids are deterministic readable strings (not typeids) — only distinctness matters for hasMultipleCharacters/scopeHistoryToTarget. Stages: RESOLVE = speakers/personas/scopedTargetId · GATHER = (n/a for SHAPE — covered by the section fixture, deferred) · BUILD = injections list · SHAPE = the per-speaker history + the §8 rolling-pair breakpoint.",
+  "cacheMinTokens": 2048,
+  "cases": [
+    {
+      "name": "solo-send-clean",
+      "describe": "Solo roster-of-1 clean send. The canonical rolling-tail breakpoint: prior assistant tip is the last stable message → offset 1. No group, no scope, no injections — byte-identical to the pre-group path.",
+      "stages": ["RESOLVE", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn (volatile)",
+      "injections": [],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": 1
+    },
+    {
+      "name": "guided-depth0-injection",
+      "describe": "Guided steer placed as a depth-0 in_chat injection (the in-character-turn placement variant; the system-marker default does NOT touch history). Depth-0 lands after the volatile turn and squash-merges into it → breakpoint still offset 1.",
+      "stages": ["BUILD", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn (volatile)",
+      "injections": [
+        { "position": "in_chat", "depth": 0, "role": "user", "content": "(steer: be terse)" }
+      ],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": 1
+    },
+    {
+      "name": "depth1-user-injection",
+      "describe": "Depth-1 user injection lands before the volatile turn; the boundary above it is the assistant tip (no role match) → no squash-merge → offset 1.",
+      "stages": ["BUILD", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn (volatile)",
+      "injections": [{ "position": "in_chat", "depth": 1, "role": "user", "content": "OOC note" }],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": 1
+    },
+    {
+      "name": "depth2-injection-abort",
+      "describe": "ABORT #1: a depth≥2 in_chat injection splices INSIDE the stable prefix (mutates cached bytes) → computeHistoryBreakpoint returns undefined.",
+      "stages": ["BUILD", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn (volatile)",
+      "injections": [{ "position": "in_chat", "depth": 2, "role": "user", "content": "deep note" }],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": null
+    },
+    {
+      "name": "depth1-assistant-boundary-squash-abort",
+      "describe": "ABORT #2: a depth-1 assistant injection lands right after the assistant tip; squashSameRole folds them, changing the boundary bytes → undefined.",
+      "stages": ["BUILD", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a1 the prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn (volatile)",
+      "injections": [
+        { "position": "in_chat", "depth": 1, "role": "assistant", "content": "...continues" }
+      ],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": null
+    },
+    {
+      "name": "first-turn-no-stable-prefix",
+      "describe": "First-ever message: only the volatile turn, no stable prefix → undefined (stableCount < 1).",
+      "stages": ["SHAPE"],
+      "canon": [],
+      "appendUserTurn": "first ever message",
+      "injections": [],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": null
+    },
+    {
+      "name": "longer-prefix-invariant",
+      "describe": "Offset is invariant to prefix length — always points at the prior tip (offset 1 on a clean send) regardless of how deep the stable prefix is.",
+      "stages": ["SHAPE"],
+      "canon": [
+        { "role": "assistant", "content": "g", "authorName": "Aria", "characterId": "char_aria" },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        { "role": "assistant", "content": "a1", "authorName": "Aria", "characterId": "char_aria" },
+        { "role": "user", "content": "u2", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "a2 prior tip",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        }
+      ],
+      "appendUserTurn": "u3 volatile",
+      "injections": [],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": 1
+    },
+    {
+      "name": "group-per-speaker-nudge-abort",
+      "describe": "Multi-character per-speaker round with a group nudge. The nudge is a SECOND volatile tail message → the round aborts the breakpoint (undefined). Also exercises the multiCharacter assistant name-prefix under namesBehavior=default.",
+      "stages": ["RESOLVE", "BUILD", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "Aria's line",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai's line",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        }
+      ],
+      "appendUserTurn": "u2 the new turn",
+      "injections": [],
+      "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Aria" },
+      "groupNudge": "[Write the next reply only as Aria.]",
+      "expectBreakpointFromEnd": null
+    },
+    {
+      "name": "scoped-egocentric-history",
+      "describe": "cardScope=scoped per-speaker round targeting Kai: scopeHistoryToTarget folds Aria's assistant turns to user-role (`Aria: ...`) so Kai sees only its OWN past lines as assistant. Full egocentric isolation. FLAG[neo-quirk]: the fold creates 3 adjacent user rows that squashSameRole collapses (named.len 3 < withTail.len 5), so computeHistoryBreakpoint returns a degenerate -1 (finalLen-stableCount = 3-4); the runner's bounds check (targetIdx >= history.length) then SILENTLY DISCARDS it. The single-volatile-tail invariant the breakpoint math assumes is violated by the scoped prefix-collapse. orbweaver should return undefined here (decide at unskip — see the parity test's scoped assertion).",
+      "stages": ["RESOLVE", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "Aria replies",
+          "authorName": "Aria",
+          "characterId": "char_aria"
+        },
+        {
+          "role": "assistant",
+          "content": "Kai replies",
+          "authorName": "Kai",
+          "characterId": "char_kai"
+        }
+      ],
+      "appendUserTurn": "u2 to Kai",
+      "injections": [],
+      "groupConfig": { "output": "per-speaker", "cardScope": "scoped" },
+      "scopedTargetId": "char_kai",
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Kai" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": -1
+    },
+    {
+      "name": "narrator-round-continuation-abort",
+      "describe": "Narrator round: a force/auto turn with no user input ends on an assistant row → the CONTINUATION_NUDGE trailing user turn is appended (a second volatile tail) → breakpoint aborted (undefined). The narrator turn is authored by the group character (a real characterId, never NULL).",
+      "stages": ["RESOLVE", "SHAPE"],
+      "canon": [
+        {
+          "role": "assistant",
+          "content": "greeting",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        },
+        { "role": "user", "content": "u1", "authorName": "User" },
+        {
+          "role": "assistant",
+          "content": "the cast acts",
+          "authorName": "Narrator",
+          "characterId": "char_group"
+        }
+      ],
+      "appendUserTurn": null,
+      "injections": [],
+      "groupConfig": { "output": "narrator", "cardScope": "merged" },
+      "scopedTargetId": null,
+      "namesBehavior": "default",
+      "speakers": { "user": "User", "assistant": "Narrator" },
+      "groupNudge": null,
+      "expectBreakpointFromEnd": null
+    }
+  ],
+  "rollingPair": {
+    "describe": "The §8 rolling-tail behavior over two consecutive turns (CHECKLIST §C1 cacheWrite/read delta). turn1 pins the breakpoint at the prior tip; turn2 (the same conversation + one committed user/assistant pair) pins it at the NEW prior tip. The OFFSET stays 1, but the absolute placement advances by 2 → the prefix cached on turn1 is a cache READ on turn2 (the ~5300-token win). Dropping the breakpoint = both turns write 0 / read 0 = the silent regression.",
+    "turns": [
+      {
+        "name": "rolling-turn-1",
+        "canon": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          { "role": "user", "content": "u1", "authorName": "User" },
+          { "role": "assistant", "content": "a1", "authorName": "Aria", "characterId": "char_aria" }
+        ],
+        "appendUserTurn": "u2",
+        "injections": [],
+        "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+        "scopedTargetId": null,
+        "namesBehavior": "default",
+        "speakers": { "user": "User", "assistant": "Aria" },
+        "groupNudge": null
+      },
+      {
+        "name": "rolling-turn-2",
+        "canon": [
+          {
+            "role": "assistant",
+            "content": "greeting",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          { "role": "user", "content": "u1", "authorName": "User" },
+          {
+            "role": "assistant",
+            "content": "a1",
+            "authorName": "Aria",
+            "characterId": "char_aria"
+          },
+          { "role": "user", "content": "u2", "authorName": "User" },
+          { "role": "assistant", "content": "a2", "authorName": "Aria", "characterId": "char_aria" }
+        ],
+        "appendUserTurn": "u3",
+        "injections": [],
+        "groupConfig": { "output": "per-speaker", "cardScope": "merged" },
+        "scopedTargetId": null,
+        "namesBehavior": "default",
+        "speakers": { "user": "User", "assistant": "Aria" },
+        "groupNudge": null
+      }
+    ]
+  }
+}
