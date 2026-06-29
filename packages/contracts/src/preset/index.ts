@@ -423,6 +423,11 @@ export const DEFAULT_COMPACT_INSTRUCTIONS =
 /** Managed-compaction trigger threshold (fraction of `contextWindow`). Overridable per preset. */
 export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
 
+/** The default inline-reasoning tag pair (`reasoningParse`) — the `<think>` convention. ONE pair, no registry;
+ *  shared by the schema defaults + the form mapper so they can't drift. */
+export const THINK_PREFIX_DEFAULT = "<think>";
+export const THINK_SUFFIX_DEFAULT = "</think>";
+
 // `macro(name)` builds a `{{name}}` placeholder — used so the default templates aren't bare string
 // literals (which `noSecrets` flags as high-entropy for the longer field names).
 const macro = (name: string): string => `{{${name}}}`;
@@ -491,6 +496,17 @@ export const promptConfigSchema = z.object({
       trimTrailingWhitespace: z.boolean().default(false),
       dropIncompleteSentence: z.boolean().default(false),
       singleLine: z.boolean().default(false),
+    })
+    .optional(),
+  // Inline `<think>` reasoning-tag fallback (D47 #3 / D53). Native reasoning is ALWAYS preferred across every
+  // backend; this only fires when the reply has NO native reasoning AND `autoParse` is on — splitting an inline
+  // `<prefix>…<suffix>` block out of the content into the reasoning channel (@orb/server/kit/reasoning). ONE
+  // tag pair, no registry. `autoParse` defaults OFF (opt-in per preset).
+  reasoningParse: z
+    .object({
+      autoParse: z.boolean().default(false),
+      prefix: z.string().default(THINK_PREFIX_DEFAULT),
+      suffix: z.string().default(THINK_SUFFIX_DEFAULT),
     })
     .optional(),
 });
@@ -723,6 +739,10 @@ export interface PresetFormValues {
   ppDropIncompleteSentence?: boolean;
   ppSingleLine?: boolean;
 
+  reasoningAutoParse?: boolean;
+  reasoningPrefix?: string;
+  reasoningSuffix?: string;
+
   continueNudgePrompt?: string;
   wiFormat?: string;
 
@@ -772,6 +792,10 @@ export const presetFormValuesSchema = z.object({
   ppTrimTrailingWhitespace: z.boolean().optional(),
   ppDropIncompleteSentence: z.boolean().optional(),
   ppSingleLine: z.boolean().optional(),
+
+  reasoningAutoParse: z.boolean().optional(),
+  reasoningPrefix: z.string().optional(),
+  reasoningSuffix: z.string().optional(),
 
   continueNudgePrompt: z.string().optional(),
   wiFormat: z.string().optional(),
@@ -849,6 +873,12 @@ export function toPresetFormValues(config: PromptConfig): PresetFormValues {
   out.ppTrimTrailingWhitespace = pp?.trimTrailingWhitespace ?? false;
   out.ppDropIncompleteSentence = pp?.dropIncompleteSentence ?? false;
   out.ppSingleLine = pp?.singleLine ?? false;
+
+  // reasoningParse flattened (autoParse defaults false; prefix/suffix only when the block set them).
+  const rp = config.reasoningParse;
+  out.reasoningAutoParse = rp?.autoParse ?? false;
+  assignIfDefined(out, "reasoningPrefix", rp?.prefix);
+  assignIfDefined(out, "reasoningSuffix", rp?.suffix);
 
   assignIfDefined(out, "continueNudgePrompt", fs.continueNudge);
   assignIfDefined(out, "wiFormat", fs.wiFormat);
@@ -948,6 +978,18 @@ export function toPromptConfig(form: PresetFormValues, server: PromptConfig): Pr
   };
   const hasPostProcess = Object.values(postProcess).some((flag): boolean => flag);
 
+  const reasoningParse = {
+    autoParse: form.reasoningAutoParse ?? false,
+    prefix: form.reasoningPrefix ?? THINK_PREFIX_DEFAULT,
+    suffix: form.reasoningSuffix ?? THINK_SUFFIX_DEFAULT,
+  };
+  // Persist the block only when the user actually engaged it (autoParse on, or a custom tag set) — an
+  // all-default block round-trips to "unset" so the schema default applies (mirrors hasPostProcess).
+  const hasReasoningParse =
+    reasoningParse.autoParse ||
+    form.reasoningPrefix !== undefined ||
+    form.reasoningSuffix !== undefined;
+
   // Explicit construction (every PromptConfig field accounted for) — preserves the server-only fields
   // the form never edits, and omitting an absent top-level field is how "unset" round-trips.
   const next: PromptConfig = {
@@ -968,6 +1010,9 @@ export function toPromptConfig(form: PresetFormValues, server: PromptConfig): Pr
   }
   if (hasPostProcess) {
     next.postProcess = postProcess;
+  }
+  if (hasReasoningParse) {
+    next.reasoningParse = reasoningParse;
   }
   return next;
 }

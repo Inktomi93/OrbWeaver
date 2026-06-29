@@ -33,8 +33,11 @@ import type { UserIntent } from "@orb/contracts/preset";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { RunChatTurnOp } from "../contract/context";
+import { applyReceivePostProcess } from "@orb/server/kit/post-process";
+import { parseReasoningTags } from "@orb/server/kit/reasoning";
+import type { ApplyRegexReplaceOp, RunChatTurnOp } from "../contract/context";
 import type {
   TurnEconomics,
   TurnKind,
@@ -42,7 +45,12 @@ import type {
   TurnRequest,
   TurnSpeakerShape,
 } from "../contract/results";
-import { buildPrompt, fitHistory, shapeTurn } from "../substrate/assembly-access";
+import {
+  buildPrompt,
+  buildTurnMacroContext,
+  fitHistory,
+  shapeTurn,
+} from "../substrate/assembly-access";
 
 /** A SHAPE canon row (the `shape()` input shape — file-local, matched structurally; the wire role axis is
  *  `user|assistant`, system rows never reach the delivered history). */
@@ -58,6 +66,9 @@ interface ShapeCanonRow {
 interface RunTurnPipelineArgs {
   /** The injected chat ROLE (`ctx.runChatTurn`) — the ONE turn dispatch. */
   readonly runChatTurn: RunChatTurnOp;
+  /** The injected node:vm ReDoS watchdog (`ctx.applyRegexReplace`, D53) — the RECEIVE AI_OUTPUT/REASONING regex
+   *  passes run their `text.replace` under it (the engine binds it from ctx; tests inject directly). */
+  readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolve a parsed message-image ref → a model-fetchable URL, or null to drop it (the engine binds
    *  `ctx.resolveImageUrl` with the turn's owner). Used at the REQUEST seam to produce image content-parts. */
   readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
@@ -183,6 +194,70 @@ async function reduceStream(
   return { content, reasoning: finalReasoning, economics };
 }
 
+/** RECEIVE post-processing (chat.md §2 RECEIVE order) applied to the reduced `{content, reasoning}` BEFORE the
+ *  engine persists it (canon-mutating-at-write — §7). The order is fixed:
+ *    0. `<think>` demux — split inline reasoning out of content ONLY when the native reasoning channel is empty
+ *       AND `reasoningParse.autoParse` is on (native-first; never double-counts a real reasoning trace — D47#3).
+ *    1. AI_OUTPUT regex on content (host-tier scripts; the replace TEMPLATE gets the author-side macro ctx —
+ *       macros NEVER run on the model OUTPUT itself, only on the template; shared-dissolution §9).
+ *    2. post-process on content (singleLine/dropIncomplete/trim) — AFTER the AI_OUTPUT regex (§3 rule 8).
+ *    3. REASONING regex on the reasoning channel.
+ *  Each host-side regex `text.replace` runs under the injected node:vm watchdog (`args.applyRegexReplace`, D53). */
+function applyReceiveTransforms(
+  reduced: { content: string; reasoning: string | null },
+  args: RunTurnPipelineArgs,
+): { content: string; reasoning: string | null } {
+  const ctx = args.assembleContext;
+  const cfg = ctx.promptConfig;
+  let content = reduced.content;
+  let reasoning = reduced.reasoning;
+
+  // 0. <think> inline-reasoning fallback — gated on empty-native-reasoning + autoParse (native-first dedup).
+  const rp = cfg.reasoningParse;
+  if (rp?.autoParse === true && (reasoning === null || reasoning.length === 0)) {
+    const parsed = parseReasoningTags(content, { prefix: rp.prefix, suffix: rp.suffix });
+    if (parsed !== null) {
+      reasoning = parsed.reasoning;
+      content = parsed.content;
+    }
+  }
+
+  // 1 + 3. host-tier AI_OUTPUT/REASONING regex (build the author-side replace-template macro ctx ONCE).
+  const scripts = ctx.hostTierRegexScripts ?? [];
+  const macroCtx =
+    scripts.length > 0
+      ? buildTurnMacroContext({
+          assembleCtx: ctx,
+          model: args.connection.model,
+          chatId: args.chatId,
+        })
+      : null;
+  if (macroCtx !== null) {
+    content = executeRegexScripts({
+      text: content,
+      scripts,
+      placement: "AI_OUTPUT",
+      ctx: macroCtx,
+      applyReplace: args.applyRegexReplace,
+    });
+  }
+
+  // 2. post-process AFTER the AI_OUTPUT regex (always — independent of host scripts).
+  content = applyReceivePostProcess(content, cfg.postProcess);
+
+  if (macroCtx !== null && reasoning !== null) {
+    reasoning = executeRegexScripts({
+      text: reasoning,
+      scripts,
+      placement: "REASONING",
+      ctx: macroCtx,
+      applyReplace: args.applyRegexReplace,
+    });
+  }
+
+  return { content, reasoning };
+}
+
 /**
  * Execute ONE single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE (chat.md §2). Pure orchestration
  * of injected ops; persists nothing (the engine lifecycle commits the returned result). The assemble ctx is
@@ -255,10 +330,13 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // 5. REDUCE — one drain of the role stream.
   const reduced = await reduceStream(args.runChatTurn(request), args);
+  // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (chat.md §2; canon-mutating
+  //    at write — the engine persists THIS post-regex {content, reasoning}). The reduced economics are unchanged.
+  const received = applyReceiveTransforms(reduced, args);
   return {
     request,
-    content: reduced.content,
-    reasoning: reduced.reasoning,
+    content: received.content,
+    reasoning: received.reasoning,
     economics: reduced.economics,
     cacheBreakpointFromEnd: request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,

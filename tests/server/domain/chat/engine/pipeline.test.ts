@@ -4,8 +4,10 @@
 import type { AssembleContext, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { UserIntent } from "@orb/contracts/preset";
+import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, expect, test } from "vitest";
@@ -60,6 +62,8 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
 } {
   const deltas: ChatDeltaEvent[] = [];
   const args: PipelineArgs = {
+    // Default = the native replace (no node:vm) — a RECEIVE-watchdog test overrides with a throwing fake.
+    applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     runChatTurn: scriptedTurn([
       { kind: "text", text: "Hel" },
       { kind: "text", text: "lo" },
@@ -209,5 +213,130 @@ describe("runTurnPipeline — immutability", () => {
     const { args } = baseArgs({ assembleContext: ctx });
     await runTurnPipeline(args);
     expect(ctx).toEqual(snapshot);
+  });
+});
+
+// ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
+/** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
+function script(
+  id: string,
+  find: string,
+  replace: string,
+  placement: "AI_OUTPUT" | "REASONING",
+): RegexScript {
+  return regexScriptSchema.parse({
+    id,
+    name: id,
+    findRegex: find,
+    replaceString: replace,
+    placement: [placement],
+  });
+}
+
+/** A turn that emits ONLY a terminal `final` chunk carrying the given content (+ optional native reasoning). */
+function finalTurn(content: string, reasoning?: string): RunChatTurnOp {
+  return scriptedTurn([
+    {
+      kind: "final",
+      economics: reasoning === undefined ? { content } : { content, reasoning },
+    },
+  ]);
+}
+
+const cfgWith = (over: Partial<PromptConfig>): PromptConfig => ({
+  ...DEFAULT_PROMPT_CONFIG,
+  ...over,
+});
+
+describe("runTurnPipeline — RECEIVE regex + post-process", () => {
+  test("AI_OUTPUT regex transforms the content (host-tier scripts)", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("Hello world"),
+      assembleContext: ctxOf({
+        hostTierRegexScripts: [script("ai", "world", "there", "AI_OUTPUT")],
+      }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("Hello there");
+  });
+
+  test("post-process runs AFTER the AI_OUTPUT regex (regex → dropIncompleteSentence)", async () => {
+    // AI_OUTPUT rewrites the marker to "Done. tail"; dropIncompleteSentence then cuts the trailing fragment.
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("MARK"),
+      assembleContext: ctxOf({
+        hostTierRegexScripts: [script("x", "MARK", "Done. tail", "AI_OUTPUT")],
+        promptConfig: cfgWith({
+          postProcess: {
+            collapseNewlines: false,
+            trimTrailingWhitespace: false,
+            dropIncompleteSentence: true,
+            singleLine: false,
+          },
+        }),
+      }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("Done.");
+  });
+
+  test("REASONING regex transforms the reasoning channel (content untouched)", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("reply", "think hard"),
+      assembleContext: ctxOf({ hostTierRegexScripts: [script("r", "hard", "soft", "REASONING")] }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.reasoning).toBe("think soft");
+    expect(result.content).toBe("reply");
+  });
+
+  test("the AI_OUTPUT regex runs through the INJECTED watchdog (a throwing fake skips the script)", async () => {
+    // A throwing applyRegexReplace → the kit executor's per-script try/catch skips it → content UNCHANGED. The
+    // default native replace would have produced "X" — so the unchanged output proves the seam was used (D53).
+    const { args } = baseArgs({
+      applyRegexReplace: () => {
+        throw new Error("timed out");
+      },
+      runChatTurn: finalTurn("Hello"),
+      assembleContext: ctxOf({ hostTierRegexScripts: [script("evil", "Hello", "X", "AI_OUTPUT")] }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("Hello");
+  });
+});
+
+describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
+  const reasoningCfg = cfgWith({
+    reasoningParse: { autoParse: true, prefix: "<think>", suffix: "</think>" },
+  });
+
+  test("splits inline reasoning when native reasoning is empty + autoParse on", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("<think>planning</think>The reply."),
+      assembleContext: ctxOf({ promptConfig: reasoningCfg }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.reasoning).toBe("planning");
+    expect(result.content).toBe("The reply.");
+  });
+
+  test("is SKIPPED when native reasoning is present (native-first — no double-count)", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("<think>x</think>visible", "native trace"),
+      assembleContext: ctxOf({ promptConfig: reasoningCfg }),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.reasoning).toBe("native trace");
+    expect(result.content).toBe("<think>x</think>visible");
+  });
+
+  test("autoParse off (default config) → the <think> block stays in content", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("<think>x</think>y"),
+      assembleContext: ctxOf(),
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.content).toBe("<think>x</think>y");
+    expect(result.reasoning).toBeNull();
   });
 });

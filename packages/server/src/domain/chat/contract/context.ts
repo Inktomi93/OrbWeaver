@@ -40,9 +40,19 @@ import type {
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
+import type { RegexReplacer } from "@orb/kit/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { MemoryLog } from "./memory";
 import type { TurnRequest, TurnStreamChunk } from "./results";
+
+// ── The regex watchdog seam (D53 — every host-side regex execution point) ─────
+/** `regex.applyReplace` — the node:vm ReDoS watchdog (`@orb/server/kit/regex.createRegexApplyReplace`). Wraps
+ *  the ONE `text.replace(regex, replacer)` of a user-authored regex in a hard per-call timeout so a
+ *  catastrophic-backtracking host-tier pattern THROWS (caught by the kit executor's per-script try/catch →
+ *  `onScriptFailure`) instead of hanging the turn. EVERY host-side regex execution point passes it as
+ *  `executeRegexScripts({ applyReplace })`: WORLD_INFO + SEND (assembly), AI_OUTPUT + REASONING (pipeline). The
+ *  shape mirrors the kit `RegexExecuteOptions.applyReplace` seam. Bound at the root to `createRegexApplyReplace()`. */
+export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 
 // ── The turn role (chat.md §2 — the ONE dispatch) ─────────────────────────────
 /** The injected `chat` role (`infra/providers.runChatTurn`): the engine builds a {@link TurnRequest} and
@@ -223,6 +233,8 @@ export interface ChatContext {
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
+  readonly applyRegexReplace: ApplyRegexReplaceOp;
   // ── the turn role ──
   readonly runChatTurn: RunChatTurnOp;
   // ── connection / credentials ──

@@ -20,12 +20,12 @@
 // The absent policy resolves by roster size: a roster of 1 character ⇒ `first-message`, of >1 ⇒ `greet-all`,
 // of 0 ⇒ `none` (no cast to greet).
 //
-// FLAG[greeting-macro]: the greeting is seeded VERBATIM (raw) — the SEND-context macro/regex pass that would
-// resolve its `{{char}}`/`{{user}}` is the SAME unbuilt seam `verbs/turn.ts` flagged (FLAG[send-regex]): the
-// per-chat active-script resolution + the write-context macro pipeline are a later chunk. "Verbatim seeding" is
-// the literal contract; resolving at seed time would ALSO bake in the anchor persona (breaking the per-view
-// `{{user}}` the render-once/author-side-macro law requires — Part II §2/§3). Consistent with how `turn.ts`
-// persists a user message raw today.
+// FLAG[greeting-macro]: the VERBATIM greeting is still seeded RAW — and this is correct, NOT an unbuilt seam.
+// The SEND USER_INPUT regex (D53 step 2) applies to COMPOSER text (a typed user turn); a seeded greeting takes
+// NO composer input, so USER_INPUT regex never applies there. Resolving macros at seed time would ALSO bake in
+// the anchor persona (breaking the per-view `{{user}}` the render-once/author-side-macro law requires — Part II
+// §2/§3). The `generate` opening DOES run through the engine→pipeline, so its generated text gets the RECEIVE
+// AI_OUTPUT/REASONING regex + post-process — the host-tier scripts ride `resolveAssembleInputs` onto its ctx.
 //
 // FLAG[chatOpened]: `startChat` emits ONLY `chatCreated`. `chatOpened` is SUBSCRIPTION-synthesized at the
 // participant stream-attach (per-viewer, never a domain emit, never logged — the contract's `ChatBusEvent`
@@ -70,6 +70,7 @@ type AssembleCrossInputs = Pick<
   | "variableValues"
   | "injectionTokenBudget"
   | "timezone"
+  | "hostTierRegexScripts"
 >;
 
 /** The collaborators not on `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent). `emit`

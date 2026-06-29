@@ -10,6 +10,8 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
@@ -95,7 +97,11 @@ interface Harness {
 function harness(
   database: Db,
   names: Readonly<Record<string, string>>,
-  over: { content?: string; groupCharacterId?: CharacterId } = {},
+  over: {
+    content?: string;
+    groupCharacterId?: CharacterId;
+    hostTierRegexScripts?: RegexScript[];
+  } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
@@ -138,6 +144,9 @@ function harness(
         userInjections: [],
         variableValues: {},
         injectionTokenBudget: 0,
+        ...(over.hostTierRegexScripts !== undefined
+          ? { hostTierRegexScripts: over.hostTierRegexScripts }
+          : {}),
       }),
   });
   return { ctx, events, deltas, turn, activeTurns };
@@ -489,5 +498,47 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.role).toBe("assistant");
     expect(outcome.messages[0]?.characterId).toBe(chars[0]);
+  });
+});
+
+describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
+  test("the persisted user row is the POST-USER_INPUT-regex text (canon-mutating at write)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const script = regexScriptSchema.parse({
+      id: "u",
+      name: "u",
+      findRegex: "badword",
+      replaceString: "****",
+      placement: ["USER_INPUT"],
+    });
+    const h = harness(db, names, { hostTierRegexScripts: [script] });
+
+    const outcome = await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "this is a badword here",
+    });
+
+    // The user row returned by the verb is the transformed text…
+    expect(outcome.messages[0]?.role).toBe("user");
+    expect(outcome.messages[0]?.content).toBe("this is a **** here");
+    // …and the PERSISTED canon row reflects it (re-loaded from the db — the stored row is post-regex).
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.find((m) => m.role === "user")?.content).toBe("this is a **** here");
+  });
+
+  test("no host-tier scripts → the row is the RAW composer text (member has no entry point — D19)", async () => {
+    // The verb's ONLY regex source is the host-tier set resolved under `runAsUserId` (resolveAssembleInputs).
+    // A non-host member's scripts have no parameter on that surface (structural — see regex-tier.test.ts), so
+    // with none supplied the composer text is persisted verbatim.
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "raw badword text",
+    });
+    expect(outcome.messages[0]?.content).toBe("raw badword text");
   });
 });
