@@ -1,0 +1,273 @@
+// `startChat` (chat.md Part I `verbs/start-chat.ts`) — proves against a real libSQL db: the room is minted with
+// the caller as `host` + the founding characters as members (D28 live-identity roster — `chat_participants`
+// references the live `characters` row), the opening seeds per the resolved `OpeningPolicy` (first-message =
+// the primary's greeting VERBATIM; greet-all = every founding character; none = nothing; generate = delegated
+// to the turn engine as a `kind:"opening"` run), and `chatCreated` (+ a `messageCommitted` per seeded greeting)
+// fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
+
+import type { CharacterCard } from "@orb/contracts/character";
+import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { Principal } from "@orb/contracts/identity";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { Db } from "@orb/db";
+import { chatParticipants, messages } from "@orb/db";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { and, asc, eq, isNull } from "drizzle-orm";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+import type {
+  TurnEngine,
+  TurnOutcome,
+  TurnPrep,
+} from "../../../../../packages/server/src/domain/chat/contract/results";
+import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
+import { freshDb } from "../../../../support/db";
+import { makeChatContext, seedCharacter, seedUser } from "../_support";
+
+let db: Db;
+let emitted: ChatBusEvent[];
+
+beforeEach(async () => {
+  db = await freshDb();
+  emitted = [];
+});
+
+const emit = (event: ChatBusEvent): Promise<void> => {
+  emitted.push(event);
+  return Promise.resolve();
+};
+
+function principal(userId: UserId): Principal {
+  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+}
+
+/** A full canonical card with a single greeting (D28 live read; the rest is empty). */
+function cardWith(name: string, greeting: string): CharacterCard {
+  return {
+    name,
+    description: null,
+    personality: null,
+    scenario: null,
+    greetings: greeting.length > 0 ? [greeting] : [],
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    regexScripts: [],
+    extensions: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+}
+
+/** Resolve the roster read-model directly off `chat_participants` (the root resolves `users` publics; here the
+ *  display name derives from the id — the `fork.ts` test precedent). */
+async function loadParticipantViews(chatId: ChatId): Promise<readonly ParticipantView[]> {
+  const rows = await db
+    .select()
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
+  return rows.map((r) => ({
+    id: r.id,
+    chatId: r.chatId,
+    kind: r.kind,
+    userId: r.userId,
+    characterId: r.characterId,
+    role: r.role,
+    activePersonaId: r.activePersonaId,
+    talkativeness: r.talkativeness,
+    disabled: r.disabled,
+    joinedAt: r.joinedAt,
+    joinSeq: r.joinSeq,
+    leftSeq: r.leftSeq,
+    joinHistoryVisibility: r.joinHistoryVisibility,
+    displayName: r.userId ?? r.characterId ?? "",
+    handle: r.userId === null ? null : castId<Handle>(r.userId),
+    avatarAssetId: null,
+  }));
+}
+
+/** A throwing engine/connection/assemble stub for the verbatim + none paths (they never delegate). */
+const notReached = (): never => {
+  throw new Error("dep not reached in this path");
+};
+
+function makeDeps(
+  over: {
+    readonly engine?: TurnEngine;
+    readonly resolveConnection?: () => Promise<ResolvedConnection>;
+  } = {},
+): Parameters<typeof createStartChat>[1] {
+  return {
+    emit,
+    loadParticipantViews,
+    engine: over.engine ?? { runTurn: notReached },
+    resolveConnection: over.resolveConnection ?? notReached,
+    resolveAssembleInputs: () =>
+      Promise.resolve({
+        promptConfig: DEFAULT_PROMPT_CONFIG,
+        personas: { anchor: null, active: null },
+        worldInfoEnabled: false,
+        recentMessages: [],
+        userInjections: [],
+        variableValues: {},
+        injectionTokenBudget: 0,
+      }),
+  };
+}
+
+describe("startChat — lazy room creation + opening", () => {
+  test("first-message (solo): seeds the primary greeting VERBATIM; caller is host; D28 live roster", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "Hello, I am {{char}}.")),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat, opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+    });
+
+    // The caller is the host; the character is a member referencing the LIVE row (D28 — not a copied card).
+    const hostRow = chat.participants.find((p) => p.role === "host");
+    expect(hostRow?.userId).toBe(host);
+    const charRow = chat.participants.find((p) => p.kind === "character");
+    expect(charRow?.characterId).toBe(aria);
+    expect(charRow?.role).toBe("member");
+
+    // The greeting is seeded VERBATIM (the `{{char}}` macro is NOT resolved at seed — FLAG[greeting-macro]).
+    expect(opening?.aborted).toBe(false);
+    expect(opening?.messages).toHaveLength(1);
+    expect(opening?.messages[0]?.content).toBe("Hello, I am {{char}}.");
+    expect(opening?.messages[0]?.role).toBe("assistant");
+    expect(opening?.messages[0]?.characterId).toBe(aria);
+    expect(opening?.messages[0]?.seq).toBe(1);
+
+    // `chatCreated` then a `messageCommitted` for the seeded greeting.
+    expect(emitted[0]).toEqual({ type: "chatCreated", chatId: chat.id });
+    expect(emitted[1]?.type).toBe("messageCommitted");
+
+    // The opening is real canon in the new chat (no `ownerId`; an explicit opening was NOT set → metadata null).
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+    expect(rows).toHaveLength(1);
+    expect(chat.opening).toBeNull();
+  });
+
+  test("greet-all (group default): every founding character greets, in roster order (seq 1..N)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const borg = await seedCharacter(db, host, "borg");
+    const ctx = makeChatContext(db, {
+      getCard: ({ characterId }) =>
+        Promise.resolve(
+          characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Borg", "Borg hi"),
+        ),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { opening } = await startChat({ principal: principal(host), characterIds: [aria, borg] });
+
+    expect(opening?.messages.map((m) => m.content)).toEqual(["Aria hi", "Borg hi"]);
+    expect(opening?.messages.map((m) => m.seq)).toEqual([1, 2]);
+    expect(opening?.messages.map((m) => m.characterId)).toEqual([aria, borg]);
+  });
+
+  test("greet-all: a character with no greeting is skipped (never an empty seeded row)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const mute = await seedCharacter(db, host, "mute");
+    const ctx = makeChatContext(db, {
+      getCard: ({ characterId }) =>
+        Promise.resolve(characterId === aria ? cardWith("Aria", "Aria hi") : cardWith("Mute", "")),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat, opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria, mute],
+    });
+
+    expect(opening?.messages.map((m) => m.content)).toEqual(["Aria hi"]);
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+    expect(rows).toHaveLength(1);
+  });
+
+  test("none: seeds nothing; opening is null; only chatCreated fires; metadata records the policy", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: notReached });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat, opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "none",
+    });
+
+    expect(opening).toBeNull();
+    expect(chat.opening).toBe("none");
+    expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("generate: delegates the opening to the turn engine (kind:'opening') and returns its outcome", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const engineOutcome: TurnOutcome = { messages: [], aborted: false };
+    const runTurn = vi.fn(
+      (_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome),
+    );
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
+    });
+
+    const deps = makeDeps({
+      engine: { runTurn },
+      resolveConnection: () =>
+        Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+    });
+    const { startChat } = createStartChat(ctx, deps);
+    const { chat, opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "generate",
+    });
+
+    expect(opening).toBe(engineOutcome);
+    expect(runTurn).toHaveBeenCalledTimes(1);
+    const prep = runTurn.mock.calls[0]?.[0];
+    expect(prep?.kind).toBe("opening");
+    expect(prep?.speakerCharacterId).toBe(aria);
+    // The creator IS the host of a brand-new room (the D19 triple collapses to the caller).
+    expect(prep?.runAsUserId).toBe(host);
+    expect(prep?.triggeredBy).toBe(host);
+    // No verbatim greeting was seeded on the generate path.
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("atomic: the chat row + the full roster commit together", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const roster = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.chatId, chat.id))
+      .orderBy(asc(chatParticipants.joinSeq));
+    expect(roster).toHaveLength(2);
+    expect(roster.filter((r) => r.role === "host")).toHaveLength(1);
+    expect(roster.every((r) => r.joinSeq === 0)).toBe(true);
+  });
+});

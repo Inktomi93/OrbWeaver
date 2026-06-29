@@ -9,7 +9,7 @@
 // "the engine's pipeline imports shape from here" — that DIRECT cross-subsystem import is gate-illegal; this
 // substrate bridge is the legal form of the same coupling.)
 
-import { assemblePrompt } from "../assembly/assemble";
+import { assemblePrompt, previewSection as previewSectionImpl } from "../assembly/assemble";
 import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/context";
 import { fitHistoryToWindow } from "../assembly/history-budget";
 import { shape } from "../assembly/shape";
@@ -34,6 +34,15 @@ export function buildPrompt(
 /** SHAPE: scope→splice→squash→name-stamp the wire history + compute the §8 breakpoint. */
 export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof shape> {
   return shape(...args);
+}
+
+/** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`
+ *  (the `previewSection` read verb / the COMPOSER editor surface). Side-effect free (the variable map is
+ *  cloned inside). The legal bridge for the same `verbs/ → assembly/` coupling. */
+export function previewSection(
+  ...args: Parameters<typeof previewSectionImpl>
+): ReturnType<typeof previewSectionImpl> {
+  return previewSectionImpl(...args);
 }
 
 /** FIT: the §8 history-budget tail (drop oldest turns to fit the window; offset-from-end survives). */
