@@ -55,6 +55,14 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
         "test outside a package mirror — expected tests/{kit,contracts,db,server,client}/… or tests/{support,e2e,tooling}/",
     };
   }
+  // The differential oracle (.parity.test.ts) is authored BEFORE its source (BUILD-PLAN Phase 5
+  // step 1 / CHECKLIST §C1: "write the runbook + fixture FIRST") and validates an assembled
+  // cross-repo SURFACE (the SHAPE prompt + cache placement vs the steady clone), not a single source
+  // module — so it is exempt from the 1:1 source-mirror requirement. It still must sit under a valid
+  // package tree (the pkg check above), and is opt-in/skipped until chat assembly lands.
+  if (kind === ".parity.test.ts") {
+    return;
+  }
   const base = name.slice(0, -kind.length);
   const ext = kind.endsWith(".tsx") ? ".tsx" : ".ts";
   const sub = segs.slice(1, -1).join("/");

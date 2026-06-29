@@ -1,0 +1,137 @@
+// ── The differential-oracle harness (CHECKLIST §C1 · testing.md §6) ───────────────────────────────
+//
+// Drives the parity oracle from the orbweaver side: it loads the committed neo reference
+// (fixtures/parity/neo-reference.json, captured from the steady clone by
+// scripts/dev/oracle-steady-clone.sh --capture) + the input fixture (breakpoint-cases.json), and
+// exposes `runOrbweaverShape` — the ONE seam orbweaver's chat assembly plugs into when it lands
+// (Phase 5 step 2). Until then `runOrbweaverShape` throws a clear "not wired" error and the
+// `.parity.test` is skipped (never a failing assertion — testing.md §1).
+//
+// PARITY SURFACE ONLY: the SHAPE-phase assembled history + the §8 rolling-tail cache breakpoint
+// (offset + placement). Memory is a rewrite (its own .int tests) — NEVER the oracle. This file does
+// NOT import neo (tests/ is in orbweaver's tsc scope); the neo side is the capture script.
+
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const PARITY_DIR = join(HERE, "fixtures", "parity");
+
+export type Role = "user" | "assistant";
+
+export interface Msg {
+  role: Role;
+  content: string;
+  authorName?: string | null;
+  characterId?: string | null;
+  /** namesBehavior="completion" sets the OpenAI-spec `name` field instead of prefixing content. */
+  name?: string;
+}
+
+export interface ChatInjectionInput {
+  position: string;
+  depth: number;
+  role: string;
+  content: string;
+  order?: number;
+}
+
+/** A single SHAPE case — a faithful set of `shapeCompletionHistory` inputs (neo pipeline.ts). */
+export interface ShapeCase {
+  name: string;
+  describe: string;
+  stages: string[];
+  canon: Msg[];
+  appendUserTurn: string | null;
+  injections: ChatInjectionInput[];
+  groupConfig: { output: "per-speaker" | "narrator"; cardScope: "merged" | "scoped" };
+  scopedTargetId: string | null;
+  namesBehavior: "default" | "none" | "content" | "completion";
+  speakers: { user: string; assistant: string };
+  groupNudge: string | null;
+  expectBreakpointFromEnd: number | null;
+}
+
+/** The captured SHAPE output for one case — the diffable parity surface. */
+export interface ShapeResult {
+  multiCharacter: boolean;
+  withTail: Msg[];
+  injected: Msg[];
+  squashed: Msg[];
+  named: Msg[];
+  history: Msg[];
+  /** Offset-from-end of the last STABLE message (the §8 breakpoint), or null (no safe breakpoint). */
+  cacheBreakpointFromEnd: number | null;
+  /** Runner placement index (history.length-1-offset), or null. Out-of-bounds ⇒ runner discards it. */
+  targetIdx: number | null;
+}
+
+export interface RollingDelta {
+  offsetInvariant: boolean;
+  turn1TargetIdx: number | null;
+  turn2TargetIdx: number | null;
+  /** Absolute placement advance between consecutive turns = one committed user/assistant pair (2). */
+  placementAdvance: number | null;
+}
+
+export interface Fixture {
+  cacheMinTokens: number;
+  cases: ShapeCase[];
+  rollingPair: { describe: string; turns: ShapeCase[] };
+}
+
+export interface Reference {
+  neoHead: string;
+  cacheMinTokens: number | null;
+  cases: Record<string, ShapeResult>;
+  rollingPair: { turns: (ShapeResult & { name: string })[]; delta: RollingDelta };
+}
+
+function readJson<T>(name: string): T {
+  return JSON.parse(readFileSync(join(PARITY_DIR, name), "utf8")) as T;
+}
+
+export function loadFixture(): Fixture {
+  return readJson<Fixture>("breakpoint-cases.json");
+}
+
+export function loadReference(): Reference {
+  return readJson<Reference>("neo-reference.json");
+}
+
+/** The unskip marker — the parity test greps for nothing; this is the human signal. */
+export const UNSKIP_WHEN =
+  "UNSKIP when chat assembly lands (Phase 5 step 2 — wire runOrbweaverShape).";
+
+/**
+ * THE SEAM. orbweaver's chat assembly (SHAPE phase) plugs in here: given a ShapeCase, return the
+ * ShapeResult by running the REAL orbweaver `shapeCompletionHistory`-equivalent over the case inputs.
+ * The `.parity.test` then asserts `runOrbweaverShape(case)` deep-equals the captured neo reference.
+ *
+ * Until assembly lands this throws — the test is `describe.skip`'d, so it never runs. When you wire
+ * it, import orbweaver's shaper and map case → its inputs here, then unskip the test.
+ */
+export function runOrbweaverShape(_case: ShapeCase): ShapeResult {
+  throw new Error(
+    `[oracle] runOrbweaverShape is not wired — orbweaver chat assembly does not exist yet. ${UNSKIP_WHEN}`,
+  );
+}
+
+/**
+ * The rolling-tail signature (CHECKLIST §C1 cacheWrite/read delta), derived from two consecutive
+ * turns' SHAPE results. The offset is invariant turn-over-turn while the absolute placement advances
+ * by one committed user/assistant pair — so turn1's written prefix is a cache READ on turn2 (the
+ * ~5300-token win). Both sides (neo reference + orbweaver) compute it through THIS one function.
+ */
+export function rollingDelta(turn1: ShapeResult, turn2: ShapeResult): RollingDelta {
+  return {
+    offsetInvariant: turn1.cacheBreakpointFromEnd === turn2.cacheBreakpointFromEnd,
+    turn1TargetIdx: turn1.targetIdx,
+    turn2TargetIdx: turn2.targetIdx,
+    placementAdvance:
+      turn1.targetIdx !== null && turn2.targetIdx !== null
+        ? turn2.targetIdx - turn1.targetIdx
+        : null,
+  };
+}
