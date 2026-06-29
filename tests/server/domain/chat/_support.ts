@@ -21,6 +21,7 @@ import type {
   CharacterId,
   ChatEventId,
   ChatId,
+  ChatInjectionId,
   ChatParticipantId,
   ChatStreamEventId,
   Handle,
@@ -32,7 +33,9 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { can } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
+import type { ChatContext } from "../../../../packages/server/src/domain/chat/contract/context";
 
 export const FROZEN_AT = 1_750_000_000_000;
 
@@ -224,4 +227,56 @@ export async function seedPendingTurn(
     createdAt: opts.createdAt ?? FROZEN_AT,
   });
   return id;
+}
+
+/**
+ * Build a full `ChatContext` for the verb int-tests — the REAL db + the REAL admin `can()` (the PD-1 unified
+ * seam, wired as the root will) + a frozen clock + deterministic id minters. Every cross-feature op defaults
+ * to a throwing stub (an accidental reach fails loudly), overridable per test (`getCard`/`emitNotification`
+ * are the ones these verbs touch). The chat bus `emit` is NOT a ctx field (chat's own collaborator) — tests
+ * pass a spy `emit` as the verb factory's second arg.
+ */
+export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): ChatContext {
+  let counter = 0;
+  const mint =
+    <T extends string>(prefix: string): (() => T) =>
+    (): T => {
+      counter += 1;
+      return castId<T>(`${prefix}_${counter}`);
+    };
+  // ONE throwing stub for every cross-feature op these verbs do not touch — an accidental reach fails loudly.
+  const notStubbed = (): never => {
+    throw new Error("ChatContext op not stubbed in this test");
+  };
+  const base: ChatContext = {
+    db,
+    now: () => FROZEN_AT,
+    can,
+    newChatId: mint<ChatId>("chat"),
+    newMessageId: mint<MessageId>("message"),
+    newMessageVariantId: mint<MessageVariantId>("variant"),
+    newParticipantId: mint<ChatParticipantId>("chat_participant"),
+    newInjectionId: mint<ChatInjectionId>("chat_injection"),
+    newEventId: mint<ChatEventId>("chat_event"),
+    newStreamEventId: mint<ChatStreamEventId>("stream_event"),
+    audit: () => Promise.resolve(),
+    runChatTurn: notStubbed,
+    resolveChat: notStubbed,
+    resolveCredential: notStubbed,
+    maybeRevokeOnAuthFailed: notStubbed,
+    getCard: () => Promise.resolve(null),
+    mintSyntheticGroupCharacter: notStubbed,
+    findSyntheticGroupCharacter: notStubbed,
+    setActivePersona: notStubbed,
+    applyStatsDelta: notStubbed,
+    summarize: notStubbed,
+    emitNotification: () => Promise.resolve(),
+    readPresence: notStubbed,
+    embeddingsStore: notStubbed,
+    searchDigests: notStubbed,
+    searchCorpus: notStubbed,
+    getGroupConfig: notStubbed,
+    getRoomOverrides: notStubbed,
+  };
+  return { ...base, ...overrides };
 }
