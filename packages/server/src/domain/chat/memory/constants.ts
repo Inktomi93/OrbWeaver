@@ -1,21 +1,24 @@
 // domain/chat/memory/constants — the baked-in memory tuning + the config resolver (chat.md Part I §memory
-// `constants.ts`; the "memory DEFAULTS adoption" ledger decision). DEFAULTS adopt the NEW tuning at build —
-// `blockSize 16 · verbatimWindow 30 · fanOut 8` (vs the steady clone's `8 · 8 · 4`) — a config value, not a
-// code semantic. `resolveCfg` layers a partial `AppSettings.memoryDefaults` over DEFAULTS (admin-set; an
-// absent field falls back to the floor). PURE, deterministic — no clock, no I/O (these are VALUES/a function,
-// not exported types, so the `types-in-contract` gate does not apply).
+// `constants.ts`). DEFAULTS are the knowledge-cluster.md §5 GROUNDED numbers (neo tuned them against real
+// imported ST chats): `blockSize 8 · fanOut 4 · verbatimWindow 8 · maxTier 3` — tier-1 fills at 32 messages,
+// tier-2 at 128, tier-3 at 512, so tiering actually engages at typical lengths, and `blockSize 8 ≈ 3k tok`
+// fits a tiny local summarizer (the token-guard is the real safety — §3a). The numbers MIRROR the
+// `contracts/settings` `memoryDefaultsSchema` describe-defaults exactly. `resolveCfg` layers a partial
+// `AppSettings.memoryDefaults` over DEFAULTS (admin-set; an absent field falls back to the floor). PURE,
+// deterministic — no clock, no I/O (these are VALUES/a function, not exported types, so `types-in-contract`
+// does not apply).
 
 import type { MemoryConfig, ResolvedMemoryConfig } from "./types";
 
-/** The baked-in resolver floor. The three headline knobs adopt the new tuning (ledger); the rest mirror the
- *  `memoryDefaultsSchema` describe-defaults (mode `mixC`, fanOut 8, maxTier 3, retrieveK 8, rerankTo 3,
- *  minScore 0.25, keywordMatch on, recencyBias off, queryWindow 2). */
+/** The baked-in resolver floor — the knowledge-cluster.md §5 grounded defaults, mirroring the
+ *  `memoryDefaultsSchema` describe-defaults (blockSize 8, verbatimWindow 8, queryWindow 2, mode `mixC`,
+ *  fanOut 4, maxTier 3, retrieveK 8, rerankTo 3, minScore 0.25, keywordMatch on, recencyBias off). */
 export const DEFAULTS: ResolvedMemoryConfig = {
-  blockSize: 16,
-  verbatimWindow: 30,
+  blockSize: 8,
+  verbatimWindow: 8,
   queryWindow: 2,
   mode: "mixC",
-  fanOut: 8,
+  fanOut: 4,
   maxTier: 3,
   retrieveK: 8,
   rerankTo: 3,

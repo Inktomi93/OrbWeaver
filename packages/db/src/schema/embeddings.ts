@@ -26,9 +26,10 @@
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).
 // The column carries both the drizzle `{ enum }` (type-side) AND a CHECK built from the same tuple
 // (SQL-side) — never a re-spelled union; a `.int` test-mirror pins the column enum === the contracts
-// tuple. `chat_digests.scopedCharacterId` is the `''` empty-string SENTINEL (never NULL — SQLite UNIQUE
-// ignores NULL, so the `(chatId, scopedCharacterId, tier, blockIdx)` idempotent-upsert key needs a
-// non-null shared-bucket value).
+// tuple. `chat_digests.scopedCharacterId` is ALWAYS a real branded `CharacterId` FK → `characters.id`
+// (knowledge-cluster.md §4 / inv 8 — solo's cast char, the synthetic group-as-character, or a per-
+// witnessing-char; NO `''` sentinel, NO NULL). The `(chatId, scopedCharacterId, tier, blockIdx)`
+// idempotent-upsert UNIQUE keys off the real id; SQLite UNIQUE never sees a NULL here.
 //
 // Timestamps are plain `integer("x_at")` epoch-MS NUMBERS, born at insert via `(unixepoch() * 1000)`.
 // `embedding` is the native `vector32` F32_BLOB column (../custom-types). `chat_digest_speakers` is an
@@ -153,11 +154,12 @@ export const imageEmbeddings = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_digests — the DISTILLED chat-block lens (topic anchor + significance-filtered facts + keywords),
-// tiered. Keyed `(chatId, scopedCharacterId, tier, blockIdx)` — the idempotent-upsert UNIQUE. FK chats
-// CASCADE; NO ownerId (D20); NO characterVersionId (D28). `scopedCharacterId` is the `''` empty-string
-// SENTINEL (NEVER NULL — SQLite UNIQUE ignores NULL; the shared/room bucket uses `''`, a scoped bucket
-// uses the characterId). `store.ts` MUST NOT coerce `''` → NULL.
+// chat_digests — the DISTILLED chat-block lens (the stored digest `text` = topic anchor + significance-
+// filtered facts + keywords; the §2b body that fills `{{memory}}` AND is embedded), tiered. Keyed
+// `(chatId, scopedCharacterId, tier, blockIdx)` — the idempotent-upsert UNIQUE. FK chats CASCADE; NO
+// ownerId (D20); NO characterVersionId (D28). `scopedCharacterId` is ALWAYS a real `CharacterId` FK →
+// `characters.id` CASCADE (§4 / inv 8 — solo's cast char, the synthetic group-as-character, or a per-
+// witnessing-char; NEVER the `''` sentinel, NEVER NULL).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const chatDigests = sqliteTable(
@@ -171,17 +173,23 @@ export const chatDigests = sqliteTable(
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    // The egocentric scope key (knowledge-cluster.md §4): `''` = the SHARED/room bucket (solo/merged/
-    // narrator), a characterId = a per-character scoped bucket. NEVER NULL — the `''` sentinel makes the
-    // UNIQUE below dedupe the shared bucket (SQLite UNIQUE ignores NULL). Plain TEXT (it is `''` OR a
-    // CharacterId value — no single brand fits the dual domain), so no `.$type<…Id>()`.
-    scopedCharacterId: text("scoped_character_id").notNull().default(""),
+    // The egocentric scope key (knowledge-cluster.md §4 / inv 8): ALWAYS a real `CharacterId` — solo's
+    // single cast char, the synthetic group-as-character (`__group__${chatId}`, a real hidden id), or a
+    // per-witnessing cast char under `scoped`. FK → characters.id CASCADE (a deleted character drops its
+    // scoped digests). NEVER the `''` sentinel, NEVER NULL — the UNIQUE below keys off the real id.
+    scopedCharacterId: text("scoped_character_id")
+      .$type<CharacterId>()
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
     // True when the block is from a group room (drives the egocentric-vs-shared recall split).
     isGroup: integer("is_group", { mode: "boolean" }).notNull().default(false),
-    // The consolidation tier (0 = a single 16-msg block; k>0 = a fanOut=8 cross-block synthesis).
+    // The consolidation tier (0 = a single block; k>0 = a fanOut cross-block synthesis).
     tier: integer("tier").notNull(),
     // The block index within the chat (the `(chatId, blockIdx)` span pointer back to canon).
     blockIdx: integer("block_idx").notNull(),
+    // The distilled digest body (§2b: topicAnchor + significance-filtered facts + keywords, folded into one
+    // stored text). What fills `{{memory}}` AND what is embedded. A digest always has a body — NOT NULL.
+    text: text("text").notNull(),
     // The native vector (F32_BLOB(1024)) — the distilled lens embedding (the sharp search key).
     embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
@@ -198,9 +206,9 @@ export const chatDigests = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The idempotent-upsert key (ALL FOUR columns, incl. the `''`-sentinel scopedCharacterId). A re-digest
-    // of the same bucket collides here (ON CONFLICT DO UPDATE); dropping scopedCharacterId would bleed a
-    // scoped bucket's rows into the shared bucket.
+    // The idempotent-upsert key (ALL FOUR columns, incl. the real-CharacterId scopedCharacterId). A
+    // re-digest of the same bucket collides here (ON CONFLICT DO UPDATE); dropping scopedCharacterId would
+    // bleed a scoped bucket's rows into the shared (group-as-character) bucket.
     uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx),
     index("chat_digests_chat_idx").on(t.chatId),
   ],
@@ -226,6 +234,9 @@ export const chatSegments = sqliteTable(
     // The seq-span this verbatim block covers (the pointer back to `messages` canon).
     seqStart: integer("seq_start").notNull(),
     seqEnd: integer("seq_end").notNull(),
+    // The verbatim transcript of the block (§2a) — stored + embedded; the ground truth a digest hit resolves
+    // back to, returned directly so cross-chat reads never re-read N chats' canon per hit. NOT NULL.
+    text: text("text").notNull(),
     // The native vector (F32_BLOB(1024)) — the verbatim lens embedding.
     embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.

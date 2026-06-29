@@ -25,7 +25,14 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ImageEmbeddingId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatSegmentId,
+  ImageEmbeddingId,
+} from "@orb/kit/ids";
 import type { ClearTableParams, StoreParams, WriteHubScoresParams } from "./params";
 import type { StoreResult, WriteHubScoresResult } from "./results";
 
@@ -45,8 +52,9 @@ export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefine
  *   - `roleClients` — the bound inference bundle (`store` calls `embed` / `imageEmbed`; the model tag is its
  *     `embedModel` / `imageEmbedModel`).
  *   - `now` — the injected clock (epoch-ms); no ambient `Date.now()` (test-determinism).
- *   - `newCharacterEmbeddingId` / `newImageEmbeddingId` — injected id minters (no ambient `mintTypeId()`).
- *     FLAG[PD-34]: `newChatDigestId` / `newChatSegmentId` join in Phase 5 with the digest/segment arms.
+ *   - `newCharacterEmbeddingId` / `newImageEmbeddingId` / `newChatDigestId` / `newChatSegmentId` — injected
+ *     id minters (no ambient `mintTypeId()`). The chat-digest/segment minters back the `digest` / `segment`
+ *     store arms (knowledge-cluster.md §1/§2); wired at the entry root (`compose/services.ts`).
  */
 export interface EmbeddingsContext {
   readonly db: Db;
@@ -54,6 +62,8 @@ export interface EmbeddingsContext {
   readonly now: () => number;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;
   readonly newImageEmbeddingId: () => ImageEmbeddingId;
+  readonly newChatDigestId: () => ChatDigestId;
+  readonly newChatSegmentId: () => ChatSegmentId;
 }
 
 /** What `createEmbeddingsService` receives from the entry root. Identical to {@link EmbeddingsContext} — no

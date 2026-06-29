@@ -2,31 +2,39 @@
 //
 // THE TWO §7.5 DISPATCH AXES (one importable canonical union each; derived from a tuple, never inline
 // re-spelled — `no-inline-union-redecl`):
-//   • SourceKind — the producer class (`card` | `avatar`). FLAG[PD-34]: `chat-block` (memory's
-//     digest/segment producer) lands in Phase 5 when `memory` is built whole (ledger D16) → add the member
-//     here + its store arm when the memory-digest seam wires up.
+//   • SourceKind — the producer class (`card` | `avatar` | `chat-block`). `chat-block` is memory's
+//     digest/segment producer (knowledge-cluster.md §1; the memory rework, ledger D16).
 //   • SourceLens — the embedding lens. The IMAGE subset (`image-raw` | `image-captioned`) is NOT re-spelled
 //     here — it DERIVES `IMAGE_LENSES` from `@orb/contracts/embeddings` (D34, the db `image_embeddings.lens`
-//     column derives the SAME tuple). The text lens `card-text` is W2; FLAG[PD-34]: `segment` / `digest`
-//     (memory's verbatim + distilled chat-block lenses) land in Phase 5 → extend `TEXT_LENSES` + the store
-//     switch then (the `satisfies` belt below goes red until the new arms are routed).
+//     column derives the SAME tuple). The text lenses are `card-text` (W2) + `segment` / `digest` (memory's
+//     verbatim + distilled chat-block lenses — §2).
+//
+// FLAG[PD-34 — PARAMS RESOLVED HERE; STORE IMPL IS THE NEXT CHUNK]: the `segment` / `digest` arms + the
+// `chat-block` kind are now DEFINED below (the typed write surface the memory rework + §3 recall read back).
+// The `embeddings.store` IMPL does NOT yet route them — `verbs/store.ts`'s exhaustive `switch (params.lens)`
+// + its pre-switch `contentHash(params.content)` go RED until the next chunk adds the two arms (the
+// `chat_digest_speakers` re-query-after-upsert, the precomputed-`contentHash` path, the `text`-as-embed-input)
+// AND wires `newChatDigestId` / `newChatSegmentId` into `EmbeddingsContext` at the entry root. That red is the
+// intended hand-off signal, NOT drift — do not fudge the switch to clear it (knowledge-cluster.md §1/§2/§4).
 //
 // VECTOR_TABLES is the FULL four-table registry NOW (not phased): `discovery` (writeHubScores) + `search`
 // (reads) + `clearTable` consume all four today, independent of which lenses the store verb routes in W2.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
-import type { AssetId, CharacterId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
 // ── SourceKind (the producer-class dispatch axis) ─────────────────────────────
-/** The producer classes whose content the store verb embeds in W2. FLAG[PD-34]: `chat-block` (P5). */
-export const SOURCE_KINDS = ["card", "avatar"] as const;
+/** The producer classes whose content the store verb embeds: `card` (a character card), `avatar` (an asset
+ *  image), `chat-block` (memory's verbatim segment + distilled digest of an aged-out chat block, §1). */
+export const SOURCE_KINDS = ["card", "avatar", "chat-block"] as const;
 /** The producer-class union — derived from {@link SOURCE_KINDS} (no inline re-spell, §7.5). */
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
 // ── SourceLens (the embedding-lens dispatch axis) ─────────────────────────────
-/** The TEXT lenses (W2: just `card-text`). FLAG[PD-34]: `segment` / `digest` (P5 memory chat-block). */
-export const TEXT_LENSES = ["card-text"] as const;
+/** The TEXT lenses: `card-text` (the card lens, W2) + `segment` (verbatim chat block, §2a) + `digest` (the
+ *  distilled chat block, §2b). Each text lens's store arm carries the per-lens facets the §3 recall reads. */
+export const TEXT_LENSES = ["card-text", "segment", "digest"] as const;
 /** Every lens the store verb routes — the text lenses + the canonical image subset (DERIVES `IMAGE_LENSES`,
  *  never re-spells it). `as const` over two const tuples yields the precise readonly tuple. */
 export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
@@ -90,10 +98,64 @@ export interface ImageCaptionedStoreParams {
   readonly dim: number;
 }
 
-/** The single write path's input — discriminated on `lens` (W2 arms). FLAG[PD-34]: the `segment` /
- *  `digest` arms (memory chat-block, with `chatId`/`scopedCharacterId`/`tier`/`blockIdx` + speaker sync)
- *  join in Phase 5. */
-export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams;
+/** Embed an aged-out chat block's VERBATIM transcript (the §2a segment lens — the ground truth a digest hit
+ *  resolves back to). `text` is the embed input AND the stored `chat_segments.text`. `contentHash` is
+ *  PRECOMPUTED by memory (it folds the seq-span + the stable speaker id + the scope — §1; the store does not
+ *  recompute it). Unique key: `(chatId, blockIdx)`. */
+export interface SegmentStoreParams {
+  readonly kind: "chat-block";
+  readonly lens: "segment";
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  /** The seq-span back to `messages` canon (`chat_segments.seq_start` / `seq_end`). */
+  readonly seqStart: number;
+  readonly seqEnd: number;
+  /** The verbatim block transcript — embedded AND persisted (`chat_segments.text`). */
+  readonly text: string;
+  /** The staleness/collapse key, precomputed by memory (folds seq-span + speaker + scope, §1). */
+  readonly contentHash: string;
+  readonly model: string;
+  readonly dim: number;
+}
+
+/** Embed an aged-out chat block's DISTILLED digest (the §2b digest lens — the sharp search key). `text` is
+ *  the distilled body (topicAnchor + facts + keywords folded) — the embed input, the stored
+ *  `chat_digests.text`, AND what fills `{{memory}}`. `scopedCharacterId` is ALWAYS a real `CharacterId`
+ *  (inv 8 — solo's cast char / the synthetic group-as-character / a per-witnessing char; NO `''`, NO NULL).
+ *  `contentHash` is PRECOMPUTED by memory (folds scope/speaker, §1). Unique key:
+ *  `(chatId, scopedCharacterId, tier, blockIdx)`. */
+export interface DigestStoreParams {
+  readonly kind: "chat-block";
+  readonly lens: "digest";
+  readonly chatId: ChatId;
+  /** The egocentric scope bucket (§4 / inv 8) — a real `CharacterId`, never the `''` sentinel. */
+  readonly scopedCharacterId: CharacterId;
+  /** True when the block is from a group room (drives the egocentric-vs-shared recall split). */
+  readonly isGroup: boolean;
+  /** The consolidation tier (0 = a single block; k>0 = a fanOut cross-block synthesis, §5). */
+  readonly tier: number;
+  readonly blockIdx: number;
+  /** The distilled digest body — embedded, persisted (`chat_digests.text`), and injected into `{{memory}}`. */
+  readonly text: string;
+  /** The mandatory `[entities — scene]` first line, kept as a retrieval facet (`chat_digests.topic_anchor`). */
+  readonly topicAnchor: string;
+  /** The 15–30 distinctive retrieval keywords (`chat_digests.keywords`). */
+  readonly keywords: readonly string[];
+  /** The staleness/collapse key, precomputed by memory (folds scope + speaker + seq-span, §1/§4). */
+  readonly contentHash: string;
+  readonly model: string;
+  readonly dim: number;
+}
+
+/** The single write path's input — discriminated on `lens`. The `card-text` / `image-raw` / `image-captioned`
+ *  arms are routed today; the `segment` / `digest` chat-block arms are DEFINED here but their store-impl
+ *  routing is the next chunk (FLAG[PD-34] in the header — `verbs/store.ts` goes red until they are wired). */
+export type StoreParams =
+  | CardTextStoreParams
+  | ImageRawStoreParams
+  | ImageCaptionedStoreParams
+  | SegmentStoreParams
+  | DigestStoreParams;
 
 // ── writeHubScores params (the discovery → embeddings hub-score write seam) ────
 /** One pre-computed hub-score update — keyed `(id, model)` so it lands on the right row in the right space.

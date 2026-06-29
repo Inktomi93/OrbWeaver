@@ -6,19 +6,24 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import type { MemoryScope } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
-import { makeChatContext, seedChat } from "../../_support";
-import { fakeSearchDigests, seedDigest } from "../_support";
+import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
+import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
 
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
+  // FK parents for the digest `scopedCharacterId` (the synthetic group char for the shared bucket + aria for
+  // the scoped bucket — inv 8: a real CharacterId, never the `''` sentinel).
+  const owner = await seedUser(db, "owner");
+  await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
+  await seedCharacter(db, owner, "aria");
 });
 
 const sharedScope = (chatId: ChatId): MemoryScope => ({
   chatId,
-  scopedCharacterId: "",
+  scopedCharacterId: GROUP_CHAR,
   isGroup: false,
 });
 
@@ -53,8 +58,8 @@ describe("memory/recall — the 5 modes + the 6 chat-scoped semantics", () => {
     await seedDigest(db, { chatId, tier: 0, blockIdx: 1, topicAnchor: "[s1]", keywords: ["b"] });
     // search returns block 1 ranked ABOVE block 0.
     const ranked: BlockKey[] = [
-      { chatId, tier: 0, blockIdx: 1, scopedCharacterId: "" },
-      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: "" },
+      { chatId, tier: 0, blockIdx: 1, scopedCharacterId: GROUP_CHAR },
+      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: GROUP_CHAR },
     ];
     const search = fakeSearchDigests(ranked);
     const ctx = makeChatContext(db, { searchDigests: search.fn });
@@ -62,11 +67,12 @@ describe("memory/recall — the 5 modes + the 6 chat-scoped semantics", () => {
       scope: sharedScope(chatId),
       config: { mode: "mixC", minScore: 0.3 },
     });
-    // the cosine scan was delegated, scoped to this chat (#5), with the egocentric bucket (#4) + the knobs (#6).
+    // the cosine scan was delegated, scoped to this chat (#5), with the egocentric bucket (#4) + the knobs (#6)
+    // — all on MemoryQueryOptions (the folded contract; the chat-side wrapper is gone).
     expect(search.calls).toHaveLength(1);
     const q = search.calls.at(0);
-    expect(q?.scopedCharacterId).toBe("");
-    expect(q?.options).toMatchObject({ scope: { chat: chatId }, mode: "mixC", minScore: 0.3 });
+    expect(q?.scopedCharacterId).toBe(GROUP_CHAR);
+    expect(q).toMatchObject({ scope: { chat: chatId }, mode: "mixC", minScore: 0.3 });
     // formatted in the search-returned (ranked) order.
     expect(out).toBe(joinBlocks(facet("[s1]", "b"), facet("[s0]", "a")));
   });

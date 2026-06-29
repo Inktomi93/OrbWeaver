@@ -1,8 +1,10 @@
 // .int tests for schema/embeddings — the vector substrate (D20 no ownerId / D28 no cv / D34 image lens).
 // Real libSQL :memory: via freshDb (FK PRAGMA ON). Covers: the vector32 1024-dim Float32 round-trip,
 // content_hash presence (NOT NULL), the image-lens test-mirror + CHECK + the (asset,model,lens) unique
-// (both lenses coexist, a dup lens collides), the scopedCharacterId="" sentinel + the digest scope UNIQUE,
-// the ABSENCE of ownerId on every vector row (D20), chat-child CASCADE, and the chat_digest_speakers join.
+// (both lenses coexist, a dup lens collides), the digest/segment `text` round-trip + NOT NULL, the
+// scopedCharacterId real-`CharacterId` FK (→ characters CASCADE; no `''` sentinel — inv 8) + the digest
+// scope UNIQUE, the ABSENCE of ownerId on every vector row (D20), chat-child CASCADE, and the
+// chat_digest_speakers join.
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
@@ -221,8 +223,10 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
   await db.insert(chatDigests).values({
     id: castId<ChatDigestId>("chat_digest_no_owner"),
     chatId,
+    scopedCharacterId: characterId,
     tier: 0,
     blockIdx: 0,
+    text: "digest body",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -234,6 +238,7 @@ test("no vector table carries an ownerId column (D20 — owner-scope derives fro
     blockIdx: 0,
     seqStart: 0,
     seqEnd: 15,
+    text: "verbatim transcript",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -317,16 +322,22 @@ test("image_embeddings.lens CHECK rejects a non-member lens value", async () => 
   expect(isConstraintViolation(caught)?.kind).toBe("check");
 });
 
-// ── chat_digests: the scopedCharacterId="" sentinel default + the (chat,scope,tier,blockIdx) UNIQUE ───
-test("chat_digests defaults scopedCharacterId to the '' shared-bucket sentinel (never NULL)", async () => {
+// ── chat_digests / chat_segments: the `text` body round-trips + is NOT NULL ───────────────────────────
+test("chat_digests round-trips its distilled `text` body + topicAnchor + keywords (the {{memory}} fill)", async () => {
   const db = await freshDb();
-  const chatId = await seedChat(db, "chat_digest_default");
-  const id = castId<ChatDigestId>("chat_digest_shared");
+  const ownerId = await seedOwner(db, "user_dtext");
+  const characterId = await seedCharacter(db, ownerId, "character_dtext");
+  const chatId = await seedChat(db, "chat_dtext");
+  const id = castId<ChatDigestId>("chat_digest_text");
   await db.insert(chatDigests).values({
     id,
     chatId,
+    scopedCharacterId: characterId,
     tier: 0,
     blockIdx: 0,
+    text: "[Alice, Bob — the docks] Alice agreed to smuggle the relic.",
+    topicAnchor: "[Alice, Bob — the docks]",
+    keywords: ["Alice", "Bob", "relic", "docks"],
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -334,36 +345,135 @@ test("chat_digests defaults scopedCharacterId to the '' shared-bucket sentinel (
   });
 
   const rows = await db.select().from(chatDigests).where(eq(chatDigests.id, id));
-  expect(rows[0]?.scopedCharacterId).toBe("");
+  expect(rows[0]?.text).toBe("[Alice, Bob — the docks] Alice agreed to smuggle the relic.");
+  expect(rows[0]?.topicAnchor).toBe("[Alice, Bob — the docks]");
+  expect(rows[0]?.keywords).toEqual(["Alice", "Bob", "relic", "docks"]);
+  expect(rows[0]?.scopedCharacterId).toBe(characterId);
   expect(rows[0]?.isGroup).toBe(false);
-  expect(rows[0]?.keywords).toEqual([]);
 });
 
-test("a shared ('') and a scoped (characterId) digest coexist; a same-bucket duplicate collides", async () => {
+test("chat_segments round-trips its verbatim `text` transcript", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_scope");
-  const characterId = await seedCharacter(db, ownerId, "character_scope");
-  const chatId = await seedChat(db, "chat_scope");
-
-  // Shared bucket (scopedCharacterId defaults to '').
-  await db.insert(chatDigests).values({
-    id: castId<ChatDigestId>("chat_digest_shared_b"),
+  const chatId = await seedChat(db, "chat_stext");
+  const id = castId<ChatSegmentId>("chat_segment_text");
+  await db.insert(chatSegments).values({
+    id,
     chatId,
-    tier: 0,
     blockIdx: 0,
+    seqStart: 0,
+    seqEnd: 7,
+    text: "Alice: meet me at the docks.\nBob: I'll bring the relic.",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
     dim: DIM,
   });
-  // Scoped bucket — same (chat, tier, block) but a distinct scopedCharacterId ⇒ no collision.
+  const rows = await db.select().from(chatSegments).where(eq(chatSegments.id, id));
+  expect(rows[0]?.text).toBe("Alice: meet me at the docks.\nBob: I'll bring the relic.");
+});
+
+test("chat_digests.text is NOT NULL — a digest write missing its body is rejected", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_dnull");
+  const characterId = await seedCharacter(db, ownerId, "character_dnull");
+  const chatId = await seedChat(db, "chat_dnull");
+  let caught: unknown;
+  try {
+    await db.insert(chatDigests).values({
+      id: castId<ChatDigestId>("chat_digest_nulltext"),
+      chatId,
+      scopedCharacterId: characterId,
+      tier: 0,
+      blockIdx: 0,
+      // text omitted on purpose.
+      embedding: rampVector(),
+      contentHash: "h",
+      model: MODEL,
+      dim: DIM,
+    } as never);
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("not-null");
+});
+
+// ── chat_digests.scopedCharacterId: a REAL CharacterId FK (no '' sentinel — inv 8) + CASCADE + UNIQUE ──
+test("chat_digests.scopedCharacterId FKs a real character — a dangling id is rejected (no '' sentinel)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_fk");
+  let caught: unknown;
+  try {
+    await db.insert(chatDigests).values({
+      id: castId<ChatDigestId>("chat_digest_fk"),
+      chatId,
+      // A characterId that was never inserted — the FK must reject it (inv 8: always a real CharacterId).
+      scopedCharacterId: castId<CharacterId>("character_ghost"),
+      tier: 0,
+      blockIdx: 0,
+      text: "body",
+      embedding: rampVector(),
+      contentHash: "h",
+      model: MODEL,
+      dim: DIM,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("foreign-key");
+});
+
+test("deleting the scoped character CASCADEs its scoped digests (scopedCharacterId FK)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_scasc");
+  const characterId = await seedCharacter(db, ownerId, "character_scasc");
+  const chatId = await seedChat(db, "chat_scasc");
+  const id = castId<ChatDigestId>("chat_digest_scasc");
   await db.insert(chatDigests).values({
-    id: castId<ChatDigestId>("chat_digest_scoped_b"),
+    id,
     chatId,
     scopedCharacterId: characterId,
+    tier: 0,
+    blockIdx: 0,
+    text: "body",
+    embedding: rampVector(),
+    contentHash: "h",
+    model: MODEL,
+    dim: DIM,
+  });
+  await db.delete(characters).where(eq(characters.id, characterId));
+  expect(await db.select().from(chatDigests).where(eq(chatDigests.id, id))).toHaveLength(0);
+});
+
+test("two distinct scope buckets coexist at the same (chat, tier, block); a same-bucket duplicate collides", async () => {
+  const db = await freshDb();
+  const ownerId = await seedOwner(db, "user_scope");
+  // The synthetic group-as-character (the shared/merged bucket) and a cast character (a scoped bucket) are
+  // BOTH real CharacterIds (inv 8 — no '' sentinel); they key distinct buckets for the same block.
+  const groupCharId = await seedCharacter(db, ownerId, "character_group");
+  const castCharId = await seedCharacter(db, ownerId, "character_cast");
+  const chatId = await seedChat(db, "chat_scope");
+
+  await db.insert(chatDigests).values({
+    id: castId<ChatDigestId>("chat_digest_group_b"),
+    chatId,
+    scopedCharacterId: groupCharId,
+    tier: 0,
+    blockIdx: 0,
+    text: "shared body",
+    embedding: rampVector(),
+    contentHash: "h",
+    model: MODEL,
+    dim: DIM,
+  });
+  // Same (chat, tier, block) but a distinct scopedCharacterId ⇒ no collision.
+  await db.insert(chatDigests).values({
+    id: castId<ChatDigestId>("chat_digest_cast_b"),
+    chatId,
+    scopedCharacterId: castCharId,
     isGroup: true,
     tier: 0,
     blockIdx: 0,
+    text: "egocentric body",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -372,14 +482,16 @@ test("a shared ('') and a scoped (characterId) digest coexist; a same-bucket dup
   const all = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
   expect(all).toHaveLength(2);
 
-  // A second SHARED-bucket digest at the same (chat, '', tier, block) collides on the scope unique.
+  // A second digest at the same (chat, groupCharId, tier, block) collides on the scope unique.
   let caught: unknown;
   try {
     await db.insert(chatDigests).values({
-      id: castId<ChatDigestId>("chat_digest_shared_dup"),
+      id: castId<ChatDigestId>("chat_digest_group_dup"),
       chatId,
+      scopedCharacterId: groupCharId,
       tier: 0,
       blockIdx: 0,
+      text: "dup body",
       embedding: rampVector(),
       contentHash: "h2",
       model: MODEL,
@@ -402,8 +514,10 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
   await db.insert(chatDigests).values({
     id: digestId,
     chatId,
+    scopedCharacterId: characterId,
     tier: 0,
     blockIdx: 0,
+    text: "digest body",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -415,6 +529,7 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
     blockIdx: 0,
     seqStart: 0,
     seqEnd: 15,
+    text: "verbatim transcript",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,
@@ -437,15 +552,20 @@ test("deleting a chat CASCADEs its digests, segments, and digest-speaker rows", 
 test("chat_digest_speakers round-trips, dedupes on the composite PK, and CASCADEs on character delete", async () => {
   const db = await freshDb();
   const ownerId = await seedOwner(db, "user_spk");
+  // The digest's SCOPE bucket is a distinct character (e.g. the synthetic group char) from the SPEAKER it
+  // contains — so deleting the speaker exercises the speaker-join CASCADE in isolation (the digest, scoped
+  // to a different character, survives; it does NOT also vanish via the scopedCharacterId FK).
+  const scopeCharId = await seedCharacter(db, ownerId, "character_spk_scope");
   const characterId = await seedCharacter(db, ownerId, "character_spk");
   const chatId = await seedChat(db, "chat_spk");
   const digestId = castId<ChatDigestId>("chat_digest_spk");
   await db.insert(chatDigests).values({
     id: digestId,
     chatId,
-    scopedCharacterId: characterId,
+    scopedCharacterId: scopeCharId,
     tier: 0,
     blockIdx: 0,
+    text: "digest body",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,

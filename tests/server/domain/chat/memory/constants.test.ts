@@ -5,10 +5,11 @@ import {
 } from "../../../../../packages/server/src/domain/chat/memory/constants";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {
-  test("DEFAULTS adopt the new tuning (blockSize 16 · verbatimWindow 30 · fanOut 8)", () => {
-    expect(DEFAULTS.blockSize).toBe(16);
-    expect(DEFAULTS.verbatimWindow).toBe(30);
-    expect(DEFAULTS.fanOut).toBe(8);
+  test("DEFAULTS are the grounded knowledge-cluster §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {
+    expect(DEFAULTS.blockSize).toBe(8);
+    expect(DEFAULTS.verbatimWindow).toBe(8);
+    expect(DEFAULTS.fanOut).toBe(4);
+    expect(DEFAULTS.maxTier).toBe(3);
     expect(DEFAULTS.mode).toBe("mixC");
   });
 

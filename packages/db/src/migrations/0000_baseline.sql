@@ -455,10 +455,11 @@ CREATE INDEX `chat_digest_speakers_character_idx` ON `chat_digest_speakers` (`ch
 CREATE TABLE `chat_digests` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
-	`scoped_character_id` text DEFAULT '' NOT NULL,
+	`scoped_character_id` text NOT NULL,
 	`is_group` integer DEFAULT false NOT NULL,
 	`tier` integer NOT NULL,
 	`block_idx` integer NOT NULL,
+	`text` text NOT NULL,
 	`embedding` F32_BLOB(1024) NOT NULL,
 	`content_hash` text NOT NULL,
 	`hub_score` real,
@@ -467,7 +468,8 @@ CREATE TABLE `chat_digests` (
 	`model` text NOT NULL,
 	`dim` integer NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`scoped_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_digests_scope_unique` ON `chat_digests` (`chat_id`,`scoped_character_id`,`tier`,`block_idx`);--> statement-breakpoint
@@ -478,6 +480,7 @@ CREATE TABLE `chat_segments` (
 	`block_idx` integer NOT NULL,
 	`seq_start` integer NOT NULL,
 	`seq_end` integer NOT NULL,
+	`text` text NOT NULL,
 	`embedding` F32_BLOB(1024) NOT NULL,
 	`content_hash` text NOT NULL,
 	`hub_score` real,

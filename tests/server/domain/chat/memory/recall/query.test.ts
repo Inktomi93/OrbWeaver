@@ -23,24 +23,24 @@ describe("memory/recall/query — buildRecallQuery", () => {
 
   test("the chat-scope (#5) + the resolved knobs (#6) ride MemoryQueryOptions", () => {
     const q = buildRecallQuery(cfg, scope, recent, names);
-    expect(q.options.scope).toEqual({ chat: chatId });
-    expect(q.options.mode).toBe(cfg.mode);
-    expect(q.options.minScore).toBe(0.4);
-    expect(q.options.keywordMatch).toBe(true);
-    expect(q.options.recencyBias).toBe(0.1);
-    expect(q.options.verbatimWindow).toBe(cfg.verbatimWindow);
+    expect(q.scope).toEqual({ chat: chatId });
+    expect(q.mode).toBe(cfg.mode);
+    expect(q.minScore).toBe(0.4);
+    expect(q.keywordMatch).toBe(true);
+    expect(q.recencyBias).toBe(0.1);
+    expect(q.verbatimWindow).toBe(cfg.verbatimWindow);
   });
 
   test("the egocentric query text (#4) = the name-prefixed last `queryWindow` messages", () => {
     const q = buildRecallQuery(cfg, scope, recent, names);
-    expect(q.text).toBe("Aria: b\nAria: c"); // last 2 (queryWindow), name-prefixed
+    expect(q.queryText).toBe("Aria: b\nAria: c"); // last 2 (queryWindow), name-prefixed
   });
 
-  test("the egocentric scopedCharacterId (#4) is carried on the chat-side wrapper", () => {
+  test("the egocentric scopedCharacterId (#4) is homed on MemoryQueryOptions (a real CharacterId — inv 8)", () => {
     expect(buildRecallQuery(cfg, scope, recent, names).scopedCharacterId).toBe(aria);
   });
 
-  test("candidates is absent (the full scoped pool — no bridge restriction here)", () => {
-    expect(buildRecallQuery(cfg, scope, recent, names).options.candidates).toBeUndefined();
+  test("candidates is absent here (the bridge restriction is layered by recall.ts, not buildRecallQuery)", () => {
+    expect(buildRecallQuery(cfg, scope, recent, names).candidates).toBeUndefined();
   });
 });

@@ -8,7 +8,7 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
-import { characterEmbeddings, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
 import {
   createEmbeddingsService,
   EmbedFailedError,
@@ -25,6 +25,7 @@ import {
   makeStoreHarness,
   seedAsset,
   seedCharacter,
+  seedChat,
   seedUser,
   TEST_CAPTION,
 } from "../_support.ts";
@@ -294,5 +295,136 @@ describe("store — image lenses (image_embeddings)", () => {
     expect(rows).toHaveLength(2);
     const captioned = rows.find((r) => r.lens === "image-captioned");
     expect(captioned?.caption).toBe(TEST_CAPTION);
+  });
+});
+
+describe("store — chat-block lenses (segment / digest)", () => {
+  const digestText =
+    "[Alice, Bob — the docks] Alice agreed to smuggle the relic.\nkeywords: Alice, relic";
+  const segmentText = "Alice: meet me at the docks.\nBob: I'll bring the relic.";
+
+  test("segment persists the verbatim text + seq-span; the PRECOMPUTED contentHash gates (no recompute)", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const chatId = await seedChat(db);
+
+    const result = await svc.store({
+      kind: "chat-block",
+      lens: "segment",
+      chatId,
+      blockIdx: 3,
+      seqStart: 24,
+      seqEnd: 31,
+      text: segmentText,
+      contentHash: "precomputed-seg-hash",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    });
+
+    expect(result.outcome).toBe("written");
+    // the store does NOT recompute — it returns memory's precomputed hash verbatim.
+    expect(result.contentHash).toBe("precomputed-seg-hash");
+    expect(h.roleClients.embed).toHaveBeenCalledWith(segmentText);
+    const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.text).toBe(segmentText);
+    expect(rows[0]?.seqStart).toBe(24);
+    expect(rows[0]?.seqEnd).toBe(31);
+    expect(rows[0]?.contentHash).toBe("precomputed-seg-hash");
+    expect(rows[0]?.hubScore).toBeNull();
+  });
+
+  test("an unchanged segment hash is a noop — no re-embed, no second row", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const chatId = await seedChat(db);
+    const params = {
+      kind: "chat-block",
+      lens: "segment",
+      chatId,
+      blockIdx: 0,
+      seqStart: 1,
+      seqEnd: 8,
+      text: segmentText,
+      contentHash: "seg-h",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    } as const;
+
+    expect((await svc.store(params)).outcome).toBe("written");
+    expect((await svc.store(params)).outcome).toBe("noop");
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
+    expect(
+      await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId)),
+    ).toHaveLength(1);
+  });
+
+  test("digest persists text + the §2b facets keyed by the real-CharacterId scope; hub_score untouched", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const scoped = await seedCharacter(db, owner, { id: "character_scope" });
+    const chatId = await seedChat(db);
+
+    const result = await svc.store({
+      kind: "chat-block",
+      lens: "digest",
+      chatId,
+      scopedCharacterId: scoped,
+      isGroup: true,
+      tier: 0,
+      blockIdx: 3,
+      text: digestText,
+      topicAnchor: "[Alice, Bob — the docks]",
+      keywords: ["Alice", "Bob", "relic"],
+      contentHash: "precomputed-digest-hash",
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    });
+
+    expect(result.outcome).toBe("written");
+    expect(result.contentHash).toBe("precomputed-digest-hash");
+    expect(h.roleClients.embed).toHaveBeenCalledWith(digestText);
+    const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.text).toBe(digestText);
+    expect(rows[0]?.scopedCharacterId).toBe(scoped);
+    expect(rows[0]?.isGroup).toBe(true);
+    expect(rows[0]?.topicAnchor).toBe("[Alice, Bob — the docks]");
+    expect(rows[0]?.keywords).toEqual(["Alice", "Bob", "relic"]);
+    expect(rows[0]?.hubScore).toBeNull();
+  });
+
+  test("two scoped POVs for the same (chat, tier, block) coexist (the scope is part of the key)", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
+    const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
+    const chatId = await seedChat(db);
+    const base = {
+      kind: "chat-block",
+      lens: "digest",
+      chatId,
+      isGroup: true,
+      tier: 0,
+      blockIdx: 0,
+      text: digestText,
+      topicAnchor: "[anchor]",
+      keywords: ["k"],
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    } as const;
+
+    await svc.store({ ...base, scopedCharacterId: aria, contentHash: "h-aria" });
+    await svc.store({ ...base, scopedCharacterId: bram, contentHash: "h-bram" });
+
+    // distinct scopedCharacterId ⇒ no collision under the (chat, scope, tier, block) UNIQUE.
+    const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(rows).toHaveLength(2);
   });
 });

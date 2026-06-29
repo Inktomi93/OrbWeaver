@@ -365,8 +365,11 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     expect(w.store).toHaveBeenCalledTimes(1);
     const params = w.store.mock.calls[0]?.[0];
     expect(params?.kind).toBe("card");
-    expect(params?.lens).toBe("card-text");
-    expect(params?.content).toBe(expected);
+    // Narrow the now-5-arm StoreParams union to the card-text arm (segment/digest carry `text`, not `content`).
+    if (params?.lens !== "card-text") {
+      throw new Error("expected a card-text store call");
+    }
+    expect(params.content).toBe(expected);
   });
 
   test("asset.created drives the indexer to store both image lenses from the real CAS bytes", async () => {
@@ -389,7 +392,12 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     const lenses = w.store.mock.calls.map((c) => c[0]?.lens);
     expect(lenses).toEqual(["image-raw", "image-captioned"]);
     for (const call of w.store.mock.calls) {
-      const content = call[0]?.content;
+      const params = call[0];
+      // Both image arms carry `content` (the bytes); narrow off the union before reading it.
+      const content =
+        params?.lens === "image-raw" || params?.lens === "image-captioned"
+          ? params.content
+          : undefined;
       // CAS returns the bytes as a Buffer (a Uint8Array subclass) — compare by value, not subtype.
       expect(content instanceof Uint8Array && Array.from(content)).toEqual(Array.from(bytes));
     }

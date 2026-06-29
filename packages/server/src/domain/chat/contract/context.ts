@@ -146,7 +146,11 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 /** memory's DIGEST write payload → `embeddings.store` (the ONE write path). `text` is the distilled digest
  *  body embeddings embeds (the sharp key); the rest are the `chat_digests` row facets memory computes
  *  (`contentHash` = the staleness/collapse key, NEVER coerced; `speakerCharacterIds` → the
- *  `chat_digest_speakers` join). `key.scopedCharacterId` is the `''` shared-bucket sentinel (D20/§4). */
+ *  `chat_digest_speakers` join). `key.scopedCharacterId` is ALWAYS a real `CharacterId` (inv 8 — the synthetic
+ *  group-as-character for the shared bucket, a cast char for scoped; no `''` sentinel, no NULL — D20/§4).
+ *  FLAG[chat-digest-speakers]: the foundation's embeddings `DigestStoreParams` carries NO `speakerCharacterIds`
+ *  (pinned by `params.contract.test`), so the eventual chat→embeddings adapter (PD-41) — not `embeddings.store`
+ *  — must persist this join; `embeddings.store` writes `chat_digests` only. */
 export interface StoreDigestParams {
   readonly lens: "digest";
   readonly key: BlockKey;
@@ -175,27 +179,19 @@ export interface StoreSegmentParams {
  *  conflation — movement table). The per-lens union is the embeddings `chat-block` store arm (FLAG[PD-34]). */
 export type EmbeddingsStoreOp = (params: StoreDigestParams | StoreSegmentParams) => Promise<void>;
 
-/** The recall query memory threads into `search.digests`/`search.corpus`. The chat-scope (#5) + bridge
- *  `candidates` (#2) + the knobs (#6) ride `MemoryQueryOptions` (the `@orb/contracts/search` seam). The two
- *  semantics the contract options do NOT yet model — the egocentric `scopedCharacterId` scope and the
- *  name-prefixed query `text` (both §11 semantic #4) — ride HERE on the chat-side op wrapper (the memory
- *  chunk's to refine). FLAG[search-contract]: if the search owner adds `queryText`/`scopedCharacterId` to
- *  `MemoryQueryOptions`, fold these two fields in there (knowledge-cluster QA owns that `search.md` edit). */
-export interface MemoryRecallQuery {
-  /** memory's pre-call egocentric query assembly (§11 #4) — the name-prefixed recent text the scan embeds. */
-  readonly text: string;
-  /** the egocentric bucket (§11 #4): `''` = shared (solo/merged/narrator), a CharacterId = scoped-group. */
-  readonly scopedCharacterId: CharacterId | "";
-  readonly options: MemoryQueryOptions;
-}
+// FLAG[search-contract] RESOLVED: the foundation homed the egocentric `queryText` + `scopedCharacterId`
+// (§4/§3b #4) directly on `MemoryQueryOptions` (was carried chat-side on a `MemoryRecallQuery` wrapper as a
+// workaround). The wrapper is therefore GONE (no-doubling — the two fields had one home now); both recall ops
+// take `MemoryQueryOptions` directly. `scopedCharacterId` is a real `CharacterId` there (inv 8).
 
-/** `search.digests` — memory's chat-scoped recall (the 6 semantics; chat-scope + bridge candidates
- *  first-class). Returns the ranked block identities (memory resolves them back to facets for `{{memory}}`). */
-export type SearchDigestsOp = (query: MemoryRecallQuery) => Promise<readonly BlockKey[]>;
+/** `search.digests` — memory's chat-scoped recall (the 6 semantics; chat-scope + egocentric bucket + bridge
+ *  candidates first-class on `MemoryQueryOptions`). Returns the ranked block identities (memory resolves them
+ *  back to the digest `text` for `{{memory}}`). */
+export type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
 
 /** `search.corpus` — the cross-chat corpus/digest+segment scan (Q6), distinct from the dissolved corpus
  *  domain. Same query seam; host-only scope is enforced by the caller. */
-export type SearchCorpusOp = (query: MemoryRecallQuery) => Promise<readonly BlockKey[]>;
+export type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
 
 // ── The effective room-behavior readers (parse seam injected, so verbs don't re-import the parser) ──
 /** Parse a chat's raw `metadata` blob → its effective {@link GroupConfig} (default-applied, fault-isolated).
