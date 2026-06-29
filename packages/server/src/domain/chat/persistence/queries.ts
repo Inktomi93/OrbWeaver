@@ -33,7 +33,21 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, max, min, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  lte,
+  max,
+  min,
+  sql,
+} from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
 import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views";
@@ -213,6 +227,54 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
     .where(eq(chats.parentChatId, parentChatId))
     .orderBy(desc(chats.createdAt));
   return rows.map(toChatRow);
+}
+
+/** Per-chat canon aggregates for the `ChatSummary` list chrome (listChats / listForks / getChatLineage):
+ *  the message COUNT + the newest message timestamp (`lastMessageAt`). Batched over a set of ids (one GROUP
+ *  BY, no N+1); a chat with NO messages is simply ABSENT from the map (the verb defaults it to `{0, null}`).
+ *  No-op (empty map) on an empty id list. */
+export async function loadChatMessageStats(
+  db: Db,
+  chatIds: readonly ChatId[],
+): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
+  const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
+  if (chatIds.length === 0) {
+    return out;
+  }
+  const rows = await db
+    .select({
+      chatId: messages.chatId,
+      messageCount: count(messages.id),
+      lastMessageAt: max(messages.createdAt),
+    })
+    .from(messages)
+    .where(inArray(messages.chatId, [...chatIds]))
+    .groupBy(messages.chatId);
+  for (const r of rows) {
+    out.set(r.chatId, { messageCount: r.messageCount, lastMessageAt: r.lastMessageAt ?? null });
+  }
+  return out;
+}
+
+/** Walk the fork-lineage chain (D27 `parentChatId` self-FK) from `chatId` UP to its root — UNSCOPED (membership
+ *  is gated per-ancestor by the verb; a fork grants NO parent membership — inv §16). Returns the rows SELF-first
+ *  (self → parent → … → root); the verb reverses to root-first + redacts the ancestors the caller can't see. A
+ *  `visited` set + `maxDepth` cap defend against a (schema-impossible) cycle / pathological depth. */
+export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
+  const chain: ChatRow[] = [];
+  const visited = new Set<ChatId>();
+  let current: ChatId | undefined = chatId;
+  while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {
+    visited.add(current);
+    // biome-ignore lint/performance/noAwaitInLoops: the lineage is a linked list — each ancestor's id is the prior row's parentChatId, so the walk is inherently sequential.
+    const row = await loadChatRow(db, current);
+    if (row === undefined) {
+      break;
+    }
+    chain.push(row);
+    current = row.parentChatId ?? undefined;
+  }
+  return chain;
 }
 
 // ── canon reads (D26 slot ⋈ selected-variant) ──────────────────────────────────
