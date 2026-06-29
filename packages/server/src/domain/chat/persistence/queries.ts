@@ -125,6 +125,18 @@ export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | und
   return r ? toChatRow(r) : undefined;
 }
 
+/** Read the chat's pending host-handoff nominee (the two-party carrier — Part III §2). Returns the nominee
+ *  `userId` or null (no pending nomination). `acceptHostHandoff` reads this to verify the caller IS the
+ *  nominee before the atomic role swap (the self-promotion belt). */
+export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
+  const rows = await db
+    .select({ pendingHostUserId: chats.pendingHostUserId })
+    .from(chats)
+    .where(eq(chats.id, chatId))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.pendingHostUserId ?? null;
+}
+
 /**
  * The membership-scoped chat read (D18 — replaces neo's `loadOwnedChat`): the chat row joined to the CALLER's
  * PRESENT participant row (`leftSeq IS NULL`), returning the row (metadata parsed) + the caller's `role`
