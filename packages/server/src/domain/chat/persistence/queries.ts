@@ -23,7 +23,15 @@ import {
   messages,
   messageVariants,
 } from "@orb/db";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { and, asc, desc, eq, gt, isNull, lt, max, min, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
@@ -229,6 +237,99 @@ export async function loadCanonHistory(db: Db, chatId: ChatId): Promise<MessageV
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId))
     .orderBy(asc(messages.seq));
+}
+
+/** ONE slot ⋈ its selected variant (the `MessageView` for a single message). The engine re-reads this after an
+ *  append-variant / continue commit (the authoritative `variantCount`/`selectedVariantIdx`/content the write
+ *  produced); undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
+export async function loadMessageView(
+  db: Db,
+  messageId: MessageId,
+): Promise<MessageView | undefined> {
+  const rows = await db
+    .select(messageViewSelection)
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.id, messageId))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
+}
+
+// The append-variant / continue write TARGET — the slot's attribution + seq (for canon truncation) joined to
+// its SELECTED variant's current content/idx (for the next swipe idx + the continue base). File-local shape.
+const slotTargetSelection = {
+  messageId: messages.id,
+  seq: messages.seq,
+  role: messages.role,
+  characterId: messages.characterId,
+  authorUserId: messages.authorUserId,
+  personaId: messages.personaId,
+  selectedVariantId: messageVariants.id,
+  selectedVariantIdx: messageVariants.idx,
+  content: messageVariants.content,
+  reasoning: messageVariants.reasoning,
+  variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
+} as const;
+
+/** The write target for a swipe (`append-variant`) / `continue` (file-local — `types-in-contract`). */
+interface SlotTarget {
+  messageId: MessageId;
+  seq: number;
+  role: MessageRole;
+  characterId: CharacterId | null;
+  authorUserId: UserId | null;
+  personaId: PersonaId | null;
+  selectedVariantId: MessageVariantId;
+  selectedVariantIdx: number;
+  content: string;
+  reasoning: string | null;
+  variantCount: number;
+}
+
+/** The continue-undo snapshot of a slot's selected variant (file-local). */
+interface ContinueSnapshot {
+  variantId: MessageVariantId;
+  preContinueContent: string | null;
+  preContinueReasoning: string | null;
+  lastContinuationContent: string | null;
+  lastContinuationReasoning: string | null;
+}
+
+/** The write target for a swipe (`append-variant`) / `continue` — the slot's seq + attribution + its selected
+ *  variant's current state. `variantCount` is the next swipe's `idx`; `content`/`reasoning` are the continue
+ *  base. `undefined` ⇒ no such committed slot (the verb maps it to a leak-free NOT_FOUND). */
+export async function loadSlotTarget(
+  db: Db,
+  messageId: MessageId,
+): Promise<SlotTarget | undefined> {
+  const rows = await db
+    .select(slotTargetSelection)
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.id, messageId))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
+}
+
+/** The continue-undo snapshot for a slot's SELECTED variant (D26 `preContinue*`/`lastContinuation*`). All-null
+ *  ⇒ the variant was never continued (undo/revert refuse `no_continuation`). `undefined` ⇒ no such slot. */
+export async function loadContinueSnapshot(
+  db: Db,
+  messageId: MessageId,
+): Promise<ContinueSnapshot | undefined> {
+  const rows = await db
+    .select({
+      variantId: messageVariants.id,
+      preContinueContent: messageVariants.preContinueContent,
+      preContinueReasoning: messageVariants.preContinueReasoning,
+      lastContinuationContent: messageVariants.lastContinuationContent,
+      lastContinuationReasoning: messageVariants.lastContinuationReasoning,
+    })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.id, messageId))
+    .limit(LIMIT_ONE);
+  return rows.at(0);
 }
 
 /** A backwards page of canon (listMessages) — the slot ⋈ selected-variant rows strictly before `beforeSeq`

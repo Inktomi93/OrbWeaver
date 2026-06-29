@@ -15,11 +15,11 @@
 // owns NONE while another user's turn is in flight gets `foreignInFlight: true` (the verb maps that to
 // `not_turn_owner`) — a host cannot abort a member's turn.
 //
-// FLAG[abort-into-engine]: the DONE `engine.runTurn` takes its `TurnPrep` WITHOUT an `AbortSignal` field
-// (`contract/results.ts` `TurnPrep` carries none), so a single in-flight ENGINE turn cannot be interrupted
-// mid-generation today — the registered signal reaches only the auto-mode chain (`runAutoMode` checks it
-// between turns) + any future lock-free `generate`. Plumbing the signal into a single engine turn needs a
-// `TurnPrep.signal` field (contract + engine change — out of this chunk's disjoint set).
+// FLAG[abort-into-engine] RESOLVED: `TurnPrep` now carries an optional `signal` (`contract/results.ts`); the
+// turn verbs thread `handle.signal` into `engine.runTurn`, which forwards it through the pipeline to the
+// `runChatTurn` role — so a single in-flight ENGINE turn IS interruptible mid-generation (the runner aborts its
+// request; the engine maps the `AbortError` to `turnAborted(reason:"user")`). The registered signal still also
+// reaches the auto-mode chain (`runAutoMode` checks it between turns) + the lock-free `generate`.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { AbortResult, ActiveTurnHandle, ActiveTurns } from "./contract/active-turns";

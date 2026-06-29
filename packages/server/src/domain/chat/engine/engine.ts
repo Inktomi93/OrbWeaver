@@ -23,23 +23,32 @@
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   TurnEconomics,
   TurnEngine,
   TurnIntent,
   TurnKind,
   TurnOutcome,
+  TurnPersist,
   TurnPrep,
 } from "../contract/results";
 import {
+  appendVariantStatements,
   buildCommittedMessageView,
+  combineReasoning,
+  continueVariantStatements,
   insertCanonMessageStatements,
 } from "../persistence/canon-write";
 import { releaseLock, tryAcquireLock } from "../persistence/lock";
-import { loadCanonHistory, loadMaxMessageSeq } from "../persistence/queries";
+import {
+  loadCanonHistory,
+  loadMaxMessageSeq,
+  loadMessageView,
+  loadSlotTarget,
+} from "../persistence/queries";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
@@ -77,6 +86,7 @@ const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   swipe: "swipe",
   continue: "continue",
   generate: "generate",
+  impersonate: "impersonate",
   opening: "generate",
   auto: "generate",
   force: "generate",
@@ -106,58 +116,148 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
   };
 }
 
-/** Commit the assistant turn (the D26 dance + the stats delta in ONE atomic batch) and emit the canon events;
- *  returns the committed view. */
-async function persistTurn(args: {
+/** The loaded write target for an `append-variant`/`continue` turn (the engine reads it pre-start). The
+ *  `loadSlotTarget` row — file-local alias (the inferred persistence shape). */
+type SlotTarget = NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>>;
+
+/** Re-read a just-committed message's authoritative `MessageView` (append-variant/continue produce a
+ *  `variantCount`/`selectedVariantIdx`/content the in-memory insert params don't know — unlike a fresh slot). */
+async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promise<MessageView> {
+  const view = await loadMessageView(ctx.db, messageId);
+  if (view === undefined) {
+    // A committed message that vanished mid-batch is a real invariant breach, never a routine miss.
+    throw new Error(`message ${messageId} vanished mid-commit`);
+  }
+  return view;
+}
+
+/** Build the variant payload (content + reasoning + economics + per-swipe snapshot) one home — every persist
+ *  mode writes the SAME generation record (D26). */
+function variantPayloadOf(
+  prep: TurnPrep,
+  result: Awaited<ReturnType<typeof runTurnPipeline>>,
+): Parameters<typeof appendVariantStatements>[1]["variant"] {
+  const e = result.economics;
+  return {
+    content: result.content,
+    reasoning: result.reasoning,
+    ...economicsCommon(e),
+    contextWindow: e?.contextWindow ?? null,
+    ttftMs: e?.ttftMs ?? null,
+    finishReason: e?.finishReason ?? null,
+    stopReason: e?.stopReason ?? null,
+    terminalReason: e?.terminalReason ?? null,
+    params: prep.intent,
+    promptSnapshot: result.request.prompt,
+  };
+}
+
+/** Commit a turn's generation per the persist MODE (D26 — new-slot / append-variant / continue) + the stats
+ *  delta in ONE atomic batch, then emit `messageCommitted`. The stats delta is attributed to the host
+ *  (`runAsUserId`) and the VOICED slot's character (the new-slot speaker / the target slot's character). The
+ *  spine (belts → turnStarted → pipeline → emit) is identical across modes; ONLY this step varies. */
+async function commitGeneration(args: {
   readonly ctx: ChatContext;
   readonly deps: EngineDeps;
   readonly prep: TurnPrep;
+  readonly persist: TurnPersist;
+  readonly target: SlotTarget | null;
   readonly result: Awaited<ReturnType<typeof runTurnPipeline>>;
   readonly nextSeq: number;
 }): Promise<MessageView> {
-  const { ctx, deps, prep, result, nextSeq } = args;
-  const e = result.economics;
-  const common = economicsCommon(e);
-  const insertParams = {
-    messageId: ctx.newMessageId(),
-    variantId: ctx.newMessageVariantId(),
-    chatId: prep.chatId,
-    seq: nextSeq,
-    role: "assistant" as const,
-    characterId: prep.speakerCharacterId,
-    now: ctx.now(),
-    variant: {
-      content: result.content,
-      reasoning: result.reasoning,
-      ...common,
-      contextWindow: e?.contextWindow ?? null,
-      ttftMs: e?.ttftMs ?? null,
-      finishReason: e?.finishReason ?? null,
-      stopReason: e?.stopReason ?? null,
-      terminalReason: e?.terminalReason ?? null,
-      params: prep.intent,
-      promptSnapshot: result.request.prompt,
-    },
-  };
-  // The D26 canon statements + the stats delta → ONE atomic batch (the rollups commit WITH the canon write).
-  const batch: BatchStmt[] = insertCanonMessageStatements(ctx.db, insertParams);
+  const { ctx, deps, prep, persist, target, result, nextSeq } = args;
+  const variant = variantPayloadOf(prep, result);
+
+  let statements: BatchStmt[];
+  let speakerCharacterId: CharacterId | null;
+  let loadView: () => Promise<MessageView>;
+
+  if (persist.mode === "new-slot") {
+    // A fresh slot at the canon tail. `role:"assistant"` voices the speaker; `role:"user"` (impersonate) is
+    // human-voiced (authorUserId/personaId, no character). The view reconstructs without a re-read (D26).
+    const characterId = persist.role === "assistant" ? prep.speakerCharacterId : null;
+    const insertParams = {
+      messageId: ctx.newMessageId(),
+      variantId: ctx.newMessageVariantId(),
+      chatId: prep.chatId,
+      seq: nextSeq,
+      role: persist.role,
+      characterId,
+      authorUserId: persist.authorUserId ?? null,
+      personaId: persist.personaId ?? null,
+      now: ctx.now(),
+      variant,
+    };
+    statements = insertCanonMessageStatements(ctx.db, insertParams);
+    speakerCharacterId = characterId;
+    const view = buildCommittedMessageView(insertParams);
+    loadView = (): Promise<MessageView> => Promise.resolve(view);
+  } else if (target === null) {
+    // append-variant / continue need a target; the pre-start load guarantees it. A null here is a wiring bug.
+    throw new ChatNotFoundError(prep.chatId);
+  } else if (persist.mode === "append-variant") {
+    // A swipe/regenerate: append a sibling variant at the next idx + select it (slot attribution unchanged).
+    statements = appendVariantStatements(ctx.db, {
+      messageId: target.messageId,
+      variantId: ctx.newMessageVariantId(),
+      idx: target.variantCount,
+      now: ctx.now(),
+      variant,
+    });
+    speakerCharacterId = target.characterId;
+    loadView = (): Promise<MessageView> => readCommittedView(ctx, target.messageId);
+  } else {
+    // continue: extend the selected variant in place; snapshot the pre-continue state + record the appended
+    // continuation so undo/revert round-trip (D26).
+    statements = continueVariantStatements(ctx.db, {
+      variantId: target.selectedVariantId,
+      variant: {
+        ...variant,
+        content: target.content + result.content,
+        reasoning: combineReasoning(target.reasoning, result.reasoning),
+      },
+      preContinueContent: target.content,
+      preContinueReasoning: target.reasoning,
+      lastContinuationContent: result.content,
+      lastContinuationReasoning: result.reasoning,
+    });
+    speakerCharacterId = target.characterId;
+    loadView = (): Promise<MessageView> => readCommittedView(ctx, target.messageId);
+  }
+
+  // The canon statements + the stats delta → ONE atomic batch (the rollups commit WITH the canon write).
   const delta = assistantTurnDelta({
     ownerId: prep.runAsUserId,
-    characterId: prep.speakerCharacterId,
-    economics: { content: result.content, reasoning: result.reasoning, ...common },
+    characterId: speakerCharacterId,
+    economics: {
+      content: result.content,
+      reasoning: result.reasoning,
+      ...economicsCommon(result.economics),
+    },
     now: ctx.now(),
   });
-  ctx.applyStatsDelta(batch, ctx.db, delta);
-  await ctx.db.batch(batchMany(batch));
+  ctx.applyStatsDelta(statements, ctx.db, delta);
+  await ctx.db.batch(batchMany(statements));
 
-  const view = buildCommittedMessageView(insertParams);
-  await deps.emit({
-    type: "messageCommitted",
-    chatId: prep.chatId,
-    messageId: view.id,
-    view,
-  });
+  const view = await loadView();
+  await deps.emit({ type: "messageCommitted", chatId: prep.chatId, messageId: view.id, view });
   return view;
+}
+
+/** Scope the loaded canon to the turn's context window per persist mode: a new-slot turn sees the FULL canon;
+ *  a swipe/regenerate (`append-variant`) regenerates from the context BEFORE the target slot; a `continue`
+ *  sees the canon UP TO AND INCLUDING the slot (the partial it extends). */
+function scopeCanon(
+  canon: readonly MessageView[],
+  persist: TurnPersist,
+  target: SlotTarget | null,
+): readonly MessageView[] {
+  if (persist.mode === "new-slot" || target === null) {
+    return canon;
+  }
+  return persist.mode === "append-variant"
+    ? canon.filter((m) => m.seq < target.seq)
+    : canon.filter((m) => m.seq <= target.seq);
 }
 
 /** Which abort reason a thrown error maps to (a caller-cancel `AbortError` → `user`; else `error`). */
@@ -165,15 +265,17 @@ function abortReasonFor(err: unknown): TurnAbortReason {
   return err instanceof Error && err.name === "AbortError" ? "user" : "error";
 }
 
-/** The IN-LOCK turn body: the §9 belts → `turnStarted` → generate → persist → `turnCompleted`. On a
- *  post-start error: emit `turnAborted` then RETHROW (never swallow). The pre-start belt refusals throw a
- *  coded error and emit nothing. */
+/** The turn body (chat.md §5 lifecycle), parametrized by the persist MODE (D26) + lock-freedom: the §9 belts
+ *  → resolve the persist target → `turnStarted` → assemble/generate (scoped canon) → persist → `turnCompleted`.
+ *  On a post-start error: emit `turnAborted` (reason `user` for an abort-signalled cancel, else `error`) then
+ *  RETHROW (never swallow). The pre-start belt refusals + a missing write-target throw a coded error and emit
+ *  nothing (the turn never started). */
 async function executeTurn(
   ctx: ChatContext,
   deps: EngineDeps,
   prep: TurnPrep,
 ): Promise<TurnOutcome> {
-  // §9 security belts (IN-LOCK, BEFORE any turnStarted): consent + budget debit attributed to triggeredBy.
+  // §9 security belts (BEFORE any turnStarted): consent + budget debit attributed to triggeredBy.
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
   assertMaxProSubConsent({
     source: prep.connection.credential.source,
@@ -181,6 +283,17 @@ async function executeTurn(
     ownerConsent: policy.allowNonOwnerMaxProSub,
   });
   await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
+
+  // The persist MODE (D26). ABSENT ⇒ a new assistant slot. append-variant/continue load the write target
+  // BEFORE turnStarted — a missing target is a pre-start refusal (leak-free NOT_FOUND, emits nothing).
+  const persist: TurnPersist = prep.persist ?? { mode: "new-slot", role: "assistant" };
+  const target =
+    persist.mode === "new-slot"
+      ? null
+      : ((await loadSlotTarget(ctx.db, persist.targetMessageId)) ?? null);
+  if (persist.mode !== "new-slot" && target === null) {
+    throw new ChatNotFoundError(prep.chatId);
+  }
 
   const intent = KIND_TO_INTENT[prep.kind];
   await deps.emit({
@@ -191,11 +304,11 @@ async function executeTurn(
     source: prep.connection.credential.source,
     model: prep.connection.model,
     speakerCharacterId: prep.speakerCharacterId,
-    targetMessageId: null,
+    targetMessageId: persist.mode === "new-slot" ? null : persist.targetMessageId,
   });
 
   try {
-    const [canon, maxSeq] = await Promise.all([
+    const [canonAll, maxSeq] = await Promise.all([
       loadCanonHistory(ctx.db, prep.chatId),
       loadMaxMessageSeq(ctx.db, prep.chatId),
     ]);
@@ -204,7 +317,8 @@ async function executeTurn(
       // Resolve image refs under the host's CAS (runAsUserId — the funded owner, like getCard's host scope).
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, ref }),
       assembleContext: prep.assembleContext,
-      canon,
+      // The canon scoped to the turn's context per persist mode (full / before-target / through-target).
+      canon: scopeCanon(canonAll, persist, target),
       connection: prep.connection,
       intent: prep.intent,
       kind: prep.kind,
@@ -214,6 +328,9 @@ async function executeTurn(
       // The per-speaker two-axis SHAPE (chat.md Part III §7) — set by the group round driver; ABSENT ⇒ the
       // single-speaker core's pinned per-speaker/merged default (solo byte-identical, D16).
       shape: prep.shape,
+      // FLAG[abort-into-engine] RESOLVED: thread the caller's abort signal → the role; the runner aborts its
+      // in-flight request when signalled (a single engine turn is now interruptible mid-generation).
+      signal: prep.signal,
       onDelta: (delta) => {
         void deps.emit({ type: "delta", chatId: prep.chatId, delta });
       },
@@ -222,7 +339,15 @@ async function executeTurn(
     if (result.imageDropped) {
       await deps.emit({ type: "warning", chatId: prep.chatId, code: "image_dropped" });
     }
-    const view = await persistTurn({ ctx, deps, prep, result, nextSeq: maxSeq + 1 });
+    const view = await commitGeneration({
+      ctx,
+      deps,
+      prep,
+      persist,
+      target,
+      result,
+      nextSeq: maxSeq + 1,
+    });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     return committedOutcome([view]);
   } catch (err) {
@@ -240,11 +365,18 @@ async function executeTurn(
 
 /**
  * Build the per-turn engine (ONE instance, wired at the composition root). `runTurn` acquires the per-chat
- * lock (refusing `locked` if a turn is in flight), runs the single-speaker lifecycle IN-LOCK, and ALWAYS
- * releases the lock (the `finally`) — even on a thrown turn error (which has already emitted `turnAborted`).
+ * lock (refusing `locked` if a turn is in flight), runs the lifecycle IN-LOCK, and ALWAYS releases the lock
+ * (the `finally`) — even on a thrown turn error (which has already emitted `turnAborted`).
+ *
+ * LOCK-FREE GENERATE (chat.md active-turns): a `prep.lockFree` turn (`generate`) SKIPS the lock entirely so it
+ * runs CONCURRENT with a locked `send` (the active-turns registry is its only concurrency control). The SAME
+ * lifecycle body runs either way — only the lock wrapper differs (ONE spine, parametrized).
  */
 export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine {
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {
+    if (prep.lockFree === true) {
+      return await executeTurn(ctx, deps, prep);
+    }
     const now = ctx.now();
     const acquired = await tryAcquireLock(ctx.db, {
       chatId: prep.chatId,
