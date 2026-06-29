@@ -16,6 +16,12 @@
 // The candidate POOL for mixB/mixC is the §5 BRIDGE over this union (§3b: "the bridge is the pool for every
 // mode"), passed as `MemoryQueryOptions.candidates`. The protected TIP is never surfaced (digests only exist
 // for aged-out blocks). Host-only keying is the caller's (recall runs under `runAsUserId`). NO cosine here.
+//
+// THE TWO §3a GUARDS, both applied to the pool BEFORE the mode dispatch (uniform — never a per-mode branch):
+//   • WITNESSING (the join/leave horizons, §4) — a character can't recall a scene it wasn't in.
+//   • the RECALL WINDOW-FILTER (`liveWindowCutoffSeq`, §3a — `recall/window.ts`) — drop any digest STILL
+//     verbatim in this turn's live history window (no redundant re-injection). TOKEN-DRIVEN + variable (the
+//     engine supplies the cutoff from the §8 history-budget fit), DISTINCT from the FIXED build-protect window.
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
@@ -34,16 +40,21 @@ import type {
 import { computeBridge } from "./bridge";
 import { blockKeyStr, formatMemory } from "./format";
 import { buildRecallQuery } from "./query";
+import { inLiveWindow } from "./window";
 
 /** What `recallMemory` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
  *  structural literal). `scope.scopedCharacterId` is the SPEAKER's own bucket; `groupCharacterId` is the
  *  synthetic group-as-character (the shared bucket — equals the speaker for solo/merged, so the union dedupes
  *  to one read). `witnessing` is the speaker's join/leave horizons (§4): when present, the union is filtered to
- *  blocks the speaker was present for. `recent` (oldest→newest) is the mixB/mixC query window. */
+ *  blocks the speaker was present for. `liveWindowCutoffSeq` is the §3a recall window-filter (the seq below
+ *  which messages are NOT in this turn's prompt — engine-supplied from the §8 history-budget fit; absent ⇒ no
+ *  live-window filtering): any digest still verbatim in the live window is dropped (no redundancy). `recent`
+ *  (oldest→newest) is the mixB/mixC query window. */
 interface RecallArgs {
   readonly scope: MemoryScope;
   readonly groupCharacterId: CharacterId;
   readonly witnessing?: readonly WitnessInterval[] | undefined;
+  readonly liveWindowCutoffSeq?: number | undefined;
   readonly config?: MemoryConfig | null | undefined;
   readonly recent?: readonly MsgRow[] | undefined;
   readonly names?: ReadonlyMap<CharacterId, string> | undefined;
@@ -79,11 +90,12 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
     args.groupCharacterId === scope.scopedCharacterId
       ? []
       : await loadDigestsForScope(ctx.db, scope.chatId, args.groupCharacterId);
-  const union = await witnessFilter(ctx, {
+  const union = await filterPool(ctx, {
     chatId: scope.chatId,
     union: [...shared, ...own],
     fanOut: cfg.fanOut,
     horizons: args.witnessing,
+    liveWindowCutoffSeq: args.liveWindowCutoffSeq,
   });
   if (union.length === 0) {
     logRecall(ctx, {
@@ -115,22 +127,23 @@ export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<
   return out;
 }
 
-/** Filter the union to the blocks the speaker WITNESSED (§4 / inv 12). No horizons ⇒ no filter (the simple
- *  single-bucket path). A digest's seq-span is resolved from `chat_segments` (via its tier-0 block range); a
- *  missing span fails OPEN (kept) — never hide memory because a segment is absent. */
-async function witnessFilter(
+/** Apply the TWO §3a guards to the pool, uniformly (before any mode dispatch): WITNESSING (§4) + the
+ *  token-driven RECALL WINDOW-FILTER (§3a). Neither set ⇒ no filter (the simple single-bucket path). Each
+ *  digest's seq-span is resolved ONCE from `chat_segments` (its tier-0 block range); a missing span fails OPEN
+ *  (kept) — never hide a real digest because a segment is absent. */
+async function filterPool(
   ctx: ChatContext,
   env: {
     readonly chatId: MemoryScope["chatId"];
     readonly union: readonly DigestRow[];
     readonly fanOut: number;
     readonly horizons: readonly WitnessInterval[] | undefined;
+    readonly liveWindowCutoffSeq: number | undefined;
   },
 ): Promise<DigestRow[]> {
-  if (env.horizons === undefined) {
+  if (env.horizons === undefined && env.liveWindowCutoffSeq === undefined) {
     return [...env.union];
   }
-  const horizons = env.horizons;
   const spans = await loadSegmentSpans(ctx.db, env.chatId);
   return env.union.filter((d) => {
     const blockSpan = env.fanOut ** d.tier;
@@ -139,7 +152,19 @@ async function witnessFilter(
     if (first === undefined || last === undefined) {
       return true; // fail-open — a missing segment span must not erase a real digest
     }
-    return spanWitnessed(first.seqStart, last.seqEnd, horizons);
+    // WITNESSING: drop a scene the speaker wasn't present for (when horizons are supplied).
+    if (env.horizons !== undefined && !spanWitnessed(first.seqStart, last.seqEnd, env.horizons)) {
+      return false;
+    }
+    // RECALL WINDOW-FILTER: drop a scene STILL verbatim in this turn's live window (when a cutoff is supplied)
+    // — keyed on the digest's START seq (exact boundary: seqStart == cutoff ⇒ still in window ⇒ dropped).
+    if (
+      env.liveWindowCutoffSeq !== undefined &&
+      inLiveWindow(first.seqStart, env.liveWindowCutoffSeq)
+    ) {
+      return false;
+    }
+    return true;
   });
 }
 
