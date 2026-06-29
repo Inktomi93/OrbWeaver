@@ -36,6 +36,7 @@ toolkit). Both are *prior art*, not law. This doc is the law.
 | command · sortable | cmdk · @dnd-kit (the `@dnd-kit/react` rewrite) | §2 / §11.3 |
 | toast · drawer (swipe-dismiss + virtual-keyboard) | **Base UI native** (D54 — dropped sonner + vaul) | §2 |
 | icons | lucide-react (gate `icons-lucide-only`) | §2 |
+| diff | `diff` (jsdiff v8+ — snapshot/edit-history diffs, D28) | §2 |
 | layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
 | charts + meter | ECharts (`echarts`/`echarts-for-react`) | §11.3 (D52) |
 | virtual-list (generic) + message-list (chat) | TanStack Virtual (`directDomUpdates`) | §11.3 (D54) |
@@ -102,7 +103,7 @@ cross-repo reuse outside orbweaver ever becomes real — defer until then.)
 ```
 packages/ui/
   package.json          # sealed runtime libs (the ONLY package depending on these): @base-ui/react · cmdk · @dnd-kit ·
-                        #   @tanstack/react-virtual · echarts · echarts-for-react · streamdown · lucide-react · tailwind-variants
+                        #   @tanstack/react-virtual · echarts · echarts-for-react · streamdown · lucide-react · tailwind-variants · diff
                         #   peer/build: react (PEER — react-dom is @orb/client's, the renderer) · tailwindcss + @tailwindcss/vite ·
                         #   style-dictionary (§3 token codegen).  [D54: toast + drawer = Base UI native (no sonner, no vaul ~deprecated) ·
                         #   no react-resizable-panels · tv subsumes cva/clsx/tw-merge · @dnd-kit kept (no native DnD; use the @dnd-kit/react rewrite)]
@@ -116,9 +117,11 @@ packages/ui/
       icons/   ← lucide-react (the ONE icon set; gate icons-lucide-only)
     layout/             # Stack · Row · Section · Toolbar · Container (owns container-type — §4)
     charts/             # seals ECharts — <BarChart>/<ScatterChart> + meter/ (1-D bars). §11.3 (D52)
-    markdown/           # seals Streamdown — the ONE renderer, two trust policies (§6.3 / §11.6)
+    markdown/           # seals Streamdown — the ONE renderer, two trust policies (§6.3 / §11.6);
+                        #   + a `toPlainText` (remark `strip-markdown`, same pipeline) for previews/snippets/notifications (D54)
     stream/             # smooth-text (the pacer, domain-free) + the "Thinking…" shimmer (§6.3.1)
     content/            # sandbox-frame (untrusted iframe) · MessageMedia (img+a/v) · ThemeScope · lightbox (hand-built over Dialog+MessageMedia, §12.3)
+    diff/               # seals `diff` (jsdiff v8+ — modern TS/async, NOT diff-match-patch) — character-snapshot (D28) + message-edit-history diff views
     lib/   { cn.ts }    # the cn() helper (tailwind-variants' built-in merge)
     styles/ { globals.css · view-transitions }   # imports tokens/generated theme
     index.ts            # subpath exports per group ("./button", "./charts", "./markdown", …)
@@ -147,8 +150,12 @@ layers), it is flat feature-slice.
 ```
 packages/client/
   package.json          # @orb/ui · @orb/contracts (type-only) · @orb/kit · zustand · @trpc/tanstack-react-query ·
-                        #   @tanstack/{react-query, react-router, react-form}   — NO raw radix/cmdk/echarts/base-ui (§1.1 physics)
+                        #   @tanstack/{react-query, react-router, react-form} · react + react-dom (the renderer) ·
+                        #   workbox-window (PWA runtime).   build: vite-plugin-pwa (installable + offline shell, D54).
+                        #   NO raw radix/cmdk/echarts/base-ui (§1.1 physics)
   src/
+    sw.ts / manifest    # PWA: service-worker (workbox precache the app shell) + web-app-manifest (install) — D54
+                        #   offline scope = the shell + last-opened chat; live data still needs the server (SSE bus)
     main.tsx            # entry / composition root (mounts providers; injects the cross-feature ops — §11.0)
     routes/             # ~3 HAND-WRITTEN routes: / · /login · /admin/* (lazyRouteComponent) — no file-based codegen (§6.1)
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1. ELEVATED from neo's lib/, same as state/
@@ -955,10 +962,14 @@ get to invent the content model or copy ST's string-blob.
 > "prevent accidental interference, not enforce separation"; JS in a shadow tree has full page access, custom
 > props pierce it, and there's a 2026 CSS sandbox-escape CVE. A sandboxed iframe is a separate realm and the
 > decade-proven primitive CodePen/JSFiddle/**Claude Artifacts** use for untrusted rendered HTML/CSS/JS. No
-> all-in-one library does parse+sanitize+isolate for inline content — compose Streamdown/DOMPurify (sanitize)
-> + a small OWNED `sandbox-frame` (we own the exact `sandbox`/CSP attributes — don't depend on a generic lib
-> for the security boundary). `react-shadow`/`react-shadow-root` exist but are for our OWN design-system
-> encapsulation, the wrong tool for untrusted content.
+> all-in-one library does parse+sanitize+isolate for inline content — but we don't need one: **sanitize is
+> NATIVE in Streamdown** (its bundled `rehype-sanitize` + `rehype-harden`, §11.6 — the unified/rehype-ecosystem
+> standard, living *inside* our markdown pipeline; this is the modern stack-aligned sanitizer, **NOT DOMPurify** —
+> DOMPurify is a DOM-string-level second pass *outside* the pipeline and would be redundant), plus a small OWNED
+> `sandbox-frame` for untrusted HTML (we own the exact `sandbox`/CSP attributes — the iframe IS the boundary, so
+> untrusted HTML is never sanitized-into-main-DOM; don't depend on a generic lib for the security boundary).
+> `react-shadow`/`react-shadow-root` exist but are for our OWN design-system encapsulation, the wrong tool for
+> untrusted content.
 
 ---
 
