@@ -23,12 +23,15 @@
 
 import type {
   AssembleContext,
+  ChatContentPart,
   ChatDeltaEvent,
   ChatInjection,
   MessageView,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { ContentImageRef } from "@orb/kit/content";
+import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RunChatTurnOp } from "../contract/context";
@@ -49,6 +52,9 @@ interface ShapeCanonRow {
 interface RunTurnPipelineArgs {
   /** The injected chat ROLE (`ctx.runChatTurn`) — the ONE turn dispatch. */
   readonly runChatTurn: RunChatTurnOp;
+  /** Resolve a parsed message-image ref → a model-fetchable URL, or null to drop it (the engine binds
+   *  `ctx.resolveImageUrl` with the turn's owner). Used at the REQUEST seam to produce image content-parts. */
+  readonly resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>;
   /** The IMMUTABLE assemble ctx (RESOLVE+GATHER product — never mutated here; SHAPE is pure of it). */
   readonly assembleContext: AssembleContext;
   /** The loaded canon history (D26 slot⋈variant), oldest→newest — `loadCanonHistory`'s rows. */
@@ -78,6 +84,9 @@ interface TurnPipelineResult {
   readonly cacheBreakpointFromEnd: number | null;
   /** How many oldest turns the fit-pass dropped (trace). */
   readonly droppedCount: number;
+  /** True when ≥1 image part was dropped because the model lacks `input.vision` (D45) — the engine emits a
+   *  `warning` bus event (`image_dropped`) once per turn when set. */
+  readonly imageDropped: boolean;
 }
 
 /** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
@@ -204,16 +213,24 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const fitted = fitHistory(shaped.history, fitBudget(args, systemTokens));
 
-  // 4. REQUEST — the chat-domain turn request the role translates. The SHAPE row's `name` (set only by the
-  //    `completion` names-behavior; names.ts) threads to the wire `name` field; default/content/none leave it
-  //    undefined (they stamp the author into `content` instead).
-  const history: TurnMessage[] = fitted.history.map((h) =>
-    // Only the `completion` names-behavior sets `name`; omit the key entirely otherwise so the common
-    // path stays a byte-clean role+content row (no `name: undefined` pollution at the wire).
-    h.name === undefined
-      ? { role: h.role, content: h.content }
-      : { role: h.role, content: h.content, name: h.name },
+  // 4. REQUEST — the chat-domain turn request the role translates. This is the ONE seam where the shaped
+  //    STRING body becomes content-parts (D45): tokenize embedded image refs → resolve to URLs (asset→CAS,
+  //    external→gated) → image parts, gated by `input.vision` (a non-vision model drops them + we flag the
+  //    turn). The SHAPE row's `name` (the `completion` names-behavior; names.ts) threads to the wire `name`.
+  const visionOk = args.connection.capability.input?.vision === true;
+  const built = await Promise.all(
+    fitted.history.map(async (h) => {
+      const { parts, dropped } = await toContentParts(h.content, visionOk, args.resolveImageUrl);
+      const row: TurnMessage =
+        // Omit the `name` key entirely unless set, so the common path stays a clean role+content row.
+        h.name === undefined
+          ? { role: h.role, content: parts }
+          : { role: h.role, content: parts, name: h.name };
+      return { row, dropped };
+    }),
   );
+  const history: TurnMessage[] = built.map((b) => b.row);
+  const imageDropped = built.some((b) => b.dropped);
   const request: TurnRequest = {
     connection: args.connection,
     prompt: assembled,
@@ -233,5 +250,44 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     economics: reduced.economics,
     cacheBreakpointFromEnd: request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
+    imageDropped,
   };
+}
+
+/** Tokenize a shaped STRING body → provider content-parts (D45). Text spans pass through (empty text skipped);
+ *  image spans resolve to `{type:"image",url}` — dropped (with `dropped=true`) when the model lacks vision or
+ *  the ref resolves to null (gone asset / `forbidExternalMedia`). A row with no surviving parts → a single
+ *  empty text part (the byte-identical text path; never an empty content array on the wire). */
+async function toContentParts(
+  body: string,
+  visionOk: boolean,
+  resolveImageUrl: (ref: ContentImageRef) => Promise<string | null>,
+): Promise<{ parts: ChatContentPart[]; dropped: boolean }> {
+  // Resolve every span concurrently (image refs in one row are independent) — `"dropped"` marks a stripped
+  // image, `null` an empty text span to skip.
+  const resolved = await Promise.all(
+    tokenizeContent(body).map(async (span): Promise<ChatContentPart | "dropped" | null> => {
+      if (span.kind === "text") {
+        return span.text.length > 0 ? { type: "text", text: span.text } : null;
+      }
+      if (!visionOk) {
+        return "dropped";
+      }
+      const url = await resolveImageUrl(span.ref);
+      return url === null ? "dropped" : { type: "image", url };
+    }),
+  );
+  const parts: ChatContentPart[] = [];
+  let dropped = false;
+  for (const r of resolved) {
+    if (r === "dropped") {
+      dropped = true;
+    } else if (r !== null) {
+      parts.push(r);
+    }
+  }
+  if (parts.length === 0) {
+    parts.push({ type: "text", text: "" });
+  }
+  return { parts, dropped };
 }

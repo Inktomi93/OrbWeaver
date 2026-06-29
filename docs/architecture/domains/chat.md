@@ -468,6 +468,16 @@ persist post-regex user row`.
    list**; **one budget pass**.
 4. **SHAPE** (per runner, per speaker) — scope history to the speaker (egocentric) → splice in_chat by
    depth → squash same-role → name-stamp → group/continuation nudge.
+5. **REQUEST** (the wire seam — D45/D51) — the ONE place a shaped row's `content: string` becomes the
+   provider `ChatContentPart[]`: `tokenizeContent` (`@orb/kit/content`) splits embedded markdown image refs
+   (`![alt](asset:<id>)` / `![alt](http(s)://…)`) → resolve each via `ctx.resolveImageUrl` (asset→CAS URL,
+   external→gated by `forbidExternalMedia`) → `[{type:"text"}|{type:"image",url}]`. A text-only row → one
+   `[{type:"text"}]` (byte-identical to the string path; no `if(hasImage)`). **Content is a `string`
+   through RESOLVE/GATHER/BUILD/SHAPE** — every text transform (macro/regex/frame/squash/name-stamp/
+   `estimateTokens`) operates on the string, image refs riding along untouched; parts exist ONLY from here
+   out to the wire (D51 — the assemble/SHAPE transforms are NOT parts-aware). **Vision gate (domain):** a
+   model whose `ModelCapability.input.vision` isn't true gets image parts DROPPED + a `warning`
+   (`image_dropped`) bus event — the runner never sees image parts for a non-vision model.
 
 **RECEIVE** (server): `AI_OUTPUT-regex → post-process (singleLine/dropIncomplete/trim) → REASONING-regex
 → persist`. *(macros NEVER run on model output — macros are author-side.)*

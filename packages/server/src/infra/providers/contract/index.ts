@@ -46,7 +46,6 @@ export type {
 export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend";
 export type {
   AgentSdkChatRequest,
-  ChatContentPart,
   ChatHistoryMessage,
   ChatRequest,
   ChatResult,

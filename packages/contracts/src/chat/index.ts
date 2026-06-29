@@ -351,6 +351,26 @@ export type ChatDeltaEvent =
   | { chatId: ChatId; kind: "text"; text: string }
   | { chatId: ChatId; kind: "reasoning"; text: string };
 
+/** One part of a history turn's content on the PROVIDER-SEND path (D45). A turn is ALWAYS a content-part
+ *  array; a text-only turn is a one-element `[{ type:"text" }]` (no `if(hasImage)` branch — the no-special-case
+ *  discipline). `image.url` is the resolved, model-fetchable URL/data-URI the chat domain produced at the
+ *  engine REQUEST seam (asset→CAS URL or a gated external URL); a non-vision model never receives image parts
+ *  (the engine drops them, gated by `ModelCapability.input.vision`, + emits a `warning` bus event). This is
+ *  the ONE home (D45 "the cross-boundary message DTOs in @orb/contracts/chat carry the same"); the infra
+ *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
+export type ChatContentPart =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "image"; readonly url: string };
+
+/** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
+ *  infra runner's `ResolvedWarning`/`WARNING_CODES`, which report resolve/wire drops). One home; the union is
+ *  derived from this tuple (no inline re-spell). */
+export const CHAT_WARNING_CODES = [
+  // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
+  "image_dropped",
+] as const;
+export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
+
 /** The turn kinds a lifecycle bus event reports. One home (no inline re-spell across the three members). */
 export const TURN_INTENTS = ["send", "swipe", "continue", "generate", "impersonate"] as const;
 export type TurnIntent = (typeof TURN_INTENTS)[number];
@@ -396,6 +416,8 @@ export type ChatBusEvent =
     }
   | { type: "turnCompleted"; chatId: ChatId; intent: TurnIntent; messageId: MessageId | null }
   | { type: "turnAborted"; chatId: ChatId; intent: TurnIntent; reason: TurnAbortReason }
+  // ── Turn warning (domain-originated; e.g. image parts dropped for a non-vision model, D45) ──
+  | { type: "warning"; chatId: ChatId; code: ChatWarningCode }
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[] }
@@ -431,6 +453,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   turnStarted: true,
   turnCompleted: true,
   turnAborted: true,
+  warning: true,
   worldInfoActivated: true,
   personaSwitched: true,
   wiBookAttached: true,

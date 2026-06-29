@@ -266,6 +266,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
+    resolveImageUrl: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
     findSyntheticGroupCharacter: notStubbed,
     setActivePersona: notStubbed,
