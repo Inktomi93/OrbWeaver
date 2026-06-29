@@ -126,14 +126,25 @@ memory ops off `runAsUserId`, never the member.
 ### 3a. The build (the SillyTavern-summarizer replacement)
 - Triggered **post-turn** (fire-and-forget, never blocks the reply) and by **import backfill** — same
   functions, same result.
-- **Two guards (do not conflate them):**
-  - *Build-protect* (`verbatimWindow`, a small **fixed** message count): `cutoff = maxSeq −
-    verbatimWindow` — only blocks fully **aged out of the live tip** are digested. Small-on-purpose so a
-    block is digested aggressively and there is **never a gap** (aged-out-but-undigested-and-out-of-
-    window → forgotten). It is ST's `protect` zone, NOT a context-budget knob.
-  - *Recall window-filter* (token-driven — §3b): at recall, skip digests whose seq-span is still inside
-    **this turn's** live history window, so `{{memory}}` never re-injects a scene already verbatim in the
-    prompt. Token-window-driven (steal ST's recent-guard, but token- not message-count-based).
+- **Two guards — TWO DIFFERENT WINDOWS; do not conflate them (one is fixed + build-side, the other is
+  token-driven + recall-side):**
+  - *Build-protect* — the **FIXED** `verbatimWindow` (a small message **count**, default 8). The build cutoff
+    `cutoff = maxSeq − verbatimWindow`: only blocks fully **aged out of the live tip** are digested.
+    Small-on-purpose so a block is digested aggressively and there is **never a gap** (aged-out-but-undigested-
+    and-out-of-window → forgotten). It is ST's `protect` zone, a **budget-INDEPENDENT constant**, NOT a
+    context-budget knob. Its job is **no gap**.
+  - *Recall window-filter* — the **TOKEN-DRIVEN, VARIABLE** live history window (often **50–200 messages** on
+    a real model, i.e. usually **far larger than `verbatimWindow`'s fixed 8**). At recall, drop any candidate
+    digest whose seq-span is still inside **this turn's** live window — its scene is already **verbatim** in the
+    prompt, so re-injecting its digest into `{{memory}}` is pure **redundancy**. The cutoff (`liveWindowCutoffSeq`
+    — the seq below which messages are NOT in this turn's prompt) is **supplied by the engine from the §8
+    history-budget fit** (the same drop math the assembler uses), NOT derived from `verbatimWindow`. **Boundary
+    (exact):** a digest starting **at** the cutoff is still in the window (dropped); a digest starting
+    **strictly below** it has aged out (surfaced). Applied **uniformly to the pool BEFORE the mode dispatch** —
+    every mode (mixA / tiered / mixB / mixC), never a per-mode branch, never a search-side `verbatimWindow`
+    delegation. Its job is **no redundancy**. **Why both:** when the live window (variable) exceeds the fixed
+    `verbatimWindow` — the common case — blocks between them are BOTH digested AND still verbatim; relying on
+    build-protect alone would re-inject them. This recall-side filter is the fix.
 - **Trigger discipline (no spurious early runs — observability invariant).** A **fresh chat does ZERO
   memory/embed work** until the first block ages out:
   - The build does a **cheap pre-check** — "is there a new complete aged-out block since the last build?"

@@ -525,3 +525,101 @@ describe("memory/recall — adversarial (trigger discipline, bridge-pool, witnes
     expect(out).toBe(fullText);
   });
 });
+
+describe("memory/recall — the §3a recall window-filter (the SECOND guard, token-driven + uniform)", () => {
+  /** Seed three shared-bucket tier-0 blocks 0/1/2 with seq-spans [1-8] / [9-16] / [17-24]. */
+  async function seedThreeBlocks(chatId: ChatId): Promise<void> {
+    for (let b = 0; b < 3; b += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+      await seedDigest(db, {
+        chatId,
+        scopedCharacterId: GROUP_CHAR,
+        tier: 0,
+        blockIdx: b,
+        topicAnchor: `[b${b}]`,
+        keywords: [],
+      });
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+    }
+  }
+
+  test("mixA: a digest still in the live window is dropped; an aged-out one is surfaced (cutoff, not verbatimWindow)", async () => {
+    const chatId = await seedChat(db, "lw-mixa");
+    await seedThreeBlocks(chatId);
+    const ctx = makeChatContext(db);
+    // cutoff 9 ⇒ blocks starting at seq ≥ 9 (b1 @9, b2 @17) are verbatim in the live window → dropped; b0 (@1) surfaces.
+    // `verbatimWindow` is deliberately HUGE — a mutant filtering by the fixed window (not the cutoff) would differ.
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 9,
+      config: { mode: "mixA", verbatimWindow: 100 },
+    });
+    expect(out).toContain("[b0]");
+    expect(out).not.toContain("[b1]");
+    expect(out).not.toContain("[b2]");
+  });
+
+  test("boundary: seqStart == cutoff is filtered (still in window); seqStart < cutoff is surfaced", async () => {
+    const chatId = await seedChat(db, "lw-bound");
+    await seedThreeBlocks(chatId);
+    const ctx = makeChatContext(db);
+    // cutoff 17 ⇒ b2 starts AT 17 (dropped); b1 (@9) and b0 (@1) are strictly below → surfaced.
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 17,
+      config: { mode: "mixA" },
+    });
+    expect(out).toContain("[b0]");
+    expect(out).toContain("[b1]");
+    expect(out).not.toContain("[b2]"); // seqStart === cutoff → still in the live window
+  });
+
+  test("tiered: the window-filter applies to pure-assembly modes too (NOT just mixB/mixC)", async () => {
+    const chatId = await seedChat(db, "lw-tiered");
+    await seedThreeBlocks(chatId);
+    const ctx = makeChatContext(db);
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 9,
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    // only b0 remains in the pool → the bridge surfaces b0 alone (the recent blocks are verbatim in the prompt).
+    expect(out).toContain("[b0]");
+    expect(out).not.toContain("[b1]");
+    expect(out).not.toContain("[b2]");
+  });
+
+  test("mixC: the window-filtered pool feeds the bridge candidates (in-window blocks never reach search)", async () => {
+    const chatId = await seedChat(db, "lw-mixc");
+    await seedThreeBlocks(chatId);
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, { searchDigests: search.fn });
+    await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      liveWindowCutoffSeq: 9,
+      config: { mode: "mixC", fanOut: 2 },
+    });
+    const cand = search.calls.at(0)?.candidates ?? [];
+    // only b0 (blockIdx 0) is a candidate — the in-window b1/b2 were filtered BEFORE the bridge/candidates.
+    expect(cand.map((k) => k.blockIdx)).toEqual([0]);
+  });
+
+  test("cutoff absent ⇒ NO live-window filtering (current behavior preserved)", async () => {
+    const chatId = await seedChat(db, "lw-none");
+    await seedThreeBlocks(chatId);
+    const ctx = makeChatContext(db);
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixA" },
+    });
+    expect(out).toContain("[b0]");
+    expect(out).toContain("[b1]");
+    expect(out).toContain("[b2]");
+  });
+});
