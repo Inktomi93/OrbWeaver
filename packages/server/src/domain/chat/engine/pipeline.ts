@@ -35,7 +35,13 @@ import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RunChatTurnOp } from "../contract/context";
-import type { TurnEconomics, TurnKind, TurnMessage, TurnRequest } from "../contract/results";
+import type {
+  TurnEconomics,
+  TurnKind,
+  TurnMessage,
+  TurnRequest,
+  TurnSpeakerShape,
+} from "../contract/results";
 import { buildPrompt, fitHistory, shapeTurn } from "../substrate/assembly-access";
 
 /** A SHAPE canon row (the `shape()` input shape — file-local, matched structurally; the wire role axis is
@@ -67,6 +73,9 @@ interface RunTurnPipelineArgs {
   readonly appendUserTurn?: string | null | undefined;
   /** The multi-speaker group nudge; null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
+  /** The per-speaker two-axis SHAPE (chat.md Part III §7), set by the group round driver. ABSENT ⇒ the
+   *  single-speaker core's pinned default (per-speaker/merged/no fold, `{{char}}`=the ctx primary). */
+  readonly shape?: TurnSpeakerShape | undefined;
   /** Fan one streamed delta out (the engine wires this to the chat bus / SSE log). Fire-and-forget by the
    *  reducer (the per-delta emit is NOT on the durable-await path — that is the lifecycle events). */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
@@ -194,16 +203,19 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const speakers = {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — `activePersona` is `AssemblePersona | null | undefined` (cross-package zod inference), so `?.name ?? "User"` is required.
     user: ctx.activePersona?.name ?? "User",
-    assistant: ctx.character.name,
+    // The arbitration/round-driver chunk's two-axis seam (chat.md Part III §7): the per-speaker label is the
+    // resolved speaker's name (per-speaker) / joined-cast name (narrator); ABSENT ⇒ the ctx primary.
+    assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
     canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx) : [],
     appendUserTurn: args.appendUserTurn ?? null,
     injections: inChatInjections,
-    // Single-speaker core: per-speaker / merged / no egocentric fold (the arbitration chunk's seam).
-    output: "per-speaker",
-    cardScope: "merged",
-    scopedTargetId: null,
+    // The two-axis (output × cardScope × scopedTarget); ABSENT ⇒ the single-speaker core's pinned default
+    // (per-speaker / merged / no egocentric fold). Solo stays byte-identical (D16).
+    output: args.shape?.output ?? "per-speaker",
+    cardScope: args.shape?.cardScope ?? "merged",
+    scopedTargetId: args.shape?.scopedTargetId ?? null,
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers,
     groupNudge: args.groupNudge ?? null,
