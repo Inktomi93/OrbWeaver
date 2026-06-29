@@ -37,7 +37,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { eq } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 /** The generation record for one `message_variants` row (D26): all content + economics + the per-swipe
  *  snapshot. Every field but `content` is optional — an unreported economics field stays absent (never a
@@ -286,6 +286,137 @@ export function combineReasoning(base: string | null, addition: string | null): 
     return null;
   }
   return (base ?? "") + (addition ?? "");
+}
+
+// ── chunk-13 canon-edit statements (D26: variant content/reasoning vs slot selection/attribution/hidden/seq) ──
+
+/** Edit the SELECTED variant's CONTENT in place (D26 — `editMessage`; the edit mutates the variant, never
+ *  doubles content) and stamp `messages.editedAt` (the slot's edit marker). Two statements (variant + slot). */
+export function editMessageContentStatements(
+  db: Db,
+  params: {
+    readonly messageId: MessageId;
+    readonly variantId: MessageVariantId;
+    readonly content: string;
+    readonly editedAt: number;
+  },
+): BatchStmt[] {
+  return [
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({ content: params.content })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
+    batchStmt(
+      db
+        .update(messages)
+        .set({ editedAt: params.editedAt })
+        .where(eq(messages.id, params.messageId)),
+    ),
+  ];
+}
+
+/** Set the SELECTED variant's REASONING (D26 — `editReasoning` writes text, `clearReasoning` writes null) and
+ *  stamp `messages.editedAt`. The content is untouched (reasoning is a sibling column on the variant). */
+export function editReasoningStatements(
+  db: Db,
+  params: {
+    readonly messageId: MessageId;
+    readonly variantId: MessageVariantId;
+    readonly reasoning: string | null;
+    readonly editedAt: number;
+  },
+): BatchStmt[] {
+  return [
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({ reasoning: params.reasoning })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
+    batchStmt(
+      db
+        .update(messages)
+        .set({ editedAt: params.editedAt })
+        .where(eq(messages.id, params.messageId)),
+    ),
+  ];
+}
+
+/** Toggle a slot's `excludedFromPrompt` (D26 — `setMessageHidden`; the row survives, it is held out of
+ *  assembly). A pure slot-flag write (no variant change, no content copy). */
+export function setMessageHiddenStatement(
+  db: Db,
+  messageId: MessageId,
+  hidden: boolean,
+): BatchStmt {
+  return batchStmt(
+    db.update(messages).set({ excludedFromPrompt: hidden }).where(eq(messages.id, messageId)),
+  );
+}
+
+/** Delete a set of slots (D26 — `deleteMessages`; the message_variants CASCADE on the slot delete). Scoped to
+ *  `chatId` so a stray foreign id can never delete another room's row. ONE statement. */
+export function deleteMessagesStatement(
+  db: Db,
+  chatId: ChatId,
+  messageIds: readonly MessageId[],
+): BatchStmt {
+  return batchStmt(
+    db
+      .delete(messages)
+      .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]))),
+  );
+}
+
+/** Re-stamp a set of slots' `characterId` attribution (host-only — `reattributeMessages`; D26 attribution is
+ *  SLOT-level, the self-heal hash-diff re-voice). Scoped to `chatId`. ONE statement. */
+export function reattributeMessagesStatement(
+  db: Db,
+  chatId: ChatId,
+  messageIds: readonly MessageId[],
+  characterId: CharacterId,
+): BatchStmt {
+  return batchStmt(
+    db
+      .update(messages)
+      .set({ characterId })
+      .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds]))),
+  );
+}
+
+/** Shift EVERY slot in `[lo, hi]` (inclusive) by a UNIFORM `by` (the `moveMessage` re-sequence phase 1). A
+ *  single uniform shift is collision-free (a bijection onto a disjoint range) — used to PARK the affected
+ *  range above the canon head before the per-row final stamp (phase 2 = {@link setMessageSeqStatement}), so a
+ *  contiguous reorder never transiently violates the `(chatId, seq)` UNIQUE. */
+export function shiftSeqRangeStatement(
+  db: Db,
+  params: {
+    readonly chatId: ChatId;
+    readonly lo: number;
+    readonly hi: number;
+    readonly by: number;
+  },
+): BatchStmt {
+  return batchStmt(
+    db
+      .update(messages)
+      .set({ seq: sql`${messages.seq} + ${params.by}` })
+      .where(
+        and(
+          eq(messages.chatId, params.chatId),
+          gte(messages.seq, params.lo),
+          lte(messages.seq, params.hi),
+        ),
+      ),
+  );
+}
+
+/** Stamp one slot's final `seq` by id (the `moveMessage` re-sequence phase 2 — each target is in the vacated
+ *  range, so the per-row writes never collide). */
+export function setMessageSeqStatement(db: Db, messageId: MessageId, seq: number): BatchStmt {
+  return batchStmt(db.update(messages).set({ seq }).where(eq(messages.id, messageId)));
 }
 
 /**

@@ -17,6 +17,7 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
   chatEvents,
+  chatInjections,
   chatParticipants,
   chatStreamEvents,
   chats,
@@ -32,7 +33,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, asc, desc, eq, gt, isNull, lt, max, min, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, max, min, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
 import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views";
@@ -417,4 +418,107 @@ export async function chatEventBounds(db: Db, chatId: ChatId): Promise<StreamEve
     .where(eq(chatEvents.chatId, chatId));
   const r = rows.at(0);
   return { minSeq: r?.minSeq ?? null, maxSeq: r?.maxSeq ?? null };
+}
+
+// ── chunk-13 reads: canon-edit ownership / move · compaction window · variables · injections · fork-copy ──
+
+/** The owning slot of a variant (`selectVariant` ownership belt — D26: a `selectedVariantId` may only point
+ *  at a SIBLING of the slot). Returns the variant's `messageId`, or `undefined` for an unknown variant; the
+ *  verb verifies it equals the target slot before flipping the pointer (never selects a foreign chat's swipe). */
+export async function loadVariantMessageId(
+  db: Db,
+  variantId: MessageVariantId,
+): Promise<MessageId | undefined> {
+  const rows = await db
+    .select({ messageId: messageVariants.messageId })
+    .from(messageVariants)
+    .where(eq(messageVariants.id, variantId))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.messageId;
+}
+
+/** Every slot's `(id, seq)` for a chat, ascending (the `moveMessage` re-sequence input — the verb computes
+ *  the range-shift plan from this). File-local row shape. */
+export async function loadMessageSeqs(
+  db: Db,
+  chatId: ChatId,
+): Promise<{ id: MessageId; seq: number }[]> {
+  return await db
+    .select({ id: messages.id, seq: messages.seq })
+    .from(messages)
+    .where(eq(messages.chatId, chatId))
+    .orderBy(asc(messages.seq));
+}
+
+/** The canon history STRICTLY AFTER `afterSeq` (the compaction window — D25: a manual/engine compaction
+ *  summarizes `seq > compactedAtSeq` and advances the checkpoint). Slot ⋈ selected-variant, oldest-first. */
+export async function loadCanonHistoryAfter(
+  db: Db,
+  chatId: ChatId,
+  afterSeq: number,
+): Promise<MessageView[]> {
+  return await db
+    .select(messageViewSelection)
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), gt(messages.seq, afterSeq)))
+    .orderBy(asc(messages.seq));
+}
+
+/** The persisted per-chat ChoiceBlock variable flush (`getStoredVariables` + the fork copy — D46 config
+ *  plane). Null ⇒ nothing flushed yet (the verb returns `{}`). */
+export async function loadStoredVariables(
+  db: Db,
+  chatId: ChatId,
+): Promise<Record<string, string> | null> {
+  const rows = await db
+    .select({ variableValues: chats.variableValues })
+    .from(chats)
+    .where(eq(chats.id, chatId))
+    .limit(LIMIT_ONE);
+  return rows.at(0)?.variableValues ?? null;
+}
+
+/** The persisted positional injections for a chat (`listChatInjections` + the fork copy). Full rows, ordered
+ *  by depth then the within-depth `order` then insert order (a deterministic, splice-ready read). */
+export async function loadChatInjections(
+  db: Db,
+  chatId: ChatId,
+): Promise<(typeof chatInjections.$inferSelect)[]> {
+  return await db
+    .select()
+    .from(chatInjections)
+    .where(eq(chatInjections.chatId, chatId))
+    .orderBy(asc(chatInjections.depth), asc(chatInjections.order), asc(chatInjections.createdAt));
+}
+
+/** The full message SLOT rows for a fork copy (D27 deep copy), oldest-first, optionally truncated at
+ *  `throughSeq` (absent ⇒ the whole chat). Raw `$inferSelect` rows so the fork can spread→re-id every column
+ *  (no field drift); the verb mints fresh ids + remaps the selected-variant pointer. */
+export async function loadMessageSlots(
+  db: Db,
+  chatId: ChatId,
+  throughSeq?: number,
+): Promise<(typeof messages.$inferSelect)[]> {
+  const where =
+    throughSeq === undefined
+      ? eq(messages.chatId, chatId)
+      : and(eq(messages.chatId, chatId), lte(messages.seq, throughSeq));
+  return await db.select().from(messages).where(where).orderBy(asc(messages.seq));
+}
+
+/** Every variant (swipe) for a set of slots (the fork copy — D27 copies EVERY variant, not just the selected
+ *  one). Raw `$inferSelect` rows for the spread→re-id copy. No-op (empty) on an empty id list. */
+export async function loadVariantsByMessageIds(
+  db: Db,
+  messageIds: readonly MessageId[],
+): Promise<(typeof messageVariants.$inferSelect)[]> {
+  if (messageIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select()
+    .from(messageVariants)
+    .where(inArray(messageVariants.messageId, [...messageIds]))
+    .orderBy(asc(messageVariants.idx));
 }

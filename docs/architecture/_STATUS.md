@@ -4,9 +4,11 @@
 > `/home/inktomi/inktomi-stack/development/neo-tavern`; orbweaver is at
 > `/home/inktomi/inktomi-stack/development/orbweaver`). **We are BUILDING** — Phases 0–4b are committed
 > (planning is done; the design docs below remain authoritative). This file is the index + the locked
-> decisions + the NEXT action. **Latest decision: D45** (image INPUT to vision-capable models —
-> `ModelCapability.vision` axis + `ChatHistoryMessage.content`→content-parts, shaped before Phase 5; see
-> `client.md` §12.4). Recent: D44 (theming + rich message content; `client.md` §12), PD-11 (hosted rerank wired).
+> decisions + the NEXT action. **Latest decision: D52** (charts: pre-commit to **Apache ECharts**, nivo
+> DROPPED at its v0.99 stagnation — supersedes D43's "keep nivo"; `client.md` §11.3/§11.8). Recent: D46–D51
+> (scripting/automation graduated · 7 ST feature gaps · tool-use + structured-output gates · the gap register
+> closed · `ChatBusEvent` parity · D45 multimodal threaded at the wire seam), D45 (image INPUT to vision models —
+> `ModelCapability.vision` + content-parts; `client.md` §12.4), D44 (theming + rich message content; §12), PD-11 (hosted rerank wired).
 > Recent: D42 (Phase-6 client foundation), D43 (full neo-client audit → machine-enforceable plan, `client.md`
 > §11), D44 (theming + rich message content, §12).
 
@@ -94,7 +96,7 @@ The planning docs are **complete and reconciled**, and the build is underway. **
 - **Dissolution inventory** — every `_shared`/`shared/*` symbol has a home + gate. (`reports/shared-dissolution.md`.)
 - **Per-domain target docs** (all 20 under `domains/`), **tier surveys** (`tiers/*`), **spine threads**
   (§7.1–7.5 + `spine/testing.md` + `spine/typescript-style.md`), and the cross-doc **reconciliation/de-dup**.
-  Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D45** + **PD-11**).
+  Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D52** + **PD-11**).
 
 **NEXT ACTION = Phase 4c (server `domain`) — follow `BUILD-PLAN.md` §4c** (the ordered runbook IS the
 authority for the wave order; don't re-list it here). Phase 4c **W1 is in progress** (sessions + admin

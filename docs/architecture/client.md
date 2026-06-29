@@ -46,7 +46,7 @@ neo enforced the UI boundaries with lint (`pnpm arch` + dep-cruiser rules). orbw
 | neo lint rule | orbweaver |
 |---|---|
 | `client-ui-is-pure` (UI imports no features) | `@orb/ui` has no dep on `@orb/client` — **resolver** |
-| "app imports only the UI barrel, never raw primitives" | radix/cmdk/vaul/nivo/base-ui are NOT in `@orb/client`'s `package.json` — it physically cannot import them — **resolver** |
+| "app imports only the UI barrel, never raw primitives" | radix/cmdk/vaul/echarts/base-ui are NOT in `@orb/client`'s `package.json` — it physically cannot import them — **resolver** |
 | "UI is domain-agnostic" | `@orb/ui` has no dep on `@orb/contracts`/domain — **resolver** |
 | design-token parity check | the Tailwind theme is **codegen-derived** from `tokens.json` (§3) — drift is structurally impossible, not policed |
 
@@ -60,7 +60,7 @@ cross-repo reuse outside orbweaver ever becomes real — defer until then.)
 ```
 packages/ui/
   package.json          # the ONLY package depending on @base-ui/react, cmdk, vaul, sonner,
-                        #   react-resizable-panels, @dnd-kit, @nivo/*, cva, clsx, tailwind-merge, streamdown
+                        #   react-resizable-panels, @dnd-kit, echarts, echarts-for-react, cva, clsx, tailwind-merge, streamdown
   src/
     tokens/             # DTCG single-source (§3) — promote to @orb/tokens only on a 2nd consumer
     primitives/         # each wraps ONE headless behavior behind an orbweaver API (seals the lib)
@@ -70,7 +70,7 @@ packages/ui/
       toast/     ← seals sonner      resizable/ ← seals react-resizable-panels
       sortable/  ← seals @dnd-kit
     layout/             # Stack · Row · Section · Toolbar · Container (owns container-type — §4)
-    charts/             # seals @nivo/* — app says <BarChart>, never imports @nivo
+    charts/             # seals ECharts (echarts/echarts-for-react) — app says <BarChart>, never imports echarts
     markdown/           # seals Streamdown (§6.3) — the ONE markdown renderer
     lib/   { cn.ts }    # tailwind-merge config
     styles/ { globals.css }   # imports tokens/generated theme
@@ -246,8 +246,8 @@ chat id only) — NOT a rewrite.
 ## 6. The stack — keep / dump
 | | Decision |
 |---|---|
-| **DUMP** | **shadcn** (copy-paste workflow) → hand-author `@orb/ui`. **Radix** → **Base UI**. **react-markdown + rehype-sanitize + remark-gfm + rehype-raw** → **Streamdown** (§6.3). **react-syntax-highlighter / Prism** → **Shiki** (free inside Streamdown). The `@/` alias → `#`. |
-| **KEEP** | feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery · **Tailwind v4** · CVA+clsx+tailwind-merge · **lucide** · **TanStack** (Query / Router-minimal / Form / Virtual) · **Zustand** · the satellites **cmdk · vaul · sonner · react-resizable-panels · @dnd-kit** · **nivo** (the analytics graphs — kept deliberately; "it has the features I want"). |
+| **DUMP** | **shadcn** (copy-paste workflow) → hand-author `@orb/ui`. **Radix** → **Base UI**. **react-markdown + rehype-sanitize + remark-gfm + rehype-raw** → **Streamdown** (§6.3). **react-syntax-highlighter / Prism** → **Shiki** (free inside Streamdown). **nivo** (the 6 `@nivo/*` corpus packages) → **ECharts** (D52 — nivo stuck at v0.99, see §11.8). The `@/` alias → `#`. |
+| **KEEP** | feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery · **Tailwind v4** · CVA+clsx+tailwind-merge · **lucide** · **TanStack** (Query / Router-minimal / Form / Virtual) · **Zustand** · the satellites **cmdk · vaul · sonner · react-resizable-panels · @dnd-kit** · **ECharts** (the analytics graphs — replaces nivo per D52; one dep, actively maintained, "the features I want"). |
 | **WRAP** | every kept third-party lib lives behind `@orb/ui`; app imports `@orb/ui`, never the lib. |
 
 ### 6.1 TanStack — keep, with discipline
@@ -343,7 +343,7 @@ After these, the chosen libs have zero un-gated footguns.
 
 ## 8. The gates (physics + lint belts)
 **Physics (resolver — can't even resolve):** `@orb/ui` ⇏ `@orb/client`/`@orb/contracts`-domain;
-`@orb/client` ⇏ radix/cmdk/vaul/sonner/nivo/base-ui (not in its deps).
+`@orb/client` ⇏ radix/cmdk/vaul/sonner/echarts/base-ui (not in its deps).
 
 **Lint belts (what physics can't express):**
 - `no-raw-value` — bans `bg-[#fff]`, `gap-[13px]`, `z-[N]`, inline `style={{}}` numeric literals (Tailwind
@@ -358,7 +358,7 @@ After these, the chosen libs have zero un-gated footguns.
   `state:files`, `design-token-parity`, `entity-editor`, `icons-lucide-only`, `tanstack-form-only-in-shared`.
 
 **Ratified from the audit (D43 — §11; full list + rationale there).** Physics: dep-cruiser bans
-`@tanstack/react-virtual` / `@nivo/*` / `@dnd-kit/*` outside their `@orb/ui` seals, and `client ⇏ @orb/server`
+`@tanstack/react-virtual` / `echarts`+`echarts-for-react` / `@dnd-kit/*` outside their `@orb/ui` seals, and `client ⇏ @orb/server`
 (wire types come from `@orb/contracts`). Lint belts: `no-array-literal-querykey` · `no-inline-invalidate-outside-seam`
 · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` ·
 `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `persist-shape-needs-version` · `no-fake-disabled-id`
@@ -469,15 +469,22 @@ These are the §11.0-rule-2 fixes. Each ships in `@orb/ui` / the client foundati
   measuring + the unbounded-window tripwire **as a thrown error** (neo's was a dev `console.warn` and the
   list rotted to a 200ms commit once already). *Physics: dep-cruiser bans `@tanstack/react-virtual` outside
   this primitive.* **7 client sites → 1.**
-- **`@orb/ui/charts`** seals `@nivo/*` and **injects the token theme internally** so omission is impossible
-  (neo's `theme={nivoTheme}` was voluntary → a new chart silently rendered white-on-transparent, invisible in
-  dark mode); owns `<ChartTooltip>` (5 copy-pasted tooltip divs) + a **token categorical ramp** (kills the
-  `genre-color.ts` 14-hex palette + nivo `scheme:"set2"` + `RISE="#10b981"`). Plus **`@orb/ui/meter`** for
-  1-D magnitude bars (neo hand-rolled the same `width:%` span in 5 files — don't force these through nivo).
-  *Physics: dep-cruiser bans `@nivo/*` outside `@orb/ui/charts`.* The seal's whole footprint is **`corpus`
-  only** (9 charts / 6 nivo packages — verified repo-wide); the seam API must cover bar · line · heatmap ·
-  **calendar** · scatter · **force-directed network**, which is why the verified swap target is **ECharts**
-  (the only single lib that does all six natively), not Recharts — see §11.8.
+- **`@orb/ui/charts`** seals **ECharts** (`echarts` + `echarts-for-react` — ONE dep replacing neo's 6 `@nivo/*`
+  packages; D52) and **injects the token theme internally** so omission is impossible (neo's `theme={nivoTheme}`
+  was voluntary → a new chart silently rendered white-on-transparent, invisible in dark mode); owns
+  `<ChartTooltip>` (5 copy-pasted tooltip divs) + a **token categorical ramp** (kills the `genre-color.ts`
+  14-hex palette + nivo `scheme:"set2"` + `RISE="#10b981"`). Plus **`@orb/ui/meter`** for 1-D magnitude bars
+  (neo hand-rolled the same `width:%` span in 5 files — don't force these through the chart lib).
+  *Physics: dep-cruiser bans `echarts`/`echarts-for-react` outside `@orb/ui/charts`.* The seal's whole footprint
+  is **`corpus` only** (9 charts that were 6 nivo packages — verified repo-wide); the seam API must cover bar ·
+  line · heatmap · **calendar** · scatter · **force-directed network** — ECharts covers all six natively
+  (`calendar` coord + heatmap series · `graph` series + `force` layout), Canvas-rendered (a perf win for the
+  dense `corpus-galaxy` scatter). **Token-theme wrinkle (Canvas ≠ nivo's SVG-`var()` trick):** ECharts renders
+  to Canvas, so `fill:"var(--token)"` does NOT resolve the way it did in nivo's SVG output — the seal must
+  resolve the DTCG tokens to concrete values (`getComputedStyle` on the `--chart-*`/`--foreground`/… custom
+  props) and feed them into the ECharts `option`, re-reading on theme switch. This makes the internal
+  theme-injection *load-bearing for theming to work at all* (not just dark-mode safety) — a stronger reason for
+  the seal, not a weaker one. See §11.8 / D52.
 - **`@orb/ui/sortable`** seals `@dnd-kit` (sensors / strategy / `CSS.Transform.toString` / `arrayMove`).
   *Physics: dep-cruiser bans `@dnd-kit/*` outside it.* (Only one sortable list exists today — seal it before
   the second one re-improvises different sensor constants.)
@@ -590,23 +597,27 @@ Every foundational choice was re-verified against current (June 2026) reality, s
   single-source→derived-theme pipeline is exactly the 2026 best-practice "three-tier W3C tokens" path.
 - **Streamdown** — ✅ real + security-first by default (§11.6); stronger than the plan assumed (bundles
   sanitize+harden), but needs the two-policy config above for untrusted content.
-- **nivo — ⚠️ the one asterisk (kept, with the seal as the hedge).** nivo is **still v0.99** (no 1.0 after
-  years); 2026 community default has moved to **Recharts** (v3, ~2.4M wk dl); nivo's headline 2026 knock is an
-  unresolved **RSC / Next App-Router incompatibility** (#2626). **That knock does NOT apply to orbweaver** —
-  we're a Vite **SPA** (single-route shell, no RSC), so the "every chart needs `'use client'`" problem is moot,
-  and nivo's strengths (polished defaults, WCAG-grade dataviz) are exactly the corpus/analytics need (a
-  deliberate "it has the features I want" call). The mitigation is already in the plan: **`@orb/ui/charts`
-  sealing nivo behind `<BarChart>`/`<ScatterChart>` makes a swap a `@orb/ui`-internal change, app untouched.**
-  **The verified exit ramp is Apache ECharts, NOT Recharts** — corpus uses nivo for exactly the two chart
-  types Recharts cannot do (a `@nivo/calendar` GitHub-style year heatmap + a `@nivo/network` force-directed
-  similarity graph) plus `@nivo/{bar,line,heatmap,scatterplot}`. The full neo set is: 9 charts / 6 packages,
-  **confined entirely to `corpus`** (nothing else imports nivo; the simple 1-D bars are plain CSS). ECharts is
-  the *only* mainstream single library that natively covers the whole set incl. calendar (`calendar` coord +
-  heatmap series) and force-directed graph (`graph` series, `force` layout) — Canvas-rendered (a perf win for
-  the dense `corpus-galaxy` scatter), ~100kB-gz tree-shakeable, `echarts-for-react`. visx is the
-  max-control-but-hand-build fallback (no built-in calendar; `@visx/network` has no force layout). If only the
-  similarity graph ever outgrows nivo, split it to **Reagraph**/**react-force-graph** (WebGL). Net: keep nivo;
-  the charts seal is now *doubly* justified — token-theme enforcer AND the nivo→ECharts exit ramp.
+- **Charts — DECIDED: Apache ECharts; nivo dropped (D52, 2026-06-29 — reverses D43's "keep nivo").** D43 had
+  kept nivo and named ECharts only as a deferred *exit ramp*. Reversed at Nate's call: nivo is **still v0.99**
+  (no 1.0 after years; the `Theme` type already shuffled to `@nivo/theming` mid-0.99), and that stagnation is
+  exactly the "amnesiac author inherits a dead lib" risk this architecture exists to avoid. The deciding lever:
+  **the client isn't built yet** (zero charts written — `packages/client` is empty stubs), so there is no
+  migration to pay — pre-committing now is free, whereas carrying nivo means starting a fresh build on a
+  stuck-at-v0.99 lib just to seal it behind a swap ramp. **ECharts is the chosen primitive:** the only single
+  mainstream lib that natively covers neo's whole corpus set — bar · line · heatmap · **calendar** heatmap
+  (`calendar` coord + heatmap series) · scatter · **force-directed network** (`graph` series + `force` layout).
+  The two hard ones (calendar + force graph) are exactly what eliminated **Recharts** (2026 community default,
+  but renders neither) and force hand-building in **visx** — so ECharts wins on coverage, not popularity.
+  Actively maintained (last commit 2026-05, 66k★), ~100kB-gz tree-shakeable, Canvas-rendered (a perf win for
+  the dense `corpus-galaxy` scatter), React wrapper `echarts-for-react`. **One dep replaces all 6 `@nivo/*`
+  packages.** Sealed behind `@orb/ui/charts` (§11.3): the seam API requirement is the chart-type set above, and
+  the one real porting wrinkle is the Canvas token-theme resolution noted in §11.3 (ECharts can't consume
+  `var(--token)` live the way nivo's SVG did → the seal resolves DTCG tokens to concrete values and re-reads on
+  theme switch — which makes the internal theme-injection load-bearing, not just dark-mode insurance). Fallback
+  if the similarity graph ever outgrows ECharts' force layout (thousands of nodes): split that one chart to
+  **Reagraph**/**react-force-graph** (WebGL) behind the same seal. visx stays the max-control hand-build
+  alternative (rejected — more code, no built-in calendar/force). nivo's only edge was polished defaults; the
+  seal's token theme + a curated `option` builder recover that inside `@orb/ui/charts`.
 
 ---
 
