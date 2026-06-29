@@ -13,6 +13,7 @@ import type {
   AssembleContext,
   AssembledPrompt,
   ChatContentPart,
+  GroupConfig,
   InviteView,
   MessageView,
   ParticipantView,
@@ -37,6 +38,27 @@ export type { TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
  *  internal dispatch axis the engine + SHAPE switch on. NB: the movement table calls this engine type
  *  `TurnIntent`; it is RENAMED `TurnKind` here to avoid colliding with the canonical public `TurnIntent`
  *  (one home — FLAGGED in the handoff). */
+/** The output axis (per-room generation — Part III §7): `per-speaker` (one msg per speaker, `{{char}}`=that
+ *  speaker) vs `narrator` (one call voices the cast). Derived from {@link GroupConfig} (no inline re-spell). */
+export type GroupOutput = GroupConfig["output"];
+/** The card-scope axis — `merged` (all member cards in one block; required for narrator) vs `scoped` (own card
+ *  + egocentric history). Lives ONLY on the `per-speaker` arm (`narrator ⇒ merged`, schema-unrepresentable). */
+export type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
+
+/** The per-speaker SHAPE axis a group round resolves and threads onto {@link TurnPrep} (chat.md Part III §7 —
+ *  two-axis generation). ABSENT on the prep ⇒ the single-speaker core's pinned default (`per-speaker`/`merged`/
+ *  no fold, `{{char}}`=the assemble ctx's primary) — so solo is byte-identical (D16) and the chunk-9 pipeline
+ *  tests are unchanged. The arbitration/round-driver chunk SETS it per resolved speaker. */
+export interface TurnSpeakerShape {
+  readonly output: GroupOutput;
+  readonly cardScope: CardScope;
+  /** The egocentric scoped target (`cardScope: "scoped"`); null for merged / narrator / solo. */
+  readonly scopedTargetId: CharacterId | null;
+  /** The assistant-speaker label SHAPE name-stamps (`{{char}}`): the speaking character's name (per-speaker)
+   *  or the joined-cast name (narrator). Overrides the assemble ctx's primary `character.name`. */
+  readonly speakerName: string;
+}
+
 export const TURN_KINDS = [
   "send",
   "swipe",
@@ -153,6 +175,10 @@ export interface TurnPrep {
   /** The Step-6b group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round (the
    *  arbitration chunk's seam); null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
+  /** The per-speaker two-axis SHAPE (output × cardScope × scopedTarget × name — chat.md Part III §7), set by
+   *  the group round driver. ABSENT ⇒ the single-speaker core's pinned default (per-speaker/merged/primary
+   *  name); solo stays byte-identical (D16). */
+  readonly shape?: TurnSpeakerShape | undefined;
 }
 
 /**

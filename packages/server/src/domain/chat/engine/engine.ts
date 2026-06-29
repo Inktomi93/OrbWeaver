@@ -211,6 +211,9 @@ async function executeTurn(
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
       groupNudge: prep.groupNudge,
+      // The per-speaker two-axis SHAPE (chat.md Part III §7) — set by the group round driver; ABSENT ⇒ the
+      // single-speaker core's pinned per-speaker/merged default (solo byte-identical, D16).
+      shape: prep.shape,
       onDelta: (delta) => {
         void deps.emit({ type: "delta", chatId: prep.chatId, delta });
       },
