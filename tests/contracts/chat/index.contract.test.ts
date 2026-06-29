@@ -337,8 +337,9 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("credentialLeaked")).toBe(false);
   expect(isChatBusEventType("worldInfoActivated")).toBe(true);
   expect(isChatBusEventType("chatOpened")).toBe(true);
-  // 19 chat-owned + 5 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(24);
+  expect(isChatBusEventType("warning")).toBe(true);
+  // 20 chat-owned (incl. the D45 `warning`) + 5 WI variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(25);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {

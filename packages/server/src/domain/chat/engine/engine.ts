@@ -201,6 +201,8 @@ async function executeTurn(
     ]);
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
+      // Resolve image refs under the host's CAS (runAsUserId — the funded owner, like getCard's host scope).
+      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, ref }),
       assembleContext: prep.assembleContext,
       canon,
       connection: prep.connection,
@@ -213,6 +215,10 @@ async function executeTurn(
         void deps.emit({ type: "delta", chatId: prep.chatId, delta });
       },
     });
+    // D45: image parts were stripped for a non-vision model — surface it (once per turn) on the bus.
+    if (result.imageDropped) {
+      await deps.emit({ type: "warning", chatId: prep.chatId, code: "image_dropped" });
+    }
     const view = await persistTurn({ ctx, deps, prep, result, nextSeq: maxSeq + 1 });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     return committedOutcome([view]);

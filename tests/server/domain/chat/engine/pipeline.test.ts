@@ -68,6 +68,8 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
         economics: { content: "Hello", tokensIn: 3, tokensOut: 1, model: "test-model" },
       },
     ]),
+    resolveImageUrl: (ref) =>
+      Promise.resolve(ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,
@@ -123,11 +125,13 @@ describe("runTurnPipeline — request shaping + fit", () => {
     const result = await runTurnPipeline(args);
     expect(result.request.connection).toBe(CONNECTION);
     expect(result.request.kind).toBe("send");
-    // Every wire row is role+content only (TurnMessage); the tail is the user turn.
+    // Every wire row is role+content (TurnMessage); a text-only body → a single text content-part (D45).
     for (const m of result.request.history) {
       expect(Object.keys(m).sort()).toEqual(["content", "role"]);
     }
     expect(result.request.history.at(-1)?.role).toBe("user");
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "u1" }]);
+    expect(result.imageDropped).toBe(false);
     expect(
       typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null,
     ).toBe(true);
@@ -144,8 +148,37 @@ describe("runTurnPipeline — request shaping + fit", () => {
     const result = await runTurnPipeline(args);
     const named = result.request.history.find((m) => m.name !== undefined);
     expect(named?.name).toBe("Alex");
-    // content stays clean — the author is NOT prefixed in completion mode.
-    expect(named?.content).toBe("u1");
+    // content stays clean — the author is NOT prefixed in completion mode (one text part, no name prefix).
+    expect(named?.content).toEqual([{ type: "text", text: "u1" }]);
+  });
+
+  test("D45: an embedded image ref → text+image parts, resolved via the injected op (vision model)", async () => {
+    const vision = {
+      ...CONNECTION,
+      capability: { ...CAPABILITY, input: { vision: true } } as unknown as ModelCapability,
+    };
+    const { args } = baseArgs({
+      connection: vision,
+      canon: [userRow("look ![a cat](asset:ast_9) here")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.imageDropped).toBe(false);
+    expect(result.request.history.at(-1)?.content).toEqual([
+      { type: "text", text: "look " },
+      { type: "image", url: "https://cas.test/ast_9" },
+      { type: "text", text: " here" },
+    ]);
+  });
+
+  test("D45: a non-vision model drops image parts (keeps text) + flags imageDropped", async () => {
+    // CONNECTION has no `input.vision` → the gate strips image spans; text survives, the turn is flagged once.
+    const { args } = baseArgs({ canon: [userRow("look ![a cat](asset:ast_9) here")] });
+    const result = await runTurnPipeline(args);
+    expect(result.imageDropped).toBe(true);
+    expect(result.request.history.at(-1)?.content).toEqual([
+      { type: "text", text: "look " },
+      { type: "text", text: " here" },
+    ]);
   });
 
   test("the §8 fit drops oldest turns under a tiny window (keeps the newest)", async () => {

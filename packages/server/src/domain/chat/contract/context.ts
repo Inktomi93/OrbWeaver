@@ -27,6 +27,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { ContentImageRef } from "@orb/kit/content";
 import type {
   CharacterId,
   ChatEventId,
@@ -79,6 +80,15 @@ export type GetCardOp = (params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
 }) => Promise<CharacterCard | null>;
+
+/** `assets.resolveImageUrl` — resolve a parsed message-image ref (D45) to a model-fetchable URL/data-URI at
+ *  the engine REQUEST seam: an `asset` ref → the owner's CAS object URL; an `external` ref → itself, or `null`
+ *  when blocked by `forbidExternalMedia` (D44 §12.3) or the asset is gone. `null` ⇒ the engine drops that
+ *  image part. Owner-scoped like {@link GetCardOp} (the host's CAS, D16 host-only-corpus). */
+export type ResolveImageUrlOp = (params: {
+  readonly ownerId: UserId;
+  readonly ref: ContentImageRef;
+}) => Promise<string | null>;
 
 /** A handle to a synthetic group-character identity row (chat consumes character's `CharacterRef` shape
  *  cross-feature; declared structurally so chat takes no `→ character` server edge). */
@@ -182,6 +192,8 @@ export interface ChatContext {
   readonly getCard: GetCardOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
+  // ── assets ──
+  readonly resolveImageUrl: ResolveImageUrlOp;
   // ── persona ──
   readonly setActivePersona: SetActivePersonaOp;
   // ── stats / summarizer ──

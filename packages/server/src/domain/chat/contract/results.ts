@@ -12,6 +12,7 @@
 import type {
   AssembleContext,
   AssembledPrompt,
+  ChatContentPart,
   InviteView,
   MessageView,
   ParticipantView,
@@ -58,7 +59,12 @@ export type TurnKind = (typeof TURN_KINDS)[number];
  *  extends it to content-parts when D45 lands (FLAGGED). */
 export interface TurnMessage {
   readonly role: MessageRole;
-  readonly content: string;
+  /** The send-path content (D45): a content-part array produced ONCE at the engine REQUEST seam by tokenizing
+   *  the shaped string body + resolving embedded image refs (asset→CAS URL, external→gated). A text-only turn
+   *  is a one-element `[{type:"text"}]` (byte-identical to the pre-D45 string path); a non-vision model never
+   *  receives image parts (the engine drops them + emits a `warning` bus event). The text transforms upstream
+   *  (assemble/SHAPE) still operate on the STRING — parts exist only from here out to the wire. */
+  readonly content: readonly ChatContentPart[];
   /** The per-participant label for the `completion` names-behavior (names.ts) — set into the OpenAI-spec
    *  `name` field at the wire (mirrors `ChatHistoryMessage.name`), content left untouched. Undefined for
    *  the default/content/none behaviors (those stamp the name into `content` instead). */

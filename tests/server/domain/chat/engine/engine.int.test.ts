@@ -157,6 +157,20 @@ describe("createTurnEngine — happy path", () => {
     expect(t).toContain("delta");
   });
 
+  test("D45: a non-vision turn carrying an embedded image ref emits image_dropped once", async () => {
+    // The model has no `input.vision` (CAPABILITY) → the engine strips the image part + warns once. The ref
+    // rides a synthetic user turn (appendUserTurn), so no canon seeding is needed; the drop short-circuits
+    // before `resolveImageUrl`, so the notStubbed op is never reached.
+    const chatId = await seedChat(db, "img");
+    const h = harness(db);
+
+    await h.engine.runTurn(prepOf(chatId, { appendUserTurn: "see ![](asset:x) please" }));
+
+    const warnings = h.events.filter((e) => e.type === "warning");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ type: "warning", code: "image_dropped" });
+  });
+
   test("the stats delta is attributed to the host (runAsUserId), not the caller", async () => {
     const chatId = await seedChat(db, "a");
     const h = harness(db);
