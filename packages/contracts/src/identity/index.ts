@@ -57,3 +57,65 @@ export interface Principal {
   externalId: ExternalId | null;
   via: "cookie" | "header" | "fallback";
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE `can()` PRIVILEGE-DECISION SEAM (spine §6 RESOLVED + §4 LOCKED interface).
+// Promoted here from `domain/admin/contract/guard.ts` at PD-1 (chat wired the `host|member` resource axis in
+// P5). The types are CROSS-BOUNDARY: admin's `can()` impl ARBITRATES, and chat (a sibling domain that cannot
+// write admin's contract — `domain-no-cross-feature`) CALLS IN with a roster it loaded. So the union homes at
+// the DAG root (`@orb/contracts/identity`, kit-only) where BOTH sides import it DOWN. The runtime `can()` +
+// the `requireAdmin`/`requireOwner` wrappers still live in `domain/admin/guard.ts`; chat reaches `can` by
+// INJECTION (`ChatContext.can`), never by importing admin.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+// The action vocab is split BY resource kind — each axis is one canonical tuple (derive-don't-respell, §7.5);
+// the `Can` overload (below) couples each action set to its resource kind so a mismatch is a compile error.
+
+/** Global-scope authority actions. `admin` = "requires an administrator" (owner ∪ admin pass — owner ⊇ admin
+ *  lives ONLY inside the seam); `owner` = "requires the box owner" (owner-only). */
+export const GLOBAL_ACTIONS = ["admin", "owner"] as const;
+export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
+
+/** Chat-resource authority actions (the D18 resource-role axis). `read` = the present-member floor
+ *  (stream/post/run-a-turn); `host` = room authority (config/roster/lifecycle). The DECISION over these lives
+ *  in `can()`; chat only loads the roster + maps the verdict to its leak-free/coded error surface. */
+export const CHAT_ACTIONS = ["read", "host"] as const;
+export type ChatAction = (typeof CHAT_ACTIONS)[number];
+
+/** The chat resource-role of the permission model (the D18 `host|member` axis as the `can()` resource role).
+ *  Identity is the DAG root, so it cannot import `@orb/contracts/chat`'s `PARTICIPANT_ROLES`; this is the
+ *  permission-contract home of the same two-member axis (the chat `chat_participants.role` column MIRRORS it,
+ *  structurally identical — chat feeds its `ParticipantRole` straight into a {@link ChatRoster} with no cast).
+ *  FLAG[PD-59]: derive chat's `PARTICIPANT_ROLES` FROM this tuple (one home) when chat's contract may depend
+ *  on identity — out of scope for the PD-1 relocation (would touch `@orb/contracts/chat`). */
+export const CHAT_RESOURCE_ROLES = ["host", "member"] as const;
+export type ChatResourceRole = (typeof CHAT_RESOURCE_ROLES)[number];
+
+/** The membership data chat FEEDS `can()` for a chat-resource decision: the caller's resolved present-
+ *  membership (loaded via chat's `loadMemberChat` — no extra query; the turn loads it anyway). `can()` makes
+ *  the verdict over this data — chat NEVER compares `role === 'host'` itself (spine invariant #6). */
+export interface ChatRoster {
+  readonly role: ChatResourceRole;
+}
+
+/** GLOBAL scope — the global-role axis (admin/owner). */
+export interface GlobalResource {
+  readonly kind: "global";
+}
+/** CHAT scope — the D18 resource-role axis; carries the {@link ChatRoster} chat loaded + fed in. */
+export interface ChatResource {
+  readonly kind: "chat";
+  readonly roster: ChatRoster;
+}
+/** The resource a privilege decision is scoped to. A NEW arm (e.g. `{kind:'character', …}`) breaks the
+ *  `can()` impl's exhaustive `switch` until handled (born-compliant exhaustiveness). */
+export type ResourceRef = GlobalResource | ChatResource;
+
+/** The ONE privilege-decision primitive: throws `DomainForbiddenError` on deny, returns void on allow. Every
+ *  gate routes through this — the only role/host-comparison site in the codebase (spine invariant #6). The
+ *  overload COUPLES each action set to its resource kind: `can(p,'host',{kind:'global'})` is a compile error
+ *  (and vice-versa), so an action can never be paired with the wrong resource. */
+export interface Can {
+  (principal: Principal, action: GlobalAction, resource: GlobalResource): void;
+  (principal: Principal, action: ChatAction, resource: ChatResource): void;
+}

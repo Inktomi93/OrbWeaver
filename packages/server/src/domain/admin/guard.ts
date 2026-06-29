@@ -1,35 +1,82 @@
 // domain/admin/guard — THE `can()` GUARD SEAM (the unblocker the other domains inject; identity-auth-
-// permission §6, admin.md §"Resolved decisions Q1"). This is the ONE place a global role is compared:
-// `owner ⊇ admin` lives here and NOWHERE else (no scattered `role === 'admin'`/`'owner'` — spine #6).
+// permission §6, admin.md §"Resolved decisions Q1"). This is the ONE place a role/host is compared: `owner ⊇
+// admin` (global) and `role === 'host'` (chat resource-role) live HERE and NOWHERE else (no scattered
+// `role === 'admin'`/`'owner'` in the gating domains, no `role === 'host'` in chat — spine #6).
 //
-// PURE — no `Db`, no I/O. Authorization is re-evaluated PER CALL on the immutable `Principal` the caller
-// is handed; `role` was resolved ONCE at the entry seam and is fresh per request (sessions' job). The neo
-// `requireAdmin(db, userId, role?)` fast/slow-path duality COLLAPSES under the Principal model — the
-// principal already carries its role, so there is no `SELECT` and no caller-supplied-role to distrust
-// (spine §1). The decision is never cached back onto the Principal.
+// PURE — no `Db`, no I/O. The decision is made over the immutable `Principal` + the resource DATA the caller
+// passes in (global needs none; chat passes the {@link ChatRoster} it loaded — admin NEVER reads chat's db,
+// `domain-no-cross-feature`). Authorization is re-evaluated PER CALL; `role` was resolved ONCE at the entry
+// seam and is fresh per request (sessions' job). The decision is never cached back onto the Principal.
 
-import type { UserRole } from "@orb/contracts/identity";
+import type {
+  Can,
+  ChatAction,
+  ChatRoster,
+  GlobalAction,
+  Principal,
+  ResourceRef,
+  UserRole,
+} from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { Can, GlobalAction, RequireAdmin, RequireOwner } from "./contract/guard";
+import type { RequireAdmin, RequireOwner } from "./contract/guard";
 
-// The role set that satisfies each global action — the SOLE encoding of `owner ⊇ admin`. A mapped Record
-// over the action axis (exhaustive: a new `GlobalAction` member fails `tsc` here — no silently-ungated
-// action). `owner` satisfies BOTH actions (it is always an administrator, D17); `admin` satisfies only
-// `admin`; `user` satisfies neither.
+// The role set that satisfies each global action — the SOLE encoding of `owner ⊇ admin`. A mapped Record over
+// the action axis (exhaustive: a new `GlobalAction` member fails `tsc` here — no silently-ungated action).
+// `owner` satisfies BOTH actions (it is always an administrator, D17); `admin` satisfies only `admin`; `user`
+// satisfies neither.
 const ROLES_FOR_GLOBAL_ACTION = {
   admin: ["owner", "admin"],
   owner: ["owner"],
 } as const satisfies Record<GlobalAction, readonly UserRole[]>;
 
-export const can: Can = (principal, action, _resource) => {
-  // `_resource` is GLOBAL-only today (the sole `ResourceRef` arm) — it carries no data the global decision
-  // needs, so it is unread. The resource-role arms (chat/character, D18) extend `ResourceRef` and branch
-  // on `_resource.kind`; per the contract FLAG they promote to `@orb/contracts` at that point. The
-  // gate-relevant axis — `GlobalAction` → role set — IS exhaustively dispatched below (the `as const
-  // satisfies Record` makes a new action fail `tsc`).
-  const allowed: readonly UserRole[] = ROLES_FOR_GLOBAL_ACTION[action];
-  if (!allowed.includes(principal.role)) {
+/** The GLOBAL-scope decision (the global-role axis). Throws on deny. */
+function decideGlobal(principal: Principal, action: GlobalAction): void {
+  if (!ROLES_FOR_GLOBAL_ACTION[action].includes(principal.role)) {
     throw new DomainForbiddenError(`requires ${action} privilege`);
+  }
+}
+
+/** The CHAT-scope decision (the D18 resource-role axis) — a PURE verdict over the roster chat fed in (the
+ *  caller's resolved membership; admin reads NO chat db, takes no `principal` beyond it). Exhaustive over
+ *  `ChatAction`: a new action fails `tsc` at the `never`. */
+function decideChat(action: ChatAction, roster: ChatRoster): void {
+  switch (action) {
+    case "read":
+      // Present membership is established by chat's `loadMemberChat` BEFORE `can()` is reached (a non-member
+      // raises chat's leak-free not-found and never gets here). Any present member reads in v1 — this is the
+      // seam where a future `observer` participant kind will deny. So: allow.
+      return;
+    case "host":
+      if (roster.role !== "host") {
+        throw new DomainForbiddenError("requires the room host");
+      }
+      return;
+    default: {
+      const _exhaustive: never = action;
+      throw new DomainForbiddenError(`unsupported chat action: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+// The impl param types are the BROAD unions (the overloaded `Can` couples action↔resource-kind at every CALL
+// site, so the `as` re-narrowing below is sound — `tsc` has already proven the pairing). Exhaustive over
+// `resource.kind`: a new `ResourceRef` arm fails `tsc` at the `never` (born-compliant).
+export const can: Can = (
+  principal: Principal,
+  action: GlobalAction | ChatAction,
+  resource: ResourceRef,
+): void => {
+  switch (resource.kind) {
+    case "global":
+      decideGlobal(principal, action as GlobalAction);
+      return;
+    case "chat":
+      decideChat(action as ChatAction, resource.roster);
+      return;
+    default: {
+      const _exhaustive: never = resource;
+      throw new DomainForbiddenError(`unsupported resource: ${JSON.stringify(_exhaustive)}`);
+    }
   }
 };
 

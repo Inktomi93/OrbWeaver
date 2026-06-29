@@ -5,6 +5,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { can } from "@orb/server/domain/admin";
 import { beforeEach, describe, expect, test } from "vitest";
 import {
   ChatNotFoundError,
@@ -35,7 +36,9 @@ function principal(userId: UserId): Principal {
   };
 }
 
-const ctx = (): { db: Db } => ({ db });
+// The guard's deps: the real db + the REAL admin `can()` (PD-1 — the unified seam, injected as the root will
+// wire it; chat never imports admin in src, only the test composes them).
+const ctx = (): { db: Db; can: typeof can } => ({ db, can });
 
 describe("requireParticipant — present membership", () => {
   test("a present member loads (row + role returned)", async () => {
@@ -121,12 +124,12 @@ describe("requireAuthorOrHost — edit/delete", () => {
     ).resolves.toBeDefined();
   });
 
-  test("a member is refused a foreign slot", async () => {
+  test("a member is refused a foreign slot with not_author (PD-1: no longer collapsed onto not_host)", async () => {
     const err = await requireAuthorOrHost(ctx(), principal(member), chatId, host).catch(
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(ChatOperationError);
-    expect((err as ChatOperationError).code).toBe("not_host");
+    expect((err as ChatOperationError).code).toBe("not_author");
   });
 });
 
