@@ -141,6 +141,11 @@ export interface DigestStoreParams {
   readonly topicAnchor: string;
   /** The 15–30 distinctive retrieval keywords (`chat_digests.keywords`). */
   readonly keywords: readonly string[];
+  /** The characters this digest CONTAINS (knowledge-cluster.md §4) — persisted as the `chat_digest_speakers`
+   *  join so search/discovery find a character's moments ACROSS rooms regardless of the egocentric bucketing.
+   *  Distinct from `scopedCharacterId` (whose bucket this is): a merged-room digest is bucketed to the
+   *  synthetic group char but CONTAINS the real speakers. May be empty (a no-speaker block). */
+  readonly speakerCharacterIds: readonly CharacterId[];
   /** The staleness/collapse key, precomputed by memory (folds scope + speaker + seq-span, §1/§4). */
   readonly contentHash: string;
   readonly model: string;

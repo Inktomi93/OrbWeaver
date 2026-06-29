@@ -5,7 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
 
-const SHA256_HEX = /^[0-9a-f]{64}$/;
+const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 describe("contentHash", () => {
   test("is deterministic — identical content yields the identical hash", () => {
