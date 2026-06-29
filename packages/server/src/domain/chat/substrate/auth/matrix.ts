@@ -1,0 +1,158 @@
+// domain/chat/substrate/auth/matrix — THE typed per-verb authority matrix (chat.md Part III §11 + §12 inv
+// #12; spine §2a). The matrix is the SOURCE OF TRUTH for "what authority each chatId surface demands", and
+// it is DEFAULT-DENY: a chatId surface not classified here is denied.
+//
+// BORN-COMPLIANT: `CHAT_VERB_AUTHORITY` is typed `Record<keyof ChatService, …>`, so a NEW verb on the
+// `ChatService` interface fails `tsc` here until it is classified — no silently-ungated verb (the gate is
+// the type, not vigilance). Non-membership verbs (creation / cross-chat list / token-gated join / per-user
+// maintenance) carry the explicit `non-chat-scoped` marker (their gate is documented inline), so the
+// default-deny set is exactly the chatId-scoped surfaces.
+
+import type { ChatService } from "../../contract/service";
+
+// NOTE: the type aliases here are NON-exported (the `types-in-contract` gate homes exported feature types in
+// `contract/`, which this chunk does not own). Consumers key on the exported VALUE maps + literals; a caller
+// that needs the union derives it via `(typeof CHAT_VERB_AUTHORITY)[keyof typeof CHAT_VERB_AUTHORITY]`.
+
+/**
+ * The authority a chatId surface demands (chat.md §11) — declared ONCE as a tuple, the union derived (§7.5
+ * no-inline-union-redecl):
+ *  • `member`               — read / stream / post / run-a-turn (`requireParticipant`).
+ *  • `author-or-host`       — edit / delete a slot: the slot's author OR the host (`requireAuthorOrHost`).
+ *  • `host`                 — room config / roster / lifecycle mutation (`requireHost`).
+ *  • `member-card`          — read a roster character's card: member, field-clamped to `memberCardVisibility`
+ *                             (D22; see clamp.ts).
+ *  • `lineage-per-ancestor` — fork / export / corpus ancestry: gated INDEPENDENTLY per-ancestor (a fork
+ *                             grants NO parent membership).
+ *  • `turn-owner`           — abort an in-flight turn: the turn OWNER (member floor + the engine's
+ *                             active-turns match; NOT host — a host aborting a member's turn is the
+ *                             rollback-theft the contract defends against).
+ */
+export const CHAT_AUTHORITIES = [
+  "member",
+  "author-or-host",
+  "host",
+  "member-card",
+  "lineage-per-ancestor",
+  "turn-owner",
+] as const;
+type ChatAuthority = (typeof CHAT_AUTHORITIES)[number];
+
+/** A verb whose gate is NOT the chatId-membership matrix (it takes no single-chat membership). The marker is
+ *  explicit so the default-deny set is unambiguous; the real gate is named in the matrix comment. */
+type NonChatScoped = "non-chat-scoped";
+type VerbAuthority = ChatAuthority | NonChatScoped;
+
+/**
+ * Every `ChatService` verb → its required authority (derived from chat.md Part III §11, the spine §2a table,
+ * and the per-verb contract notes). `satisfies Record<keyof ChatService, …>` makes this exhaustive.
+ */
+export const CHAT_VERB_AUTHORITY = {
+  // ── reads / lifecycle ──
+  startChat: "non-chat-scoped", // creation: MINTS the caller's host membership (authedProcedure + AUTH_MODE gate)
+  listChats: "non-chat-scoped", // cross-chat: pure-membership list (each row already membership-filtered in the query)
+  listForks: "member", // the parent chatId — a member may list its forks (children filtered to the caller's own memberships)
+  getChatLineage: "lineage-per-ancestor", // the ancestry chain — each ancestor gated independently (inv §16)
+  getChat: "member",
+  previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface (chat.md §9/§11)
+  getActivePresetConfig: "member",
+  previewSection: "member",
+  peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
+  listMessages: "member",
+  listParticipants: "member",
+  replayStreamEvents: "member", // the SSE replay/subscribe surface (inv §12)
+  streamEventBounds: "member",
+  // ── turn-running (run the turn = member; the turn RUNS AS the host via the runAsUserId triple) ──
+  send: "member",
+  swipe: "member",
+  impersonate: "member",
+  generate: "member",
+  simpleSend: "member",
+  continueTurn: "member",
+  undoContinue: "member",
+  revertContinue: "member",
+  forceCharacterTurn: "host", // chat.md §11: host-only
+  compact: "host", // rewrites the canon checkpoint substrate (room-wide) — host
+  abort: "turn-owner", // turn-owner only (rollback-theft defense) — member floor + engine active-turns match
+  // ── canon edits (edit/delete a slot → author-or-host; reorder/reattribute → host) ──
+  selectVariant: "author-or-host",
+  editMessage: "author-or-host",
+  setMessageHidden: "author-or-host",
+  deleteMessages: "author-or-host",
+  editReasoning: "author-or-host",
+  clearReasoning: "author-or-host",
+  moveMessage: "host", // re-stamps canon ORDER (the §11 "reorder" host-only entry)
+  duplicateMessage: "author-or-host",
+  forkChat: "member", // a member may fork the source; the fork is a new chat where the forker is host (inv §16)
+  // ── injections (room-wide prompt content — write is a one-shot room jailbreak surface → host; read → member) ──
+  setChatInjection: "host",
+  listChatInjections: "member",
+  deleteChatInjection: "host",
+  // ── variables (ChoiceBlock gameplay state — interactive play, shared story state → member) ──
+  getVariables: "member",
+  getStoredVariables: "member",
+  setVariables: "member",
+  clearVariables: "member",
+  // ── chat-row ──
+  delete: "host", // chat.md §11/contract: host-only
+  reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats
+  updateTitle: "host", // shared chats-row config (no per-participant column exists today) — see FLAG
+  star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
+  archive: "host", // archiving removes the room from every member's active list — host
+  reattributeMessages: "host", // chat.md §11: host-only (self-heal hash-diff re-attribution)
+  // ── group / roster (all host-only per chat.md §11) ──
+  setGroupConfig: "host",
+  addCharacterToChat: "host",
+  setRoomOverrides: "host",
+  getGroupConfigForChat: "member", // read the effective room config (it affects the member)
+  getRoomOverridesForChat: "member",
+  setParticipantDisabled: "host",
+  setParticipantTalkativeness: "host",
+  // ── invites ──
+  createInvite: "host",
+  previewInvite: "non-chat-scoped", // token-authenticated, PRE-membership (the accept = preview-then-confirm flow)
+  redeemInvite: "non-chat-scoped", // the join chokepoint: token-gated, PRE-membership (role server-forced `member`)
+  revokeInvite: "host",
+  declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
+  // ── membership lifecycle ──
+  kick: "host", // chat.md §11: host-only
+  selfLeave: "member", // self: you must be a present member to leave your own membership
+  nominateHostHandoff: "host", // chat.md §11: host-only (step 1)
+  acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination
+} as const satisfies Record<keyof ChatService, VerbAuthority>;
+
+/** The non-VERB chatId surfaces inv §12 names explicitly (the membership chokepoint covers these too). */
+export const CHAT_NONVERB_SURFACES = [
+  "sse-subscribe", // a kicked member's stream stops yielding within the kick tx
+  "bus-delivery", // room-public bus events reach members only
+  "lineage-walk", // fork/export/corpus ancestry walkers — gated per-ancestor
+  "roster-card-read", // a roster character's card (D22 level-clamped)
+  "anchor-reassignment", // reassign the chat anchor persona — host (chat.md §11)
+  "chat-injection-write", // write a positional chat_injection — host (room-wide prompt content)
+] as const;
+type ChatNonVerbSurface = (typeof CHAT_NONVERB_SURFACES)[number];
+
+/** The non-verb surfaces → authority (chat.md §11/§12). */
+export const CHAT_SURFACE_AUTHORITY = {
+  "sse-subscribe": "member",
+  "bus-delivery": "member",
+  "lineage-walk": "lineage-per-ancestor",
+  "roster-card-read": "member-card",
+  "anchor-reassignment": "host",
+  "chat-injection-write": "host",
+} as const satisfies Record<ChatNonVerbSurface, ChatAuthority>;
+
+/** The default-deny verdict for an UNLISTED chatId surface (inv §12: unlisted ⇒ deny). */
+export const DENY = "deny" as const;
+
+/**
+ * Classify a non-verb chatId surface, DEFAULT-DENY: an unrecognized surface string returns {@link DENY}
+ * (inv §12 — "an unlisted chatId surface defaults to deny"). The verb surface is exhaustively typed
+ * (`CHAT_VERB_AUTHORITY` over `keyof ChatService`), so default-deny is the runtime guard for the non-verb
+ * surfaces (SSE/bus/lineage/anchor/…) that arrive as strings, not method names.
+ */
+export function authorityForSurface(surface: string): ChatAuthority | typeof DENY {
+  return surface in CHAT_SURFACE_AUTHORITY
+    ? CHAT_SURFACE_AUTHORITY[surface as ChatNonVerbSurface]
+    : DENY;
+}
