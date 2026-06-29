@@ -8,9 +8,10 @@
 // `substrate/` (zero-I/O). Feature-root files are exempt from the substrate-below-verbs / subsystem-seam
 // rules, and a domain root file may reach `persistence/` + `substrate/` directly.
 //
-// PD-1: the DECISION lives in `substrate/auth/decide` (the swap point — see that file). This guard only
-// LOADS + delegates; when PD-1 promotes `can()` to a `{kind:'chat', roster}` arm, the deciders' bodies swap
-// and this guard is unchanged.
+// PD-1 — RESOLVED: the DECISION routes through the injected `can()` seam (`substrate/auth/decide`). This guard
+// LOADS the caller's membership (`loadMemberChat` — chat's own data) and feeds the roster to `ctx.can`; the
+// `role === 'host'` verdict lives in admin's `can()`, never here (spine #6). `can` is injected on `ChatContext`
+// (wired at the entry composition root) — chat NEVER imports admin (`domain-no-cross-feature`).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
@@ -18,8 +19,8 @@ import type { ChatContext } from "./contract/context";
 import { loadMemberChat } from "./persistence/queries";
 import { assertAuthorOrHost, assertHost, assertParticipant } from "./substrate/auth";
 
-/** The DB read the chokepoint needs (the loaded chat row + the caller's resource role). */
-type GuardCtx = Pick<ChatContext, "db">;
+/** The chokepoint's deps: the DB read (`loadMemberChat`) + the injected `can()` decision seam. */
+type GuardCtx = Pick<ChatContext, "db" | "can">;
 
 /** The loaded present-membership (the `loadMemberChat` hit) — the chat row + the caller's `host|member`
  *  role. Reuses the persistence query's inferred return (the `provision-identity` `ExistingUser` pattern);
@@ -36,7 +37,14 @@ export async function requireParticipant(
   principal: Principal,
   chatId: ChatId,
 ): Promise<MemberChat> {
-  return assertParticipant(await loadMemberChat(ctx.db, chatId, principal.userId), chatId);
+  const membership = assertParticipant(
+    await loadMemberChat(ctx.db, chatId, principal.userId),
+    chatId,
+  );
+  // Route the read-floor through the ONE seam (spine §6). A present member always reads in v1 — this is the
+  // seam where a future `observer` participant kind denies; the verdict lives in `can()`, never here.
+  ctx.can(principal, "read", { kind: "chat", roster: { role: membership.role } });
+  return membership;
 }
 
 /**
@@ -50,7 +58,7 @@ export async function requireHost(
   chatId: ChatId,
 ): Promise<MemberChat> {
   const membership = await requireParticipant(ctx, principal, chatId);
-  assertHost(membership.role, chatId);
+  assertHost(ctx.can, principal, membership.role, chatId);
   return membership;
 }
 
@@ -66,10 +74,7 @@ export async function requireAuthorOrHost(
   authorUserId: Principal["userId"] | null,
 ): Promise<MemberChat> {
   const membership = await requireParticipant(ctx, principal, chatId);
-  assertAuthorOrHost(
-    { role: membership.role, principalUserId: principal.userId, authorUserId },
-    chatId,
-  );
+  assertAuthorOrHost(ctx.can, { principal, role: membership.role, authorUserId }, chatId);
   return membership;
 }
 

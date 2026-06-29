@@ -27,6 +27,12 @@ export const CHAT_OP_CODES = {
   /** A host-only verb (roster mutation, group-config, room-overrides, force-character, kick, delete-chat,
    *  invites, handoff, anchor-reassignment, memberCardVisibility) called by a non-host member. */
   notHost: "not_host",
+  /** An edit/delete-a-slot verb (`author-or-host`, chat.md §11) called by a member who is neither the slot's
+   *  `authorUserId` nor the room host — a known-existence authority refusal (the caller IS a member). */
+  notAuthor: "not_author",
+  /** An abort called by a member who does not own the in-flight turn (`turn-owner`, chat.md §11 — the
+   *  rollback-theft defense; a host aborting a member's turn is refused). */
+  notTurnOwner: "not_turn_owner",
   /** A turn was requested while the per-chat turn lock is held (a turn is already in flight). */
   locked: "locked",
   /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. */

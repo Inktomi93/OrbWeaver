@@ -21,6 +21,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
+import type { Can } from "@orb/contracts/identity";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
@@ -158,6 +159,10 @@ export type GetRoomOverridesOp = (rawMetadata: unknown) => RoomOverrides;
 export interface ChatContext {
   readonly db: Db;
   readonly now: () => number;
+  // ── the privilege-decision seam (PD-1) — admin's `can()` injected DOWN; chat NEVER imports admin. The
+  //    guard/deciders route every chat-authority verdict through this (`can(principal, 'read'|'host',
+  //    {kind:'chat', roster})`); the only role/host comparison is INSIDE `can()` (spine #6). ──
+  readonly can: Can;
   // ── id minters (the in-scope chat tables this slice's verbs create) ──
   readonly newChatId: () => ChatId;
   readonly newMessageId: () => MessageId;

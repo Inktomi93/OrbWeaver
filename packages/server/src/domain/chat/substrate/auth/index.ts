@@ -11,7 +11,6 @@ export {
   assertAuthorOrHost,
   assertHost,
   assertParticipant,
-  isHost,
 } from "./decide";
 export {
   authorityForSurface,

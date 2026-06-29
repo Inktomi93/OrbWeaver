@@ -8,10 +8,11 @@
 //     them sideways (domain-no-cross-feature) — it declares the injected dep with the op TYPES (the
 //     type-only cross-feature edge is sanctioned) and receives the runtime op at the root.
 
-// The privilege union (canonical home is @orb/contracts; re-exported for ergonomics).
-export type { UserRole } from "@orb/contracts/identity";
-// The guard seam — the op types the gating domains inject (type-only) at the composition root.
-export type { Can, GlobalAction, RequireAdmin, RequireOwner, ResourceRef } from "./contract/guard";
+// The privilege union + the `can()` seam types (canonical home @orb/contracts/identity since PD-1 — the seam
+// types are cross-boundary; chat feeds the `{kind:'chat',roster}` arm). Re-exported for ergonomics.
+export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
+// The GLOBAL-role wrapper op types the gating domains inject (type-only) at the composition root.
+export type { RequireAdmin, RequireOwner } from "./contract/guard";
 // Service contract (client consumes AdminUserView via tRPC service-method-signature inference).
 export type { AdminService } from "./contract/service";
 export type { AdminUserView } from "./contract/views";
