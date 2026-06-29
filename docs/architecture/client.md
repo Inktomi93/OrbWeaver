@@ -174,7 +174,12 @@ packages/client/
       auth/ character/ chat/ corpus/ credentials/ persona/ preset/ prompt-manager/ settings/ tag/ user-admin/ workloads/ world-info/
         <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
                         #     components/ (leaf) · hooks/ (trpc.* reads via useGatedQuery; createEntityMutation calls) · lib/ · index.ts }
-    lib/                # cross-cutting display/util seams left after elevation: message-render · time (seeded) · cn re-export · download-json · notify
+    lib/                # cross-cutting display/util seams left after elevation: message-render · time · cn re-export · download-json · notify
+      time.ts           #   THE date/time seam (carry neo's pipeline): server sends **epoch-UTC numbers**; client
+                        #     formats to the **browser-local tz** via memoized `Intl.DateTimeFormat`/`RelativeTimeFormat`
+                        #     (Intl defaults to the browser tz+locale); `now` is INJECTED (determinism §11.5 — no
+                        #     `new Date()`/`Date.now()` in render). Never store/send formatted dates or a tz; the
+                        #     wire is always a UTC epoch number, localization happens ONCE here at the display edge.
     styles/ globals.css · testIds.ts (typed registry, §11.5) · vite-env.d.ts
 ```
 - **Why not FSD:** `@orb/ui` already IS the shared-component layer, so FSD's `shared/ui` is redundant; the
@@ -683,7 +688,14 @@ enumeration, the **unlayered** reduced-motion floor, per-theme `color-scheme`).
 - **Determinism reaches the client.** Extend the server's `no Date.now()/new Date()/Math.random()` rule to
   client render + optimistic code (seeded PRNG allowed — neo already does `mulberry32` for sort). neo has
   live `Date.now()` in optimistic merges (`revokedAt: Date.now()`) and a `fmtSince` formatter that can't be
-  snapshot-tested.
+  snapshot-tested. **The timezone pipeline (carry neo's — it was solid):** the wire is ALWAYS a **UTC epoch
+  number** (server stamps via its injected clock; no tz, no formatted strings ever cross the wire);
+  localization to the **browser-local tz** happens exactly ONCE, at the display edge, in the sealed
+  `lib/time.ts` seam via **memoized `Intl.DateTimeFormat`/`Intl.RelativeTimeFormat`** (Intl defaults to the
+  browser tz+locale — no tz lib needed, §formatters/D54). `now` is **injected** into that seam (not read from
+  `Date.now()`), so relative-time (`"2h ago"`) is snapshot-testable — the fix for neo's un-testable `fmtSince`.
+  *Gate: `client-determinism` already bans `Date.now()`/`new Date()` in render; the `time.ts` seam is the ONE
+  sanctioned `Intl` site, fed the injected `now`.*
 - **`castId<X>("")` empty-id sentinel → `skipToken`.** The fake branded id paired with `enabled:` appears
   ~10× as the disabled-query input; if the `enabled` guard is ever dropped the empty id hits the server. A
   `useGatedQuery(id, optsFn)` that refuses to build the key when `id` is null removes the sentinel entirely.
