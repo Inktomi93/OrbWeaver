@@ -224,6 +224,7 @@ CREATE TABLE `chats` (
 	`title` text,
 	`star` integer DEFAULT false NOT NULL,
 	`archived` integer DEFAULT false NOT NULL,
+	`pending_host_user_id` text,
 	`anchor_persona_id` text,
 	`parent_chat_id` text,
 	`forked_at` integer,
@@ -235,6 +236,7 @@ CREATE TABLE `chats` (
 	`import_hash` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`pending_host_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`anchor_persona_id`) REFERENCES `personas`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`parent_chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null
 );

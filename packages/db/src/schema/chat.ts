@@ -89,8 +89,8 @@ function checkList(values: readonly string[]): string {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chats — the membership-scoped room (D18: NO ownerId). The host participant is the authority. Carries the
-// stable `{{user}}` anchor, the fork lineage pointer, the portable compaction checkpoint (D25), and the
-// lazy-parsed room-behavior `metadata` blob.
+// stable `{{user}}` anchor, the fork lineage pointer, the portable compaction checkpoint (D25), the pending
+// host-handoff nominee (Part III §2), and the lazy-parsed room-behavior `metadata` blob.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The chat-room behavior blob (chat.md Part I §metadata + Part III §9). No single contract type spans all
@@ -114,6 +114,13 @@ export const chats = sqliteTable(
     // D18: NO `ownerId`. Membership (`chat_participants`) is the scope; the host is the authority.
     star: integer("star", { mode: "boolean" }).notNull().default(false),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    // Two-party host handoff (Part III §2): the PENDING nominee, carried between `nominateHostHandoff` (the
+    // host sets it) and `acceptHostHandoff` (the nominee — and ONLY the nominee — clears it on the atomic
+    // role swap). One pending nomination per chat (a re-nominate overwrites). Null = no pending handoff.
+    // SET NULL on user delete: a deleted nominee just clears the nomination, never deletes the chat (D18).
+    pendingHostUserId: text("pending_host_user_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "set null" }),
     // The stable `{{user}}` POV for card-authored sections (renamed from `pinnedPersonaId`). A persona
     // delete nulls the anchor (SET NULL) — it must NOT delete the chat.
     anchorPersonaId: text("anchor_persona_id")

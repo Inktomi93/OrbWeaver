@@ -13,7 +13,10 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test } from "vitest";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
+import {
+  ChatNotFoundError,
+  ChatOperationError,
+} from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
@@ -234,5 +237,155 @@ describe("selfLeave — a sole-host self-leave archives the room", () => {
     expect(row?.archived).toBe(true);
     const [p] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
     expect(p?.leftSeq).not.toBeNull();
+  });
+});
+
+describe("nominateHostHandoff — host nominates a present member (step 1)", () => {
+  test("the host nominates a member: pendingHostUserId is set + the nominee is notified", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, {
+        emitNotification: (e) => {
+          notes.push(e);
+          return Promise.resolve();
+        },
+      }),
+      { emit },
+    );
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.pendingHostUserId).toBe(member);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+    expect(notes).toEqual([{ type: "handoff-nominated", recipientUserId: member, chatId }]);
+  });
+
+  test("a plain member nominating is refused with not_host (no nomination written)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const other = await seedUser(db, "other");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      .nominateHostHandoff({ principal: principal(member), chatId, userId: other })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.pendingHostUserId).toBeNull();
+    expect(emitted).toEqual([]);
+  });
+
+  test("nominating a non-member is rejected leak-free (not found); no nomination written", async () => {
+    const host = await seedUser(db, "host");
+    const stranger = await seedUser(db, "stranger");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      .nominateHostHandoff({ principal: principal(host), chatId, userId: stranger })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatNotFoundError);
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.pendingHostUserId).toBeNull();
+    expect(emitted).toEqual([]);
+  });
+});
+
+describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
+  test("the nominee accepts: roles swap, the nomination clears, the old host is notified", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, {
+        emitNotification: (e) => {
+          notes.push(e);
+          return Promise.resolve();
+        },
+      }),
+      { emit },
+    );
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    emitted.length = 0;
+    notes.length = 0;
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.chatId, chatId));
+    expect(rows.find((r) => r.userId === host)?.role).toBe("member");
+    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.pendingHostUserId).toBeNull();
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+    expect(notes).toEqual([
+      {
+        type: "handoff-accepted",
+        recipientUserId: host,
+        chatId,
+        newHostHandle: principal(member).handle,
+      },
+    ]);
+  });
+
+  test("a non-nominee accept is refused with not_turn_owner (the self-promotion hole stays closed)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const attacker = await seedUser(db, "attacker");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "x", userId: attacker, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    emitted.length = 0;
+
+    const err = await roster
+      .acceptHostHandoff({ principal: principal(attacker), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_turn_owner");
+    // Roles untouched; the nomination still stands for the real nominee; nothing emitted.
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.chatId, chatId));
+    expect(rows.find((r) => r.userId === host)?.role).toBe("host");
+    expect(rows.find((r) => r.userId === attacker)?.role).toBe("member");
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.pendingHostUserId).toBe(member);
+    expect(emitted).toEqual([]);
+  });
+
+  test("accept with no pending nomination is refused with not_turn_owner", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      .acceptHostHandoff({ principal: principal(member), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_turn_owner");
   });
 });

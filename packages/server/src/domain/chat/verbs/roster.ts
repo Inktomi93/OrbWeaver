@@ -18,11 +18,21 @@
 // FLAG[participant-not-found]: there is no `participant_not_found`/`target_not_member` code in `CHAT_OP_CODES`;
 // the disable/talkativeness verbs map a missing roster target to `ChatNotFoundError` (→ NOT_FOUND) — the
 // closest leak-free typed error. A dedicated code would tidy the message.
-// FLAG[handoff]: `nominateHostHandoff`/`acceptHostHandoff` are NOT built — the two-party handoff needs a
-// PERSISTED nomination (a `chat_participants.nominatedHostUserId` column or a `chat_host_nominations` table)
-// to carry the pending nomination between the two verbs so `acceptHostHandoff` can SECURELY verify the caller
-// was nominated. No such storage exists in the schema (chunk db/contracts owns it), and an accept that cannot
-// verify the nomination is a self-promotion hole — so it is flagged, not stubbed.
+// HOST HANDOFF (PD-60 — Part III §2; the two-party "nominate → notify → nominee accepts" flow). The pending
+// nomination is persisted on `chats.pendingHostUserId` (the schema seam this chunk added), carried between the
+// two verbs so `acceptHostHandoff` can SECURELY verify the caller was nominated (no storage = a self-promotion
+// hole — chunk 5's correct refusal to stub). `nominateHostHandoff` = host-only (`requireHost`); the nominee
+// must be a PRESENT non-host member. `acceptHostHandoff` = the nominee's un-spoofable SELF-action
+// (`requireParticipant` + `principal.userId === chats.pendingHostUserId` — a verb-level check on the nomination
+// record, NOT a host check; chunk-3 matrix). Doc §2 is silent on two cases → security-conservative + FLAGGED:
+//   • FLAG[handoff-nominee]: a nominee who is not a present non-host member (incl. a host self-nominating —
+//     their row is `role='host'`, not a member) → `ChatNotFoundError` (NOT_FOUND), matching this file's
+//     existing `participant-not-found` precedent. No `invalid_nominee` code exists + `contract/errors.ts` is
+//     out of this chunk's scope (can't add one).
+//   • FLAG[handoff-accept-code]: a non-nominee accept is refused with `CHAT_OP_CODES.not_turn_owner` — the
+//     closest existing "you don't own this pending action" code (a dedicated `not_nominee` would be tidier,
+//     but the code set is in `contract/errors.ts`, out of scope). This is the belt that keeps the
+//     self-promotion hole CLOSED: only the exact nominee can accept.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
@@ -44,10 +54,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
+  AcceptHostHandoffParams,
   AddCharacterToChatParams,
   GetGroupConfigForChatParams,
   GetRoomOverridesForChatParams,
   KickParticipantParams,
+  NominateHostHandoffParams,
   SelfLeaveParams,
   SetGroupConfigParams,
   SetParticipantDisabledParams,
@@ -57,11 +69,14 @@ import type {
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
+  acceptHostHandoffSwap,
   assertForcedCharacterMember,
   insertParticipants,
   markUserLeft,
+  setPendingHost,
 } from "../persistence/participant";
-import { loadMaxMessageSeq } from "../persistence/queries";
+import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
+import { loadRoster } from "../persistence/roster";
 
 /** The emit op the mutating roster verbs close over (inlined — see the file header `types-in-contract` note). */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
@@ -84,6 +99,8 @@ type RosterVerbs = Pick<
   | "getRoomOverridesForChat"
   | "kick"
   | "selfLeave"
+  | "nominateHostHandoff"
+  | "acceptHostHandoff"
 >;
 
 /**
@@ -103,6 +120,8 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setParticipantTalkativeness: createSetParticipantTalkativeness(ctx, emit),
     kick: createKick(ctx, emit),
     selfLeave: createSelfLeave(ctx, emit),
+    nominateHostHandoff: createNominateHostHandoff(ctx, emit),
+    acceptHostHandoff: createAcceptHostHandoff(ctx, emit),
   };
 }
 
@@ -348,5 +367,72 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
       await ctx.db.update(chats).set({ archived: true, updatedAt: at }).where(eq(chats.id, chatId));
     }
     await emit({ type: "chatUpdated", chatId });
+  };
+}
+
+// ── host handoff (two-party: nominate host-only; accept = the nominee self-action — Part III §2) ─────────
+
+/** `nominateHostHandoff` — host-only, step 1 (Part III §2). Persist the pending nominee on
+ *  `chats.pendingHostUserId` (carried to the nominee's accept), emit `chatUpdated`, and notify the nominee
+ *  ("you've been nominated as host"). The nominee MUST be a PRESENT non-host member — a non-member / a host
+ *  self-nomination collapses to a leak-free `ChatNotFoundError` (FLAG[handoff-nominee], file header). No role
+ *  swap happens here; only the nominee's accept promotes (the un-spoofable self-action). */
+function createNominateHostHandoff(
+  ctx: ChatContext,
+  emit: EmitChatEvent,
+): ChatService["nominateHostHandoff"] {
+  return async ({ principal, chatId, userId }: NominateHostHandoffParams): Promise<void> => {
+    await requireHost(ctx, principal, chatId);
+    const roster = await loadRoster(ctx.db, chatId);
+    const nominee = roster.find((p) => p.userId === userId);
+    if (nominee === undefined || nominee.role === "host") {
+      // Not a present non-host member (a host self-nominating lands here — their row is role 'host').
+      throw new ChatNotFoundError(chatId);
+    }
+    await setPendingHost(ctx.db, chatId, userId, ctx.now());
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId });
+  };
+}
+
+/** `acceptHostHandoff` — step 2: the nominee accepts (a SELF-action — Part III §2). Gate present-membership
+ *  (`requireParticipant`), then the verb-level self-action check: the caller MUST equal
+ *  `chats.pendingHostUserId` (else `not_turn_owner` — FLAG[handoff-accept-code]; this is the belt that keeps
+ *  the self-promotion hole closed). On pass, atomically swap roles (old host → member, caller → host) + clear
+ *  the nomination, emit `chatUpdated`, and notify the previous host of the swap. */
+function createAcceptHostHandoff(
+  ctx: ChatContext,
+  emit: EmitChatEvent,
+): ChatService["acceptHostHandoff"] {
+  return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
+    await requireParticipant(ctx, principal, chatId);
+    const pending = await loadPendingHostUserId(ctx.db, chatId);
+    if (pending === null || pending !== principal.userId) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.notTurnOwner,
+        `chat ${chatId}: only the nominated member may accept the host handoff`,
+      );
+    }
+    // The previous host (for the post-swap notification) — may be absent if they left after nominating.
+    const roster = await loadRoster(ctx.db, chatId);
+    const oldHost = roster.find((p) => p.role === "host" && p.userId !== null);
+    await acceptHostHandoffSwap(ctx.db, {
+      chatId,
+      nomineeUserId: principal.userId,
+      now: ctx.now(),
+    });
+    await emit({ type: "chatUpdated", chatId });
+    if (
+      oldHost?.userId !== undefined &&
+      oldHost.userId !== null &&
+      oldHost.userId !== principal.userId
+    ) {
+      await ctx.emitNotification({
+        type: "handoff-accepted",
+        recipientUserId: oldHost.userId,
+        chatId,
+        newHostHandle: principal.handle,
+      });
+    }
   };
 }

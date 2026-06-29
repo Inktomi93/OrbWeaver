@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a342fe1e-9ddd-44e8-9415-1b4cd0d3d102",
+  "id": "523d2896-3690-4ba0-9e9c-c31a0c0691e9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1454,6 +1454,13 @@
           "autoincrement": false,
           "default": false
         },
+        "pending_host_user_id": {
+          "name": "pending_host_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "anchor_persona_id": {
           "name": "anchor_persona_id",
           "type": "text",
@@ -1542,6 +1549,15 @@
         }
       },
       "foreignKeys": {
+        "chats_pending_host_user_id_users_id_fk": {
+          "name": "chats_pending_host_user_id_users_id_fk",
+          "tableFrom": "chats",
+          "tableTo": "users",
+          "columnsFrom": ["pending_host_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "chats_anchor_persona_id_personas_id_fk": {
           "name": "chats_anchor_persona_id_personas_id_fk",
           "tableFrom": "chats",

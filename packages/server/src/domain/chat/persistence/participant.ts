@@ -14,7 +14,8 @@
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
@@ -182,8 +183,9 @@ export async function markParticipantLeft(
   return rows.at(0);
 }
 
-/** Set a participant's `role` (the host-handoff atomic swap — Part III §2; the verb batches the old-host
- *  demotion + the nominee promotion). Returns the updated row, or `undefined` if the id is unknown. */
+/** Set a participant's `role` by id (a single-row role write; e.g. a targeted promotion/demotion). Returns
+ *  the updated row, or `undefined` if the id is unknown. The host-handoff ACCEPT uses the atomic
+ *  {@link acceptHostHandoffSwap} instead (it must demote + promote + clear the nomination in ONE batch). */
 export async function setParticipantRole(
   db: Db,
   participantId: ChatParticipantId,
@@ -195,4 +197,60 @@ export async function setParticipantRole(
     .where(eq(chatParticipants.id, participantId))
     .returning();
   return rows.at(0);
+}
+
+/** Set the pending host-handoff nominee (`nominateHostHandoff`, step 1 — Part III §2). A single
+ *  `chats.pendingHostUserId` write; a re-nominate overwrites the prior pending nominee. `now` stamps
+ *  `updatedAt` (the injected clock — determinism). The verb gates host-authority + nominee-presence first. */
+export async function setPendingHost(
+  db: Db,
+  chatId: ChatId,
+  nomineeUserId: UserId,
+  now: number,
+): Promise<void> {
+  await db
+    .update(chats)
+    .set({ pendingHostUserId: nomineeUserId, updatedAt: now })
+    .where(eq(chats.id, chatId));
+}
+
+/**
+ * The ATOMIC host-handoff accept (`acceptHostHandoff`, step 2 — Part III §2): ONE `db.batch` that demotes the
+ * present host → `member`, promotes the nominee → `host`, and clears the chat's pending nomination. The
+ * demotion is WHERE-`role='host'` (robust to 0 rows — the prior host may have left after nominating, leaving a
+ * hostless room) and the promotion targets the nominee's PRESENT row by `userId`. The caller MUST verify the
+ * caller IS the pending nominee BEFORE calling (the un-spoofable self-action check — the self-promotion belt).
+ */
+export async function acceptHostHandoffSwap(
+  db: Db,
+  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
+): Promise<void> {
+  await db.batch(
+    batchMany([
+      db
+        .update(chatParticipants)
+        .set({ role: "member" })
+        .where(
+          and(
+            eq(chatParticipants.chatId, params.chatId),
+            eq(chatParticipants.role, "host"),
+            isNull(chatParticipants.leftSeq),
+          ),
+        ),
+      db
+        .update(chatParticipants)
+        .set({ role: "host" })
+        .where(
+          and(
+            eq(chatParticipants.chatId, params.chatId),
+            eq(chatParticipants.userId, params.nomineeUserId),
+            isNull(chatParticipants.leftSeq),
+          ),
+        ),
+      db
+        .update(chats)
+        .set({ pendingHostUserId: null, updatedAt: params.now })
+        .where(eq(chats.id, params.chatId)),
+    ]),
+  );
 }
