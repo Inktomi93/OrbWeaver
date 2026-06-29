@@ -14,6 +14,13 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ChatInjection } from "@orb/contracts/chat";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
+// The REAL orbweaver SHAPE substrate (Phase 5 chunk 7). Relative-imported because SHAPE is an internal
+// assembly file, not a chat front-door surface (the same pattern the chat substrate tests use).
+import { shape } from "../../packages/server/src/domain/chat/assembly/shape";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PARITY_DIR = join(HERE, "fixtures", "parity");
@@ -112,10 +119,50 @@ export const UNSKIP_WHEN =
  * Until assembly lands this throws — the test is `describe.skip`'d, so it never runs. When you wire
  * it, import orbweaver's shaper and map case → its inputs here, then unskip the test.
  */
-export function runOrbweaverShape(_case: ShapeCase): ShapeResult {
-  throw new Error(
-    `[oracle] runOrbweaverShape is not wired — orbweaver chat assembly does not exist yet. ${UNSKIP_WHEN}`,
-  );
+export function runOrbweaverShape(c: ShapeCase): ShapeResult {
+  const out = shape({
+    // Preserve EXACT key presence from the fixture (a user row carries authorName but NO characterId;
+    // an assistant row carries both). `toEqual` treats an explicit `null` as a real property — so a
+    // synthesized `characterId: null` would diverge from neo's absent key. castId is a runtime no-op.
+    canon: c.canon.map((m) => ({
+      role: m.role,
+      content: m.content,
+      ...(m.authorName !== undefined ? { authorName: m.authorName } : {}),
+      ...(m.characterId !== undefined && m.characterId !== null
+        ? { characterId: castId<CharacterId>(m.characterId) }
+        : {}),
+    })),
+    appendUserTurn: c.appendUserTurn,
+    injections: c.injections.map(
+      (i): ChatInjection => ({
+        position: i.position as ChatInjection["position"],
+        depth: i.depth,
+        role: i.role as MessageRole,
+        content: i.content,
+        ...(i.order !== undefined ? { order: i.order } : {}),
+      }),
+    ),
+    output: c.groupConfig.output,
+    cardScope: c.groupConfig.cardScope,
+    scopedTargetId: c.scopedTargetId !== null ? castId<CharacterId>(c.scopedTargetId) : null,
+    namesBehavior: c.namesBehavior,
+    speakers: c.speakers,
+    groupNudge: c.groupNudge,
+  });
+  const offset = out.cacheBreakpointFromEnd;
+  // The runner's placement = history.length-1-offset; the engine's bounds check (targetIdx >=
+  // history.length) discards an out-of-range tag. Derived here exactly as the neo capture derived it.
+  const targetIdx = offset === undefined ? null : out.history.length - 1 - offset;
+  return {
+    multiCharacter: out.stages.multiCharacter,
+    withTail: out.stages.withTail,
+    injected: out.stages.injected,
+    squashed: out.stages.squashed,
+    named: out.stages.named,
+    history: out.history,
+    cacheBreakpointFromEnd: offset ?? null,
+    targetIdx,
+  };
 }
 
 /**

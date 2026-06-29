@@ -102,11 +102,22 @@ describe("oracle reference integrity (no orbweaver assembly needed)", () => {
   });
 });
 
-// ── Tier 2: orbweaver SHAPE vs the neo reference — SKIPPED until assembly lands ────────────────────
-// CHECKLIST §C1: "describe.skip ... NOT a failing assertion". Unskip at Phase 5 step 2 (see UNSKIP_WHEN).
-// biome-ignore lint/suspicious/noSkippedTests: intentional — the oracle is RED/skipped until chat assembly lands.
-describe.skip(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
-  for (const c of fixture.cases) {
+// ── Tier 2: orbweaver SHAPE vs the neo reference — LIVE (assembly landed, Phase 5 chunk 7) ────────
+// CHECKLIST §C1. Unskipped now that `runOrbweaverShape` is wired to the real SHAPE substrate
+// (packages/server/src/domain/chat/assembly/shape.ts). Byte-matches neo on the 10 SHAPE cases, with ONE
+// documented deliberate divergence (the FLAG[neo-quirk] scoped prefix-collapse — see below).
+//
+// FLAG[neo-quirk] — `scoped-egocentric-history`: neo returns a DEGENERATE `cacheBreakpointFromEnd:-1`
+// (the egocentric fold collapses the stable prefix under squash, violating the single-volatile-tail
+// invariant the offset math assumes) which the runner then SILENTLY DISCARDS (targetIdx 3 ≥
+// history.length 3). chat.md §8 + Part III §12 inv 7 mandate orbweaver return `undefined` there — the
+// CORRECT "no safe breakpoint", same downstream effect as neo's discard. So for that ONE case we assert
+// byte-parity on the SHAPE STAGES (identical) but the DELIBERATE breakpoint divergence (orb undefined
+// vs neo's discarded -1), not raw equality. Every other case is full byte-parity.
+const NEO_QUIRK_DIVERGENT = "scoped-egocentric-history";
+
+describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
+  for (const c of fixture.cases.filter((x) => x.name !== NEO_QUIRK_DIVERGENT)) {
     test(`${c.name}: assembled history + breakpoint byte-matches neo`, () => {
       const neo = req(reference.cases[c.name], c.name);
       const orb = runOrbweaverShape(c);
@@ -117,6 +128,27 @@ describe.skip(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_W
       expect(orb.targetIdx).toBe(neo.targetIdx);
     });
   }
+
+  test(`${NEO_QUIRK_DIVERGENT}: stages byte-match neo; breakpoint is the documented divergence`, () => {
+    const c = req(
+      fixture.cases.find((x) => x.name === NEO_QUIRK_DIVERGENT),
+      NEO_QUIRK_DIVERGENT,
+    );
+    const neo = req(reference.cases[NEO_QUIRK_DIVERGENT], NEO_QUIRK_DIVERGENT);
+    const orb = runOrbweaverShape(c);
+    // The shaped STAGES are byte-identical — the divergence is breakpoint-only.
+    expect(orb.multiCharacter).toBe(neo.multiCharacter);
+    expect(orb.withTail).toEqual(neo.withTail);
+    expect(orb.injected).toEqual(neo.injected);
+    expect(orb.squashed).toEqual(neo.squashed);
+    expect(orb.named).toEqual(neo.named);
+    expect(orb.history).toEqual(neo.history);
+    // The documented divergence: neo's degenerate -1 (silently discarded by the runner) → orbweaver's
+    // CORRECT `undefined`/null (no safe breakpoint). chat.md §8 + Part III §12 inv 7.
+    expect(neo.cacheBreakpointFromEnd).toBe(-1);
+    expect(orb.cacheBreakpointFromEnd).toBeNull();
+    expect(orb.targetIdx).toBeNull();
+  });
 
   test("the rolling pair byte-matches + the cacheWrite/read delta is preserved", () => {
     const orb1 = runOrbweaverShape(req(fixture.rollingPair.turns[0], "rolling fixture 1"));
