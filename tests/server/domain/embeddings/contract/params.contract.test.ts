@@ -53,6 +53,7 @@ test("DigestStoreParams pins the §2b digest write shape (text + facets + real-C
     text: "[Alice, Bob — the docks] Alice agreed to smuggle the relic.",
     topicAnchor: "[Alice, Bob — the docks]",
     keywords: ["Alice", "Bob", "relic"],
+    speakerCharacterIds: [SAMPLE_CHARACTER_ID],
     contentHash: "h",
     model: "qwen3-embed",
     dim: 1024,
@@ -61,6 +62,7 @@ test("DigestStoreParams pins the §2b digest write shape (text + facets + real-C
   const asParams: StoreParams = digest;
   expect(asParams.lens).toBe("digest");
   expect(digest.kind).toBe("chat-block");
+  expect(digest.speakerCharacterIds).toEqual([SAMPLE_CHARACTER_ID]);
   // scopedCharacterId is a real branded CharacterId — NOT the `''` sentinel (inv 8).
   expect(digest.scopedCharacterId).toBe(SAMPLE_CHARACTER_ID);
   expect(Object.keys(digest).sort()).toEqual(
@@ -75,6 +77,7 @@ test("DigestStoreParams pins the §2b digest write shape (text + facets + real-C
       "lens",
       "model",
       "scopedCharacterId",
+      "speakerCharacterIds",
       "text",
       "tier",
       "topicAnchor",

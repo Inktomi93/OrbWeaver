@@ -20,10 +20,11 @@
 // `text` (the embed input AND the stored body). There is NO `principal`/ownership check — the substrate FKs
 // to its producer and never re-checks ownership (D20).
 //
-// FLAG[chat-digest-speakers]: `chat_digest_speakers` is NOT written here — the foundation's `DigestStoreParams`
-// carries NO `speakerCharacterIds` (pinned by `params.contract.test`), so the one write path has no speaker
-// data to persist the join. The chat-side `StoreDigestParams` (chat/contract/context) DOES carry them; the
-// (still-unbuilt, PD-41) chat→embeddings store adapter is where that join-write must be resolved.
+// `chat_digest_speakers` (the §4 "which characters this digest CONTAINS" join) IS written here:
+// `DigestStoreParams.speakerCharacterIds` carries the set, and `storeDigest` writes the join (via
+// `replaceDigestSpeakers`) against the persisted digest id after the upsert. FLAG[chat-digest-speakers] RESOLVED
+// (PD-41). The chat-side `StoreDigestParams` (chat/contract/context) already carries them; the compose root's
+// chat→embeddings adapter forwards them into this `DigestStoreParams`.
 
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
 import type {
@@ -41,6 +42,7 @@ import {
   existingDigestHash,
   existingImageHash,
   existingSegmentHash,
+  replaceDigestSpeakers,
   upsertCharacterEmbedding,
   upsertChatDigest,
   upsertChatSegment,
@@ -163,7 +165,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   }
   const vector = firstVector((await ctx.roleClients.embed(p.text)).vectors, p.lens, p.model);
   assertSpace(p.model, p.dim, vector);
-  await upsertChatDigest(ctx.db, {
+  const digestId = await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
@@ -179,6 +181,9 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     dim: p.dim,
     now: ctx.now(),
   });
+  // The §4 "which characters this digest CONTAINS" join — written against the PERSISTED id (on conflict the
+  // kept id differs from the mint). Only on the written path: a noop upsert left the join intact above.
+  await replaceDigestSpeakers(ctx.db, digestId, p.speakerCharacterIds);
   return { outcome: "written", contentHash: hash };
 }
 

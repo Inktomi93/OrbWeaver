@@ -17,6 +17,7 @@ import {
   batchMany,
   batchStmt,
   characterEmbeddings,
+  chatDigestSpeakers,
   chatDigests,
   chatSegments,
   imageEmbeddings,
@@ -258,9 +259,11 @@ interface UpsertDigestInput {
 
 /** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx)`. On conflict updates the
  *  vector + text + the §2b facets + hash + dim only — `hub_score`, the key columns, and `created_at` are left
- *  as-is (§invariant 2; the scope key is part of the staleness identity — §4). */
-export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<void> {
-  await db
+ *  as-is (§invariant 2; the scope key is part of the staleness identity — §4). Returns the persisted row's id
+ *  — on conflict the KEPT id differs from the freshly-minted `input.id`, so the caller writes the
+ *  `chat_digest_speakers` join against THIS id, never the mint. */
+export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
+  const rows = await db
     .insert(chatDigests)
     .values({
       id: input.id,
@@ -294,7 +297,30 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
         contentHash: input.contentHash,
         dim: input.dim,
       },
-    });
+    })
+    .returning({ id: chatDigests.id });
+  // INSERT-or-UPDATE always affects exactly the one row keyed by (chatId, scopedCharacterId, tier, blockIdx).
+  return rows[0]?.id ?? input.id;
+}
+
+/** Replace a digest's `chat_digest_speakers` join (knowledge-cluster.md §4): delete the existing rows for the
+ *  digest, then insert the new speaker set. Runs only on the WRITTEN path (a `noop` upsert leaves the join
+ *  intact — the speaker ids fold into `content_hash`, so an unchanged hash means unchanged speakers). Idempotent;
+ *  an empty `characterIds` clears the join (a no-speaker block). */
+export async function replaceDigestSpeakers(
+  db: Db,
+  digestId: ChatDigestId,
+  characterIds: readonly CharacterId[],
+): Promise<void> {
+  await db.delete(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, digestId));
+  if (characterIds.length === 0) {
+    return;
+  }
+  // The composite PK (digest_id, character_id) dedupes a repeated speaker in one block at the DB.
+  await db
+    .insert(chatDigestSpeakers)
+    .values(characterIds.map((characterId) => ({ digestId, characterId })))
+    .onConflictDoNothing();
 }
 
 // ── the hub-score write seam (the ONLY hub_score writer; §invariant 3) ────────

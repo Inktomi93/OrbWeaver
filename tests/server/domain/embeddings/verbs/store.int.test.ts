@@ -8,7 +8,15 @@
 //   • both image lenses (`image-raw` pure-visual + `image-captioned` joint-VL) coexist per asset, caption
 //     persisted only on the captioned lens.
 
-import { characterEmbeddings, chatDigests, chatSegments, imageEmbeddings } from "@orb/db";
+import {
+  characterEmbeddings,
+  chatDigestSpeakers,
+  chatDigests,
+  chatSegments,
+  imageEmbeddings,
+} from "@orb/db";
+import type { ChatDigestId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import {
   createEmbeddingsService,
   EmbedFailedError,
@@ -380,6 +388,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
       text: digestText,
       topicAnchor: "[Alice, Bob — the docks]",
       keywords: ["Alice", "Bob", "relic"],
+      speakerCharacterIds: [scoped],
       contentHash: "precomputed-digest-hash",
       model: EMBED_MODEL,
       dim: EMBED_DIM,
@@ -396,6 +405,60 @@ describe("store — chat-block lenses (segment / digest)", () => {
     expect(rows[0]?.topicAnchor).toBe("[Alice, Bob — the docks]");
     expect(rows[0]?.keywords).toEqual(["Alice", "Bob", "relic"]);
     expect(rows[0]?.hubScore).toBeNull();
+    // the §4 chat_digest_speakers join is written against the persisted digest id.
+    const speakers = await db
+      .select()
+      .from(chatDigestSpeakers)
+      .where(eq(chatDigestSpeakers.digestId, rows[0]?.id ?? castId<ChatDigestId>("missing")));
+    expect(speakers.map((s) => s.characterId)).toEqual([scoped]);
+  });
+
+  test("the chat_digest_speakers join is REPLACED on a re-digest + cleared by an empty speaker set", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
+    const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
+    const grp = await seedCharacter(db, owner, { id: "character_grp", name: "Group" });
+    const chatId = await seedChat(db);
+    const base = {
+      kind: "chat-block",
+      lens: "digest",
+      chatId,
+      scopedCharacterId: grp,
+      isGroup: true,
+      tier: 0,
+      blockIdx: 0,
+      text: digestText,
+      topicAnchor: "[a]",
+      keywords: ["k"],
+      model: EMBED_MODEL,
+      dim: EMBED_DIM,
+    } as const;
+    const digestId = async (): Promise<ChatDigestId> => {
+      const r = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+      return r[0]?.id ?? castId<ChatDigestId>("missing");
+    };
+    const speakerSet = async (): Promise<string[]> => {
+      const s = await db
+        .select()
+        .from(chatDigestSpeakers)
+        .where(eq(chatDigestSpeakers.digestId, await digestId()));
+      return s.map((x) => x.characterId).sort();
+    };
+
+    // first build: two speakers.
+    await svc.store({ ...base, speakerCharacterIds: [aria, bram], contentHash: "h1" });
+    expect(await speakerSet()).toEqual([aria, bram].sort());
+
+    // re-digest (changed hash) with a different speaker set → REPLACED, not appended.
+    await svc.store({ ...base, speakerCharacterIds: [aria], contentHash: "h2" });
+    expect(await speakerSet()).toEqual([aria]);
+
+    // re-digest with no speakers → join cleared.
+    await svc.store({ ...base, speakerCharacterIds: [], contentHash: "h3" });
+    expect(await speakerSet()).toEqual([]);
   });
 
   test("two scoped POVs for the same (chat, tier, block) coexist (the scope is part of the key)", async () => {
@@ -416,6 +479,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
       text: digestText,
       topicAnchor: "[anchor]",
       keywords: ["k"],
+      speakerCharacterIds: [aria, bram],
       model: EMBED_MODEL,
       dim: EMBED_DIM,
     } as const;
