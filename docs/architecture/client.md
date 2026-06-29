@@ -251,6 +251,18 @@ chat id only) — NOT a rewrite.
 | **WRAP** | every kept third-party lib lives behind `@orb/ui`; app imports `@orb/ui`, never the lib. |
 
 ### 6.1 TanStack — keep, with discipline
+> **Reference companion:** `client-tanstack-query-examples.md` (this directory) — a full-read digest of all
+> TanStack Query official React examples, triaged to orbweaver: the canonical optimistic-mutation /
+> infinite+`maxPages` / `keepPreviousData` / prefetch-on-intent / Suspense-boundary patterns that feed
+> `createEntityMutation` · `createCollectionSurface` · `<QueryBoundary>`, plus the `@tanstack/eslint-plugin-query`
+> gate. (Most examples' literal `queryKey`/`queryFn` are MOOT — the tRPC proxy is our key+fn factory.)
+> **Reference companion:** `client-tanstack-form-examples.md` (this directory) — a full-read digest of all
+> TanStack Form official React examples. Verdict: the `composition` skeleton (`createFormHook`/`withForm`/
+> `withFieldGroup`/`formOptions`/`lazy`) + `useStore` selectors + Standard-Schema Zod + the `{fields}` form→field
+> server-error map are what `useAppForm` and the editor factories build on — but **all SIX editor footguns are
+> factory-original (zero examples fix them)**, `query-integration` PUNTS on the seed/clobber dance (seeds once at
+> mount, never re-syncs), and `listeners` (the autosave backbone) appear in NO example. Confirms Form is
+> React-Compiler-clean (no `use no memo`).
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
 - **Router: use it MINIMALLY** — single-route shell means ~3 routes (`/`, `/login`, `/admin/*`). Drop the
   file-based codegen plugin; hand-write the tiny route tree. (Don't swap for wouter — family cohesion wins

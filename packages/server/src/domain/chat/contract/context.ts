@@ -137,21 +137,65 @@ export type NotificationsEmitOp = (event: NotificationEvent) => Promise<void>;
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
 // ── Memory substrate (injected here, consumed by `memory/` — see FLAG[memory-substrate]) ──
-/** `embeddings.store` — memory's digest/segment vector write (the ONE write path; kills the `hub_score=null`
- *  conflation — movement table). The precise store-params are the embeddings domain's; declared minimally. */
-export type EmbeddingsStoreOp = (params: {
-  readonly lens: "digest" | "segment";
-  readonly text: string;
-  readonly blockKey: BlockKey;
-}) => Promise<void>;
+// REFINED by the memory chunk (the FLAG[memory-substrate] grant): the minimal `{lens,text,blockKey}` store
+// op could not carry the `chat_digests`/`chat_segments` row facets memory produces (topicAnchor/keywords/
+// contentHash/isGroup/speakers + the segment seq-span), so the store op is a per-lens discriminated union.
+// Memory still holds NO vector write + NO cosine: it hands `embeddings.store` the distilled `text` (embeddings
+// embeds it + stamps model/dim/hubScore-untouched) plus the non-vector facets; the scan is `search.*`.
 
-/** `search.digests` — memory's chat-scoped recall (the 6 semantics as `MemoryQueryOptions`; chat-scope +
- *  bridge candidates first-class). Returns the ranked block identities. */
-export type SearchDigestsOp = (options: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+/** memory's DIGEST write payload → `embeddings.store` (the ONE write path). `text` is the distilled digest
+ *  body embeddings embeds (the sharp key); the rest are the `chat_digests` row facets memory computes
+ *  (`contentHash` = the staleness/collapse key, NEVER coerced; `speakerCharacterIds` → the
+ *  `chat_digest_speakers` join). `key.scopedCharacterId` is the `''` shared-bucket sentinel (D20/§4). */
+export interface StoreDigestParams {
+  readonly lens: "digest";
+  readonly key: BlockKey;
+  readonly text: string;
+  readonly contentHash: string;
+  readonly topicAnchor: string;
+  readonly keywords: readonly string[];
+  readonly isGroup: boolean;
+  readonly speakerCharacterIds: readonly CharacterId[];
+}
+
+/** memory's VERBATIM SEGMENT write payload → `embeddings.store`. `text` is the raw block transcript embeddings
+ *  embeds; `(chatId, blockIdx)` is the `chat_segments` upsert key; the seq-span points back to canon. Segments
+ *  are NOT scope-keyed (shared per chat — `chat_segments` has no `scopedCharacterId`). */
+export interface StoreSegmentParams {
+  readonly lens: "segment";
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
+  readonly text: string;
+  readonly contentHash: string;
+}
+
+/** `embeddings.store` — memory's digest/segment vector write (the ONE write path; kills the `hub_score=null`
+ *  conflation — movement table). The per-lens union is the embeddings `chat-block` store arm (FLAG[PD-34]). */
+export type EmbeddingsStoreOp = (params: StoreDigestParams | StoreSegmentParams) => Promise<void>;
+
+/** The recall query memory threads into `search.digests`/`search.corpus`. The chat-scope (#5) + bridge
+ *  `candidates` (#2) + the knobs (#6) ride `MemoryQueryOptions` (the `@orb/contracts/search` seam). The two
+ *  semantics the contract options do NOT yet model — the egocentric `scopedCharacterId` scope and the
+ *  name-prefixed query `text` (both §11 semantic #4) — ride HERE on the chat-side op wrapper (the memory
+ *  chunk's to refine). FLAG[search-contract]: if the search owner adds `queryText`/`scopedCharacterId` to
+ *  `MemoryQueryOptions`, fold these two fields in there (knowledge-cluster QA owns that `search.md` edit). */
+export interface MemoryRecallQuery {
+  /** memory's pre-call egocentric query assembly (§11 #4) — the name-prefixed recent text the scan embeds. */
+  readonly text: string;
+  /** the egocentric bucket (§11 #4): `''` = shared (solo/merged/narrator), a CharacterId = scoped-group. */
+  readonly scopedCharacterId: CharacterId | "";
+  readonly options: MemoryQueryOptions;
+}
+
+/** `search.digests` — memory's chat-scoped recall (the 6 semantics; chat-scope + bridge candidates
+ *  first-class). Returns the ranked block identities (memory resolves them back to facets for `{{memory}}`). */
+export type SearchDigestsOp = (query: MemoryRecallQuery) => Promise<readonly BlockKey[]>;
 
 /** `search.corpus` — the cross-chat corpus/digest+segment scan (Q6), distinct from the dissolved corpus
- *  domain. Same options seam; host-only scope is enforced by the caller. */
-export type SearchCorpusOp = (options: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+ *  domain. Same query seam; host-only scope is enforced by the caller. */
+export type SearchCorpusOp = (query: MemoryRecallQuery) => Promise<readonly BlockKey[]>;
 
 // ── The effective room-behavior readers (parse seam injected, so verbs don't re-import the parser) ──
 /** Parse a chat's raw `metadata` blob → its effective {@link GroupConfig} (default-applied, fault-isolated).
