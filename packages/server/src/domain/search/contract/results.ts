@@ -6,10 +6,15 @@
 // family-dependent) and mixing them in one field would be a lie. Consumers read ORDER for relevance and
 // `score` for the stable similarity signal.
 //
-// The 5 other branches of the full surface (`ImageSearchHit`, `DiscoverCharacter`, `DiscoverSegment`,
-// `DigestSearchHit`, `SegmentSearchHit`, `CorpusHit`, and the 7-branch `UnifiedSearchResult` union) are
-// DEFERRED with their verbs (see `service.ts`). They are added here when those verbs land.
+// The chat-memory hits (`DigestSearchHit`/`SegmentSearchHit`/`CorpusHit`) land with PD-35 (below). The
+// remaining branches (`ImageSearchHit`, `DiscoverCharacter`, `DiscoverSegment`, and the 7-branch
+// `UnifiedSearchResult` union) are DEFERRED with their verbs (see `service.ts`).
+//
+// EVERY chat-memory hit carries a {@link BlockKey} (the `(chatId, tier, blockIdx, scopedCharacterId)` block
+// identity) so the compose root maps hits → `BlockKey[]` for the `ChatContext.searchDigests`/`searchCorpus`
+// ops (memory then resolves keys → its own digest rows), plus the rerankable/displayable `text`.
 
+import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 
 /** One raw vector hit from `knn` — the entity id + its CSLS retrieval score. In the W2 card space the
@@ -32,4 +37,32 @@ export interface CharacterCardHit {
   readonly genre: string | null;
   readonly tone: string | null;
   readonly elevatorPitch: string | null;
+}
+
+/** One within-chat digest hit (the distilled lens). `blockKey` is the block identity the compose root maps
+ *  to a `BlockKey` for `searchDigests`; `score` is the CSLS-adjusted retrieval score (LOWER = closer; when
+ *  `mode==="mixC"` the ORDER reflects the cross-encoder but `score` stays the CSLS signal); `text` is the
+ *  stored digest body (the rerank document / `{{memory}}` content). */
+export interface DigestSearchHit {
+  readonly blockKey: BlockKey;
+  readonly score: number;
+  readonly text: string;
+}
+
+/** One within-chat verbatim-segment hit. Same shape as {@link DigestSearchHit}; `text` is the verbatim
+ *  transcript. `blockKey.tier` is `0` (segments are tier-0 verbatim blocks) and `blockKey.scopedCharacterId`
+ *  is the caller's egocentric POV (the segment lens carries no character column). */
+export interface SegmentSearchHit {
+  readonly blockKey: BlockKey;
+  readonly score: number;
+  readonly text: string;
+}
+
+/** One cross-chat corpus hit — a block that survived the joint digest+segment rerank, block-level dedupe,
+ *  and content-hash collapse. `blockKey` is the surviving block's identity (a digest+segment of the same
+ *  block collapse to one); `score` is the CSLS signal; `text` is the winning lens' body. */
+export interface CorpusHit {
+  readonly blockKey: BlockKey;
+  readonly score: number;
+  readonly text: string;
 }

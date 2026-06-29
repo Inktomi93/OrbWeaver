@@ -5,13 +5,19 @@
 // it). The memory/discover/image/lexical verbs join here as they land (see `contract/service.ts` ledger).
 
 import type { SearchContext, SearchService } from "./contract/service";
+import { createCorpus } from "./verbs/corpus";
+import { createDigests } from "./verbs/digests";
 import { createFindCharacters } from "./verbs/find-characters";
 import { createKnn } from "./verbs/knn";
+import { createSegments } from "./verbs/segments";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);
   return {
     knn,
     findCharacters: createFindCharacters(ctx, knn),
+    digests: createDigests(ctx),
+    segments: createSegments(ctx),
+    corpus: createCorpus(ctx),
   };
 }

@@ -26,11 +26,14 @@
 // type-only" was the older framing — the doc wins (CLAUDE.md: when a prompt conflicts with the spine, the
 // doc wins). No concurrent `domain/embeddings` file is touched or imported.
 //
-// ── DEFERRAL LEDGER (W2 core = within-space vector query + the discovery card primitive) ────────────────
-// FLAG[PD-35]: segment/digest/chat-scoped verbs (discover, digests, segments, corpus) → chat/memory
-//   (P5) when the membership-derived chat scope (`persistence/scope.ts`, D18: chats have no ownerId)
-//   lands; they consume `MemoryQueryOptions` (@orb/contracts/search, already declared) + the
-//   dedupe/collapse/scopeCond machinery — all memory-retrieval bits the task scopes out of W2.
+// ── DEFERRAL LEDGER ─────────────────────────────────────────────────────────────────────────────────────
+// FLAG[PD-35] (PARTIALLY RESOLVED): `digests`/`segments`/`corpus` are BUILT (the chat-memory retrieval the
+//   `recall` path depends on — `persistence/{scope,digest-rows}.ts` + `substrate/dedupe.ts`). What REMAINS
+//   under PD-35 is the `discover` verb (the DISCOVERY-domain character-discovery consumer, NOT memory —
+//   PD-39/40 territory) and its `DiscoverParams`/`DiscoverCharacter`/`DiscoverSegment` types. Open
+//   sub-flags inside the built verbs: `recencyBias`/`verbatimWindow` are accepted-but-not-applied on
+//   `digests` (verbatimWindow shapes memory's pre-call query; recencyBias needs a formula); `corpus` drops a
+//   segment-only block (no matching digest ⇒ unkeyable). See each verb header.
 // FLAG[PD-36]: the cross-modal `images` verb → a later wave when the `imageEmbed` text→image path +
 //   the cross-modal-CSLS-skip exception are wired (search.md §"Cross-modal image search CSLS exception").
 // FLAG[PD-37]: the lexical BM25 `fields`/`suggest` engine → a later wave (needs the `minisearch`
@@ -41,8 +44,20 @@
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { FindCharactersParams, KnnParams } from "./params";
-import type { CharacterCardHit, SearchHit } from "./results";
+import type {
+  CorpusParams,
+  DigestsParams,
+  FindCharactersParams,
+  KnnParams,
+  SegmentsParams,
+} from "./params";
+import type {
+  CharacterCardHit,
+  CorpusHit,
+  DigestSearchHit,
+  SearchHit,
+  SegmentSearchHit,
+} from "./results";
 
 /**
  * The DI bundle the search verbs close over (wired at the entry composition root; surfaced through
@@ -69,4 +84,11 @@ export type SearchServiceDeps = SearchContext;
 export interface SearchService {
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;
   readonly findCharacters: (params: FindCharactersParams) => Promise<CharacterCardHit[]>;
+  /** Within-chat digest retrieval (the `memory.recall` mixB/mixC scan). Returns ranked hits, each carrying
+   *  its `BlockKey` — the compose root maps `hits.map(h => h.blockKey)` into `ChatContext.searchDigests`. */
+  readonly digests: (params: DigestsParams) => Promise<DigestSearchHit[]>;
+  /** Within-chat verbatim-segment retrieval (the verbatim lens; requires an egocentric `scopedCharacterId`). */
+  readonly segments: (params: SegmentsParams) => Promise<SegmentSearchHit[]>;
+  /** Cross-chat hybrid corpus retrieval (owner-wide; joint digest+segment rerank + block/content collapse). */
+  readonly corpus: (params: CorpusParams) => Promise<CorpusHit[]>;
 }

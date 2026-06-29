@@ -7,10 +7,22 @@
 export { SEARCH_EMPTY_QUERY, SearchError } from "./contract/errors";
 
 // Input types
-export type { FindCharactersParams, KnnParams } from "./contract/params";
+export type {
+  CorpusParams,
+  DigestsParams,
+  FindCharactersParams,
+  KnnParams,
+  SegmentsParams,
+} from "./contract/params";
 
 // Result types
-export type { CharacterCardHit, SearchHit } from "./contract/results";
+export type {
+  CharacterCardHit,
+  CorpusHit,
+  DigestSearchHit,
+  SearchHit,
+  SegmentSearchHit,
+} from "./contract/results";
 
 // Service types
 export type { SearchContext, SearchService, SearchServiceDeps } from "./contract/service";
