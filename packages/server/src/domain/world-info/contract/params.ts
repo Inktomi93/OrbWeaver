@@ -13,8 +13,8 @@
 //
 // DEFERRED — the chat scope. The three chat-attachment verbs (`attachToChat`/`detachFromChat`/
 // `listForChat`) and their params are NOT here: chats are membership-scoped (D18 — NO `chats.ownerId`), so
-// their authority is the host participant via the `can({ kind: 'chat', roster })` resource arm, which is
-// explicitly NOT built yet (admin contract/guard.ts FLAG[PD-1]: the resource-role axis "lands with chat").
+// their authority is the host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1
+// done); the block is the chat roster/membership data world-info doesn't own (Phase-5).
 // Building them now would collapse the chat tier into world-info. See service.ts for the full DEFER note.
 
 import type { Principal } from "@orb/contracts/identity";

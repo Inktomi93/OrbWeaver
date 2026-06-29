@@ -44,6 +44,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { ChatApi, ChatSource } from "#connection";
+import type { ParticipantRole } from "#identity";
+import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
@@ -595,10 +597,9 @@ export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 // and the group-macro context. The LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** A participant's room authority. `host` = the ONE home for `requireHost` + the `runAsUserId`/funding
- *  source (D18); `member` = everyone else. Server-forced on the membership chokepoint (never client-set). */
-export const PARTICIPANT_ROLES = ["host", "member"] as const;
-export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
+/** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME (PD-59): the tuple +
+ *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
+ *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema. */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
 
 /** How much history a (re)joining member sees: `from-join` (only from their `joinSeq`) or `full`. */

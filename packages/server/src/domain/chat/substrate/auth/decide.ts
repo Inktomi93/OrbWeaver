@@ -12,7 +12,7 @@
 // chat-coded error VOCAB (`not_host`/`not_author`) — admin's `can()` throws `DomainForbiddenError`, and chat
 // re-expresses that verdict as its known-existence coded refusal. `can` is INJECTED (never an admin import).
 
-import type { Can, ChatAction, ChatResourceRole, Principal } from "@orb/contracts/identity";
+import type { Can, ChatAction, ParticipantRole, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../../contract/errors";
@@ -39,7 +39,7 @@ function permits(
   can: Can,
   principal: Principal,
   action: ChatAction,
-  role: ChatResourceRole,
+  role: ParticipantRole,
 ): boolean {
   try {
     can(principal, action, { kind: "chat", roster: { role } });
@@ -62,7 +62,7 @@ function permits(
 export function assertHost(
   can: Can,
   principal: Principal,
-  role: ChatResourceRole,
+  role: ParticipantRole,
   chatId: ChatId,
 ): void {
   if (!permits(can, principal, "host", role)) {
@@ -84,7 +84,7 @@ export function assertAuthorOrHost(
   can: Can,
   args: {
     readonly principal: Principal;
-    readonly role: ChatResourceRole;
+    readonly role: ParticipantRole;
     readonly authorUserId: UserId | null;
   },
   chatId: ChatId,

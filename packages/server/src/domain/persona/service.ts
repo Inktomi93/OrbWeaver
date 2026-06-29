@@ -5,8 +5,8 @@
 //
 // FLAG[PD-20]: `setActivePersona` (persona.md §8-slot `verbs/set-active.ts`) is NOT wired here — DEFERRED to
 // the chat build. It writes `chat_participants.activePersonaId` (a chat-owned table) and is host-or-self,
-// which needs the `{ kind: 'chat', roster }` resource arm of `can()` — explicitly NOT built yet (admin
-// contract/guard.ts FLAG[PD-1]: the resource-role axis "lands with chat"). The participant roster + host
+// which routes through the `{ kind: 'chat', roster }` `can()` arm (now BUILT — PD-1 done), fed the chat
+// roster persona doesn't own. The participant roster + host
 // determination it gates on are chat-domain knowledge. Building it now would collapse the chat tier into
 // persona (a forbidden tier collapse). See PROMOTION-DEBT.md PD-19.
 

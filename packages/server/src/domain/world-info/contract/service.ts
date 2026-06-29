@@ -15,10 +15,9 @@
 // DEFERRED — the CHAT scope (3 verbs) + the WI bus. world-info.md lists `attachToChat`/`detachFromChat`/
 // `listForChat` (emitting `WiBusEvent`) as the fourth attachment scope, but they are NOT built here:
 //   • chats are MEMBERSHIP-scoped (D18 — there is NO `chats.ownerId`); the authority to attach a book to a
-//     chat is the host participant, gated by the `can({ kind: 'chat', roster })` resource arm — which is
-//     explicitly NOT built yet (admin contract/guard.ts FLAG[PD-1]: `ResourceRef = GlobalResource` only,
-//     "the resource-role axis lands with chat"). The chat-resource `can()` call does not even type-check
-//     today, so this is a hard compile-time block, not a soft one.
+//     chat is the host participant, gated by the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1
+//     done). The block is no longer `can()`: it's the chat roster/membership + bus this gates on (a
+//     chat-domain concern, Phase-5) — building it here would collapse the chat tier into world-info.
 //   • the chat-scoped attach emits `WiBusEvent` onto the chat bus (`ChatBusEvent`) — a chat-domain concern
 //     not built until Phase 5.
 // Building either now would collapse the chat tier into world-info (the precise neo-pattern failure mode the

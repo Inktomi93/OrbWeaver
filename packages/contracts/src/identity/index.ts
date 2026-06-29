@@ -82,20 +82,19 @@ export type GlobalAction = (typeof GLOBAL_ACTIONS)[number];
 export const CHAT_ACTIONS = ["read", "host"] as const;
 export type ChatAction = (typeof CHAT_ACTIONS)[number];
 
-/** The chat resource-role of the permission model (the D18 `host|member` axis as the `can()` resource role).
- *  Identity is the DAG root, so it cannot import `@orb/contracts/chat`'s `PARTICIPANT_ROLES`; this is the
- *  permission-contract home of the same two-member axis (the chat `chat_participants.role` column MIRRORS it,
- *  structurally identical — chat feeds its `ParticipantRole` straight into a {@link ChatRoster} with no cast).
- *  FLAG[PD-59]: derive chat's `PARTICIPANT_ROLES` FROM this tuple (one home) when chat's contract may depend
- *  on identity — out of scope for the PD-1 relocation (would touch `@orb/contracts/chat`). */
-export const CHAT_RESOURCE_ROLES = ["host", "member"] as const;
-export type ChatResourceRole = (typeof CHAT_RESOURCE_ROLES)[number];
+/** A chat participant's room authority — the D18 `host|member` axis (`host` = the ONE `requireHost` +
+ *  `runAsUserId`/funding source; `member` = everyone else). THE ONE HOME (PD-59): it lives here because
+ *  `can()` reads it and identity is the DAG root (it cannot import `@orb/contracts/chat`); `@orb/contracts/chat`
+ *  RE-EXPORTS this same name (its `chat_participants.role` column + the wire roster use it directly — no
+ *  second name, no alias). */
+export const PARTICIPANT_ROLES = ["host", "member"] as const;
+export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
 
 /** The membership data chat FEEDS `can()` for a chat-resource decision: the caller's resolved present-
  *  membership (loaded via chat's `loadMemberChat` — no extra query; the turn loads it anyway). `can()` makes
  *  the verdict over this data — chat NEVER compares `role === 'host'` itself (spine invariant #6). */
 export interface ChatRoster {
-  readonly role: ChatResourceRole;
+  readonly role: ParticipantRole;
 }
 
 /** GLOBAL scope — the global-role axis (admin/owner). */

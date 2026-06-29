@@ -14,9 +14,9 @@ import { dirname, join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "vitest";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const OK_RE = /✓\s+([a-z-]+)/g;
-const FIRED_RE = /✗\s+([a-z-]+)/g;
-const TS_EXT_RE = /\.ts$/;
+const OK_RE = /✓\s+([a-z-]+)/gu;
+const FIRED_RE = /✗\s+([a-z-]+)/gu;
+const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist".
 const GATE_FILES = readdirSync(GATE_DIR)
@@ -110,6 +110,8 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_replica.ts",
     "export const cache = new Map<string, number>();\n",
   );
+  // no-caller-user-id: the D19-forbidden `callerUserId` identifier (in the fixture's source, not here).
+  fx("packages/server/src/__g_caller.ts", "export const callerUserId = 1;\n");
 }
 
 let registry = new Set<string>();

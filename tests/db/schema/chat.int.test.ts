@@ -13,8 +13,8 @@ import {
   INVITE_STATUSES,
   JOIN_HISTORY_VISIBILITIES,
   PARTICIPANT_KINDS,
-  PARTICIPANT_ROLES,
 } from "@orb/contracts/chat";
+import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
   characters,

@@ -47,8 +47,9 @@ import {
   INVITE_STATUSES,
   JOIN_HISTORY_VISIBILITIES,
   PARTICIPANT_KINDS,
-  PARTICIPANT_ROLES,
 } from "@orb/contracts/chat";
+// PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
+import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import type {
   CharacterId,

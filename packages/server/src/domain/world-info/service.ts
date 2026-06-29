@@ -7,9 +7,9 @@
 //
 // DEFERRED — the CHAT attachment scope (`attachToChat`/`detachFromChat`/`listForChat` + the `WiBusEvent`
 // emit). NOT wired here: chats are membership-scoped (D18 — no `chats.ownerId`), so the authority is the
-// host participant via the `can({ kind: 'chat', roster })` resource arm, which is explicitly NOT built yet
-// (admin contract/guard.ts FLAG[PD-1]: `ResourceRef = GlobalResource` only — the chat-resource `can()` call
-// doesn't even type-check today). The emit rides the chat bus (`ChatBusEvent`), a Phase-5 chat concern.
+// host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1 done); the block is the
+// chat roster/membership data world-info doesn't own. The emit rides the chat bus (`ChatBusEvent`), a
+// Phase-5 chat concern.
 // Wiring either now would collapse the chat tier into world-info. Mirrors persona's `setActivePersona`
 // deferral. FLAG[PD-30]: chat-scope attach/detach/list + WiBusEvent emit → here when the
 // `can({kind:'chat',roster})` resource arm + the chat bus exist (Phase 5 chat build). See contract/service.ts.

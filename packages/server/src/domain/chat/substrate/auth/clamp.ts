@@ -10,8 +10,9 @@
 // caller resolves + passes them — the clamp never fabricates them, it only gates what it is given.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { MemberCardView, MemberCardVisibility, ParticipantRole } from "@orb/contracts/chat";
+import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import { MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 
 /** The visibility rank (index in the canonical tuple) — derive-don't-respell the ordering. */

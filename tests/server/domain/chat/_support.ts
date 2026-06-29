@@ -4,7 +4,8 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent, ParticipantRole } from "@orb/contracts/chat";
+import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
   characters,

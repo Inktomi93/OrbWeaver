@@ -12,7 +12,8 @@
 // the raw membership-scoped rows. Row/return SHAPES are file-LOCAL (callers read the inferred return) so no
 // feature type leaks out of `persistence/` (`types-in-contract`). Timestamps/cursors arrive as PARAMS.
 
-import type { ChatBusEvent, MessageView, ParticipantRole } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
   chatEvents,
