@@ -10,8 +10,19 @@
 // substrate bridge is the legal form of the same coupling.)
 
 import { assemblePrompt } from "../assembly/assemble";
+import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/context";
 import { fitHistoryToWindow } from "../assembly/history-budget";
 import { shape } from "../assembly/shape";
+
+/** RESOLVE→GATHER→BUILD: produce the IMMUTABLE per-turn `AssembleContext` (the turn ctx the SHAPE phase + the
+ *  round driver consume per speaker). The turn-running verbs build this ONCE per round through HERE — a direct
+ *  `verbs/ → assembly/` import is `domain-no-cross-subsystem`-illegal; this substrate wrapper is the legal
+ *  bridge for the same coupling. */
+export function buildAssembleContext(
+  ...args: Parameters<typeof buildAssembleContextImpl>
+): ReturnType<typeof buildAssembleContextImpl> {
+  return buildAssembleContextImpl(...args);
+}
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(
