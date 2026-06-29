@@ -8,6 +8,7 @@ import {
   PROMPT_CONFIG_SCHEMA_VERSION,
   parsePromptConfig,
 } from "@orb/contracts/preset";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { isConstraintViolation, presets, users } from "@orb/db";
 import type { Handle, PresetId, UserId } from "@orb/kit/ids";
@@ -51,6 +52,39 @@ test("an owner-scoped preset round-trips (config parses, schema_version defaults
   const config = parsePromptConfig(row?.config);
   expect(Array.isArray(config.sections)).toBe(true);
   expect(config.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+});
+
+test("a preset-embedded RegexScript[] round-trips through the config blob (D53)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, "user_preset_regex");
+  const id = castId<PresetId>("preset_regex");
+
+  await db.insert(presets).values({
+    id,
+    ownerId,
+    name: "With regex",
+    kind: "roleplay",
+    config: {
+      ...DEFAULT_PROMPT_CONFIG,
+      regexScripts: [
+        regexScriptSchema.parse({
+          id: "rx_1",
+          name: "strip stage dirs",
+          findRegex: "\\*[^*]+\\*",
+          replaceString: "",
+          placement: ["AI_OUTPUT"],
+          markdownOnly: true,
+        }),
+      ],
+    },
+  });
+
+  const rows = await db.select().from(presets).where(eq(presets.id, id));
+  const config = parsePromptConfig(rows[0]?.config);
+  expect(config.regexScripts).toHaveLength(1);
+  expect(config.regexScripts[0]?.id).toBe("rx_1");
+  expect(config.regexScripts[0]?.placement).toEqual(["AI_OUTPUT"]);
+  expect(config.regexScripts[0]?.markdownOnly).toBe(true);
 });
 
 test("the system-default preset stores a NULL owner under the NIL sentinel id", async () => {

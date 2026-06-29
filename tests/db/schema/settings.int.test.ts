@@ -3,6 +3,7 @@
 // user_settings round-trip with the load-bearing schema_version COLUMN (default + threaded as
 // storedVersion into parseUserSettings), and the userId PK/FK + its cascade-on-user-delete.
 
+import { regexScriptSchema } from "@orb/contracts/regex";
 import {
   DEFAULT_USER_SETTINGS,
   parseUserSettings,
@@ -62,6 +63,33 @@ test("user_settings round-trips; the schema_version COLUMN defaults to current +
   const parsed = parseUserSettings(row?.config, row?.schemaVersion);
   expect(parsed.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
   expect(parsed.routing).toBeDefined();
+});
+
+test("the owner-global RegexScript[] round-trips through the user_settings config blob (D53)", async () => {
+  const db = await freshDb();
+  const userId = await seedUser(db, "user_regex_owner");
+
+  await db.insert(userSettings).values({
+    userId,
+    config: {
+      ...DEFAULT_USER_SETTINGS,
+      regexScripts: [
+        regexScriptSchema.parse({
+          id: "rx_global",
+          name: "owner global",
+          findRegex: "foo",
+          replaceString: "bar",
+          placement: ["USER_INPUT", "AI_OUTPUT"],
+        }),
+      ],
+    },
+  });
+
+  const rows = await db.select().from(userSettings).where(eq(userSettings.userId, userId));
+  const parsed = parseUserSettings(rows[0]?.config, rows[0]?.schemaVersion);
+  expect(parsed.regexScripts).toHaveLength(1);
+  expect(parsed.regexScripts[0]?.id).toBe("rx_global");
+  expect(parsed.regexScripts[0]?.placement).toEqual(["USER_INPUT", "AI_OUTPUT"]);
 });
 
 test("user_settings is keyed by userId (the PK is also the FK; a duplicate collides)", async () => {
