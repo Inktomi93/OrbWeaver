@@ -6,8 +6,9 @@
 // `@orb/contracts/search`); they live in `chat/contract/` only to satisfy the one-type-home gate.
 //
 // NO `ownerId` anywhere (D20 — the substrate derives owner via the chat FK, never a stamp); the scope key is
-// `scopedCharacterId` (`''` = the shared/merged/narrator bucket, a CharacterId = a scoped-group egocentric
-// bucket — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
+// `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's cast char / the synthetic group-as-character
+// `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
+// NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
@@ -47,14 +48,15 @@ export interface ResolvedMemoryConfig {
   readonly recencyBias: number;
 }
 
-/** The egocentric memory bucket (§4): which "pile" a build writes / a recall reads. `scopedCharacterId=''`
- *  is the shared bucket (solo/merged/narrator — everyone sees everything); a CharacterId is a scoped-group
- *  per-character bucket (egocentric-only recall). `isGroup` rides onto the digest row (`chat_digests.isGroup`,
- *  the analytics split). Derived by the engine at compose from `cardScope` + the active speaker — NOT a branch
- *  here (`no-if-is-group`: solo is `{scopedCharacterId:'', isGroup:false}`, byte-identical to merged-of-one). */
+/** The egocentric memory bucket (§4): which "pile" a build writes / a recall reads. `scopedCharacterId` is
+ *  ALWAYS a real `CharacterId` (inv 8): the synthetic group-as-character for the shared bucket (solo/merged/
+ *  narrator — everyone sees everything), or a cast character's id for a scoped-group per-character bucket
+ *  (egocentric-only recall). `isGroup` rides onto the digest row (`chat_digests.isGroup`, the analytics split).
+ *  Derived by the engine at compose from `cardScope` + the active speaker — NOT a branch here (`no-if-is-group`:
+ *  solo keys the same way as merged-of-one, just with the cast char vs the synthetic group char). */
 export interface MemoryScope {
   readonly chatId: ChatId;
-  readonly scopedCharacterId: CharacterId | "";
+  readonly scopedCharacterId: CharacterId;
   readonly isGroup: boolean;
 }
 
@@ -79,15 +81,16 @@ export interface BlockSpan {
 }
 
 /** A `chat_digests` row as memory reads it — the NON-vector facets (the `embedding`/`hubScore`/`model`/`dim`
- *  columns are search's/discovery's, never read here). `contentHash` is the staleness key; `topicAnchor` +
- *  `keywords` are the retrieval facets `{{memory}}` is formatted from (the distilled facts body lives only in
- *  the embedding — FLAG[no-digest-body] in `format.ts`). */
+ *  columns are search's/discovery's, never read here). `contentHash` is the staleness key; `text` is the
+ *  stored distilled body (§2b) that fills `{{memory}}`; `topicAnchor` + `keywords` are the retrieval facets
+ *  (used for the consolidation delta prompt). `scopedCharacterId` is a real `CharacterId` (inv 8). */
 export interface DigestRow {
   readonly id: ChatDigestId;
-  readonly scopedCharacterId: CharacterId | "";
+  readonly scopedCharacterId: CharacterId;
   readonly isGroup: boolean;
   readonly tier: number;
   readonly blockIdx: number;
+  readonly text: string;
   readonly contentHash: string;
   readonly topicAnchor: string | null;
   readonly keywords: readonly string[];

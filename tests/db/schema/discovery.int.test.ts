@@ -76,11 +76,25 @@ async function seedChat(db: Db, id: string): Promise<ChatId> {
 
 async function seedDigest(db: Db, chatId: ChatId, id: string): Promise<ChatDigestId> {
   const digestId = castId<ChatDigestId>(id);
+  // The digest `scopedCharacterId` is a real `CharacterId` FK (inv 8) — lazily seed an owner + synthetic
+  // group char so the FK holds (`text` is NOT NULL too).
+  const ownerId = castId<UserId>("user_digest_owner");
+  const groupChar = castId<CharacterId>("character_group");
+  await db
+    .insert(users)
+    .values({ id: ownerId, handle: castId<Handle>("h-digest-owner") })
+    .onConflictDoNothing();
+  await db
+    .insert(characters)
+    .values({ id: groupChar, handle: "group", ownerId, contentHash: "hash-card", name: "Group" })
+    .onConflictDoNothing();
   await db.insert(chatDigests).values({
     id: digestId,
     chatId,
+    scopedCharacterId: groupChar,
     tier: 0,
     blockIdx: 0,
+    text: "digest body",
     embedding: rampVector(),
     contentHash: "h",
     model: MODEL,

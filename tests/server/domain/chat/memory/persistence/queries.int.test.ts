@@ -12,13 +12,17 @@ import {
 } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import { freshDb } from "../../../../../support/db";
 import { seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
-import { seedDigest, seedSegment } from "../_support";
+import { GROUP_CHAR, seedDigest, seedSegment } from "../_support";
 
 const aria = castId<CharacterId>("character_aria");
 
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
+  // FK parents for the digest `scopedCharacterId` (the synthetic group char + aria — inv 8, real CharacterIds).
+  const owner = await seedUser(db, "owner");
+  await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
+  await seedCharacter(db, owner, "aria");
 });
 
 describe("memory/persistence/queries", () => {
@@ -40,7 +44,7 @@ describe("memory/persistence/queries", () => {
     expect(rows.map((r) => r.seq)).toEqual([1, 2]);
   });
 
-  test("loadDigestHashes is scoped to one bucket (the '' shared sentinel excludes the scoped bucket)", async () => {
+  test("loadDigestHashes is scoped to one bucket (the shared group-char bucket excludes the scoped bucket)", async () => {
     const chatId = await seedChat(db, "d");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, contentHash: "h00" });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 1, contentHash: "h01" });
@@ -51,7 +55,7 @@ describe("memory/persistence/queries", () => {
       blockIdx: 0,
       contentHash: "ego",
     });
-    const shared = await loadDigestHashes(db, chatId, "");
+    const shared = await loadDigestHashes(db, chatId, GROUP_CHAR);
     expect(shared.get("0:0")).toBe("h00");
     expect(shared.get("0:1")).toBe("h01");
     expect(shared.size).toBe(2); // the aria-scoped digest is NOT in the shared bucket
@@ -70,19 +74,17 @@ describe("memory/persistence/queries", () => {
     await seedDigest(db, { chatId, tier: 1, blockIdx: 0 });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 1 });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0 });
-    const all = await loadDigestsForScope(db, chatId, "");
+    const all = await loadDigestsForScope(db, chatId, GROUP_CHAR);
     expect(all.map((d) => [d.tier, d.blockIdx])).toEqual([
       [0, 0],
       [0, 1],
       [1, 0],
     ]);
-    const tier0 = await loadDigestsForScope(db, chatId, "", 0);
+    const tier0 = await loadDigestsForScope(db, chatId, GROUP_CHAR, 0);
     expect(tier0.map((d) => d.blockIdx)).toEqual([0, 1]);
   });
 
   test("loadDigestSpeakers maps digestId → contained character ids", async () => {
-    const owner = await seedUser(db, "owner");
-    await seedCharacter(db, owner, "aria"); // FK target for chat_digest_speakers.characterId
     const chatId = await seedChat(db, "sp");
     const id = await seedDigest(db, { chatId, tier: 0, blockIdx: 0, speakers: [aria] });
     const map = await loadDigestSpeakers(db, [id]);

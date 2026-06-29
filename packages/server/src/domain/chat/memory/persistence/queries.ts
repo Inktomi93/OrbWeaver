@@ -48,7 +48,7 @@ export async function loadCanonThroughSeq(
 export async function loadDigestHashes(
   db: Db,
   chatId: ChatId,
-  scopedCharacterId: CharacterId | "",
+  scopedCharacterId: CharacterId,
 ): Promise<Map<string, string>> {
   const rows = await db
     .select({
@@ -87,7 +87,7 @@ export async function loadSegmentHashes(db: Db, chatId: ChatId): Promise<Map<num
 export async function loadDigestsForScope(
   db: Db,
   chatId: ChatId,
-  scopedCharacterId: CharacterId | "",
+  scopedCharacterId: CharacterId,
   tier?: number,
 ): Promise<DigestRow[]> {
   const where =
@@ -105,6 +105,7 @@ export async function loadDigestsForScope(
       isGroup: chatDigests.isGroup,
       tier: chatDigests.tier,
       blockIdx: chatDigests.blockIdx,
+      text: chatDigests.text,
       contentHash: chatDigests.contentHash,
       topicAnchor: chatDigests.topicAnchor,
       keywords: chatDigests.keywords,
@@ -112,7 +113,7 @@ export async function loadDigestsForScope(
     .from(chatDigests)
     .where(where)
     .orderBy(asc(chatDigests.tier), asc(chatDigests.blockIdx));
-  return rows.map((r) => ({ ...r, scopedCharacterId: r.scopedCharacterId as CharacterId | "" }));
+  return rows;
 }
 
 /** The `digestId → contained character ids` map (the `chat_digest_speakers` join) for a set of digests — the

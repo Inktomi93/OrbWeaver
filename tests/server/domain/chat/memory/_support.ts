@@ -4,7 +4,7 @@
 // segment rows carry a dummy F32_BLOB(1024) embedding (memory never reads the vector column — only the facets).
 
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { BlockKey } from "@orb/contracts/search";
+import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
@@ -18,6 +18,10 @@ import type {
 export const MODEL = "test-embed-1024";
 export const DIM = 1024;
 
+/** The synthetic group-as-character id (`scopedCharacterId` for the shared bucket — inv 8, no `''` sentinel).
+ *  A FK-valid character row must be seeded (`seedCharacter(db, owner, "group")`) before seeding shared digests. */
+export const GROUP_CHAR = castId<CharacterId>("character_group");
+
 /** A zeroed F32_BLOB(1024) — memory never reads the vector column, so the value is irrelevant. */
 function dummyVector(): Float32Array {
   return new Float32Array(DIM);
@@ -28,20 +32,28 @@ export async function seedDigest(
   db: Db,
   opts: {
     readonly chatId: ChatId;
-    readonly scopedCharacterId?: CharacterId | "";
+    readonly scopedCharacterId?: CharacterId;
     readonly isGroup?: boolean;
     readonly tier: number;
     readonly blockIdx: number;
+    readonly text?: string;
     readonly contentHash?: string;
     readonly topicAnchor?: string;
     readonly keywords?: string[];
     readonly speakers?: CharacterId[];
   },
 ): Promise<ChatDigestId> {
-  const scoped = opts.scopedCharacterId ?? "";
+  const scoped = opts.scopedCharacterId ?? GROUP_CHAR;
   const id = castId<ChatDigestId>(
     `chat_digest_${opts.chatId}_${scoped}_${opts.tier}_${opts.blockIdx}`,
   );
+  const anchor = opts.topicAnchor ?? `[anchor ${opts.tier}.${opts.blockIdx}]`;
+  const keywords = opts.keywords ?? [`kw${opts.tier}${opts.blockIdx}`];
+  // Default the stored `text` to the facet-shaped body `{{memory}}` surfaces (anchor [+ keywords]) — so a seed
+  // that sets only anchor/keywords produces the matching `{{memory}}` text (the §2b distilled body). With no
+  // keywords it is the bare anchor (mirrors the `facet()` helper the recall tests assert against).
+  const text =
+    opts.text ?? (keywords.length > 0 ? `${anchor}\nkeywords: ${keywords.join(", ")}` : anchor);
   await db.insert(chatDigests).values({
     id,
     chatId: opts.chatId,
@@ -49,10 +61,11 @@ export async function seedDigest(
     isGroup: opts.isGroup ?? false,
     tier: opts.tier,
     blockIdx: opts.blockIdx,
+    text,
     embedding: dummyVector(),
     contentHash: opts.contentHash ?? `hash_${opts.tier}_${opts.blockIdx}`,
-    topicAnchor: opts.topicAnchor ?? `[anchor ${opts.tier}.${opts.blockIdx}]`,
-    keywords: opts.keywords ?? [`kw${opts.tier}${opts.blockIdx}`],
+    topicAnchor: anchor,
+    keywords,
     model: MODEL,
     dim: DIM,
   });
@@ -73,6 +86,7 @@ export async function seedSegment(
     readonly blockIdx: number;
     readonly seqStart: number;
     readonly seqEnd: number;
+    readonly text?: string;
     readonly contentHash?: string;
   },
 ): Promise<ChatSegmentId> {
@@ -83,6 +97,7 @@ export async function seedSegment(
     blockIdx: opts.blockIdx,
     seqStart: opts.seqStart,
     seqEnd: opts.seqEnd,
+    text: opts.text ?? `verbatim block ${opts.blockIdx}`,
     embedding: dummyVector(),
     contentHash: opts.contentHash ?? `seg_${opts.blockIdx}`,
     model: MODEL,
@@ -127,6 +142,7 @@ export function fakeEmbeddingsStore(db: Db): {
         scopedCharacterId: params.key.scopedCharacterId,
         tier: params.key.tier,
         blockIdx: params.key.blockIdx,
+        text: params.text,
         contentHash: params.contentHash,
         topicAnchor: params.topicAnchor,
         keywords: [...params.keywords],
@@ -140,6 +156,7 @@ export function fakeEmbeddingsStore(db: Db): {
         blockIdx: params.blockIdx,
         seqStart: params.seqStart,
         seqEnd: params.seqEnd,
+        text: params.text,
         contentHash: params.contentHash,
       });
     }
@@ -147,21 +164,14 @@ export function fakeEmbeddingsStore(db: Db): {
   return { store, digests, segments };
 }
 
-/** A fake `searchDigests` that records the query + returns a fixed key list (the injected cosine scan). */
+/** A fake `searchDigests` that records the `MemoryQueryOptions` + returns a fixed key list (the injected
+ *  cosine scan; `queryText`/`scopedCharacterId`/`candidates` are now homed on the options — inv 8). */
 export function fakeSearchDigests(result: readonly BlockKey[]): {
-  fn: (query: {
-    text: string;
-    scopedCharacterId: CharacterId | "";
-    options: unknown;
-  }) => Promise<readonly BlockKey[]>;
-  calls: { text: string; scopedCharacterId: CharacterId | ""; options: unknown }[];
+  fn: (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
+  calls: MemoryQueryOptions[];
 } {
-  const calls: { text: string; scopedCharacterId: CharacterId | ""; options: unknown }[] = [];
-  const fn = (query: {
-    text: string;
-    scopedCharacterId: CharacterId | "";
-    options: unknown;
-  }): Promise<readonly BlockKey[]> => {
+  const calls: MemoryQueryOptions[] = [];
+  const fn = (query: MemoryQueryOptions): Promise<readonly BlockKey[]> => {
     calls.push(query);
     return Promise.resolve(result);
   };

@@ -12,11 +12,14 @@
 
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import { assets, characters, users } from "@orb/db";
+import { assets, characters, chats, users } from "@orb/db";
 import type {
   AssetId,
   CharacterEmbeddingId,
   CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatSegmentId,
   Handle,
   ImageEmbeddingId,
   UserId,
@@ -113,6 +116,8 @@ export function makeStoreHarness(db: Db): StoreHarness {
       castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId =>
       castId<ImageEmbeddingId>(ids.next("image_embedding")),
+    newChatDigestId: (): ChatDigestId => castId<ChatDigestId>(ids.next("chat_digest")),
+    newChatSegmentId: (): ChatSegmentId => castId<ChatSegmentId>(ids.next("chat_segment")),
   };
   return { ctx, roleClients, advance: (ms: number): void => clock.advance(ms) };
 }
@@ -185,6 +190,13 @@ export async function seedCharacter(
     name: overrides.name ?? "Test Card",
   });
   return id;
+}
+
+/** Insert a `chats` row (the producer FK for chat_digests / chat_segments). Returns its branded id. */
+export async function seedChat(db: Db, id = "chat_test"): Promise<ChatId> {
+  const chatId = castId<ChatId>(id);
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  return chatId;
 }
 
 /** Insert an `assets` row (the producer FK for image_embeddings). Returns its branded id. */

@@ -27,16 +27,18 @@ export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES);
  * key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates` so
  * `search` scores only those.
  *
- * `scopedCharacterId` (§11.5 Item 4) carries the egocentric POV: two scoped-group characters can produce
+ * `scopedCharacterId` (§4 / inv 8) carries the egocentric POV: two scoped-group characters can produce
  * digests for the SAME `(chatId, tier, blockIdx)` from different POVs, so the character id is part of the
- * key — without it one POV silently overwrites the other. The `''` empty-string sentinel (NOT null) is
- * the SHARED-bucket value (solo / merged / narrator); it must survive as a valid key value.
+ * key — without it one POV silently overwrites the other. It is ALWAYS a real branded `CharacterId` (solo's
+ * cast char / the synthetic group-as-character `__group__${chatId}` for merged/narrator / a per-witnessing
+ * cast char under scoped) — there is NO `''` empty-string sentinel and NO NULL (inv 8; the db FK + the
+ * `chat_digests` scope UNIQUE both key off the real id).
  */
 export interface BlockKey {
   chatId: ChatId;
   tier: number;
   blockIdx: number;
-  scopedCharacterId: CharacterId | "";
+  scopedCharacterId: CharacterId;
 }
 
 /**
@@ -51,6 +53,16 @@ export interface MemoryQueryOptions {
   /** First-class chat-scope — the scan is restricted to this one chat (D18/D20: membership-derived, no
    *  `chats.ownerId` row leak). */
   scope: { chat: ChatId };
+  /** The recent-window retrieval query TEXT (knowledge-cluster.md §6/§3b): `memory` assembles the egocentric
+   *  (name-prefixed) query over the recent window pre-call; `search` embeds + scans it (mixB/mixC). Homed here
+   *  (was carried chat-side on `MemoryRecallQuery` as a workaround). Absent for the non-embedding modes
+   *  (`off`/`mixA`/`tiered` do pure assembly — no query embed). */
+  queryText?: string | undefined;
+  /** The egocentric scope bucket (knowledge-cluster.md §4 / inv 8): the active speaker's own witnessed
+   *  bucket for a within-chat recall. ALWAYS a real `CharacterId` (solo's cast char / the synthetic
+   *  group-as-character / a per-witnessing char) — NO `''` sentinel, NO NULL. Homed here (was carried
+   *  chat-side as a workaround). Absent for an owner-wide cross-chat scan that has no single egocentric POV. */
+  scopedCharacterId?: CharacterId | undefined;
   /** The tiered bridge restriction: `memory` computes coverage and passes the surviving block-keys;
    *  `search` scores ONLY these. Absent ⇒ scan the full scoped pool. */
   candidates?: BlockKey[] | undefined;

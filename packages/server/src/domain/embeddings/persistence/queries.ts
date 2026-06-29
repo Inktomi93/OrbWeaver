@@ -26,6 +26,7 @@ import type {
   CharacterEmbeddingId,
   CharacterId,
   ChatDigestId,
+  ChatId,
   ChatSegmentId,
   ImageEmbeddingId,
 } from "@orb/kit/ids";
@@ -150,6 +151,146 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
         embedding: input.embedding,
         caption: input.caption,
         captionMeta: input.captionMeta,
+        contentHash: input.contentHash,
+        dim: input.dim,
+      },
+    });
+}
+
+/** The stored `content_hash` for a chat segment `(chatId, blockIdx)`, or `undefined` when no row exists. */
+export async function existingSegmentHash(
+  db: Db,
+  chatId: ChatId,
+  blockIdx: number,
+): Promise<string | undefined> {
+  const rows = await db
+    .select({ hash: chatSegments.contentHash })
+    .from(chatSegments)
+    .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.blockIdx, blockIdx)))
+    .limit(LIMIT_ONE);
+  return rows[0]?.hash;
+}
+
+/** The stored `content_hash` for a chat digest `(chatId, scopedCharacterId, tier, blockIdx)`, or `undefined`
+ *  when no row exists. The scope key is part of the staleness identity (scope folds into the hash — §4). */
+export async function existingDigestHash(
+  db: Db,
+  key: { chatId: ChatId; scopedCharacterId: CharacterId; tier: number; blockIdx: number },
+): Promise<string | undefined> {
+  const rows = await db
+    .select({ hash: chatDigests.contentHash })
+    .from(chatDigests)
+    .where(
+      and(
+        eq(chatDigests.chatId, key.chatId),
+        eq(chatDigests.scopedCharacterId, key.scopedCharacterId),
+        eq(chatDigests.tier, key.tier),
+        eq(chatDigests.blockIdx, key.blockIdx),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows[0]?.hash;
+}
+
+/** The persistence-internal arg bundle for {@link upsertChatSegment} (file-local — types-in-contract). */
+interface UpsertSegmentInput {
+  readonly id: ChatSegmentId;
+  readonly chatId: ChatId;
+  readonly blockIdx: number;
+  readonly seqStart: number;
+  readonly seqEnd: number;
+  readonly text: string;
+  readonly embedding: Float32Array;
+  readonly contentHash: string;
+  readonly model: string;
+  readonly dim: number;
+  readonly now: number;
+}
+
+/** Upsert a verbatim segment by `(chatId, blockIdx)`. On conflict updates the vector + text + seq-span +
+ *  hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2). */
+export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<void> {
+  await db
+    .insert(chatSegments)
+    .values({
+      id: input.id,
+      chatId: input.chatId,
+      blockIdx: input.blockIdx,
+      seqStart: input.seqStart,
+      seqEnd: input.seqEnd,
+      text: input.text,
+      embedding: input.embedding,
+      contentHash: input.contentHash,
+      model: input.model,
+      dim: input.dim,
+      createdAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: [chatSegments.chatId, chatSegments.blockIdx],
+      set: {
+        seqStart: input.seqStart,
+        seqEnd: input.seqEnd,
+        text: input.text,
+        embedding: input.embedding,
+        contentHash: input.contentHash,
+        dim: input.dim,
+      },
+    });
+}
+
+/** The persistence-internal arg bundle for {@link upsertChatDigest} (file-local). */
+interface UpsertDigestInput {
+  readonly id: ChatDigestId;
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly isGroup: boolean;
+  readonly tier: number;
+  readonly blockIdx: number;
+  readonly text: string;
+  readonly topicAnchor: string;
+  readonly keywords: readonly string[];
+  readonly embedding: Float32Array;
+  readonly contentHash: string;
+  readonly model: string;
+  readonly dim: number;
+  readonly now: number;
+}
+
+/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx)`. On conflict updates the
+ *  vector + text + the §2b facets + hash + dim only — `hub_score`, the key columns, and `created_at` are left
+ *  as-is (§invariant 2; the scope key is part of the staleness identity — §4). */
+export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<void> {
+  await db
+    .insert(chatDigests)
+    .values({
+      id: input.id,
+      chatId: input.chatId,
+      scopedCharacterId: input.scopedCharacterId,
+      isGroup: input.isGroup,
+      tier: input.tier,
+      blockIdx: input.blockIdx,
+      text: input.text,
+      topicAnchor: input.topicAnchor,
+      keywords: [...input.keywords],
+      embedding: input.embedding,
+      contentHash: input.contentHash,
+      model: input.model,
+      dim: input.dim,
+      createdAt: input.now,
+    })
+    .onConflictDoUpdate({
+      target: [
+        chatDigests.chatId,
+        chatDigests.scopedCharacterId,
+        chatDigests.tier,
+        chatDigests.blockIdx,
+      ],
+      set: {
+        text: input.text,
+        topicAnchor: input.topicAnchor,
+        keywords: [...input.keywords],
+        isGroup: input.isGroup,
+        embedding: input.embedding,
         contentHash: input.contentHash,
         dim: input.dim,
       },

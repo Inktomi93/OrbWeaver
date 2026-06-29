@@ -220,6 +220,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
+    newChatDigestId: minter(ID_PREFIX.chatDigest),
+    newChatSegmentId: minter(ID_PREFIX.chatSegment),
   });
 
   // ── Tag (built BEFORE character so character's by-name card-tag attach port wires to the real tag verb —

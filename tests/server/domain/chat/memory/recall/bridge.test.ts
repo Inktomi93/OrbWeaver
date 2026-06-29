@@ -1,4 +1,4 @@
-import type { ChatDigestId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, expect, test } from "vitest";
 import { computeBridge } from "../../../../../../packages/server/src/domain/chat/memory/recall/bridge";
@@ -8,15 +8,18 @@ import type {
 } from "../../../../../../packages/server/src/domain/chat/memory/types";
 
 const chatId = castId<ChatId>("chat_b");
-const scope: MemoryScope = { chatId, scopedCharacterId: "", isGroup: false };
+// The shared bucket keys to the synthetic group-as-character (a real CharacterId — inv 8, no `''` sentinel).
+const groupChar = castId<CharacterId>("character_group");
+const scope: MemoryScope = { chatId, scopedCharacterId: groupChar, isGroup: false };
 
 function dr(tier: number, blockIdx: number): DigestRow {
   return {
     id: castId<ChatDigestId>(`chat_digest_${tier}_${blockIdx}`),
-    scopedCharacterId: "",
+    scopedCharacterId: groupChar,
     isGroup: false,
     tier,
     blockIdx,
+    text: `[a${tier}.${blockIdx}]`,
     contentHash: `h${tier}${blockIdx}`,
     topicAnchor: `[a${tier}.${blockIdx}]`,
     keywords: [],
@@ -30,9 +33,9 @@ describe("memory/recall/bridge — tiered coverage", () => {
     const keys = computeBridge(scope, digests, 2);
     // fine zone = last fanOut(2) tier-0 blocks → [2,3]; coarse [0,1] covered by ONE tier-1 digest.
     expect(keys).toEqual([
-      { chatId, tier: 1, blockIdx: 0, scopedCharacterId: "" },
-      { chatId, tier: 0, blockIdx: 2, scopedCharacterId: "" },
-      { chatId, tier: 0, blockIdx: 3, scopedCharacterId: "" },
+      { chatId, tier: 1, blockIdx: 0, scopedCharacterId: groupChar },
+      { chatId, tier: 0, blockIdx: 2, scopedCharacterId: groupChar },
+      { chatId, tier: 0, blockIdx: 3, scopedCharacterId: groupChar },
     ]);
     // the tier-0 blocks 0 + 1 are COVERED by tier-1 block 0 → never also surfaced (uncovered-only).
     expect(keys.some((k) => k.tier === 0 && k.blockIdx <= 1)).toBe(false);
@@ -41,8 +44,8 @@ describe("memory/recall/bridge — tiered coverage", () => {
   test("short chat (everything fits the fine zone) → all tier-0, chronological", () => {
     const keys = computeBridge(scope, [dr(0, 0), dr(0, 1)], 8);
     expect(keys).toEqual([
-      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: "" },
-      { chatId, tier: 0, blockIdx: 1, scopedCharacterId: "" },
+      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: groupChar },
+      { chatId, tier: 0, blockIdx: 1, scopedCharacterId: groupChar },
     ]);
   });
 

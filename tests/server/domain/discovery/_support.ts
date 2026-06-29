@@ -207,27 +207,65 @@ export async function seedHostedChat(db: Db, id: string, ownerId: UserId): Promi
   return chatId;
 }
 
+/** The synthetic group-as-character bucket for shared digests (a real `CharacterId` FK — inv 8, no `''`
+ *  sentinel). Hidden/synthetic + with NO character_embedding + NO hosted chat, so it never enters CSLS /
+ *  themes / duplicate analytics (the digest hub/theme passes scan embeddings + host-derived owners). */
+export const GROUP_CHAR = castId<CharacterId>("character_group");
+const DIGEST_OWNER = castId<UserId>("user_digest_owner");
+
+/** Idempotently ensure the synthetic group char (+ its owner) exists for the digest `scopedCharacterId` FK. */
+async function ensureGroupChar(db: Db): Promise<void> {
+  await db
+    .insert(users)
+    .values({
+      id: DIGEST_OWNER,
+      handle: castId<Handle>("user_digest_owner"),
+      role: "user",
+      enabled: true,
+      passwordHash: null,
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    })
+    .onConflictDoNothing();
+  await db
+    .insert(characters)
+    .values({
+      id: GROUP_CHAR,
+      handle: "group",
+      ownerId: DIGEST_OWNER,
+      name: "group",
+      contentHash: "card_hash",
+      synthetic: true,
+      createdAt: FROZEN_AT,
+    })
+    .onConflictDoNothing();
+}
+
 export async function seedChatDigest(
   db: Db,
   overrides: {
     readonly id: string;
     readonly chatId: ChatId;
     readonly embedding: Float32Array;
+    readonly scopedCharacterId?: CharacterId;
     readonly tier?: number;
     readonly blockIdx?: number;
     readonly isGroup?: boolean;
+    readonly text?: string;
     readonly model?: string;
     readonly contentHash?: string;
     readonly keywords?: string[];
   },
 ): Promise<void> {
+  await ensureGroupChar(db);
   await db.insert(chatDigests).values({
     id: castId(overrides.id),
     chatId: overrides.chatId,
-    scopedCharacterId: "",
+    scopedCharacterId: overrides.scopedCharacterId ?? GROUP_CHAR,
     isGroup: overrides.isGroup ?? false,
     tier: overrides.tier ?? 0,
     blockIdx: overrides.blockIdx ?? 0,
+    text: overrides.text ?? `digest ${overrides.id}`,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
     keywords: overrides.keywords ?? [],
@@ -244,6 +282,7 @@ export async function seedChatSegment(
     readonly chatId: ChatId;
     readonly embedding: Float32Array;
     readonly blockIdx?: number;
+    readonly text?: string;
     readonly model?: string;
     readonly contentHash?: string;
   },
@@ -254,6 +293,7 @@ export async function seedChatSegment(
     blockIdx: overrides.blockIdx ?? 0,
     seqStart: 0,
     seqEnd: 1,
+    text: overrides.text ?? `segment ${overrides.id}`,
     embedding: overrides.embedding,
     contentHash: overrides.contentHash ?? `hash_${overrides.id}`,
     model: overrides.model ?? EMBED_MODEL,
