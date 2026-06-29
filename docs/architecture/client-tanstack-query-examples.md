@@ -121,8 +121,8 @@ A standing note for the orbweaver mapping: every example here hand-writes `query
 - `isFetching && !isFetchingNextPage` distinguishes a background refetch of existing pages from a new-page append.
 
 **Orbweaver mapping:**
-- **Feeds `createCollectionSurface`** — but with a strong caveat. Our list virtualization is sealed via **`virtua`**, and our live updates come from **SSE, not pagination/refetch**. `useInfiniteQuery` is the right tool ONLY for genuinely paginated server collections (e.g. message history backscroll, large browse lists).
-- **ADOPT `maxPages`** as the memory bound for any infinite browse surface (character/chat-history backscroll) so the cache window stays bounded — pairs naturally with `virtua`'s windowed rendering.
+- **Feeds `createCollectionSurface`** — but with a strong caveat. Our list virtualization is sealed via **`TanStack Virtual`**, and our live updates come from **SSE, not pagination/refetch**. `useInfiniteQuery` is the right tool ONLY for genuinely paginated server collections (e.g. message history backscroll, large browse lists).
+- **ADOPT `maxPages`** as the memory bound for any infinite browse surface (character/chat-history backscroll) so the cache window stays bounded — pairs naturally with `TanStack Virtual`'s windowed rendering.
 - **tRPC adaptation:** tRPC exposes `trpc.x.list.infiniteQueryOptions(input, { getNextPageParam, initialPageParam })` — the `getNextPageParam`/`maxPages` go in the options arg; the key/fn come from the proxy.
 - **SKIP:** the manual `queryKey`/`queryFn` and the cursor-in-URL plumbing — tRPC + our cursor contract own that.
 
@@ -150,9 +150,9 @@ A standing note for the orbweaver mapping: every example here hand-writes `query
 - Effect deps include `fetchNextPage` (stable identity from Query) — safe.
 
 **Orbweaver mapping:**
-- **Feeds `createCollectionSurface`'s scroll trigger.** But we use **`virtua`** for virtualization — virtua emits its own range/visible-index signals, so we likely DON'T need `react-intersection-observer`. The trigger becomes "virtua's last-rendered index ≥ items.length - threshold → `fetchNextPage()`."
+- **Feeds `createCollectionSurface`'s scroll trigger.** But we use **`TanStack Virtual`** for virtualization — TanStack Virtual emits its own range/visible-index signals, so we likely DON'T need `react-intersection-observer`. The trigger becomes "TanStack Virtual's last-rendered index ≥ items.length - threshold → `fetchNextPage()`."
 - **ADOPT the guard logic** (`hasNextPage && !isFetchingNextPage` before fetching) verbatim, wherever the trigger lives.
-- **SKIP `react-intersection-observer`** as a dependency — virtua's range callback supersedes it. One fewer dep (matches our "every dep is a liability" instinct even under the rigor regime, since it's our seal not the architecture). Note it only if virtua can't cheaply report tail-proximity.
+- **SKIP `react-intersection-observer`** as a dependency — TanStack Virtual's range callback supersedes it. One fewer dep (matches our "every dep is a liability" instinct even under the rigor regime, since it's our seal not the architecture). Note it only if TanStack Virtual can't cheaply report tail-proximity.
 - React Compiler note: the `useEffect` dep array stays — Compiler doesn't remove effect deps, only memoization.
 
 ---
@@ -303,7 +303,7 @@ Note the **`flat/recommended-strict`** preset (not just `recommended`) and that 
 
 **Orbweaver mapping:**
 - **Feeds `createCollectionSurface`** for any **page-number** (vs infinite-scroll) browse view. `placeholderData: keepPreviousData` is the seal for "filter/search/page changes shouldn't flash empty."
-- **ADOPT `keepPreviousData`** as the default for our search/filter surface: when the user types and the query key changes, keep showing the prior results (greyed/`isPlaceholderData`) instead of an empty/skeleton flash — critical with a virtualized (`virtua`) list to avoid scroll jump.
+- **ADOPT `keepPreviousData`** as the default for our search/filter surface: when the user types and the query key changes, keep showing the prior results (greyed/`isPlaceholderData`) instead of an empty/skeleton flash — critical with a virtualized (`TanStack Virtual`) list to avoid scroll jump.
 - **ADOPT the prefetch-next-page-on-success** idiom for our prefetch primitive's "sequential" case.
 - **tRPC adaptation:** `useQuery({ ...trpc.x.list.queryOptions({ page }), placeholderData: keepPreviousData, staleTime })` — spread the proxy options, add `placeholderData`/`staleTime`. (Our SSE bus, not `refetchInterval`, handles liveness.)
 - **SKIP:** nothing here is moot — this is one of the most directly applicable examples for the collection surface.
@@ -380,10 +380,10 @@ Note the **`flat/recommended-strict`** preset (not just `recommended`) and that 
 - (Our addition, not in examples) reset the per-mutation **sticky error** on next `mutate` — examples don't cover v5's sticky mutation error; the factory must.
 
 **`createCollectionSurface`**
-- [pagination] `placeholderData: keepPreviousData` + gate-on-`isPlaceholderData` — *no empty/skeleton flash on search/filter/page change; essential with a `virtua` list to avoid scroll jump.*
+- [pagination] `placeholderData: keepPreviousData` + gate-on-`isPlaceholderData` — *no empty/skeleton flash on search/filter/page change; essential with a `TanStack Virtual` list to avoid scroll jump.*
 - [pagination] Per-page cache entries + `staleTime` — *instant back-nav, silent revalidate.*
-- [infinite-max-pages] `useInfiniteQuery` + **`maxPages`** sliding window — *bounded memory for backscroll/history feeds; pairs with virtua windowing.*
-- [load-more] The `inView/hasNextPage/!isFetchingNextPage` fetch guard — *adopt the guard logic on virtua's tail-proximity signal; SKIP `react-intersection-observer` (virtua reports range).*
+- [infinite-max-pages] `useInfiniteQuery` + **`maxPages`** sliding window — *bounded memory for backscroll/history feeds; pairs with TanStack Virtual windowing.*
+- [load-more] The `inView/hasNextPage/!isFetchingNextPage` fetch guard — *adopt the guard logic on TanStack Virtual's tail-proximity signal; SKIP `react-intersection-observer` (TanStack Virtual reports range).*
 
 **Chat message cache + stream lifecycle**
 - [chat] "The cache is the stream buffer; UI derives from `isFetching` + accumulated `data`" — *adopt the principle for the ghost row.*

@@ -142,8 +142,9 @@ systems don't fight.
 
 **USE:**
 - **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** It memoizes for
-  you; manual memo is noise. The ONE blind spot is `useVirtualizer` → sealed in `@orb/ui/virtual-list`
-  with `"use no memo"` (§7); feature code never opts out by hand.
+  you; manual memo is noise. The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in
+  `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** — TanStack Virtual's released,
+  React-19-Compiler-E2E-tested fix (3.14+), **NOT `"use no memo"`** (§7/§11.8/D54); feature never wires it by hand.
 - **`<Activity>` (19.2) for the single-route panes.** Keep a pane mounted-but-hidden when you flip away
   (chat ⇄ library) so returning is instant with scroll + form state intact — the principled realization of
   the single-route shell (§5.1). Replaces unmount/remount.
@@ -251,6 +252,16 @@ chat id only) — NOT a rewrite.
 | **WRAP** | every kept third-party lib lives behind `@orb/ui`; app imports `@orb/ui`, never the lib. |
 
 ### 6.1 TanStack — keep, with discipline
+> **`QueryClient` defaults (born-compliant — from the full-docs mine, `client-tanstack-query-notes.md`):**
+> `staleTime: Infinity` (the SSE bus drives freshness — **NOT `'static'`**, which silently ignores
+> `invalidateQueries`; a gate should ban `'static'` on bus-backed keys) · `gcTime: 5*60_000` ·
+> `refetchOnWindowFocus: false` (bus owns liveness) · **`refetchOnReconnect: true`** (SSE-gap catch-up —
+> disabling it is the actual bug) · `refetchOnMount: true` · `networkMode: 'online'` · `structuralSharing: true` ·
+> `throwOnError: false` (the `<QueryBoundary>` opts in per-tree) · mutations `retry: 0` · global error toasts via
+> `QueryCache`/`MutationCache` `onError` keyed off `meta` (coexists with per-mutation error slots). **Gate-boundary
+> note:** `no-inline-cache-surgery-in-stream` must scope to stream/subscription bodies only — it must NOT trip on
+> the legitimate `setQueryData` inside `createEntityMutation.onMutate`. Adopt `skipToken` (kills the
+> `castId<X>("")` sentinel) and `@tanstack/eslint-plugin-query` `flat/recommended-strict`.
 > **Reference companion:** `client-tanstack-query-examples.md` (this directory) — a full-read digest of all
 > TanStack Query official React examples, triaged to orbweaver: the canonical optimistic-mutation /
 > infinite+`maxPages` / `keepPreviousData` / prefetch-on-intent / Suspense-boundary patterns that feed
@@ -263,14 +274,36 @@ chat id only) — NOT a rewrite.
 > factory-original (zero examples fix them)**, `query-integration` PUNTS on the seed/clobber dance (seeds once at
 > mount, never re-syncs), and `listeners` (the autosave backbone) appear in NO example. Confirms Form is
 > React-Compiler-clean (no `use no memo`).
+> **Full-docs mine → `client-tanstack-form-notes.md` (this directory).** Sharpens the factory contract: (1) the
+> DirtyPill drives off **`!form.state.isDefaultValue`** (the lib's DEEP compare), NOT the event-based `isDirty`;
+> (2) **DELETE the hand-rolled `fieldValuesEqual`** — the lib already ships deep compare (`isDefaultValue`,
+> exported `evaluate()`, `useSelector`'s `compare`); footgun #6 is lib-provided, not ours. (3) Keep persistent
+> `isDirty` for ONE job — the reseed guard — never doubled with the pill. (4) `form.reset(savedValue)` is the
+> official re-baseline primitive (DOC-PROVIDED) but call it in a **post-submit effect, NOT inside `onSubmit`**
+> (footgun #2 — reset-inside-onSubmit — is real + undocumented). (5) `dontUpdateMeta` (footgun #3) rides an
+> **undocumented** flag → version-lock `@tanstack/react-form` + a guard test. (6) Use **`useSelector`** (not the
+> deprecated `useStore` alias); adopt `revalidateLogic()`+`onDynamic`. Footguns #4 (seed/clobber guard) + #5
+> (Zustand draft persistence) confirmed **FACTORY-ORIGINAL** — the docs punt exactly like the examples did.
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
 - **Router: use it MINIMALLY** — single-route shell means ~3 routes (`/`, `/login`, `/admin/*`). Drop the
   file-based codegen plugin; hand-write the tiny route tree. (Don't swap for wouter — family cohesion wins
-  over the marginal ceremony saving.)
-- **Form threshold rule:** TanStack Form for entity *editors* (multi-field, draft-survival —
-  character/preset/prompt-manager/persona); plain controlled inputs + the same Zod schema for trivial
-  1–2-field forms (search box, lone toggle). Don't pay the toolkit tax on a single toggle. RHF stays
-  banned (neo decided; never coming back).
+  over the marginal ceremony saving.) **Full-docs mine → `client-tanstack-router-notes.md` (this directory).**
+  Verdict: all three calls (single-route/no-URL-ids · hand-written code-based tree, plugin dropped · router
+  owns nav not data) are explicitly supported — **type-safety survives dropping the codegen plugin** (it's
+  inference + one `declare module { Register }`, not codegen). Two real traps it surfaced: (1) `useBlocker`
+  will NOT fire on the in-app editor pane-switch (it's a reducer state change, not a navigation) → the editor
+  dirty-guard must be **hand-rolled in-app**, not `useBlocker`; (2) the router's built-in View Transitions fire
+  only on URL commits (`pathChanged` is always false in our shell) → §4a's **hand-rolled** VT is correct, not a
+  workaround. Steal-list: router-context DI (forward `queryClient`/`trpc`, never construct), `beforeLoad`+
+  `redirect` auth gate, `lazyRouteComponent` for `/admin/*`, `createMemoryHistory` in tests, DEV-gated devtools.
+- **Form threshold rule (CORRECTED — D54; we were under-scoping it to "entity editors"):** a **form factory**
+  (§13) is the home for **ANY multi-field form** — the trigger is **≥3 fields OR validation OR save/draft
+  semantics**, NOT "is it an entity." That is a much larger set than the 4 entity editors: it also covers
+  **settings panels, connection/credential add+edit, group-chat config, room overrides, the D44 theme-override
+  editor, and user-admin create/edit** (all were Form candidates being under-served). Only **genuinely trivial**
+  inputs stay plain controlled + the same Zod schema — a 1–2-field search box, a lone toggle, a single rename.
+  Don't pay the toolkit tax on a single toggle; do NOT hand-roll a 6-field config panel either. **Full
+  surface→factory map in §13.4.** RHF stays banned (Compiler-incompatible; §6 / D54; never coming back).
 
 ### 6.2 Tests
 Playwright CT (`.ct.tsx`) for component tests + Playwright e2e (`.spec.ts`); central `tests/` mirror.
@@ -344,7 +377,7 @@ neo solved each per-site; orbweaver seals each in a primitive so it can't be re-
 
 | Footgun | Root | Sealed in |
 |---|---|---|
-| **Virtual × React Compiler** — `useVirtualizer` returns non-memoizable fns; the Compiler memo pass makes the list flash | TanStack Virtual is a Compiler-incompatible lib (React's `react-hooks/incompatible-library` flags it) | a **`@orb/ui/virtual-list`** primitive owns `"use no memo"` + the eslint-disables + the `measure()` effect. Feature code never calls `useVirtualizer` → can't forget the directive (neo re-risks it in 7 files). |
+| **Virtual × React Compiler** — `useVirtualizer`'s return is internally mutable; the Compiler memo pass can flash the list | the interior-mutability issue (now FIXED upstream) | a **`@orb/ui/virtual-list`** primitive owns the **`directDomUpdates: true` + `containerRef`** fix (TanStack Virtual 3.14+, Compiler-E2E-tested — **NOT `"use no memo"`**, now obsolete) + the `measureElement` wiring. Feature never calls `useVirtualizer` → can't forget the config (neo re-risked the old `"use no memo"` hatch in 7 files; D54). |
 | **Form × React** — `isDirty` is event-based, never auto-clears after submit (#1144) → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" without a manual reset | TanStack Form persistent-dirty | the **`_shared/form` toolkit** (`useAppForm`) owns reset-after-submit; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
 | **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + !isDirty + reset + applyFormValues`) |
 | **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` + a **gate flagging selectors that return a fresh object/array literal** without `useShallow`/a stable ref |
@@ -476,11 +509,15 @@ lands. **Correction to D42 §4:** features MAY use `@container`; only the SHELL 
 
 ### 11.3 NEW structural primitives — convert every leaked convention into an API the call site can't bypass
 These are the §11.0-rule-2 fixes. Each ships in `@orb/ui` / the client foundation **before** feature agents run.
-- **`@orb/ui/virtual-list`** seals `useVirtualizer` + the **two** mandatory incantations (`"use no memo"` for
-  the React-Compiler bail + the `react-hooks/incompatible-library` disable) + the `scrollMargin`-from-rect
-  measuring + the unbounded-window tripwire **as a thrown error** (neo's was a dev `console.warn` and the
-  list rotted to a 200ms commit once already). *Physics: dep-cruiser bans `@tanstack/react-virtual` outside
-  this primitive.* **7 client sites → 1.**
+- **`@orb/ui/virtual-list` (generic) + `@orb/ui/message-list` (chat)** seal **TanStack Virtual** (KEPT — D54;
+  the virtua swap was refuted, see §11.8). The seal owns the **`directDomUpdates: true` + `containerRef`** Compiler
+  fix (3.14+, E2E-tested — **NOT `"use no memo"`**, now obsolete), the `measureElement`/`scrollMargin`-from-rect
+  wiring, and the unbounded-window tripwire **as a thrown error** (neo's was a dev `console.warn` → a 200ms commit).
+  The **`message-list`** seal additionally owns the native streaming-chat APIs (`anchorTo:'end'` + `followOnAppend` +
+  `isAtEnd` = stick-to-bottom-without-yank · id-keyed `getItemKey` for the ghost→canonical swap · a no-recycle
+  window for stateful rows / Tier-B iframes) — the cluster neo hand-rolled into a 387-line surface is now ~config
+  (native since core 3.16). *Physics: dep-cruiser bans `@tanstack/react-virtual` outside these two primitives.*
+  **7 client sites → 1 generic + 1 chat.**
 - **`@orb/ui/charts`** seals **ECharts** (`echarts` + `echarts-for-react` — ONE dep replacing neo's 6 `@nivo/*`
   packages; D52) and **injects the token theme internally** so omission is impossible (neo's `theme={nivoTheme}`
   was voluntary → a new chart silently rendered white-on-transparent, invisible in dark mode); owns
@@ -599,9 +636,15 @@ Every foundational choice was re-verified against current (June 2026) reality, s
 - **Base UI** — ✅ `@base-ui/react` is correct (renamed from the stale `@base-ui-components/react`); **1.0
   stable shipped 2025-12-11, now 1.6.x**, 35 a11y components, MUI-backed long-term-maintenance commitment.
   The primitive foundation is real and production-stable.
-- **React Compiler × TanStack Virtual** — ✅ still a **fundamental** incompatibility (interior mutability of
-  `useVirtualizer`'s return; on React's official non-compat list; ESLint `incompatible-library` fires). It is
-  NOT getting fixed — which *validates* sealing it in `@orb/ui/virtual-list` (§11.3) rather than hoping.
+- **React Compiler × TanStack Virtual — CORRECTED (D54; full-docs+changelog mine, `client-tanstack-virtual-notes.md`).**
+  The interior-mutability issue was real, but the fix **shipped and is React-19-Compiler-E2E-tested**:
+  **`directDomUpdates: true` + `containerRef`** (TanStack Virtual **3.14.0/3.14.3**) — **no `"use no memo"` needed**.
+  Separately the **entire streaming-chat cluster went native in core 3.16** (`anchorTo`/`followOnAppend`/`isAtEnd`;
+  hardened 3.17.x). So the mid-2026 "virtua swap" idea was decided on **two now-refuted premises** (headless
+  hand-rolling + an unfixable Compiler bug). **TanStack Virtual is KEPT**, sealed with the `directDomUpdates` config
+  (§11.3); virtua would have lost `rangeExtractor` sticky headers / masonry `lanes` / `scrollMargin`-for-multiple-
+  virtualizers / the headless seams, and added a second virtualization lib (anti one-home). The seal still earns its
+  place — the chat cluster + the dep-cruiser ban + the tripwire — just not because the lib is "broken."
 - **React 19.2 `<Activity>` + `useEffectEvent`** — ✅ both **stable** in 19.2 (Oct 2025), no longer
   experimental. The §4a bets (pane-preserve + the seam-effect fix) stand.
 - **DTCG + Style Dictionary v4 + Tailwind v4 `@theme`** — ✅ DTCG **first stable spec (2025.10)** published
@@ -825,3 +868,126 @@ get to invent the content model or copy ST's string-blob.
 > + a small OWNED `sandbox-frame` (we own the exact `sandbox`/CSP attributes — don't depend on a generic lib
 > for the security boundary). `react-shadow`/`react-shadow-root` exist but are for our OWN design-system
 > encapsulation, the wrong tool for untrusted content.
+
+---
+
+## 13. The reuse model — the central primitives every feature builds on (D54)
+> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep — the
+> Query/Form/Router/Virtual examples + the Query/Form/Router/Virtual/Zustand deep-docs mines (the seven
+> `client-tanstack-*` / `client-zustand-notes` companions in this directory; cite them for any specific claim).
+> The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to
+> boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate ·
+> optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site
+> **cannot bypass or get wrong**. Ships in the `@orb/ui` + client-foundation wave **BEFORE any feature agent runs**
+> (§11.7).
+
+### 13.0 The litmus (what gets centralized, what stays in the feature)
+- **Central (the call site cannot opt out):** wiring, lifecycle, and the footguns — fetch/cache/invalidate,
+  optimistic+rollback, the dirty/reset/seed dance, virtualization, selection, error channels.
+- **Feature-owned:** the fields, the row/card visuals, the copy, the per-field control choice.
+- **The bar to centralize:** repeated **3+ times AND changing together** (the chart tooltip ×5, the meter ×5, the
+  editors ×4, the collection surfaces ×8 all clear it). A genuine one-off stays hand-composed from `@orb/ui` —
+  premature DRY is still a cost even here.
+
+### 13.1 The primitive catalog (contracts — born before Phase 6)
+- **`createEntityMutation`** — bakes the canonical 4-phase optimistic flow (Query `optimistic-updates-cache`):
+  `onMutate` = `cancelQueries` → `getQueryData` snapshot → `setQueryData` patch → return rollback; `onError`
+  restores; `onSettled` invalidates **via the central seam**. Uses the **`context.client`** arg (provider-clean).
+  A lightweight **variables-render mode** for append-only creates. **Resets the v5 sticky error on next `mutate`**
+  (examples don't cover it — ours). One error slot per mutation, never multiplexed.
+- **`createCollectionSurface`** — one machine for every browse view. Feature supplies the (infinite) query + the
+  row renderer + the filter config + bulk actions. Bakes `useInfiniteQuery` + **`maxPages`** + **`placeholderData:
+  keepPreviousData`** gated on `isPlaceholderData` (no flash / no scroll-jump), the virtual-list seal, the selection
+  store, empty/loading/error, and the tail-fetch guard **off the virtualizer's own range** — **no
+  `react-intersection-observer`**.
+- **`useGatedQuery` / `skipToken`** — a null id yields `skipToken` (never builds the key); kills the `castId("")`
+  sentinel (gate `no-fake-disabled-id`).
+- **`<QueryBoundary>`** — the `QueryErrorResetBoundary` → `ErrorBoundary onReset` handshake (a retry that actually
+  refetches) + `useSuspenseQuery`/`useSuspenseQueries` (non-null data, Compiler-clean; queries-plural for parallel,
+  no waterfall) + `useTransition` around pane switches (no fallback flash; pairs with `<Activity>`).
+- **`createSavedEntityForm` / `createAutosaveEntityForm`** — the editor factories (§13.4 for the six-obligation
+  contract + the surface map).
+- **`@orb/ui/virtual-list` (generic) + `@orb/ui/message-list` (chat)** — TanStack Virtual sealed with
+  `directDomUpdates` + the native chat APIs (§11.3, corrected D54).
+- **The central seams (ratified, re-stated as the standard):** `invalidation.ts` event→`queryFilter` map
+  (`no-inline-invalidate-outside-seam`); bus→cache `onData` = buffer-local + `invalidate(readKey)`, never a 2nd
+  store (`bus-onData-no-store-write`); stream writes through the pure reducer (`no-inline-cache-surgery-in-stream`);
+  queryKeys 100% tRPC-proxy (`no-array-literal-querykey`).
+- **`QueryClient` defaults (§6.1):** `staleTime: Infinity` (bus drives freshness; **never `'static'`**) ·
+  `refetchOnWindowFocus:false` · **`refetchOnReconnect:true`** · `gcTime:5min` · `structuralSharing:true` ·
+  `throwOnError:false` · mutations `retry:0` · global `meta`-toasts via `QueryCache`/`MutationCache.onError`.
+- **State — Zustand (§5), standardized:** one `create`/file · ≤10 authored fields · no exported `set`/`getState` ·
+  `persist` with **`partialize` to the persisted key + a total/crash-proof `migrate`** (default `merge` is shallow) ·
+  `set(next, true)` **replace** for DU lifecycle transitions (a dropped field is a typecheck error) ·
+  `createEntityDraftStore` keeps the frozen `EMPTY` default-ref **and** adds `useShallow` for multi-field draft
+  selectors (not redundant — different jobs) · token-stream split from lifecycle (`subscribeWithSelector` + transient
+  `subscribe`, zero renders) · dev-only `devtools`.
+
+### 13.2 The standardization map — for surface X, reach for primitive Y (the cold-agent lookup)
+| You are building… | Use | NOT |
+|---|---|---|
+| a browse/list/grid of entities | `createCollectionSurface` | a hand-wired query+list+filter |
+| an entity edit/create form (≥3 fields) | a **form factory** (§13.4) | a hand-rolled `useAppForm` |
+| a create/update/delete action | `createEntityMutation` | inline `useMutation` + `setQueryData` |
+| a read that shows loading/error | `useGatedQuery` in `<QueryBoundary>` | bare `useQuery` + `isPending` ladders |
+| a conditional/disabled query | `useGatedQuery` (`skipToken`) | `castId("")` + `enabled` |
+| a virtualized list | `@orb/ui/virtual-list` | raw `useVirtualizer` |
+| the chat message list | `@orb/ui/message-list` | a hand-rolled scroll/anchor hook |
+| a chart | `@orb/ui/charts` (ECharts) | raw `echarts` / a `<div style=width>` |
+| a 1-D magnitude bar | `@orb/ui/meter` | a hand-rolled `<span style=width>` |
+| cache invalidation | `invalidate(event)` (the seam) | inline `invalidateQueries` |
+| global client state | one gated Zustand store | exported `set`/`getState`, >10 fields |
+| an editor draft | `createEntityDraftStore` | a bespoke persist store |
+| a route / auth gate | Router `beforeLoad`+`redirect` (§6.1) | `useBlocker` for an in-app pane guard |
+| the editor "unsaved? leave?" guard | a **hand-rolled in-app** guard off view-state | `useBlocker` (won't fire on a pane swap) |
+| single-route pane transition | hand-rolled `document.startViewTransition()` | the router's VT (won't fire; `pathChanged` is constant) |
+
+### 13.3 The new gates (machine-enforced — added by D54)
+- `no-static-staletime-on-bus-keys` — `staleTime:'static'` silently ignores `invalidateQueries`; ban it on bus keys.
+- `no-inline-cache-surgery-in-stream` **scoped to subscription/stream bodies** — must NOT flag
+  `createEntityMutation`'s legitimate `onMutate setQueryData`.
+- `persist-partialize-and-total-migrate` — non-primitive `persist()` needs `partialize` to its key + a total `migrate`.
+- `form-factory-for-multifield` — a ≥3-field `useAppForm`/controlled form outside a factory is flagged.
+- `virtualizer-only-in-seal` — `@tanstack/react-virtual` only inside the two `@orb/ui` seals (dep-cruiser).
+- adopt **`@tanstack/eslint-plugin-query` `flat/recommended-strict`** (`prefer-query-options` forces the proxy key)
+  + **`eslint-plugin-react-hooks` `recommended-latest`** (the Compiler's Rules-of-React enforcement — load-bearing,
+  not optional: an undetected violation = a silent mis-memoization).
+- the Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldValuesEqual`** (lib does deep compare) ·
+  post-submit-effect `reset(saved)` · version-locked `dontUpdateMeta` + a guard test · `useSelector` (not `useStore`).
+
+### 13.4 Where to use Form — the surface map (the under-use correction)
+The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft semantics** — *Form is for forms, not for
+"entities."* The six obligations the factories bake (verified FACTORY-ORIGINAL — no example or doc fixes them):
+seed-on-load · `key`-remount on id change · post-submit `reset(saved)` · the `seededRef + persistent-isDirty` reseed
+guard · the Zustand-`persist` draft mirror (autosave) · `dontUpdateMeta` on non-user writes.
+
+| Surface | Factory | Why (and why it was under-served) |
+|---|---|---|
+| Character card editor | `createSavedEntityForm` | many fields, draft, explicit save |
+| Persona editor | `createSavedEntityForm` | multi-field, draft |
+| Preset editor | `createSavedEntityForm` | many fields |
+| Prompt-manager | `createSavedEntityForm` | multi-field |
+| **Connection / credential add+edit** | `createSavedEntityForm` | multi-field **+ validation** — was hand-rolled |
+| **Group-chat create + config** | `createSavedEntityForm` | roster + overrides |
+| **User-admin create / edit user** | `createSavedEntityForm` | multi-field + validation |
+| **D44 theme-override editor** | `createSavedEntityForm` | the token subset (color/font/bubble/radius/…) |
+| World-info / lorebook entry | `createAutosaveEntityForm` | neo autosaved these; debounced draft |
+| Room overrides (per-chat) | `createAutosaveEntityForm` | flip-and-it-saves |
+| **Settings panels (AppSettings)** | `createAutosaveEntityForm` | many grouped toggles, save-on-change |
+| — stays controlled + Zod — | | search box · lone toggle · single rename · login (2-field): trivial, no toolkit tax |
+
+**The correction in one line:** treating Form as "the 4 entity editors" (neo's framing) under-used it — settings,
+connections, group config, theme, and user-admin are all multi-field forms that belong in a factory. **Bolded rows
+above are the newly-claimed surfaces.**
+
+### 13.5 Deferred-with-a-committed-default forks (D54)
+- **Editor draft layer** — DEFAULT: TanStack Form + the Zustand-`persist` draft store + the factory seed/dirty guards
+  (the seed/clobber + persistence are FACTORY-ORIGINAL — no lib does them). Deferred upgrade: **TanStack DB**
+  local-storage-collection + manual transactions (`tx.mutate`/`rollback`/`commit` = edit/discard/save) would
+  *dissolve* the dirty/reset/seed dance. Revisit when TanStack DB hits 1.0 + a proven Form-editor recipe (alpha
+  today; not for a born-compliant build). **The factory IS the swap seam.**
+- **Token enforcement** — DEFAULT Tailwind v4 + DTCG + lint; deferred **Panda `strictTokens`** (§3/§10).
+
+### 13.6 Sequencing (born-compliant — non-negotiable)
+Every §13.1 primitive + the §13.3 gates ship in the `@orb/ui` + client-foundation wave **before any feature agent
+runs** (§11.7). The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag.
