@@ -19,6 +19,27 @@ import type { MessageRole } from "@orb/kit/message-role";
 type WireRole = "user" | "assistant";
 
 /**
+ * The before/in-static/in-prompt SECTION-RENDER consumer (chat.md Part I 8-slot — the BUILD chunk EXTENDS
+ * this file with "the before/in-prompt section-render consumers using the existing `frameInjection`"). The
+ * three system-block positions (`before_prompt` PREPEND to static, `in_static` APPEND to static,
+ * `in_prompt` APPEND to dynamic) all render the SAME way: macro-resolve the content (the caller's injected
+ * resolver — macros BEFORE framing, render ONCE; chat.md §3 rules 1/2/3), then frame by role through the
+ * ONE shared {@link frameInjection} (so the system-block render and the `in_chat` splice can NEVER drift).
+ * Returns "" for an empty/whitespace render (the caller skips it). The `in_chat` position is NOT handled
+ * here — that is the SHAPE splice's job ({@link spliceInChatInjections}).
+ *
+ * `resolveContent` is injected (the chat-domain macro renderer) so this primitive stays free of the
+ * macro/AssembleContext dependency — same shape as the splice's resolver seam. Identity default keeps
+ * hand-callers/tests that pass pre-resolved content unaffected.
+ */
+export function renderInjection(
+  injection: ChatInjection,
+  resolveContent: (content: string) => string = (c) => c,
+): string {
+  return frameInjection(injection.role, resolveContent(injection.content));
+}
+
+/**
  * Role-specific framing — the ONE rule, shared by the before/in-prompt render AND the in_chat splice.
  * `content` is the caller's already-prepared (macro-resolved) text. Returns "" for empty/whitespace.
  *
