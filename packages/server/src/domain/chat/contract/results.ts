@@ -19,7 +19,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatDetail, ChatVariables } from "./views";
 
@@ -59,6 +59,10 @@ export type TurnKind = (typeof TURN_KINDS)[number];
 export interface TurnMessage {
   readonly role: MessageRole;
   readonly content: string;
+  /** The per-participant label for the `completion` names-behavior (names.ts) — set into the OpenAI-spec
+   *  `name` field at the wire (mirrors `ChatHistoryMessage.name`), content left untouched. Undefined for
+   *  the default/content/none behaviors (those stamp the name into `content` instead). */
+  readonly name?: string | undefined;
 }
 
 /**
@@ -120,6 +124,10 @@ export interface TurnEconomics {
  * prep (+ the advancing canon) — no shared-ctx mutation (inv §4/§5).
  */
 export interface TurnPrep {
+  /** The room this turn runs in — keys the lock, the canon persist (next-seq), and every bus event. (Added
+   *  by the engine chunk: `AssembleContext` is chat-agnostic by design, so the turn identity the engine
+   *  lifecycle needs lives HERE, supplied by the verb that already holds it. FLAGGED in the handoff.) */
+  readonly chatId: ChatId;
   readonly assembleContext: AssembleContext;
   readonly connection: ResolvedConnection;
   /** D19 turn-identity triple. `triggeredBy` = the responsible human (spend/abort/attribution); `runAsUserId`
@@ -127,6 +135,18 @@ export interface TurnPrep {
   readonly triggeredBy: UserId;
   readonly runAsUserId: UserId;
   readonly kind: TurnKind;
+  /** The recorded generation params (sampling/effort/budget) for this turn — built into the `TurnRequest`,
+   *  recorded on the committed `message_variants.params` (D26), and read for the §8 fit reserve. */
+  readonly intent: UserIntent;
+  /** The roster character this single turn voices (per-speaker / narrator group-character id); null for a
+   *  non-character turn. The arbitration chunk resolves WHO speaks; the engine takes the resolved speaker. */
+  readonly speakerCharacterId: CharacterId | null;
+  /** A synthetic trailing user turn for the intent (regen prompt / continue nudge); null for a plain send
+   *  (the verb-inserted user row is already the canon tail). The regen/guided chunks populate it. */
+  readonly appendUserTurn?: string | null | undefined;
+  /** The Step-6b group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round (the
+   *  arbitration chunk's seam); null for the single-speaker core. */
+  readonly groupNudge?: string | null | undefined;
 }
 
 /**
