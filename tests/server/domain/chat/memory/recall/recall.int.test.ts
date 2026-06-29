@@ -222,7 +222,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
         topicAnchor: `[b${b}]`,
         keywords: [],
       });
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     const ctx = makeChatContext(db);
@@ -251,7 +250,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
         topicAnchor: `[b${b}]`,
         keywords: [],
       });
-      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
       await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
     }
     const ctx = makeChatContext(db);
@@ -301,5 +299,229 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     expect(rec?.event === "memory.recall" && rec.trace.poolSize).toBe(1);
     expect(rec?.event === "memory.recall" && rec.trace.surfaced).toBe(1);
     expect(rec?.event === "memory.recall" && rec.trace.queryEmbedded).toBe(false);
+  });
+});
+
+describe("memory/recall — adversarial (trigger discipline, bridge-pool, witness-filter, no-omniscience)", () => {
+  test("mixC + empty pool → '' and NEVER embeds — the early-return is BEFORE the cosine scan (inv 10)", async () => {
+    // The existing empty-pool test uses mixA (which never calls search regardless). This pins the early-return
+    // for an EMBEDDING mode: a fresh chat with mixC must not fire the per-turn query embed.
+    const chatId = await seedChat(db, "mixc-empty");
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, { searchDigests: search.fn });
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixC" },
+    });
+    expect(out).toBe("");
+    expect(search.calls).toHaveLength(0);
+  });
+
+  test("mixB/mixC hand search the §5 BRIDGE (coarse for the distant past) as candidates — NOT the flat union", async () => {
+    const chatId = await seedChat(db, "cand");
+    for (let b = 0; b < 4; b += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+      await seedDigest(db, {
+        chatId,
+        tier: 0,
+        blockIdx: b,
+        topicAnchor: `[t0.${b}]`,
+        keywords: [],
+      });
+    }
+    await seedDigest(db, { chatId, tier: 1, blockIdx: 0, topicAnchor: "[T1.0]", keywords: [] });
+    await seedDigest(db, { chatId, tier: 1, blockIdx: 1, topicAnchor: "[T1.1]", keywords: [] });
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, { searchDigests: search.fn });
+    await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixC", fanOut: 2 },
+    });
+    const cand = search.calls.at(0)?.candidates ?? [];
+    // bridge: fine [2,3] tier-0 + coarse [0,1] → ONE tier-1. A `candidates: union` mutation would include t0.0/t0.1.
+    expect(cand.some((k) => k.tier === 1 && k.blockIdx === 0)).toBe(true);
+    expect(cand.some((k) => k.tier === 0 && k.blockIdx <= 1)).toBe(false);
+  });
+
+  test("the trace counts only SURFACED (loaded) keys + records queryEmbedded=true for mixC", async () => {
+    const chatId = await seedChat(db, "surf");
+    await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });
+    // search returns one REAL key + one bogus key outside the loaded pool (a hit that fell out of scope).
+    const ranked: BlockKey[] = [
+      { chatId, tier: 0, blockIdx: 0, scopedCharacterId: GROUP_CHAR },
+      { chatId, tier: 0, blockIdx: 99, scopedCharacterId: GROUP_CHAR },
+    ];
+    const entries: MemoryLogEntry[] = [];
+    const ctx = makeChatContext(db, {
+      searchDigests: fakeSearchDigests(ranked).fn,
+      log: (e) => entries.push(e),
+    });
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixC" },
+    });
+    expect(out).toBe(facet("[s0]", "a")); // the bogus key is dropped from {{memory}}
+    const rec = entries.find((e) => e.event === "memory.recall");
+    expect(rec?.event === "memory.recall" && rec.trace.surfaced).toBe(1); // NOT 2 — only the loaded key counts
+    expect(rec?.event === "memory.recall" && rec.trace.queryEmbedded).toBe(true);
+    expect(rec?.event === "memory.recall" && rec.trace.mode).toBe("mixC");
+  });
+
+  test("no retroactive omniscience: a merged/narrator speaker (the group char) does NOT read others' scoped buckets", async () => {
+    const chatId = await seedChat(db, "omni");
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: GROUP_CHAR,
+      tier: 0,
+      blockIdx: 0,
+      topicAnchor: "[shared]",
+      keywords: [],
+    });
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: aria,
+      tier: 0,
+      blockIdx: 1,
+      topicAnchor: "[aria-private]",
+      keywords: [],
+    });
+    const ctx = makeChatContext(db);
+    // speaking AS the group char (currently merged/narrator): pool = shared ∪ own(==shared) = shared ONLY.
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixA" },
+    });
+    expect(out).toContain("[shared]");
+    // flipping to merged must NOT retroactively expose aria's private scoped era (§4 keep-each-era's-scope).
+    expect(out).not.toContain("[aria-private]");
+  });
+
+  test("witnessing applies to the SHARED bucket too: a pre-join merged-era block is invisible (union ∧ witness)", async () => {
+    const chatId = await seedChat(db, "wsw");
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: GROUP_CHAR,
+      tier: 0,
+      blockIdx: 0,
+      topicAnchor: "[shared-prejoin]",
+      keywords: [],
+    });
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: aria,
+      tier: 0,
+      blockIdx: 1,
+      topicAnchor: "[aria]",
+      keywords: [],
+    });
+    await seedSegment(db, { chatId, blockIdx: 0, seqStart: 1, seqEnd: 8 });
+    await seedSegment(db, { chatId, blockIdx: 1, seqStart: 9, seqEnd: 16 });
+    const ctx = makeChatContext(db);
+    const out = await recallMemory(ctx, {
+      scope: { chatId, scopedCharacterId: aria, isGroup: true },
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 9, leftSeq: null }],
+      config: { mode: "mixA" },
+    });
+    expect(out).toContain("[aria]"); // own scoped block it witnessed
+    expect(out).not.toContain("[shared-prejoin]"); // the shared bucket is witness-filtered too — not a free pass
+  });
+
+  test("witness filter FAILS OPEN: a digest whose segment span is missing is KEPT (never erase real memory)", async () => {
+    const chatId = await seedChat(db, "failopen");
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: GROUP_CHAR,
+      tier: 0,
+      blockIdx: 0,
+      topicAnchor: "[b0]",
+      keywords: [],
+    });
+    // NO seedSegment → the span resolver cannot find block 0's seq-span.
+    const ctx = makeChatContext(db);
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 1000, leftSeq: null }], // WOULD exclude it if the span resolved
+      config: { mode: "mixA" },
+    });
+    expect(out).toContain("[b0]"); // fail-open — a missing segment must not hide a real digest
+  });
+
+  test("witness filter resolves a HIGHER-TIER digest's span via its tier-0 range (a distant arc never seen is dropped)", async () => {
+    const chatId = await seedChat(db, "htw");
+    for (let b = 0; b < 4; b += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: ordered seed.
+      await seedDigest(db, {
+        chatId,
+        scopedCharacterId: GROUP_CHAR,
+        tier: 0,
+        blockIdx: b,
+        topicAnchor: `[t0.${b}]`,
+        keywords: [],
+      });
+      await seedSegment(db, { chatId, blockIdx: b, seqStart: 8 * b + 1, seqEnd: 8 * b + 8 });
+    }
+    // tier-1 block 0 covers tier-0 {0,1} (seq 1-16); block 1 covers {2,3} (seq 17-32).
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: GROUP_CHAR,
+      tier: 1,
+      blockIdx: 0,
+      topicAnchor: "[T1.0]",
+      keywords: [],
+    });
+    await seedDigest(db, {
+      chatId,
+      scopedCharacterId: GROUP_CHAR,
+      tier: 1,
+      blockIdx: 1,
+      topicAnchor: "[T1.1]",
+      keywords: [],
+    });
+    const ctx = makeChatContext(db);
+    // control: a member present from seq 1 sees the coarse arc T1.0 for the distant past.
+    const full = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 1, leftSeq: null }],
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    expect(full).toContain("[T1.0]");
+    // joined at seq 17 → never witnessed tier-1 block 0's span (seq 1-16) → its arc is filtered out (tier>0 math).
+    const late = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      witnessing: [{ joinSeq: 17, leftSeq: null }],
+      config: { mode: "tiered", fanOut: 2 },
+    });
+    expect(late).not.toContain("[T1.0]");
+  });
+
+  test("{{memory}} surfaces the full stored distilled `text` (the facts BODY), not just the anchor+keywords facets", async () => {
+    const chatId = await seedChat(db, "body");
+    const facts = "The ledger was hidden behind the painting.";
+    const fullText = facet(`[A]\n${facts}`, "k"); // `[A]\n<facts>\nkeywords: k`
+    await seedDigest(db, {
+      chatId,
+      tier: 0,
+      blockIdx: 0,
+      topicAnchor: "[A]",
+      keywords: ["k"],
+      text: fullText,
+    });
+    const ctx = makeChatContext(db);
+    const out = await recallMemory(ctx, {
+      scope: sharedScope(chatId),
+      groupCharacterId: GROUP_CHAR,
+      config: { mode: "mixA" },
+    });
+    // the significance-filtered FACTS line is present — proves format reads `text`, not renderDigestFacets(facets).
+    expect(out).toContain(facts);
+    expect(out).toBe(fullText);
   });
 });
