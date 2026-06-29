@@ -159,3 +159,11 @@ export type MemoryLogEntry =
  *  composition root binds it to `#foundation/observability`; tests capture the entries). Synchronous +
  *  side-effect-only (never throws into the turn path). */
 export type MemoryLog = (entry: MemoryLogEntry) => void;
+
+/** The parsed summarizer output (build/substrate/parse). `facts` is the significance-filtered body (embedded
+ *  for retrieval, NOT persisted as a column — only `topicAnchor` + `keywords` land on `chat_digests`). */
+export interface ParsedDigest {
+  readonly topicAnchor: string;
+  readonly facts: string;
+  readonly keywords: string[];
+}

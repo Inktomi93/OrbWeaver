@@ -14,6 +14,7 @@ export type {
   MemoryRecallTrace,
   MemoryScope,
   MsgRow,
+  ParsedDigest,
   ResolvedMemoryConfig,
   WitnessInterval,
 } from "../contract/memory";
