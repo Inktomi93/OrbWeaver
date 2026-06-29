@@ -57,6 +57,7 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `feature-structure` | domain 8-slot template (index/service/context + contract/ + verbs/) | neo (ported) |
 | `test-layout` | `tests/` prefix-swaps 1:1 to real `packages/<pkg>/src`; support/+e2e/ exempt | neo (ported) |
 | `verb-naming` | `verbs/<v>.ts` exports `create<Pascal(v)>` | new |
+| `no-caller-user-id` | the identifier `callerUserId` is forbidden (D19 turn-identity): the caller is `Principal.userId`; use `triggeredBy`/`runAsUserId`. AST-only (catches a newly-introduced name tsc can't) | new (P5) |
 | `types-in-contract` | a feature's `contract/service.ts` declares the exported `<Feature>Service` interface (§7.4) | new |
 | `no-inline-union-redecl` | no inline ≥3-member string-literal union type aliases (→ contracts) | new |
 | `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test` | new |
