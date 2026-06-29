@@ -6,10 +6,17 @@
 // `dim`/`hubScore` vector columns are search's/discovery's and are NEVER selected here.
 
 import type { Db } from "@orb/db";
-import { chatDigestSpeakers, chatDigests, chatSegments, messages, messageVariants } from "@orb/db";
+import {
+  chatDigestSpeakers,
+  chatDigests,
+  chatParticipants,
+  chatSegments,
+  messages,
+  messageVariants,
+} from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, lte, max } from "drizzle-orm";
-import type { DigestRow, MsgRow } from "../types";
+import type { DigestRow, MsgRow, WitnessInterval } from "../types";
 
 /** The chat's canon head (`max(messages.seq)`, 0 when empty) — the build cutoff (`maxSeq − verbatimWindow`)
  *  derives from it. The MEMORY meta read (kept minimal; the full chat-row read is the feature persistence's). */
@@ -134,6 +141,45 @@ export async function loadDigestSpeakers(
     const list = out.get(r.digestId) ?? [];
     list.push(r.characterId);
     out.set(r.digestId, list);
+  }
+  return out;
+}
+
+/** The join/leave WITNESSING horizons for one character in a chat (knowledge-cluster §4 / inv 12) — every
+ *  `chat_participants` presence episode for `(chatId, characterId)`, joinSeq-ascending. A kick→re-add is two
+ *  rows ⇒ two intervals (the kicked span is genuinely absent). The build/recall LOGIC takes these as data —
+ *  this read is the engine's source (it never reaches into the LOGIC; determinism stays in the pure layer). */
+export async function loadWitnessHorizons(
+  db: Db,
+  chatId: ChatId,
+  characterId: CharacterId,
+): Promise<WitnessInterval[]> {
+  const rows = await db
+    .select({ joinSeq: chatParticipants.joinSeq, leftSeq: chatParticipants.leftSeq })
+    .from(chatParticipants)
+    .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)))
+    .orderBy(asc(chatParticipants.joinSeq));
+  return rows.map((r) => ({ joinSeq: r.joinSeq, leftSeq: r.leftSeq }));
+}
+
+/** The `blockIdx → seq-span` map for a chat's segments (the recall WITNESSING filter resolves a digest's
+ *  block range to its `messages.seq` span via `chat_segments`, then tests it against the speaker's horizons —
+ *  §4). Segments are chat-wide (not scope-keyed), so one map serves both the shared + scoped buckets. */
+export async function loadSegmentSpans(
+  db: Db,
+  chatId: ChatId,
+): Promise<Map<number, { seqStart: number; seqEnd: number }>> {
+  const rows = await db
+    .select({
+      blockIdx: chatSegments.blockIdx,
+      seqStart: chatSegments.seqStart,
+      seqEnd: chatSegments.seqEnd,
+    })
+    .from(chatSegments)
+    .where(eq(chatSegments.chatId, chatId));
+  const out = new Map<number, { seqStart: number; seqEnd: number }>();
+  for (const r of rows) {
+    out.set(r.blockIdx, { seqStart: r.seqStart, seqEnd: r.seqEnd });
   }
   return out;
 }

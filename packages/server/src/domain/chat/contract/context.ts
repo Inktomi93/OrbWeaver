@@ -41,6 +41,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
+import type { MemoryLog } from "./memory";
 import type { TurnRequest, TurnStreamChunk } from "./results";
 
 // ── The turn role (chat.md §2 — the ONE dispatch) ─────────────────────────────
@@ -239,6 +240,10 @@ export interface ChatContext {
   // ── stats / summarizer ──
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;
+  /** The summarizer model's resolved context window (tokens) — the memory build's token-guard reads it to fit
+   *  each summarizer call to the user's ACTUAL context (knowledge-cluster §3a/§10). Bound at the root from
+   *  `roleClients.summarizerContextTokens`. */
+  readonly summarizerContextTokens: number;
   // ── notifications / presence ──
   readonly emitNotification: NotificationsEmitOp;
   readonly readPresence: PresenceReadOp;
@@ -246,6 +251,9 @@ export interface ChatContext {
   readonly embeddingsStore: EmbeddingsStoreOp;
   readonly searchDigests: SearchDigestsOp;
   readonly searchCorpus: SearchCorpusOp;
+  /** The structured memory observability sink (knowledge-cluster §3a — `memoryTrace` + the greppable
+   *  `memory.build`/`memory.recall` log points). Bound at the root to `#foundation/observability`. */
+  readonly log: MemoryLog;
   // ── metadata parse-seam convenience ──
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;

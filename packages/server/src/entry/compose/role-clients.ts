@@ -35,6 +35,11 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import type { ProviderExecutor } from "#infra/providers";
 
+/** The conservative summarizer context fallback (tokens) when the model catalog reports no `contextLength`.
+ *  Small enough to be safe on a tiny local main; the token-guard degrades visibly below it (knowledge-cluster
+ *  §10 — the soft-warning fires when the resolved context is under the build's floor). */
+const SUMMARIZER_CONTEXT_FALLBACK = 8192;
+
 /** What the async per-user binder needs: the `resolveRole` selector + the bound executor surface. */
 export interface RoleClientsBinderDeps {
   readonly connection: Pick<ConnectionService, "resolveRole">;
@@ -119,5 +124,8 @@ export async function bindRoleClientsForUser(
     rerankModel: rerankConn.model,
     imageEmbedModel: imageEmbedConn.model,
     summarizerModel: summarizeConn.model,
+    // The summarizer's actual context window (the token-guard reads it). A catalog with no real window (0)
+    // falls back to the conservative floor so the guard degrades visibly, never divides by a bogus budget.
+    summarizerContextTokens: summarizeConn.capability.context.window || SUMMARIZER_CONTEXT_FALLBACK,
   };
 }

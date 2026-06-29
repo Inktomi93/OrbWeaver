@@ -1,90 +1,211 @@
-// domain/chat/memory/recall/recall — the `{{memory}}` recall POLICY (chat.md §3b / §11). Memory owns the
-// MODE switch + the scope/window/lens/assembly; the cosine scan is DELEGATED to `ctx.searchDigests` (memory
-// holds NO cosine). The 5 modes (§11 #1):
+// domain/chat/memory/recall/recall — the `{{memory}}` recall POLICY (knowledge-cluster §3b / §4). Memory owns
+// the MODE switch + the scope/window/lens/assembly + the mode-switch union; the cosine scan is DELEGATED to
+// `ctx.searchDigests` (memory holds NO cosine). The 5 modes (§3b):
 //   • off    → "" (D36 global disable).
-//   • mixA   → all this bucket's tier-0 digests, chronological. PURE ASSEMBLY (no search call).
-//   • mixB   → vector retrieve (search.digests, mode=mixB).
-//   • mixC   → vector retrieve + rerank (search.digests, mode=mixC).
+//   • mixA   → all the pool's tier-0 digests, chronological. PURE ASSEMBLY (no search call).
+//   • mixB   → vector retrieve over the bridge (search.digests, mode=mixB).
+//   • mixC   → vector retrieve + rerank over the bridge (search.digests, mode=mixC).
 //   • tiered → the consolidation bridge (uncovered-digests-only). PURE ASSEMBLY (no search call — `bridge.ts`).
-// EGOCENTRIC-ONLY (#4 / §4): recall reads the active speaker's bucket (`scope.scopedCharacterId`, a real
-// `CharacterId` — inv 8); solo/merged/narrator read the synthetic group-as-character bucket. The PROTECTED TIP
-// is never surfaced — digests only exist for aged-out blocks (#3). NO ownerId (D20). Group-ness is the `scope`,
-// not a branch. The candidate POOL for mixB/mixC is the §5 BRIDGE (uncovered-multi-tier), not the flat scoped
-// pool (§3b: "the bridge is the pool for every retrieval mode"); memory passes the bridge keys as
-// `MemoryQueryOptions.candidates` so the injected scan scores only those.
 //
-// FLAG[mode-switch-recall]: the §4 mode-switch recall (shared bucket ∪ the speaker's own per-character bucket,
-// witnessing-filtered by the join/leave horizon) is NOT done here — it needs the turn engine to supply BOTH
-// the speaker's id AND the synthetic group-char id, plus a `chat_participants` joinSeq/leftSeq read memory's
-// persistence does not expose. `MemoryScope` is a single bucket and `recallMemory` has no orchestrating caller
-// (PD-41 inert at the runner-env). This is orchestration-tier (the chat turn engine), flagged not stubbed.
+// THE POOL = the MODE-SWITCH UNION (§4 / D55-10), the ONE path that covers always-merged, always-scoped, and
+// any toggle: **the shared bucket (the synthetic group-as-character) ∪ the speaker's own per-character bucket**,
+// then **witnessing-filtered** by the speaker's join/leave horizons. A merged/narrator-era block lives in the
+// shared bucket (recalled by everyone present); a scoped-era block lives in the speaker's own bucket (only the
+// witnessing speaker). narrator↔merged is a no-op (same shared bucket). An always-merged chat has an empty own
+// bucket ⇒ pool = shared; an always-scoped chat has an empty shared bucket ⇒ pool = own (egocentric, inv 6).
+// The candidate POOL for mixB/mixC is the §5 BRIDGE over this union (§3b: "the bridge is the pool for every
+// mode"), passed as `MemoryQueryOptions.candidates`. The protected TIP is never surfaced (digests only exist
+// for aged-out blocks). Host-only keying is the caller's (recall runs under `runAsUserId`). NO cosine here.
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { ChatContext } from "../../contract/context";
+import { spanWitnessed } from "../build/substrate/witnessing";
 import { resolveCfg } from "../constants";
-import { loadDigestsForScope } from "../persistence/queries";
-import type { DigestRow, MemoryConfig, MemoryScope, MsgRow } from "../types";
+import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries";
+import type {
+  DigestRow,
+  MemoryConfig,
+  MemoryRecallTrace,
+  MemoryScope,
+  MsgRow,
+  WitnessInterval,
+} from "../types";
 import { computeBridge } from "./bridge";
 import { blockKeyStr, formatMemory } from "./format";
 import { buildRecallQuery } from "./query";
 
 /** What `recallMemory` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
- *  structural literal). `recent` (oldest→newest) is the retrieval query window for mixB/mixC; `names` resolve
- *  the egocentric query text + would resolve facets if richer recall lands. */
+ *  structural literal). `scope.scopedCharacterId` is the SPEAKER's own bucket; `groupCharacterId` is the
+ *  synthetic group-as-character (the shared bucket — equals the speaker for solo/merged, so the union dedupes
+ *  to one read). `witnessing` is the speaker's join/leave horizons (§4): when present, the union is filtered to
+ *  blocks the speaker was present for. `recent` (oldest→newest) is the mixB/mixC query window. */
 interface RecallArgs {
   readonly scope: MemoryScope;
+  readonly groupCharacterId: CharacterId;
+  readonly witnessing?: readonly WitnessInterval[] | undefined;
   readonly config?: MemoryConfig | null | undefined;
   readonly recent?: readonly MsgRow[] | undefined;
   readonly names?: ReadonlyMap<CharacterId, string> | undefined;
 }
 
 /**
- * Resolve the `{{memory}}` string for a turn (the GATHER input). Reads the scope bucket's digest facets,
- * selects the blocks per mode, and formats them. Returns `""` when memory is off, the bucket is empty, or no
- * block survives. The cosine scan (mixB/mixC) is the injected `ctx.searchDigests`; tiered/mixA are pure
- * assembly off the loaded rows.
+ * Resolve the `{{memory}}` string for a turn (the GATHER input). Reads the mode-switch union (shared ∪ own,
+ * witnessing-filtered), selects the blocks per mode, formats them from the stored digest `text` (§2b). Returns
+ * `""` when memory is off, the pool is empty, or no block survives. EARLY-RETURNS before any embed on
+ * off/empty-pool (inv 10 — a fresh chat does zero work). Emits the `memory.recall` structured trace (§3a).
  */
 export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<string> {
+  const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
-  if (cfg.mode === "off") {
-    return "";
-  }
   const { scope } = args;
-
-  // The bucket's digests (ALL tiers) — the facet source for every mode + the bridge/mixA candidate pool.
-  const all = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId);
-  if (all.length === 0) {
+  if (cfg.mode === "off") {
+    logRecall(ctx, {
+      scope,
+      startedAt,
+      mode: cfg.mode,
+      poolSize: 0,
+      surfaced: 0,
+      queryEmbedded: false,
+      note: "mode off",
+    });
     return "";
   }
-  const byKey = new Map<string, DigestRow>(all.map((d) => [blockKeyStr(toKey(scope, d)), d]));
 
-  let keys: readonly BlockKey[];
-  if (cfg.mode === "mixA") {
-    keys = all.filter((d) => d.tier === 0).map((d) => toKey(scope, d)); // chronological
-  } else if (cfg.mode === "tiered") {
-    keys = computeBridge(scope, all, cfg.fanOut);
-  } else {
-    // mixB | mixC — the injected cosine scan (rerank is implied by mode=mixC at the search seam). The candidate
-    // POOL is the §5 bridge (uncovered-multi-tier), passed as `candidates` so search scores only those (§3b).
-    const query = buildRecallQuery(
-      cfg,
+  // The MODE-SWITCH UNION: the shared (group-char) bucket ∪ the speaker's own bucket (deduped — they share no
+  // (tier, blockIdx), each block aged out under ONE scope). One read when the speaker IS the group char (merged).
+  const own = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId);
+  const shared =
+    args.groupCharacterId === scope.scopedCharacterId
+      ? []
+      : await loadDigestsForScope(ctx.db, scope.chatId, args.groupCharacterId);
+  const union = await witnessFilter(ctx, {
+    chatId: scope.chatId,
+    union: [...shared, ...own],
+    fanOut: cfg.fanOut,
+    horizons: args.witnessing,
+  });
+  if (union.length === 0) {
+    logRecall(ctx, {
       scope,
-      args.recent ?? [],
-      args.names ?? new Map<CharacterId, string>(),
-    );
-    keys = await ctx.searchDigests({ ...query, candidates: computeBridge(scope, all, cfg.fanOut) });
+      startedAt,
+      mode: cfg.mode,
+      poolSize: 0,
+      surfaced: 0,
+      queryEmbedded: false,
+      note: "no digests",
+    });
+    return "";
   }
 
-  return formatMemory(keys, byKey);
+  const byKey = new Map<string, DigestRow>(union.map((d) => [blockKeyStr(rowKey(scope, d)), d]));
+  const { keys, queryEmbedded } = await selectKeys(ctx, args, cfg, union);
+
+  const out = formatMemory(keys, byKey);
+  const surfaced = keys.filter((k) => byKey.has(blockKeyStr(k))).length;
+  logRecall(ctx, {
+    scope,
+    startedAt,
+    mode: cfg.mode,
+    poolSize: union.length,
+    surfaced,
+    queryEmbedded,
+    note: undefined,
+  });
+  return out;
 }
 
-/** A digest row → its {@link BlockKey} under the recall scope (the row's scope === the queried bucket). */
-function toKey(scope: MemoryScope, d: DigestRow): BlockKey {
+/** Filter the union to the blocks the speaker WITNESSED (§4 / inv 12). No horizons ⇒ no filter (the simple
+ *  single-bucket path). A digest's seq-span is resolved from `chat_segments` (via its tier-0 block range); a
+ *  missing span fails OPEN (kept) — never hide memory because a segment is absent. */
+async function witnessFilter(
+  ctx: ChatContext,
+  env: {
+    readonly chatId: MemoryScope["chatId"];
+    readonly union: readonly DigestRow[];
+    readonly fanOut: number;
+    readonly horizons: readonly WitnessInterval[] | undefined;
+  },
+): Promise<DigestRow[]> {
+  if (env.horizons === undefined) {
+    return [...env.union];
+  }
+  const horizons = env.horizons;
+  const spans = await loadSegmentSpans(ctx.db, env.chatId);
+  return env.union.filter((d) => {
+    const blockSpan = env.fanOut ** d.tier;
+    const first = spans.get(d.blockIdx * blockSpan);
+    const last = spans.get((d.blockIdx + 1) * blockSpan - 1);
+    if (first === undefined || last === undefined) {
+      return true; // fail-open — a missing segment span must not erase a real digest
+    }
+    return spanWitnessed(first.seqStart, last.seqEnd, horizons);
+  });
+}
+
+/** Select the ordered block-keys per mode (+ whether the query embed fired). mixA/tiered are pure assembly;
+ *  mixB/mixC delegate the cosine scan over the §5 bridge candidates (the bridge is the pool for every mode). */
+async function selectKeys(
+  ctx: ChatContext,
+  args: RecallArgs,
+  cfg: ReturnType<typeof resolveCfg>,
+  union: readonly DigestRow[],
+): Promise<{ keys: readonly BlockKey[]; queryEmbedded: boolean }> {
+  const { scope } = args;
+  if (cfg.mode === "mixA") {
+    const keys = union
+      .filter((d) => d.tier === 0)
+      .sort((a, b) => a.blockIdx - b.blockIdx)
+      .map((d) => rowKey(scope, d));
+    return { keys, queryEmbedded: false };
+  }
+  if (cfg.mode === "tiered") {
+    return { keys: computeBridge(scope, union, cfg.fanOut), queryEmbedded: false };
+  }
+  // mixB | mixC — the injected cosine scan over the bridge candidates (rerank implied by mode=mixC at search).
+  const query = buildRecallQuery(
+    cfg,
+    scope,
+    args.recent ?? [],
+    args.names ?? new Map<CharacterId, string>(),
+  );
+  const keys = await ctx.searchDigests({
+    ...query,
+    candidates: computeBridge(scope, union, cfg.fanOut),
+  });
+  return { keys, queryEmbedded: true };
+}
+
+/** A digest row → its {@link BlockKey}, carrying the row's OWN bucket owner (a union spans two buckets). */
+function rowKey(scope: MemoryScope, d: DigestRow): BlockKey {
   return {
     chatId: scope.chatId,
     tier: d.tier,
     blockIdx: d.blockIdx,
     scopedCharacterId: d.scopedCharacterId,
   };
+}
+
+/** Emit the `memory.recall` structured trace (knowledge-cluster §3a). */
+function logRecall(
+  ctx: ChatContext,
+  env: {
+    readonly scope: MemoryScope;
+    readonly startedAt: number;
+    readonly note: string | undefined;
+  } & Omit<MemoryRecallTrace, "ms">,
+): void {
+  ctx.log({
+    event: "memory.recall",
+    chatId: env.scope.chatId,
+    scopedCharacterId: env.scope.scopedCharacterId,
+    trace: {
+      mode: env.mode,
+      poolSize: env.poolSize,
+      surfaced: env.surfaced,
+      queryEmbedded: env.queryEmbedded,
+      ms: ctx.now() - env.startedAt,
+    },
+    ...(env.note !== undefined ? { note: env.note } : {}),
+  });
 }

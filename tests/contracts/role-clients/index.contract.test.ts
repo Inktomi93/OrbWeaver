@@ -56,6 +56,7 @@ const noopRoleClients: RoleClients = {
   rerankModel: "qwen3-vl-reranker",
   imageEmbedModel: "qwen3-vl-embedding",
   summarizerModel: "qwen3-summarizer",
+  summarizerContextTokens: 32_000,
 };
 
 test("a no-op object satisfies RoleClients: four derive callables + four model-provenance strings", () => {
@@ -68,6 +69,7 @@ test("a no-op object satisfies RoleClients: four derive callables + four model-p
       "rerank",
       "rerankModel",
       "summarize",
+      "summarizerContextTokens",
       "summarizerModel",
     ].sort(),
   );

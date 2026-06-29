@@ -103,3 +103,59 @@ export interface MemoryPassCounts {
   readonly written: number;
   readonly skipped: number;
 }
+
+/** One presence interval of a character in a chat (the join/leave WITNESSING horizon — knowledge-cluster §4 /
+ *  inv 12). `joinSeq` = the `messages.seq` at which the character became present; `leftSeq` = the seq at which
+ *  it left (exclusive — present for `seq ∈ [joinSeq, leftSeq)`), or `null` when still present. A kick→re-add
+ *  yields MULTIPLE intervals (the kicked span stays invisible). Sourced from `chat_participants` by the engine
+ *  (or `loadWitnessHorizons`); the build/recall LOGIC takes them as data (determinism — no ambient read). */
+export interface WitnessInterval {
+  readonly joinSeq: number;
+  readonly leftSeq: number | null;
+}
+
+/** The per-call recall observability fragment (knowledge-cluster §3a `memoryTrace.recall`). `queryEmbedded`
+ *  is whether the per-turn query embed fired (false for off / empty-pool / non-embedding modes — inv 10). */
+export interface MemoryRecallTrace {
+  readonly mode: MemoryRetrievalMode;
+  readonly poolSize: number;
+  readonly surfaced: number;
+  readonly queryEmbedded: boolean;
+  readonly ms: number;
+}
+
+/** The per-call build observability fragment (knowledge-cluster §3a `memoryTrace.build`). */
+export interface MemoryBuildTrace {
+  readonly blocksBuilt: number;
+  readonly blocksSkipped: number;
+  readonly summarizeCalls: number;
+  readonly embedCalls: number;
+  /** Blocks NOT digested because the summarizer token-guard could not fit even one message (§3a — skip-and-
+   *  flag, never silent truncation). */
+  readonly blocksSkippedTokenGuard: number;
+  readonly ms: number;
+}
+
+/** A structured memory observability event (knowledge-cluster §3a — "did memory work this turn, and why" is a
+ *  first-class, greppable fact). Discriminated on `event`; `note` carries the zero-work / degrade reason
+ *  ("no digests" / "no aged-out block" / "summarizer context below floor"). */
+export type MemoryLogEntry =
+  | {
+      readonly event: "memory.recall";
+      readonly chatId: ChatId;
+      readonly scopedCharacterId: CharacterId;
+      readonly trace: MemoryRecallTrace;
+      readonly note?: string | undefined;
+    }
+  | {
+      readonly event: "memory.build";
+      readonly chatId: ChatId;
+      readonly scopedCharacterId: CharacterId;
+      readonly trace: MemoryBuildTrace;
+      readonly note?: string | undefined;
+    };
+
+/** The injected structured logger the memory build/recall emit through (the `ChatContext.log` seam — the
+ *  composition root binds it to `#foundation/observability`; tests capture the entries). Synchronous +
+ *  side-effect-only (never throws into the turn path). */
+export type MemoryLog = (entry: MemoryLogEntry) => void;

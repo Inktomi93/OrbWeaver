@@ -272,11 +272,13 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     setActivePersona: notStubbed,
     applyStatsDelta: notStubbed,
     summarize: notStubbed,
+    summarizerContextTokens: 32_000,
     emitNotification: () => Promise.resolve(),
     readPresence: notStubbed,
     embeddingsStore: notStubbed,
     searchDigests: notStubbed,
     searchCorpus: notStubbed,
+    log: () => undefined,
     getGroupConfig: notStubbed,
     getRoomOverrides: notStubbed,
   };
