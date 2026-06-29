@@ -20,6 +20,48 @@ toolkit). Both are *prior art*, not law. This doc is the law.
 
 ---
 
+## 0.5 Phase-6 build manifest (the index — read this first)
+> A scannable index for a Phase-6 builder. Every row points to its canonical spec section — this is a table
+> of contents, **NOT a second source of truth** (the contract lives in the cited section). **Build order
+> (§11.7 / §13.6, born-compliant):** tokens → `@orb/ui` primitives+seals → `@orb/client` data/forms/state
+> primitives + the gates → features. A primitive or gate that lands *after* a feature is the rot D43 exists to
+> prevent.
+
+**Two new packages:** `@orb/ui` (domain-agnostic components — tree §2) · `@orb/client` (flat feature-slice — tree §2.1).
+
+**`@orb/ui` primitives + seals** (each seals ONE lib behind an orbweaver API):
+| Primitive | Seals | Spec |
+|---|---|---|
+| button · dialog · popover · tooltip · select · switch · slider · menu · field | Base UI | §2 |
+| command · sortable | cmdk · @dnd-kit (the `@dnd-kit/react` rewrite) | §2 / §11.3 |
+| toast · drawer (swipe-dismiss + virtual-keyboard) | **Base UI native** (D54 — dropped sonner + vaul) | §2 |
+| icons | lucide-react (gate `icons-lucide-only`) | §2 |
+| layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
+| charts + meter | ECharts (`echarts`/`echarts-for-react`) | §11.3 (D52) |
+| virtual-list (generic) + message-list (chat) | TanStack Virtual (`directDomUpdates`) | §11.3 (D54) |
+| markdown | Streamdown (two trust policies) | §6.3 / §11.6 |
+| stream (smooth-text pacer · TTFT shimmer) | domain-free string-math | §6.3.1 |
+| sandbox-frame · MessageMedia · ThemeScope · lightbox | iframe/CSP · img+a/v · token scope | §12 |
+
+**`@orb/client` data / forms / state primitives** (the §13.1 contracts):
+| Primitive | Job | Spec |
+|---|---|---|
+| `createEntityMutation` | optimistic + rollback + sticky-error reset + invalidate + meta-toast | §13.1 |
+| `createCollectionSurface` | infinite + `maxPages` + `keepPreviousData` + virtual-list + select | §13.1 |
+| `<QueryBoundary>` | reset-handshake + `useSuspenseQueries` + `startTransition` | §13.1 |
+| `useGatedQuery` | `skipToken` gating (kills `castId("")`) | §13.1 |
+| `invalidation.ts` | event→`queryFilter` seam | §11.3 |
+| bus reducer (`applyChatBusEvent`) | SSE→cache, pure + exhaustive | §11.1 |
+| `createSavedEntityForm` / `createAutosaveEntityForm` | the editor factories (six-obligation) | §13.1 / §13.4 |
+| `useAppForm` | the single `createFormHook` instance | §11.3 |
+| `createEntityDraftStore` | gated Zustand draft (frozen `EMPTY` + `useShallow` + `persist`) | §5 / §7 / §13.1 |
+| `ChatHandle` | `committed|draft` discriminated handle | §11.3 |
+
+**Lookups:** surface→primitive (what to reach for) → **§13.2** · the full **gate registry** → **§8** · the
+keep/dump/wrap stack → §6 · where each rich-content piece lives → §12.5.
+
+---
+
 ## 1. The cake gains a frontend arm
 The backend cake (`kit ← contracts ← db ← server`) gains a parallel frontend arm:
 
@@ -46,7 +88,7 @@ neo enforced the UI boundaries with lint (`pnpm arch` + dep-cruiser rules). orbw
 | neo lint rule | orbweaver |
 |---|---|
 | `client-ui-is-pure` (UI imports no features) | `@orb/ui` has no dep on `@orb/client` — **resolver** |
-| "app imports only the UI barrel, never raw primitives" | radix/cmdk/vaul/echarts/base-ui are NOT in `@orb/client`'s `package.json` — it physically cannot import them — **resolver** |
+| "app imports only the UI barrel, never raw primitives" | cmdk/@dnd-kit/echarts/base-ui are NOT in `@orb/client`'s `package.json` — it physically cannot import them — **resolver** |
 | "UI is domain-agnostic" | `@orb/ui` has no dep on `@orb/contracts`/domain — **resolver** |
 | design-token parity check | the Tailwind theme is **codegen-derived** from `tokens.json` (§3) — drift is structurally impossible, not policed |
 
@@ -59,21 +101,26 @@ cross-repo reuse outside orbweaver ever becomes real — defer until then.)
 
 ```
 packages/ui/
-  package.json          # the ONLY package depending on @base-ui/react, cmdk, vaul, sonner,
-                        #   react-resizable-panels, @dnd-kit, echarts, echarts-for-react, cva, clsx, tailwind-merge, streamdown
+  package.json          # sealed runtime libs (the ONLY package depending on these): @base-ui/react · cmdk · @dnd-kit ·
+                        #   @tanstack/react-virtual · echarts · echarts-for-react · streamdown · lucide-react · tailwind-variants
+                        #   peer/build: react (PEER — react-dom is @orb/client's, the renderer) · tailwindcss + @tailwindcss/vite ·
+                        #   style-dictionary (§3 token codegen).  [D54: toast + drawer = Base UI native (no sonner, no vaul ~deprecated) ·
+                        #   no react-resizable-panels · tv subsumes cva/clsx/tw-merge · @dnd-kit kept (no native DnD; use the @dnd-kit/react rewrite)]
   src/
     tokens/             # DTCG single-source (§3) — promote to @orb/tokens only on a 2nd consumer
-    primitives/         # each wraps ONE headless behavior behind an orbweaver API (seals the lib)
-      button/  { button.tsx · variants.ts (CVA unions) · index.ts }
-      dialog/ popover/ tooltip/ select/ switch/ slider/ menu/ field/   ← Base UI behind the seam
-      command/   ← seals cmdk        drawer/   ← seals vaul
-      toast/     ← seals sonner      resizable/ ← seals react-resizable-panels
-      sortable/  ← seals @dnd-kit
+    primitives/         # each seals ONE headless behavior behind an orbweaver API
+      button/  { button.tsx · variants.ts (tailwind-variants slots/unions) · index.ts }
+      dialog/ popover/ tooltip/ select/ switch/ slider/ menu/ field/ toast/ drawer/   ← Base UI behind the seam
+      command/ ← cmdk   sortable/ ← @dnd-kit (the @dnd-kit/react rewrite)
+      virtual-list/ ← TanStack Virtual (directDomUpdates, generic)   message-list/ ← the chat seal (§11.3, D54)
+      icons/   ← lucide-react (the ONE icon set; gate icons-lucide-only)
     layout/             # Stack · Row · Section · Toolbar · Container (owns container-type — §4)
-    charts/             # seals ECharts (echarts/echarts-for-react) — app says <BarChart>, never imports echarts
-    markdown/           # seals Streamdown (§6.3) — the ONE markdown renderer
-    lib/   { cn.ts }    # tailwind-merge config
-    styles/ { globals.css }   # imports tokens/generated theme
+    charts/             # seals ECharts — <BarChart>/<ScatterChart> + meter/ (1-D bars). §11.3 (D52)
+    markdown/           # seals Streamdown — the ONE renderer, two trust policies (§6.3 / §11.6)
+    stream/             # smooth-text (the pacer, domain-free) + the "Thinking…" shimmer (§6.3.1)
+    content/            # sandbox-frame (untrusted iframe) · MessageMedia (img+a/v) · ThemeScope · lightbox (hand-built over Dialog+MessageMedia, §12.3)
+    lib/   { cn.ts }    # the cn() helper (tailwind-variants' built-in merge)
+    styles/ { globals.css · view-transitions }   # imports tokens/generated theme
     index.ts            # subpath exports per group ("./button", "./charts", "./markdown", …)
 ```
 
@@ -81,11 +128,53 @@ packages/ui/
   the explicit `Positioner` part kills the portal weirdness, the `render` prop replaces the `asChild`/Slot
   footgun, exit-animation is built in. shadcn is NOT used (no copy-paste registry/CLI — components are
   hand-authored over Base UI; reference basecn.dev / Base UI docs as prior art only).
-- **Variants are CVA union types** (`VariantProps<typeof button>`) — the ONLY styling-variation path; a
+- **Variants are tailwind-variants union types** (`VariantProps<typeof button>`; tv's `slots` for multi-part
+  primitives — D54) — the ONLY styling-variation path; a
   bad variant is a `tsc` error. Ad-hoc `className` styling on a primitive is lint-banned.
 - **Radix-vs-Base-UI stays reversible** — it's an impl detail *inside* `primitives/*`. The whole point of
   the seam: swapping the headless lib is a `@orb/ui`-internal change, app untouched. (So the Base UI
   `render`-vs-`asChild` API debate, mui/base-ui#3983, is a one-file concern.)
+
+### 2.1 `@orb/client` — the feature-slice tree
+**Provenance.** No orbweaver doc drew this tree; the intent was recorded as prose only (BUILD-PLAN Phase-6 §2:
+*"carry neo's STRUCTURE — feature-slice · surfaces/anchors · `state:files`"*; `_FANOUT-BRIEF` excluded `src/client`
+as "a fresh rebuild"). This IS that structure: **neo's exact shape** (verified against neo's live `src/client`),
+minus the three things orbweaver kills, plus `data/`+`forms/` elevated to top-level peers — by the *same* logic
+neo used to elevate `state/` out of `lib/` (load-bearing + numerous). The current `packages/client` stub
+(`app/entities/features/shared`) is a discarded FSD guess — **orbweaver is NOT FSD** (no `entities/`/`shared/`
+layers), it is flat feature-slice.
+
+```
+packages/client/
+  package.json          # @orb/ui · @orb/contracts (type-only) · @orb/kit · zustand · @trpc/tanstack-react-query ·
+                        #   @tanstack/{react-query, react-router, react-form}   — NO raw radix/cmdk/echarts/base-ui (§1.1 physics)
+  src/
+    main.tsx            # entry / composition root (mounts providers; injects the cross-feature ops — §11.0)
+    routes/             # ~3 HAND-WRITTEN routes: / · /login · /admin/* (lazyRouteComponent) — no file-based codegen (§6.1)
+    data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1. ELEVATED from neo's lib/, same as state/
+      trpc.ts           #   the proxy = the queryKey+queryFn factory (gate no-array-literal-querykey)
+      query-client.ts   #   the §6.1 QueryClient defaults
+      invalidation.ts   #   event→queryFilter map (gate no-inline-invalidate-outside-seam) — §11.3
+      create-entity-mutation.ts · create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts
+      bus/              #   applyChatBusEvent (pure exhaustive reducer, §11.1) + the thin SSE transport hook
+    forms/              # the editor factories — the SINGLE createFormHook instance — §13.1/§13.4. WAS neo's _shared/form (banned)
+      use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
+    state/              # ALL gated Zustand stores, FLAT (gate state:files: one create/file, ≤10 fields, no exported set/getState)
+      _create-entity-draft-store.ts (frozen EMPTY + persist version/migrate) · center-pane-store.ts · <entity>-draft-store.ts …
+    features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
+      app-shell/        #   the shell: the ONLY viewport @media site (§4b axis 2); the clamp-width overlay (§11.1);
+                        #     TOP_NAV_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing)
+      auth/ character/ chat/ corpus/ credentials/ persona/ preset/ prompt-manager/ settings/ tag/ user-admin/ workloads/ world-info/
+        <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
+                        #     components/ (leaf) · hooks/ (trpc.* reads via useGatedQuery; createEntityMutation calls) · lib/ · index.ts }
+    lib/                # cross-cutting display/util seams left after elevation: message-render · time (seeded) · cn re-export · download-json · notify
+    styles/ globals.css · testIds.ts (typed registry, §11.5) · vite-env.d.ts
+```
+- **Why not FSD:** `@orb/ui` already IS the shared-component layer, so FSD's `shared/ui` is redundant; the
+  `entities/` layer overlaps the feature concept and adds ceremony neo's proven flat slice never needed.
+- **Three deletions from neo:** `components/` + `components/ui/` → the `@orb/ui` package; `features/_shared/` →
+  dissolved (its generic bits → `@orb/ui`, its form toolkit → `forms/`, its cross-feature reads → `trpc.*`);
+  file-based `routes/` codegen → ~3 hand-written routes.
 
 ---
 
@@ -178,7 +267,7 @@ one shell that reflows + a touch-first token baseline + platform CSS in three pr
 | Axis | What varies | Tool | Where it's written |
 |---|---|---|---|
 | **1 — component layout** | a surface in a wide pane vs a narrow drawer | **`@container`** + container-query units (`cqi`) + `clamp()` | **features** (the ONLY responsive thing they write) |
-| **2 — macro structure** | 3-pane desktop ⇄ stacked mobile; side-drawer ⇄ bottom-sheet (vaul) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
+| **2 — macro structure** | 3-pane desktop ⇄ stacked mobile; side-drawer ⇄ bottom-sheet (Base UI Drawer) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
@@ -248,7 +337,7 @@ chat id only) — NOT a rewrite.
 | | Decision |
 |---|---|
 | **DUMP** | **shadcn** (copy-paste workflow) → hand-author `@orb/ui`. **Radix** → **Base UI**. **react-markdown + rehype-sanitize + remark-gfm + rehype-raw** → **Streamdown** (§6.3). **react-syntax-highlighter / Prism** → **Shiki** (free inside Streamdown). **nivo** (the 6 `@nivo/*` corpus packages) → **ECharts** (D52 — nivo stuck at v0.99, see §11.8). The `@/` alias → `#`. |
-| **KEEP** | feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery · **Tailwind v4** · CVA+clsx+tailwind-merge · **lucide** · **TanStack** (Query / Router-minimal / Form / Virtual) · **Zustand** · the satellites **cmdk · vaul · sonner · react-resizable-panels · @dnd-kit** · **ECharts** (the analytics graphs — replaces nivo per D52; one dep, actively maintained, "the features I want"). |
+| **KEEP** | feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery · **Tailwind v4** · **tailwind-variants** (slots; subsumes cva+clsx+tailwind-merge — D54) · **lucide** · **TanStack** (Query / Router-minimal / Form / Virtual) · **Zustand** · the satellites **cmdk · @dnd-kit** · **ECharts** (replaces nivo, D52). **Base UI now native: toast + drawer** (dropped **sonner** + **vaul**, D54); **dropped react-resizable-panels** (shell uses the clamp-overlay, §11.1). |
 | **WRAP** | every kept third-party lib lives behind `@orb/ui`; app imports `@orb/ui`, never the lib. |
 
 ### 6.1 TanStack — keep, with discipline
@@ -262,28 +351,15 @@ chat id only) — NOT a rewrite.
 > note:** `no-inline-cache-surgery-in-stream` must scope to stream/subscription bodies only — it must NOT trip on
 > the legitimate `setQueryData` inside `createEntityMutation.onMutate`. Adopt `skipToken` (kills the
 > `castId<X>("")` sentinel) and `@tanstack/eslint-plugin-query` `flat/recommended-strict`.
-> **Reference companion:** `client-tanstack-query-examples.md` (this directory) — a full-read digest of all
-> TanStack Query official React examples, triaged to orbweaver: the canonical optimistic-mutation /
-> infinite+`maxPages` / `keepPreviousData` / prefetch-on-intent / Suspense-boundary patterns that feed
-> `createEntityMutation` · `createCollectionSurface` · `<QueryBoundary>`, plus the `@tanstack/eslint-plugin-query`
-> gate. (Most examples' literal `queryKey`/`queryFn` are MOOT — the tRPC proxy is our key+fn factory.)
-> **Reference companion:** `client-tanstack-form-examples.md` (this directory) — a full-read digest of all
-> TanStack Form official React examples. Verdict: the `composition` skeleton (`createFormHook`/`withForm`/
-> `withFieldGroup`/`formOptions`/`lazy`) + `useStore` selectors + Standard-Schema Zod + the `{fields}` form→field
-> server-error map are what `useAppForm` and the editor factories build on — but **all SIX editor footguns are
-> factory-original (zero examples fix them)**, `query-integration` PUNTS on the seed/clobber dance (seeds once at
-> mount, never re-syncs), and `listeners` (the autosave backbone) appear in NO example. Confirms Form is
-> React-Compiler-clean (no `use no memo`).
-> **Full-docs mine → `client-tanstack-form-notes.md` (this directory).** Sharpens the factory contract: (1) the
-> DirtyPill drives off **`!form.state.isDefaultValue`** (the lib's DEEP compare), NOT the event-based `isDirty`;
-> (2) **DELETE the hand-rolled `fieldValuesEqual`** — the lib already ships deep compare (`isDefaultValue`,
-> exported `evaluate()`, `useSelector`'s `compare`); footgun #6 is lib-provided, not ours. (3) Keep persistent
-> `isDirty` for ONE job — the reseed guard — never doubled with the pill. (4) `form.reset(savedValue)` is the
-> official re-baseline primitive (DOC-PROVIDED) but call it in a **post-submit effect, NOT inside `onSubmit`**
-> (footgun #2 — reset-inside-onSubmit — is real + undocumented). (5) `dontUpdateMeta` (footgun #3) rides an
-> **undocumented** flag → version-lock `@tanstack/react-form` + a guard test. (6) Use **`useSelector`** (not the
-> deprecated `useStore` alias); adopt `revalidateLogic()`+`onDynamic`. Footguns #4 (seed/clobber guard) + #5
-> (Zustand draft persistence) confirmed **FACTORY-ORIGINAL** — the docs punt exactly like the examples did.
+> **Reference companions** (this directory — full-read examples + deep-docs mines; the distilled verdicts are
+> already folded into the spec sections cited, so these are evidence/provenance, not extra law):
+> | Companion | Fed into |
+> |---|---|
+> | `client-tanstack-query-examples.md` · `-query-notes.md` | the QueryClient defaults (above) · `createEntityMutation` · `createCollectionSurface` · `<QueryBoundary>` · §13 |
+> | `client-tanstack-form-examples.md` · `-form-notes.md` | the editor-factory six-obligation contract (§13.4) · confirms Form is React-Compiler-clean, footguns #4/#5 FACTORY-ORIGINAL |
+> | `client-tanstack-router-notes.md` | the Router verdict + traps (below) |
+> | `client-tanstack-virtual-notes.md` | the D54 "keep TanStack Virtual" reversal (§11.8) |
+> | `client-zustand-notes.md` | the §5/§13.1 store conventions (frozen `EMPTY` + `useShallow`; `persist` partialize/migrate) |
 - **Query / Form / Virtual: keep** (load-bearing; dropping = reinventing worse).
 - **Router: use it MINIMALLY** — single-route shell means ~3 routes (`/`, `/login`, `/admin/*`). Drop the
   file-based codegen plugin; hand-write the tiny route tree. (Don't swap for wouter — family cohesion wins
@@ -378,17 +454,20 @@ neo solved each per-site; orbweaver seals each in a primitive so it can't be re-
 | Footgun | Root | Sealed in |
 |---|---|---|
 | **Virtual × React Compiler** — `useVirtualizer`'s return is internally mutable; the Compiler memo pass can flash the list | the interior-mutability issue (now FIXED upstream) | a **`@orb/ui/virtual-list`** primitive owns the **`directDomUpdates: true` + `containerRef`** fix (TanStack Virtual 3.14+, Compiler-E2E-tested — **NOT `"use no memo"`**, now obsolete) + the `measureElement` wiring. Feature never calls `useVirtualizer` → can't forget the config (neo re-risked the old `"use no memo"` hatch in 7 files; D54). |
-| **Form × React** — `isDirty` is event-based, never auto-clears after submit (#1144) → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" without a manual reset | TanStack Form persistent-dirty | the **`_shared/form` toolkit** (`useAppForm`) owns reset-after-submit; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
-| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + !isDirty + reset + applyFormValues`) |
-| **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` + a **gate flagging selectors that return a fresh object/array literal** without `useShallow`/a stable ref |
+| **Form × React** — `isDirty` is event-based, never auto-clears after submit (#1144) → `useStore(isDirty)+useEffect` loops forever; save bar stays "Unsaved" without a manual reset | TanStack Form persistent-dirty | the **`client/forms` factories** (`useAppForm`) own the post-submit reset; the banned `useEffect`-on-`isDirty` autosave is gate-flagged |
+| **Form × Query × Zustand** — a background refetch reseeds the form and clobbers unsaved typing | three-lib interaction | a **`useSeedFormOnServerLoad`** guard (`seededRef + persistent-isDirty + reset + applyFormValues`) baked into the saved-form factory |
+| **Zustand × React** — a selector returning a fresh `{}`/`[]` per render spins `useSyncExternalStore` forever | referential instability | the **`createEntityDraftStore`** factory's frozen `EMPTY` (+ `useShallow` for multi-field selectors) + a **gate flagging fresh object/array literals** without `useShallow`/a stable ref |
 
-After these, the chosen libs have zero un-gated footguns.
+After these, the chosen libs have zero un-gated footguns. **The two FORM rows above are 2 of the six editor
+obligations the factories bake — the full contract is §13.4 (the canonical home; the D54 docs mine corrected
+several details, e.g. delete `fieldValuesEqual`, reset in a post-submit *effect*). Don't build a form against
+this table; build against §13.4.**
 
 ---
 
 ## 8. The gates (physics + lint belts)
 **Physics (resolver — can't even resolve):** `@orb/ui` ⇏ `@orb/client`/`@orb/contracts`-domain;
-`@orb/client` ⇏ radix/cmdk/vaul/sonner/echarts/base-ui (not in its deps).
+`@orb/client` ⇏ cmdk/@dnd-kit/echarts/base-ui/streamdown (not in its deps).
 
 **Lint belts (what physics can't express):**
 - `no-raw-value` — bans `bg-[#fff]`, `gap-[13px]`, `z-[N]`, inline `style={{}}` numeric literals (Tailwind
@@ -412,6 +491,19 @@ After these, the chosen libs have zero un-gated footguns.
 ≥44px touch token — §4b) · the token gates extended to ALL feature+ui TSX
 (no `components/ui/`-style exemption) + named-non-token-color ban (`--scrim`). **No directory is exempt from a
 boundary rule** (the `_shared` + `components/ui/` exemptions are what rotted neo — §11.0).
+
+**Rich-content gates (D44 — §12.6):** `no-untrusted-html-in-main-dom` · `no-external-media-without-gate` ·
+`theme-override-only-via-scope` · `CSP-headers-present`.
+
+**Reuse-model gates (D54 — §13.3):** `no-static-staletime-on-bus-keys` · `no-inline-cache-surgery-in-stream`
+(scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) ·
+`persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal`. Plus the
+adopted upstream linters: **`@tanstack/eslint-plugin-query` `flat/recommended-strict`** (`prefer-query-options`
+forces the proxy key) + **`eslint-plugin-react-hooks` `recommended-latest`** (the Compiler's Rules-of-React
+enforcement — load-bearing).
+
+> **This §8 is the gate INDEX.** Each gate's rationale lives where it was specced (§11.x / §12.6 / §13.3); a
+> Phase-6 builder reads the full list here and follows the section ref for the why.
 
 ---
 
@@ -537,16 +629,15 @@ These are the §11.0-rule-2 fixes. Each ships in `@orb/ui` / the client foundati
 - **`@orb/ui/sortable`** seals `@dnd-kit` (sensors / strategy / `CSS.Transform.toString` / `arrayMove`).
   *Physics: dep-cruiser bans `@dnd-kit/*` outside it.* (Only one sortable list exists today — seal it before
   the second one re-improvises different sensor constants.)
-- **TWO named editor factories** so the four divergent strategies neo grew (preset `withFieldGroup`
-  button-gated · standalone section form · world-entry **autosave** · create-book dialog) can't be improvised
-  by whichever neighbor an agent opens first:
-  - `createSavedEntityForm` — button-gated; **bakes** seed-on-load, `key`-remount, **`reset(value)` after
-    submit**, structural-equality re-baseline, and the `DirtyPill/Discard/Save` chrome.
-  - `createAutosaveEntityForm` — listener-debounced; **bakes** the draft-mirror, `onFieldUnmount` flush, and
-    no-op-write guard — and **`reset` is removed from its type** (calling it is the autosave infinite-loop).
-  - Keep neo's one structural win here verbatim: the single `createFormHook`/`createFormHookContexts`
-    instance (`tanstack-form-only-in-shared` — multiple instances split context wiring and bound fields
-    silently lose state). *Gate `no-form-reset-in-autosave`.*
+- **TWO named editor factories** (homed in `client/forms`, §2.1) so the four divergent strategies neo grew
+  (preset `withFieldGroup` button-gated · standalone section form · world-entry **autosave** · create-book
+  dialog) can't be improvised by whichever neighbor an agent opens first: `createSavedEntityForm` (button-gated)
+  and `createAutosaveEntityForm` (listener-debounced; **`reset` removed from its type** — calling it is the
+  autosave infinite-loop). **The full six-obligation contract is the canonical home in §13.4 — do NOT re-spec
+  it here** (it was sharpened by the D54 docs mine: pill off `!isDefaultValue`, NO hand-rolled `fieldValuesEqual`,
+  post-submit-*effect* `reset(saved)`, version-locked `dontUpdateMeta`). Keep neo's one structural win: the
+  single `createFormHook`/`createFormHookContexts` instance (gate `tanstack-form-only-in-shared` — multiple
+  instances split context wiring and bound fields silently lose state). *Gate `no-form-reset-in-autosave`.*
 - **`ChatHandle` — the true `this_chid` successor.** neo killed the *URL-coupled* `this_chid` (single-route
   shell, `center-pane-store` as sole writer) but **resurrected the same disease as an ambient `isOptimistic`
   boolean** read+branched in 15+ sites and propped up by a hand-written "A7" lint. Replace with a
