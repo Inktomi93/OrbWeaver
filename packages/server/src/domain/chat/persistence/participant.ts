@@ -11,7 +11,8 @@
 // `joinSeq`/`leftSeq` are stamped against `messages.seq` (the join/leave HORIZON — Part III §1), NOT the
 // stream cursor; the seq + clock arrive as PARAMS (the verb reads `loadMaxMessageSeq` + its injected clock).
 
-import type { ParticipantKind, ParticipantRole } from "@orb/contracts/chat";
+import type { ParticipantKind } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";

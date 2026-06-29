@@ -11,8 +11,8 @@
 //
 // NOTE — `setActivePersona` (persona.md §8-slot / Movement: `verbs/set-active.ts`) is DEFERRED to the chat
 // build. It writes `chat_participants.activePersonaId` (a chat-domain table) and is host-or-self, which
-// needs the `{ kind: 'chat', roster }` resource arm of `can()` — explicitly NOT built yet (admin
-// contract/guard.ts FLAG[PD-1]: the resource-role axis "lands with chat"). See FLAG[PD-20] in service.ts.
+// routes through the `{ kind: 'chat', roster }` `can()` arm (now BUILT — PD-1 done) fed the chat roster +
+// `chat_participants.activePersonaId` + host determination (chat-domain data). See FLAG[PD-20] in service.ts.
 
 import type { Db } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
