@@ -111,9 +111,19 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         return { models: snap.models.length };
       },
     },
+    // FLAG[PD-41-memory-sweep]: the chat front doors `generateDigests`/`generateSegments` ARE built now, but
+    // they are PER-CHAT-PER-SCOPE (`(ChatContext, {scope, witnessing, …})`) — they CANNOT satisfy this env op's
+    // corpus-wide `({signal}) => MaintenancePassCounts` shape. The missing piece is a `memory-backfill` runner
+    // that ENUMERATES every chat × scope (deriving each witnessing horizon) and folds the per-chat counts — real
+    // memory logic that does NOT belong at entry. Left INERT (loud) until that backfill verb lands; the on-turn
+    // build fires via the chat engine's own ctx, not this sweep.
     memory: {
-      generateDigests: notBuilt("memory.generateDigests not built (PD-41) — P5 memory build"),
-      generateSegments: notBuilt("memory.generateSegments not built (PD-41) — P5 memory build"),
+      generateDigests: notBuilt(
+        "memory.generateDigests corpus sweep not built (FLAG[PD-41-memory-sweep]) — front door is per-chat-per-scope",
+      ),
+      generateSegments: notBuilt(
+        "memory.generateSegments corpus sweep not built (FLAG[PD-41-memory-sweep]) — front door is per-chat-per-scope",
+      ),
     },
     character: {
       mintSyntheticGroupCharacter: notBuilt(

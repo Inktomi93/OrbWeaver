@@ -17,6 +17,11 @@ export type { ChatContext, ChatServiceDeps } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 // Errors
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
+// The `chats.metadata` parse-seam the composition root binds onto `ChatContext.getGroupConfig`/
+// `getRoomOverrides` (a thin convenience so chat verbs don't re-import the parser — see contract/context.ts).
+// `parseChatMetadata` additionally backs the entry root's chat-row → `RoutableChat` provider-routing
+// derivation (the `resolveConnection` dep). Surfaced here so `entry/` binds them without a deep import.
+export { getGroupConfig, getRoomOverrides, parseChatMetadata } from "./contract/metadata";
 export type { ChatService } from "./contract/service";
 // The `@public` composition-root helpers (workload runners + bootstrap — chat.md §"Public surface"):
 export { generateDigests } from "./memory/build/digests";

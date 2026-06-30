@@ -37,6 +37,7 @@ const SERVICE_KEYS = [
   "admin",
   "buddy",
   "character",
+  "chat",
   "connection",
   "credentials",
   "discovery",
@@ -51,7 +52,7 @@ const SERVICE_KEYS = [
   "worldInfo",
 ] as const;
 
-test("createServices builds the full graph: all 15 Services keys + the boot handles", async () => {
+test("createServices builds the full graph: all 16 Services keys + the boot handles", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
   const result = await createServices({
