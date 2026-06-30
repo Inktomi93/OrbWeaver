@@ -16,6 +16,7 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { Hono } from "hono";
+import type { AssetMetadata } from "#domain/assets";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
@@ -24,12 +25,13 @@ const WEBP_MIME = "image/webp";
 // content-address (a hash never changes its bytes).
 const CACHE_CONTROL = "private, immutable";
 
-/** The `assets` front-door slice the blob route consumes (the owner-gate + the variant pipeline). */
+/** The `assets` front-door slice the blob route consumes (the owner-gate + the variant pipeline).
+ *  `getMetadata` returns `AssetMetadata` (may include `ownerId` for the PD-28 roster-avatar path). */
 export interface BlobAssetsPort {
   readonly getMetadata: (params: {
     readonly principal: Principal;
     readonly hash: string;
-  }) => Promise<{ readonly mime: string; readonly size: number } | undefined>;
+  }) => Promise<AssetMetadata | undefined>;
   readonly resolveVariant: (params: {
     readonly principal: Principal;
     readonly hash: string;
@@ -65,18 +67,9 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
     const hash = c.req.param("hash");
 
     // Variant path: `?w=<px>` → the resized-webp pipeline (snap→cache→transform behind the front door).
-    // An off-ladder width / non-hash / unowned blob all resolve to `undefined` → 404.
     const widthRaw = c.req.query("w");
     if (widthRaw !== undefined) {
-      const width = Number(widthRaw);
-      if (!Number.isInteger(width) || width <= 0) {
-        return c.body(null, NOT_FOUND);
-      }
-      const variant = await deps.assets.resolveVariant({ principal, hash, width });
-      if (variant === undefined) {
-        return c.body(null, NOT_FOUND);
-      }
-      return serveBytes(variant, WEBP_MIME);
+      return serveVariant(deps, principal, hash, widthRaw);
     }
 
     // Original path: gate on ownership + read the stored mime, THEN read the per-user CAS original.
@@ -84,15 +77,36 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
     if (meta === undefined) {
       return c.body(null, NOT_FOUND);
     }
-    let bytes: Uint8Array;
+    // PD-28: meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception);
+    // on the normal path it is absent and the caller IS the owner.
+    const casOwnerId = (meta.ownerId as UserId | undefined) ?? principal.userId;
     try {
-      bytes = await deps.cas.read(principal.userId, hash);
+      const bytes = await deps.cas.read(casOwnerId, hash);
+      return serveBytes(bytes, meta.mime);
     } catch {
       // Row present but blob absent (a torn delete) → 404, never a 500 leak.
       return c.body(null, NOT_FOUND);
     }
-    return serveBytes(bytes, meta.mime);
   });
+}
+
+/** Serve a resized-webp variant: snap width → cache → transform (all behind the front door). An
+ *  off-ladder width, non-hash, or unowned blob all resolve to `undefined` → 404. */
+async function serveVariant(
+  deps: BlobDeps,
+  principal: Principal,
+  hash: string,
+  widthRaw: string,
+): Promise<Response> {
+  const width = Number(widthRaw);
+  if (!Number.isInteger(width) || width <= 0) {
+    return new Response(null, { status: NOT_FOUND });
+  }
+  const variant = await deps.assets.resolveVariant({ principal, hash, width });
+  if (variant === undefined) {
+    return new Response(null, { status: NOT_FOUND });
+  }
+  return serveBytes(variant, WEBP_MIME);
 }
 
 /** Build the binary response (content-type + length + the per-user immutable cache header). */

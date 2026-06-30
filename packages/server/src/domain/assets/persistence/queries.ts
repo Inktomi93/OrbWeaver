@@ -4,10 +4,12 @@
 // `db.insert(assets)` outside this file). The CAS handle is INJECTED (a function call, not a node:* import),
 // so `persistence-no-io` holds: this file does no direct fetch/http/node I/O.
 //
-// Every read is owner-scoped (the `ownerId` predicate is part of the WHERE, never a post-filter), so a
-// non-owner can never receive another user's row. `ownerId` is `principal.userId` (§7.1) — this layer
-// NEVER reads the `users` table (the `no-direct-users-read` chokepoint). Dedup is the COMPOSITE
-// `unique(ownerId, hash)` index (D21 — within-user only).
+// Every USER-FACING read is owner-scoped (the `ownerId` predicate is part of the WHERE, never a post-filter),
+// so a non-owner can never receive another user's row. The roster-avatar exception (PD-28) departs from this
+// only at the `metadataForOwnerAndHash` call — the VERB has already resolved the owning co-participant
+// (via the injected `loadCoParticipantOwner` op) and passes the confirmed owner, so this is a trusted lookup,
+// not an ownership bypass. `ownerId` is `principal.userId` (§7.1) on the normal path; the `no-direct-users-
+// read` chokepoint holds throughout.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
@@ -81,6 +83,22 @@ export async function assetIdForHash(
 /** The `{mime,size}` of the caller's asset with this hash, or undefined (→ 404) when not found / not
  *  theirs. The blob-serve gate read — owner-scoped, no foreign-existence leak. */
 export async function metadataForOwnedHash(
+  db: Db,
+  ownerId: UserId,
+  hash: string,
+): Promise<AssetMetadataRow | undefined> {
+  const rows = await db
+    .select({ mime: assets.mime, size: assets.size })
+    .from(assets)
+    .where(and(eq(assets.ownerId, ownerId), eq(assets.hash, hash)))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** The `{mime,size}` of a SPECIFIC OWNER'S asset with this hash (the PD-28 roster-avatar path: the
+ *  caller has already been confirmed as a co-participant of the owner; we just read their metadata).
+ *  The verb resolves the owning co-participant via `loadCoParticipantOwner` BEFORE calling this. */
+export async function metadataForOwnerAndHash(
   db: Db,
   ownerId: UserId,
   hash: string,

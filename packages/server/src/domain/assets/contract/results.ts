@@ -14,8 +14,13 @@
 export type { StoredAsset } from "@orb/contracts/assets";
 
 /** The blob-serve gate answer: enough to set response headers for an owned blob. `undefined` (not this
- *  shape) is how `getMetadata` signals "not found / not yours" — see contract/service.ts. */
+ *  shape) is how `getMetadata` signals "not found / not yours" — see contract/service.ts.
+ *  `ownerId` is present ONLY on the roster-avatar exception (PD-28): the asset is owned by a
+ *  co-participant, not the caller; the blob route reads from their CAS partition. When absent (the
+ *  normal owner path), the route uses `principal.userId` directly. */
 export interface AssetMetadata {
   readonly mime: string;
   readonly size: number;
+  /** The actual CAS owner. Present only on roster-avatar exceptions (PD-28); absent → caller owns it. */
+  readonly ownerId?: string;
 }
