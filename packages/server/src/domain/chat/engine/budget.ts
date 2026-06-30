@@ -14,12 +14,8 @@
 
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
+import type { DebitBudgetOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
-
-/** The injected per-member COUNT budget debit (the transport `MemberBudget.debit` shape). `budget === null`
- *  ⇒ unbounded (a no-op debit — the supervisor-limited domain floor). File-local (the `types-in-contract`
- *  gate); the engine declares its dep with the same inline signature. */
-type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Promise<void>;
 
 /**
  * Debit ONE turn against `triggeredBy`'s per-member budget (IN-LOCK — the engine calls this inside the

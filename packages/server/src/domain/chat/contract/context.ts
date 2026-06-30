@@ -18,7 +18,7 @@
 // precise param/result shapes (the rich search hit/result + the embeddings store-params are not on the seam node).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Can } from "@orb/contracts/identity";
@@ -33,6 +33,7 @@ import type {
   ChatEventId,
   ChatId,
   ChatInjectionId,
+  ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
   MessageId,
@@ -42,6 +43,8 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { AuditEntry } from "#foundation/observability";
+import type { ActiveTurns } from "./active-turns";
+import type { ResolveForeignInputsOp } from "./foreign";
 import type { MemoryLog } from "./memory";
 import type { TurnRequest, TurnStreamChunk } from "./results";
 
@@ -271,6 +274,51 @@ export interface ChatContext {
   readonly getRoomOverrides: GetRoomOverridesOp;
 }
 
-/** What `createChatService` receives from the entry root. Identical to {@link ChatContext} — no
- *  deps→context transform; named for front-door surface symmetry with the other domains. */
-export type ChatServiceDeps = ChatContext;
+// ── Engine deps (the §9 security belts — injected, NOT on ctx; see engine/engine.ts header) ──
+/** The injected per-member COUNT budget debit (the transport `MemberBudget.debit` shape). `budget === null`
+ *  ⇒ unbounded (a no-op debit — the supervisor-limited domain floor). Homed here (not file-local on engine/
+ *  budget) so {@link ChatServiceDeps} can reference it — the `types-in-contract` gate. */
+export type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Promise<void>;
+
+/** The per-turn host policy resolved under the frozen `runAsUserId` (the budget CAP + the max-pro-sub
+ *  owner-consent flag) — read from host settings, for which there is no `ChatContext` op (engine.ts header). */
+export type ResolveTurnPolicyOp = (
+  runAsUserId: UserId,
+) => Promise<{ readonly budget: number | null; readonly allowNonOwnerMaxProSub: boolean }>;
+
+/**
+ * What `createChatService` receives from the entry root — the collaborators that are NOT on {@link ChatContext}
+ * and are NOT built inside the composition root (the engine + `loadParticipantViews` are constructed there). The
+ * entry root assembles every field; chat sideways-imports none of it. The chat bus `emit`, the auto-mode `prng`/
+ * `delay` determinism seams (D46), the per-turn connection/foreign resolvers, the invite crypto, and the engine's
+ * budget/policy/lock belts are all wired here (their FLAGs in bus.ts / budget.ts / engine.ts point at this seam).
+ */
+export interface ChatServiceDeps {
+  /** The chat bus emit (durable-first; chat's own collaborator — used by ~every factory + the engine). */
+  readonly emit: (event: ChatBusEvent) => Promise<void>;
+  /** The in-flight lock-free turn registry (abort + concurrency; `turn`). */
+  readonly activeTurns: ActiveTurns;
+  /** The seeded PRNG for arbitration sampling (D46 — no ambient `Math.random`; `turn`). */
+  readonly prng: () => number;
+  /** The inter-turn delay for the auto-mode chain (D46 — no ambient timers; `turn`). */
+  readonly delay: (ms: number) => Promise<void>;
+  /** Resolve `{api, model, credential, capability}` for a turn under the frozen host (`turn`/`read`/`start-chat`). */
+  readonly resolveConnection: (args: {
+    readonly runAsUserId: UserId;
+    readonly chatId: ChatId;
+  }) => Promise<ResolvedConnection>;
+  /** The FOREIGN half of the assemble ctx (preset/persona/settings) from chat-supplied keys (`turn`/`read`/`start-chat`). */
+  readonly resolveForeignInputs: ResolveForeignInputsOp;
+  /** Hash an invite token before persistence (sessions discipline — never stored raw; `invites`). */
+  readonly hashToken: (token: string) => string;
+  /** Mint a fresh invite id (`invites`). */
+  readonly newInviteId: () => ChatInviteId;
+  /** The per-member COUNT budget debit (engine §9 belt). */
+  readonly debitBudget: DebitBudgetOp;
+  /** The per-turn host policy — budget cap + max-pro-sub consent (engine §9 belt). */
+  readonly resolveTurnPolicy: ResolveTurnPolicyOp;
+  /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release (engine). */
+  readonly holder: string;
+  /** The per-chat lock TTL (ms), sized for one turn (engine). */
+  readonly lockTtlMs: number;
+}

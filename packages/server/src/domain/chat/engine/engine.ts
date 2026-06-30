@@ -23,8 +23,8 @@
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../contract/context";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
+import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   TurnEconomics,
@@ -54,15 +54,6 @@ import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
 import { assistantTurnDelta } from "./stats-delta";
 import { assertMaxProSubConsent } from "./turn-identity";
-
-/** The per-member budget debit (the transport `MemberBudget.debit` shape — injected; not on ctx). */
-type DebitBudgetOp = (triggeredBy: UserId, budget: number | null) => Promise<void>;
-
-/** The per-turn host policy resolved under the frozen `runAsUserId` (the budget CAP + the max-pro-sub
- *  owner-consent flag) — read from host settings, for which there is no `ChatContext` op (FLAGGED). */
-type ResolveTurnPolicyOp = (
-  runAsUserId: UserId,
-) => Promise<{ readonly budget: number | null; readonly allowNonOwnerMaxProSub: boolean }>;
 
 /** The non-ctx engine deps wired at the composition root (FLAG[bus/budget-not-on-ctx] — see header). */
 interface EngineDeps {
