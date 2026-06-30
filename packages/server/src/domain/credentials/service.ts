@@ -17,6 +17,7 @@ import { createMarkRevokedByUser } from "./verbs/mark-revoked-by-user";
 import { createMaybeRevokeOnAuthFailed } from "./verbs/maybe-revoke-on-auth-failed";
 import { createMintLocalLight } from "./verbs/mint-local-light";
 import { createMintVllm } from "./verbs/mint-vllm";
+import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt";
 import { createRemove } from "./verbs/remove";
 import { createResolve } from "./verbs/resolve";
 import { createSetActive } from "./verbs/set-active";
@@ -34,6 +35,7 @@ export function createCredentialsService(ctx: CredentialContext): CredentialsSer
     markRevoked: createMarkRevoked(ctx),
     markRevokedByUser: createMarkRevokedByUser(ctx),
     clearRevoked: createClearRevoked(ctx),
+    probeKeyDecrypt: createProbeKeyDecrypt(ctx),
     fetchModels: createFetchModels(ctx),
     inspectEndpoint: createInspectEndpoint(ctx),
     mintVllmCredential: createMintVllm(),

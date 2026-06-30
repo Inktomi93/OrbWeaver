@@ -28,7 +28,6 @@ import {
 } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import type { SecretBox } from "#infra/crypto";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
@@ -51,9 +50,6 @@ const MS_PER_HOUR = 3_600_000;
 // The catalog-refresh decision tick — hourly is plenty (the actual refresh cadence is daily, gated in the
 // scheduler).
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
-// The SecretBox boot self-probe canary (round-trips through the configured key to prove the cipher is live).
-const KEY_PROBE_AAD = "healthz|key-probe";
-const KEY_PROBE_PLAINTEXT = "orbweaver-key-probe";
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
@@ -68,31 +64,6 @@ function ownerHandles(): readonly string[] {
     .map((handle) => handle.trim())
     .filter((handle) => handle.length > 0);
   return parsed.length > 0 ? parsed : [env.DEFAULT_USER_HANDLE];
-}
-
-/**
- * The SecretBox boot decrypt-probe → the healthz `credentials_key_mismatch` signal. A disabled box (no key
- * configured) is HEALTHY — per-user credential storage is simply off, nothing is encrypted to mismatch. An
- * enabled box round-trips a canary through the live key to prove the cipher works.
- *
- * FLAG[PD-51]: the deeper probe PRE-SCAFFOLD §B2 names — "decrypt the FIRST stored credential row" to
- * catch a rotated/lost key against EXISTING ciphertext — needs a `credentials` front-door probe verb (the
- * slice exposes none; reconstructing the `${userId}|${provider}` AAD at entry would double the domain's
- * `aadFor`). Until that verb lands, this canary proves the configured key is internally consistent, not that
- * it still matches old rows. Wire the row-decrypt probe HERE when the front-door verb exists.
- */
-function probeCredentialsKey(box: SecretBox): boolean {
-  if (!box.enabled) {
-    return true;
-  }
-  try {
-    return (
-      box.decrypt(box.encrypt(KEY_PROBE_PLAINTEXT, KEY_PROBE_AAD), KEY_PROBE_AAD) ===
-      KEY_PROBE_PLAINTEXT
-    );
-  } catch {
-    return false;
-  }
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -174,7 +145,7 @@ export function createLifecycle(): Lifecycle {
     });
 
     // 2b. The boot decrypt-probe → healthz `credentials_key_mismatch`.
-    credentialsKeyOk = probeCredentialsKey(built.secretBox);
+    credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
     if (!credentialsKeyOk) {
       log.error(
         "boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch",

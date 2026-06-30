@@ -72,20 +72,27 @@ export interface AppDeps {
   readonly seedUserCharacters: (principal: Principal) => void;
 }
 
-/** Derive the caller IP for the per-IP rate-limit key: the leftmost `x-forwarded-for` hop when present,
- *  else the connection peer. FLAG[PD-52]: trusted-proxy hardening (only honor XFF from a trusted
- *  proxy per FORWARD_AUTH_TRUSTED_PROXIES) lands with the forward-header path — until then a single-box /
- *  loopback deploy keys on the peer and a fronting proxy supplies the real client via XFF. */
+const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
+
+/** Derive the caller IP for the per-IP rate-limit key: the leftmost `x-forwarded-for` hop if the connection
+ *  peer is a trusted proxy (loopback/private OR explicitly trusted via FORWARD_AUTH_TRUSTED_PROXIES).
+ *  Otherwise, returns the connection peer. */
 function deriveClientIp(c: Context<AppEnv>): string | null {
+  const peer = getConnInfo(c).remote.address;
+
   const forwarded = c.req.header(XFF_HEADER);
-  if (forwarded !== undefined && forwarded.length > 0) {
+  if (
+    forwarded !== undefined &&
+    forwarded.length > 0 &&
+    peer !== undefined &&
+    (isPrivateOrLoopback(peer) || isInRanges(peer, TRUSTED_PROXIES))
+  ) {
     const first = forwarded.split(",")[0]?.trim();
     if (first !== undefined && first.length > 0) {
       return first;
     }
   }
-  // getConnInfo needs the node-server bindings; this builder only runs under @hono/node-server.
-  const peer = getConnInfo(c).remote.address;
+
   return peer ?? null;
 }
 

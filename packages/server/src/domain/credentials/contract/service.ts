@@ -109,6 +109,7 @@ export interface CredentialsService {
   /** User-facing revoke (adds the ownership check). MUST stay distinct from `markRevoked` (invariant #6). */
   readonly markRevokedByUser: (params: MarkRevokedByUserParams) => Promise<void>;
   readonly clearRevoked: (params: ClearRevokedParams) => Promise<void>;
+  readonly probeKeyDecrypt: () => Promise<boolean>;
 
   // Custom endpoint
   readonly fetchModels: (params: FetchModelsParams) => Promise<string[]>;

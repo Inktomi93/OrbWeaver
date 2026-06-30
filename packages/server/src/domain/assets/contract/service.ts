@@ -21,7 +21,7 @@
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { GetMetadataParams, ResolveVariantParams, StoreParams } from "./params";
@@ -51,6 +51,12 @@ export interface AssetsContext {
   readonly emit: EmitDomainEvent;
   readonly now: () => number;
   readonly newAssetId: () => AssetId;
+  /**
+   * (PD-28) Roster-avatar exception: given the CALLER's userId and a blob hash, returns the UserId of
+   * a co-participant in any shared chat who owns that hash, or `undefined` when no such user exists.
+   * Optional — absent on non-HTTP/DR/workload callers that never need the roster gate.
+   */
+  readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
 }
 
 export interface AssetsService {
