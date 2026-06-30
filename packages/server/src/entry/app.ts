@@ -23,7 +23,14 @@ import { isInRanges, isPrivateOrLoopback } from "#infra/network";
 import type { RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
-import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, UploadAssetsPort } from "./http";
+import type {
+  AuthSessionsPort,
+  BlobAssetsPort,
+  BlobCasPort,
+  LocalAuthenticator,
+  OidcRoutesDeps,
+  UploadAssetsPort,
+} from "./http";
 import {
   registerAuthRoutes,
   registerBlob,
@@ -70,6 +77,10 @@ export interface AppDeps {
    *  the request — the seeder's in-process memo + persisted latch make it a Set lookup after the first run,
    *  and `ensureSeeded` never throws. */
   readonly seedUserCharacters: (principal: Principal) => void;
+  /** Present in local mode. */
+  readonly authenticate?: LocalAuthenticator;
+  /** Present in oidc mode. */
+  readonly oidc?: OidcRoutesDeps;
 }
 
 const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
@@ -203,9 +214,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     character: deps.character,
     tag: deps.services.tag,
   });
-  // single-user mode: no `authenticate` port (local-password login deferred) and no `oidc` bundle (PD-5),
-  // so only the always-on logout route registers — login/oidc simply don't (the fail-closed posture).
-  registerAuthRoutes(plain, { sessions: deps.sessions, now: deps.now });
+  // The auth mint routes (login, logout, oidc callback).
+  // OIDC and local modes are strictly gated by the supplied deps (fail-closed).
+  registerAuthRoutes(plain, {
+    sessions: deps.sessions,
+    now: deps.now,
+    ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
+    ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
+  });
 
   // ── The /api/_debug introspection surface (admin-cookie OR DEBUG_TOKEN gate; no assets fsck — PD-26) ──
   registerDebugRoutes(plain, {
