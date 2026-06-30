@@ -20,8 +20,8 @@ import { expect, test } from "vitest";
 const ROOT = join(import.meta.dirname, "..", "..");
 const BASELINE = join(ROOT, "packages", "db", "src", "migrations", "0000_baseline.sql");
 const BREAKPOINT = "--> statement-breakpoint";
-const WS_RE = /\s+/g;
-const TRAILING_SEMI_RE = /;\s*$/;
+const WS_RE = /\s+/gu;
+const TRAILING_SEMI_RE = /;\s*$/u;
 
 function normalize(statement: string): string {
   return statement.replace(WS_RE, " ").replace(TRAILING_SEMI_RE, "").trim();

@@ -34,7 +34,7 @@ const V3_CARD = {
 };
 const V3_JSON = JSON.stringify(V3_CARD);
 const encoder = new TextEncoder();
-const SHA256_HEX = /^[0-9a-f]{64}$/;
+const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 // A minimal valid PNG (signature + zero-length IEND) to embed the card into via the kit codec.
 const MINIMAL_PNG = Uint8Array.from([

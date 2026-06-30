@@ -4,7 +4,7 @@
 import type { Check, Violation } from "../harness.ts";
 
 const CODE_COMMENT_RE =
-  /^\s*\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/;
+  /^\s*\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

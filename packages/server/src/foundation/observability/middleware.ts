@@ -15,7 +15,7 @@ const DEBUG_PREFIX = "/api/_debug";
 // Caps reuse-from-header to 128 chars + a conservative charset so a client can't inject log-line content
 // or terminal escapes via a malicious X-Request-Id. A 36-char UUID fits; Caddy's hex/short-id also pass.
 // Mismatch → a fresh UUID is generated. (tiers/foundation.md esoteric #11.)
-const SAFE_REQUEST_ID = /^[A-Za-z0-9_.\-:]{1,128}$/;
+const SAFE_REQUEST_ID = /^[A-Za-z0-9_.\-:]{1,128}$/u;
 
 /**
  * Per-request observability: assigns a request id, echoes it as `X-Request-Id` (so a caller can grab it

@@ -23,7 +23,8 @@
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
@@ -35,6 +36,7 @@ import type {
   TurnPersist,
   TurnPrep,
 } from "../contract/results";
+
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -49,6 +51,7 @@ import {
   loadMessageView,
   loadSlotTarget,
 } from "../persistence/queries";
+import { loadRoster } from "../persistence/roster";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
@@ -67,6 +70,22 @@ interface EngineDeps {
   readonly holder: string;
   /** The per-chat lock TTL (ms) — sized for one turn (chat.md Part III §5/§6). */
   readonly lockTtlMs: number;
+  /** Injected memory segment builder (domain-no-cross-subsystem rule). */
+  readonly generateSegments: (
+    ctx: ChatContext,
+    args: { readonly chatId: ChatId },
+  ) => Promise<unknown>;
+  /** Injected memory digest builder (domain-no-cross-subsystem rule). */
+  readonly generateDigests: (
+    ctx: ChatContext,
+    args: {
+      readonly scope: any;
+      readonly config?: any;
+      readonly names?: any;
+      readonly witnessing?: any;
+      readonly signal?: AbortSignal;
+    },
+  ) => Promise<unknown>;
 }
 
 /** Map the engine's 8-kind turn axis → the public 5-member bus `TurnIntent` (one home; no inline re-spell).
@@ -342,6 +361,42 @@ async function executeTurn(
       nextSeq: maxSeq + 1,
     });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
+
+    // Memory trigger: §3a fire-and-forget post-turn build.
+    // Must not block the reply. We wrap it in a Promise.resolve().then(...)
+    void Promise.resolve().then(async () => {
+      try {
+        await deps.generateSegments(ctx, { chatId: prep.chatId });
+        const roster = await loadRoster(ctx.db, prep.chatId);
+        const chars = roster.flatMap((r) =>
+          r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
+        );
+
+        // Run the digest/summarizer sweeps (sequentially — the memory logic itself bounds concurrency, but we
+        // run the scopes sequentially here so an aborted test teardown doesn't hit DB race conditions).
+        //
+        // 1. Group-as-character scope (only for groups). The single synthetic bucket.
+        if (chars.length > 1) {
+          await deps.generateDigests(ctx, {
+            scope: {
+              chatId: prep.chatId,
+              scopedCharacterId: castId<CharacterId>(`__group__${prep.chatId}`),
+              isGroup: chars.length > 1,
+            },
+          });
+        }
+        await Promise.all(
+          chars.map((charId) =>
+            deps.generateDigests(ctx, {
+              scope: { chatId: prep.chatId, scopedCharacterId: charId, isGroup: chars.length > 1 },
+            }),
+          ),
+        );
+      } catch {
+        // fire-and-forget post-turn memory build failed
+      }
+    });
+
     return committedOutcome([view]);
   } catch (err) {
     // FLAG: the contract bus event is `turnAborted` (with `reason`), not `turnFailed` — the doc/contract

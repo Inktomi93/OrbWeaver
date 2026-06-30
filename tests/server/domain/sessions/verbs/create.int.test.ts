@@ -13,7 +13,7 @@ import { freshDb } from "../../../../support/db";
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const USER_ID = castId<UserId>("user_alice");
-const SESSION_ID_RE = /^session_/;
+const SESSION_ID_RE = /^session_/u;
 
 let db: Db;
 let svc: SessionsService;

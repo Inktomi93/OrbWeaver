@@ -19,7 +19,7 @@
 // composition seam (like the resolved `connection`), NOT fetched here:
 //   • `promptConfig` (preset/settings selection — the contract already makes it a required `AssembleContext`
 //     field), • `personas` (anchor/active name+description — there is no persona-read op, only
-//     `setActivePersona`), • `memory` (the `{{memory}}` string — `ctx.searchDigests` returns block KEYS; the
+//     `resolvePersona`), • `memory` (the `{{memory}}` string — `ctx.searchDigests` returns block KEYS; the
 //     keys→text format step is the unbuilt `memory/` subsystem).
 // SEND (D53 step 2): the USER_INPUT regex pass runs HERE, between RESOLVE (`base` → the author-side macro ctx)
 // and GATHER (the WI keyword match) — chat.md §2 (`macro → set {{input}} → USER_INPUT regex → fold the POST-regex

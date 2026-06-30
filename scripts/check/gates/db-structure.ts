@@ -17,7 +17,7 @@ import type { Check, CheckContext, Violation } from "../harness.ts";
 const SCHEMA_REL = "packages/db/src/schema";
 const BARREL_FILE = "index.ts";
 const BARREL_SUFFIX = "/packages/db/src/schema/index.ts";
-const TS_EXT_RE = /\.ts$/;
+const TS_EXT_RE = /\.ts$/u;
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {
   return ctx.project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(BARREL_SUFFIX));

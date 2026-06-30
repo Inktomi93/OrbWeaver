@@ -1,3 +1,5 @@
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 // verb: findSyntheticGroupCharacter — look up the room's synthetic bucket; null before it's minted.
 
 import { createCharacterService } from "@orb/server/domain/character";
@@ -11,10 +13,18 @@ describe("find synthetic group character", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: "owner" });
 
-    expect(await svc.findSyntheticGroupCharacter({ ownerId: owner, chatId: "chat_1" })).toBeNull();
+    expect(
+      await svc.findSyntheticGroupCharacter({ ownerId: owner, chatId: castId<ChatId>("chat_1") }),
+    ).toBeNull();
 
-    const minted = await svc.mintSyntheticGroupCharacter({ ownerId: owner, chatId: "chat_1" });
-    const found = await svc.findSyntheticGroupCharacter({ ownerId: owner, chatId: "chat_1" });
+    const minted = await svc.mintSyntheticGroupCharacter({
+      ownerId: owner,
+      chatId: castId<ChatId>("chat_1"),
+    });
+    const found = await svc.findSyntheticGroupCharacter({
+      ownerId: owner,
+      chatId: castId<ChatId>("chat_1"),
+    });
     expect(found?.characterId).toBe(minted.characterId);
   });
 });

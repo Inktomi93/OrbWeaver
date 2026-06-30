@@ -23,8 +23,8 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 const ROOT = join(import.meta.dirname, "..", "..");
 const GRIT_DIR = join(ROOT, "tools", "grit");
 const BIOME = join(ROOT, "node_modules", ".bin", "biome");
-const GRIT_EXT_RE = /\.grit$/;
-const LEADING_PATH_RE = /^.*\//;
+const GRIT_EXT_RE = /\.grit$/u;
+const LEADING_PATH_RE = /^.*\//u;
 
 /** Every grit plugin on disk (basename, no extension) — the source of truth for "what grits exist". */
 const GRITS: string[] = readdirSync(GRIT_DIR)

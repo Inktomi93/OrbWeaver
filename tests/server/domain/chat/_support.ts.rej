@@ -1,0 +1,10 @@
+--- tests/server/domain/chat/_support.ts
++++ tests/server/domain/chat/_support.ts
+@@ -275,7 +275,6 @@
+     findSyntheticGroupCharacter: (): Promise<GroupCharacterRef | null> => Promise.resolve(null),
+     resolveUserPublics: (): Promise<UserPublic[]> => Promise.resolve([]),
+     resolveImageUrl: (): Promise<string | null> => Promise.resolve(null),
+-    setActivePersona: (): Promise<void> => Promise.resolve(),
+     applyStatsDelta: (): void => {},
+     summarize: (): Promise<MessageVariant[]> => Promise.resolve([]),
+     summarizerContextTokens: 4096,

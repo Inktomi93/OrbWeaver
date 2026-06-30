@@ -13,7 +13,7 @@
 
 import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
 export type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 
@@ -93,12 +93,17 @@ export interface GetCardParams extends CharacterActorParams {
  *  a request principal. The `__group__${chatId}` handle namespace is owned here (character.md invariant 7). */
 export interface MintGroupCharParams {
   readonly ownerId: UserId;
-  readonly chatId: string;
+  readonly chatId: ChatId;
 }
 
 export interface FindGroupCharParams {
   readonly ownerId: UserId;
-  readonly chatId: string;
+  readonly chatId: ChatId;
+}
+
+export interface GetRosterCardViewParams extends CharacterActorParams {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId;
 }
 
 /** Re-import dedup lookup (import-injected, internal): the owner's character already carrying `importHash`,

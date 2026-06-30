@@ -45,6 +45,9 @@ export interface CharacterHarness {
   readonly advance: (ms: number) => void;
   /** Override the tag-attach port result (default: every call returns `true` = newly attached). */
   setTagAttachResult: (result: boolean) => void;
+  setChatMemberCardVisibility: (
+    visibility: "name-avatar" | "sheet" | "sheet+lore" | "full",
+  ) => void;
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
@@ -56,6 +59,7 @@ export function makeHarness(db: Db): CharacterHarness {
   const reaps: AssetId[][] = [];
   const tagAttaches: TagAttachArgs[] = [];
   let tagAttachResult = true;
+  let chatMemberCardVisibility: "name-avatar" | "sheet" | "sheet+lore" | "full" = "sheet";
 
   const ctx: CharacterContext = {
     db,
@@ -78,6 +82,9 @@ export function makeHarness(db: Db): CharacterHarness {
       tagAttaches.push(args);
       return Promise.resolve(tagAttachResult);
     },
+    requireParticipant: (): Promise<void> => Promise.resolve(),
+    getChatMemberCardVisibility: (): Promise<"name-avatar" | "sheet" | "sheet+lore" | "full"> =>
+      Promise.resolve(chatMemberCardVisibility),
   };
 
   return {
@@ -89,6 +96,11 @@ export function makeHarness(db: Db): CharacterHarness {
     advance: (ms: number): void => clock.advance(ms),
     setTagAttachResult: (result: boolean): void => {
       tagAttachResult = result;
+    },
+    setChatMemberCardVisibility: (
+      visibility: "name-avatar" | "sheet" | "sheet+lore" | "full",
+    ): void => {
+      chatMemberCardVisibility = visibility;
     },
   };
 }

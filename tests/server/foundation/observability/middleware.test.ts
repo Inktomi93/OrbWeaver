@@ -15,7 +15,7 @@ import { describe, expect, test } from "vitest";
 
 // The middleware's own guard charset (mirrored here to assert a minted id is safe by construction). A real
 // request id is only ever drawn from this alphabet — never the caller's rejected bytes.
-const SAFE_CHARSET = /^[A-Za-z0-9_.\-:]{1,128}$/;
+const SAFE_CHARSET = /^[A-Za-z0-9_.\-:]{1,128}$/u;
 const OK_STATUS = 200;
 
 interface MockCtx {

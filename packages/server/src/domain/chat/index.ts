@@ -22,7 +22,9 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 // `parseChatMetadata` additionally backs the entry root's chat-row → `RoutableChat` provider-routing
 // derivation (the `resolveConnection` dep). Surfaced here so `entry/` binds them without a deep import.
 export { getGroupConfig, getRoomOverrides, parseChatMetadata } from "./contract/metadata";
+export type { TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
+export { requireAuthorOrHost, requireParticipant } from "./guard";
 // The `@public` composition-root helpers (workload runners + bootstrap — chat.md §"Public surface"):
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";

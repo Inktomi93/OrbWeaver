@@ -22,7 +22,7 @@ const FK_ON = 1;
 const MIGRATIONS_DIR = "packages/db/src/migrations";
 // A sentinel table from across the dependency tiers — each select throws if the baseline didn't create it.
 const SENTINEL_TABLES = ["users", "characters", "chats", "message_variants", "chat_digests"];
-const ORPHAN_RE = /orphan FK row/;
+const ORPHAN_RE = /orphan FK row/u;
 
 test("createDb turns foreign_keys ON and the readback sticks", async () => {
   const db = await createDb(":memory:");

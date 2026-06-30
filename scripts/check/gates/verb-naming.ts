@@ -4,7 +4,7 @@
 import type { Check, Violation } from "../harness.ts";
 
 const VERB_FILE =
-  /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/;
+  /\/packages\/server\/src\/domain\/[^/]+\/(?:[^/]+\/)*verbs\/(?:[^/]+\/)*[^/]+\.ts$/u;
 
 function pascal(kebab: string): string {
   return kebab

@@ -16,7 +16,7 @@ import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
 const SERVER_SRC = "/packages/server/src/";
-const EXT_RE = /\.tsx?$/;
+const EXT_RE = /\.tsx?$/u;
 
 const MSG = {
   verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (spine/testing.md §5).",

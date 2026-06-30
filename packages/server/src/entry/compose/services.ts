@@ -26,8 +26,10 @@ import type { EndpointInspection } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { and, eq } from "drizzle-orm";
 import { can, createAdminService, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
@@ -70,6 +72,7 @@ import {
   createProviderExecutor,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
+import { getGroupConfig, requireAuthorOrHost, requireParticipant } from "../../domain/chat";
 import type { Services } from "../../transport/trpc/context";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
@@ -234,11 +237,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const tag = createTagService({
     db,
     newTagId: minter(ID_PREFIX.tag),
-    // INERT (flagged): the chat membership gate is PD-19 — chat (and its participant guard) is P5.
-    requireParticipant: (): Promise<void> =>
-      Promise.reject(
-        new Error("tag.requireParticipant: chat membership gate not built (PD-19) — chat is P5"),
-      ),
+    // RESOLVED (PD-19): the chat membership gate is wired via the domain/chat/guard.
+    requireParticipant: (principal, chatId) =>
+      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
   });
 
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
@@ -263,6 +264,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
     // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
+    requireParticipant: (principal, chatId) =>
+      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    getChatMemberCardVisibility: async (chatId) => {
+      const rows = await db
+        .select({ metadata: chats.metadata })
+        .from(chats)
+        .where(eq(chats.id, chatId))
+        .limit(1);
+      return rows[0] !== undefined
+        ? getGroupConfig(rows[0].metadata).memberCardVisibility
+        : "sheet";
+    },
   });
 
   // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.
@@ -330,7 +343,21 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   }
 
   // ── Leaf + remaining services ─────────────────────────────────────────────────────────────────────────
-  const persona = createPersonaService({ db, now, newPersonaId: minter(ID_PREFIX.persona), audit });
+  const persona = createPersonaService({
+    db,
+    now,
+    newPersonaId: minter(ID_PREFIX.persona),
+    audit,
+    requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
+      await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
+    },
+    setChatActivePersona: async (chatId, targetUserId, personaId) => {
+      await db
+        .update(chatParticipants)
+        .set({ activePersonaId: personaId })
+        .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, targetUserId)));
+    },
+  });
   const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
   const worldInfo = createWorldInfoService({
     db,
@@ -444,7 +471,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     notifications,
     search,
+    assets,
     embeddings,
+    runChatTurn: executor.runChatTurn,
   });
 
   const services: Services = {

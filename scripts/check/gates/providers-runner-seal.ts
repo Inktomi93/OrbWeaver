@@ -9,7 +9,7 @@
 import type { Check, Violation } from "../harness.ts";
 
 const SEALED = new Set(["deriveRunner", "backendForSource", "BackendKey", "BACKEND_KEYS"]);
-const CONSUMER = /\/packages\/server\/src\/(?:domain|transport|entry)\//;
+const CONSUMER = /\/packages\/server\/src\/(?:domain|transport|entry)\//u;
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

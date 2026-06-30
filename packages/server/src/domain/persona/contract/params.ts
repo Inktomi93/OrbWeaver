@@ -11,7 +11,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
 
@@ -57,4 +57,11 @@ export interface DisconnectParams extends PersonaActorParams {
 
 export interface ListConnectedParams extends PersonaActorParams {
   readonly characterId: CharacterId;
+}
+
+export interface SetActivePersonaParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly targetUserId: UserId;
+  readonly personaId: PersonaId | null;
 }

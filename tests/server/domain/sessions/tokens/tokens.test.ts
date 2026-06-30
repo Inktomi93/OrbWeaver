@@ -10,8 +10,8 @@ import {
 
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const OTHER_PEPPER = "another-session-secret-32-chars-minimum!!";
-const HEX_64 = /^[0-9a-f]{64}$/;
-const SESSION_SECRET_ERROR = /SESSION_SECRET/;
+const HEX_64 = /^[0-9a-f]{64}$/u;
+const SESSION_SECRET_ERROR = /SESSION_SECRET/u;
 const TOKEN = "opaque-token-abc";
 
 const MS_PER_SECOND = 1000;

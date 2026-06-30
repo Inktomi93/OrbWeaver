@@ -37,9 +37,8 @@ import type { PruneUnusedResult } from "./results";
  * detach must verify the principal is a participant of the chat. THROWS (rejects) for a non-member; resolves
  * for a member. Wired at the composition root with chat's real guard; never sideways-imported.
  *
- * FLAG[PD-19]: the port TYPE is homed here (the injecting domain declares the shape — like admin's
- * SessionAdminPort), but the RUNTIME guard is unwired until `domain/chat` lands (built last, D16). The
- * `entry` root injects chat's real `requireParticipant` into `createTagService` at that point.
+ * The port TYPE is homed here (the injecting domain declares the shape). The `entry` root injects chat's real
+ * `requireParticipant` into `createTagService`.
  */
 export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promise<void>;
 

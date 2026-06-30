@@ -90,6 +90,7 @@ function makeService(names: Readonly<Record<string, string>>): {
     getCard: ({ characterId }) => Promise.resolve(card(names[characterId] ?? "Unknown")),
     mintSyntheticGroupCharacter: () =>
       Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
+    resolveUserPublics: () => Promise.resolve(null),
   });
   const deps: ChatServiceDeps = {
     emit: (event) => {

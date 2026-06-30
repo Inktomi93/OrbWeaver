@@ -6,7 +6,7 @@
 // useConsistentTypeDefinitions:interface) — this gate ensures the service interface actually exists.
 import type { Check, Violation } from "../harness.ts";
 
-const SERVICE_RE = /\/packages\/server\/src\/domain\/[^/]+\/contract\/service\.ts$/;
+const SERVICE_RE = /\/packages\/server\/src\/domain\/[^/]+\/contract\/service\.ts$/u;
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

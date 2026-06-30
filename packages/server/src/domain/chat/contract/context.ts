@@ -95,6 +95,16 @@ export type GetCardOp = (params: {
   readonly characterId: CharacterId;
 }) => Promise<CharacterCard | null>;
 
+/** `users.resolveUserPublics` — resolve a human participant's display fields (the entry root decorates this). */
+export type ResolveUserPublicsOp = (
+  userId: UserId,
+  personaId: PersonaId | null,
+) => Promise<{
+  displayName: string | null;
+  handle: string | null;
+  avatarAssetId: string | null;
+} | null>;
+
 /** `assets.resolveImageUrl` — resolve a parsed message-image ref (D45) to a model-fetchable URL/data-URI at
  *  the engine REQUEST seam: an `asset` ref → the owner's CAS object URL; an `external` ref → itself, or `null`
  *  when blocked by `forbidExternalMedia` (D44 §12.3) or the asset is gone. `null` ⇒ the engine drops that
@@ -124,14 +134,6 @@ export type FindSyntheticGroupCharacterOp = (params: {
 }) => Promise<GroupCharacterRef | null>;
 
 // ── Persona (per-participant active persona; host-or-self) ────────────────────
-/** `persona.setActivePersona` — set the live `{{user}}` for a human participant (host-or-self; the
- *  `chats.personaId` drop relocated this to `chat_participants.activePersonaId` — movement table). */
-export type SetActivePersonaOp = (params: {
-  readonly principalUserId: UserId;
-  readonly chatId: ChatId;
-  readonly personaId: PersonaId | null;
-}) => Promise<void>;
-
 // ── Stats (the turn-economics delta; builders are chat's, the apply is stats') ─
 /** `stats.applyDelta` — persist the turn-economics delta the chat-side builders produced (the injected-op
  *  signature is the ONE home in `@orb/contracts/stats`). `Batch`/`Db` stay generic per that contract. */
@@ -248,10 +250,8 @@ export interface ChatContext {
   readonly getCard: GetCardOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
-  // ── assets ──
+  readonly resolveUserPublics: ResolveUserPublicsOp;
   readonly resolveImageUrl: ResolveImageUrlOp;
-  // ── persona ──
-  readonly setActivePersona: SetActivePersonaOp;
   // ── stats / summarizer ──
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;

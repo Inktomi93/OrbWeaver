@@ -130,6 +130,12 @@ function harness(
       }),
     holder: "replica-1",
     lockTtlMs: 60_000,
+    generateSegments: async () => {
+      /* no-op */
+    },
+    generateDigests: async () => {
+      /* no-op */
+    },
   });
   return { ctx, events, deltas, debitBudget, engine };
 }

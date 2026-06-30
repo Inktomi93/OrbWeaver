@@ -13,6 +13,7 @@ import { z } from "zod";
 import { adminRouter } from "./routers/admin";
 import { buddyRouter } from "./routers/buddy";
 import { characterRouter } from "./routers/character";
+import { chatRouter } from "./routers/chat";
 import { connectionRouter } from "./routers/connection";
 import { credentialsRouter } from "./routers/credentials";
 import { discoveryRouter } from "./routers/discovery";
@@ -38,6 +39,7 @@ export const appRouter = t.router({
   admin: adminRouter,
   buddy: buddyRouter,
   character: characterRouter,
+  chat: chatRouter,
   connection: connectionRouter,
   credentials: credentialsRouter,
   discovery: discoveryRouter,

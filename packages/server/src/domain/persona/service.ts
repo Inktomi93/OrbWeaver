@@ -3,12 +3,7 @@
 // `PersonaContext` is assembled at the entry root (db + injected clock/id + db-bound `logAudit`) and passed
 // in; persona injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
 //
-// FLAG[PD-20]: `setActivePersona` (persona.md §8-slot `verbs/set-active.ts`) is NOT wired here — DEFERRED to
-// the chat build. It writes `chat_participants.activePersonaId` (a chat-owned table) and is host-or-self,
-// which routes through the `{ kind: 'chat', roster }` `can()` arm (now BUILT — PD-1 done), fed the chat
-// roster persona doesn't own. The participant roster + host
-// determination it gates on are chat-domain knowledge. Building it now would collapse the chat tier into
-// persona (a forbidden tier collapse). See PROMOTION-DEBT.md PD-19.
+// See PROMOTION-DEBT.md PD-19.
 
 import type { PersonaContext, PersonaService } from "./contract/service";
 import { createConnect, createDisconnect, createListConnected } from "./verbs/connection";
@@ -17,6 +12,7 @@ import { createCreateFromCharacter } from "./verbs/create-from-character";
 import { createGet } from "./verbs/get";
 import { createList } from "./verbs/list";
 import { createRemove } from "./verbs/remove";
+import { createSetActive } from "./verbs/set-active";
 import { createUpdate } from "./verbs/update";
 
 export function createPersonaService(ctx: PersonaContext): PersonaService {
@@ -30,5 +26,6 @@ export function createPersonaService(ctx: PersonaContext): PersonaService {
     connectToCharacter: createConnect(ctx),
     disconnectFromCharacter: createDisconnect(ctx),
     listConnectedToCharacter: createListConnected(ctx),
+    setActivePersona: createSetActive(ctx),
   };
 }

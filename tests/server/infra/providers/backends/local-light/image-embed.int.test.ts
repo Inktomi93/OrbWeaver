@@ -30,8 +30,13 @@ const JINA_DIM = 1024;
 const SWATCH_SIZE = 64;
 const DOWNLOAD_TIMEOUT_MS = 600_000;
 
+const backend = RUN ? createLocalLightBackend({ device: "cpu", dtype: "q4" }) : null;
+
 function imageEmbedFn(): (req: ImageEmbedRequest) => Promise<ImageEmbedResult> {
-  const fn = createLocalLightBackend({ device: "cpu", dtype: "q4" }).imageEmbed;
+  if (!backend) {
+    throw new Error("Backend not initialized");
+  }
+  const fn = backend.imageEmbed;
   if (fn === undefined) {
     throw new Error("imageEmbed role not wired");
   }
