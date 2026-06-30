@@ -16,9 +16,13 @@ import { serve } from "@hono/node-server";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
-import type { Handle } from "@orb/kit/ids";
+import { users } from "@orb/db/schema";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService } from "#domain/sessions";
+import { eq } from "drizzle-orm";
+import type { Configuration } from "openid-client";
+import { discovery } from "openid-client";
+import { createOidcStore, createSessionsService } from "#domain/sessions";
 import {
   loadWorkload,
   nextRunnableWorkload,
@@ -28,6 +32,7 @@ import {
 } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
+import { createPasswordHasher, DUMMY_PASSWORD_HASH } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
@@ -44,6 +49,7 @@ import {
   seedOwner,
 } from "./boot";
 import { createServices } from "./compose";
+import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
 import { createRateLimitGate } from "./rate-limit-gate";
 
 const MS_PER_HOUR = 3_600_000;
@@ -83,6 +89,7 @@ export function createLifecycle(): Lifecycle {
   let drainVllm: (() => void) | null = null;
   let booted = false;
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: boot sequence is inherently long
   async function boot(): Promise<void> {
     if (booted) {
       return;
@@ -229,7 +236,57 @@ export function createLifecycle(): Lifecycle {
       );
     });
 
-    // 10. build + serve the app; the CAS handle for the blob route is re-built here (stateless, same dir —
+    // 10. The auth modes (PD-5). Local mode mints the password hasher; OIDC mode mints the discovery fetcher.
+    let authenticate: LocalAuthenticator | undefined;
+    if (env.AUTH_MODE === "local") {
+      const hasher = createPasswordHasher(env.SESSION_SECRET);
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: auth
+      authenticate = async (handle: string, password: string): Promise<UserId | null> => {
+        if (db === null) {
+          return null;
+        }
+        const rows = await db
+          .select({ id: users.id, passwordHash: users.passwordHash })
+          .from(users)
+          .where(eq(users.handle, castId<Handle>(handle)))
+          .limit(1);
+        if (rows.length === 0) {
+          // Burn KDF time against the dummy hash to prevent user-enumeration timing leaks.
+          await hasher.verify(password, DUMMY_PASSWORD_HASH);
+          return null;
+        }
+        const user = rows[0];
+        if (user === undefined) {
+          return null;
+        }
+        const ok = await hasher.verify(password, user.passwordHash ?? DUMMY_PASSWORD_HASH);
+        return ok ? user.id : null;
+      };
+    }
+
+    let oidc: OidcRoutesDeps | undefined;
+    if (env.AUTH_MODE === "oidc") {
+      let cachedConfig: Configuration | undefined;
+      const issuerUrlStr = env.OIDC_ISSUER ?? "";
+      const issuerUrl =
+        issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
+      const clientId = env.OIDC_CLIENT_ID ?? "";
+      const clientSecret = env.OIDC_CLIENT_SECRET;
+
+      oidc = {
+        redirectUri: env.OIDC_REDIRECT_URIS?.split(",")[0]?.trim() ?? "",
+        scope: "openid profile email",
+        store: createOidcStore(db),
+        getConfig: async (): Promise<Configuration> => {
+          if (cachedConfig === undefined) {
+            cachedConfig = await discovery(issuerUrl, clientId, clientSecret);
+          }
+          return cachedConfig;
+        },
+      };
+    }
+
+    // 11. build + serve the app; the CAS handle for the blob route is re-built here (stateless, same dir —
     //     the documented `entry/ wires createCas(env.ASSETS_DIR)` pattern; compose does not expose its own).
     const app = createApp({
       now,
@@ -248,6 +305,8 @@ export function createLifecycle(): Lifecycle {
       seedUserCharacters: (principal: Principal): void => {
         void built.characterSeeder.ensureSeeded(principal);
       },
+      ...(authenticate !== undefined ? { authenticate } : {}),
+      ...(oidc !== undefined ? { oidc } : {}),
     });
 
     server = serve({ fetch: app.fetch, port: env.PORT });

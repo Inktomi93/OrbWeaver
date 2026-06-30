@@ -6,8 +6,6 @@
 export type { Principal, ResolvedIdentity } from "@orb/contracts/identity";
 export type { SessionView } from "@orb/contracts/session";
 export type { SessionsService } from "./contract/service";
+export { createOidcStore } from "./persistence/oidc-store";
 export { createSessionsService } from "./service";
-// The token-hashing primitive the composition root binds for any token-bearing producer (sessions hashes
-// session tokens with it internally; chat's invite-token `hashToken` dep is the same pepper+HMAC). Surfaced
-// on the front door so `entry/` can wire it without a deep import (domain-feature-front-door).
 export { createTokenHasher } from "./tokens/tokens";
