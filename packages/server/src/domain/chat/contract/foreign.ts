@@ -33,7 +33,6 @@ export interface ResolvedPersonas {
  * settings-/preset-/persona-derived (a read chat must NOT perform itself):
  *   • `promptConfig`        — the chat's active preset under the host's settings (preset domain).
  *   • `personas`            — anchor + active (persona domain).
- *   • `timezone`            — the host's `UserSettings` timezone (settings) for `{{time}}`/`{{date}}`.
  *   • `globalRegexScripts`  — the host's `UserSettings.regexScripts` (settings) — the host-global regex tier.
  *   • `scanDepth`           — the host's `UserSettings.worldInfo.scanDepth` (settings) — the WI keyword-scan
  *                             window the gather slices `recentMessages` to.
@@ -45,7 +44,6 @@ export interface ResolvedPersonas {
 export interface ForeignInputs {
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
-  readonly timezone?: string | undefined;
   readonly globalRegexScripts: readonly RegexScript[];
   readonly scanDepth: number;
   readonly injectionTokenBudget: number;

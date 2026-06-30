@@ -9,17 +9,19 @@
 // THE IDENTITY IMPEDANCE (systemic): chat's cross-feature ops are keyed by the FROZEN host `UserId` (D19 —
 // the host funds the turn, may be offline, so the path never carries the host's `Principal`). The sibling
 // front doors (`character.getCard`, `credentials.resolve`, `connection.resolveChat`, `persona.get`) are keyed
-// by `Principal`. There is NO front-door op to resolve a `Principal` from a bare `userId`, so the root
-// SYNTHESIZES a minimal host principal (`hostPrincipal`): correct for the ops that read only `principal.userId`
-// (ownership gate / settings scope — VERIFIED), but the synthesized `role:"user"` cannot satisfy the
-// credentials `max-pro-sub` owner-gate (D17) — see FLAG[principal-synthesis-role].
+// by `Principal`, and there is NO front-door op to resolve a `Principal` from a bare `userId`. TWO bridges:
+//   • role-IRRELEVANT ops (getCard/persona/mint — gated on `userId` only): the cheap synthetic `hostPrincipal`.
+//   • role-SENSITIVE ops (resolveChat/resolveCredential — the D17 max-pro-sub owner-gate, identity §3): the
+//     authoritative `realHostPrincipal`, which reads the host's REAL `users.role` (entry MAY read users — the
+//     `no-direct-users-read` gate scopes to `domain/`). FLAG[host-principal-home]: the D1-clean home is a
+//     `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal mint site).
 
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { Can, Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
-import { chats } from "@orb/db";
+import { chats, users } from "@orb/db";
 import type { Handle, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -94,9 +96,9 @@ export interface ChatComposeInput {
 export function buildChatService(input: ChatComposeInput): ChatService {
   const { db, now } = input;
 
-  // The frozen-host → synthetic `Principal` bridge (see the file header). `role:"user"` is the SAFE default
-  // (deny `max-pro-sub` unless we know the host is the owner — which a bare userId cannot tell us); `handle`/
-  // `via` are not read by the ops we route through (resolveRole/getCard/persona.get scope on `userId`).
+  // The frozen-host → `Principal` bridge (see the file header). For the ROLE-IRRELEVANT ops (getCard /
+  // persona.get / mint — gated on `userId` only) the cheap synthetic principal is correct + avoids a per-call
+  // read. `role:"user"` here is never consulted by those ops.
   const hostPrincipal = (userId: UserId): Principal => ({
     userId,
     role: "user",
@@ -105,11 +107,40 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     via: "fallback",
   });
 
+  // The ROLE-SENSITIVE bridge: the D17 `max-pro-sub` owner-gate keys on the host's REAL role (identity §3 —
+  // an authoritative DB role read on `runAsUserId`), so a fabricated `role:"user"` would fail-closed-DENY the
+  // OWNER's own Max-sub turn. Entry MAY read `users` (the `no-direct-users-read` gate scopes to `domain/`), so
+  // the root resolves the real role here for `resolveChat`/`resolveCredential`. FLAG[host-principal-home]: the
+  // D1-clean home is a `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal
+  // mint site) — this entry-local read is the bounded correctness fix until that op lands.
+  const realHostPrincipal = async (userId: UserId): Promise<Principal> => {
+    const rows = await db
+      .select({ role: users.role, handle: users.handle, externalId: users.externalId })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const row = rows[0];
+    const role: UserRole = row?.role ?? "user";
+    return {
+      userId,
+      role,
+      handle: row?.handle ?? castId<Handle>(userId),
+      externalId: row?.externalId ?? null,
+      via: "fallback",
+    };
+  };
+
   // The per-turn connection resolution funnel (the chat row's routing BEATS the host's UserSettings defaults,
   // which `connection.resolveChat` overlays internally). The row carries only `metadata.providerRouting`
   // (no api/source/model columns exist — they fall through to the host's `roleDefaults.chat`) — FLAG[routable-derivation].
-  const resolveChatVia = (userId: UserId, routable: RoutableChat): Promise<ResolvedConnection> =>
-    input.connection.resolveChat({ principal: hostPrincipal(userId), routableChat: routable });
+  const resolveChatVia = async (
+    userId: UserId,
+    routable: RoutableChat,
+  ): Promise<ResolvedConnection> =>
+    input.connection.resolveChat({
+      principal: await realHostPrincipal(userId),
+      routableChat: routable,
+    });
 
   const chatCtx: ChatContext = {
     db,
@@ -135,11 +166,10 @@ export function buildChatService(input: ChatComposeInput): ChatService {
       );
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
-    resolveCredential: ({ runAsUserId, source }) =>
-      // FLAG[principal-synthesis-role]: the `max-pro-sub` arm gates on `principal.role==='owner'` (D17); the
-      // synthesized host principal is `role:"user"`, so an owner-funded side-LLM on `max-pro-sub` is denied
-      // until a real "resolve principal by userId" front-door op exists. Every other source resolves fine.
-      input.credentials.resolve({ principal: hostPrincipal(runAsUserId), source }),
+    resolveCredential: async ({ runAsUserId, source }) =>
+      // The D17 max-pro-sub owner-gate reads the host's REAL role (resolved authoritatively from `users`), so
+      // the owner's own max-pro-sub turn is no longer fail-closed-denied. See FLAG[host-principal-home].
+      input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     // FLAG[maybeRevoke-shape]: chat hands `{runAsUserId, source, status}` but `credentials.maybeRevokeOnAuthFailed`
     // wants `{credentialId, errorKind, errorMessage}` — no credentialId/errorKind is in hand (it's the per-turn
     // credential's, not exposed). Best-effort post-turn (the contract says NEVER throw into the turn) → no-op.
@@ -293,7 +323,9 @@ export function buildChatService(input: ChatComposeInput): ChatService {
       return {
         promptConfig,
         personas: { anchor, active },
-        // FLAG[foreign-timezone]: UserSettings has no `timezone` field — omit (the optional `{{time}}` tz).
+        // timezone is NOT a foreign/host input — `{{time}}`/`{{date}}` use the caller's PER-REQUEST browser
+        // zone (client.md epoch-UTC pipeline); the macro engine falls back to server-local until the turn
+        // request carries it (FLAG[timezone-per-request] in assemble-gather). A host setting is the wrong home.
         globalRegexScripts: us.regexScripts,
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
