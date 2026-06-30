@@ -1,6 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/kucherenko/jscpd/master/apps/jscpd/jscpd-schema.json",
-
   "// path": "The product code only — the 5 packages' src. Tooling (scripts/, tools/) + the centralized tests/ mirror are excluded below.",
   "path": ["packages"],
 
@@ -40,6 +38,12 @@
     "**/__fixtures__/**",
     "**/*.d.ts"
   ],
+
+  "// ignorePattern": "Ignore import blocks that are naturally identical across files.",
+  "ignorePattern": ["import.*from.*"],
+
+  "// ignoreCase": "Ignore case of symbols in code to catch stylistic renames.",
+  "ignoreCase": true,
 
   "// reporters": "Console for interactive use; `pnpm cpd:report` emits the HTML to reports/cpd.",
   "reporters": ["console"],

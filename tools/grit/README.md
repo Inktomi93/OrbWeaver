@@ -10,7 +10,7 @@ fire as `error`** — turned on greenfield, before the code exists, so the code 
 ## Conventions enforced (decided)
 
 | Rule | Catches | Convention |
-|---|---|---|
+| --- | --- | --- |
 | `no-raw-id` | Zod `*Id` as raw `z.string()` | branded `typeid` (`@orb/kit/ids`) |
 | `no-loose-id-cast` | `as never` / `as unknown as <XId>` | no brand laundering |
 | `no-mint-via-cast` | `castId(<generator>)` | mint via `mintTypeId`/`newId` |
@@ -29,7 +29,7 @@ Activated before the client is built — they commit orbweaver's client to: a Ta
 system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`hooks/` split.
 
 | Rule | Catches |
-|---|---|
+| --- | --- |
 | `no-color-literals` | hex (`text-[#abc]`) in `className`/`cn`/`clsx`/`cva` |
 | `no-raw-z-index` | raw `z-N` in `className` (client substrate scope) |
 | `no-raw-spacing-in-features` | raw `gap-N`/`p[xy]-N`/`m-N` in `className` |
