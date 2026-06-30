@@ -47,8 +47,8 @@ describe("setActivePersona", () => {
     const harness = makeHarness(db);
     const svc = createPersonaService(harness.ctx);
 
-    const ownerId = await seedUser(db);
-    const otherUserId = await seedUser(db);
+    const ownerId = await seedUser(db, { handle: "owner" });
+    const otherUserId = await seedUser(db, { handle: "other" });
     const created = await svc.create({
       principal: principal(otherUserId),
       input: { name: "other", description: "d" },

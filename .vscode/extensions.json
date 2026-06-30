@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "biomejs.biome",
+    "esbenp.prettier-vscode",
+    "davidanson.vscode-markdownlint",
+    "EditorConfig.EditorConfig",
+    "vitest.explorer",
+    "ms-playwright.playwright"
+  ]
+}

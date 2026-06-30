@@ -8,22 +8,15 @@ import {
   getLog,
   getRequestUserId,
   logger,
-  logRing,
   recentRequests,
   recordRequest,
   runInRequest,
   securityEvent,
 } from "@orb/server/foundation/observability";
-import { describe, expect, test } from "vitest";
-
-const WARN_LEVEL = "warn"; // string label (formatters.level stringifies pino's numeric 40)
+import { describe, expect, test, vi } from "vitest";
 
 function rec(id: string): RequestRecord {
   return { id, method: "GET", path: `/${id}`, status: 200, durationMs: 1, at: 1 };
-}
-
-function ringLines(): Record<string, unknown>[] {
-  return logRing.recent(200).map((l) => JSON.parse(l) as Record<string, unknown>);
 }
 
 describe("request ring", () => {
@@ -75,21 +68,27 @@ describe("getLog output shape", () => {
   test("a line emitted via getLog inside a scope carries requestId", () => {
     const requestId = "logger-stamp-req";
     runInRequest(requestId, () => {
-      getLog().info({ marker: "stamp-marker" }, "scoped line");
+      // pino child loggers expose bindings() — verify requestId is bound without depending on
+      // the ring (which is silenced by LOG_LEVEL=silent in the test environment).
+      expect(
+        (getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()[
+          "requestId"
+        ],
+      ).toBe(requestId);
     });
-    const line = ringLines().find((r) => r["marker"] === "stamp-marker");
-    expect(line).toBeDefined();
-    expect(line?.["requestId"]).toBe(requestId);
   });
 });
 
 describe("securityEvent", () => {
   test("emits one security:true warn line carrying the event + extra fields", () => {
+    // Spy on logger.warn — pino output is silenced (LOG_LEVEL=silent) in the test environment,
+    // so we verify the call shape directly rather than scanning the ring.
+    const spy = vi.spyOn(logger, "warn");
     securityEvent("test_block", { reason: "demo" });
-    const line = ringLines().find((r) => r["event"] === "test_block");
-    expect(line).toBeDefined();
-    expect(line?.["security"]).toBe(true);
-    expect(line?.["reason"]).toBe("demo");
-    expect(line?.["level"]).toBe(WARN_LEVEL);
+    expect(spy).toHaveBeenCalledOnce();
+    const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings["security"]).toBe(true);
+    expect(bindings["event"]).toBe("test_block");
+    expect(bindings["reason"]).toBe("demo");
   });
 });
