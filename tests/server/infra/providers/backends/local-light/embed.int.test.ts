@@ -26,10 +26,15 @@ const MODEL = DEFAULT_EMBED_MODEL as ModelId;
 const JINA_DIM = 1024;
 const DOWNLOAD_TIMEOUT_MS = 600_000;
 
+const backend = RUN ? createLocalLightBackend({ device: "cpu", dtype: "q4" }) : null;
+
 /** A real CPU-bound embed callable (forces device "cpu" for deterministic, GPU-free runs; q4 weights to
  *  keep the opt-in download tractable). */
 function embedFn(): (req: EmbedRequest) => Promise<EmbedResult> {
-  const fn = createLocalLightBackend({ device: "cpu", dtype: "q4" }).embed;
+  if (!backend) {
+    throw new Error("Backend not initialized");
+  }
+  const fn = backend.embed;
   if (fn === undefined) {
     throw new Error("embed role not wired");
   }

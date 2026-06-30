@@ -39,7 +39,7 @@ const ACTIVE_RULES = [...(CONFIG.forbidden ?? []), ...(CONFIG.required ?? [])]
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const VAL = "export const t = 1;\n";
-const DC_FIXTURE_RE = /(^|\/)__dc/;
+const DC_FIXTURE_RE = /(^|\/)__dc/u;
 
 function fx(rel: string, content: string): void {
   const abs = join(ROOT, rel);

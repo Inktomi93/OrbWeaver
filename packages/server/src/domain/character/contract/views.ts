@@ -44,3 +44,27 @@ export interface CharacterSummary {
   /** Advisory card-heft estimate (kit `estimateTokens` over the card definition) — list display only. */
   readonly tokenSize: number;
 }
+
+/** The membership-gated, level-clamped card view for a roster member (D22). */
+export interface MemberCardView {
+  readonly id: CharacterId;
+  readonly handle: string;
+  readonly name: string;
+  readonly synthetic: boolean;
+  readonly avatarHash: string | null;
+
+  // Present if visibility >= 'sheet'
+  readonly description?: string | null;
+  readonly personality?: string | null;
+  readonly scenario?: string | null;
+  readonly greetings?: readonly string[];
+  readonly exampleMessages?: string | null;
+
+  // Present if visibility >= 'sheet+lore'
+  readonly creatorNotes?: string | null;
+
+  // Present if visibility === 'full'
+  readonly systemPrompt?: string | null;
+  readonly postHistoryInstructions?: string | null;
+  readonly depthPrompt?: CharacterCard["depthPrompt"] | null;
+}

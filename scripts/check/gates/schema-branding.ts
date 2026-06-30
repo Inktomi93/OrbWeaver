@@ -11,8 +11,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
 const SCHEMA_DIR = "/packages/db/src/schema/";
-const REF_RE = /references\(\s*\([^)]*\)[^=]*=>\s*([A-Za-z_$][\w$]*)\.id\b/;
-const PLAIN_ID_RE = /\/\/\s*plain-id:/;
+const REF_RE = /references\(\s*\([^)]*\)[^=]*=>\s*([A-Za-z_$][\w$]*)\.id\b/u;
+const PLAIN_ID_RE = /\/\/\s*plain-id:/u;
 
 type Column = {
   readonly table: string;

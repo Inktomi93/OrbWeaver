@@ -14,8 +14,8 @@ import { freshDb } from "../../../../support/db.ts";
 import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
 
 const PNG = "image/png";
-const MAGIC_RE = /magic/i;
-const MISMATCH_RE = /mismatch/i;
+const MAGIC_RE = /magic/iu;
+const MISMATCH_RE = /mismatch/iu;
 
 describe("store", () => {
   test("dedups identical bytes within a user to one row (created:false on the second)", async () => {

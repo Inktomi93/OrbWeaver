@@ -30,7 +30,7 @@ export interface PersonaHarness {
 }
 
 /** Build the PersonaContext over a real db with deterministic + recording fakes. */
-export function makeHarness(db: Db): PersonaHarness {
+export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): PersonaHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
@@ -42,6 +42,9 @@ export function makeHarness(db: Db): PersonaHarness {
       audits.push({ entry, at });
       return Promise.resolve();
     },
+    requireChatAuthorOrHost: () => Promise.resolve(),
+    setChatActivePersona: () => Promise.resolve(),
+    ...overrides,
   };
   return { ctx, audits, advance: (ms: number): void => clock.advance(ms) };
 }

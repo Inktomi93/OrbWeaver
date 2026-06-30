@@ -11,8 +11,8 @@ import type { SourceFile } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
 const REGISTRY = "docs/architecture/reports/PROMOTION-DEBT.md";
-const ROW_RE = /^\|\s*PD-(\d+)\b/gm; // a registry row (active table OR cleared table)
-const CITE_RE = /FLAG\[PD-(\d+)\]/g; // a code citation
+const ROW_RE = /^\|\s*PD-(\d+)\b/gmu; // a registry row (active table OR cleared table)
+const CITE_RE = /FLAG\[PD-(\d+)\]/gu; // a code citation
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

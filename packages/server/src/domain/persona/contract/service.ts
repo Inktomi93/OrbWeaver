@@ -9,13 +9,13 @@
 // guard is injected; there is no privileged persona surface in W1). Cross-feature deps arrive type-only;
 // persona sideways-imports nothing (domain-no-cross-feature).
 //
-// NOTE — `setActivePersona` (persona.md §8-slot / Movement: `verbs/set-active.ts`) is DEFERRED to the chat
-// build. It writes `chat_participants.activePersonaId` (a chat-domain table) and is host-or-self, which
-// routes through the `{ kind: 'chat', roster }` `can()` arm (now BUILT — PD-1 done) fed the chat roster +
-// `chat_participants.activePersonaId` + host determination (chat-domain data). See FLAG[PD-20] in service.ts.
+// NOTE — `setActivePersona` writes `chat_participants.activePersonaId` (a chat-domain table)
+// and is host-or-self, which routes through the `{ kind: 'chat', roster }` `can()` arm.
+// It is fully wired into `PersonaService` and `entry/compose` supplies the chat database update ops.
 
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { PersonaId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ConnectParams,
@@ -26,6 +26,7 @@ import type {
   ListConnectedParams,
   ListPersonasParams,
   RemovePersonaParams,
+  SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params";
 import type { DisconnectResult, RemovePersonaResult } from "./results";
@@ -47,6 +48,18 @@ export interface PersonaContext {
   readonly now: () => number;
   readonly newPersonaId: () => PersonaId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+
+  // ── chat operations ──
+  readonly requireChatAuthorOrHost: (
+    principal: Principal,
+    chatId: ChatId,
+    targetUserId: UserId,
+  ) => Promise<void>;
+  readonly setChatActivePersona: (
+    chatId: ChatId,
+    targetUserId: UserId,
+    personaId: PersonaId | null,
+  ) => Promise<void>;
 }
 
 export interface PersonaService {
@@ -73,4 +86,6 @@ export interface PersonaService {
   readonly disconnectFromCharacter: (params: DisconnectParams) => Promise<DisconnectResult>;
   /** Personas connected to this character, owner-scoped, newest first. */
   readonly listConnectedToCharacter: (params: ListConnectedParams) => Promise<PersonaDetail[]>;
+  /** Set the active persona for a participant in a chat (host-or-self scoped). */
+  readonly setActivePersona: (params: SetActivePersonaParams) => Promise<void>;
 }

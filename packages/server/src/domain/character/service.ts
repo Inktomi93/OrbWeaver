@@ -4,9 +4,6 @@
 // db-bound `logAudit` + the cross-feature ops `emit`/`reapAssets`/`attachCardTag`) and passed in; character
 // injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
 //
-// FLAG[PD-31]: `getRosterCardView` (membership-gated MemberCardView, D22) is NOT wired — it needs the
-//   `{ kind: 'chat', roster }` resource arm of `can()` + chat's `requireParticipant` (not built). Building
-//   it now would collapse the chat tier into character. See contract/service.ts.
 // The default-card `seeder/` subsystem (PD-32) is NOT a verb here — it's reached by ENTRY over this service's
 //   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
 //   front door). See seeder/ + contract/seeder.ts.
@@ -22,6 +19,7 @@ import { createFindByImportHash } from "./verbs/find-by-import-hash";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
 import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
+import { createGetRosterCardView } from "./verbs/get-roster-card-view";
 import { createList } from "./verbs/list";
 import { createListSnapshots } from "./verbs/list-snapshots";
 import { createLoadCardText } from "./verbs/load-card-text";
@@ -35,6 +33,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
   return {
     create: createCreate(ctx),
     get: createGet(ctx),
+    getRosterCardView: createGetRosterCardView(ctx),
     list: createList(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),

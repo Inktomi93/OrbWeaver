@@ -21,12 +21,19 @@ import type { Can, Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
-import { chats, users } from "@orb/db";
+import { chats, personas, users } from "@orb/db";
 import type { Handle, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { ChatContext, ChatService, ChatServiceDeps } from "#domain/chat";
+import type {
+  ChatContext,
+  ChatService,
+  ChatServiceDeps,
+  TurnRequest,
+  TurnStreamChunk,
+} from "#domain/chat";
 import {
   createActiveTurns,
   createChatBus,
@@ -48,6 +55,7 @@ import { applyStatsDelta } from "#domain/stats";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
+import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 
@@ -86,6 +94,8 @@ export interface ChatComposeInput {
   readonly notifications: NotificationsService;
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
+  readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
+  readonly assets: AssetsService;
 }
 
 /**
@@ -156,38 +166,211 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
     audit: input.audit,
     applyRegexReplace: createRegexApplyReplace(),
-    // FLAG[runChatTurn-adapter]: the chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
+    // FLAG[runChatTurn-adapter] RESOLVED: the chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
     // but `infra/providers` exposes only `(ChatRequest) => Promise<ChatResult>` (different request shape + a
-    // non-streaming Promise + a callback `onDelta` stream). The bridging slice (TurnRequest→ChatRequest +
-    // ChatResult/onDelta→stream + the agent-sdk prompt-flatten arm) is UNBUILT. Inert loud-fail until it lands.
-    runChatTurn: () => {
-      throw new Error(
-        "chat.runChatTurn not wired (FLAG[runChatTurn-adapter]): the TurnRequest→ChatRequest translator + ChatResult→stream bridge is an unbuilt infra/providers slice",
-      );
+    // non-streaming Promise + a callback `onDelta` stream). The bridging slice maps the shapes and yields the stream.
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
+    async *runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
+      const queue: TurnStreamChunk[] = [];
+      let done = false;
+      let error: unknown = null;
+      let notify: (() => void) | null = null;
+
+      const onDelta = (delta: ChatDeltaEvent) => {
+        queue.push({ kind: delta.kind, text: delta.text });
+        if (notify) {
+          notify();
+          notify = null;
+        }
+      };
+
+      const chatReq: ChatRequest =
+        req.connection.api === "agent-sdk"
+          ? {
+              api: "agent-sdk",
+              model: req.connection.model,
+              credential: req.connection.credential,
+              capability: req.connection.capability,
+              params: req.intent,
+              systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+              prompt: req.history
+                .map((m) => {
+                  const prefix = m.role === "assistant" ? "Assistant" : "User";
+                  const name = m.name ? ` (${m.name})` : "";
+                  const text = m.content
+                    .map((c) => (c.type === "text" ? c.text : "[Image]"))
+                    .join("");
+                  return `${prefix}${name}: ${text}`;
+                })
+                .join("\n\n"),
+              onDelta,
+              signal: req.signal,
+            }
+          : {
+              api: req.connection.api as "chat-completions" | "responses",
+              model: req.connection.model,
+              credential: req.connection.credential,
+              capability: req.connection.capability,
+              params: req.intent,
+              systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+              // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
+              history: req.history as any,
+              historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
+              onDelta,
+              signal: req.signal,
+            };
+
+      // Ensure that we don't accidentally swallow the promise
+      void input
+        .runChatTurn(chatReq)
+        .then((result) => {
+          queue.push({
+            kind: "final",
+            economics: {
+              content: result.reply,
+              reasoning: result.reasoning || null,
+              model: req.connection.model,
+              tokensIn: result.usage.tokensIn,
+              tokensOut: result.usage.tokensOut,
+              cacheReadTokens: result.usage.cacheReadTokens,
+              cacheWriteTokens: result.usage.cacheWriteTokens,
+              contextWindow: result.usage.contextWindow,
+              costUsd: result.usage.costUsd,
+              ttftMs: result.ttftMs,
+              finishReason: result.finishReason,
+              stopReason: result.stopReason,
+              terminalReason: result.terminalReason,
+            },
+          });
+          done = true;
+          if (notify) {
+            notify();
+            notify = null;
+          }
+        })
+        .catch((err) => {
+          error = err;
+          done = true;
+          if (notify) {
+            notify();
+            notify = null;
+          }
+        });
+
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: intentional infinite loop
+      while (true) {
+        if (queue.length > 0) {
+          // biome-ignore lint/style/noNonNullAssertion: safe since queue.length > 0
+          yield queue.shift()!;
+        } else if (done) {
+          if (error) {
+            throw error;
+          }
+          break;
+        } else {
+          // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
+          // biome-ignore lint/nursery/noLoopFunc: simple promise
+          await new Promise<void>((resolve) => {
+            notify = resolve;
+          });
+        }
+      }
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
     resolveCredential: async ({ runAsUserId, source }) =>
       // The D17 max-pro-sub owner-gate reads the host's REAL role (resolved authoritatively from `users`), so
       // the owner's own max-pro-sub turn is no longer fail-closed-denied. See FLAG[host-principal-home].
       input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
-    // FLAG[maybeRevoke-shape]: chat hands `{runAsUserId, source, status}` but `credentials.maybeRevokeOnAuthFailed`
-    // wants `{credentialId, errorKind, errorMessage}` — no credentialId/errorKind is in hand (it's the per-turn
-    // credential's, not exposed). Best-effort post-turn (the contract says NEVER throw into the turn) → no-op.
-    maybeRevokeOnAuthFailed: () => Promise.resolve(),
+    // FLAG[maybeRevoke-shape] RESOLVED: chat hands `{runAsUserId, source, status}`. We resolve the credential here
+    // to get the `credentialId` and pass it to `credentials.maybeRevokeOnAuthFailed`.
+    maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
+      try {
+        // biome-ignore lint/style/noMagicNumbers: HTTP status codes
+        if (status === 401 || status === 403) {
+          const cred = await input.credentials.resolve({
+            principal: await realHostPrincipal(runAsUserId),
+            source,
+          });
+          await input.credentials.maybeRevokeOnAuthFailed({
+            credentialId: cred.credentialId,
+            // biome-ignore lint/style/noMagicNumbers: HTTP status code 401
+            errorKind: status === 401 ? "unauthorized" : "forbidden",
+            errorMessage: `Automatic revocation from chat API auth failure (HTTP ${status})`,
+          });
+        }
+      } catch {
+        // Best effort post-turn (the contract says NEVER throw into the turn) → no-op.
+      }
+    },
     getCard: ({ ownerId, characterId }) =>
       input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
-    // FLAG[resolveImageUrl-stub]: D45 asset→URL resolution has no assets op yet; null ⇒ the engine drops the
-    // image part (non-vision turns are unaffected).
-    resolveImageUrl: () => Promise.resolve(null),
-    // FLAG[setActivePersona-deferred] (PD-20): writes `chat_participants.activePersonaId` (a chat table) but
-    // no front-door verb exposes it (persona deferred it to the chat build). Inert loud-fail — no built verb
-    // calls it yet.
-    setActivePersona: () =>
-      Promise.reject(
-        new Error("chat.setActivePersona not wired (FLAG set-active-persona-deferred, PD-20)"),
-      ),
+    // FLAG[resolveUserPublics-resolved]: Human publics. We fetch handle from `users` and `avatarAssetId` from `UserSettings`. If an active persona is provided, we fetch its name and avatar instead.
+    resolveUserPublics: async (userId, personaId) => {
+      const rows = await db
+        .select({ handle: users.handle })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      const handle = rows[0]?.handle ?? null;
+
+      let avatarAssetId: string | null = null;
+      let displayName: string | null = handle;
+
+      if (personaId !== null) {
+        const p = (
+          await db
+            .select({ name: personas.name, avatarAssetId: personas.avatarAssetId })
+            .from(personas)
+            .where(and(eq(personas.id, personaId), eq(personas.ownerId, userId)))
+            .limit(1)
+        )[0];
+
+        if (p) {
+          displayName = p.name;
+          avatarAssetId = p.avatarAssetId;
+        }
+      }
+
+      // If no persona avatar, fallback to user settings avatar
+      if (avatarAssetId === null) {
+        try {
+          const userSettings = await input.settings.loadUserSettings(userId);
+          avatarAssetId = userSettings.profile.avatarAssetId ?? null;
+        } catch {
+          // Ignore settings load failures for user publics
+        }
+      }
+
+      return {
+        displayName,
+        handle,
+        avatarAssetId,
+      };
+    },
+    // FLAG[resolveImageUrl-stub] RESOLVED: D45 asset→URL resolution using CAS bytes and data-URI.
+    resolveImageUrl: async ({ ownerId, ref }) => {
+      if (ref.kind === "external") {
+        return ref.url;
+      }
+      if (ref.kind === "asset") {
+        const meta = await input.assets.getMetadata({
+          principal: await realHostPrincipal(ownerId),
+          hash: ref.assetId,
+        });
+        if (!meta) {
+          return null;
+        }
+        const bytes = await input.assets.loadAssetBytes(castId(ref.assetId));
+        if (!bytes) {
+          return null;
+        }
+        const base64 = Buffer.from(bytes).toString("base64");
+        return `data:${meta.mime};base64,${base64}`;
+      }
+      return null;
+    },
     // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
     // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {

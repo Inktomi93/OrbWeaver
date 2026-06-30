@@ -14,8 +14,8 @@ import {
 import { describe, expect, test } from "vitest";
 
 const SESSION_ID = "11111111-1111-4111-8111-111111111111";
-const MISSING_SESSION_ID_RE = /missing session_id/;
-const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/;
+const MISSING_SESSION_ID_RE = /missing session_id/u;
+const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;
 
 interface FrameShape {
   type: string;

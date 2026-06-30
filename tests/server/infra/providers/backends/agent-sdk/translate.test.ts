@@ -18,7 +18,7 @@ import { toSdkGeneration } from "../../../../../../packages/server/src/infra/pro
 const OR_KEY = "sk-or-translate-test";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
 const VLLM_TOKEN = "local-vllm";
-const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/;
+const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 // The exact cowork bundle `tools:[]` does NOT remove — must be stripped on EVERY spawn (translate.ts).
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"];
 

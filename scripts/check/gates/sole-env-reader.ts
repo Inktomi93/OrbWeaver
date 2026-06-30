@@ -10,13 +10,13 @@ import { Node } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = "/packages/server/src/";
-const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//;
+const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 
 // The ONE sanctioned call-time process.env EXCEPTION (sessions.md §Esoteric, invariant #10): the
 // role-derivation policy reads exactly these three vars at CALL time (not via the frozen `env`) so per-test
 // `vi.stubEnv` drives the role matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other key,
 // or any process.env read elsewhere in the domain, stays RED.
-const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/;
+const ROLE_POLICY = /\/packages\/server\/src\/domain\/sessions\/substrate\/role-policy\.ts$/u;
 const SANCTIONED_KEYS = new Set(["OWNER_HANDLES", "OWNER_GROUP", "RE_DERIVE_ROLE_ON_LOGIN"]);
 
 function relPath(root: string, abs: string): string {

@@ -8,19 +8,22 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Check, Violation } from "../harness.ts";
 
-const TS_FILE = /\.tsx?$/;
+const TS_FILE = /\.tsx?$/u;
 const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
-  { re: /\bDate\.now\s*\(/, what: "Date.now() — inject the frozen clock (tests/support/clock.ts)" },
   {
-    re: /\bnew\s+Date\s*\(\s*\)/,
+    re: /\bDate\.now\s*\(/u,
+    what: "Date.now() — inject the frozen clock (tests/support/clock.ts)",
+  },
+  {
+    re: /\bnew\s+Date\s*\(\s*\)/u,
     what: "new Date() with no args — ambient clock; use the injected clock",
   },
-  { re: /\bMath\.random\s*\(/, what: "Math.random() — nondeterministic; seed it or inject" },
+  { re: /\bMath\.random\s*\(/u, what: "Math.random() — nondeterministic; seed it or inject" },
   {
-    re: /\.randomUUID\s*\(/,
+    re: /\.randomUUID\s*\(/u,
     what: "randomUUID() — unseeded id; use the seeded ids (tests/support/ids.ts)",
   },
-  { re: /\bperformance\.now\s*\(/, what: "performance.now() — ambient clock" },
+  { re: /\bperformance\.now\s*\(/u, what: "performance.now() — ambient clock" },
 ];
 
 function relPath(base: string, abs: string): string {

@@ -22,10 +22,10 @@
 > **STILL REMAINING (integration + unwired seams + committed turn-features):** (a) the domain is NOT
 > assembled or wired — `chat/service.ts` + `chat/index.ts` are 1-line stubs, no compose-root construction of
 > the `ChatContext` ops, no transport chat router (PD-46); (b) **memory is built-but-orphaned** — `recall`
-> has no caller, the post-turn build TRIGGER + `chat_digest_speakers` write are stubbed (PD-41), and the
+> has no caller, the post-turn build TRIGGER + `chat_digest_speakers` write are stubbed (FLAG[on-turn-memory-trigger], PD-41), and the
 > `search.*` digest/corpus retrieval verbs recall depends on don't exist (PD-35); (c) the regex SEND
 > (`USER_INPUT`) / RECEIVE (`AI_OUTPUT`/`REASONING`) wiring + `<think>` inline-parse (D53 step 2 / D47#3) —
-> watchdog+resolver ready, just unwired; (d) the committed turn-coupled features — upload verb (D45 write
+> watchdog+resolver ready, just unwired; (d) the `runChatTurn` adapter in compose/chat.ts (FLAG[runChatTurn-adapter]) + committed turn-coupled features — upload verb (D45 write
 > side), guided routing, OpenAI-path tool-loop (D48), image-gen-in-chat caller (D47#1); (e) `reapTemporaryChats`
 > + `getVariables` runtime-plane schema decisions (D46); (f) Stryker calibration. See `_STATUS.md` + the ledger.
 >

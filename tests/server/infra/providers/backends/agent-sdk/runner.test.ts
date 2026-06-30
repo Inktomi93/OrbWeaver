@@ -22,7 +22,7 @@ import { describe, expect, test, vi } from "vitest";
 const MODEL = "claude-x";
 const SESSION_ID = "sess-1";
 const FIXED_NOW = 1000;
-const MISSING_SESSION_ID_RE = /missing session_id/;
+const MISSING_SESSION_ID_RE = /missing session_id/u;
 
 /** The reducer's stream param type, named without importing the SDK (its private to the backend). */
 type MessageStream = Parameters<typeof consumeTurnStream>[0];

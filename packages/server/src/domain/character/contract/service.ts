@@ -12,20 +12,16 @@
 // character surface in this slice, same as persona). The synthetic mint/find are internal chat-injected
 // ops on a resolved `ownerId`. Cross-feature deps (the avatar-reap, the tag attach, the domain-event emit)
 // arrive type-only on the bundle; character sideways-imports nothing (domain-no-cross-feature).
-//
-// FLAG[PD-31]: `getRosterCardView` (membership-gated, level-clamped MemberCardView — character.md
-//   §"member card view", D22) → built with `domain/chat` when its `{ kind: 'chat', roster }` resource arm
-//   of `can()` + `requireParticipant` + `chatMetadata.group.memberCardVisibility` exist. Building it now
-//   would collapse the chat tier into character (a forbidden tier collapse — the persona setActivePersona
-//   precedent). NOT in `CharacterService` yet.
 // The default-card `seeder/` subsystem (PD-32, character.md §8-slot) lives in `seeder/` + `contract/seeder.ts`
 //   — it's reached by ENTRY over this service's `create`/`findByHandle` verbs (the injected settings latch
 //   ops are wired at the composition root), NOT a character verb, so no tier collapse here.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { MemberCardVisibility } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   BulkAddCardTagParams,
@@ -38,6 +34,7 @@ import type {
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
+  GetRosterCardViewParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
@@ -47,7 +44,7 @@ import type {
   UpdateCharacterParams,
 } from "./params";
 import type { CharacterRef, SnapshotRef, SnapshotSummary } from "./results";
-import type { CharacterDetail, CharacterSummary } from "./views";
+import type { CharacterDetail, CharacterSummary, MemberCardView } from "./views";
 
 /**
  * Best-effort reap of avatar assets that a deleted character may have orphaned. The avatar FK is
@@ -92,6 +89,8 @@ export interface CharacterContext {
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
+  readonly requireParticipant: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly getChatMemberCardVisibility: (chatId: ChatId) => Promise<MemberCardVisibility>;
 }
 
 export interface CharacterService {
@@ -135,6 +134,9 @@ export interface CharacterService {
   /** The live card for an owned character, or `null` for not-owned / mid-delete (contract invariant —
    *  callers treat `null` as "skip, not an error"; it NEVER throws). */
   readonly getCard: (params: GetCardParams) => Promise<CharacterCard | null>;
+
+  /** The membership-gated, level-clamped card view for a roster member (D22). */
+  readonly getRosterCardView: (params: GetRosterCardViewParams) => Promise<MemberCardView>;
 
   // ── Card-text projection (embeddings indexer injects this — UN-PRINCIPAL, D20) ──
   /** The card-text embed PROJECTION for a character, keyed by id ALONE (NO owner scope — D20: the vector

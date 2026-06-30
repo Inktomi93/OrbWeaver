@@ -4,10 +4,13 @@
 // fails `tsc`). NO business logic lives here — every verb body is in its `verbs/*` factory.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
+import type { AssetId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./contract/context";
 import type { ChatService } from "./contract/service";
 import { createTurnEngine } from "./engine/engine";
+import { generateDigests } from "./memory/build/digests";
+import { generateSegments } from "./memory/build/segments";
 import { loadRoster } from "./persistence/roster";
 import { createChatLifecycle } from "./verbs/chat-lifecycle";
 import { createCompaction } from "./verbs/compaction";
@@ -32,6 +35,8 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     resolveTurnPolicy: deps.resolveTurnPolicy,
     holder: deps.holder,
     lockTtlMs: deps.lockTtlMs,
+    generateSegments,
+    generateDigests,
   });
 
   // The chat-INTERNAL roster read-model (the returned `ChatDetail`/`listParticipants` shape). Reads the present
@@ -39,21 +44,30 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   // (owner-scoped to the room host — characters in a room belong to the host; D16/D28). Built ONCE + shared
   // across fork/invites/read/start-chat (one instance, no per-factory re-spell).
   //
-  // FLAG[participant-user-publics]: a human participant's `displayName`/`handle`/`avatarAssetId` are NOT
-  // resolved here — the chat domain CANNOT read the `users` table (the `no-direct-users-read` chokepoint) and
-  // there is no user-publics op on `ChatContext`/`ChatServiceDeps`. Per chat.md §"Public surface" ("the root
-  // resolves `users` publics, OUTSIDE"), the eventual enrichment belongs to the entry composition root — it must
-  // either decorate this reader or supply a user-publics resolver. Until then: `displayName` falls back to the
-  // character name → the raw id, `handle`/`avatarAssetId` are null for humans.
+  // FLAG[participant-user-publics] RESOLVED: a human participant's `displayName`/`handle`/`avatarAssetId` are
+  // resolved via `ctx.resolveUserPublics` (wired in the entry composition root).
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await loadRoster(ctx.db, chatId);
     const hostUserId = rows.find((r) => r.role === "host")?.userId ?? null;
     return Promise.all(
+      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: straightforward mapping
       rows.map(async (r): Promise<ParticipantView> => {
         const card =
           r.characterId !== null && hostUserId !== null
             ? await ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })
             : null;
+        const publics =
+          r.kind === "human" && r.userId !== null
+            ? await ctx.resolveUserPublics(r.userId, r.activePersonaId)
+            : null;
+
+        let avatarAssetId: AssetId | null = null;
+        if (publics?.avatarAssetId !== undefined && publics.avatarAssetId !== null) {
+          avatarAssetId = castId<AssetId>(publics.avatarAssetId as string);
+        } else if (card?.avatarAssetId !== undefined && card.avatarAssetId !== null) {
+          avatarAssetId = castId<AssetId>(card.avatarAssetId as string);
+        }
+
         return {
           id: r.id,
           chatId: r.chatId,
@@ -68,9 +82,10 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           joinSeq: r.joinSeq,
           leftSeq: r.leftSeq,
           joinHistoryVisibility: r.joinHistoryVisibility,
-          displayName: card?.name ?? r.userId ?? r.characterId ?? "",
-          handle: null,
-          avatarAssetId: card?.avatarAssetId ?? null,
+          displayName: publics?.displayName ?? card?.name ?? r.userId ?? r.characterId ?? "",
+          // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
+          handle: (publics?.handle as any) ?? null,
+          avatarAssetId,
         };
       }),
     );

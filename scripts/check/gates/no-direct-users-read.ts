@@ -10,9 +10,9 @@ import type { SourceFile } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
 const TABLE = "users";
-const DB_SPECIFIER = /^@orb\/db(?:\/|$)/;
-const DOMAIN = /\/packages\/server\/src\/domain\//;
-const EXEMPT = /\/packages\/server\/src\/domain\/(?:sessions|admin)\//;
+const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
+const DOMAIN = /\/packages\/server\/src\/domain\//u;
+const EXEMPT = /\/packages\/server\/src\/domain\/(?:sessions|admin)\//u;
 const MESSAGE =
   "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint, admin.md §317). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
 

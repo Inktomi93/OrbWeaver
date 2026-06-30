@@ -23,8 +23,13 @@ const CRED = { source: "local-light", credentialId: null } as unknown as Resolve
 const MODEL = DEFAULT_RERANK_MODEL as ModelId;
 const DOWNLOAD_TIMEOUT_MS = 300_000;
 
+const backend = RUN ? createLocalLightBackend({ device: "cpu" }) : null;
+
 function rerankFn(): (req: RerankRequest) => Promise<RerankResult> {
-  const fn = createLocalLightBackend({ device: "cpu" }).rerank;
+  if (!backend) {
+    throw new Error("Backend not initialized");
+  }
+  const fn = backend.rerank;
   if (fn === undefined) {
     throw new Error("rerank role not wired");
   }

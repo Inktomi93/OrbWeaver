@@ -25,7 +25,7 @@ const CARD_JSON =
   '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
 const cardBytes = (): Uint8Array => new TextEncoder().encode(CARD_JSON);
 const garbageBytes = (): Uint8Array => new TextEncoder().encode("not a character card");
-const SHA256_HEX = /^[0-9a-f]{64}$/;
+const SHA256_HEX = /^[0-9a-f]{64}$/u;
 
 // A store that never fires for these JSON-card tests (typed const → contextual, no explicit-return noise).
 const noopAssets: ImportAssetPort = {

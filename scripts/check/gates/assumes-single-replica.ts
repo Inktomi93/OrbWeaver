@@ -12,7 +12,7 @@ import { Node } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
 const SERVER_SRC = "/packages/server/src/";
-const PERSISTENCE = /\/persistence\//;
+const PERSISTENCE = /\/persistence\//u;
 const STATE_CTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
 const ANNOTATION = "ASSUMES(single-replica)";
 

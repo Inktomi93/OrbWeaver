@@ -126,6 +126,12 @@ function harness(
     resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
     holder: "replica-1",
     lockTtlMs: 60_000,
+    generateSegments: async () => {
+      /* no-op */
+    },
+    generateDigests: async () => {
+      /* no-op */
+    },
   });
   const activeTurns = createActiveTurns();
   const turn = createTurn(ctx, {

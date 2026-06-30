@@ -9,8 +9,8 @@
 import { assertInitFrameShape } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, expect, test } from "vitest";
 
-const MISSING_SESSION_ID_RE = /missing session_id/;
-const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/;
+const MISSING_SESSION_ID_RE = /missing session_id/u;
+const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;
 
 describe("assertInitFrameShape", () => {
   test("a well-formed init frame passes", () => {

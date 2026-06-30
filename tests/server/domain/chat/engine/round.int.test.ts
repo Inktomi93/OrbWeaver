@@ -91,9 +91,15 @@ function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
   return createTurnEngine(ctx, {
     emit: (_e: ChatBusEvent): Promise<void> => Promise.resolve(),
     debitBudget: (): Promise<void> => Promise.resolve(),
-    resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
-    holder: "replica-1",
-    lockTtlMs: 60_000,
+    resolveTurnPolicy: async () => ({ budget: null, allowNonOwnerMaxProSub: false }),
+    holder: "tester",
+    lockTtlMs: 1000,
+    generateSegments: async () => {
+      /* no-op */
+    },
+    generateDigests: async () => {
+      /* no-op */
+    },
   });
 }
 

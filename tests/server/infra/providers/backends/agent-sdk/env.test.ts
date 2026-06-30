@@ -16,8 +16,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 const OR_KEY = "sk-or-test-key";
 const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";
 const OPENROUTER_BASE = "https://openrouter.ai/api";
-const KEY_REQUIRED_RE = /OpenRouter API key is required/;
-const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/;
+const KEY_REQUIRED_RE = /OpenRouter API key is required/u;
+const LOOPBACK_BASE_RE = /^http:\/\/127\.0\.0\.1:/u;
 
 afterEach(() => {
   vi.unstubAllEnvs();
