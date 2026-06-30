@@ -307,6 +307,9 @@ interface BuildAssembleContextInput {
   readonly guidedInstruction?: string | null | undefined;
   readonly variableValues: Record<string, string>;
   readonly generationType?: GenerationType | undefined;
+  /** The caller's PER-REQUEST browser IANA zone for `{{time}}`/`{{date}}` (client.md epoch-UTC pipeline) — NOT
+   *  a stored/host setting (D19). Absent ⇒ the macro engine falls back to server-local. The per-request wire
+   *  (turn request → here) lands with the client; FLAG[timezone-per-request] in assemble-gather. */
   readonly timezone?: string | undefined;
   readonly nowMs?: number | undefined;
   /** The routing-resolved model id (for {{model}} inside WORLD_INFO regex replacements). */

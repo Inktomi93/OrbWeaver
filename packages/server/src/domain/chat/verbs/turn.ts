@@ -30,8 +30,8 @@
 //                          binds it; `ctx.resolveChat` needs a `RoutableChat` the chat-row→routable mapping
 //                          builds — FLAG[routable-derivation]).
 //   • resolveForeignInputs — the FOREIGN half of the assemble ctx (preset `promptConfig`, the resolved personas,
-//                          timezone, the host-global regex set, the WI scan-depth, the injection budget, the
-//                          memory config) — settings/preset/persona reads chat must NOT perform (contract/
+//                          the host-global regex set, the WI scan-depth, the injection budget, the memory
+//                          config) — settings/preset/persona reads chat must NOT perform (contract/
 //                          foreign.ts; entry.md invariant 1). It takes chat-supplied KEYS (runAsUserId, the
 //                          anchor + active persona ids) and returns RESOLVED DATA. The CHAT-INTERNAL half
 //                          (canon/injections/variables/metadata/memory/regex-tier union) `gatherAssembleContext`

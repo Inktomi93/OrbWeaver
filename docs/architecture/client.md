@@ -103,7 +103,7 @@ cross-repo reuse outside orbweaver ever becomes real — defer until then.)
 ```
 packages/ui/
   package.json          # sealed runtime libs (the ONLY package depending on these): @base-ui/react · cmdk · @dnd-kit ·
-                        #   @tanstack/react-virtual · echarts · echarts-for-react · streamdown · lucide-react · tailwind-variants · diff
+                        #   @tanstack/react-virtual · echarts · echarts-for-react · streamdown · lucide-react · tailwind-variants · diff · codemirror (@codemirror/*)
                         #   peer/build: react (PEER — react-dom is @orb/client's, the renderer) · tailwindcss + @tailwindcss/vite ·
                         #   style-dictionary (§3 token codegen).  [D54: toast + drawer = Base UI native (no sonner, no vaul ~deprecated) ·
                         #   no react-resizable-panels · tv subsumes cva/clsx/tw-merge · @dnd-kit kept (no native DnD; use the @dnd-kit/react rewrite)]
@@ -121,6 +121,7 @@ packages/ui/
                         #   + a `toPlainText` (remark `strip-markdown`, same pipeline) for previews/snippets/notifications (D54)
     stream/             # smooth-text (the pacer, domain-free) + the "Thinking…" shimmer (§6.3.1)
     content/            # sandbox-frame (untrusted iframe) · MessageMedia (img+a/v) · ThemeScope · lightbox (hand-built over Dialog+MessageMedia, §12.3)
+    code-editor/        # seals CodeMirror 6 (token-themed) — the custom-CSS field (§12.1) · Tier-B card CSS/HTML · D46 script authoring
     diff/               # seals `diff` (jsdiff v8+ — modern TS/async, NOT diff-match-patch) — character-snapshot (D28) + message-edit-history diff views
     lib/   { cn.ts }    # the cn() helper (tailwind-variants' built-in merge)
     styles/ { globals.css · view-transitions }   # imports tokens/generated theme
@@ -169,8 +170,10 @@ packages/client/
     state/              # ALL gated Zustand stores, FLAT (gate state:files: one create/file, ≤10 fields, no exported set/getState)
       _create-entity-draft-store.ts (frozen EMPTY + persist version/migrate) · center-pane-store.ts · <entity>-draft-store.ts …
     features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
-      app-shell/        #   the shell: the ONLY viewport @media site (§4b axis 2); the clamp-width overlay (§11.1);
-                        #     TOP_NAV_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing)
+      app-shell/        #   the 4-region rail shell (§4.1): RAIL(persistent nav) | LIST | CONTENT | CONTEXT;
+                        #     the ONLY viewport @media site (§4b ax2 — panel-dock breakpoint + rail→top-bar mobile);
+                        #     the clamp-width overlay (§11.1) = the LIST/CONTEXT docked⇄overlay⇄collapsed mechanism;
+                        #     RAIL_SLOTS ↔ MODAL_SLOTS registries (gate check:registry-pairing); the focus toggle + panel state in the shell store
       auth/ character/ chat/ corpus/ credentials/ persona/ preset/ prompt-manager/ settings/ tag/ user-admin/ workloads/ world-info/
         <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
                         #     components/ (leaf) · hooks/ (trpc.* reads via useGatedQuery; createEntityMutation calls) · lib/ · index.ts }
@@ -216,8 +219,9 @@ shape: **a container queries its descendants, never itself** → the adapting el
 the container → maps onto parent/child = anchor/surface.
 
 ```
-SHELL    — the ONLY viewport-aware layer (@media lives here, nowhere else). Macro layout:
-           3-pane desktop ⇄ stacked-mobile, drawer ⇄ sheet. Establishes top-level named containers.
+SHELL    — the ONLY viewport-aware layer (@media lives here, nowhere else). Macro layout (§4.1):
+           RAIL (persistent nav) + LIST + CONTENT + CONTEXT; side panels dock⇄overlay⇄collapse;
+           desktop multi-pane ⇄ mobile single-column (rail → TOP bar). Establishes top-level named containers.
 ANCHOR   — containment PROVIDER. Wraps the surface in `container-type: inline-size` + `container-name`.
            (Extends the anchor's existing job: it already CHOOSES the container; now it DECLARES it.)
 SURFACE  — containment CONSUMER. Pure content; queries `@container` variants. NO layout-context props.
@@ -233,6 +237,52 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
   pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
 - **Payoff:** "build the surface once, place it anywhere" (drawer · modal · grid cell · full pane) becomes
   literally true, with zero variants and zero layout props.
+
+### 4.1 The shell — the rail + collapsible panels (D55)
+> **Design-seed status (read before trusting the mockup):** the `~/Downloads/neo-tavern` Claude-design handoff
+> is a **stale color-palette seed**. Its `Hearth`/`Loom`/`Pocket` "modes" were aspirational and **never did the
+> structural work they claimed**; the VS-Code "Work mode" (Loom tab-bar/status-bar/gutters) is **CUT** (out of
+> scope). **Themes are color palettes only** (§12.1) — there is NO structural mode. Keep from the seed ONLY the
+> palette: the OKLCH ramp + **Ember** accent + **Geist** (the §3 token seed). The layout below is what we
+> workshopped; where it and the seed disagree, this wins.
+
+The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the
+"command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds.
+
+```
+DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
+  RAIL    — persistent thin icon column (~56px, fixed). Weave glyph (brand) → section icons
+            (Chats · Characters · Corpus · Refinery · Analytics) → spacer → Theme · Settings · your avatar.
+            Registry-as-data: RAIL_SLOTS (each = { icon, the list it shows, the content surface }),
+            id-paired with MODAL_SLOTS (gate check:registry-pairing). Replaces neo's TOP_NAV_SLOTS.
+  LIST    — the active section's collection (conversations / characters / corpus) + search + "new". Side panel.
+  CONTENT — the fluid hero, three stacked parts: a HEADER bar (active entity · scene chip · thread actions —
+            branch/bookmark/more) + the THREAD (chat/editor surface, prose capped 65–75ch) + the COMPOSER
+            (pill input · attach · Send, with a mid-stream STOP, optimistic send, disabled-while-generating).
+            LEFTOVER width feeds CONTEXT, NOT a wider chat.
+  CONTEXT — the right detail panel (active character/entity: avatar, threads-in-play, memory note). Side panel.
+
+MOBILE:  RAIL → TOP tab bar (workshopped — Nate's call, NOT the seed's bottom-tabs); LIST/CONTEXT →
+         full-screen / sheets; single column. (Mobile is a responsive LAYOUT, never a theme.)
+```
+
+- **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze + iterate; the schema
+  already anticipates it — `refineryScore`/`refineryAnalysis` + snapshots, D28). Its sub-parts (stage-stepper,
+  assay, issue-list, **compare-diff** → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
+- **Each side panel (LIST, CONTEXT) has a 3-state model** in the shell store: **`docked`** (column, default wide)
+  · **`overlay`** (slides over via the §11.1 clamp — zero width closed) · **`collapsed`** (hidden; edge affordance
+  reopens). Per-panel, persisted, **auto-`overlay` below a width breakpoint** (the one app-shell `@media`). The
+  RAIL is the always-on region (→ TOP tab bar on mobile).
+- **"Immersive-ST" = both side panels collapsed** (rail + a big CONTENT chat, panels summoned on demand);
+  **"command-center" = panels docked.** One persisted **focus toggle**. *The §11.1 clamp-overlay IS the `overlay`
+  mechanism — the baked work powers the collapse, not a rewrite.*
+- **The shell is THEME-INDEPENDENT.** Themes are **color palettes** in the D44 selector (Hearth = warm-dark
+  default · a cool/Mocha option · Light deferred · **+ user-authored** — §12.1/§3), NOT layout modes; rail +
+  panels render identically under any palette. Density is a separate token axis (§4) a palette may pin.
+- **`@media` lives ONLY here** (panel-dock breakpoint + rail→top-bar); everything inside the regions is
+  container-queried (§4b axis 1). The shell is the SHELL-tier reference (§11.1).
+- **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI
+  all live in the CONTENT thread, identical regardless of chrome.
 
 ---
 
@@ -279,7 +329,7 @@ one shell that reflows + a touch-first token baseline + platform CSS in three pr
 | Axis | What varies | Tool | Where it's written |
 |---|---|---|---|
 | **1 — component layout** | a surface in a wide pane vs a narrow drawer | **`@container`** + container-query units (`cqi`) + `clamp()` | **features** (the ONLY responsive thing they write) |
-| **2 — macro structure** | 3-pane desktop ⇄ stacked mobile; side-drawer ⇄ bottom-sheet (Base UI Drawer) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
+| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile (rail → TOP bar); side panels dock⇄overlay (the §11.1 clamp) / sheet on mobile (§4.1) | **`@media`** (viewport) | **SHELL only** (~1 file; the sole legal `@media` site) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
@@ -597,6 +647,9 @@ construction:
   (`max(360px, (100dvw − content)/2)`); closed overlays are `absolute` + `-translate-x-full` so they consume
   zero width and never reflow. neo achieves the "3-pane resizable" feel with **no media queries and no
   `react-resizable-panels`** in the macro shell. This is how the SHELL tier hits "viewport-aware in one place."
+  **This IS the `overlay` mechanism for §4.1's collapsible LIST/CONTEXT panels** — the rail-shell's
+  `docked`→`overlay`→`collapsed` states reuse this exact clamp, so the design-seed layout costs no new shell
+  machinery, just a per-panel state + the RAIL fixed column.
 - **The bus→cache sync seam (`use-workload-events`) is the only sanctioned SSE shape.** A subscription
   `onData` may (a) buffer transient progress in **local** state and (b) `invalidateQueries(readKey)` — it
   must **never** become a second store. The invalidation key must be produced by the same `*.queryKey(args)`
@@ -808,19 +861,76 @@ bypassable string-munging — `.custom-` class renaming, `://` stripping). How S
 
 ### 12.1 Theming — the CSS story (decided: scopes = Global owner + Per-character)
 - **Tier A (default): a curated, Zod-validated TOKEN-OVERRIDE API — not raw CSS.** Expose a fixed subset of
-  DTCG tokens (accent · bubble bg/fg · name color · quote color · font from an allowlist · radius ·
-  background asset/allowlisted-URL · density) applied as **scoped CSS custom properties** via an `@orb/ui`
-  `<ThemeScope>` on the target subtree. Custom-property *values* can't select/execute/exfiltrate; values are
-  parsed+clamped at the boundary (a color must parse as a color — reject `url()`/`expression()`; dims snap to
-  the token scale). Covers the *vibe* (~90% of per-character styling) with **zero injection surface**, stays
-  inside the token system (container model + `no-raw-value` gates still hold). ST has no safe tier like this.
+  DTCG tokens applied as **scoped CSS custom properties** via an `@orb/ui` `<ThemeScope>` on the target subtree.
+  **The subset is sized to ST parity** (it's what RP users actually theme — verified against ST's `--SmartTheme*`
+  vars): `accent` · **per-role message bubbles `userBubble {bg, fg}` · `aiBubble {bg, fg}`** (+ optional
+  `systemBubble`; ST's `UserMesBlurTint`/`BotMesBlurTint` split — colors user vs AI parts differently) · `name`
+  color · **the RP prose semantics: `dialogueColor` (quoted speech) · `narrationColor` (italics/em — ST's
+  `EmColor`) · `bodyColor`** · `font` (allowlist) · `radius` · `background` (asset/allowlisted-URL) · a
+  **`chatStyle: bubble | flat`** + `density`/avatar-size toggles (ST's `bubblechat`/body-class prefs → our
+  settings + density axis). Custom-property *values* can't select/execute/exfiltrate; values are parsed+clamped
+  at the boundary (a color must parse as a color — reject `url()`/`expression()`; dims snap to the token scale).
+  Covers the *vibe* (~90% of per-character styling) with **zero injection surface**, stays inside the token
+  system (container model + `no-raw-value` gates still hold). **Because resolution is character > global >
+  default, a per-character theme recolors THAT character's `aiBubble`/`narration` — the "each character's AI
+  parts look different" RP case, native + safe.** ST has no safe tier like this (it ships raw CSS vars). Anything
+  past this subset (per-role narration, per-part fonts) drops to Tier B / global CSS.
 - **Tier B (opt-in trust): raw CSS only inside the sandboxed-iframe card (12.2)** — never injected into the
   app document.
 - **Global owner CSS** (trusted): a settings field → one scoped `<style>` under a known app root, run through
   the same validator (warn-on-`@import` like ST; reject shell-breaking `position:fixed` on chrome). Trusted,
-  but still fenced from accidentally wrecking the shell.
+  but still fenced from accidentally wrecking the shell. **The custom-CSS field uses `@orb/ui/code-editor`
+  (CodeMirror 6, token-themed) — syntax highlighting + the validator inline — NOT a bare `<textarea>`.** Same
+  editor serves the Tier-B card CSS/HTML and the D46 script authoring (one sealed code editor, three consumers).
 - **Resolution order:** character > global > default. (Per-persona / per-chat scopes are deliberately
   deferred — the order is built to accept them later without rework.)
+- **Built-in palettes + the theme selector (the "modes" reconciliation).** A **theme is purely a token
+  value-set** (a color palette + optional density) — there is NO structural mode (the seed's Loom "work mode"
+  is cut, §4.1). The owner picks from **built-in palettes** (Hearth = warm-dark default · a cool/Mocha option ·
+  Light deferred — seeded from the §3 DTCG tokens / the DESIGN.md OKLCH ramp + Ember) **OR a self-authored theme**
+  (the same Tier-A token-override / Tier-B custom CSS), in **one selector** in user settings (the rail's Theme
+  button). So the design's "three faces" is just **three rows in the theme picker**, not a mode system.
+  *Token-name reconciliation with the seed:* the seed reuses `--secondary`/`--card` for user/AI bubbles and
+  `--speaker`/`--narration` for prose + a rationed `--glow` Ember focus; orbweaver elevates these to the named
+  override tokens above (`userBubble`/`aiBubble`/`dialogueColor`/`narrationColor`) so the safe override API can
+  address them per-role — they DEFAULT to the seed's ramp values.
+- **APPEARANCE settings — the NON-color surface (ST parity; a separate layer from the color theme).** ST's
+  "theme" panel conflates color with a pile of layout/display knobs; we keep them as **two layers in one settings
+  surface**: the color **palette** (above) and **appearance settings** applied as **root `data-*` attrs / CSS vars**
+  (ST's body-class model), read by the shell + the **message render**. The ST-parity set:
+  - **Sizing:** chat/center **width** (already the §11.1 `chatWidthPct` clamp — `--sheldWidth` equivalent) · **font
+    scale** (global text size) · **avatar size + shape** (round/square) · **density** (the §4 `data-density` axis).
+  - **Message style:** `chatStyle` = **bubble / flat / document** (ST `chatDisplay`, 3 modes).
+  - **Per-message metadata visibility (THE gap ST has and we lacked):** show/hide **timestamps · generation
+    timer · token count · message-id · model icon · in-chat avatars · expanded-vs-hover message actions.** Each a
+    user toggle → a root `data-*` the message render reads. RP users rely on these to declutter.
+  - **Effects:** blur/shadow toggles (default OFF per the no-glass seed) · a manual `reduced-motion` (beyond the OS
+    pref, §4a).
+  - **OUT (deliberately):** `movingUI` free-form panel dragging (we have the fixed rail + the §4.1 3-state panels)
+    and `waifuMode` VN-fullscreen (VN cut, D49). **Also OUT — homed elsewhere, do NOT re-import from ST's
+    power-user panel:** ST's settings panel is a grab-bag orbweaver DECONSTRUCTED — the **content-processing**
+    knobs (trim whitespace · collapse newlines · trim-incomplete-sentences · regex/macro post-processing) live on
+    the **PRESET** (they mutate text — generation territory, D53), and sampling/instruct on preset/connection.
+    Appearance settings are **display-only** (never touch stored content).
+  These are **user/AppSettings**-level (not part of a per-character theme), homed in user settings + the message
+  render; a per-character *color* theme still layers on top via §12.1 resolution.
+- **PERSISTENCE — the server `UserSettings` blob, NOT localStorage (it's already built + CRUD'd).** Theme +
+  appearance prefs live server-side in the **`user_settings` table** (`config: UserSettings` JSON, per-user,
+  `schema_version`-tracked) via the **existing settings-domain CRUD** (`getUserSettings` read · `updateUserSettings`
+  / **`updateUserSettingsSection`** write — section-scoped, so writing the `theme` section is one call). The blob
+  is **additive-namespaced** (each section `.prefault({})` → reads its default with NO version bump), so we just
+  add **`theme`** (selected palette id + the user's `ThemeOverride`) and **`appearance`** (the display knobs above)
+  as two new `userSettingsSchema` namespaces — zero migration. The client reads on load via tRPC `settings.getUserSettings`
+  and writes via `settings.updateUserSettingsSection`. **localStorage / Zustand-`persist` is reserved for
+  DEVICE-LOCAL transient state ONLY** (panel dock/collapse · the focus toggle · drafts) — **prefs that should
+  follow the user across devices go in the synced blob, never localStorage.** Per-character themes ride the
+  character row (D44 §12.5). **Custom themes are a first-class single-owned `themes` ENTITY with CRUD** (a user
+  theme LIBRARY — create/name/edit/delete/duplicate; the preset pattern: `ownerId` + `fetchOwned`); each row =
+  `{ name, ThemeOverride, css? }`. The **selected** theme is `UserSettings.theme.selectedThemeId`; built-in
+  palettes (Hearth/Mocha/Light) are non-deletable seeds (duplicate-to-customize). The **theme editor** is an
+  entity-editor feature (`createSavedEntityForm`, §13.4 — the token-override controls + the `@orb/ui/code-editor`
+  custom-CSS field + a live `<ThemeScope>` preview). Server home: a small `themes` table + CRUD verbs (settings-
+  domain-adjacent, or its own leaf) — the contracts pass adds the `Theme` entity + `UserSettings.theme.selectedThemeId`.
 
 ### 12.2 Rich message content — the HTML story (two tiers; Tier B = sandboxed iframe, NOT Shadow DOM)
 The isolation-primitive choice is settled by research (§ research note below): **Shadow DOM is encapsulation,
@@ -888,17 +998,29 @@ images plus two extras (autoplay = tracking beacon + annoyance, and bandwidth).
   declaratively, no iframe needed.
 
 ### 12.4 The message-content model (Phase-5 touchpoint — `@orb/contracts`, born-compliant)
-A message body is a **typed sequence of content blocks, NOT one HTML string** (ST's fatal simplification):
+A stored message body is a **string** (D26 one content home; D51 — content stays a string everywhere upstream).
+The render model is a **typed block sequence PARSED FROM that string at render** (not stored):
 ```
 MessageContentBlock =
   | { kind: "markdown"; md: string }
   | { kind: "media"; media: "image" | "audio" | "video"; src: AssetRef | ExternalUrl; alt: string; dims?: {w;h} }
   | { kind: "html-card"; html: string; css?: string; trust: "tierA" | "tierB" }
 ```
-The block model is what makes the trust-tier × render-tier dispatch type-safe and clean. The composer (P5)
-emits image blocks from attachments; markdown stays markdown; card HTML carries its own trust level. The
-`forbidExternalMedia` + per-character `cardTrust` overrides resolve at chat **assembly** (`override ?? global`,
-extending D21). **This block union must land in the `@orb/contracts` pass, not be invented inside chat.**
+The block model makes the trust-tier × render-tier dispatch type-safe. The composer (P5) embeds image refs;
+markdown stays markdown; card HTML carries its own trust level. `forbidExternalMedia` + per-character `cardTrust`
+resolve at chat **assembly** (`override ?? global`, extending D21).
+
+**Per-speaker color in merged/narrator mode — ALREADY BUILT (Phase 5), do NOT re-invent:** merged-narrator
+messages carry **inline `<speaker>NAME</speaker>` markers IN the content string** (`@orb/kit/speaker-label` —
+`SPEAKER_TAG_PAIR`; the markers are kept in stored canon *specifically so the renderer can color them*, and
+stripped to `Name:` for prompt history via `speakerTagsToPlain`). The client narrator render **`parseSpeakerSpans`**
+splits the body on those markers and wraps each span in its own **`<ThemeScope theme={resolve(name)}>`** → each
+character's name/`dialogue`/`narration` colors apply *within the one merged bubble*. Streaming a torn `<speaker…`
+mid-frame is held by **`holdTornSpeaker`** (`@orb/kit/fix-markdown`; the §6.3.1 hold-back). Solo/per-speaker is the
+no-op case (`hasMultipleCharacters` gate in `assembly/speaker-stamp.ts` → byte-identical, no markers). So
+per-speaker theming is **content-string + inline markers + a render-time parse**, NOT a stored segment array —
+the client just resolves the per-character `<ThemeScope>` off the parsed span name. **Bubble background**
+(`userBubble`/`aiBubble`) is message-level; the **speaker semantics** are span-level.
 
 **Scope: pictures in chat = DISPLAY (this is the feature). Model-vision = separate + optional.** The actual
 want is plain: **send a picture (your own upload), receive and display it, and display an online image by

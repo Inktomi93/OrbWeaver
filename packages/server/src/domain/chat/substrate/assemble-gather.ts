@@ -18,7 +18,7 @@
 //   • memory — `recallMemory` (chat's own subsystem) over the shared/merged bucket (the round-level default).
 //   • hostTierRegexScripts — the D53 union (host-global ∪ chat-preset ∪ present cast, via `resolveHostTierRegexScripts`).
 //
-// The FOREIGN DTO supplies promptConfig/personas/timezone/globalRegexScripts/scanDepth/injectionTokenBudget/
+// The FOREIGN DTO supplies promptConfig/personas/globalRegexScripts/scanDepth/injectionTokenBudget/
 // memoryConfig (settings/preset/persona reads chat must NOT perform — contract/foreign.ts).
 
 import type { CharacterCard } from "@orb/contracts/character";
@@ -220,7 +220,12 @@ export async function gatherAssembleContext(
       generationType: "normal",
       nowMs: ctx.now(),
       ...(roomOverrides !== undefined ? { roomOverrides } : {}),
-      ...(foreign.timezone !== undefined ? { timezone: foreign.timezone } : {}),
+      // FLAG[timezone-per-request]: `{{time}}`/`{{date}}` render server-side into the prompt, but the time
+      // zone is the CALLER's browser zone, supplied PER-REQUEST (client.md: epoch-UTC on the wire, the browser
+      // localizes; `@orb/kit/macro` honors a per-request `ctx.timezone` → server-local fallback). It is NOT a
+      // host setting (removed from `ForeignInputs` — a host-frozen DTO is the wrong home, D19). Until the turn
+      // request carries the client zone (a Phase-6 client send), `timezone` is unset ⇒ the macro engine falls
+      // back to server-local — never a stored/foreign value.
       ...(lastMessage !== undefined ? { lastMessage } : {}),
       ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
       ...(lastCharMessage !== undefined ? { lastCharMessage } : {}),
