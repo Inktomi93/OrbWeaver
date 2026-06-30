@@ -2,7 +2,7 @@
 // chat/character/global/persona union, dedup by entry id (a book attached at two scopes renders once), the
 // host-owner scoping of global books (a foreign tenant's global book never leaks), the source tagging
 // (character → "character"; chat/persona/global → "chat"), the scope resolution (keys → keyword, keyless →
-// always), and the worldInfoEnabled short-circuit.
+// always), and the emergent no-lore path (nothing attached ⇒ empty pool — no master toggle, ST parity).
 import type { Db } from "@orb/db";
 import {
   characterBooks,
@@ -91,11 +91,12 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
       .insert(personaBooks)
       .values({ personaId, worldBookId: personaBook, createdAt: FROZEN_AT });
 
-    const pool = await loadWorldInfoPool(
-      db,
-      { chatId, ownerId: host, castCharacterIds: [charId], personaIds: [personaId] },
-      true,
-    );
+    const pool = await loadWorldInfoPool(db, {
+      chatId,
+      ownerId: host,
+      castCharacterIds: [charId],
+      personaIds: [personaId],
+    });
     const contents = pool.map((e) => e.content).sort();
     expect(contents).toEqual(["char lore", "chat lore", "global lore", "persona lore"]);
     // The foreign tenant's global book is owner-scoped out.
@@ -127,22 +128,24 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
       createdAt: FROZEN_AT,
     });
 
-    const pool = await loadWorldInfoPool(
-      db,
-      { chatId, ownerId: host, castCharacterIds: [charId], personaIds: [] },
-      true,
-    );
+    const pool = await loadWorldInfoPool(db, {
+      chatId,
+      ownerId: host,
+      castCharacterIds: [charId],
+      personaIds: [],
+    });
     expect(pool.filter((e) => e.content === "shared lore")).toHaveLength(1);
   });
 
-  test("worldInfoEnabled=false short-circuits to [] (no DB touch)", async () => {
+  test("nothing attached → empty pool (emergent: no books ⇒ no lore, ST parity — no master toggle)", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
-    const pool = await loadWorldInfoPool(
-      db,
-      { chatId, ownerId: host, castCharacterIds: [], personaIds: [] },
-      false,
-    );
+    const pool = await loadWorldInfoPool(db, {
+      chatId,
+      ownerId: host,
+      castCharacterIds: [],
+      personaIds: [],
+    });
     expect(pool).toEqual([]);
   });
 });

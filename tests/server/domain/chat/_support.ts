@@ -271,7 +271,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     getCard: () => Promise.resolve(null),
     resolveImageUrl: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
-    findSyntheticGroupCharacter: notStubbed,
+    // The assemble gather calls this every round (round-level recall over the shared bucket); default to
+    // "not yet minted" so a test that seeds no memory never reaches the recall search.
+    findSyntheticGroupCharacter: () => Promise.resolve(null),
     setActivePersona: notStubbed,
     applyStatsDelta: notStubbed,
     summarize: notStubbed,

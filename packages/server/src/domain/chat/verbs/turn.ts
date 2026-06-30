@@ -14,9 +14,10 @@
 // (+ `undoContinue`/`revertContinue` restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE
 // `generate`. Every generating verb threads the active-turns abort signal into the engine (FLAG[abort-into-
 // engine] resolved). FLAG[send-regex] RESOLVED (D53 step 2): SEND USER_INPUT regex runs in the producer (the
-// post-regex row is persisted via the `SendRegexSink`); host-tier scripts ride `resolveAssembleInputs` onto the
-// assemble ctx (RECEIVE applies AI_OUTPUT/REASONING in the pipeline). FLAG[guided-placement]: the `guided` steer
-// stays a seam for a later chunk (the `guided` param is accepted, not yet routed).
+// post-regex row is persisted via the `SendRegexSink`); the host-tier scripts are the union the GATHER computes
+// (`gatherAssembleContext` → `resolveHostTierRegexScripts`) onto the assemble ctx (RECEIVE applies AI_OUTPUT/
+// REASONING in the pipeline). FLAG[guided-placement]: the `guided` steer stays a seam for a later chunk (the
+// `guided` param is accepted, not yet routed).
 //
 // DEPS NOT ON `ChatContext` (the second factory arg — the `invites.ts`/`roster.ts` precedent; FLAG
 // [turn-deps-not-on-ctx], all SHOULD be wired at the composition root):
@@ -28,12 +29,13 @@
 //   • resolveConnection  — `connection.resolveChat` + the `RoutableChat` derivation from the chat row (the root
 //                          binds it; `ctx.resolveChat` needs a `RoutableChat` the chat-row→routable mapping
 //                          builds — FLAG[routable-derivation]).
-//   • resolveAssembleInputs — the CROSS-DOMAIN half of the assemble ctx (preset `promptConfig`, the resolved
-//                          personas, `{{memory}}`, the WI toggle, the recent window, the user `chat_injections`,
-//                          the variable flush, the budget) — assembly/context.ts's FLAG[cross-domain-inputs]
-//                          PRESCRIBES these as engine/verb-resolved parameters (no preset/persona/memory op
-//                          exists on `ChatContext`). The chat-OWNED half (cast/personas-ids/pending text) the
-//                          verb fills from its own roster read.
+//   • resolveForeignInputs — the FOREIGN half of the assemble ctx (preset `promptConfig`, the resolved personas,
+//                          timezone, the host-global regex set, the WI scan-depth, the injection budget, the
+//                          memory config) — settings/preset/persona reads chat must NOT perform (contract/
+//                          foreign.ts; entry.md invariant 1). It takes chat-supplied KEYS (runAsUserId, the
+//                          anchor + active persona ids) and returns RESOLVED DATA. The CHAT-INTERNAL half
+//                          (canon/injections/variables/metadata/memory/regex-tier union) `gatherAssembleContext`
+//                          reads ITSELF via `ChatContext`; the verb fills cast/persona-ids/pending text.
 
 import type { ChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
@@ -44,6 +46,7 @@ import type { ActiveTurns } from "../contract/active-turns";
 import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   AbortParams,
   ContinueTurnParams,
@@ -73,7 +76,7 @@ import {
   loadSlotTarget,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
-import { buildAssembleContext } from "../substrate/assembly-access";
+import { gatherAssembleContext } from "../substrate/assemble-gather";
 import {
   driveRoundVia,
   resolveMentionsVia,
@@ -82,30 +85,6 @@ import {
   selectSpeakersVia,
   smartArbitrateVia,
 } from "../substrate/turn-access";
-
-/** The full BUILD input (the substrate bridge's param type — derive, don't re-spell). */
-type AssembleInput = Parameters<typeof buildAssembleContext>[1];
-
-/** The CROSS-DOMAIN half of the assemble ctx the root resolves (see the file header FLAG). The chat-owned half
- *  (`chatId`/`ownerId`/`castCharacterIds`/`personaIds`/`model`/pending text) the verb fills itself. */
-type AssembleCrossInputs = Pick<
-  AssembleInput,
-  | "promptConfig"
-  | "personas"
-  | "roomOverrides"
-  | "worldInfoEnabled"
-  | "recentMessages"
-  | "lastMessage"
-  | "lastUserMessage"
-  | "lastCharMessage"
-  | "userInjections"
-  | "memory"
-  | "compactSummary"
-  | "variableValues"
-  | "injectionTokenBudget"
-  | "timezone"
-  | "hostTierRegexScripts"
->;
 
 /** The SEND USER_INPUT regex out-param sink (chat.md §2/§7) — `buildAssembleContext` writes the post-regex user
  *  text here so the verb persists THAT (the haystack + the stored row never diverge). Structural — the local
@@ -128,11 +107,9 @@ interface TurnDeps {
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
   }) => Promise<ResolvedConnection>;
-  readonly resolveAssembleInputs: (args: {
-    readonly chatId: ChatId;
-    readonly runAsUserId: UserId;
-    readonly model: string;
-  }) => Promise<AssembleCrossInputs>;
+  /** The FOREIGN half of the assemble ctx (preset/persona/settings) resolved at the composition root from
+   *  chat-supplied KEYS (contract/foreign.ts). The CHAT-INTERNAL half is gathered by `gatherAssembleContext`. */
+  readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
 /** The turn-running slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
@@ -222,8 +199,9 @@ async function canonFacts(
   };
 }
 
-/** Build the ONE immutable assemble ctx for the round (RESOLVE+GATHER+BUILD via the substrate bridge). The
- *  cross-domain half is injected (FLAG[cross-domain-inputs]); the chat-owned half the verb supplies. */
+/** Build the ONE immutable assemble ctx for the round: resolve the FOREIGN half (preset/persona/settings) from
+ *  chat-supplied KEYS, then GATHER the chat-internal half + BUILD the pure ctx (`gatherAssembleContext`). The
+ *  chat-owned data (canon/injections/variables/metadata/memory/regex-tier) the gather reads ITSELF. */
 async function buildTurnContext(
   ctx: ChatContext,
   deps: TurnDeps,
@@ -233,32 +211,31 @@ async function buildTurnContext(
     readonly model: string;
     readonly castCharacterIds: readonly CharacterId[];
     readonly personaIds: readonly PersonaId[];
+    readonly anchorPersonaId: PersonaId | null;
     readonly pendingUserText?: string | undefined;
   },
-  /** SEND sink — when present + the round resolves host-tier scripts, `buildAssembleContext` writes the
-   *  post-USER_INPUT-regex user text here for the verb to PERSIST (chat.md §2/§7). */
+  /** SEND sink — when present + the round resolves host-tier scripts, the gather's `buildAssembleContext` writes
+   *  the post-USER_INPUT-regex user text here for the verb to PERSIST (chat.md §2/§7). */
   out?: SendRegexSink,
-): ReturnType<typeof buildAssembleContext> {
-  const cross = await deps.resolveAssembleInputs({
+): ReturnType<typeof gatherAssembleContext> {
+  const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: args.runAsUserId,
     model: args.model,
+    anchorPersonaId: args.anchorPersonaId,
+    personaIds: args.personaIds,
   });
-  return await buildAssembleContext(
+  return await gatherAssembleContext(
     ctx,
     {
-      ...cross,
       chatId: args.chatId,
-      ownerId: args.runAsUserId,
+      runAsUserId: args.runAsUserId,
+      model: args.model,
       castCharacterIds: args.castCharacterIds,
       personaIds: args.personaIds,
-      model: args.model,
-      generationType: "normal",
-      nowMs: ctx.now(),
-      ...(args.pendingUserText !== undefined
-        ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText }
-        : {}),
+      ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
     },
+    foreign,
     out,
   );
 }
@@ -266,7 +243,7 @@ async function buildTurnContext(
 /** Persist a user message (a fresh slot + its one variant — D26) and emit `messageCommitted`. FLAG[send-regex]
  *  RESOLVED (D53 step 2): the SEND-context USER_INPUT regex pass runs inside `buildAssembleContext` (chat.md §2)
  *  and the CALLER passes the post-regex text as `content` (via the `SendRegexSink`) — this fn persists exactly
- *  what it is handed (the host-tier 3-source resolution is supplied via `resolveAssembleInputs`, root-wired). */
+ *  what it is handed (the host-tier 3-source union is computed by the GATHER — `resolveHostTierRegexScripts`). */
 async function persistUserMessage(
   ctx: ChatContext,
   emit: TurnDeps["emit"],
@@ -443,6 +420,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
         model: connection.model,
         castCharacterIds: room.castCharacterIds,
         personaIds: room.personaIds,
+        anchorPersonaId: membership.chat.anchorPersonaId,
         pendingUserText: content,
       },
       sendOut,
@@ -530,7 +508,7 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
     personaId,
     intent,
   }: SimpleSendParams): Promise<TurnOutcome> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const room = await loadRoom(ctx, chatId);
     const identity = resolveTurnIdentityVia({
       principalUserId: principal.userId,
@@ -547,6 +525,7 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
         model: connection.model,
         castCharacterIds: room.castCharacterIds,
         personaIds: room.personaIds,
+        anchorPersonaId: membership.chat.anchorPersonaId,
         pendingUserText: content,
       },
       sendOut,
@@ -618,6 +597,7 @@ function createForceCharacterTurn(
       model: connection.model,
       castCharacterIds: room.castCharacterIds,
       personaIds: room.personaIds,
+      anchorPersonaId: membership.chat.anchorPersonaId,
     });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
@@ -685,7 +665,11 @@ interface TurnBase {
 async function resolveTurnBase(
   ctx: ChatContext,
   deps: TurnDeps,
-  args: { readonly principal: SendParams["principal"]; readonly chatId: ChatId },
+  args: {
+    readonly principal: SendParams["principal"];
+    readonly chatId: ChatId;
+    readonly anchorPersonaId: PersonaId | null;
+  },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
   const room = await loadRoom(ctx, chatId);
@@ -700,6 +684,7 @@ async function resolveTurnBase(
     model: connection.model,
     castCharacterIds: room.castCharacterIds,
     personaIds: room.personaIds,
+    anchorPersonaId: args.anchorPersonaId,
   });
   return { room, identity, connection, assembleContext };
 }
@@ -737,7 +722,7 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
  *  message — the same mode, the client passes that messageId. A non-assistant / missing target is NOT_FOUND. */
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
   return async ({ principal, chatId, messageId, intent }: SwipeParams): Promise<TurnOutcome> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const target = await loadSlotTarget(ctx.db, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
@@ -745,6 +730,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
     const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
+      anchorPersonaId: membership.chat.anchorPersonaId,
     });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -773,7 +759,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     messageId,
     intent,
   }: ContinueTurnParams): Promise<TurnOutcome> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const target = await loadSlotTarget(ctx.db, messageId);
     if (target === undefined || target.role !== "assistant") {
       throw new ChatNotFoundError(chatId);
@@ -781,6 +767,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
+      anchorPersonaId: membership.chat.anchorPersonaId,
     });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -810,10 +797,11 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
     personaId,
     intent,
   }: ImpersonateParams): Promise<TurnOutcome> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const { identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
+      anchorPersonaId: membership.chat.anchorPersonaId,
     });
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -846,10 +834,11 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     speakerCharacterId,
     intent,
   }: GenerateParams): Promise<TurnOutcome> => {
-    await requireParticipant(ctx, principal, chatId);
+    const membership = await requireParticipant(ctx, principal, chatId);
     const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
+      anchorPersonaId: membership.chat.anchorPersonaId,
     });
     const speaker = speakerCharacterId ?? room.castNames[0]?.characterId ?? null;
     const shape = speakerShapeFor(room, speaker);
