@@ -28,7 +28,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { createAdminService, requireAdmin, requireOwner } from "#domain/admin";
+import { can, createAdminService, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { BuddyAgentResult, BuddyToolServer } from "#domain/buddy";
@@ -71,6 +71,7 @@ import {
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
 import type { Services } from "../../transport/trpc/context";
+import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
 import type { DomainEventBus } from "./event-bus";
@@ -99,6 +100,10 @@ export interface ServicesDeps {
   readonly vllmDisabled: boolean;
   readonly repoRoot?: string;
   readonly providerSeams?: Partial<BackendRegistryDeps>;
+  /** This replica's stable lock-holder tag — the chat turn-lock holder (and the boot reclaim's match key, so
+   *  the same value MUST drive `reclaimChatLocksOnBoot`). Stable across restarts of the same replica (entry
+   *  passes `os.hostname()`); defaulted for tests that don't run chat turns. */
+  readonly holder?: string;
 }
 
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
@@ -419,10 +424,34 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── The cross-feature workload hub (the effective-config surface is built up-front for PD-14) ──────────
   const runnerEnv = buildWorkloadRunnerEnv({ db, now, cas, discovery, connection });
 
+  // ── chat (built LAST — it injects character/persona/connection/credentials/stats/embeddings/search/
+  //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
+  //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
+  //    lock tag the boot reclaim must match (defaulted for non-turn tests). ───────────────────────────────
+  const chat = buildChatService({
+    db,
+    now,
+    holder: deps.holder ?? "replica-default",
+    sessionSecret: deps.sessionSecret,
+    audit,
+    can,
+    roleClients,
+    connection,
+    credentials,
+    character,
+    persona,
+    preset,
+    settings,
+    notifications,
+    search,
+    embeddings,
+  });
+
   const services: Services = {
     admin,
     buddy,
     character,
+    chat,
     connection,
     credentials,
     discovery,

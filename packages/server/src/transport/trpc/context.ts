@@ -13,6 +13,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AdminService } from "#domain/admin";
 import type { BuddyService } from "#domain/buddy";
 import type { CharacterService } from "#domain/character";
+import type { ChatService } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { CredentialsService } from "#domain/credentials";
 import type { DiscoveryService } from "#domain/discovery";
@@ -31,14 +32,17 @@ import type { WorldInfoService } from "#domain/world-info";
  * root and handed to each request. A router reaches a domain ONLY through its front-door service here —
  * never `@orb/db`/`infra/*` directly (the `drivers-through-domain` rule). One key per domain front door.
  *
- * FLAG[PD-46]: `chat` — the chat + memory domains are built WHOLE at Phase 5 (ledger D16); the `chat`
- * service type + its router (`chat.send`/`swipe`/`start`/`streamMessages`) land then. `embeddings`
- * (the admin inline `embed` write) is deferred with its router — see `routers/` DEFER notes.
+ * FLAG[PD-46]: `chat` — the chat service is now CONSTRUCTED + wired at the composition root (entry/compose/
+ * chat.ts) and carried here. Its tRPC ROUTER (`chat.send`/`swipe`/`start`/`streamMessages`) is the remaining
+ * PD-46 piece — the SSE `streamMessages` resume needs the chat bus replay-ring handle surfaced from compose
+ * (the bus is currently held internally; see the integration report's hand-off). `embeddings` (the admin
+ * inline `embed` write) is deferred with its router — see `routers/` DEFER notes.
  */
 export interface Services {
   readonly admin: AdminService;
   readonly buddy: BuddyService;
   readonly character: CharacterService;
+  readonly chat: ChatService;
   readonly connection: ConnectionService;
   readonly credentials: CredentialsService;
   readonly discovery: DiscoveryService;

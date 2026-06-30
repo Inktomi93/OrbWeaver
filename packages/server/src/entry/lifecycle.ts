@@ -8,6 +8,7 @@
 // and threads it everywhere as the injected `now` (compose, the seam, the seeders, the rate-limiter, the
 // supervisors). Nothing below entry reads ambient time.
 
+import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
@@ -151,6 +152,11 @@ export function createLifecycle(): Lifecycle {
     const vllmDisabled = env.VLLM_DISABLED || !gpuPresent;
     log.info({ gpuPresent, vllmDisabled }, "boot: gpu-detect → effective vLLM availability");
 
+    // The stable per-replica lock-holder tag — threaded into BOTH compose (the chat turn-lock acquires under
+    // it) AND the boot reclaim (it wipes this replica's own orphaned chat_locks). Stable across restarts of
+    // the same box (single-replica assumption), so a crash's locks are reclaimable on the next boot.
+    const holder = hostname();
+
     // 5. compose the full service graph (+ the boot handles). `vllmConcurrency` comes from settings'
     //    effective-config, which is built INSIDE compose — not available pre-compose, so it is omitted here
     //    (compose's BackendRegistry default applies). repoRoot is the process cwd (the vLLM engine root).
@@ -164,6 +170,7 @@ export function createLifecycle(): Lifecycle {
       sessionSecret: env.SESSION_SECRET ?? null,
       vllmDisabled,
       repoRoot: process.cwd(),
+      holder,
     });
 
     // 2b. The boot decrypt-probe → healthz `credentials_key_mismatch`.
@@ -195,7 +202,7 @@ export function createLifecycle(): Lifecycle {
     //    owner over the ONE seeder instance the app first-request hook also drives (shared memo + latch).
     await seedDefaultPreset({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
-    await reclaimLocksOnBoot({ db, now });
+    await reclaimLocksOnBoot({ db, now, holder });
 
     // 9. supervisors.
     //   • vLLM engine: null when VLLM_DISABLED — start it + keep its (synchronous) drain-closer for shutdown.
