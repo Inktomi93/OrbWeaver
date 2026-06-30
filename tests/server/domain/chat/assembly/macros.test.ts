@@ -12,7 +12,7 @@ import {
   renderMacros,
 } from "../../../../../packages/server/src/domain/chat/assembly/macros";
 
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 
 function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   return {

@@ -124,18 +124,15 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
 
 /**
  * Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads (no waterfall), one
- * Map-based dedup. `worldInfoEnabled === false` short-circuits to `[]` without touching the DB (the cheap
- * "no lore today" path). Each returned entry carries its resolved scope (always | keyword) + `source`
- * tag for the downstream keyword match + dual-persona macro render (context.ts GATHER/BUILD).
+ * Map-based dedup. Activation is EMERGENT (knowledge-cluster / ST parity): the pool yields whatever is
+ * attached + entry-`enabled` + present (character books gated on the cast) — there is NO master toggle; an
+ * empty result (no books attached) is the "no lore" path. Each returned entry carries its resolved scope
+ * (always | keyword) + `source` tag for the downstream keyword match + dual-persona macro render.
  */
 export async function loadWorldInfoPool(
   db: Db,
   target: WorldInfoPoolTarget,
-  worldInfoEnabled: boolean,
 ): Promise<AssembleWorldEntry[]> {
-  if (!worldInfoEnabled) {
-    return [];
-  }
   const castIds = [...target.castCharacterIds];
   const personaIds = [...target.personaIds];
 

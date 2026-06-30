@@ -71,14 +71,12 @@ function makeDeps(): Parameters<typeof createRead>[1] {
     loadParticipantViews,
     resolveConnection: () =>
       Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
-    resolveAssembleInputs: () =>
+    resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
         personas: { anchor: null, active: null },
-        worldInfoEnabled: false,
-        recentMessages: [],
-        userInjections: [],
-        variableValues: {},
+        globalRegexScripts: [],
+        scanDepth: 6,
         injectionTokenBudget: 0,
       }),
   };

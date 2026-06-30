@@ -97,7 +97,6 @@ function inputOf(
     personaIds: [],
     promptConfig: DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },
-    worldInfoEnabled: true,
     recentMessages: over.recentMessages ?? [],
     userInjections: over.userInjections ?? [],
     variableValues: {},
@@ -167,11 +166,12 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
       ...inputOf(chatId, host, [charId]),
       promptConfig: config,
     });
-    // {{char}} resolved to the cast primary; wiFormat wrapped exactly once.
-    expect(out.chatInjections?.map((i) => i.content)).toContain("[Lore: Aria hoards gold]");
+    // {{char}} resolved to the cast primary; wiFormat wrapped exactly once. Always-scope ⇒ the before-anchor
+    // (DEFAULT_PROMPT_CONFIG ships the world_info_before marker — ST parity).
+    expect(out.worldInfoBefore).toContain("[Lore: Aria hoards gold]");
   });
 
-  test("position routing: always → in_static; keyword(fired) → in_prompt; inject → in_chat", async () => {
+  test("position routing: always → world_info_before anchor; keyword(fired) → in_prompt; inject → in_chat", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
@@ -186,7 +186,8 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     const byContent = Object.fromEntries(
       (out.chatInjections ?? []).map((i) => [i.content, i.position]),
     );
-    expect(byContent["ALWAYS"]).toBe("in_static");
+    // Always-scope routes to the before-anchor (the default has the marker); keyword/depth ride the injection list.
+    expect(out.worldInfoBefore).toContain("ALWAYS");
     expect(byContent["KW"]).toBe("in_prompt");
     expect(byContent["DEPTH"]).toBe("in_chat");
   });
@@ -208,10 +209,10 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
       ctx,
       inputOf(chatId, host, [charId], { userInjections, injectionTokenBudget: 2 }),
     );
-    const contents = (out.chatInjections ?? []).map((i) => i.content);
-    expect(contents).toContain("AAAAAAAA"); // higher priority kept
-    expect(contents).not.toContain("BBBBBBBB"); // lower priority dropped
-    expect(contents).toContain("OPERATOR"); // operator intent spared (ignoreBudget)
+    // Always-scope lore routes to the before-anchor; the operator injection stays in the in_static list.
+    expect(out.worldInfoBefore).toContain("AAAAAAAA"); // higher priority kept
+    expect(out.worldInfoBefore).not.toContain("BBBBBBBB"); // lower priority dropped
+    expect((out.chatInjections ?? []).map((i) => i.content)).toContain("OPERATOR"); // spared (ignoreBudget)
     expect(out.wiTrace?.dropped).toContainEqual({ id: "world_entry_lo", reason: "budget" });
   });
 });
@@ -302,7 +303,7 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
       ...inputOf(chatId, host, [charId]),
       promptConfig: config,
     });
-    expect(out.chatInjections?.map((i) => i.content)).toContain("GOLD hoard");
+    expect(out.worldInfoBefore).toContain("GOLD hoard");
   });
 });
 

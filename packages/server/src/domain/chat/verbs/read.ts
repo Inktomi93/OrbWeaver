@@ -25,8 +25,9 @@
 //                              the `no-direct-users-read` domain scope).
 //   • resolveConnection      — `connection.resolveChat` (the previews need the resolved `model` for the WI
 //                              `{{model}}` regex; the host funds it — D19 `runAsUserId`).
-//   • resolveAssembleInputs  — the CROSS-DOMAIN half of the assemble ctx (preset/persona/memory/WI/recent/
-//                              injections/vars/budget — the same seam `turn.ts` uses).
+//   • resolveForeignInputs   — the FOREIGN half of the assemble ctx (preset/persona/settings — the same seam
+//                              `turn.ts` uses; contract/foreign.ts). The CHAT-INTERNAL half (canon/injections/
+//                              vars/metadata/memory/regex-tier) `gatherAssembleContext` reads itself.
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
@@ -37,6 +38,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
+import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   GetActivePresetConfigParams,
   GetChatLineageParams,
@@ -74,27 +76,8 @@ import {
   replayStreamEvents as loadStreamReplay,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
-import { buildAssembleContext, buildPrompt, previewSection } from "../substrate/assembly-access";
-
-/** The CROSS-DOMAIN half of the assemble ctx the root resolves (the same seam `verbs/turn.ts` + `start-chat.ts`
- *  use — preset/persona/memory/WI/recent/injections/vars/budget are not ops on `ChatContext`). */
-type AssembleCrossInputs = Pick<
-  Parameters<typeof buildAssembleContext>[1],
-  | "promptConfig"
-  | "personas"
-  | "roomOverrides"
-  | "worldInfoEnabled"
-  | "recentMessages"
-  | "lastMessage"
-  | "lastUserMessage"
-  | "lastCharMessage"
-  | "userInjections"
-  | "memory"
-  | "compactSummary"
-  | "variableValues"
-  | "injectionTokenBudget"
-  | "timezone"
->;
+import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { buildPrompt, previewSection } from "../substrate/assembly-access";
 
 /** The collaborators not on `ChatContext` (the second factory arg — see the file header). */
 interface ReadDeps {
@@ -103,11 +86,9 @@ interface ReadDeps {
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
   }) => Promise<ResolvedConnection>;
-  readonly resolveAssembleInputs: (args: {
-    readonly chatId: ChatId;
-    readonly runAsUserId: UserId;
-    readonly model: string;
-  }) => Promise<AssembleCrossInputs>;
+  /** The FOREIGN half of the assemble ctx (preset/persona/settings) — the same seam `verbs/turn.ts` +
+   *  `start-chat.ts` use (contract/foreign.ts). The CHAT-INTERNAL half is gathered by `gatherAssembleContext`. */
+  readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
 /** The read slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
@@ -138,7 +119,7 @@ interface PreviewInputs {
   readonly model: string;
   readonly castCharacterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
-  readonly cross: AssembleCrossInputs;
+  readonly foreign: ForeignInputs;
 }
 
 // ── view mappers ────────────────────────────────────────────────────────────────
@@ -221,8 +202,12 @@ async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
   chatId: ChatId,
-  speakerCharacterId?: CharacterId | null,
+  opts: {
+    readonly anchorPersonaId: PersonaId | null;
+    readonly speakerCharacterId?: CharacterId | null | undefined;
+  },
 ): Promise<PreviewInputs> {
+  const { anchorPersonaId, speakerCharacterId } = opts;
   const roster = await loadRoster(ctx.db, chatId);
   const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
   if (hostUserId === null) {
@@ -241,31 +226,34 @@ async function resolvePreviewInputs(
     r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : [],
   );
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
-  const cross = await deps.resolveAssembleInputs({
+  const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
     model: connection.model,
+    anchorPersonaId,
+    personaIds,
   });
-  return { hostUserId, model: connection.model, castCharacterIds, personaIds, cross };
+  return { hostUserId, model: connection.model, castCharacterIds, personaIds, foreign };
 }
 
-/** Build the ONE immutable assemble ctx for a preview (RESOLVE→GATHER→BUILD via the substrate bridge) from the
- *  resolved {@link PreviewInputs}. No persist, no turn. */
+/** Build the ONE immutable assemble ctx for a preview (RESOLVE→GATHER→BUILD via the gather) from the resolved
+ *  {@link PreviewInputs}. No persist, no turn (no SEND sink — previews take no composer input). */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
   chatId: ChatId,
-): ReturnType<typeof buildAssembleContext> {
-  return await buildAssembleContext(ctx, {
-    ...inputs.cross,
-    chatId,
-    ownerId: inputs.hostUserId,
-    castCharacterIds: inputs.castCharacterIds,
-    personaIds: inputs.personaIds,
-    model: inputs.model,
-    generationType: "normal",
-    nowMs: ctx.now(),
-  });
+): ReturnType<typeof gatherAssembleContext> {
+  return await gatherAssembleContext(
+    ctx,
+    {
+      chatId,
+      runAsUserId: inputs.hostUserId,
+      model: inputs.model,
+      castCharacterIds: inputs.castCharacterIds,
+      personaIds: inputs.personaIds,
+    },
+    inputs.foreign,
+  );
 }
 
 // ── listings ─────────────────────────────────────────────────────────────────────
@@ -369,10 +357,13 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     chatId,
     speakerCharacterId,
   }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
-    await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, speakerCharacterId);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      speakerCharacterId,
+    });
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    const prompt = buildPrompt(inputs.cross.promptConfig, assembleContext);
+    const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext);
     return { prompt, trace: prompt.trace };
   };
 }
@@ -384,10 +375,13 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
     chatId,
     speakerCharacterId,
   }: PeekPromptParams): Promise<AssembledPrompt> => {
-    await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, speakerCharacterId);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      speakerCharacterId,
+    });
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    return buildPrompt(inputs.cross.promptConfig, assembleContext);
+    return buildPrompt(inputs.foreign.promptConfig, assembleContext);
   };
 }
 
@@ -398,9 +392,11 @@ function createGetActivePresetConfig(
   deps: ReadDeps,
 ): ChatService["getActivePresetConfig"] {
   return async ({ principal, chatId }: GetActivePresetConfigParams): Promise<PromptConfig> => {
-    await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId);
-    return inputs.cross.promptConfig;
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+    });
+    return inputs.foreign.promptConfig;
   };
 }
 
@@ -413,14 +409,17 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
     sectionId,
     speakerCharacterId,
   }: PreviewSectionParams): Promise<SectionPreview> => {
-    await requireParticipant(ctx, principal, chatId);
-    const inputs = await resolvePreviewInputs(ctx, deps, chatId, speakerCharacterId);
-    const section = inputs.cross.promptConfig.sections.find((s) => s.id === sectionId);
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      speakerCharacterId,
+    });
+    const section = inputs.foreign.promptConfig.sections.find((s) => s.id === sectionId);
     if (section === undefined) {
       throw new DomainNotFoundError("prompt_section", sectionId);
     }
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
-    return previewSection(section, assembleContext, inputs.cross.promptConfig);
+    return previewSection(section, assembleContext, inputs.foreign.promptConfig);
   };
 }
 

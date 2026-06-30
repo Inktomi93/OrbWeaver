@@ -53,7 +53,7 @@ function connectionOf(source = "vllm"): ResolvedConnection {
 }
 
 const card = (name: string): CharacterCard =>
-  ({ name, description: "", avatarAssetId: null }) as unknown as CharacterCard;
+  ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
@@ -135,18 +135,13 @@ function harness(
     prng: seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(connectionOf()),
-    resolveAssembleInputs: () =>
+    resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
         personas: PERSONAS,
-        worldInfoEnabled: false,
-        recentMessages: [],
-        userInjections: [],
-        variableValues: {},
+        globalRegexScripts: over.hostTierRegexScripts ?? [],
+        scanDepth: 6,
         injectionTokenBudget: 0,
-        ...(over.hostTierRegexScripts !== undefined
-          ? { hostTierRegexScripts: over.hostTierRegexScripts }
-          : {}),
       }),
   });
   return { ctx, events, deltas, turn, activeTurns };
@@ -528,7 +523,7 @@ describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
   });
 
   test("no host-tier scripts → the row is the RAW composer text (member has no entry point — D19)", async () => {
-    // The verb's ONLY regex source is the host-tier set resolved under `runAsUserId` (resolveAssembleInputs).
+    // The verb's ONLY regex source is the host-tier union the gather computes under `runAsUserId`.
     // A non-host member's scripts have no parameter on that surface (structural — see regex-tier.test.ts), so
     // with none supplied the composer text is persisted verbatim.
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);

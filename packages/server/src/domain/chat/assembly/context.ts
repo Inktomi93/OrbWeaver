@@ -38,7 +38,6 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type {
   AssembleCharacter,
   AssembleContext,
-  AssemblePersona,
   AssembleWorldEntry,
   ChatInjection,
   RoomOverrides,
@@ -53,6 +52,7 @@ import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import type { ApplyRegexReplaceOp, ChatContext } from "../contract/context";
+import type { ResolvedPersonas } from "../contract/foreign";
 import { renderInjection } from "./injections";
 import { buildTurnMacroContext, renderMacros } from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
@@ -277,14 +277,6 @@ function toAssembleCharacter(card: CharacterCard): AssembleCharacter {
   };
 }
 
-/** The resolved personas for the turn (engine-supplied — see FLAG[cross-domain-inputs]). */
-interface ResolvedPersonas {
-  /** `{{user}}` for card-derived sections (the chat-open anchor). */
-  readonly anchor: AssemblePersona | null;
-  /** `{{user}}` for user-authored sections (the speaking participant's active persona). */
-  readonly active: AssemblePersona | null;
-}
-
 /** Everything the engine/verb resolves at the composition seam + the chat-owned data this producer reads.
  *  File-local (the `types-in-contract` gate forbids an exported feature type outside contract/) — the engine
  *  passes a structurally-matching literal. See FLAG[cross-domain-inputs]. */
@@ -299,7 +291,6 @@ interface BuildAssembleContextInput {
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
   readonly roomOverrides?: RoomOverrides | undefined;
-  readonly worldInfoEnabled: boolean;
   /** The committed recent window (oldest→newest), already scan-depth sliced — the WI haystack + the
    *  {{lastMessage}}-family macro inputs. */
   readonly recentMessages: readonly string[];
@@ -438,16 +429,12 @@ export async function buildAssembleContext(
   const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
-  const pool = await loadWorldInfoPool(
-    ctx.db,
-    {
-      chatId: input.chatId,
-      ownerId: input.ownerId,
-      castCharacterIds: input.castCharacterIds,
-      personaIds: input.personaIds,
-    },
-    input.worldInfoEnabled,
-  );
+  const pool = await loadWorldInfoPool(ctx.db, {
+    chatId: input.chatId,
+    ownerId: input.ownerId,
+    castCharacterIds: input.castCharacterIds,
+    personaIds: input.personaIds,
+  });
 
   const base = buildBaseContext(character, cast, input);
 
@@ -487,25 +474,25 @@ export async function buildAssembleContext(
     input.personas.active?.name,
   ].filter((n): n is string => typeof n === "string" && n.length > 0);
 
-  const wi = input.worldInfoEnabled
-    ? convertWorldInfo(
-        pool,
-        base,
-        {
-          regexScripts: input.promptConfig.regexScripts,
-          applyReplace: ctx.applyRegexReplace,
-          wiFormat,
-          recentMessages: input.recentMessages,
-          // POST-USER_INPUT-regex (chat.md §2 — the two-phase haystack sees the transformed pending text).
-          pendingUserText: pendingText,
-          names,
-          lastUserMessage: input.lastUserMessage,
-          hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
-          hasAfterAnchor: hasMarker(input.promptConfig, "world_info_after"),
-        },
-        buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId }),
-      )
-    : { candidates: [], matchedKeys: [] };
+  // WI activation is EMERGENT (no master toggle, ST parity): the pool yields attached+enabled+present; an
+  // empty pool ⇒ nothing rendered. The before/after anchors only POSITION the always-scope bucket.
+  const wi = convertWorldInfo(
+    pool,
+    base,
+    {
+      regexScripts: input.promptConfig.regexScripts,
+      applyReplace: ctx.applyRegexReplace,
+      wiFormat,
+      recentMessages: input.recentMessages,
+      // POST-USER_INPUT-regex (chat.md §2 — the two-phase haystack sees the transformed pending text).
+      pendingUserText: pendingText,
+      names,
+      lastUserMessage: input.lastUserMessage,
+      hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
+      hasAfterAnchor: hasMarker(input.promptConfig, "world_info_after"),
+    },
+    buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId }),
+  );
 
   // The ONE injection list (chat.md §4): WI + the user `chat_injections` (operator intent — never dropped).
   const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => ({

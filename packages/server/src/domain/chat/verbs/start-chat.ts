@@ -25,7 +25,7 @@
 // NO composer input, so USER_INPUT regex never applies there. Resolving macros at seed time would ALSO bake in
 // the anchor persona (breaking the per-view `{{user}}` the render-once/author-side-macro law requires — Part II
 // §2/§3). The `generate` opening DOES run through the engine→pipeline, so its generated text gets the RECEIVE
-// AI_OUTPUT/REASONING regex + post-process — the host-tier scripts ride `resolveAssembleInputs` onto its ctx.
+// AI_OUTPUT/REASONING regex + post-process — the host-tier scripts are the union the GATHER computes onto its ctx.
 //
 // FLAG[chatOpened]: `startChat` emits ONLY `chatCreated`. `chatOpened` is SUBSCRIPTION-synthesized at the
 // participant stream-attach (per-viewer, never a domain emit, never logged — the contract's `ChatBusEvent`
@@ -40,6 +40,7 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
+import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type { StartChatParams } from "../contract/params";
 import type { StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
 import type { ChatService } from "../contract/service";
@@ -50,28 +51,7 @@ import {
 } from "../persistence/canon-write";
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows } from "../persistence/roster";
-import { buildAssembleContext } from "../substrate/assembly-access";
-
-/** The CROSS-DOMAIN half of the assemble ctx the root resolves for the `generate` opening (the same seam
- *  `verbs/turn.ts` uses — preset/persona/memory/WI/recent/injections/vars/budget are not ops on `ChatContext`). */
-type AssembleCrossInputs = Pick<
-  Parameters<typeof buildAssembleContext>[1],
-  | "promptConfig"
-  | "personas"
-  | "roomOverrides"
-  | "worldInfoEnabled"
-  | "recentMessages"
-  | "lastMessage"
-  | "lastUserMessage"
-  | "lastCharMessage"
-  | "userInjections"
-  | "memory"
-  | "compactSummary"
-  | "variableValues"
-  | "injectionTokenBudget"
-  | "timezone"
-  | "hostTierRegexScripts"
->;
+import { gatherAssembleContext } from "../substrate/assemble-gather";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent). `emit`
  *  is the chat bus; `loadParticipantViews` resolves the returned `ChatDetail` roster (the root resolves `users`
@@ -85,11 +65,9 @@ interface StartChatDeps {
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
   }) => Promise<ResolvedConnection>;
-  readonly resolveAssembleInputs: (args: {
-    readonly chatId: ChatId;
-    readonly runAsUserId: UserId;
-    readonly model: string;
-  }) => Promise<AssembleCrossInputs>;
+  /** The FOREIGN half of the assemble ctx (preset/persona/settings) for the `generate` opening (contract/
+   *  foreign.ts; the verbatim paths never touch it). */
+  readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
@@ -224,21 +202,25 @@ async function runGeneratedOpening(
 ): Promise<TurnOutcome> {
   const { chatId, hostUserId } = args;
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
-  const cross = await deps.resolveAssembleInputs({
+  const personaIds = args.anchorPersonaId !== null ? [args.anchorPersonaId] : [];
+  const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
     model: connection.model,
+    anchorPersonaId: args.anchorPersonaId,
+    personaIds,
   });
-  const assembleContext = await buildAssembleContext(ctx, {
-    ...cross,
-    chatId,
-    ownerId: hostUserId,
-    castCharacterIds: args.characterIds,
-    personaIds: args.anchorPersonaId !== null ? [args.anchorPersonaId] : [],
-    model: connection.model,
-    generationType: "normal",
-    nowMs: ctx.now(),
-  });
+  const assembleContext = await gatherAssembleContext(
+    ctx,
+    {
+      chatId,
+      runAsUserId: hostUserId,
+      model: connection.model,
+      castCharacterIds: args.characterIds,
+      personaIds,
+    },
+    foreign,
+  );
   return await deps.engine.runTurn({
     chatId,
     assembleContext,

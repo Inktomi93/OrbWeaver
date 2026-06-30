@@ -1,0 +1,340 @@
+// substrate/assemble-gather — the CHAT-INTERNAL gather (the impure shell before the pure BUILD core). Proves
+// against a real libSQL db: the chat-owned half (canon/injections/variables) is read + merged with the FOREIGN
+// DTO; `recallMemory` is invoked over the shared/merged bucket (the group char) with the right scope; the
+// host-tier regex union is global ∪ preset ∪ cast in order; the FOREIGN injection budget is applied; memory-off
+// short-circuits with no search; and the SEND USER_INPUT regex still transforms through the gather (the sink).
+
+import type { CharacterCard } from "@orb/contracts/character";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
+import type { Db } from "@orb/db";
+import { chatBooks, chatInjections, chats, worldBooks, worldEntries } from "@orb/db";
+import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
+import { beforeEach, describe, expect, test } from "vitest";
+import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
+import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather";
+import { freshDb } from "../../../../support/db";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedUser,
+} from "../_support";
+import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support";
+
+let db: Db;
+beforeEach(async () => {
+  db = await freshDb();
+});
+
+/** A full canonical card (D28 live read) carrying `regexScripts` (the host-tier cast source). */
+function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
+  return {
+    name,
+    description: "",
+    personality: null,
+    scenario: null,
+    greetings: [],
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    regexScripts,
+    extensions: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+}
+
+/** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
+function regexScript(
+  id: string,
+  find: string,
+  replace: string,
+  placement: "USER_INPUT" | "WORLD_INFO",
+): RegexScript {
+  return regexScriptSchema.parse({
+    id,
+    name: id,
+    findRegex: find,
+    replaceString: replace,
+    placement: [placement],
+  });
+}
+
+function foreignOf(over: Partial<ForeignInputs> = {}): ForeignInputs {
+  return {
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    personas: { anchor: null, active: null },
+    globalRegexScripts: [],
+    scanDepth: 6,
+    injectionTokenBudget: 0,
+    ...over,
+  };
+}
+
+/** Seed a solo room (host + one character), returning the ids. */
+async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; aria: CharacterId }> {
+  const host = await seedUser(db, `${key}_host`);
+  const chatId = await seedChat(db, key);
+  const aria = await seedCharacter(db, host, `${key}_aria`);
+  await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: `${key}_c`, characterId: aria });
+  return { host, chatId, aria };
+}
+
+/** Attach a chat-scope, always-fire WI entry (priority for the budget walk). */
+async function attachAlwaysEntry(
+  owner: UserId,
+  chatId: string,
+  key: string,
+  entry: { readonly content: string; readonly priority: number },
+): Promise<void> {
+  const { content, priority } = entry;
+  const bookId = castId<WorldBookId>(`world_book_${key}`);
+  await db
+    .insert(worldBooks)
+    .values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+  await db.insert(worldEntries).values({
+    id: castId<WorldEntryId>(`world_entry_${key}`),
+    worldBookId: bookId,
+    title: key,
+    content,
+    keys: null,
+    enabled: true,
+    priority,
+    ignoreBudget: false,
+    metadata: null,
+    createdAt: FROZEN_AT,
+  });
+  await db
+    .insert(chatBooks)
+    .values({ chatId: castId(chatId), worldBookId: bookId, createdAt: FROZEN_AT });
+}
+
+describe("gatherAssembleContext — the chat-internal merge", () => {
+  test("reads canon / injections / variables and merges with the FOREIGN DTO", async () => {
+    const { host, chatId, aria } = await seedRoom("merge");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello dragon" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: aria, content: "roar" });
+    await db.insert(chatInjections).values({
+      id: castId("chat_injection_1"),
+      chatId: castId(chatId),
+      position: "in_static",
+      depth: 0,
+      role: "system",
+      content: "OPERATOR",
+      createdAt: FROZEN_AT,
+    });
+    await db
+      .update(chats)
+      .set({ variableValues: { mood: "calm" } })
+      .where(eq(chats.id, castId(chatId)));
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf(),
+    );
+
+    expect(out.recentMessages).toEqual(["hello dragon", "roar"]);
+    expect(out.lastUserMessage).toBe("hello dragon");
+    expect(out.lastCharMessage).toBe("roar");
+    expect(out.lastMessage).toBe("roar");
+    expect(out.variableValues).toEqual({ mood: "calm" });
+    // The operator chat_injection survives the (unbudgeted) pass and rides the built injection list.
+    expect((out.chatInjections ?? []).some((i) => i.content.includes("OPERATOR"))).toBe(true);
+  });
+
+  test("excludedFromPrompt rows are dropped from the recent window + last-message family", async () => {
+    const { host, chatId, aria } = await seedRoom("hidden");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "visible" });
+    await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      characterId: aria,
+      content: "HIDDEN",
+      excludedFromPrompt: true,
+    });
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf(),
+    );
+
+    expect(out.recentMessages).toEqual(["visible"]);
+    expect(out.lastMessage).toBe("visible");
+    expect(out.lastCharMessage).toBeUndefined();
+  });
+});
+
+describe("gatherAssembleContext — memory recall (the shared/merged bucket)", () => {
+  test("recall runs over the synthetic group character's scope (mixC → searchDigests)", async () => {
+    const { host, chatId, aria } = await seedRoom("recall");
+    await seedCharacter(db, host, "group"); // FK for GROUP_CHAR
+    await seedDigest(db, {
+      chatId: castId(chatId),
+      scopedCharacterId: GROUP_CHAR,
+      tier: 0,
+      blockIdx: 0,
+    });
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
+      searchDigests: search.fn,
+    });
+
+    await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf({ memoryConfig: { mode: "mixC" } }),
+    );
+
+    expect(search.calls).toHaveLength(1);
+    expect(search.calls.at(0)?.scope.chat).toBe(chatId);
+    expect(search.calls.at(0)?.scopedCharacterId).toBe(GROUP_CHAR);
+  });
+
+  test("memory-off → empty memory, no embed (the recall early-return)", async () => {
+    const { host, chatId, aria } = await seedRoom("off");
+    await seedCharacter(db, host, "group");
+    await seedDigest(db, {
+      chatId: castId(chatId),
+      scopedCharacterId: GROUP_CHAR,
+      tier: 0,
+      blockIdx: 0,
+    });
+    const search = fakeSearchDigests([]);
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      findSyntheticGroupCharacter: () => Promise.resolve({ characterId: GROUP_CHAR }),
+      searchDigests: search.fn,
+    });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf({ memoryConfig: { mode: "off" } }),
+    );
+
+    expect(out.memory).toBe("");
+    expect(search.calls).toHaveLength(0);
+  });
+});
+
+describe("gatherAssembleContext — the host-tier regex union (D53)", () => {
+  test("union = host-global ∪ chat-preset ∪ cast, in that order", async () => {
+    const { host, chatId, aria } = await seedRoom("regex");
+    const castScript = regexScript("cast", "a", "b", "WORLD_INFO");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria", [castScript])),
+    });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf({
+        globalRegexScripts: [regexScript("global", "x", "y", "WORLD_INFO")],
+        promptConfig: {
+          ...DEFAULT_PROMPT_CONFIG,
+          regexScripts: [regexScript("preset", "p", "q", "WORLD_INFO")],
+        },
+      }),
+    );
+
+    expect((out.hostTierRegexScripts ?? []).map((s) => s.id)).toEqual(["global", "preset", "cast"]);
+  });
+});
+
+describe("gatherAssembleContext — the FOREIGN injection budget is applied", () => {
+  test("a low-priority WI entry is dropped under the foreign injectionTokenBudget", async () => {
+    const { host, chatId, aria } = await seedRoom("budget");
+    await attachAlwaysEntry(host, chatId, "hi", { content: "AAAAAAAA", priority: 10 });
+    await attachAlwaysEntry(host, chatId, "lo", { content: "BBBBBBBB", priority: 1 });
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+      },
+      foreignOf({ injectionTokenBudget: 2 }),
+    );
+
+    // Always-scope lore routes to the before-anchor (DEFAULT_PROMPT_CONFIG ships the marker); budget still drops lo.
+    expect(out.worldInfoBefore).toContain("AAAAAAAA");
+    expect(out.worldInfoBefore).not.toContain("BBBBBBBB");
+    expect(out.wiTrace?.dropped).toContainEqual({ id: "world_entry_lo", reason: "budget" });
+  });
+});
+
+describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gather", () => {
+  test("the post-regex text is surfaced on the sink + folded into {{input}}", async () => {
+    const { host, chatId, aria } = await seedRoom("send");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+    const sink: { sendUserText?: string } = {};
+
+    const out = await gatherAssembleContext(
+      ctx,
+      {
+        chatId: castId(chatId),
+        runAsUserId: host,
+        model: "m",
+        castCharacterIds: [aria],
+        personaIds: [],
+        pendingUserText: "a wyrm appears",
+      },
+      foreignOf({ globalRegexScripts: [regexScript("u", "wyrm", "dragon", "USER_INPUT")] }),
+      sink,
+    );
+
+    expect(sink.sendUserText).toBe("a dragon appears");
+    expect(out.currentInput).toBe("a dragon appears");
+  });
+});

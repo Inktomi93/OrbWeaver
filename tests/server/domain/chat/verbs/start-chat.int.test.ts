@@ -107,14 +107,12 @@ function makeDeps(
     loadParticipantViews,
     engine: over.engine ?? { runTurn: notReached },
     resolveConnection: over.resolveConnection ?? notReached,
-    resolveAssembleInputs: () =>
+    resolveForeignInputs: () =>
       Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
         personas: { anchor: null, active: null },
-        worldInfoEnabled: false,
-        recentMessages: [],
-        userInjections: [],
-        variableValues: {},
+        globalRegexScripts: [],
+        scanDepth: 6,
         injectionTokenBudget: 0,
       }),
   };
