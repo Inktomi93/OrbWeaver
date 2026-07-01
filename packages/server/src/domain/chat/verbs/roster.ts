@@ -15,9 +15,6 @@
 // `chatUpdated` catch-all ("low-payload chat-row changes") — so every roster/group/override/membership
 // mutation emits `chatUpdated` (a "refetch the chat detail" signal). A dedicated roster event would need a
 // new union member in `@orb/contracts/chat` (chunk 1, allowlist-gated) — out of this chunk's scope.
-// FLAG[PD-87]: there is no `participant_not_found`/`target_not_member` code in `CHAT_OP_CODES`;
-// the disable/talkativeness verbs map a missing roster target to `ChatNotFoundError` (→ NOT_FOUND) — the
-// closest leak-free typed error. A dedicated code would tidy the message.
 // HOST HANDOFF (PD-60 — Part III §2; the two-party "nominate → notify → nominee accepts" flow). The pending
 // nomination is persisted on `chats.pendingHostUserId` (the schema seam this chunk added), carried between the
 // two verbs so `acceptHostHandoff` can SECURELY verify the caller was nominated (no storage = a self-promotion
@@ -26,9 +23,9 @@
 // (`requireParticipant` + `principal.userId === chats.pendingHostUserId` — a verb-level check on the nomination
 // record, NOT a host check; chunk-3 matrix). Doc §2 is silent on two cases → security-conservative + FLAGGED:
 //   • FLAG[handoff-nominee]: a nominee who is not a present non-host member (incl. a host self-nominating —
-//     their row is `role='host'`, not a member) → `ChatNotFoundError` (NOT_FOUND), matching this file's
-//     existing `participant-not-found` precedent. No `invalid_nominee` code exists + `contract/errors.ts` is
-//     out of this chunk's scope (can't add one).
+//     their row is `role='host'`, not a member) → `ChatNotFoundError` (NOT_FOUND) — kept leak-free by design
+//     (the nominee arg is a USER id, unlike the character-target verbs' coded `participant_not_found`): a
+//     coded refusal would confirm a foreign user's membership state. No `invalid_nominee` code exists.
 //   • FLAG[handoff-accept-code]: a non-nominee accept is refused with `CHAT_OP_CODES.not_turn_owner` — the
 //     closest existing "you don't own this pending action" code (a dedicated `not_nominee` would be tidier,
 //     but the code set is in `contract/errors.ts`, out of scope). This is the belt that keeps the
@@ -263,8 +260,9 @@ function createAddCharacterToChat(
 }
 
 /** Set a single field on a present CHARACTER participant (the disable/talkativeness shared write), returning
- *  the resolved view. A missing roster target → `ChatNotFoundError` (FLAG[participant-not-found]). `ownerId`
- *  is the host's id (host-only verb) — the card is read under host ownership for the view. */
+ *  the resolved view. A missing roster target → `ChatOperationError('participant_not_found')` — the caller is
+ *  already the verified host, so the coded refusal leaks nothing. `ownerId` is the host's id (host-only verb)
+ *  — the card is read under host ownership for the view. */
 async function updateCharacterParticipant(
   ctx: ChatContext,
   args: {
@@ -288,7 +286,10 @@ async function updateCharacterParticipant(
     .returning();
   const row = rows.at(0);
   if (row === undefined) {
-    throw new ChatNotFoundError(chatId);
+    throw new ChatOperationError(
+      CHAT_OP_CODES.participantNotFound,
+      `chat ${chatId}: character ${characterId} is not a present participant`,
+    );
   }
   const card = await ctx.getCard({ ownerId, characterId });
   return characterParticipantView(row, card);

@@ -193,6 +193,21 @@ describe("setParticipantDisabled — host mute", () => {
       .where(eq(chatParticipants.characterId, characterId));
     expect(row?.disabled).toBe(true);
   });
+
+  test("a character that is not a present participant is refused with participant_not_found", async () => {
+    const host = await seedUser(db, "host");
+    const characterId = await seedCharacter(db, host, "aria"); // owned, but never added to the roster
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster
+      .setParticipantDisabled({ principal: principal(host), chatId, characterId, disabled: true })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("participant_not_found");
+    expect(emitted).toEqual([]);
+  });
 });
 
 describe("kick — host removes a member", () => {

@@ -33,6 +33,10 @@ export const CHAT_OP_CODES = {
   /** An abort called by a member who does not own the in-flight turn (`turn-owner`, chat.md §11 — the
    *  rollback-theft defense; a host aborting a member's turn is refused). */
   notTurnOwner: "not_turn_owner",
+  /** A roster mutation targeted a participant that is not a PRESENT member of the chat (missing or already
+   *  left). Host-only surfaces (the caller already sees the roster), so a coded refusal leaks nothing —
+   *  unlike `requireParticipant` failures, which stay a leak-free `ChatNotFoundError`. */
+  participantNotFound: "participant_not_found",
   /** A turn was requested while the per-chat turn lock is held (a turn is already in flight). */
   locked: "locked",
   /** `undoContinue`/`revertContinue` on a variant that was never continued (the `preContinue*`/
