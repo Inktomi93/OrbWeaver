@@ -13,7 +13,7 @@ export const packageLayout: Check = {
   name: "package-layout",
   run: ({ root }): Violation[] => {
     const violations: Violation[] = [];
-    
+
     for (const pkg of PACKAGES) {
       const srcDir = join(root, "packages", pkg, "src");
       if (!existsSync(srcDir)) continue;

@@ -12,11 +12,14 @@ export const testMockDoctrine: Check = {
       if (!sf.getFilePath().includes("/tests/")) {
         continue;
       }
-      
+
       const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
       for (const call of calls) {
         const expr = call.getExpression();
-        if (expr.getKind() === SyntaxKind.PropertyAccessExpression && expr.getText() === "vi.mock") {
+        if (
+          expr.getKind() === SyntaxKind.PropertyAccessExpression &&
+          expr.getText() === "vi.mock"
+        ) {
           const args = call.getArguments();
           if (args.length > 0 && args[0].getKind() === SyntaxKind.StringLiteral) {
             const mockTarget = args[0].getText().replace(/['"]/g, "");

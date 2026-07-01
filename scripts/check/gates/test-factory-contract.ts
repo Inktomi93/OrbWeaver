@@ -17,11 +17,13 @@ export const testFactoryContract: Check = {
       const funcs = sf.getFunctions();
       for (const func of funcs) {
         if (!func.isExported()) continue;
-        
+
         const name = func.getName() ?? "";
         if (name.startsWith("make")) {
           // makeX should not have a 'db' parameter
-          const hasDb = func.getParameters().some(p => p.getName() === "db" || p.getType().getText().includes("Database"));
+          const hasDb = func
+            .getParameters()
+            .some((p) => p.getName() === "db" || p.getType().getText().includes("Database"));
           if (hasDb) {
             violations.push({
               file: filePath,
@@ -31,7 +33,7 @@ export const testFactoryContract: Check = {
           }
         } else if (name.startsWith("seed")) {
           // seedX must have a 'db' parameter
-          const hasDb = func.getParameters().some(p => p.getName() === "db");
+          const hasDb = func.getParameters().some((p) => p.getName() === "db");
           if (!hasDb) {
             violations.push({
               file: filePath,

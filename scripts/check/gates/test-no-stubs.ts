@@ -12,18 +12,27 @@ export const testNoStubs: Check = {
       if (!sf.getFilePath().includes("/tests/")) {
         continue;
       }
-      
+
       const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
       for (const call of calls) {
         const expr = call.getExpression();
         const exprText = expr.getText();
-        if (exprText === "test" || exprText === "it" || exprText === "test.skip" || exprText === "it.skip") {
+        if (
+          exprText === "test" ||
+          exprText === "it" ||
+          exprText === "test.skip" ||
+          exprText === "it.skip"
+        ) {
           // Check if there are any expect or expectTypeOf calls inside this test block
-          const hasExpect = call.getDescendantsOfKind(SyntaxKind.CallExpression).some(c => {
+          const hasExpect = call.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => {
             const innerExprText = c.getExpression().getText();
-            return innerExprText === "expect" || innerExprText === "expectTypeOf" || innerExprText.startsWith("expect.");
+            return (
+              innerExprText === "expect" ||
+              innerExprText === "expectTypeOf" ||
+              innerExprText.startsWith("expect.")
+            );
           });
-          
+
           if (!hasExpect) {
             // Find the test name if available
             let testName = "unnamed test";
@@ -34,7 +43,10 @@ export const testNoStubs: Check = {
             violations.push({
               file: sf.getFilePath(),
               line: call.getStartLineNumber(),
-              message: "stub test '" + testName + "' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules.",
+              message:
+                "stub test '" +
+                testName +
+                "' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules.",
             });
           }
         }
