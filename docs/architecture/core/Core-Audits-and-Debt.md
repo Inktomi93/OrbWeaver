@@ -15,6 +15,22 @@
 > _how interwoven is the code, and in what order do we build?_ The instrument is a standalone script
 > (`orb-scan.ts`) that reuses the neo-tavern ts-morph install; re-run it against any snapshot to refresh.
 
+## AST Auditing & Exploration Manual (AST Scout CLI)
+
+For ad-hoc AST queries and domain audits, agents MUST use the **`scratch/find_interfaces.ts` AST Scout CLI** rather than hand-rolling ts-morph scripts or `grep` loops.
+The script is a powerful wrapper over `codemod-kit` and supports wildcard searches, reference finding, call-site location, and importer discovery.
+
+**Commands:**
+- `npx tsx scratch/find_interfaces.ts find-symbol "<query>"` (Supports regex/wildcard, e.g. `"Chat*"`)
+- `npx tsx scratch/find_interfaces.ts find-refs <file> <symbolName>`
+- `npx tsx scratch/find_interfaces.ts find-calls <functionName>`
+- `npx tsx scratch/find_interfaces.ts importers <moduleSpecifier>`
+- `npx tsx scratch/find_interfaces.ts exports <file>`
+
+**Flags:**
+- `--neo`: Include the `neo-tavern` legacy codebase in the scan (essential for mapping old logic to new domains).
+- `--json`: Output a machine-readable JSON array. **Use this to bypass the 50-result console limit** when performing large wildcard sweeps.
+
 <!-- Source: Core-Audits-and-Debt.md -->
 
 ## Inputs

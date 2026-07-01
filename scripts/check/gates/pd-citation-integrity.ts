@@ -10,7 +10,7 @@ import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
-const REGISTRY = "docs/architecture/core/Audits-and-Debt.md";
+const REGISTRY = "docs/architecture/core/Core-Audits-and-Debt.md";
 const ROW_RE = /^\|\s*PD-(\d+)\b/gmu; // a registry row (active table OR cleared table)
 const CITE_RE = /FLAG\[PD-(\d+)\]/gu; // a code citation
 
