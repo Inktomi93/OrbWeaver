@@ -4,6 +4,8 @@
 // bus events. The "did it actually land in the DB?" check the log/trace rings can't answer. Reads @orb/db
 // DOWN. No characterVersions (D28 — the card is the flat `characters` row).
 
+import type { ParticipantKind } from "@orb/contracts/chat";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
   characters,
@@ -29,8 +31,8 @@ const RECENT_EVENT_LIMIT = 50;
 /** One roster member (the actor XOR + the resolved character name when it's a character). */
 export interface InspectedParticipant {
   id: string;
-  kind: string; // FLAG[PD-8]
-  role: string; // FLAG[PD-8]
+  kind: ParticipantKind; // the canonical roster-kind union (PD-8 — no stringly-typed dump)
+  role: ParticipantRole; // the canonical host|member union (PD-8)
   userId: UserId | null;
   characterId: CharacterId | null;
   characterName: string | null;
