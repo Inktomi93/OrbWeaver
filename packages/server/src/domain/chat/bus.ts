@@ -20,16 +20,13 @@
 // `createChatBus(ctx)` and hands `bus.emit` to the verb factories that emit (the second factory arg). The
 // emit type is inlined on the verb factories (`(event: ChatBusEvent) => Promise<void>`) because the
 // `types-in-contract` gate forbids an exported type here and `contract/` is owned by another chunk.
-// FLAG[PD-88]: there is no `persistence/` writer for the `chat_events` INSERT (queries.ts holds
-// only the readers — `replayChatEvents`/`chatEventBounds`). The durable write is done HERE via `ctx.db`
-// (the persona-verb inline-write precedent); a `persistence/events.ts` append-writer would be the tidier
-// home if the persistence chunk grows one.
+// The durable `chat_events` INSERT lives in `persistence/events.ts` (`appendChatEvent` — PD-88); the
+// readers (`replayChatEvents`/`chatEventBounds`) stay in `persistence/queries.ts`.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatEvents } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import { sql } from "drizzle-orm";
 import type { ChatContext } from "./contract/context";
+import { appendChatEvent } from "./persistence/events";
 
 /** The bus emit op the verbs/engine close over — durable-first (the `chat_events` row commits before the
  *  in-process ring push). NON-exported (the `types-in-contract` gate); the verb factories inline the same
@@ -72,20 +69,14 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
 
   const emit: EmitChatEvent = async (event) => {
     const chatId = event.chatId;
-    // Durable-first: the same-statement correlated `seq` is monotonic per chat (UNIQUE(chatId,seq)); the
-    // INSERT must commit before the in-memory push so a crash can never leave a delivered-but-unlogged event.
-    const rows = await deps.db
-      .insert(chatEvents)
-      .values({
-        id: deps.newEventId(),
-        chatId,
-        seq: sql<number>`(select coalesce(max(${chatEvents.seq}), 0) + 1 from ${chatEvents} where ${chatEvents.chatId} = ${chatId})`,
-        type: event.type,
-        payload: event,
-        createdAt: deps.now(),
-      })
-      .returning({ seq: chatEvents.seq });
-    const seq = rows.at(0)?.seq ?? 0;
+    // Durable-first: the INSERT (persistence/events.ts — the correlated per-chat seq) must commit before
+    // the in-memory push so a crash can never leave a delivered-but-unlogged event.
+    const seq = await appendChatEvent(deps.db, {
+      id: deps.newEventId(),
+      chatId,
+      event,
+      createdAt: deps.now(),
+    });
 
     const ring = rings.get(chatId) ?? [];
     ring.push({ seq, event });
