@@ -45,6 +45,7 @@ Compare `verbs/` and `persistence/`:
 ### Phase 5: Implementation & Verification
 Once you have the okay:
 1. **Implement:** Re-implement the approved fixes in Orbweaver following Orbweaver rules.
+   - *Bulk Mutation Pattern:* If implementing a `Promise.allSettled` bulk operation, **DO NOT throw errors for control flow** (e.g. `throw new Error("missing")`). This triggers Biome's `noExcessiveCognitiveComplexity` lint when parsed later. Instead, map the inner promises to discriminated objects (e.g., `return { status: "missing" as const }` or `return { status: "updated" as const }`) and filter the fulfilled results cleanly.
 2. **Verify:** Run `pnpm typecheck` to ensure contracts match, and `pnpm check` to verify structure and dependency cruisers.
 3. **Test:** Run `pnpm test` (or `pnpm vitest run tests/server/domain/<domain>`).
 
