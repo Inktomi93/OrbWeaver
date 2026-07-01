@@ -71,7 +71,6 @@ export interface TagService {
   readonly attachTag: (params: AttachTagParams) => Promise<void>;
   readonly detachTag: (params: DetachTagParams) => Promise<void>;
   readonly bulkAttachTag: (params: BulkAttachTagParams) => Promise<void>;
-
   /**
    * Resolve-or-create the owner's tag BY NAME (race-safe on the `(ownerId, name)` unique), then attach it to
    * the character, idempotently. The ONE by-name attach home shared by character's `bulkAddCardTag`, import's

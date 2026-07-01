@@ -43,7 +43,7 @@ import type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params";
-import type { BulkMutationResult, CharacterRef, SnapshotRef, SnapshotSummary } from "./results";
+import type { CharacterRef, SnapshotRef, SnapshotSummary } from "./results";
 import type { CharacterDetail, CharacterSummary, MemberCardView } from "./views";
 
 /**
@@ -115,11 +115,11 @@ export interface CharacterService {
   readonly duplicate: (params: DuplicateCharacterParams) => Promise<CharacterDetail>;
   /** Delete many owned characters (missing/foreign ids are skipped, not thrown — a bulk selection can race
    *  a concurrent delete). Best-effort avatar reap per deletion. */
-  readonly bulkRemove: (params: BulkRemoveParams) => Promise<BulkMutationResult>;
+  readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
   /** Archive / un-archive many owned characters (owner-scoped flip; identity flag, not card content). */
-  readonly bulkArchive: (params: BulkArchiveParams) => Promise<BulkMutationResult>;
+  readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
   /** Attach a tag by name to many owned characters (via the injected tag port). */
-  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<BulkMutationResult>;
+  readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<void>;
 
   // ── History (git working-tree + commit-log; gates nothing — D28) ────────────
   /** Append a `character_snapshots` history blob (the live card snapshotted). Owner-gated. */

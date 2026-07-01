@@ -168,27 +168,4 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
       }),
     ).rejects.toThrow(TagNotFoundError);
   });
-  test("attachTagToTargets attaches one tag to multiple targets and tallies missing without throwing", async () => {
-    const db = await freshDb();
-    const owner = await seedUser(db);
-    const other = await seedUser(db, "user_other");
-    const svc = createTagService(makeTagHarness(db).ctx);
-    const char1 = await seedCharacter(db, owner, "char_1");
-    const char2 = await seedCharacter(db, owner, "char_2");
-    const foreign = await seedCharacter(db, other, "char_foreign");
-    const tagId = await seedTag(db, owner, { id: "tag_a", name: "a" });
-
-    const result = await svc.attachTagToTargets({
-      principal: principal(owner),
-      tagId,
-      targetType: "character",
-      targetIds: [char1, char2, foreign, "char_ghost"],
-    });
-
-    expect(result).toEqual({ attached: 2, missing: 2 });
-    const rows = await db.select().from(characterTags).where(eq(characterTags.tagId, tagId));
-    expect(rows).toHaveLength(2);
-    const attachedIds = rows.map((r) => r.characterId).sort();
-    expect(attachedIds).toEqual([char1, char2].sort());
-  });
 });
