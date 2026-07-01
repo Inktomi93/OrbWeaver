@@ -1,4 +1,4 @@
-// domain/sessions — the typed API surface (structure.md §4). `SessionsService` is the authoritative
+// domain/sessions — the typed API surface (core/Core-0-Architecture-and-Structure.md §4). `SessionsService` is the authoritative
 // verb listing (read it to know everything the domain does); `SessionsContext` is the explicit DI bundle
 // (movement table: the inferred `ReturnType<>` is invisible at a glance, so the bundle is a hand-written
 // interface here — `no-context-returntype` forbids reflecting it off the builder).

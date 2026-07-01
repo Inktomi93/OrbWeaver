@@ -1,4 +1,4 @@
-// entry/import/run-profile-import — the bulk-import COMPOSITION DRIVER (tiers/entry.md §layout "import/";
+// entry/import/run-profile-import — the bulk-import COMPOSITION DRIVER (core/Tier-5-Entry.md §layout "import/";
 // DECISIONS-LEDGER §7 D3). It is the one place that constructs the PER-OWNER `ImportService` (import is
 // `ImportContext.ownerId`-scoped, built per request — services.ts §"import — its service is PER-OWNER")
 // and wires the FOUR cross-feature injected ops the import verbs declared type-only (boundaries-are-

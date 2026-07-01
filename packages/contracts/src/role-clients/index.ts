@@ -3,14 +3,14 @@
 // consumer's deps. Downstream code never sees a credential literal or picks a model — it calls
 // `clients.embed(text)` and gets a result. The GOLD-STANDARD cross-feature hub (the 19 type-only
 // importers — corpus / search / chat-memory / buddy / workloads — name it WITHOUT a domain↔domain or
-// domain→infra import; tiers/providers.md "keep the bundle"). Ported from neo-tavern
+// domain→infra import; core/Tier-3b-Providers.md "keep the bundle"). Ported from neo-tavern
 // `domain/_shared/role-clients.ts`.
 //
 // TYPE-ONLY by nature: a bundle of FUNCTIONS is not wire-serializable, so there are NO zod schemas
 // here — only the interface + its credential-free call-argument shapes. The cross-boundary RESULT
 // shapes (`EmbedResult` / `RerankResult` / `ImageEmbedResult` / `SummarizeResult`) are imported DOWN
 // from `@orb/contracts/providers` (DAG: providers MUST land first — shared-dissolution §8,
-// tiers/providers.md movement table). This node stays Layer 1: the callables are PRE-BOUND THUNKS
+// core/Tier-3b-Providers.md movement table). This node stays Layer 1: the callables are PRE-BOUND THUNKS
 // (no `ResolvedCredential` / `ResolvedConnection` in any signature), so role-clients does NOT pick up
 // a `contracts/credentials` or `contracts/connection` edge (contracts-dag role-clients FLAG → resolves
 // to L1). The boot binder FILLS the bundle via `connection.resolveRole(role)` per role (Esoteric §2).

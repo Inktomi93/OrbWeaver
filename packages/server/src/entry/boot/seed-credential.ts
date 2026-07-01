@@ -1,4 +1,4 @@
-// entry/boot/seed-credential — boot step 4: idempotent env→DB seed of the `OPENROUTER_API_KEY` (tiers/entry.md
+// entry/boot/seed-credential — boot step 4: idempotent env→DB seed of the `OPENROUTER_API_KEY` (core/Tier-5-Entry.md
 // §"Boot order"; domains/credentials.md — the env→DB seed path). It runs ONLY when the env var is set AND the
 // owner has no openrouter credential yet, so re-running never duplicates a row. The credential is the OWNER's
 // (rows are scoped by `principal.userId`; the OpenRouter key is a box credential the owner holds).

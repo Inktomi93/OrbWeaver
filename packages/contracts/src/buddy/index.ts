@@ -2,14 +2,14 @@
 // `zod` only. This is the ONE cross-boundary home for the buddy's gacha vocabulary: `@orb/db` imports
 // the tuples for its enum columns (`buddies.rarity/species/hat/mood`), `domain/buddy` rolls + reacts
 // against them, and `@orb/client` renders sprites from them — all import from HERE, never re-exported
-// through `@orb/server` (buddy.md invariant #7; shared-dissolution.md §4).
+// through `@orb/server` (buddy.md invariant #7; Legacy-Migration-and-Gaps.md §4).
 //
 // §7.5 tuple→derived-union discipline: every string axis is an `as const` TUPLE (the one importable
 // canonical home — `no-inline-union-redecl`), its `type` is `(typeof TUPLE)[number]`, and the wire
 // `z.enum(TUPLE)` schema imports the tuple. The db enum columns DERIVE from these tuples (test-mirror).
 //
 // Ported from neo-tavern `shared/buddy/taxonomy.ts`. NOT ported: `sprites.ts` (renderSprite/renderFace
-// + the body/hat/mood art) — that is `@orb/client` presentation (shared-dissolution.md §10), and it
+// + the body/hat/mood art) — that is `@orb/client` presentation (Legacy-Migration-and-Gaps.md §10), and it
 // imports these taxonomy types DOWN from contracts.
 
 import { z } from "zod";
@@ -37,7 +37,7 @@ export const RARITY_FLOOR: Record<Rarity, number> = {
   legendary: 50,
 };
 
-/** Unwired display intent (no current consumer) — KEEP (`structure.md` "unwired ≠ worthless").
+/** Unwired display intent (no current consumer) — KEEP (`Core-0-Architecture-and-Structure.md` "unwired ≠ worthless").
  *  A rarity→stars map; travels with the taxonomy (buddy.md "Esoteric / load-bearing"). */
 export const RARITY_STARS: Record<Rarity, string> = {
   common: "★",

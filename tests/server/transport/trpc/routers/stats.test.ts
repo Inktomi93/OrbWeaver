@@ -1,4 +1,4 @@
-// stats.{leaderboard,latency} — the PD-47 wire-through (tiers/transport.md). The router is a THIN driver:
+// stats.{leaderboard,latency} — the PD-47 wire-through (core/Tier-4-Transport.md). The router is a THIN driver:
 // it derives `leaderboard.sort` from the `LEADERBOARD_SORTS` tuple + re-parses the `latencyScopeSchema`
 // discriminated union, then delegates to `ctx.services.stats.<verb>` with `ownerId = principal.userId`
 // (never input). These assert the pass-through (the wired `sort` reaches the service; the parsed scope

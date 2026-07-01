@@ -1,4 +1,4 @@
-// transport/trpc/routers/workloads — the workloads ops surface (tiers/transport.md). Every procedure is
+// transport/trpc/routers/workloads — the workloads ops surface (core/Tier-4-Transport.md). Every procedure is
 // `adminProcedure` (workloads are deployment-global; workloads.md §7.1). Thin: validate → enter the
 // `workloads` front door → map errors. `ownerId` is the acting user (audit subject, not authz yet); `null`
 // would be a system/scheduler trigger (the jobs driver's concern, not transport's).

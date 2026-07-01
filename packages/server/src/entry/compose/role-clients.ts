@@ -1,5 +1,5 @@
-// entry/compose/role-clients — THE single `RoleClients` binder the composition root mints (tiers/entry.md
-// §layout "role-clients.ts"; tiers/providers.md §"boot binder" + Esoteric §2). `RoleClients`
+// entry/compose/role-clients — THE single `RoleClients` binder the composition root mints (core/Tier-5-Entry.md
+// §layout "role-clients.ts"; core/Tier-3b-Providers.md §"boot binder" + Esoteric §2). `RoleClients`
 // (@orb/contracts/role-clients) is the GOLD-STANDARD cross-feature seam: a bundle of PRE-BOUND callables
 // (embed/rerank/imageEmbed/summarize) + their `*Model` provenance tags. Downstream (search / embeddings /
 // discovery / workloads) never sees a credential or picks a model — it calls `clients.embed(text)`.

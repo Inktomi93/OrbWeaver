@@ -1,4 +1,4 @@
-// Gate: test-fixture-imports (spine/testing.md §4)
+// Gate: test-fixture-imports (core/Spine-Testing.md §4)
 // Fixture doctrine: A test imports { test, expect } from support/test, never directly from vitest or @playwright/test.
 // This ensures composed fixtures (db, frozen clock, etc.) are used.
 import type { Check, Violation } from "../harness.ts";
@@ -23,7 +23,7 @@ export const testFixtureImports: Check = {
               violations.push({
                 file: filePath,
                 line: importDecl.getStartLineNumber(),
-                message: `Importing '${name}' directly from '${moduleName}' bypasses the composed fixture. Import from 'support/test' instead (spine/testing.md §4).`,
+                message: `Importing '${name}' directly from '${moduleName}' bypasses the composed fixture. Import from 'support/test' instead (core/Spine-Testing.md §4).`,
               });
             }
           }

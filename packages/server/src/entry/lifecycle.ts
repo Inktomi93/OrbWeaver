@@ -1,4 +1,4 @@
-// entry/lifecycle — THE boot/shutdown protocol (tiers/entry.md §"Boot order"; DECISIONS-LEDGER §7 D5:
+// entry/lifecycle — THE boot/shutdown protocol (core/Tier-5-Entry.md §"Boot order"; DECISIONS-LEDGER §7 D5:
 // this lives at `entry/lifecycle.ts`, read by entry only). `index.ts` constructs the lifecycle once and
 // runs `boot()`; SIGTERM/SIGINT run `shutdown()`. It owns NO business logic — it MINTS the one real clock,
 // resolves the boot chicken-egg (owner id → services → owner Principal), runs the seed steps, starts the

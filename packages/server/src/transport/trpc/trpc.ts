@@ -1,4 +1,4 @@
-// transport/trpc/trpc — the single `initTRPC` init + the procedure ladder (tiers/transport.md
+// transport/trpc/trpc — the single `initTRPC` init + the procedure ladder (core/Tier-4-Transport.md
 // §"trpc.ts"). Lives apart from `router.ts` so sub-routers import `t`/the procedures without a cycle
 // through the root router. The ladder is built ONCE: `publicProcedure → authedProcedure → adminProcedure`,
 // each rung adding a stricter gate. Middleware stack order (Esoteric #8 — tracing FIRST so a 401/429 from

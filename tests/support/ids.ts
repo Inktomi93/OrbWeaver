@@ -1,4 +1,4 @@
-// Seeded, deterministic id generator (spine/testing.md §3 — no unseeded ids under tests/). A
+// Seeded, deterministic id generator (core/Spine-Testing.md §3 — no unseeded ids under tests/). A
 // zero-padded counter is enough for stable assertions today; swap to a seeded `typeid` once
 // @orb/kit/ids lands (the determinism seam stays the same — injected at the composition root).
 

@@ -1,10 +1,10 @@
 // foundation/observability/logger — pino (multistream: stdout + the in-process ring) + the bounded ring
 // buffers behind /api/_debug + the AsyncLocalStorage request scope + `securityEvent`. Read DOWN by every
 // tier; `getLog()`/`logger` is the ONLY sanctioned output (the `noConsole` total ban goes live with this
-// file). Doctrine: logs are METADATA — RP content lives in the DB (never a log line — tiers/foundation.md
+// file). Doctrine: logs are METADATA — RP content lives in the DB (never a log line — core/Tier-2-Foundation.md
 // esoteric #12).
 //
-// ASSUMES(single-replica): the log + request rings are module-scope, per-process (tiers/foundation.md
+// ASSUMES(single-replica): the log + request rings are module-scope, per-process (core/Tier-2-Foundation.md
 // esoteric #5). An admin browsing /api/_debug on a multi-replica deploy sees only the replica they hit;
 // the rings are the seam to externalize if that is ever reversed.
 
@@ -152,7 +152,7 @@ export const logger: Logger = pino(
   // Each multistream destination needs its OWN level — without it pino.multistream defaults streams to
   // `info` and silently DROPS debug logs even when the logger level is `debug`, making every per-op
   // getLog().debug line unreachable (stdout AND the ring). Tie both to LOG_LEVEL; dedupe:false → a log
-  // goes to every stream at/above its level (tiers/foundation.md esoteric #7).
+  // goes to every stream at/above its level (core/Tier-2-Foundation.md esoteric #7).
   pino.multistream(
     [
       { level: env.LOG_LEVEL, stream: process.stdout },

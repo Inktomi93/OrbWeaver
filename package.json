@@ -36,13 +36,12 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "@orb/client": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",
     "@orb/kit": "workspace:*",
     "@orb/server": "workspace:*",
-    "zod": "catalog:",
-    "@biomejs/biome": "catalog:",
     "@playwright/experimental-ct-react": "catalog:",
     "@playwright/test": "catalog:",
     "@stryker-mutator/core": "catalog:",
@@ -56,11 +55,14 @@
     "drizzle-orm": "catalog:",
     "jscpd": "catalog:",
     "lefthook": "catalog:",
+    "markdownlint-cli": "^0.49.0",
     "pino-pretty": "catalog:",
+    "prettier": "^3.9.4",
     "sharp": "catalog:",
     "ts-morph": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "zod": "catalog:"
   }
 }

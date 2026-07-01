@@ -12,7 +12,7 @@
 // capability arrives as an INJECTED op, type-only on the bundles, wired at the entry composition root:
 //   - `roleClients` — the `@orb/contracts/role-clients` bundle (embed/imageEmbed/summarize PRE-BOUND with
 //     the credential+model the boot binder resolved via `connection.resolveRole(<role>)` per role; the
-//     RESOLVED "keep the bundle" seam, tiers/providers.md). The `(model)` space tag is read off
+//     RESOLVED "keep the bundle" seam, core/Tier-3b-Providers.md). The `(model)` space tag is read off
 //     `roleClients.embedModel` / `imageEmbedModel` (role-clients: "stored on every embedding row's model
 //     column"). No raw `providers.embed` + `connection.resolveRole` scatter; no runner/family ever named
 //     (providers-runner-seal).
@@ -54,7 +54,7 @@ export type LoadAssetBytes = (assetId: AssetId) => Promise<Uint8Array | undefine
  *   - `now` — the injected clock (epoch-ms); no ambient `Date.now()` (test-determinism).
  *   - `newCharacterEmbeddingId` / `newImageEmbeddingId` / `newChatDigestId` / `newChatSegmentId` — injected
  *     id minters (no ambient `mintTypeId()`). The chat-digest/segment minters back the `digest` / `segment`
- *     store arms (knowledge-cluster.md §1/§2); wired at the entry root (`compose/services.ts`).
+ *     store arms (domains/memory.md §1/§2); wired at the entry root (`compose/services.ts`).
  */
 export interface EmbeddingsContext {
   readonly db: Db;

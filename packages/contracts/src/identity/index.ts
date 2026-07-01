@@ -1,5 +1,5 @@
 // `@orb/contracts/identity` — the ONE global-role axis + the two canonical identity shapes the auth
-// seam threads (spine `identity-auth-permission.md` §1). DAG root: kit-only (the `UserId`/`Handle`/
+// seam threads (spine `Spine-Identity-and-Auth.md` §1). DAG root: kit-only (the `UserId`/`Handle`/
 // `ExternalId` brands from `@orb/kit/ids`) + zod. No domain, no `@orb/db`, no sibling contracts node.
 //
 // Identity is resolved ONCE at the entry seam into ONE immutable `Principal` that flows down unchanged;
@@ -20,7 +20,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const userRoleSchema = z.enum(USER_ROLES);
 
 // The ONE auth-mode axis — the SSO mechanism selector. The single tuple is the one home (§7.5,
-// string-union-dispatch.md §125 names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
+// Spine-TypeScript-and-Patterns.md §125 names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
 // `AUTH_MODE` var + its superRefine, and `infra/auth`'s `AuthConfig.mode` + the `MODE_RESOLVERS` dispatch
 // DERIVE from it — no inline re-spell anywhere.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;

@@ -1,4 +1,4 @@
-// Gate: pd-citation-integrity — the Promotion/Relocation Debt registry (reports/PROMOTION-DEBT.md) is the
+// Gate: pd-citation-integrity — the Promotion/Relocation Debt registry (core/Audits-and-Debt.md) is the
 // ONE home for "promote/relocate later" deferrals; code cites a row via `FLAG[PD-<n>]`. Concurrent leaf
 // agents collided ids (two PD-19s; reused PD-1/2/3 for new items) — the registry built to PREVENT lost
 // deferrals got corrupted by uncoordinated appends. This makes the registry↔code link PHYSICS:
@@ -10,7 +10,7 @@ import { join } from "node:path";
 import type { SourceFile } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
-const REGISTRY = "docs/architecture/reports/PROMOTION-DEBT.md";
+const REGISTRY = "docs/architecture/core/Audits-and-Debt.md";
 const ROW_RE = /^\|\s*PD-(\d+)\b/gmu; // a registry row (active table OR cleared table)
 const CITE_RE = /FLAG\[PD-(\d+)\]/gu; // a code citation
 

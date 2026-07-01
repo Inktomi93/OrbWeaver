@@ -53,12 +53,12 @@ export interface MemoryQueryOptions {
   /** First-class chat-scope — the scan is restricted to this one chat (D18/D20: membership-derived, no
    *  `chats.ownerId` row leak). */
   scope: { chat: ChatId };
-  /** The recent-window retrieval query TEXT (knowledge-cluster.md §6/§3b): `memory` assembles the egocentric
+  /** The recent-window retrieval query TEXT (domains/memory.md §6/§3b): `memory` assembles the egocentric
    *  (name-prefixed) query over the recent window pre-call; `search` embeds + scans it (mixB/mixC). Homed here
    *  (was carried chat-side on `MemoryRecallQuery` as a workaround). Absent for the non-embedding modes
    *  (`off`/`mixA`/`tiered` do pure assembly — no query embed). */
   queryText?: string | undefined;
-  /** The egocentric scope bucket (knowledge-cluster.md §4 / inv 8): the active speaker's own witnessed
+  /** The egocentric scope bucket (domains/memory.md §4 / inv 8): the active speaker's own witnessed
    *  bucket for a within-chat recall. ALWAYS a real `CharacterId` (solo's cast char / the synthetic
    *  group-as-character / a per-witnessing char) — NO `''` sentinel, NO NULL. Homed here (was carried
    *  chat-side as a workaround). Absent for an owner-wide cross-chat scan that has no single egocentric POV. */

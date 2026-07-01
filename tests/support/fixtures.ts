@@ -1,4 +1,4 @@
-// The composed test (spine/testing.md §4) — `test.extend` over beforeEach. Today it provides the two
+// The composed test (core/Spine-Testing.md §4) — `test.extend` over beforeEach. Today it provides the two
 // determinism fixtures (frozen clock + seeded ids); `db` (migrated libSQL :memory:) + the seeded
 // services join as @orb/db and the domains land (Phase 3+). Import `test`/`expect` from here, not vitest.
 

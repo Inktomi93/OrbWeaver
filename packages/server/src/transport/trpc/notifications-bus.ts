@@ -1,5 +1,5 @@
 // transport/trpc/notifications-bus — the per-user LIVE fan-out the notifications subscription tails
-// (PD-23; tiers/transport.md §"per-user notifications subscription"). The `notifications` DOMAIN owns the
+// (PD-23; core/Tier-4-Transport.md §"per-user notifications subscription"). The `notifications` DOMAIN owns the
 // durable half (the `record` INSERT + the `list` cursor by `seq`); the per-user live bus is TRANSPORT
 // state (the domain has no in-memory channel by design). One process-local `EventEmitter`, one channel
 // per `userId`.

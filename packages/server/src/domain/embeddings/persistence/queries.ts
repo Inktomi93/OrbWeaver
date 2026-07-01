@@ -303,7 +303,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
   return rows[0]?.id ?? input.id;
 }
 
-/** Replace a digest's `chat_digest_speakers` join (knowledge-cluster.md §4): delete the existing rows for the
+/** Replace a digest's `chat_digest_speakers` join (domains/memory.md §4): delete the existing rows for the
  *  digest, then insert the new speaker set. Runs only on the WRITTEN path (a `noop` upsert leaves the join
  *  intact — the speaker ids fold into `content_hash`, so an unchanged hash means unchanged speakers). Idempotent;
  *  an empty `characterIds` clears the join (a no-speaker block). */

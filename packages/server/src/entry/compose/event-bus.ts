@@ -1,4 +1,4 @@
-// entry/compose/event-bus — the in-process typed domain-event bus (tiers/entry.md §layout "event-bus.ts";
+// entry/compose/event-bus — the in-process typed domain-event bus (core/Tier-5-Entry.md §layout "event-bus.ts";
 // the deferred "event system" decision → in-process typed bus, single-replica v1). The payload union +
 // the injected `EmitDomainEvent` op live in `@orb/contracts/events`; THIS file owns the runtime dispatcher
 // the composition root binds: an emitting domain (character/import/assets) receives `bus.emit` as its

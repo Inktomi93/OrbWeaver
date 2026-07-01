@@ -1,14 +1,14 @@
 import { defineConfig } from "vitest/config";
 
 // ONE config, lanes by SUFFIX via test.projects (the modern "workspace" — vitest.workspace.ts was
-// deprecated in 3.2). NODE lanes only; BROWSER is Playwright (vitest browser-mode hangs — testing.md §7).
+// deprecated in 3.2). NODE lanes only; BROWSER is Playwright (vitest browser-mode hangs — Spine-Testing.md §7).
 // `test` (the fast lane) = unit + integration + contract; types + parity are opt-in (own scripts).
 //
 // CRITICAL: shared defaults live in the root `test` block, and EVERY project sets `extends: true` to
 // inherit them. Per-runner options (cleanup/determinism/expect) do NOT reach a project without it —
 // that's the latent trap neo-tavern fell into (its root isolate/restoreMocks/etc. are dead config
 // because its projects omit `extends: true`). `coverage` + `reporters` are root-only (process-global)
-// and apply regardless. Authority: spine/testing.md + DECISIONS-LEDGER §6.
+// and apply regardless. Authority: core/Spine-Testing.md + DECISIONS-LEDGER §6.
 //
 // Kept at vitest/node DEFAULTS deliberately: `isolate: true` (fresh module graph per test file → the
 // single-tenant globalMacroRegistry resets for free; do NOT copy neo's `isolate: false`) and

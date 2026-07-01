@@ -1,4 +1,4 @@
-// Gate: test-mock-doctrine (spine/testing.md §3)
+// Gate: test-mock-doctrine (core/Spine-Testing.md §3)
 // vi.mock is effectively banned for internal modules; its only legitimate use is an unavoidable third-party node edge.
 // Fakes should be injected at the composition root.
 import { SyntaxKind } from "ts-morph";
@@ -25,7 +25,7 @@ export const testMockDoctrine: Check = {
               violations.push({
                 file: sf.getFilePath(),
                 line: call.getStartLineNumber(),
-                message: `vi.mock on internal module '${mockTarget}'. Fake at the edges, inject at the root (spine/testing.md §3).`,
+                message: `vi.mock on internal module '${mockTarget}'. Fake at the edges, inject at the root (core/Spine-Testing.md §3).`,
               });
             }
           }

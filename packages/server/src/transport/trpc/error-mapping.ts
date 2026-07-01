@@ -1,4 +1,4 @@
-// transport/trpc/error-mapping — the pure `DomainError → tRPC code` classifier (tiers/transport.md
+// transport/trpc/error-mapping — the pure `DomainError → tRPC code` classifier (core/Tier-4-Transport.md
 // §"error-mapping.ts" + Esoteric #3). NO `t`, NO middleware context, NO router state, so it is tested in
 // isolation against every `@orb/kit/errors` subclass without standing up the ladder (Invariant #5: one
 // case per subclass; a new subclass = one branch HERE + one test).

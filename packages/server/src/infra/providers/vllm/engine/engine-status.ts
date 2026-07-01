@@ -5,7 +5,7 @@
 // Engine identity comes from the ./engines leaf, never ./client, so this registry sits below the HTTP
 // client with no cycle. Process-local state, deliberately not persisted.
 //
-// ASSUMES(single-replica): the status registry is a module-scope Map, per-process (tiers/foundation.md
+// ASSUMES(single-replica): the status registry is a module-scope Map, per-process (core/Tier-2-Foundation.md
 // esoteric #5). It is INTENTIONALLY process-local — each replica supervises only its OWN spawned engines,
 // so a peer replica's lifecycle state is meaningless here. The multi-replica replacement seam is a
 // DB-backed `vllm_engine_status` table (engine × replica-id → status) the supervisor upserts and the admin

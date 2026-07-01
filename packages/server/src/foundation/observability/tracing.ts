@@ -6,7 +6,7 @@
 // OTLP-replaceable seam. Spans are METADATA ONLY (durations + primitive attrs + event timestamps); RP
 // content never reaches a span attribute (same discipline as logs).
 //
-// ASSUMES(single-replica): the trace ring is module-scope, per-process (tiers/foundation.md esoteric #5).
+// ASSUMES(single-replica): the trace ring is module-scope, per-process (core/Tier-2-Foundation.md esoteric #5).
 
 import type { Span, SpanOptions, Tracer } from "@opentelemetry/api";
 import { context, SpanStatusCode, trace } from "@opentelemetry/api";
@@ -33,7 +33,7 @@ const MAX_ATTR_LEN = 512;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1e6;
 
-/** Public span shape — the JSON /api/_debug/traces returns. Foundation-internal (tiers/foundation.md
+/** Public span shape — the JSON /api/_debug/traces returns. Foundation-internal (core/Tier-2-Foundation.md
  *  §7.4 — `types-in-contract` is a domain rule; the /traces client consumes the JSON, not this type). */
 export interface SerializedSpan {
   spanId: string;
@@ -413,7 +413,7 @@ function enrichExecuteResult(result: unknown): void {
  *  through but ARE BOUND TO THE TARGET — load-bearing: libSQL's Sqlite3Client uses TC39 private fields
  *  (`#checkNotClosed()`) that throw a TypeError when invoked with the Proxy as `this`. Returning
  *  `value.bind(target)` for every function keeps the brand check happy so `migrate()`/`close()`/`sync()`
- *  keep working (tiers/foundation.md esoteric #8). Generic so it stays decoupled from libSQL's exact shape
+ *  keep working (core/Tier-2-Foundation.md esoteric #8). Generic so it stays decoupled from libSQL's exact shape
  *  while remaining assignable to `@orb/db`'s `LibSqlWrap`. @public — injected into `createDb` at `entry/`. */
 export function wrapLibSqlClient<T extends object>(client: T): T {
   return new Proxy(client, {

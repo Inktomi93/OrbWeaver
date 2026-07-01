@@ -2,7 +2,7 @@
 // rules a character card, a preset, or user settings carries). The PURE EXECUTOR for these scripts
 // lives in `@orb/kit/regex` (`executeRegexScripts`); it reads a kit-local STRUCTURAL `RegexScriptInput`
 // rather than this schema because kit may NOT import contracts (contracts depends on kit, never the
-// reverse — reports/shared-dissolution.md §1/§6). The alignment between the two is asserted FROM HERE:
+// reverse — core/Legacy-Migration-and-Gaps.md §1/§6). The alignment between the two is asserted FROM HERE:
 // `RegexScript satisfies RegexScriptInput` (the satisfies-seam, pinned in the contract test). The
 // `findRegex` length cap is `MAX_FIND_REGEX_LENGTH` imported from kit — the SAME number the executor
 // rejects at compile time, so the storage-boundary cap and the execution cap can never drift (kit/regex

@@ -1,6 +1,6 @@
 // infra/storage/cas — the per-user content-addressed blob store (CAS). A SEALED I/O executor: pure
 // filesystem adapter keyed by the sha-256 of the bytes, importing only @orb/kit (the `isAssetHash`
-// path-traversal guard) + node:* — NEVER @orb/db, NEVER a domain (tiers/infra.md sealed-executor
+// path-traversal guard) + node:* — NEVER @orb/db, NEVER a domain (core/Tier-3-Infra.md sealed-executor
 // invariant; `infra-no-db` / `infra-below-domain` gates). The `domain/assets` index (the `assets` table
 // + the `storeBlob` coherence primitive) orchestrates this handle; the bytes live here, the row lives
 // there, and the domain keeps the pair coherent.

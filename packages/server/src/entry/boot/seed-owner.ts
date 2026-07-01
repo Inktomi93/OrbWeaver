@@ -1,5 +1,5 @@
-// entry/boot/seed-owner — boot step 4: idempotent owner provisioning (tiers/entry.md §"Boot order"; spine
-// identity-auth-permission.md §3 "Construction" — the one-time `role=owner` backfill for OWNER_HANDLES).
+// entry/boot/seed-owner — boot step 4: idempotent owner provisioning (core/Tier-5-Entry.md §"Boot order"; spine
+// Spine-Identity-and-Auth.md §3 "Construction" — the one-time `role=owner` backfill for OWNER_HANDLES).
 //
 // THE CHICKEN-EGG: there is no owner Principal at boot to call the GUARDED `admin.setRole` (which itself
 // requires `requireOwner`), so the owner role must be written by a PRIVILEGED boot path. entry MAY import

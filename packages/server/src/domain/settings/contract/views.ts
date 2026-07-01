@@ -1,4 +1,4 @@
-// domain/settings/contract/views — the read-models callers receive (structure.md §4 "what shape does the
+// domain/settings/contract/views — the read-models callers receive (core/Core-0-Architecture-and-Structure.md §4 "what shape does the
 // client get?"). `UserSettingsView.config` is ALWAYS the parsed+defaulted `UserSettings` contract, never a
 // raw blob (invariant #8 — `persistence/queries` is the only projection and routes through
 // `parseUserSettings`). `GlobalSettingView.value` is honest `JsonValue` (Json-validated at the read seam).

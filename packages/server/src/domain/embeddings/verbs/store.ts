@@ -15,7 +15,7 @@
 //
 // The `switch (params.lens)` is the §7.5 exhaustive dispatch (the `assertNever` default arm): a new lens
 // fails `tsc` until its embed+upsert arm is added. The `segment` / `digest` chat-block arms (memory's
-// verbatim + distilled lenses — knowledge-cluster.md §2) carry a PRECOMPUTED `contentHash` (memory folds the
+// verbatim + distilled lenses — domains/memory.md §2) carry a PRECOMPUTED `contentHash` (memory folds the
 // seq-span + the stable speaker id + the scope, §1/§4 — the store does NOT recompute it) and embed the
 // `text` (the embed input AND the stored body). There is NO `principal`/ownership check — the substrate FKs
 // to its producer and never re-checks ownership (D20).

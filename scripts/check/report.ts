@@ -1,7 +1,7 @@
 // The structural-gate orchestrator: registers every ts-morph/fs check and runs them.
 // Wired into `pnpm check` (after biome + tsc). Add a gate by dropping it in gates/ and listing it here.
 // The catalog of every enforcement (these gates + biome rules + grit + dep-cruiser) and the deferred
-// backlog lives in docs/architecture/reports/ENFORCEMENT.md.
+// backlog lives in docs/architecture/core/Core-Laws-and-Precedents.md.
 
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { commentedCode } from "./gates/commented-code.ts";

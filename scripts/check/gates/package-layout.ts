@@ -1,4 +1,4 @@
-// Gate: package-layout (structure.md §7)
+// Gate: package-layout (core/Core-0-Architecture-and-Structure.md §7)
 // Enforces that "Every importable module is a DIRECTORY with index.ts (front-door = folder)"
 // This runs on packages/kit, packages/contracts, packages/client, and packages/db.
 // It bans any loose .ts files in packages/*/src except for index.ts.
@@ -23,7 +23,7 @@ export const packageLayout: Check = {
           violations.push({
             file: `packages/${pkg}/src/${entry.name}`,
             line: 0,
-            message: `loose file '${entry.name}' is illegal — every importable module must be a DIRECTORY with an index.ts (structure.md §7 D15)`,
+            message: `loose file '${entry.name}' is illegal — every importable module must be a DIRECTORY with an index.ts (core/Core-0-Architecture-and-Structure.md §7 D15)`,
           });
         }
       }

@@ -1,4 +1,4 @@
-// entry/compose/chat — the chat domain's slice of THE composition root (tiers/entry.md §"injection model").
+// entry/compose/chat — the chat domain's slice of THE composition root (core/Tier-5-Entry.md §"injection model").
 // Split out of `services.ts` (which only CALLS `buildChatService`) because the chat `ChatContext` is the
 // widest DI bundle in the system (~30 injected cross-feature ops) + the `ChatServiceDeps` collaborators the
 // entry root must CONSTRUCT (the durable-first bus, the active-turns registry, the per-member budget, the

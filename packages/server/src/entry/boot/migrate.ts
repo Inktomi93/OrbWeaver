@@ -1,4 +1,4 @@
-// entry/boot/migrate — boot step 3 (tiers/entry.md §"Boot order"): back up the db file, run the drizzle
+// entry/boot/migrate — boot step 3 (core/Tier-5-Entry.md §"Boot order"): back up the db file, run the drizzle
 // migrations on the FK-OFF connection (the @orb/db front door owns the dance), then assert referential
 // integrity — ABORT (throw) on any failure so a corrupting migration stays restorable from the backup.
 //

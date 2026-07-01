@@ -1,4 +1,4 @@
-// Gate: no-inline-union-redecl (spine/string-union-dispatch.md §7.5) — a string-union AXIS is declared
+// Gate: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is declared
 // ONCE as an `as const` tuple and the union DERIVED ((typeof X)[number] / z.enum(X)); never re-spelled.
 // Two checks:
 //   (A) an inline string-literal union TYPE ALIAS of >=3 members — declare it as a tuple + derive.

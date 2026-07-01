@@ -3,7 +3,7 @@
 // THE TWO §7.5 DISPATCH AXES (one importable canonical union each; derived from a tuple, never inline
 // re-spelled — `no-inline-union-redecl`):
 //   • SourceKind — the producer class (`card` | `avatar` | `chat-block`). `chat-block` is memory's
-//     digest/segment producer (knowledge-cluster.md §1; the memory rework, ledger D16).
+//     digest/segment producer (domains/memory.md §1; the memory rework, ledger D16).
 //   • SourceLens — the embedding lens. The IMAGE subset (`image-raw` | `image-captioned`) is NOT re-spelled
 //     here — it DERIVES `IMAGE_LENSES` from `@orb/contracts/embeddings` (D34, the db `image_embeddings.lens`
 //     column derives the SAME tuple). The text lenses are `card-text` (W2) + `segment` / `digest` (memory's
@@ -15,7 +15,7 @@
 // + its pre-switch `contentHash(params.content)` go RED until the next chunk adds the two arms (the
 // `chat_digest_speakers` re-query-after-upsert, the precomputed-`contentHash` path, the `text`-as-embed-input)
 // AND wires `newChatDigestId` / `newChatSegmentId` into `EmbeddingsContext` at the entry root. That red is the
-// intended hand-off signal, NOT drift — do not fudge the switch to clear it (knowledge-cluster.md §1/§2/§4).
+// intended hand-off signal, NOT drift — do not fudge the switch to clear it (domains/memory.md §1/§2/§4).
 //
 // VECTOR_TABLES is the FULL four-table registry NOW (not phased): `discovery` (writeHubScores) + `search`
 // (reads) + `clearTable` consume all four today, independent of which lenses the store verb routes in W2.
@@ -141,7 +141,7 @@ export interface DigestStoreParams {
   readonly topicAnchor: string;
   /** The 15–30 distinctive retrieval keywords (`chat_digests.keywords`). */
   readonly keywords: readonly string[];
-  /** The characters this digest CONTAINS (knowledge-cluster.md §4) — persisted as the `chat_digest_speakers`
+  /** The characters this digest CONTAINS (domains/memory.md §4) — persisted as the `chat_digest_speakers`
    *  join so search/discovery find a character's moments ACROSS rooms regardless of the egocentric bucketing.
    *  Distinct from `scopedCharacterId` (whose bucket this is): a merged-room digest is bucketed to the
    *  synthetic group char but CONTAINS the real speakers. May be empty (a no-speaker block). */

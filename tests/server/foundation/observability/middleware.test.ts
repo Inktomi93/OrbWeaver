@@ -1,7 +1,7 @@
 // foundation/observability/middleware — the per-request Hono middleware. Hono is NOT a test-reachable
 // dep, so the middleware is driven through a minimal mock Context (same posture as routes.test.ts): it
 // touches only c.req.header()/path/method, c.header(name,value) (the echo), c.res.status, and next().
-// The two load-bearing invariants (tiers/foundation.md #11 + the request-id belt): the SAFE_REQUEST_ID
+// The two load-bearing invariants (core/Tier-2-Foundation.md #11 + the request-id belt): the SAFE_REQUEST_ID
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 

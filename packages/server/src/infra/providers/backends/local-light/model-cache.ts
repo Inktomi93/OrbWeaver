@@ -10,7 +10,7 @@
 // `jinaai/jina-clip-v2` (AutoModel → JinaCLIPModel) — a single model with a text encoder AND an image
 // encoder trained into the SAME 1024-dim joint space (text↔image cosine-comparable). It mirrors, on
 // CPU, vLLM's "one Qwen3-VL serves both embed + imageEmbed" design and fits the `F32_BLOB(1024)` column
-// (knowledge-cluster.md §1). One load serves BOTH roles: text features back the embed role, image
+// (domains/memory.md §1). One load serves BOTH roles: text features back the embed role, image
 // features back the imageEmbed role. (rerank stays a separate text-only cross-encoder — dim-agnostic.)
 //
 // DEVICE SELECTION (D39 — the CPU+CUDA "any box" tier): the resolved device (default "auto") is handed

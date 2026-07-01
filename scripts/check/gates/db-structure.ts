@@ -1,5 +1,5 @@
-// Gate: db-structure — the barrel-completeness half of the db schema layout discipline (ENFORCEMENT.md
-// "db-structure"; tiers/db.md "producer-names-the-schema rule"). Every `packages/db/src/schema/<file>.ts`
+// Gate: db-structure — the barrel-completeness half of the db schema layout discipline (Core-Laws-and-Precedents.md
+// "db-structure"; core/Tier-1-DB.md "producer-names-the-schema rule"). Every `packages/db/src/schema/<file>.ts`
 // MUST be re-exported from the barrel `schema/index.ts`: a schema file missing from the barrel is silently
 // dropped from `typeof schema` — its tables vanish from migrations AND the drizzle relational query API
 // with NO error. This gate makes that omission RED. Generic (no hardcoded file list).

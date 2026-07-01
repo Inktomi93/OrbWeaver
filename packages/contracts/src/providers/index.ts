@@ -3,9 +3,9 @@
 // These are the role-result contracts produced by the sealed `infra/providers` runners and consumed
 // by the `@orb/contracts/role-clients` bundle (and, through it, the embeddings / search / discovery /
 // workloads domains). They are what `role-clients` depends on, so they must land first
-// (shared-dissolution §8; tiers/providers.md movement table).
+// (shared-dissolution §8; core/Tier-3b-Providers.md movement table).
 //
-// SCOPE (resolved — tiers/providers.md is the authority, contracts-dag §2 providers FLAG): this node
+// SCOPE (resolved — core/Tier-3b-Providers.md is the authority, contracts-dag §2 providers FLAG): this node
 // holds ONLY the cross-boundary RESULT shapes. The REQUEST shapes (EmbedRequest / ChatRequest /
 // AgentTurnRequest) stay infra-internal behind `infra/providers/contract/` — they carry an
 // `AbortSignal` (no DOM/node lib here) and a branded `ResolvedCredential`, which are not wire shapes.

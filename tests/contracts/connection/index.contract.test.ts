@@ -17,7 +17,7 @@ import type { CredentialSource } from "@orb/contracts/credentials";
 import { expect, test } from "vitest";
 
 // --- ChatSource IS CredentialSource (D31, the load-bearing pin) ---------------
-// The type-level identity pin (ChatSource ≡ CredentialSource) lives in `index.test-d.ts` (spine/testing.md
+// The type-level identity pin (ChatSource ≡ CredentialSource) lives in `index.test-d.ts` (core/Spine-Testing.md
 // §1); here we keep the runtime bidirectional-assignability check.
 
 test("ChatSource is a verbatim re-export of CredentialSource (D31, no second tuple)", () => {

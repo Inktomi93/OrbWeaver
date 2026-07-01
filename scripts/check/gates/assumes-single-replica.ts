@@ -1,4 +1,4 @@
-// Gate: assumes-single-replica (tiers/foundation.md esoteric #5, ENFORCEMENT.md) — module-scope mutable
+// Gate: assumes-single-replica (core/Tier-2-Foundation.md esoteric #5, Core-Laws-and-Precedents.md) — module-scope mutable
 // in-memory state (a per-process registry/cache/counter) is the orbweaver v1 single-replica stance, and
 // every such site must DECLARE it with an `ASSUMES(single-replica)` annotation (so the multi-replica
 // replacement seam is findable). This gate enforces the common, machine-detectable form: a module-scope
@@ -46,7 +46,7 @@ function scan(sf: SourceFile, root: string, out: Violation[]): void {
         out.push({
           file: relPath(root, sf.getFilePath()),
           line: stmt.getStartLineNumber(),
-          message: `module-scope mutable \`new ${ctor}()\` is per-process in-memory state — annotate the file with ASSUMES(single-replica) + name a DB-backed replacement seam, or move it out of module scope (tiers/foundation.md esoteric #5).`,
+          message: `module-scope mutable \`new ${ctor}()\` is per-process in-memory state — annotate the file with ASSUMES(single-replica) + name a DB-backed replacement seam, or move it out of module scope (core/Tier-2-Foundation.md esoteric #5).`,
         });
       }
     }

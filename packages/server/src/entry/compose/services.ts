@@ -1,4 +1,4 @@
-// entry/compose/services — THE composition root's service graph (tiers/entry.md §"injection model" + §layout
+// entry/compose/services — THE composition root's service graph (core/Tier-5-Entry.md §"injection model" + §layout
 // "services.ts"). `createServices` constructs every domain service with its DI bundle and wires every
 // cross-feature injected op (the ONE tier above `domain-no-cross-feature`). It builds the infra handles
 // (SecretBox / CAS / variant cache / image adapter / the provider backend-registry → executor + diagnostics),

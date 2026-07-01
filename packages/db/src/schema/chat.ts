@@ -1,7 +1,7 @@
 // schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Ten tables:
 // chats · messages · message_variants · chat_participants · chat_invites · pending_turns · chat_events ·
 // chat_stream_events · chat_injections · chat_locks. Built WHOLE (no feature-phasing — ledger D16); the
-// authoritative spec is `docs/architecture/domains/chat.md` (all three Parts) + `tiers/db.md`.
+// authoritative spec is `docs/architecture/domains/chat.md` (all three Parts) + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D18 — chats are MEMBERSHIP-scoped: there is NO `chats.ownerId`. Authority is the host participant

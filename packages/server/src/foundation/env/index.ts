@@ -1,4 +1,4 @@
-// foundation/env — THE one `process.env` reader (tiers/foundation.md). The whole boot boundary:
+// foundation/env — THE one `process.env` reader (core/Tier-2-Foundation.md). The whole boot boundary:
 // the dotenv load (override discipline + its two escape hatches), the zod `envSchema` parse, the
 // AUTH_MODE `superRefine` BOOT-FATALITY, the frozen `env`, and the raw `processEnvSnapshot()` baseline
 // the agent-sdk credential firewall spreads into its child (the firewall OWNS the denylist policy —
@@ -43,7 +43,7 @@ const RATE_LIMIT_AUTHED_DEFAULT = 600;
 // Load a local .env BEFORE parsing. override:true so a checked-in dev `.env` wins over a stale shell
 // export (e.g. an old OPENROUTER_API_KEY lingering in the environment). In prod there is no .env file,
 // so this is a no-op and the deployment's real env vars stand (.env is gitignored). Two escape hatches
-// keep the override from fighting one-off invocations (tiers/foundation.md esoteric #3):
+// keep the override from fighting one-off invocations (core/Tier-2-Foundation.md esoteric #3):
 //   • UNDER VITEST: override:false — the runner pins a deterministic auth env; .env's other keys still
 //     load since they are absent from process.env.
 //   • UNDER ORB_ENV_NO_OVERRIDE=1: override:false — the probe/one-off-server escape so
@@ -186,7 +186,7 @@ const envSchema = z
     // Per-user credential encryption key — 32 random bytes for AES-256-GCM, hex or base64 (infra/crypto
     // decodes both). UNSET ⇒ per-user creds OFF (the store rejects writes; resolve falls back to the host
     // key). Validated for length in infra/crypto, NOT here — a missing/short key must DEGRADE, never crash
-    // boot (tiers/foundation.md "does NOT own" / credentials.md §7.2).
+    // boot (core/Tier-2-Foundation.md "does NOT own" / credentials.md §7.2).
     CREDENTIALS_KEY: z.string().optional(),
     // Opt-in auto-key: when CREDENTIALS_KEY is unset, infra/crypto auto-generates + persists a 32-byte key
     // to `<dirname(DATABASE_URL)>/.credentials-key` (mode 0o600) on first boot. Default off. env only
@@ -217,7 +217,7 @@ const envSchema = z
   .superRefine((val, ctx) => {
     // Fail fast at boot if oidc is selected without the credentials to run it (a misconfigured deploy must
     // NOT silently fall back to owner-on-the-public-FQDN — a security incident). Other modes leave these
-    // unset (the zero-infra default is untouched). tiers/foundation.md esoteric #1 — survives byte-faithfully.
+    // unset (the zero-infra default is untouched). core/Tier-2-Foundation.md esoteric #1 — survives byte-faithfully.
     if (val.AUTH_MODE === "oidc") {
       const required = [
         "OIDC_ISSUER",

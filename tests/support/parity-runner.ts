@@ -1,11 +1,11 @@
-// ── The differential-oracle harness (CHECKLIST §C1 · testing.md §6) ───────────────────────────────
+// ── The differential-oracle harness (CHECKLIST §C1 · Spine-Testing.md §6) ───────────────────────────────
 //
 // Drives the parity oracle from the orbweaver side: it loads the committed neo reference
 // (fixtures/parity/neo-reference.json, captured from the steady clone by
 // scripts/dev/oracle-steady-clone.sh --capture) + the input fixture (breakpoint-cases.json), and
 // exposes `runOrbweaverShape` — the ONE seam orbweaver's chat assembly plugs into when it lands
 // (Phase 5 step 2). Until then `runOrbweaverShape` throws a clear "not wired" error and the
-// `.parity.test` is skipped (never a failing assertion — testing.md §1).
+// `.parity.test` is skipped (never a failing assertion — Spine-Testing.md §1).
 //
 // PARITY SURFACE ONLY: the SHAPE-phase assembled history + the §8 rolling-tail cache breakpoint
 // (offset + placement). Memory is a rewrite (its own .int tests) — NEVER the oracle. This file does

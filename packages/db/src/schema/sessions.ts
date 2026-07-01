@@ -8,7 +8,7 @@
 // domain/sessions/tokens. The hash is the validate lookup key, so it is UNIQUE. `label` is reserved for
 // the future long-lived API-token surface that reuses this store (sessions.md Open decisions).
 //
-// `oidc_transactions` is the db-backed PKCE/state KV (sessions.md / tiers/infra.md — db-backed, so it
+// `oidc_transactions` is the db-backed PKCE/state KV (sessions.md / core/Tier-3-Infra.md — db-backed, so it
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth
 // state param), no brand, no FK (it is pre-auth — there is no user row yet). The `oidc-store` LOGIC
 // lives in domain/sessions/persistence/oidc-store.ts; only the TABLE is here.

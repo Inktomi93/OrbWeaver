@@ -91,7 +91,7 @@ function closeUnpairedMarkers(line: string): string {
 // ghost path (MessageBody, streaming=true).
 //
 // Delegates to `remend` (Vercel's streamdown repair engine — an isomorphic, side-effect-free kit dep
-// per the kit-purity ruling, `reports/shared-dissolution.md` §0). One sentinel: an incomplete link
+// per the kit-purity ruling, `core/Legacy-Migration-and-Gaps.md` §0). One sentinel: an incomplete link
 // becomes `[text](streamdown:incomplete-link)` — the unknown protocol is stripped by rehype-sanitize
 // downstream, rendering the text link-styled but inert until the real URL finishes. The hand-rolled
 // repairs remend replaced are pinned in the test as behavior locks against remend upgrades.

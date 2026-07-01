@@ -3,7 +3,7 @@
 // fulfils). DAG root: kit-only (the `UserId`/`CharacterId` brands + their id schemas from `@orb/kit/ids`)
 // + zod. No domain, no `@orb/db`, no sibling contracts node.
 //
-// WHY contracts and NOT a stats-feature type (reports/shared-dissolution.md §4/§7 refinement #2): chat
+// WHY contracts and NOT a stats-feature type (core/Legacy-Migration-and-Gaps.md §4/§7 refinement #2): chat
 // builds a `StatsDelta` every send/edit/fork/delete and hands it to the injected `applyStatsDelta`; a
 // feature home (`domain/stats`) would force an illegal chat→stats sideways import (`domain-no-cross-feature`).
 // The chat-side BUILDERS (`messageDelta`/`variantDelta`/`chatCreatedDelta`) live in `domain/chat/engine`;

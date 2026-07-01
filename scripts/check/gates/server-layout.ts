@@ -1,4 +1,4 @@
-// Gate: server-layout (structure.md §3)
+// Gate: server-layout (core/Core-0-Architecture-and-Structure.md §3)
 // The server package's tiers ARE its directories. The only legal items at the root of 
 // packages/server/src/ are the 6 tier directories and index.ts.
 import { existsSync, readdirSync } from "node:fs";
@@ -28,7 +28,7 @@ export const serverLayout: Check = {
         violations.push({
           file: `${SERVER_SRC}/${entry.name}`,
           line: 0,
-          message: `illegal top-level entry '${entry.name}' — packages/server/src/ is locked to the 6 tier directories and index.ts (structure.md §3)`,
+          message: `illegal top-level entry '${entry.name}' — packages/server/src/ is locked to the 6 tier directories and index.ts (core/Core-0-Architecture-and-Structure.md §3)`,
         });
       }
     }

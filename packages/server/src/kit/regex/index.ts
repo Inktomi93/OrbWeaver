@@ -10,13 +10,13 @@
 // which the kit executor's per-script try/catch routes to `onScriptFailure`. One bad regex never hangs
 // the event loop and never silently passes through (a swallow-and-return-unchanged would blind the
 // failure tally). node:vm is legal here: `@orb/server/kit` is server-only, never browser-bundled
-// (structure.md — the directory-module cake; D53 (4)).
+// (core/Core-0-Architecture-and-Structure.md — the directory-module cake; D53 (4)).
 
 import vm from "node:vm";
 import type { RegexReplacer } from "@orb/kit/regex";
 
 // Per-call wall budget for ONE script's find/replace. 50ms is the value carried from neo-tavern's vm
-// guard (reports/shared-dissolution.md §82 — "node:vm 50ms ReDoS watchdog") and is generous for a real
+// guard (core/Legacy-Migration-and-Gaps.md §82 — "node:vm 50ms ReDoS watchdog") and is generous for a real
 // find/replace over a chat message: a legitimate rule completes in microseconds, only a pathological
 // backtrack approaches it. This is V8's interrupt watchdog, NOT a wall-clock read — the module stays
 // deterministic (no Date.now/Math.random; the runtime owns the timer).

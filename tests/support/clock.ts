@@ -1,4 +1,4 @@
-// Frozen clock for deterministic tests (spine/testing.md §3 — no ambient `Date.now()` under tests/).
+// Frozen clock for deterministic tests (core/Spine-Testing.md §3 — no ambient `Date.now()` under tests/).
 // Injected through the same composition seam production uses at entry/. A fixed instant; advance
 // explicitly when a test needs time to move.
 

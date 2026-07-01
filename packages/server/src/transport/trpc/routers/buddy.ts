@@ -1,4 +1,4 @@
-// transport/trpc/routers/buddy — the buddy-agent surface (tiers/transport.md). authed; owner-scoped (one
+// transport/trpc/routers/buddy — the buddy-agent surface (core/Tier-4-Transport.md). authed; owner-scoped (one
 // buddy per user; the borrowed-owner posture, PD-17 deferred). Thin: validate → `ctx.services.buddy.<verb>`
 // → map errors. `ask`/`confirm` drive tool-using agent turns; `confirm` is the SOLE executor of a proposal.
 

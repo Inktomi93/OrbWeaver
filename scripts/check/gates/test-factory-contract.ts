@@ -1,4 +1,4 @@
-// Gate: test-factory-contract (spine/testing.md §4)
+// Gate: test-factory-contract (core/Spine-Testing.md §4)
 // makeX must be a pure builder (no db access), seedX must be the persisted variant (takes db).
 // Factories live only in support/factories/.
 import { SyntaxKind } from "ts-morph";
@@ -26,7 +26,7 @@ export const testFactoryContract: Check = {
             violations.push({
               file: filePath,
               line: func.getStartLineNumber(),
-              message: `Factory pure builder '${name}' must not accept a database parameter (spine/testing.md §4).`,
+              message: `Factory pure builder '${name}' must not accept a database parameter (core/Spine-Testing.md §4).`,
             });
           }
         } else if (name.startsWith("seed")) {
@@ -36,7 +36,7 @@ export const testFactoryContract: Check = {
             violations.push({
               file: filePath,
               line: func.getStartLineNumber(),
-              message: `Factory persisted builder '${name}' must accept a 'db' parameter (spine/testing.md §4).`,
+              message: `Factory persisted builder '${name}' must accept a 'db' parameter (core/Spine-Testing.md §4).`,
             });
           }
         }

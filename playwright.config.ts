@@ -2,7 +2,7 @@ import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
-// Playwright, never vitest (browser-mode hangs — spine/testing.md §7). Separate runner, NOT in `pnpm
+// Playwright, never vitest (browser-mode hangs — core/Spine-Testing.md §7). Separate runner, NOT in `pnpm
 // check` (`pnpm e2e`).
 //
 // SKELETON (Phase 0): the `webServer` that boots the stack + the AUTH_MODE / RATE_LIMIT_* /

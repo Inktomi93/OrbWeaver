@@ -1,4 +1,4 @@
-// Gate: test-layout (structure.md §5 / spine/testing.md) — the central test mirror.
+// Gate: test-layout (core/Core-0-Architecture-and-Structure.md §5 / core/Spine-Testing.md) — the central test mirror.
 // Every test under tests/ must prefix-swap to a real source file: tests/<pkg>/<path>.<kind> ↔
 // packages/<pkg>/src/<path>.<ext>. Exempts the two non-mirror trees tests/support/ + tests/e2e/.
 import { existsSync, readdirSync } from "node:fs";

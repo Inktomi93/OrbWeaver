@@ -1,5 +1,5 @@
 // transport/trpc/routers/notifications — the per-user durable inbox surface + the resumable subscription
-// (PD-23; tiers/transport.md §"per-user notifications subscription"). The CRUD verbs delegate to the
+// (PD-23; core/Tier-4-Transport.md §"per-user notifications subscription"). The CRUD verbs delegate to the
 // `notifications` domain (caller-scoped — every read/write is scoped to `principal.userId` inside the
 // verb). Transport owns ONLY the subscription: it adopts the `chat.streamMessages` resume shape — every
 // yield `tracked()`, `lastEventId` replay, DURABLE-FIRST / fan-out-second — wired over the inbox's durable

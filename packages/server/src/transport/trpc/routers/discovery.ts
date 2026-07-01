@@ -1,4 +1,4 @@
-// transport/trpc/routers/discovery — the read-side discovery analytics (tiers/transport.md; the corpus→
+// transport/trpc/routers/discovery — the read-side discovery analytics (core/Tier-4-Transport.md; the corpus→
 // discovery rename). authed; reads take a positional `userId` = the resolved `Principal.userId` (audit #1:
 // no caller-supplied owner). The `compute*` passes are workload-driven (the jobs runners), NOT tRPC. Thin:
 // validate → `ctx.services.discovery.<verb>` → map errors. The `level` axis derives from `THEME_LEVELS`.

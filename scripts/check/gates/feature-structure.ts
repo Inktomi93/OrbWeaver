@@ -1,4 +1,4 @@
-// Gate: feature-structure (structure.md §7) — every domain feature follows the per-feature template.
+// Gate: feature-structure (core/Core-0-Architecture-and-Structure.md §7) — every domain feature follows the per-feature template.
 // Requires the universal slots: index.ts (front door), service.ts (composition root), context.ts
 // (DI bundle), and contract/ + verbs/ dirs. persistence/ and substrate/ are per-feature (export has
 // no persistence/; chat/workloads have no substrate/), so they are NOT required here.
