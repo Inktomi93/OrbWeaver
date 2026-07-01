@@ -43,6 +43,8 @@ export interface CharacterSummary {
   readonly createdAt: number;
   /** Advisory card-heft estimate (kit `estimateTokens` over the card definition) — list display only. */
   readonly tokenSize: number;
+  /** The list of accepted/manual tags attached to this character. */
+  readonly tags: readonly string[];
 }
 
 /** The membership-gated, level-clamped card view for a roster member (D22). */

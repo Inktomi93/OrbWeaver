@@ -16,9 +16,9 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import { assets, characterSnapshots, characters, parseStringArray } from "@orb/db";
+import { assets, characterSnapshots, characterTags, characters, parseStringArray, tags } from "@orb/db";
 import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { SnapshotSummary } from "../contract/results";
 import type { CharacterDetail, CharacterSummary } from "../contract/views";
@@ -39,6 +39,7 @@ const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null
 interface CharacterWithAvatar {
   readonly character: CharacterRow;
   readonly avatar: AssetRow | null;
+  readonly tags: readonly string[];
 }
 
 /** One owned character + its avatar, or undefined when not found / not the caller's. */
@@ -53,7 +54,17 @@ export async function loadOwnedCharacterWithAvatar(
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
     .limit(LIMIT_ONE);
-  return rows[0];
+    
+  if (rows.length === 0) return undefined;
+  
+  const tagRows = await db
+    .select({ name: tags.name })
+    .from(characterTags)
+    .innerJoin(tags, eq(characterTags.tagId, tags.id))
+    .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, "accepted")));
+    
+  const row = rows[0]!;
+  return { character: row.character, avatar: row.avatar, tags: tagRows.map((t) => t.name) };
 }
 
 /** Load a character + avatar ignoring ownership (for membership-gated chat roster views). */
@@ -67,7 +78,17 @@ export async function loadCharacterWithAvatarById(
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(eq(characters.id, characterId))
     .limit(LIMIT_ONE);
-  return rows[0];
+
+  if (rows.length === 0) return undefined;
+
+  const tagRows = await db
+    .select({ name: tags.name })
+    .from(characterTags)
+    .innerJoin(tags, eq(characterTags.tagId, tags.id))
+    .where(and(eq(characterTags.characterId, characterId), eq(characterTags.status, "accepted")));
+
+  const row = rows[0]!;
+  return { character: row.character, avatar: row.avatar, tags: tagRows.map((t) => t.name) };
 }
 
 /** The owner's NON-synthetic characters + avatars, newest first (synthetic group buckets excluded —
@@ -82,7 +103,30 @@ export async function listOwnedCharactersWithAvatar(
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
     .orderBy(desc(characters.createdAt));
-  return rows;
+
+  if (rows.length === 0) return [];
+
+  const characterIds = rows.map((r) => r.character.id);
+  const tagRows = await db
+    .select({ characterId: characterTags.characterId, name: tags.name })
+    .from(characterTags)
+    .innerJoin(tags, eq(characterTags.tagId, tags.id))
+    .where(and(inArray(characterTags.characterId, characterIds), eq(characterTags.status, "accepted")));
+
+  const tagsByCharacterId = new Map<CharacterId, string[]>();
+  for (const { characterId, name } of tagRows) {
+    let arr = tagsByCharacterId.get(characterId);
+    if (!arr) {
+      arr = [];
+      tagsByCharacterId.set(characterId, arr);
+    }
+    arr.push(name);
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    tags: tagsByCharacterId.get(row.character.id) ?? [],
+  }));
 }
 
 /** One owned character row (no avatar join) — the `getCard`/remove fast path. Undefined when not owned. */
@@ -233,7 +277,7 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar): Chara
 }
 
 /** Row + joined avatar → the light library-list summary (with the advisory token estimate). */
-export function summaryOf({ character: row, avatar }: CharacterWithAvatar): CharacterSummary {
+export function summaryOf({ character: row, avatar, tags }: CharacterWithAvatar): CharacterSummary {
   return {
     id: row.id,
     handle: row.handle,
@@ -246,5 +290,6 @@ export function summaryOf({ character: row, avatar }: CharacterWithAvatar): Char
     contentHash: row.contentHash,
     createdAt: row.createdAt,
     tokenSize: cardTokenSize({ ...row, greetings: parseStringArray(row.greetings) }),
+    tags,
   };
 }
