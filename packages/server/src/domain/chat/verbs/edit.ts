@@ -12,10 +12,10 @@
 //
 // EMIT SEAM: the chat bus is chat's own in-process collaborator (NOT on `ChatContext` — see bus.ts), so the
 // bundle takes it as the SECOND factory arg, typed inline (`types-in-contract` forbids an exported emit type
-// outside contract/). FLAG[PD-86]: there is no dedicated `messageHidden`/`messageReattributed` bus
-// member, so `setMessageHidden` emits `messageEdited` (it carries the updated `MessageView` incl.
-// `excludedFromPrompt`) and `reattributeMessages` emits one `messageEdited` per slot (each with its fresh
-// view) — the precise carriers, no new union member needed (the allowlist is chunk 1's, out of scope).
+// outside contract/). `setMessageHidden` emits the dedicated `messageHidden` member (PD-86); FLAG
+// [reattribute-carrier]: `reattributeMessages` deliberately emits one `messageEdited` per slot (each with
+// its fresh view) — an attribution re-stamp IS a slot edit, so the existing carrier is the precise one (no
+// `messageReattributed` member).
 // FLAG[dup-snapshot]: `duplicateMessage` copies the selected variant's content + economics from the
 // `MessageView`; `params`/`promptSnapshot` (D26 — not on the view) are NOT carried onto the copy (a duplicate
 // is a fresh slot, the per-turn provenance need not follow).
@@ -189,7 +189,7 @@ function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
 
 // ── setMessageHidden (D26 — toggle the SLOT's excludedFromPrompt; the row survives) ──────────────────────────
 /** `setMessageHidden` — author-or-host. Hold the slot out of assembly (or restore it) — a pure slot-flag
- *  write, no content change. Emits `messageEdited` (the carrier for the updated view; FLAG[no-hidden-event]). */
+ *  write, no content change. Emits the dedicated `messageHidden` event (the fresh view carries the flag). */
 function createSetMessageHidden(
   ctx: ChatContext,
   emit: EmitChatEvent,
@@ -199,7 +199,7 @@ function createSetMessageHidden(
     await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     await ctx.db.batch(batchMany([setMessageHiddenStatement(ctx.db, messageId, hidden)]));
     const view = await reloadSlot(ctx, chatId, messageId);
-    await emit({ type: "messageEdited", chatId, messageId, view });
+    await emit({ type: "messageHidden", chatId, messageId, view });
     return view;
   };
 }
@@ -425,7 +425,7 @@ function createDuplicateMessage(
 // ── reattributeMessages (host — re-stamp the characterId attribution of a set of slots) ──────────────────────
 /** `reattributeMessages` — host-only. Re-voice a set of slots to a `characterId` (D26 slot-level attribution;
  *  the self-heal hash-diff). Emits one `messageEdited` per slot (each carries its fresh view; FLAG
- *  [no-hidden-event]). An empty set is a no-op. */
+ *  [reattribute-carrier] — a deliberate carrier choice, see the file header). An empty set is a no-op. */
 function createReattributeMessages(
   ctx: ChatContext,
   emit: EmitChatEvent,

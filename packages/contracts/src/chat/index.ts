@@ -400,6 +400,9 @@ export type ChatBusEvent =
   // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
   | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
+  // A slot's `excludedFromPrompt` flag flipped (hidden from assembly / restored) — a pure slot-flag change,
+  // no content edit; the fresh view carries the flag (PD-86: the dedicated carrier, not `messageEdited`).
+  | { type: "messageHidden"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "variantSelected"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messagesDeleted"; chatId: ChatId; messageIds: MessageId[] }
   | { type: "messagesReordered"; chatId: ChatId }
@@ -450,6 +453,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   delta: true,
   messageCommitted: true,
   messageEdited: true,
+  messageHidden: true,
   variantSelected: true,
   messagesDeleted: true,
   messagesReordered: true,
