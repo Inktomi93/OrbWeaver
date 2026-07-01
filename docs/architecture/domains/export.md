@@ -206,7 +206,7 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `export-chat.ts` reads `chat.personaId ?? chat.pinnedPersonaId` (for the user name)                               | **rewrite — resolve via participant active persona** | participant active-persona resolution (`persona.md` drops `chats.personaId`)                                                       | `persona.md` target: active per-participant, anchor per-chat; `chats.personaId` is dropped.                                                                                                                                                                                                                             | compile-time: column gone → `tsc` red                                                                          |
 | `export-character.ts` book walk joins `characterBooks.characterVersionId`                                         | **rewrite — identity-keyed (D28)**                   | `character_books.characterId = characters.id` (re-keyed); export reads the live card's book set off the flat row (no version join) | RESOLVED (`character.md` + `world-info.md`): D28 collapses the version model, so `character_books` re-keys to `characters.id` and the book set is simply the live card's books, read at assemble — there is no cv pin to resolve. Export reads books by `characterId`.                                                  | compile-time: the cv-keyed FK is gone post-migration                                                           |
 | `http/export.ts` — `registerExportRoutes` (binary/text download registrar)                                        | **→ entry tier**                                     | `entry/http/export.ts`                                                                                                             | A non-tRPC download registrar; calls the export front door only, streams bytes/text with a download header.                                                                                                                                                                                                             | resolve-time: `entry`/`transport` → domain front door (dep-cruiser backstop)                                   |
-| `export-character.ts` — `basePng` (`sharp` transcode jpg/webp→png + placeholder) + `cas.read`                     | stays domain feature (note the I/O)                  | `domain/export/verbs/export-character.ts` (sharp is the one heavy native dep)                                                      | The avatar→base-PNG packaging is export-specific assembly; `cas` is injected via context. If `sharp` transcode is ever reused, extract to `infra/image`.                                                                                                                                                                | resolve-time: `cas`/`sharp` injected/declared; not a cross-feature reach                                       |
+| `export-character.ts` — `basePng` (jpg/webp→png transcode + placeholder) + `cas.read`                             | stays domain feature (transcode INJECTED — PD-74)    | `domain/export/verbs/export-character.ts`; the transcode is the injected `infra/image` `imageTransform` op (D6)                    | The avatar→base-PNG packaging is export-specific assembly; `cas` + `imageTransform` are injected via context. The extract-to-`infra/image` criterion was met at build time (`infra/image` exists; `assets` consumes it), so export never imports `sharp` — the sealed adapter is composed at the root (PD-74 resolved). | resolve-time: `cas`/`imageTransform` injected; sharp stays sealed in `infra/image`                             |
 | `resolveCharacterDepthPrompt(v.depthPrompt)` call before `buildCardV3`                                            | **→ `@orb/server/kit/serde`** (RESOLVED)             | `@orb/server/kit/serde`                                                                                                            | Server-only (zod), TWO consumers (export + chat/assembly) → `server/kit/serde`, not a single domain's substrate. Deferred refinement: fold the unknown→`{prompt,depth,role}` coercion into the serde-out path so the export verb reads the typed `depthPrompt` column directly (do this iff it leaves a single caller). | resolve-time (both consumers import down)                                                                      |
 
 ---
@@ -357,8 +357,8 @@ read (a malformed/legacy row → null, not a throw).
 **`basePng` TOCTOU-safe avatar read** (`export-character.ts`): the avatar blob is read with a
 **single `cas.read` attempt** (not `cas.exists` THEN `cas.read` — that was a TOCTOU race where
 a concurrent GC pass could remove the blob between the two calls). `ENOENT` falls through to a
-256×256 placeholder; any other error throws. Non-PNG avatars are transcoded jpg/webp→png via
-`sharp`. Preserve the one-read pattern.
+256×256 placeholder; any other error throws. Non-PNG avatars are transcoded jpg/webp→png via the
+injected `infra/image` `imageTransform` op (PD-74). Preserve the one-read pattern.
 
 **What export owns vs what is shared** (the line to hold): export owns the **assembly** (which
 rows to read, how to fold variants, which tags attach to the card), the **db reads** (direct
@@ -445,7 +445,10 @@ re-emerging is a second emitter (the drift this domain exists to kill).
   JSONLs) to export's packaging layer (`export/substrate/` + a streaming `entry/http` route). The
   serde core is unchanged; only the packaging layer grows. (Mirrors `core/Spine-Config-and-Serialization.md` §5.)
 
-- **`sharp` placement — DEFERRED: inline in `export-character.ts` for the initial port.**
-  _Criterion to extract:_ iff a SECOND domain needs image transcode — then lift the jpg/webp→png
-  transcode + placeholder to an `infra/image` adapter injected via context. Until then the
-  `basePng` transcode stays export-local assembly.
+- **`sharp` placement — RESOLVED (PD-74): the injected `infra/image` adapter.** The extract
+  criterion ("iff a SECOND domain needs image transcode") was already met when this slice was
+  built — `infra/image` (the sealed sharp adapter, D6) exists and `domain/assets` consumes it —
+  so `basePng`'s jpg/webp→png transcode goes through the injected `imageTransform` op; export
+  never imports `sharp` (the infra seal holds). The placeholder stays a domain constant
+  (`substrate/placeholder-png.ts` — the adapter transcodes existing images, it doesn't
+  synthesize them).
