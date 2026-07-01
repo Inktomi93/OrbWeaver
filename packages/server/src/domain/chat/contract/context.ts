@@ -237,6 +237,10 @@ export interface ChatContext {
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
   readonly newStreamEventId: () => ChatStreamEventId;
+  readonly newInviteId: () => ChatInviteId;
+  /** Hash an invite token before persistence (the sessions discipline — never stored raw; PD-61: an entry
+   *  crypto op like the minters, bound to `SESSION_SECRET` at the root — `invites`). */
+  readonly hashToken: (token: string) => string;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
   readonly applyRegexReplace: ApplyRegexReplaceOp;
@@ -290,8 +294,9 @@ export type ResolveTurnPolicyOp = (
  * What `createChatService` receives from the entry root — the collaborators that are NOT on {@link ChatContext}
  * and are NOT built inside the composition root (the engine + `loadParticipantViews` are constructed there). The
  * entry root assembles every field; chat sideways-imports none of it. The chat bus `emit`, the auto-mode `prng`/
- * `delay` determinism seams (D46), the per-turn connection/foreign resolvers, the invite crypto, and the engine's
- * budget/policy/lock belts are all wired here (their FLAGs in bus.ts / budget.ts / engine.ts point at this seam).
+ * `delay` determinism seams (D46), the per-turn connection/foreign resolvers, and the engine's budget/policy/
+ * lock belts are all wired here (their FLAGs in bus.ts / budget.ts / engine.ts point at this seam). The invite
+ * crypto (`hashToken`/`newInviteId`) moved to {@link ChatContext} (PD-61 — ctx minter/crypto siblings).
  */
 export interface ChatServiceDeps {
   /** The chat bus emit (durable-first; chat's own collaborator — used by ~every factory + the engine). */
@@ -309,10 +314,6 @@ export interface ChatServiceDeps {
   }) => Promise<ResolvedConnection>;
   /** The FOREIGN half of the assemble ctx (preset/persona/settings) from chat-supplied keys (`turn`/`read`/`start-chat`). */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
-  /** Hash an invite token before persistence (sessions discipline — never stored raw; `invites`). */
-  readonly hashToken: (token: string) => string;
-  /** Mint a fresh invite id (`invites`). */
-  readonly newInviteId: () => ChatInviteId;
   /** The per-member COUNT budget debit (engine §9 belt). */
   readonly debitBudget: DebitBudgetOp;
   /** The per-turn host policy — budget cap + max-pro-sub consent (engine §9 belt). */

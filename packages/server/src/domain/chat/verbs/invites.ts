@@ -5,17 +5,14 @@
 // the ONE human-join path (the atomic `redeemInviteAtomic` closes the maxUses/expiry TOCTOU; `role` is
 // server-forced `member`, `joinSeq` stamped at the canon head; the re-add upsert lives in persistence).
 //
-// VERB DEPS (the second factory arg) — collaborators NOT on `ChatContext` yet, passed by the composition
-// root. FLAG[PD-61]: ALL of these SHOULD be on `ChatContext` (chunk 1); declared as verb
-// deps here so the chokepoint ships correctly and the missing seams are enumerated, not invented:
-//   • emit               — the chat bus (chat's own; see bus.ts).
-//   • hashToken          — the peppered token hasher (chat.md §2 "mirror sessions"; the `sessions`
-//                          `createTokenHasher(SESSION_SECRET)` shape — the root binds the pepper).
-//   • newInviteId        — the `ChatInviteId` minter (a ctx id-minter sibling; `ChatContext` has 7 others
-//                          but not this one).
-//   • loadParticipantViews — the roster read-model resolver (roster.ts/queries.ts: "name/handle resolution
-//                          is the verb's via injected ops" — the root resolves `users` publics OUTSIDE the
-//                          domain `no-direct-users-read` scope; likely shared with read.ts `getChat`).
+// VERB DEPS (the second factory arg) — the two collaborators deliberately NOT on `ChatContext` (PD-61
+// resolved: `hashToken` + `newInviteId` moved ONTO ctx as crypto/minter siblings; these two stay deps by
+// design):
+//   • emit               — the chat bus (chat's OWN in-process collaborator, NOT a ctx op —
+//                          FLAG[bus-not-on-ctx] in bus.ts; every emitting bundle takes it as a deps arg).
+//   • loadParticipantViews — the roster read-model resolver, built ONCE inside chat's own composition root
+//                          (service.ts — chat-internal, shared with fork/read/start-chat; not entry-wired,
+//                          so it cannot live on the entry-assembled `ChatContext`).
 //
 // FLAG[PD-66]: `createInvite` supports the SHARE-LINK path only. Targeted-by-handle needs a
 // `resolveHandle` (handle→userId) op (chat.md §2 "exact resolveHandle") that exists nowhere — so a targeted
@@ -34,7 +31,7 @@ import type {
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { chatInvites } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { ChatId, ChatInviteId, Handle } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
@@ -58,12 +55,10 @@ import {
 } from "../persistence/invites";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
 
-/** The collaborators the invite verbs close over (see the file header `invite-deps-not-on-ctx` FLAG). Inlined
+/** The collaborators the invite verbs close over (see the file header VERB DEPS note). Inlined
  *  + non-exported (the `types-in-contract` gate); the root builds a matching object literal. */
 interface InviteDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
-  readonly hashToken: (token: string) => string;
-  readonly newInviteId: () => ChatInviteId;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 
@@ -76,12 +71,12 @@ type InviteVerbs = Pick<
 /**
  * The invite-lifecycle verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). Folds
  * the per-verb factories (internal below) into one object keyed by their `ChatService` method names; the
- * composition root spreads it into the full service. `deps` carries the collaborators not on `ChatContext`
- * (see the file header FLAG[PD-61]).
+ * composition root spreads it into the full service. `deps` carries the two collaborators deliberately not
+ * on `ChatContext` (see the file header).
  */
 export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   return {
-    createInvite: createCreateInvite(ctx, deps),
+    createInvite: createCreateInvite(ctx),
     previewInvite: createPreviewInvite(ctx, deps),
     redeemInvite: createRedeemInvite(ctx, deps),
     revokeInvite: createRevokeInvite(ctx),
@@ -125,7 +120,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
 
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered HASH, return the raw token ONCE for
  *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link only (FLAG[PD-66]). */
-function createCreateInvite(ctx: ChatContext, deps: InviteDeps): ChatService["createInvite"] {
+function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
@@ -136,13 +131,13 @@ function createCreateInvite(ctx: ChatContext, deps: InviteDeps): ChatService["cr
     }
     const at = ctx.now();
     const token = randomBytes(TOKEN_BYTES).toString("base64url");
-    const inviteId = deps.newInviteId();
+    const inviteId = ctx.newInviteId();
     const maxUses = input.maxUses ?? null;
     const expiresAt = input.expiresAt ?? null;
     await createInvitePersist(ctx.db, {
       id: inviteId,
       chatId,
-      tokenHash: deps.hashToken(token),
+      tokenHash: ctx.hashToken(token),
       maxUses,
       uses: 0,
       expiresAt,
@@ -170,7 +165,7 @@ function createCreateInvite(ctx: ChatContext, deps: InviteDeps): ChatService["cr
 function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["previewInvite"] {
   return async ({ principal, input }: PreviewInviteParams): Promise<InvitePreview> => {
     const at = ctx.now();
-    const invite = await findInviteByTokenHash(ctx.db, deps.hashToken(input.token));
+    const invite = await findInviteByTokenHash(ctx.db, ctx.hashToken(input.token));
     const usable =
       invite !== undefined &&
       invite.status === "pending" &&
@@ -205,7 +200,7 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
  *  membership instead of a phantom error). An invalid token is a leak-free NOT_FOUND. */
 function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["redeemInvite"] {
   return async ({ principal, input }: RedeemInviteParams) => {
-    const tokenHash = deps.hashToken(input.token);
+    const tokenHash = ctx.hashToken(input.token);
     const at = ctx.now();
     const result = await redeemInviteAtomic(ctx.db, {
       tokenHash,

@@ -102,12 +102,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   });
   const edit = createEdit(ctx, { emit: deps.emit });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
-  const invites = createInvites(ctx, {
-    emit: deps.emit,
-    hashToken: deps.hashToken,
-    newInviteId: deps.newInviteId,
-    loadParticipantViews,
-  });
+  const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews });
   const read = createRead(ctx, {
     loadParticipantViews,
     resolveConnection: deps.resolveConnection,

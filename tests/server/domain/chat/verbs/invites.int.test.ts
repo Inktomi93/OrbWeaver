@@ -59,23 +59,16 @@ async function loadParticipantViews(chatId: ChatId): Promise<readonly Participan
   }));
 }
 
-let inviteCounter = 0;
+// hashToken/newInviteId now ride the ctx (PD-61) — makeChatContext supplies the same `h:${token}` fake
+// hasher + a deterministic chat_invite minter; deps carry only the bus emit + the roster resolver.
 function makeDeps(): {
   emit: () => Promise<void>;
-  hashToken: (token: string) => string;
-  newInviteId: () => ChatInviteId;
   loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 } {
-  inviteCounter = 0;
   return {
     emit: (): Promise<void> => {
       emitted += 1;
       return Promise.resolve();
-    },
-    hashToken: (token: string): string => `h:${token}`,
-    newInviteId: (): ChatInviteId => {
-      inviteCounter += 1;
-      return castId<ChatInviteId>(`chat_invite_${inviteCounter}`);
     },
     loadParticipantViews,
   };
