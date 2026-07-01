@@ -16,32 +16,30 @@ export function createBulkArchive(ctx: CharacterContext): CharacterService["bulk
       characterIds.map(async (characterId) => {
         const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
         if (row === undefined) {
-          throw new Error("missing");
+          return { status: "missing" as const };
         }
         if (row.archived === archived) {
-          throw new Error("skipped");
+          return { status: "skipped" as const };
         }
-        return characterId;
-      })
+        return { status: "updated" as const, id: characterId };
+      }),
     );
-
-    const toUpdate = results
-      .filter((res): res is PromiseFulfilledResult<typeof res extends PromiseFulfilledResult<infer T> ? T : never> => res.status === "fulfilled")
-      .map(res => res.value);
 
     let updated = 0;
     let missing = 0;
     let skipped = 0;
+    const toUpdate: string[] = [];
 
     for (const res of results) {
       if (res.status === "rejected") {
-        if (res.reason instanceof Error && res.reason.message === "missing") {
-          missing++;
-        } else if (res.reason instanceof Error && res.reason.message === "skipped") {
-          skipped++;
-        } else {
-          throw res.reason;
-        }
+        throw res.reason;
+      }
+      if (res.value.status === "missing") {
+        missing++;
+      } else if (res.value.status === "skipped") {
+        skipped++;
+      } else {
+        toUpdate.push(res.value.id);
       }
     }
 

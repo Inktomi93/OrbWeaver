@@ -21,32 +21,31 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
       characterIds.map(async (characterId) => {
         const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
         if (row === undefined) {
-          throw new Error("missing"); // Captured as missing
+          return { status: "missing" as const };
         }
         const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
         if (!ok) {
-          throw new Error("missing");
+          return { status: "missing" as const };
         }
-        return row;
+        return { status: "deleted" as const, row };
       }),
     );
 
-    const deletedRows = results
-      .filter((res) => res.status === "fulfilled")
-      .map((res) => (res as PromiseFulfilledResult<NonNullable<Awaited<ReturnType<typeof loadOwnedCharacterRow>>>>).value);
-    
-    let updated = deletedRows.length;
     let missing = 0;
+    const deletedRows: NonNullable<Awaited<ReturnType<typeof loadOwnedCharacterRow>>>[] = [];
 
     for (const res of results) {
       if (res.status === "rejected") {
-        if (res.reason instanceof Error && res.reason.message === "missing") {
-          missing++;
-        } else {
-          throw res.reason;
-        }
+        throw res.reason;
+      }
+      if (res.value.status === "missing") {
+        missing++;
+      } else {
+        deletedRows.push(res.value.row);
       }
     }
+
+    let updated = deletedRows.length;
 
     await Promise.all(
       deletedRows.map((row) =>

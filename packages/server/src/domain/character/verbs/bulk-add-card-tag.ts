@@ -21,13 +21,13 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
       characterIds.map(async (characterId) => {
         const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
         if (row === undefined) {
-          throw new Error("missing");
+          return { status: "missing" as const };
         }
         const attached = await ctx.attachCardTag({ ownerId, characterId, tagName: name });
         if (!attached) {
-          throw new Error("skipped");
+          return { status: "skipped" as const };
         }
-        return true;
+        return { status: "updated" as const };
       }),
     );
 
@@ -36,16 +36,15 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
     let skipped = 0;
 
     for (const res of results) {
-      if (res.status === "fulfilled") {
-        updated++;
+      if (res.status === "rejected") {
+        throw res.reason;
+      }
+      if (res.value.status === "missing") {
+        missing++;
+      } else if (res.value.status === "skipped") {
+        skipped++;
       } else {
-        if (res.reason instanceof Error && res.reason.message === "missing") {
-          missing++;
-        } else if (res.reason instanceof Error && res.reason.message === "skipped") {
-          skipped++;
-        } else {
-          throw res.reason;
-        }
+        updated++;
       }
     }
 
