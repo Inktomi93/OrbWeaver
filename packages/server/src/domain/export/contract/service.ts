@@ -24,12 +24,10 @@
 // shapes) now live in the shared serde core (`@orb/server/kit/serde/card`) next to the `cardFromJson` IN
 // adapter — one card emitter, composed DOWN by `exportCharacter` (never re-implemented here).
 //
-// FLAG[PD-74]: export.md's literal text says `sharp` stays INLINE in `export-character.ts` for the
-// initial port, with a DEFERRED criterion FLAG[PD-74] to extract "iff a SECOND domain needs image transcode." That
-// criterion is ALREADY met — `infra/image` (the sealed sharp adapter, D6) exists and `domain/assets`
-// consumes it — so this slice follows the doc's own resolution: it injects `imageTransform` (exactly as
-// assets does) rather than re-importing the heavy native `sharp` into a domain verb (which would also
-// breach the infra seal). Flagged because it deviates from the doc's literal "inline" wording.
+// SHARP PLACEMENT (PD-74 resolved — export.md now reads the same): the jpg/webp→png transcode is the
+// INJECTED `infra/image` `imageTransform` op (D6, exactly as assets consumes it) — export never imports
+// the heavy native `sharp` (the infra seal). The extract criterion ("a SECOND domain needs image
+// transcode") was already met when this slice was built.
 
 import type { Db } from "@orb/db";
 import type { ImageTransformOptions } from "#infra/image";
@@ -47,7 +45,7 @@ import type { ExportedCard } from "./results";
  *     is read with a single `cas.read` attempt (the TOCTOU-safe pattern — export.md Esoteric).
  *   - `imageTransform` — the `sharp` adapter op (`infra/image`, D6). Used to transcode a non-PNG avatar
  *     (jpg/webp) → PNG before the card JSON is embedded. The op strips all metadata; the width is omitted
- *     (no resize — the avatar is embedded at its source size). See FLAG[PD-74] above.
+ *     (no resize — the avatar is embedded at its source size). See "SHARP PLACEMENT" above (PD-74).
  */
 export interface ExportContext {
   readonly db: Db;
