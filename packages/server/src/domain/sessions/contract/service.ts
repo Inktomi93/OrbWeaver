@@ -3,17 +3,23 @@
 // (movement table: the inferred `ReturnType<>` is invisible at a glance, so the bundle is a hand-written
 // interface here — `no-context-returntype` forbids reflecting it off the builder).
 //
-// 8 verbs across the BFF session lifecycle + identity resolution (sessions.md §"What this domain owns"):
+// 9 verbs across the BFF session lifecycle + identity resolution (sessions.md §"What this domain owns"):
 //   create · validate · revokeByToken · revoke · revokeAllForUser · listForUser · ensureUser ·
-//   provisionIdentity. The seam (`entry/auth/seam.ts`) consumes validate/provisionIdentity/ensureUser to
-//   mint the one `Principal`; `admin` consumes listForUser/revoke/revokeAllForUser via an injected port.
+//   provisionIdentity · loadUserById. The seam (`entry/auth/seam.ts`) consumes validate/provisionIdentity/
+//   ensureUser to mint the one `Principal` (+ loadUserById for the frozen-host bridge, PD-73); `admin`
+//   consumes listForUser/revoke/revokeAllForUser via an injected port.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { SessionId, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams } from "./params";
-import type { CreateSessionResult, ProvisionResult, ValidatedSession } from "./results";
+import type {
+  CreateSessionResult,
+  ProvisionResult,
+  UserPrincipalFields,
+  ValidatedSession,
+} from "./results";
 
 /**
  * The DI bundle every verb closes over, wired at the composition root (`service.ts`). Explicit interface
@@ -65,4 +71,10 @@ export interface SessionsService {
    *  Returns `{ userId, enabled, role }` so the seam gates (disabled → unauthenticated) + builds the
    *  `Principal`. @internal — only the `entry/` seam calls it. */
   provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionResult>;
+  /** Resolve a bare row id → its live principal-fields (role/handle/externalId re-read from `users`), or
+   *  `null` for an unknown id. The frozen-host → `Principal` bridge (PD-73): chat's D19 ops are keyed by
+   *  the frozen host `UserId`, and the D17 role-sensitive ops (max-pro-sub owner-gate) need the host's
+   *  REAL role — sessions is the sanctioned `users` reader, so the read homes here. @internal — only the
+   *  `entry/auth` seam's `createHostPrincipalResolver` calls it. */
+  loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
 }

@@ -49,6 +49,16 @@ const PROVISION_COLS = {
   enabled: users.enabled,
 } as const;
 
+/** `loadUserById` lookup: the live row for a bare user id (the entry root's frozen-host → `Principal`
+ *  bridge — PD-73). Reuses the provision column set (id/handle/externalId/role/enabled). */
+export async function selectForProvisionById(
+  db: Db,
+  id: UserId,
+): Promise<ProvisionRow | undefined> {
+  const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.id, id)).limit(1);
+  return rows.at(0);
+}
+
 /** `ensureUser` lookup: the row id for a handle, or undefined. */
 export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId | undefined> {
   const rows = await db

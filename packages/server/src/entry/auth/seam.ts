@@ -24,6 +24,8 @@
 // enforces (a cookie mutation without the custom header → 403). The seam constructs; it does not police.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "#domain/sessions";
 import type {
   AuthConfig,
@@ -144,6 +146,31 @@ async function resolveHeaderOrFallbackPrincipal(
     handle: res.identity.handle,
     externalId: res.identity.externalId,
     via: res.via,
+  };
+}
+
+/**
+ * The frozen-host → `Principal` bridge (PD-73; the second Principal construction site this module owns).
+ * Chat's cross-feature ops are keyed by the FROZEN host `UserId` (D19 — the host funds the turn and may be
+ * offline, so no request `Principal` exists to carry). The role-SENSITIVE ops (`connection.resolveChat` /
+ * `credentials.resolve` — the D17 max-pro-sub owner-gate, identity §3) must key on the host's REAL
+ * `users.role`, re-read live via `sessions.loadUserById` (the sanctioned `users` reader) — a fabricated
+ * `role:"user"` would fail-closed-DENY the owner's own Max-sub turn. `via:"fallback"` matches the
+ * compose-root synthetic-principal convention (role-clients.ts); an unknown id degrades to a plain
+ * `role:"user"` principal (fail-closed for the privileged gates).
+ */
+export function createHostPrincipalResolver(
+  sessions: SessionsService,
+): (userId: UserId) => Promise<Principal> {
+  return async (userId: UserId): Promise<Principal> => {
+    const fields = await sessions.loadUserById(userId);
+    return {
+      userId,
+      role: fields?.role ?? "user",
+      handle: fields?.handle ?? castId<Handle>(userId),
+      externalId: fields?.externalId ?? null,
+      via: "fallback",
+    };
   };
 }
 
