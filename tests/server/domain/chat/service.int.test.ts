@@ -12,7 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { ChatService } from "../../../../packages/server/src/domain/chat";
@@ -84,7 +84,6 @@ function makeService(names: Readonly<Record<string, string>>): {
   events: ChatBusEvent[];
 } {
   const events: ChatBusEvent[] = [];
-  let inviteCounter = 0;
   const ctx = makeChatContext(db, {
     runChatTurn: scripted("Hi there"),
     applyStatsDelta: (_b: unknown, _d: Db, _delta: StatsDelta): void => undefined,
@@ -110,11 +109,6 @@ function makeService(names: Readonly<Record<string, string>>): {
         scanDepth: 6,
         injectionTokenBudget: 0,
       }),
-    hashToken: (token) => `hash:${token}`,
-    newInviteId: () => {
-      inviteCounter += 1;
-      return castId<ChatInviteId>(`chat_invite_${inviteCounter}`);
-    },
     debitBudget: () => Promise.resolve(),
     resolveTurnPolicy: () => Promise.resolve({ budget: null, allowNonOwnerMaxProSub: false }),
     holder: "replica-test",

@@ -149,6 +149,9 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     newInjectionId: minter(ID_PREFIX.chatInjection),
     newEventId: minter(ID_PREFIX.chatEvent),
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
+    newInviteId: minter(ID_PREFIX.chatInvite),
+    // The invite-token pepper hasher (the sessions discipline; PD-61 — a ctx crypto op).
+    hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
     applyRegexReplace: createRegexApplyReplace(),
     // The chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
@@ -500,8 +503,6 @@ export function buildChatService(input: ChatComposeInput): ChatService {
         memoryConfig,
       };
     },
-    hashToken: createTokenHasher(input.sessionSecret),
-    newInviteId: minter(ID_PREFIX.chatInvite),
     debitBudget: memberBudget.debit,
     // The per-turn host policy (engine §9 belt). These D17 governance facts live on the admin-resolved
     // EffectiveAppConfig (NOT UserSettings, which carries neither field — the dictated `loadUserSettings`
