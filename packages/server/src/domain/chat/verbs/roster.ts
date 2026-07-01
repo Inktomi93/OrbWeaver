@@ -15,7 +15,7 @@
 // `chatUpdated` catch-all ("low-payload chat-row changes") — so every roster/group/override/membership
 // mutation emits `chatUpdated` (a "refetch the chat detail" signal). A dedicated roster event would need a
 // new union member in `@orb/contracts/chat` (chunk 1, allowlist-gated) — out of this chunk's scope.
-// FLAG[participant-not-found]: there is no `participant_not_found`/`target_not_member` code in `CHAT_OP_CODES`;
+// FLAG[PD-87]: there is no `participant_not_found`/`target_not_member` code in `CHAT_OP_CODES`;
 // the disable/talkativeness verbs map a missing roster target to `ChatNotFoundError` (→ NOT_FOUND) — the
 // closest leak-free typed error. A dedicated code would tidy the message.
 // HOST HANDOFF (PD-60 — Part III §2; the two-party "nominate → notify → nominee accepts" flow). The pending

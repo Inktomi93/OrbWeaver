@@ -6,7 +6,7 @@
 // The result shapes now live in `@orb/contracts/providers` as the family-neutral `AccountCredits` /
 // `GenerationCost` (the credentials/account domain consumes them through injection — cross-boundary, so they
 // are homed in contracts, not file-local here). The activity / providers / endpoints diagnostics neo carried
-// are DEFERRED (activity needs a management key; not in scope for this slice).
+// are FLAG[PD-80] (activity needs a management key; not in scope for this slice).
 
 import type { GenerationResponse } from "@openrouter/sdk/models";
 import type { GetCreditsResponse } from "@openrouter/sdk/models/operations";

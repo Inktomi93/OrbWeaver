@@ -15,7 +15,7 @@
 // owns NONE while another user's turn is in flight gets `foreignInFlight: true` (the verb maps that to
 // `not_turn_owner`) — a host cannot abort a member's turn.
 //
-// FLAG[abort-into-engine] RESOLVED: `TurnPrep` now carries an optional `signal` (`contract/results.ts`); the
+// `TurnPrep` now carries an optional `signal` (`contract/results.ts`); the
 // turn verbs thread `handle.signal` into `engine.runTurn`, which forwards it through the pipeline to the
 // `runChatTurn` role — so a single in-flight ENGINE turn IS interruptible mid-generation (the runner aborts its
 // request; the engine maps the `AbortError` to `turnAborted(reason:"user")`). The registered signal still also

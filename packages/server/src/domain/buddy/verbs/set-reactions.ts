@@ -1,5 +1,5 @@
 // verb: setReactions — toggle whether the buddy reacts to app events (writes `buddies.reactionsEnabled`;
-// the observer reads it — observer DEFERRED). A no-op for an unhatched buddy (no row) — returns the
+// the observer reads it — FLAG[PD-64]). A no-op for an unhatched buddy (no row) — returns the
 // preview view with the requested flag. Owner-scoped.
 
 import type { SetReactionsParams } from "../contract/params";

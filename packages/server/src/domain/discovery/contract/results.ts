@@ -1,5 +1,5 @@
 // domain/discovery/contract/results — the verb output shapes for the duplicate-character + theme/hub slice.
-// (The fuller corpus surface — Browse/Catalog/Archetype/Insights/Image/Cooccurrence/Tag/Views — is DEFERRED;
+// (The fuller corpus surface — Browse/Catalog/Archetype/Insights/Image/Cooccurrence/Tag/Views — is FLAG[PD-40];
 // those result shapes join with their verbs in a later wave. See contract/service.ts for the deferral list.)
 
 import type { CharacterId, DuplicateCharacterPairId, ThemeClusterId } from "@orb/kit/ids";

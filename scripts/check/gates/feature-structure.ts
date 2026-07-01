@@ -41,6 +41,17 @@ export const featureStructure: Check = {
           });
         }
       }
+      for (const entry of readdirSync(featureDir, { withFileTypes: true })) {
+        if (entry.isFile()) {
+          if (!REQUIRED_FILES.includes(entry.name as any)) {
+            violations.push({
+              file: `${DOMAIN_REL}/${feature}/${entry.name}`,
+              line: 0,
+              message: `loose file '${entry.name}' not allowed at feature root (must be index.ts, service.ts, or context.ts)`,
+            });
+          }
+        }
+      }
     }
     return violations;
   },

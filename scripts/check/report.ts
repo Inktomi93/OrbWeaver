@@ -19,6 +19,12 @@ import { testLayout } from "./gates/test-layout.ts";
 import { testPresence } from "./gates/test-presence.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
+import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
+import { testFactoryContract } from "./gates/test-factory-contract.ts";
+import { testFixtureImports } from "./gates/test-fixture-imports.ts";
+import { testNoStubs } from "./gates/test-no-stubs.ts";
+import { serverLayout } from "./gates/server-layout.ts";
+import { packageLayout } from "./gates/package-layout.ts";
 import { runChecks } from "./harness.ts";
 
 runChecks([
@@ -38,4 +44,10 @@ runChecks([
   pdCitationIntegrity,
   soleEnvReader,
   assumesSingleReplica,
+  testMockDoctrine,
+  testFactoryContract,
+  testFixtureImports,
+  testNoStubs,
+  serverLayout,
+  packageLayout,
 ]);

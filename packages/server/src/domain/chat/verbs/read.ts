@@ -12,7 +12,7 @@
 // (`AssembledPrompt`/`AssemblyPreview`/`SectionPreview`) are the BUILD halves (static/dynamic/afterHistory +
 // the host/admin trace); the SHAPE wire-history is a turn-only product (not in these read-models).
 //
-// FLAG[guided-placement]: `previewAssembly` accepts a `guided` steer but does NOT route it yet — the guided
+// FLAG[PD-63]: `previewAssembly` accepts a `guided` steer but does NOT route it yet — the guided
 // template resolution is the guided-steering chunk's seam (the SAME state `verbs/turn.ts` flagged: the param is
 // accepted, not applied).
 //
@@ -350,7 +350,7 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
 // ── dry-run prompt previews (NO turn, NO persist) ─────────────────────────────────
 
 /** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug surface).
- *  FLAG[guided-placement]: `guided` is accepted but not yet routed (the guided chunk's seam). */
+ *  FLAG[PD-63]: `guided` is accepted but not yet routed (the guided chunk's seam). */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
   return async ({
     principal,

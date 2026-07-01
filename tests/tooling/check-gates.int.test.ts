@@ -112,6 +112,18 @@ function writeFixtures(): void {
   );
   // no-caller-user-id: the D19-forbidden `callerUserId` identifier (in the fixture's source, not here).
   fx("packages/server/src/__g_caller.ts", "export const callerUserId = 1;\n");
+  // test-mock-doctrine: vi.mock targeting an internal relative module.
+  fx("tests/__g_mock.test.ts", `import { vi } from "vitest";\nvi.mock("../src/foo");\n`);
+  // test-factory-contract: makeX taking db, seedX without db.
+  fx("tests/support/factories/__g_factory.ts", `export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n`);
+  // test-fixture-imports: importing test/expect directly from vitest.
+  fx("tests/__g_imports.test.ts", `import { test, expect } from "vitest";\n`);
+  // test-no-stubs: a test block with no assertions.
+  fx("tests/__g_stub.test.ts", `import { test } from "support/test";\ntest("stub", () => {\n  const x = 1;\n});\n`);
+  // server-layout: an illegal directory at the root of server/src.
+  fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
+  // package-layout: a loose file at the root of kit/src.
+  fx("packages/kit/src/__g_rogue.ts", "export const x = 1;\n");
 }
 
 let registry = new Set<string>();

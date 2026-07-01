@@ -5,7 +5,7 @@
 // + the injected clock/id determinism seam + `audit` pre-bound to db) and handed to `createWorldInfoService`
 // — world-info sideways-imports none of those (domain-no-cross-feature). There is NO guard + NO cross-
 // feature op in the bundle: every world-info surface is ownership-scoped (the gate is `principal.userId`).
-// The DEFERRED chat scope would add `emitWiEvent` + `ensureChatOwned` (type-only) here — see
+// The FLAG[PD-30] chat scope would add `emitWiEvent` + `ensureChatOwned` (type-only) here — see
 // contract/service.ts.
 
 export type { WorldInfoContext } from "./contract/service";

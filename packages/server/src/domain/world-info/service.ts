@@ -5,7 +5,7 @@
 // every surface is ownership-scoped off `principal.userId` (a book via `worldBooks.ownerId`, an entry via
 // its book, an attachment target via its own owner column).
 //
-// DEFERRED — the CHAT attachment scope (`attachToChat`/`detachFromChat`/`listForChat` + the `WiBusEvent`
+// FLAG[PD-30] — the CHAT attachment scope (`attachToChat`/`detachFromChat`/`listForChat` + the `WiBusEvent`
 // emit). NOT wired here: chats are membership-scoped (D18 — no `chats.ownerId`), so the authority is the
 // host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1 done); the block is the
 // chat roster/membership data world-info doesn't own. The emit rides the chat bus (`ChatBusEvent`), a

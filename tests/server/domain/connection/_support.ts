@@ -22,7 +22,7 @@ import type {
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
 import type { UserSettings } from "../../../../packages/contracts/src/settings/index.ts";
 import { DEFAULT_USER_SETTINGS } from "../../../../packages/contracts/src/settings/index.ts";
-import type { Db } from "../../../../packages/db/src/client.ts";
+import type { Db } from "../../../../packages/db/src/client/index.ts";
 import type {
   ExternalId,
   Handle,

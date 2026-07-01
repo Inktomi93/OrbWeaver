@@ -204,7 +204,7 @@ export function resolveModelCapability(
       // conservative placeholder (no reasoning, no sampling). Carried so ResolvedConnection always has one.
       return staticProfile(LOCAL_LIGHT_WINDOW, false);
     case "custom_openai":
-      // DEFER(promotion): the BYO profile is USER-DECLARED via providerMetadataSchema.modelProfile (the
+      // FLAG[PD-12]: the BYO profile is USER-DECLARED via providerMetadataSchema.modelProfile (the
       // credential metadata, v1-deferred in @orb/contracts/credentials) or the inspector probe → home it
       // when the custom-byo settings form lands. Until then: a conservative OpenAI-compatible baseline.
       return staticProfile(CUSTOM_OPENAI_DEFAULT_WINDOW, true);

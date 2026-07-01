@@ -12,7 +12,7 @@
 // star/archive/title/variables/injections/compact" — the contract's own comment) — there is no dedicated
 // `titleUpdated`/`starred`/`injectionChanged` member, so a client refetches the chat detail. A dedicated event
 // would need a new `ChatBusEvent` member (chunk 1's allowlist — out of scope).
-// FLAG[reap-no-schema]: `reapTemporaryChats` has NO schema backing — `chats` carries no `temporary`/`expiresAt`
+// FLAG[PD-65]: `reapTemporaryChats` has NO schema backing — `chats` carries no `temporary`/`expiresAt`
 // column (db/schema/chat.ts), so there are ZERO temporary chats to reap and the verb is an honest `{reaped:0}`
 // no-op. It is NOT stubbed-away logic: with no temporary-chat concept in the schema there is nothing to sweep.
 // A real reap needs a `chats.temporary` flag + a TTL/`expiresAt` column (a db-schema decision, out of this
@@ -134,7 +134,7 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delet
   };
 }
 
-// ── reapTemporaryChats (non-chat-scoped — see FLAG[reap-no-schema]) ──────────────────────────────────────────
+// ── reapTemporaryChats (non-chat-scoped — see FLAG[PD-65]) ──────────────────────────────────────────
 /** `reapTemporaryChats` — an honest no-op until the schema models temporary chats (file header FLAG). */
 function createReapTemporaryChats(): ChatService["reapTemporaryChats"] {
   return (_params: ReapTemporaryChatsParams): Promise<ReapResult> => Promise.resolve({ reaped: 0 });

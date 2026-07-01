@@ -35,9 +35,7 @@ export interface SessionAdminView {
 
 /** One vLLM engine's status as the admin panel surfaces it — admin's OWN view, declared here because the
  *  infra `EngineStatusRecord` vocab is DELIBERATELY sealed inside `infra/providers` ("never crosses the
- *  providers boundary"). The composition root maps the supervisor's records into this view.
- *  FLAG[PD-3] (open decision, admin.md): the vllm-admin surface home + this status-crossing seam are unresolved
- *  — if a broader ops-admin surface emerges, this view + the two vllm verbs move there. */
+ *  providers boundary"). The composition root maps the supervisor's records into this view. */
 export interface AdminEngineStatus {
   readonly status: string;
   readonly detail: string;

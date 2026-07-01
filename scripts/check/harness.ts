@@ -32,6 +32,8 @@ export function getProject(root: string): Project {
   project.addSourceFilesAtPaths([
     `${root}/packages/*/src/**/*.ts`,
     `${root}/packages/*/src/**/*.tsx`,
+    `${root}/tests/**/*.ts`,
+    `${root}/tests/**/*.tsx`,
   ]);
   cached = project;
   return project;

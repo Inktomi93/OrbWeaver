@@ -215,7 +215,7 @@ export interface TurnPrep {
    *  ⇒ the locked path (send/swipe/continue/impersonate/force). */
   readonly lockFree?: boolean | undefined;
   /** The caller's abort signal (the active-turns handle) threaded engine → pipeline → `runChatTurn`
-   *  (FLAG[abort-into-engine], resolved). The runner aborts its in-flight request when signalled; the engine
+   *  (abort propagation). The runner aborts its in-flight request when signalled; the engine
    *  maps the resulting `AbortError` to `turnAborted(reason:"user")` then rethrows (never swallows). */
   readonly signal?: AbortSignal | undefined;
 }

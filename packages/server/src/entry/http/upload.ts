@@ -9,7 +9,7 @@
 // it does NOT enforce magic (the bytes are validated as a card, not by mime).
 //
 // SCOPE: the import route accepts already-extracted card FILES. A profile ZIP / dir collection (the loader
-// subsystem) is a later wave — see the DEFER(promotion) note in run-profile-import.ts.
+// subsystem) is a later wave — see the DEFER(promotion) FLAG[PD-77] note in run-profile-import.ts.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";

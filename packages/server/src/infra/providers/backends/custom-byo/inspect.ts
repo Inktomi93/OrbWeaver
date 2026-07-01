@@ -25,7 +25,7 @@ const TRAILING_SLASH_RE = /\/$/;
  * Real 1-message probe against a user-defined OpenAI-compatible endpoint. Sends a trivial non-streaming
  * chat request and returns the redacted request + raw response preview.
  *
- * FLAG (DEFERRED): the per-endpoint `includeBody`/`excludeBody` request transforms (§1a) have no contract
+ * FLAG[PD-13]: the per-endpoint `includeBody`/`excludeBody` request transforms (§1a) have no contract
  * home yet (credentials.md v1 deferral); the probe body is the OpenAI base + the user's headers only. When
  * those transforms land they apply to this body too (the runner + this inspector share that seam).
  */

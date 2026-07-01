@@ -1,6 +1,6 @@
 // verb: get — one owned character by id (owner-scoped). Throws `CharacterNotFoundError` when it doesn't
 // exist OR isn't the caller's — the two collapse into one answer (no foreign-existence leak). A read: no
-// audit, no emit. Owner-only (viewing ≠ owning — a member reads a roster card through the deferred
+// audit, no emit. Owner-only (viewing ≠ owning — a member reads a roster card through the FLAG[PD-31]
 // `getRosterCardView`, not this verb).
 
 import { CharacterNotFoundError } from "../contract/errors";

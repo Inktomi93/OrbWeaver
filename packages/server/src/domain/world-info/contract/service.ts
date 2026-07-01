@@ -12,7 +12,7 @@
 // owner column (a sanctioned `@orb/db` schema read, NOT a cross-feature domain import).
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// DEFERRED — the CHAT scope (3 verbs) + the WI bus. world-info.md lists `attachToChat`/`detachFromChat`/
+// FLAG[PD-30] — the CHAT scope (3 verbs) + the WI bus. world-info.md lists `attachToChat`/`detachFromChat`/
 // `listForChat` (emitting `WiBusEvent`) as the fourth attachment scope, but they are NOT built here:
 //   • chats are MEMBERSHIP-scoped (D18 — there is NO `chats.ownerId`); the authority to attach a book to a
 //     chat is the host participant, gated by the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1

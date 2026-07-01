@@ -7,7 +7,7 @@
 //   • WorldInfoNotFoundError (so the transport + tests discriminate it past the base DomainNotFoundError)
 //   • createWorldInfoService (the factory the entry root wires over the assembled WorldInfoContext)
 //
-// DEFERRED (contract/service.ts): the chat attachment scope (3 verbs) + the WiBusEvent emit wait on the
+// FLAG[PD-30] (contract/service.ts): the chat attachment scope (3 verbs) + the WiBusEvent emit wait on the
 // `can({kind:'chat',roster})` resource arm + the chat bus (Phase 5). The per-turn POOL builder (the GATHER
 // that unions all scopes + drives the kit keyword/placement resolvers) is a chat-assembly concern and reads
 // these tables as a db-layer consumer — it does NOT go through this front door (world-info.md invariant #8).

@@ -13,7 +13,7 @@
 //   • role-IRRELEVANT ops (getCard/persona/mint — gated on `userId` only): the cheap synthetic `hostPrincipal`.
 //   • role-SENSITIVE ops (resolveChat/resolveCredential — the D17 max-pro-sub owner-gate, identity §3): the
 //     authoritative `realHostPrincipal`, which reads the host's REAL `users.role` (entry MAY read users — the
-//     `no-direct-users-read` gate scopes to `domain/`). FLAG[host-principal-home]: the D1-clean home is a
+//     `no-direct-users-read` gate scopes to `domain/`). FLAG[PD-73]: the D1-clean home is a
 //     `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal mint site).
 
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
@@ -120,7 +120,7 @@ export function buildChatService(input: ChatComposeInput): ChatService {
   // The ROLE-SENSITIVE bridge: the D17 `max-pro-sub` owner-gate keys on the host's REAL role (identity §3 —
   // an authoritative DB role read on `runAsUserId`), so a fabricated `role:"user"` would fail-closed-DENY the
   // OWNER's own Max-sub turn. Entry MAY read `users` (the `no-direct-users-read` gate scopes to `domain/`), so
-  // the root resolves the real role here for `resolveChat`/`resolveCredential`. FLAG[host-principal-home]: the
+  // the root resolves the real role here for `resolveChat`/`resolveCredential`. FLAG[PD-73]: the
   // D1-clean home is a `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal
   // mint site) — this entry-local read is the bounded correctness fix until that op lands.
   const realHostPrincipal = async (userId: UserId): Promise<Principal> => {
@@ -166,7 +166,7 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     newStreamEventId: minter(ID_PREFIX.chatStreamEvent),
     audit: input.audit,
     applyRegexReplace: createRegexApplyReplace(),
-    // FLAG[runChatTurn-adapter] RESOLVED: the chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
+    // The chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
     // but `infra/providers` exposes only `(ChatRequest) => Promise<ChatResult>` (different request shape + a
     // non-streaming Promise + a callback `onDelta` stream). The bridging slice maps the shapes and yields the stream.
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
@@ -279,9 +279,9 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
     resolveCredential: async ({ runAsUserId, source }) =>
       // The D17 max-pro-sub owner-gate reads the host's REAL role (resolved authoritatively from `users`), so
-      // the owner's own max-pro-sub turn is no longer fail-closed-denied. See FLAG[host-principal-home].
+      // the owner's own max-pro-sub turn is no longer fail-closed-denied. See FLAG[PD-73].
       input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
-    // FLAG[maybeRevoke-shape] RESOLVED: chat hands `{runAsUserId, source, status}`. We resolve the credential here
+    // Chat hands `{runAsUserId, source, status}`. We resolve the credential here
     // to get the `credentialId` and pass it to `credentials.maybeRevokeOnAuthFailed`.
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
@@ -306,7 +306,7 @@ export function buildChatService(input: ChatComposeInput): ChatService {
       input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
-    // FLAG[resolveUserPublics-resolved]: Human publics. We fetch handle from `users` and `avatarAssetId` from `UserSettings`. If an active persona is provided, we fetch its name and avatar instead.
+    // Human publics. We fetch handle from `users` and `avatarAssetId` from `UserSettings`. If an active persona is provided, we fetch its name and avatar instead.
     resolveUserPublics: async (userId, personaId) => {
       const rows = await db
         .select({ handle: users.handle })
@@ -349,7 +349,7 @@ export function buildChatService(input: ChatComposeInput): ChatService {
         avatarAssetId,
       };
     },
-    // FLAG[resolveImageUrl-stub] RESOLVED: D45 asset→URL resolution using CAS bytes and data-URI.
+    // D45 asset→URL resolution using CAS bytes and data-URI.
     resolveImageUrl: async ({ ownerId, ref }) => {
       if (ref.kind === "external") {
         return ref.url;
@@ -383,7 +383,7 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     emitNotification: async (event) => {
       await input.notifications.record({ event });
     },
-    // FLAG[readPresence-stub]: presence is not built (the transport SSE ref-count is its source). Report
+    // FLAG[PD-70]: presence is not built (the transport SSE ref-count is its source). Report
     // everyone present / never-dropped so cast-gating never silently mutes a participant.
     readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     // The memory write path: chat's `{lens, key|chatId, …}` → embeddings' flat `chat-block` store params.
@@ -424,10 +424,10 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     },
     searchDigests: (query) =>
       input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
-    // FLAG[searchCorpus-ownerid]: `search.corpus` needs a resolved owner that `MemoryQueryOptions` can't
+    // FLAG[PD-71]: `search.corpus` needs a resolved owner that `MemoryQueryOptions` can't
     // carry (the op-shape mismatch the search slice flagged). Recall does NOT call this yet → permissive [].
     searchCorpus: () => Promise.resolve([]),
-    // FLAG[memory-log]: no dedicated MemoryLog sink in foundation/observability — a thin structured-log
+    // FLAG[PD-72]: no dedicated MemoryLog sink in foundation/observability — a thin structured-log
     // closure over the pino logger (greppable on `memory.build`/`memory.recall`).
     log: (entry) => {
       getLog().debug({ memory: entry }, entry.event);

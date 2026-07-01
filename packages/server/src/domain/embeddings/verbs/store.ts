@@ -22,7 +22,7 @@
 //
 // `chat_digest_speakers` (the §4 "which characters this digest CONTAINS" join) IS written here:
 // `DigestStoreParams.speakerCharacterIds` carries the set, and `storeDigest` writes the join (via
-// `replaceDigestSpeakers`) against the persisted digest id after the upsert. FLAG[chat-digest-speakers] RESOLVED
+// `replaceDigestSpeakers`) against the persisted digest id after the upsert. digest speakers updated
 // (PD-41). The chat-side `StoreDigestParams` (chat/contract/context) already carries them; the compose root's
 // chat→embeddings adapter forwards them into this `DigestStoreParams`.
 

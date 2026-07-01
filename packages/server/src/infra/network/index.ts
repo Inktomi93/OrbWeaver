@@ -3,7 +3,7 @@
 // `/models` probe. Reads foundation/env DOWN for the firewall config. NEVER imports @orb/db or any
 // domain (the sealed-executor invariant).
 //
-// NOTE: the ingress IP-allowlist belt (ipAllowlistMiddleware/clientIp) is deferred — it depends on
+// NOTE FLAG[PD-91]: the ingress IP-allowlist belt (ipAllowlistMiddleware/clientIp) is deferred — it depends on
 // `@hono/node-server/conninfo`, a catalog dep added at the entry tier (4e). It lands here once that dep
 // is available (it is a network edge belt; clientIp is reused by the transport seam).
 

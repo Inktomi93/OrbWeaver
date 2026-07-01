@@ -11,7 +11,7 @@
 // from the session expiry minus the INJECTED `now` (determinism — no ambient clock).
 //
 // LOCAL login (`AUTH_MODE=local`): password-form → verify → `sessions.create` → set cookie.
-//   DEFER(promotion): the password VERIFY step (handle+password → userId) is an injected `authenticate`
+//   DEFER(promotion) FLAG[PD-83]: the password VERIFY step (handle+password → userId) is an injected `authenticate`
 //   port. No domain verb resolves a local password today (sessions exposes create/validate/provision but
 //   no `authenticate(handle,password)`; admin owns the hash MINT side only). The route logic + cookie I/O
 //   are complete; the composition root cannot supply `authenticate` until a `domain/sessions` password-
@@ -110,7 +110,7 @@ export interface AuthSessionsPort {
   ) => Promise<{ readonly userId: UserId; readonly enabled: boolean; readonly role: UserRole }>;
 }
 
-/** Local password verification (handle + password → the resolved userId, or `null`). DEFER(promotion):
+/** Local password verification (handle + password → the resolved userId, or `null`). DEFER(promotion) FLAG[PD-83]:
  *  no `domain/sessions` verb provides this yet — see the file header. */
 export interface LocalAuthenticator {
   // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
