@@ -8,7 +8,12 @@
 
 import type { TagStatus } from "@orb/contracts/tag";
 import { TagNotFoundError } from "../contract/errors";
-import type { AttachTagParams, BulkAttachTagParams, DetachTagParams } from "../contract/params";
+import type {
+  AttachTagParams,
+
+  BulkAttachTagParams,
+  DetachTagParams,
+} from "../contract/params";
 import type { TagContext, TagService } from "../contract/service";
 import {
   bulkInsertJunctionRows,
@@ -21,9 +26,12 @@ import { fetchOwnedTagIds, loadOwnedTag } from "../persistence/queries";
 // A manual attach is a LIVE tag; the staging (`pending`) flavor is reached only by passing `status` explicitly.
 const DEFAULT_ATTACH_STATUS: TagStatus = "accepted";
 
-type AttachTrio = Pick<TagService, "attachTag" | "bulkAttachTag" | "detachTag">;
+type AttachGroup = Pick<
+  TagService,
+  "attachTag" | "bulkAttachTag" | "detachTag"
+>;
 
-export function createAttach(ctx: TagContext): AttachTrio {
+export function createAttach(ctx: TagContext): AttachGroup {
   const attachTag: TagService["attachTag"] = async (params: AttachTagParams) => {
     const ownerId = params.principal.userId;
     const tag = await loadOwnedTag(ctx.db, params.tagId, ownerId);

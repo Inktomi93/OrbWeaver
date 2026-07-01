@@ -5,7 +5,8 @@
 
 import type { UpdateTagInput } from "@orb/contracts/tag";
 import { isConstraintViolation } from "@orb/db";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
+import { normalizeTagName } from "@orb/kit/tag";
 import { TagNotFoundError } from "../contract/errors";
 import type { UpdateTagParams } from "../contract/params";
 import type { TagContext, TagService } from "../contract/service";
@@ -19,7 +20,11 @@ type TagPatch = Parameters<typeof updateOwnedTag>[3];
 function buildPatch(input: UpdateTagInput): TagPatch {
   const patch: TagPatch = {};
   if (input.name !== undefined) {
-    patch.name = input.name;
+    const name = normalizeTagName(input.name);
+    if (name === "") {
+      throw new DomainOperationError("tag_invalid_name", "tag name cannot be entirely whitespace");
+    }
+    patch.name = name;
   }
   if (input.color !== undefined) {
     patch.color = input.color;

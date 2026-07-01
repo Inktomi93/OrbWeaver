@@ -17,21 +17,35 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
     const ownerId = principal.userId;
     const at = ctx.now();
 
-    const deletedRows = (
-      await Promise.all(
-        characterIds.map(async (characterId) => {
-          const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
-          if (row === undefined) {
-            return null;
-          }
-          const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
-          return ok ? row : null;
-        }),
-      )
-    ).filter((row) => row !== null);
+    const results = await Promise.allSettled(
+      characterIds.map(async (characterId) => {
+        const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
+        if (row === undefined) {
+          throw new Error("missing"); // Captured as missing
+        }
+        const ok = await deleteOwnedCharacter(ctx.db, characterId, ownerId);
+        if (!ok) {
+          throw new Error("missing");
+        }
+        return row;
+      }),
+    );
 
-    if (deletedRows.length === 0) {
-      return;
+    const deletedRows = results
+      .filter((res) => res.status === "fulfilled")
+      .map((res) => (res as PromiseFulfilledResult<NonNullable<Awaited<ReturnType<typeof loadOwnedCharacterRow>>>>).value);
+    
+    let updated = deletedRows.length;
+    let missing = 0;
+
+    for (const res of results) {
+      if (res.status === "rejected") {
+        if (res.reason instanceof Error && res.reason.message === "missing") {
+          missing++;
+        } else {
+          throw res.reason;
+        }
+      }
     }
 
     await Promise.all(
@@ -59,5 +73,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
         getLog().warn({ err, count: reap.length }, "character: bulk avatar reap failed");
       }
     }
+
+    return { updated, missing, skipped: 0 };
   };
 }

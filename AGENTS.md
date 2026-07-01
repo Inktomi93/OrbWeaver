@@ -1,1 +1,1 @@
-docs/architecture/core/AGENTS.md
+.agents/AGENTS.md
