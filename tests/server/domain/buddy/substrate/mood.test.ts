@@ -8,7 +8,7 @@
 
 import type { CompanionStats } from "@orb/contracts/buddy";
 import { MOODS } from "@orb/contracts/buddy";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import type { BuddySignalKind } from "../../../../../packages/server/src/domain/buddy/contract/signals.ts";
 import {
   bondTierOf,
@@ -20,6 +20,7 @@ import {
   stageOf,
   statForSignal,
 } from "../../../../../packages/server/src/domain/buddy/substrate/mood.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const ALL_SIGNALS: readonly BuddySignalKind[] = [
   "workload:started",

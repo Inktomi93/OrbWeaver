@@ -13,7 +13,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
@@ -30,6 +30,7 @@ import { createTurnEngine } from "../../../../../packages/server/src/domain/chat
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";
 
 const HOST = castId<UserId>("user_host");

@@ -1,6 +1,7 @@
 // SHAPE shaper: squashSameRole (chat.md Part II §3 rule 6 — Anthropic adjacent-same-role defense).
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("squashSameRole", () => {
   test("alternating canon passes through untouched (the common case)", () => {

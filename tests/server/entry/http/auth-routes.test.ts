@@ -18,7 +18,8 @@ import {
   serializeClearedSessionCookie,
   serializeSessionCookie,
 } from "@orb/server/entry/http";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

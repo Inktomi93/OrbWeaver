@@ -5,7 +5,7 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   failQueuedRow,
   findStaleInFlight,
@@ -21,6 +21,7 @@ import {
   toView,
 } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser, seedWorkloadRow, T0 } from "../_support.ts";
 
 describe("markStarted (idempotent claim)", () => {

@@ -3,7 +3,7 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   insertUser,
   selectForProvisionByExternalId,
@@ -12,6 +12,7 @@ import {
   updateUser,
 } from "../../../../../packages/server/src/domain/sessions/persistence/users";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 
 const T0 = 1_750_000_000_000;
 const ALICE = castId<UserId>("user_alice");

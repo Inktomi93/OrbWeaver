@@ -1,7 +1,7 @@
 // substrate/rates — pure read-layer rate math. div guards a zero denominator; the named rates derive the
 // non-additive ratios from the additive rollup columns.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   cacheHitRate,
   deriveExtra,
@@ -9,6 +9,7 @@ import {
   reasoningRate,
   throughputTps,
 } from "../../../../../packages/server/src/domain/stats/substrate/rates.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("rate helpers", () => {
   test("div returns 0 for a non-positive denominator (no NaN/Infinity)", () => {

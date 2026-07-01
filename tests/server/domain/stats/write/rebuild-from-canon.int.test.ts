@@ -7,10 +7,11 @@ import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { utcDay } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

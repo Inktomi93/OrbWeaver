@@ -15,7 +15,8 @@ import {
   reshapeChatStreamChunk,
   resolveProviderPreferences,
 } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../../support/fixtures";
 
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
 

@@ -8,7 +8,7 @@ import { characters } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   cardOf,
   detailOf,
@@ -20,6 +20,7 @@ import {
   summaryOf,
 } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("persistence/queries", () => {

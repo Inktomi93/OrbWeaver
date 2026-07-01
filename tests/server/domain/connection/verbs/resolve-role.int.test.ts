@@ -3,8 +3,9 @@
 // throws ConnectionRoutingError on an incoherent (api, source) selection.
 
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, principal } from "../_support.ts";
 
 describe("resolveRole — honors roleDefaults (PD-9)", () => {

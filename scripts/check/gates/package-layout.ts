@@ -16,7 +16,9 @@ export const packageLayout: Check = {
 
     for (const pkg of PACKAGES) {
       const srcDir = join(root, "packages", pkg, "src");
-      if (!existsSync(srcDir)) continue;
+      if (!existsSync(srcDir)) {
+        continue;
+      }
 
       for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
         if (entry.isFile() && entry.name !== "index.ts" && entry.name.endsWith(".ts")) {

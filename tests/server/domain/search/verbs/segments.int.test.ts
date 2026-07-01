@@ -5,8 +5,9 @@
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeSearch,
   seedCharacter,

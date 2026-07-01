@@ -4,8 +4,9 @@
 import { duplicateCharacterPairs } from "@orb/db";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeDiscoveryHarness,
   seedCharacter,

@@ -1,8 +1,9 @@
 // Runner test: assets-backfill (PD-26 — assets maintenance AS a workload) — wraps assets.backfillAvatars,
 // threads dryRun, projects MaintenanceResult (counts + dryRun echo).
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { assetsBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/assets-backfill.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("assets-backfill runner", () => {

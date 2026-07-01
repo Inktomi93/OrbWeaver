@@ -8,7 +8,8 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can, requireAdmin, requireOwner } from "@orb/server/domain/admin";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 import { principal } from "./_support.ts";
 
 /** A Principal carrying the given role, with a deterministic per-role userId. */

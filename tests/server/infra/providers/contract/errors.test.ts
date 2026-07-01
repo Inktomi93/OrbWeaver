@@ -5,7 +5,8 @@
 // vocab enumerates the normalized failure set.
 
 import { PROVIDER_ERROR_KINDS, ProviderError } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("ProviderError", () => {
   test("is an Error subclass tagged ProviderError, carrying kind + retryable", () => {

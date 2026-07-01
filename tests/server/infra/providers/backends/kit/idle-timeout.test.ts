@@ -2,7 +2,8 @@
 // abort; a chunk before the window resets it; the caller's cancel folds in. Driven with fake timers.
 
 import { IDLE_TIMEOUT_MS, turnAbortSignal } from "@orb/server/infra/providers/backends/kit";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("turnAbortSignal — rolling idle abort", () => {
   beforeEach(() => {

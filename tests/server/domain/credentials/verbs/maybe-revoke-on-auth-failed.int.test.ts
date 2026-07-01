@@ -4,8 +4,9 @@
 import { userCredentials } from "@orb/db";
 import { createCredentialsService } from "@orb/server/domain/credentials";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 // biome-ignore lint/security/noSecrets: "maybeRevokeOnAuthFailed" is the verb name (high camelCase entropy), not a credential.

@@ -4,8 +4,9 @@
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { pickOrModel } from "../../../../../packages/server/src/domain/connection/substrate/pick-or-model.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const entry = (id: string): ModelCatalogEntry => ({
   id,

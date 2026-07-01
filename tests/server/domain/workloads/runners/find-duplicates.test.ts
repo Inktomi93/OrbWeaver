@@ -1,7 +1,8 @@
 // Runner test: find-duplicates — wraps discovery.findDuplicates, projects AnalyticsResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { findDuplicatesRunner } from "../../../../../packages/server/src/domain/workloads/runners/find-duplicates.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("find-duplicates runner", () => {

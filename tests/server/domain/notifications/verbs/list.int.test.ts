@@ -3,9 +3,10 @@
 import type { Db } from "@orb/db";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { ALICE, BOB, inviteEvent, principal, seedUser } from "../_support";
 
 let db: Db;

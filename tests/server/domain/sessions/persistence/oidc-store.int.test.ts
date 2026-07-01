@@ -1,8 +1,9 @@
 import type { Db } from "@orb/db";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createOidcStore } from "../../../../../packages/server/src/domain/sessions/persistence/oidc-store";
 import type { OidcTransaction } from "../../../../../packages/server/src/infra/auth";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 
 const T0 = 1_750_000_000_000;
 

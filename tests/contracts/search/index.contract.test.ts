@@ -2,7 +2,7 @@ import type { BlockKey, MemoryQueryOptions, MemoryRetrievalMode } from "@orb/con
 import { MEMORY_RETRIEVAL_MODES, memoryRetrievalModeSchema } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Sample branded values built at the untyped seam (castId is the sanctioned cast) — no pasted secrets.
 const SAMPLE_CHAT_ID = castId<ChatId>("chat_sample");

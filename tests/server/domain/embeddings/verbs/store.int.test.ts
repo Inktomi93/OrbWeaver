@@ -23,8 +23,9 @@ import {
   SpaceMismatchError,
 } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   EMBED_DIM,
   EMBED_MODEL,

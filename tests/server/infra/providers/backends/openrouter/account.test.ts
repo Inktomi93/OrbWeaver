@@ -5,7 +5,8 @@ import {
   getOpenRouterCredits,
   getOpenRouterGenerationCost,
 } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 type CreditsClient = Parameters<typeof getOpenRouterCredits>[0];
 type GenClient = Parameters<typeof getOpenRouterGenerationCost>[0];

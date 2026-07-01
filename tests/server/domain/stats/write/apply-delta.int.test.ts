@@ -9,9 +9,10 @@ import type { BatchStmt, Db } from "@orb/db";
 import { batchMany, characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

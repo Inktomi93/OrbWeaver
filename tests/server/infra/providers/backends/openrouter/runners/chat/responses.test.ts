@@ -9,7 +9,8 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { runResponsesTurn } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";

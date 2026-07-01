@@ -1,8 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   DEFAULTS,
   resolveCfg,
 } from "../../../../../packages/server/src/domain/chat/memory/constants";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {
   test("DEFAULTS are the grounded knowledge-cluster §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {

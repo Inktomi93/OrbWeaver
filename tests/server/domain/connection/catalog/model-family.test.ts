@@ -2,8 +2,9 @@
 // third-party `claude` FORK is rejected to `other` (so an alien backend never receives Anthropic-only
 // cache_control directives), while bare + `anthropic/`-prefixed Claude ids both match.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { detectModelFamily } from "../../../../../packages/server/src/domain/connection/catalog/model-family.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("detectModelFamily", () => {
   test("matches bare and anthropic/-prefixed Claude ids", () => {

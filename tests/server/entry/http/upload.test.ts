@@ -10,7 +10,8 @@ import { castId } from "@orb/kit/ids";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
 import type { ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

@@ -20,10 +20,11 @@ import { env } from "@orb/server/foundation/env";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
-import { describe, expect, onTestFinished, test, vi } from "vitest";
+import { describe, onTestFinished, vi } from "vitest";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
+import { expect, test } from "../../../support/fixtures";
 import {
   makeHarness as makeAssetsHarness,
   pngBytes,

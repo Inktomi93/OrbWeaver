@@ -7,7 +7,8 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageEmbedRequest, ImageGenerateRequest } from "@orb/server/infra/providers";
 import { runGenerateImage, runImageEmbed } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../../support/fixtures";
 
 const EMBED_MODEL = "qwen/qwen3-vl-embedding";
 const GEN_MODEL = "openrouter/image-gen";

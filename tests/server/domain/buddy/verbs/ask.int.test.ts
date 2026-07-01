@@ -5,8 +5,9 @@
 
 import { messages } from "@orb/db";
 import { createBuddyService } from "@orb/server/domain/buddy";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 const CONTEXT_CAP = Math.floor(32_768 * 0.85);

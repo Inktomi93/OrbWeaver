@@ -11,7 +11,7 @@ import {
   clipScopeSchema,
   clipSourceKindSchema,
 } from "@orb/contracts/memory";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("CLIP_KINDS is exactly [fact, trait, relationship, world-state, plot-thread]", () => {
   expect([...CLIP_KINDS]).toEqual(["fact", "trait", "relationship", "world-state", "plot-thread"]);

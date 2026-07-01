@@ -24,8 +24,9 @@ import {
   createProviderExecutor,
   ProviderError,
 } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
+import { expect, test } from "../../../support/fixtures";
 
 // The dispatch + firewall read only `credential.source`; the brand is irrelevant at runtime (these
 // `.test.ts` files run through esbuild, not tsc), so a cast keeps the fakes terse.

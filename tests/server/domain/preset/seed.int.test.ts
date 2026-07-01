@@ -4,9 +4,10 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { selectSystemDefault } from "../../../../packages/server/src/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures";
 import { FROZEN_AT, seedPreset } from "./_support.ts";
 
 const OLDER_VERSION = DEFAULT_PROMPT_CONFIG.schemaVersion - 1;

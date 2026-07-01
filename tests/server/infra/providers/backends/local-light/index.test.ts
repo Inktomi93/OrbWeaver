@@ -10,7 +10,8 @@ import {
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("createLocalLightBackend", () => {
   test("registers under the local-light key and wires only the three derive roles", () => {

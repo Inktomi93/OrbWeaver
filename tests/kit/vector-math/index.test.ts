@@ -6,7 +6,7 @@ import {
   mean,
   pairwiseCosine,
 } from "@orb/kit/vector-math";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 const v = (...xs: number[]): Float32Array => Float32Array.from(xs);
 // Row-major index into a flat N×N matrix (kept out of the assertions so biome's no-implicit-coercion

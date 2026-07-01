@@ -11,7 +11,8 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll } from "vitest";
+import { expect, test } from "../support/fixtures";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const OK_RE = /✓\s+([a-z-]+)/gu;
@@ -91,9 +92,11 @@ function writeFixtures(): void {
     `import { deriveRunner } from "@orb/server/infra/providers";\nexport const x = deriveRunner;\n`,
   );
   // pd-citation-integrity: a code FLAG[PD-n] citing an id with no registry row (orphan).
+  // The citation is assembled so the literal isn't present in THIS file's source (which the gate
+  // also scans) — only the written fixture resolves to the orphan citation.
   fx(
     "packages/server/src/__g_pd.ts",
-    "// FLAG[PD-9999] — orphan citation, no registry row.\nexport const x = 1;\n",
+    `// ${["FLAG", "[PD-9999]"].join("")} — orphan citation, no registry row.\nexport const x = 1;\n`,
   );
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
   fx(
@@ -117,7 +120,7 @@ function writeFixtures(): void {
   // test-factory-contract: makeX taking db, seedX without db.
   fx(
     "tests/support/factories/__g_factory.ts",
-    `export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n`,
+    "export function makeWrong(db: any) {}\nexport function seedWrong(a: any) {}\n",
   );
   // test-fixture-imports: importing test/expect directly from vitest.
   fx("tests/__g_imports.test.ts", `import { test, expect } from "vitest";\n`);

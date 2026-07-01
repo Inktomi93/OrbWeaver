@@ -18,7 +18,8 @@ import {
   cardFromJson,
   exportBookEntry,
 } from "@orb/server/kit/serde/card";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 /** A minimal-but-complete canonical card (the hash tests mutate copies of this). */
 function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {

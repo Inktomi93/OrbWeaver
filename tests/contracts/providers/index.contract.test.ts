@@ -16,7 +16,7 @@ import {
   rerankResultSchema,
   summarizeResultSchema,
 } from "@orb/contracts/providers";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Sample vectors — built (not pasted) so they carry no high-entropy literal (noSecrets).
 const vecA = new Float32Array([0.1, 0.2, 0.3]);

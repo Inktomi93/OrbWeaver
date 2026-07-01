@@ -1,8 +1,9 @@
 // Runner test: compute-themes — wraps discovery.computeThemes, resolves the k precedence (param → floor),
 // projects AnalyticsResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { computeThemesRunner } from "../../../../../packages/server/src/domain/workloads/runners/compute-themes.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("compute-themes runner", () => {

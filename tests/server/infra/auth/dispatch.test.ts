@@ -1,6 +1,7 @@
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "@orb/server/infra/auth";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 // The dispatch seam: the `MODE_RESOLVERS` Record (one entry per AUTH_MODE — invariant #4) + the
 // origin-gated owner-fallback predicate. Each resolver yields a pre-row `ResolvedIdentity | null`

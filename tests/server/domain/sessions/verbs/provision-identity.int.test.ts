@@ -6,9 +6,10 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const EXTERNAL = castId<ExternalId>("authentik|abc-123");

@@ -1,7 +1,8 @@
 // Runner test: embed-assets — wraps embeddings.embedAssets, projects EmbedPassResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { embedAssetsRunner } from "../../../../../packages/server/src/domain/workloads/runners/embed-assets.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("embed-assets runner", () => {

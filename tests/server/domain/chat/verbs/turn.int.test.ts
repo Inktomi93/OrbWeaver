@@ -16,7 +16,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
@@ -26,6 +26,7 @@ import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/p
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
   makeChatContext,

@@ -11,7 +11,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { afterAll, beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll } from "vitest";
+import { expect, test } from "../support/fixtures";
 
 interface DcRule {
   readonly name: string;

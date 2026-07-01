@@ -3,7 +3,8 @@
 
 import { createImageAdapter } from "@orb/server/infra/image";
 import sharp from "sharp";
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const SRC_WIDTH = 400;
 const SRC_HEIGHT = 300;

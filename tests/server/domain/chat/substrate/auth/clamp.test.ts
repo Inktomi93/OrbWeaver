@@ -3,11 +3,12 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   clampMemberCard,
   resolveCardVisibility,
 } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { expect, test } from "../../../../../support/fixtures";
 
 const CHAR = castId<CharacterId>("character_aria");
 const AVATAR = castId<AssetId>("asset_aria");

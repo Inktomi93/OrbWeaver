@@ -7,7 +7,7 @@ import { characterSnapshots, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { CharacterOperationError } from "../../../../../packages/server/src/domain/character/contract/errors.ts";
 import {
   appendSnapshot,
@@ -18,6 +18,7 @@ import {
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 function makeRow(ownerId: UserId, id: string, handle: string): typeof characters.$inferInsert {

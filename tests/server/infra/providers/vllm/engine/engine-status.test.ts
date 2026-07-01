@@ -5,7 +5,8 @@ import {
   getEngineStatus,
   setEngineStatus,
 } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // Narrow a Record index access (possibly-undefined under noUncheckedIndexedAccess) or fail the test.
 function need<T>(value: T | undefined): T {

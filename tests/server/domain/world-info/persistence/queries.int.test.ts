@@ -23,7 +23,7 @@ import {
   resolveEntryScope,
 } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   loadOwnedBook,
   loadOwnedEntry,
@@ -31,6 +31,7 @@ import {
   toEntryView,
 } from "../../../../../packages/server/src/domain/world-info/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

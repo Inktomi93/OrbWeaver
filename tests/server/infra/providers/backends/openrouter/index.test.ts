@@ -15,7 +15,8 @@ import type {
 } from "@orb/server/infra/providers";
 import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
 const OR_KEY = "sk-or-secret";

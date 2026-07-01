@@ -2,13 +2,14 @@ import type { BlockKey } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall";
 import type {
   MemoryLogEntry,
   MemoryScope,
 } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
 import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment } from "../_support";
 

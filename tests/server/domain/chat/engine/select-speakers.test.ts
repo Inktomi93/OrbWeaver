@@ -5,12 +5,13 @@
 import type { GroupConfig } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   resolveMentions,
   selectSpeakers,
 } from "../../../../../packages/server/src/domain/chat/engine/select-speakers";
+import { expect, test } from "../../../../support/fixtures";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
 function seededRng(seed: number): () => number {

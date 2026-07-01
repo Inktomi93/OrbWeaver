@@ -1,8 +1,9 @@
 // verb: loadUserSettings — the lenient typed-blob loader chat/workloads inject. Returns the parsed
 // UserSettings (defaults for a never-touched account; the written blob otherwise). Raw userId (no gate).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("loadUserSettings", () => {

@@ -15,7 +15,7 @@ import { join } from "node:path";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
 import * as schema from "@orb/db/schema";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
-import { expect, test } from "vitest";
+import { expect, test } from "../support/fixtures";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const BASELINE = join(ROOT, "packages", "db", "src", "migrations", "0000_baseline.sql");

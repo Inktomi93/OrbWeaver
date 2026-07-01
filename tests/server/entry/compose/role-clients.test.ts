@@ -17,7 +17,7 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import { bindRoleClientsForUser } from "@orb/server/entry/compose";
 import type { EmbedRequest, ProviderExecutor } from "@orb/server/infra/providers";
-import { expect, test } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const OWNER = castId<UserId>("u_owner");
 

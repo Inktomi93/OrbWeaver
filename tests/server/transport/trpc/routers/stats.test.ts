@@ -8,7 +8,8 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { LatencyStats, LeaderboardRow, StatsService } from "@orb/server/domain/stats";
 import type { Context } from "@orb/server/transport/trpc";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

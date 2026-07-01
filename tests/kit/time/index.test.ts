@@ -1,5 +1,5 @@
 import { epochToMs, isoToMs, secondsToMs, utcFormatToMs } from "@orb/kit/time";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("epochToMs leaves a millisecond epoch (≥ 1e12) untouched", () => {
   expect(epochToMs(1_700_000_000_000)).toBe(1_700_000_000_000);

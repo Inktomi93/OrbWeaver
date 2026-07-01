@@ -1,8 +1,9 @@
 // verb: bulkArchive — owner-scoped archive/un-archive flip; foreign rows are untouched; no emit.
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("bulkArchive", () => {

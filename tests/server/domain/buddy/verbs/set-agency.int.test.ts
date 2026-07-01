@@ -1,8 +1,9 @@
 // verb: setAgency — toggle the capability-ceiling kill switch; unhatched is a no-op preview with the flag.
 
 import { createBuddyService } from "@orb/server/domain/buddy";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("setAgency", () => {

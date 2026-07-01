@@ -15,7 +15,8 @@ import {
   requireBackend,
   requireRoleImpl,
 } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("deriveRunner — ChatApi × CredentialSource → the sealed backend key", () => {
   test("agent-sdk api: the sub, the OpenRouter skin, and local vllm all map to the agent-sdk backend", () => {

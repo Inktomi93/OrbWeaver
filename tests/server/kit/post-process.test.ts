@@ -11,7 +11,8 @@ import {
   dropIncompleteSentence,
   trimTrailingWhitespace,
 } from "@orb/server/kit/post-process";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 function cfg(over: Partial<PostProcessConfig> = {}): PostProcessConfig {
   return {

@@ -2,8 +2,9 @@
 // hits carry the summary facets + avatar hash; a card with no summary still returns (null facets); the
 // result respects topN; and the rerank order from the underlying knn passes through to the enriched hits.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeSearch,
   seedAsset,

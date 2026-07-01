@@ -36,21 +36,14 @@ Compare `verbs/` and `persistence/`:
 - **Error Handling:** Did Orbweaver replace a silent skip (e.g. `return null`) with an atomicity failure (e.g. `throw` inside `Promise.all`)?
 - **Side-Effects:** Did we miss cascading deletions, metrics tallying, or event emissions?
 
-### Phase 4: Stop and Check! (NO FIXES UNTIL OKAYED)
-**Rule:** Do NOT implement fixes or tweaks yet. Surface your findings to the user.
+### Phase 4: Audit and Surface Findings
+**Rule:** We are strictly auditing and logging. DO NOT implement any code fixes or tweaks.
 - Summarize the discovered parity gaps.
 - Separate accidental regressions from deliberate architectural redesigns (as proven by your global searches).
-- Await user approval before proceeding to implementation.
+- Present the findings to the user.
 
-### Phase 5: Implementation & Verification
-Once you have the okay:
-1. **Implement:** Re-implement the approved fixes in Orbweaver following Orbweaver rules.
-   - *Bulk Mutation Pattern:* If implementing a `Promise.allSettled` bulk operation, **DO NOT throw errors for control flow** (e.g. `throw new Error("missing")`). This triggers Biome's `noExcessiveCognitiveComplexity` lint when parsed later. Instead, map the inner promises to discriminated objects (e.g., `return { status: "missing" as const }` or `return { status: "updated" as const }`) and filter the fulfilled results cleanly.
-2. **Verify:** Run `pnpm typecheck` to ensure contracts match, and `pnpm check` to verify structure and dependency cruisers.
-3. **Test:** Run `pnpm test` (or `pnpm vitest run tests/server/domain/<domain>`).
-
-### Phase 6: Log It
-Update the Running Log below. Check off the domain and write a concise bulleted summary of the ICKs found and fixed.
+### Phase 5: Log It
+Update the Running Log below. Check off the domain and write a concise bulleted summary of the findings (both regressions and deliberate changes).
 
 ---
 
@@ -71,8 +64,18 @@ Update the Running Log below. Check off the domain and write a concise bulleted 
   - **Redesign (Verified):** `description` and `creatorNotes` were deliberately dropped from `CharacterSummary` (`views.ts` docs confirm it is a "light" read-model). Catalog labels are now powered by the `discovery` domain's `character_summaries` distillation table.
   - **Finding:** `tags` is missing from `CharacterSummary` (dropped in transition from neo-tavern).
   - **Finding:** Bulk mutations (`bulkRemove`, `bulkArchive`, `bulkAddCardTag`) return `void` instead of the `{ updated, skipped, missing }` tallies used in neo-tavern. (Note: The `void` return types and throwing on partial failures appear to be an intentional Orbweaver design for junctions. We will not implement partial writes).
-- [ ] **chat**
-- [ ] **connection**
+- [x] **chat**
+  - **Deliberate Structural Change:** `setChatPersona` was intentionally dropped (moved to the `persona` domain). 
+  - **Deliberate Structural Change:** 9 new verbs (`createInvite`, `kick`, `acceptHostHandoff`, etc.) were added, implementing the Part III Unified Roster / Multi-Human design.
+  - **Deliberate Behavioral Change:** `deleteMessages` now throws `ChatNotFoundError` for a missing ID instead of silently returning the view, enforcing stricter atomic assertions (though this partially diverges from the bulk mutation rule of returning a discriminated union).
+  - **Regression (Side-Effects):** `deleteMessages` no longer calls the injected `applyStatsDelta`. I verified against `domains/stats.md` which explicitly states that `delete-messages` must push live rollup upserts into its canon batch. This was missed during the port.
+  - **Regression (Side-Effects):** `logAudit` is missing from the chat domain. `Tier-2-Foundation.md` confirms it moved to `foundation/observability/audit` and should be called by the domains; chat failing to import it means permanent deletions leave no audit trail.
+  - **Deliberate Schema Change (NOT a regression):** `deleteMessages` dropping the `chats.messageCount` recompute is correct. I checked the db schema—Orbweaver removed the denormalized `messageCount` column entirely, replacing it with a dynamic aggregation in `persistence/queries.ts`.
+- [x] **connection**
+  - **New Domain (Verified):** The `connection` domain correctly absorbed `domain/models`, `routing.ts`, and capability derivation as specified in `connection.md`.
+  - **Capability Consolidation:** The capability system correctly collapsed `ChatModel` and `FAMILY_CAPS` into a single `ModelCapability` descriptor across all paths, avoiding multiple mid-translation table reads.
+  - **Esoterics & Guards:** Load-bearing quirks (the 3-stage model lookup, anchored family detection regex, and `pickOrModel` cold-cache skip) were preserved accurately in the `substrate` and `catalog` subsystems.
+  - **No Regressions Found:** The architecture matches the specified boundaries and invariants perfectly.
 - [ ] **credentials**
 - [ ] **discovery**
 - [ ] **embeddings**

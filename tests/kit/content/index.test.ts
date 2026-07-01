@@ -1,6 +1,7 @@
 import type { ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 describe("tokenizeContent", () => {
   test("plain text → a single text span", () => {

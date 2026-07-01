@@ -17,7 +17,8 @@ import {
   consumeTurnStream,
   createAgentSdkBackend,
 } from "@orb/server/infra/providers/backends/agent-sdk";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "claude-x";
 const SESSION_ID = "sess-1";

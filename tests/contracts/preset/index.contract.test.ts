@@ -17,7 +17,7 @@ import {
   toPromptConfig,
   userIntentSchema,
 } from "@orb/contracts/preset";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;

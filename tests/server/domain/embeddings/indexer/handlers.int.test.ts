@@ -8,8 +8,9 @@
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   EMBED_MODEL,
   IMAGE_EMBED_MODEL,

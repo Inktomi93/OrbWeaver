@@ -8,7 +8,8 @@ import {
   effectiveProviderRouting,
   isAnthropicModel,
 } from "@orb/server/infra/providers/backends/kit";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("isAnthropicModel — the load-bearing anchor", () => {
   test("matches the bare Anthropic id and the OpenRouter-prefixed form", () => {

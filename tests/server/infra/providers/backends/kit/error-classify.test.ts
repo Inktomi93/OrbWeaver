@@ -8,7 +8,8 @@ import {
   extractHttpErrorDiagnostic,
   providerErrorFromHttp,
 } from "@orb/server/infra/providers/backends/kit";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("classifyHttpStatus", () => {
   test("maps each documented status to its kind + retryability", () => {

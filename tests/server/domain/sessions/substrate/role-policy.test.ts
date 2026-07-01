@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 import {
   determineRole,
   ownerHandles,
   reDeriveRoleOnLogin,
 } from "../../../../../packages/server/src/domain/sessions/substrate/role-policy";
+import { expect, test } from "../../../../support/fixtures";
 
 // The role-derivation policy matrix (invariants #6 + #14). The trio is read at CALL time from process.env
 // (the sanctioned exception), so `vi.stubEnv` drives every case. KEY D17 invariant: `owner` is derived

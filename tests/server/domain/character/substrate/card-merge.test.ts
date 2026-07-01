@@ -3,12 +3,13 @@
 // flagEdits only carries the identity flags actually present.
 
 import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   flagEdits,
   mergeCard,
 } from "../../../../../packages/server/src/domain/character/substrate/card-merge.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 function base(): CharacterCard {
   return {

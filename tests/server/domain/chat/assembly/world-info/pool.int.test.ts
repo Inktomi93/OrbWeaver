@@ -15,9 +15,10 @@ import {
 } from "@orb/db";
 import type { PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { loadWorldInfoPool } from "../../../../../../packages/server/src/domain/chat/assembly/world-info/pool";
 import { freshDb } from "../../../../../support/db";
+import { expect, test } from "../../../../../support/fixtures";
 import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support";
 
 let db: Db;

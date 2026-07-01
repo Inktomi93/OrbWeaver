@@ -9,8 +9,9 @@ import {
   logAudit,
   resetAuditFailureCount,
 } from "@orb/server/foundation/observability";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../support/db";
+import { expect, test } from "../../../support/fixtures";
 
 const STAMP = 1_700_000_000_000; // a fixed epoch-ms (determinism — never the wall clock)
 const FAIL_STAMP = 1_700_000_999_999;

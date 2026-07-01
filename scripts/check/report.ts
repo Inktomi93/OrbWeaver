@@ -10,21 +10,21 @@ import { featureStructure } from "./gates/feature-structure.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
+import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
 import { testDeterminism } from "./gates/test-determinism.ts";
+import { testFactoryContract } from "./gates/test-factory-contract.ts";
+import { testFixtureImports } from "./gates/test-fixture-imports.ts";
 import { testLayout } from "./gates/test-layout.ts";
+import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
+import { testNoStubs } from "./gates/test-no-stubs.ts";
 import { testPresence } from "./gates/test-presence.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
-import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
-import { testFactoryContract } from "./gates/test-factory-contract.ts";
-import { testFixtureImports } from "./gates/test-fixture-imports.ts";
-import { testNoStubs } from "./gates/test-no-stubs.ts";
-import { serverLayout } from "./gates/server-layout.ts";
-import { packageLayout } from "./gates/package-layout.ts";
 import { runChecks } from "./harness.ts";
 
 runChecks([

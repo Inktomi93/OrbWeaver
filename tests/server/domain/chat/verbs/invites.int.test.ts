@@ -13,10 +13,11 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;

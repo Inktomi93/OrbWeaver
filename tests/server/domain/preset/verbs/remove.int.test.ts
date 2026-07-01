@@ -8,8 +8,9 @@ import {
   PresetOperationError,
   SYSTEM_DEFAULT_PRESET_ID,
 } from "@orb/server/domain/preset";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 describe("remove", () => {

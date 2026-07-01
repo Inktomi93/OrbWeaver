@@ -7,7 +7,8 @@
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { AdminService } from "@orb/server/domain/admin";
 import type { BuddyService } from "@orb/server/domain/buddy";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 import { caller, denyRateLimit, makeContext, principal } from "./_support.ts";
 
 describe("authedProcedure", () => {

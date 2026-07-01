@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dataDirFromDbUrl, decode32Bytes, loadOrCreateKeyfile } from "@orb/server/infra/crypto";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const tmpDirs: string[] = [];
 function freshDir(): string {

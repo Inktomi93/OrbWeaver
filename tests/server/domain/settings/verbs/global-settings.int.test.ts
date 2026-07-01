@@ -3,8 +3,9 @@
 // a normal key round-trips + audits as a system event (actorUserId: null); a missing key reads null.
 
 import { DomainOperationError } from "@orb/kit/errors";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness } from "../_support.ts";
 
 describe("global settings (raw KV)", () => {

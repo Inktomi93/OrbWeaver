@@ -1,54 +1,53 @@
 // Gate: test-no-stubs (anti-gaming for test-presence)
 // A test block must contain at least one assertion (expect or expectTypeOf).
 // Empty tests or tests with no assertions are banned to prevent gaming the presence rules.
+import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
+
+const TEST_CALL_NAMES = new Set(["test", "it", "test.skip", "it.skip"]);
+
+function callHasAssertion(call: CallExpression): boolean {
+  return call.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => {
+    const innerExprText = c.getExpression().getText();
+    return (
+      innerExprText === "expect" ||
+      innerExprText === "expectTypeOf" ||
+      innerExprText.startsWith("expect.")
+    );
+  });
+}
+
+function checkTestCall(call: CallExpression, filePath: string): Violation | null {
+  const exprText = call.getExpression().getText();
+  if (!TEST_CALL_NAMES.has(exprText) || callHasAssertion(call)) {
+    return null;
+  }
+  let testName = "unnamed test";
+  const arg0 = call.getArguments()[0];
+  if (arg0?.getKind() === SyntaxKind.StringLiteral) {
+    testName = arg0.getText();
+  }
+  return {
+    file: filePath,
+    line: call.getStartLineNumber(),
+    message: `stub test '${testName}' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules.`,
+  };
+}
 
 export const testNoStubs: Check = {
   name: "test-no-stubs",
   run: ({ project }): Violation[] => {
     const violations: Violation[] = [];
     for (const sf of project.getSourceFiles()) {
-      if (!sf.getFilePath().includes("/tests/")) {
+      const filePath = sf.getFilePath();
+      if (!filePath.includes("/tests/")) {
         continue;
       }
-
-      const calls = sf.getDescendantsOfKind(SyntaxKind.CallExpression);
-      for (const call of calls) {
-        const expr = call.getExpression();
-        const exprText = expr.getText();
-        if (
-          exprText === "test" ||
-          exprText === "it" ||
-          exprText === "test.skip" ||
-          exprText === "it.skip"
-        ) {
-          // Check if there are any expect or expectTypeOf calls inside this test block
-          const hasExpect = call.getDescendantsOfKind(SyntaxKind.CallExpression).some((c) => {
-            const innerExprText = c.getExpression().getText();
-            return (
-              innerExprText === "expect" ||
-              innerExprText === "expectTypeOf" ||
-              innerExprText.startsWith("expect.")
-            );
-          });
-
-          if (!hasExpect) {
-            // Find the test name if available
-            let testName = "unnamed test";
-            const args = call.getArguments();
-            if (args.length > 0 && args[0].getKind() === SyntaxKind.StringLiteral) {
-              testName = args[0].getText();
-            }
-            violations.push({
-              file: sf.getFilePath(),
-              line: call.getStartLineNumber(),
-              message:
-                "stub test '" +
-                testName +
-                "' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules.",
-            });
-          }
+      for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+        const violation = checkTestCall(call, filePath);
+        if (violation) {
+          violations.push(violation);
         }
       }
     }

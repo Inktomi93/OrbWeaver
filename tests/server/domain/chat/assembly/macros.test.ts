@@ -6,11 +6,12 @@ import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   buildTurnMacroContext,
   renderMacros,
 } from "../../../../../packages/server/src/domain/chat/assembly/macros";
+import { expect, test } from "../../../../support/fixtures";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 

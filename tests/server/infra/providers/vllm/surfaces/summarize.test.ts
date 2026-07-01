@@ -7,7 +7,8 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
 import { createVllmSummarize } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;

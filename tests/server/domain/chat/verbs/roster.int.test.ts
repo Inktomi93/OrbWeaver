@@ -12,13 +12,14 @@ import { chatParticipants, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   ChatNotFoundError,
   ChatOperationError,
 } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;

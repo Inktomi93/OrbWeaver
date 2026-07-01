@@ -3,9 +3,10 @@
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { debitTurnBudget } from "../../../../../packages/server/src/domain/chat/engine/budget";
+import { expect, test } from "../../../../support/fixtures";
 
 const TRIGGERED_BY = castId<UserId>("user_trig");
 

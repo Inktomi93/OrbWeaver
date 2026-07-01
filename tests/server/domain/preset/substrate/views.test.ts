@@ -9,11 +9,12 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   toPresetDetail,
   toPresetSummary,
 } from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT } from "../_support.ts";
 
 type PresetRow = typeof presets.$inferSelect;

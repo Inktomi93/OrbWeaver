@@ -2,8 +2,9 @@
 // curated wins first (incl. a Claude-via-OR id), OR synthesis reads supportedParameters + family, vLLM /
 // custom / local-light static arms, and the distinct-axes shape (reasoning.mode ≠ on/off; no `none` level).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("resolveModelCapability — curated arm (wins first)", () => {
   test("opus is adaptive with no sampling (agent-sdk honors none)", () => {

@@ -14,7 +14,7 @@ import {
   verbositySchema,
 } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // --- ChatSource IS CredentialSource (D31, the load-bearing pin) ---------------
 // The type-level identity pin (ChatSource ≡ CredentialSource) lives in `index.test-d.ts` (core/Spine-Testing.md

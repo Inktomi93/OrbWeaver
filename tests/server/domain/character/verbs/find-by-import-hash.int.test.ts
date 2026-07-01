@@ -4,8 +4,9 @@
 // provenance is itself findable (the create→dedup round-trip the import composition root relies on).
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 // biome-ignore lint/security/noSecrets: the verb name, not a credential (high-entropy false positive).

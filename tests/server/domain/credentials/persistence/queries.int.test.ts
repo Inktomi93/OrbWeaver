@@ -4,7 +4,7 @@
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
 import {
   clearRevokedOwned,
@@ -19,6 +19,7 @@ import {
 } from "../../../../../packages/server/src/domain/credentials/persistence/queries.ts";
 import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 const box = createSecretBox(Buffer.alloc(32, 7));

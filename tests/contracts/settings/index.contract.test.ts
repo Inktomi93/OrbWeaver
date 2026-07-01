@@ -13,7 +13,7 @@ import {
   USER_SETTINGS_SECTIONS,
   userSettingsSchema,
 } from "@orb/contracts/settings";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;

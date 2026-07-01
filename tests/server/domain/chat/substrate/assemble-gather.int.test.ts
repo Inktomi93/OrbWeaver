@@ -13,10 +13,11 @@ import { chatBooks, chatInjections, chats, worldBooks, worldEntries } from "@orb
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
 import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
   makeChatContext,

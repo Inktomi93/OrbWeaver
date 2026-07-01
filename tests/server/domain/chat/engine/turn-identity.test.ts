@@ -3,12 +3,13 @@
 import type { ChatSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import {
   assertMaxProSubConsent,
   resolveTurnIdentity,
 } from "../../../../../packages/server/src/domain/chat/engine/turn-identity";
+import { expect, test } from "../../../../support/fixtures";
 
 const CALLER = castId<UserId>("user_caller");
 const HOST = castId<UserId>("user_host");

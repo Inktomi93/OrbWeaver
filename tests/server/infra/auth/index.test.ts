@@ -1,6 +1,7 @@
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 // VERIFICATION-only: `resolve(headers, deps)` → an `IdentityResolution` (the pre-row `ResolvedIdentity`
 // + the seam's signals). It carries NO `userId` and NO `role` (invariant #3); it does NOT upsert and

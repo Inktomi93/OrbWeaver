@@ -1,11 +1,12 @@
 // SHAPE substrate: spliceInChatInjections + frameInjection (chat.md Part II §3 rule 7 — in_chat depth
 // semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user framing).
 import type { ChatInjection } from "@orb/contracts/chat";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   frameInjection,
   spliceInChatInjections,
 } from "../../../../../packages/server/src/domain/chat/assembly/injections";
+import { expect, test } from "../../../../support/fixtures";
 
 const HIST = [
   { role: "assistant" as const, content: "a0" },

@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { NamesBehavior } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -54,7 +55,7 @@ export interface ShapeCase {
   injections: ChatInjectionInput[];
   groupConfig: { output: "per-speaker" | "narrator"; cardScope: "merged" | "scoped" };
   scopedTargetId: string | null;
-  namesBehavior: "default" | "none" | "content" | "completion";
+  namesBehavior: NamesBehavior;
   speakers: { user: string; assistant: string };
   groupNudge: string | null;
   expectBreakpointFromEnd: number | null;

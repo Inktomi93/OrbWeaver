@@ -4,8 +4,9 @@
 // (the create→resolve round-trip the seeder's handle_conflict tolerance relies on).
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("findByHandle", () => {

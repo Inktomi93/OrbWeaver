@@ -4,7 +4,8 @@
 // cap appends a truncation marker, and the passes are idempotent on clean text.
 
 import { sanitizeApiError } from "@orb/server/infra/providers/backends/kit";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // Assemble control chars at runtime (NUL, BS, DEL) rather than embedding raw bytes in the source.
 const CONTROL_CHARS = String.fromCharCode(0, 8, 127);

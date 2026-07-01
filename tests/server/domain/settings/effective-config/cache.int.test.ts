@@ -6,7 +6,7 @@
 
 import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe } from "vitest";
 import {
   __resetEffectiveConfigCache,
   getEffectiveConfig,
@@ -14,6 +14,7 @@ import {
 } from "../../../../../packages/server/src/domain/settings/effective-config/cache.ts";
 import { writeAppOverride } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const AT = 1_750_000_000_000;
 const originalLevel = logger.level;

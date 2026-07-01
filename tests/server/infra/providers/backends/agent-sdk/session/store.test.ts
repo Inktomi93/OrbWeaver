@@ -8,7 +8,8 @@ import {
   InMemorySessionStore,
   SessionCache,
 } from "@orb/server/infra/providers/backends/agent-sdk/session";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../support/fixtures";
 
 const CHAT_ID = "chat-store";
 const SESSION_ID = "33333333-3333-4333-8333-333333333333";

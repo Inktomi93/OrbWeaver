@@ -21,7 +21,9 @@ export const serverLayout: Check = {
   run: ({ root }): Violation[] => {
     const violations: Violation[] = [];
     const srcDir = join(root, SERVER_SRC);
-    if (!existsSync(srcDir)) return violations;
+    if (!existsSync(srcDir)) {
+      return violations;
+    }
 
     for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
       if (!ALLOWED_ENTRIES.includes(entry.name as any)) {

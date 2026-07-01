@@ -1,5 +1,6 @@
 import { fetchOpenAiModels } from "@orb/server/infra/network";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 // biome-ignore lint/security/noSecrets: this is the name of the function under test, not a credential.
 describe("fetchOpenAiModels", () => {

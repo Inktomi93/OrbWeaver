@@ -1,7 +1,7 @@
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   chatEventBounds,
   listMemberChats,
@@ -16,6 +16,7 @@ import {
   streamEventBounds,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
   seedChat,

@@ -2,7 +2,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { MAX_FIND_REGEX_LENGTH, SubstituteFindRegex } from "@orb/kit/regex";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // A fully-specified script (every field present) so `parse` is an identity → round-trip holds.
 const FULL_SCRIPT: RegexScript = {

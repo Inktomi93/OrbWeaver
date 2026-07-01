@@ -1,7 +1,8 @@
 // Runner test: reconcile-stats — wraps stats.reconcileStats, projects ReconcileStatsWorkloadResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { reconcileStatsRunner } from "../../../../../packages/server/src/domain/workloads/runners/reconcile-stats.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("reconcile-stats runner", () => {

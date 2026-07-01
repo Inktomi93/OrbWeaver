@@ -3,11 +3,12 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   assistantTurnDelta,
   userMessageDelta,
 } from "../../../../../packages/server/src/domain/chat/engine/stats-delta";
+import { expect, test } from "../../../../support/fixtures";
 
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");

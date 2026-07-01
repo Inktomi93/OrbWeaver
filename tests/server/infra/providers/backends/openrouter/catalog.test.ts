@@ -2,7 +2,8 @@
 // the blank-price → null rule (a blank string means "unpriced", NOT free). The SDK client is a fake.
 
 import { fetchOrCatalog } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 type CatalogClient = Parameters<typeof fetchOrCatalog>[0];
 

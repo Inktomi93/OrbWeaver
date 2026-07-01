@@ -8,7 +8,8 @@ import {
   decideTick,
   findOrphanedEngineCores,
 } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // The measured thresholds (mirrored from the supervisor constants — the matrix asserts against them).
 const BREAKER_WINDOW_MS = 600_000; // 10m

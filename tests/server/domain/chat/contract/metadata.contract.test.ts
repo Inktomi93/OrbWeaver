@@ -7,7 +7,7 @@
 
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   getGroupConfig,
   getRoomOverrides,
@@ -23,6 +23,7 @@ import type {
   TurnOutcome,
 } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import type { ChatSummary } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("parseChatMetadata", () => {
   test("round-trips a full metadata blob (group + roomOverrides + opening + providerRouting)", () => {

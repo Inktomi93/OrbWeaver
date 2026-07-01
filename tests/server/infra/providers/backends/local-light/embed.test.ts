@@ -17,7 +17,8 @@ import {
   createLocalLightBackend,
   DEFAULT_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // Keyless local-light credential — a pure routing marker the backend never reads (the brand is
 // unconstructable from a literal, so double-cast for the test).

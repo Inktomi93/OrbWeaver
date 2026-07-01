@@ -2,7 +2,8 @@
 // image parts are wire-mapped per-backend when vision-input is wired (until then they're dropped here).
 
 import { chatHistoryText } from "@orb/server/infra/providers/backends/kit";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("chatHistoryText", () => {
   test("joins text parts — a text-only turn is its text", () => {

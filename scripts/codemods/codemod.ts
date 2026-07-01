@@ -26,7 +26,7 @@ import { printHelp, printList, printRecipe, printRecipes, searchHelpers } from "
 const args = process.argv.slice(2);
 // Skip the `--max-output-lines=N` flag — the kit reads it from argv itself.
 const positional = args.filter((a) => !a.startsWith("--"));
-const sub = positional[0] ?? "help";
+const sub: string = positional[0] ?? "help";
 const arg = positional[1];
 
 switch (sub) {

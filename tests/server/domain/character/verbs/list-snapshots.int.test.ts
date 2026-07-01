@@ -1,8 +1,9 @@
 // verb: listSnapshots — browse history newest-first; owner-gated.
 
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("listSnapshots", () => {

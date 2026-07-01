@@ -2,8 +2,9 @@
 // catalog entry from the passed-in cache into the synthesis arm (and falls to the baseline when absent).
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveCapability } from "../../../../../packages/server/src/domain/connection/substrate/capability.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const gpt5: ModelCatalogEntry = {
   id: "openai/gpt-5",

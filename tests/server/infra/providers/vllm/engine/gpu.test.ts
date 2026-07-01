@@ -3,7 +3,8 @@
 // is swallowed to `false` (never propagates) — the contract entry/lifecycle relies on at boot.
 
 import { detectGpu } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("detectGpu", () => {
   test("a successful probe (GPU present) → true, and the exec is run exactly once", () => {

@@ -8,7 +8,7 @@
 import { personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   CharacterNotFoundError,
   PersonaNotFoundError,
@@ -20,6 +20,7 @@ import {
   loadOwnedPersonaWithAvatar,
 } from "../../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

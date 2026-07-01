@@ -5,7 +5,8 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "@orb/server/infra/providers";
 import { requireOpenRouterApiKey } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // Capture a synchronous throw without a conditional expect (the guard throws sync, so `.rejects` doesn't
 // apply and an in-catch expect trips noConditionalExpect).

@@ -1,7 +1,8 @@
 // Verb test: list — newest-first, filterable by kind/status/owner; owner-scoping is by the owner_id column.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeService, seedUser, seedWorkloadRow, T0 } from "../_support.ts";
 
 describe("workloads.list", () => {

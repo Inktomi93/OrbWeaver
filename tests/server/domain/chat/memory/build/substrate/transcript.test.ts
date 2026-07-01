@@ -1,6 +1,6 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   blockHash,
   blockSpeakerIds,
@@ -9,6 +9,7 @@ import {
   speakerLabel,
 } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
 import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types";
+import { expect, test } from "../../../../../../support/fixtures";
 
 const aria = castId<CharacterId>("character_aria");
 const cole = castId<CharacterId>("character_cole");

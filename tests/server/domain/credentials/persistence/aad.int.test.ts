@@ -6,9 +6,10 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { aadFor } from "../../../../../packages/server/src/domain/credentials/persistence/aad.ts";
 import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const alice = castId<UserId>("user_alice");
 const bob = castId<UserId>("user_bob");

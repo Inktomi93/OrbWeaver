@@ -8,7 +8,7 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   bulkInsertJunctionRows,
   deleteJunctionRow,
@@ -16,6 +16,7 @@ import {
   insertJunctionRow,
 } from "../../../../../packages/server/src/domain/tag/persistence/junctions.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeTagHarness,
   principal,

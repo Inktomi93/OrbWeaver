@@ -1,7 +1,8 @@
 // Runner test: embed-corpus — wraps embeddings.embedCorpus, threads force, projects EmbedPassResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { embedCorpusRunner } from "../../../../../packages/server/src/domain/workloads/runners/embed-corpus.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("embed-corpus runner", () => {

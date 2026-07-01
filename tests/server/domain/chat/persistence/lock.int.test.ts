@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   reclaimChatLocksOnBoot,
   refreshLock,
@@ -7,6 +7,7 @@ import {
   tryAcquireLock,
 } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { seedChat } from "../_support";
 
 const T0 = 1_750_000_000_000;

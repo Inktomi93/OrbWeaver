@@ -3,12 +3,13 @@
 // headline assertion: simplifying it silently mis-profiles Haiku.
 
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   CHAT_MODELS,
   getChatModel,
   isChatModelId,
 } from "../../../../../packages/server/src/domain/connection/catalog/chat-models.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("getChatModel — 3-stage lookup", () => {
   test("stage 1: exact curated id", () => {

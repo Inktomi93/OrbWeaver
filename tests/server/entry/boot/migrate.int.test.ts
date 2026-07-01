@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { createDb } from "@orb/db";
 import { resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
-import { expect, test } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const FK_ON = 1;
 const SENTINEL_TABLES = ["users", "characters", "chats", "workloads", "presets"];

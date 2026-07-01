@@ -2,7 +2,7 @@ import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { ASSET_KINDS, assetKindSchema, BLOB_ROUTE, blobUrl } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── The upload `kind` axis ───────────────────────────────────────────────────
 // The ONE home for the union (§7.5). A drift here would mean the db enum / upload route / client have

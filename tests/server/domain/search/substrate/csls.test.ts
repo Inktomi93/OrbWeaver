@@ -3,7 +3,7 @@
 // scored row, a higher hub PENALIZES (a generic hub vector loses), the comparators sort ascending, and the
 // rerank budget cap trims to the pool.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   compareCsls,
   compareCslsBy,
@@ -11,6 +11,7 @@ import {
   NULL_HUB_FALLBACK,
   rerankPoolByScores,
 } from "../../../../../packages/server/src/domain/search/substrate/csls.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("cslsAdjust", () => {
   test("is distance − 1 + hubScore", () => {

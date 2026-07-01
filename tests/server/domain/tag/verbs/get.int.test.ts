@@ -1,8 +1,9 @@
 // verb: getTag — owner-scoped fetch; a foreign/missing id is not-found (never another user's row).
 
 import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeTagHarness, principal, seedTag, seedUser } from "../_support.ts";
 
 describe("getTag", () => {

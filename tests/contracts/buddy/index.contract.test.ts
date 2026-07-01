@@ -23,7 +23,7 @@ import {
   speciesSchema,
   statNameSchema,
 } from "@orb/contracts/buddy";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── The string axes: each `z.enum(TUPLE)` parses every member, rejects a non-member, round-trips. ──
 const ENUM_AXES = [

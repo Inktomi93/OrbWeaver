@@ -1,9 +1,10 @@
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments";
 import { freshDb } from "../../../../../support/db";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
 import { fakeEmbeddingsStore } from "../_support";
 

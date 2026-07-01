@@ -1,5 +1,5 @@
 import { fixMarkdown, repairStreamingTail } from "@orb/kit/fix-markdown";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("strips whitespace adjacent to paired emphasis markers", () => {
   expect(fixMarkdown("* text *", false)).toBe("*text*");

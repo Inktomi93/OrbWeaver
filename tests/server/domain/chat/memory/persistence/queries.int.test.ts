@@ -1,7 +1,7 @@
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   loadCanonThroughSeq,
   loadChatMeta,
@@ -13,6 +13,7 @@ import {
   loadWitnessHorizons,
 } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
 import { freshDb } from "../../../../../support/db";
+import { expect, test } from "../../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support";
 import { GROUP_CHAR, seedDigest, seedSegment } from "../_support";
 

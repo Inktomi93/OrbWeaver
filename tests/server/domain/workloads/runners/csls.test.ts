@@ -1,8 +1,9 @@
 // Runner test: csls — wraps discovery.computeHubScores (which writes hub_score via embeddings internally;
 // workloads sees one op), projects AnalyticsResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { cslsRunner } from "../../../../../packages/server/src/domain/workloads/runners/csls.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("csls runner", () => {

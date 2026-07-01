@@ -3,9 +3,10 @@
 // returned) and OWNER-SCOPE (another owner's card is never returned), plus ascending-by-distance ordering
 // and the rerankable `sourceText` (name + description).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { nearestCharacters } from "../../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { EMBED_MODEL, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("nearestCharacters", () => {

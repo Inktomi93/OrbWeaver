@@ -11,7 +11,8 @@ import {
   createDebugAuthMiddleware,
   tokenMatches,
 } from "@orb/server/foundation/observability/debug";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 interface MockResult {
   readonly body: unknown;

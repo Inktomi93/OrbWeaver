@@ -3,9 +3,10 @@
 // join); a card with no avatar yields a null hash; and the enrichment is owner-scoped (a crafted id list
 // can't read another owner's card).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveCharacterDisplay } from "../../../../../packages/server/src/domain/search/persistence/display.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedAsset, seedCharacter, seedCharacterSummary, seedUser } from "../_support.ts";
 
 describe("resolveCharacterDisplay", () => {
