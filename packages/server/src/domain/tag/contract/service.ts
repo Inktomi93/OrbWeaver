@@ -18,7 +18,6 @@ import type { ChatId, TagId } from "@orb/kit/ids";
 import type {
   AttachCardTagByNameParams,
   AttachTagParams,
-
   BulkAttachTagParams,
   CreateTagParams,
   DetachTagParams,

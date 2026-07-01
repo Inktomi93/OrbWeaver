@@ -23,7 +23,8 @@ const MSG = {
   verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5).",
   persistence: "persistence file has no .int.test.ts at its mirror (core/Spine-Testing.md §5).",
   contract: "contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
-  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
+  sharedContract:
+    "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
   infra:
     "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (core/Spine-Testing.md §5). Pure-type + index files are exempt.",
 } as const;
@@ -94,7 +95,11 @@ function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[])
 
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
-  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+  if (
+    inTier &&
+    hasCallableExport(sf) &&
+    !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])
+  ) {
     out.push(missing("server", rel, MSG.infra));
   }
 }
@@ -113,7 +118,7 @@ export const testPresence: Check = {
       if (sf.getBaseName() === "index.ts") {
         continue;
       }
-      
+
       const serverRel = serverSrcRel(sf.getFilePath());
       if (serverRel !== undefined) {
         if (sf.getFilePath().includes(DOMAIN_DIR)) {

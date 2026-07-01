@@ -10,7 +10,11 @@ export const testFixtureImports: Check = {
     for (const sf of project.getSourceFiles()) {
       const filePath = sf.getFilePath();
       // Exempt e2e, support/test.ts itself, and ct-providers etc if they need it, but generally tests should use support/test
-      if (!filePath.includes("/tests/") || filePath.includes("/tests/e2e/") || filePath.includes("/tests/support/")) {
+      if (
+        !filePath.includes("/tests/") ||
+        filePath.includes("/tests/e2e/") ||
+        filePath.includes("/tests/support/")
+      ) {
         continue;
       }
 

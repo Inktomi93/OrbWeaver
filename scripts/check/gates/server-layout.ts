@@ -1,5 +1,5 @@
 // Gate: server-layout (core/Core-0-Architecture-and-Structure.md §3)
-// The server package's tiers ARE its directories. The only legal items at the root of 
+// The server package's tiers ARE its directories. The only legal items at the root of
 // packages/server/src/ are the 6 tier directories and index.ts.
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
