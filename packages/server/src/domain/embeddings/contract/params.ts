@@ -9,7 +9,7 @@
 //     column derives the SAME tuple). The text lenses are `card-text` (W2) + `segment` / `digest` (memory's
 //     verbatim + distilled chat-block lenses — §2).
 //
-// FLAG[PD-34 — PARAMS RESOLVED HERE; STORE IMPL IS THE NEXT CHUNK]: the `segment` / `digest` arms + the
+// The `segment` / `digest` arms + the
 // `chat-block` kind are now DEFINED below (the typed write surface the memory rework + §3 recall read back).
 // The `embeddings.store` IMPL does NOT yet route them — `verbs/store.ts`'s exhaustive `switch (params.lens)`
 // + its pre-switch `contentHash(params.content)` go RED until the next chunk adds the two arms (the

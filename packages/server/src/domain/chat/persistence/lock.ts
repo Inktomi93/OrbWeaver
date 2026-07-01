@@ -6,7 +6,7 @@
 // eligible. Determinism: `now`/`expiresAt` arrive as PARAMS (the verb's injected clock + the LOCK_TTL_MS it
 // owns — the TTL constant is a domain concern, not a schema one).
 //
-// FLAG[lock→infra]: the movement table marks this primitive "candidate → infra — open". It lives in `chat`
+// FLAG[PD-62]: the movement table marks this primitive "candidate → infra — open". It lives in `chat`
 // for now (chat is its only consumer); if a second domain ever needs a DB lock, lift it to `infra` verbatim.
 
 import type { Db } from "@orb/db";

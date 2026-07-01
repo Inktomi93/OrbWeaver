@@ -6,7 +6,7 @@
 // server-forced `member`, `joinSeq` stamped at the canon head; the re-add upsert lives in persistence).
 //
 // VERB DEPS (the second factory arg) — collaborators NOT on `ChatContext` yet, passed by the composition
-// root. FLAG[invite-deps-not-on-ctx]: ALL of these SHOULD be on `ChatContext` (chunk 1); declared as verb
+// root. FLAG[PD-61]: ALL of these SHOULD be on `ChatContext` (chunk 1); declared as verb
 // deps here so the chokepoint ships correctly and the missing seams are enumerated, not invented:
 //   • emit               — the chat bus (chat's own; see bus.ts).
 //   • hashToken          — the peppered token hasher (chat.md §2 "mirror sessions"; the `sessions`
@@ -17,7 +17,7 @@
 //                          is the verb's via injected ops" — the root resolves `users` publics OUTSIDE the
 //                          domain `no-direct-users-read` scope; likely shared with read.ts `getChat`).
 //
-// FLAG[targeted-invite]: `createInvite` supports the SHARE-LINK path only. Targeted-by-handle needs a
+// FLAG[PD-66]: `createInvite` supports the SHARE-LINK path only. Targeted-by-handle needs a
 // `resolveHandle` (handle→userId) op (chat.md §2 "exact resolveHandle") that exists nowhere — so a targeted
 // request throws rather than silently degrading to a share-link.
 // FLAG[avatar-on-self-view]: the joining caller's `ParticipantView.avatarAssetId` resolves via
@@ -77,7 +77,7 @@ type InviteVerbs = Pick<
  * The invite-lifecycle verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). Folds
  * the per-verb factories (internal below) into one object keyed by their `ChatService` method names; the
  * composition root spreads it into the full service. `deps` carries the collaborators not on `ChatContext`
- * (see the file header FLAG[invite-deps-not-on-ctx]).
+ * (see the file header FLAG[PD-61]).
  */
 export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   return {
@@ -124,7 +124,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
 }
 
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered HASH, return the raw token ONCE for
- *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link only (FLAG[targeted-invite]). */
+ *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link only (FLAG[PD-66]). */
 function createCreateInvite(ctx: ChatContext, deps: InviteDeps): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
@@ -257,7 +257,7 @@ function createRevokeInvite(ctx: ChatContext): ChatService["revokeInvite"] {
 
 /** `declineInvite` — the invited user declines a TARGETED invite they were notified about (keyed by
  *  `inviteId`, not the raw token — Part III §2). Atomic + scoped to the caller as the target (a foreign /
- *  non-targeted invite never matches — leak-free, idempotent). FLAG[decline-by-id]: persistence
+ *  non-targeted invite never matches — leak-free, idempotent). FLAG[PD-67]: persistence
  *  `declineInvite` keys on `tokenHash`; the by-inviteId decline is an inline write (no by-id persistence writer). */
 function createDeclineInvite(ctx: ChatContext): ChatService["declineInvite"] {
   return async ({ principal, inviteId }: DeclineInviteParams): Promise<void> => {

@@ -11,7 +11,7 @@ import type {
 } from "../../../../packages/contracts/src/credentials/index.ts";
 import type { Principal, UserRole } from "../../../../packages/contracts/src/identity/index.ts";
 import type { EndpointInspection } from "../../../../packages/contracts/src/providers/index.ts";
-import type { Db } from "../../../../packages/db/src/client.ts";
+import type { Db } from "../../../../packages/db/src/client/index.ts";
 import { users } from "../../../../packages/db/src/schema/index.ts";
 import type { Handle, UserCredentialId, UserId } from "../../../../packages/kit/src/ids/index.ts";
 import { castId } from "../../../../packages/kit/src/ids/index.ts";

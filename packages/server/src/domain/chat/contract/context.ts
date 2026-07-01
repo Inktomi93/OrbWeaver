@@ -195,7 +195,7 @@ export interface StoreSegmentParams {
  *  conflation — movement table). The per-lens union is the embeddings `chat-block` store arm (FLAG[PD-34]). */
 export type EmbeddingsStoreOp = (params: StoreDigestParams | StoreSegmentParams) => Promise<void>;
 
-// FLAG[search-contract] RESOLVED: the foundation homed the egocentric `queryText` + `scopedCharacterId`
+// The foundation homed the egocentric `queryText` + `scopedCharacterId`
 // (§4/§3b #4) directly on `MemoryQueryOptions` (was carried chat-side on a `MemoryRecallQuery` wrapper as a
 // workaround). The wrapper is therefore GONE (no-doubling — the two fields had one home now); both recall ops
 // take `MemoryQueryOptions` directly. `scopedCharacterId` is a real `CharacterId` there (inv 8).

@@ -44,7 +44,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   // (owner-scoped to the room host — characters in a room belong to the host; D16/D28). Built ONCE + shared
   // across fork/invites/read/start-chat (one instance, no per-factory re-spell).
   //
-  // FLAG[participant-user-publics] RESOLVED: a human participant's `displayName`/`handle`/`avatarAssetId` are
+  // A human participant's `displayName`/`handle`/`avatarAssetId` are
   // resolved via `ctx.resolveUserPublics` (wired in the entry composition root).
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await loadRoster(ctx.db, chatId);

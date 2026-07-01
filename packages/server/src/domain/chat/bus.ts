@@ -20,7 +20,7 @@
 // `createChatBus(ctx)` and hands `bus.emit` to the verb factories that emit (the second factory arg). The
 // emit type is inlined on the verb factories (`(event: ChatBusEvent) => Promise<void>`) because the
 // `types-in-contract` gate forbids an exported type here and `contract/` is owned by another chunk.
-// FLAG[chat_events-writer]: there is no `persistence/` writer for the `chat_events` INSERT (queries.ts holds
+// FLAG[PD-88]: there is no `persistence/` writer for the `chat_events` INSERT (queries.ts holds
 // only the readers — `replayChatEvents`/`chatEventBounds`). The durable write is done HERE via `ctx.db`
 // (the persona-verb inline-write precedent); a `persistence/events.ts` append-writer would be the tidier
 // home if the persistence chunk grows one.

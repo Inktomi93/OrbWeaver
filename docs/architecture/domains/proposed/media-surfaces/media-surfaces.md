@@ -1,6 +1,6 @@
 # Proposed: media-surfaces — gallery · server thumbnails/animated-detect · token-counter
 
-> **Status: PROPOSAL, not law.** This is the evidence base for a yes/no, not a spec. Nothing here is
+> **Status: PROPOSAL FLAG[PD-55], not law.** This is the evidence base for a yes/no, not a spec. Nothing here is
 > committed until it graduates to a ledger D-entry + a real `docs/architecture/domains/<name>.md`. Do NOT
 > build from this doc. Provenance: source-level read of ST `public/scripts/extensions/{gallery,token-counter}/`
 > + ST server `src/endpoints/{thumbnails,image-metadata,images}.js`, neo-tavern, and the orbweaver substrate

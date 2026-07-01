@@ -15,10 +15,10 @@
 //     collapses into `CRED_SOURCES` (no second tuple). This is the `connection → credentials` edge.
 //
 // v1 deferral (shared-dissolution §1.3 cycle break): the BYO `modelProfile` / `CustomModelProfile`
-// shape is DEFERRED — it homes in `@orb/contracts/credentials` (NOT here) when it lands, as an
+// shape is FLAG[PD-12] — it homes in `@orb/contracts/credentials` (NOT here) when it lands, as an
 // independent subset of `ModelCapability` that never imports `ModelCapability` backwards. Defining it
 // here, or importing it into credentials, would invert the D31 `connection → credentials` edge into a
-// cycle. The BYO `modelProfile` stays deferred (above). The `ChatModelId` brand / `DEFAULT_CHAT_MODEL_ID`
+// cycle. The BYO `modelProfile` stays deferred (FLAG[PD-12]). The `ChatModelId` brand / `DEFAULT_CHAT_MODEL_ID`
 // + `DEFAULT_OR_CHAT_MODEL_ID` constants / `RoutingRoleKey` axis / the `RouteChatAssignment` chat-routing
 // input family LANDED here with the connection domain (4c W1.5, PD-10) — see the bottom of this node.
 
@@ -162,7 +162,7 @@ export const modelCapabilitySchema = z.object({
    *  the recurse loop reads: a model without it never receives `tools`, and tool-call parts are dropped
    *  with a `tools_unsupported` warning when the loop lands). Optional so existing constructors default to
    *  no-tools; the wire seams (`tool` history role · tool-call/tool-result content parts · the request
-   *  fields) + the warning code ship WITH the domain-owned loop, against this gate (see D48). */
+   *  fields) + the warning code ship WITH the domain-owned loop, against this gate (see D48, FLAG[PD-54]). */
   tools: z.object({ parallel: z.boolean() }).optional(),
   /** `structured` = the model accepts `response_format`/JSON-schema constrained output (D48) — a SEPARATE
    *  axis from `tools` (not realized via `tool_choice`). Absent ⇒ no structured-output; the gate the

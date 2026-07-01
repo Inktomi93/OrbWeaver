@@ -12,7 +12,7 @@
 //
 // EMIT SEAM: the chat bus is chat's own in-process collaborator (NOT on `ChatContext` — see bus.ts), so the
 // bundle takes it as the SECOND factory arg, typed inline (`types-in-contract` forbids an exported emit type
-// outside contract/). FLAG[no-hidden-event]: there is no dedicated `messageHidden`/`messageReattributed` bus
+// outside contract/). FLAG[PD-86]: there is no dedicated `messageHidden`/`messageReattributed` bus
 // member, so `setMessageHidden` emits `messageEdited` (it carries the updated `MessageView` incl.
 // `excludedFromPrompt`) and `reattributeMessages` emits one `messageEdited` per slot (each with its fresh
 // view) — the precise carriers, no new union member needed (the allowlist is chunk 1's, out of scope).

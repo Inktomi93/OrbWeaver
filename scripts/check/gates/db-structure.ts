@@ -4,7 +4,7 @@
 // dropped from `typeof schema` — its tables vanish from migrations AND the drizzle relational query API
 // with NO error. This gate makes that omission RED. Generic (no hardcoded file list).
 //
-// DEFERRED (Phase 4): the producer-names-schema MIRROR half — asserting `schema/<feature>.ts` mirrors a
+// DEFERRED (Phase 4) FLAG[PD-92]: the producer-names-schema MIRROR half — asserting `schema/<feature>.ts` mirrors a
 // `domain/<feature>` producer — needs the `domain/` tree, which does not exist until the server package is
 // built. Activate that arm here when domains land (it is the half that catches consumer-named lies like the
 // retired `search.ts`/`corpus.ts`). Until then, barrel-completeness is the checkable, load-bearing half.

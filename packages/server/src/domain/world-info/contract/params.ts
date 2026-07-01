@@ -11,7 +11,7 @@
 // book/entry is owned via `worldBooks.ownerId`; an attachment target (character/persona) is gated by its
 // own owner column (a sanctioned schema read).
 //
-// DEFERRED — the chat scope. The three chat-attachment verbs (`attachToChat`/`detachFromChat`/
+// FLAG[PD-30] — the chat scope. The three chat-attachment verbs (`attachToChat`/`detachFromChat`/
 // `listForChat`) and their params are NOT here: chats are membership-scoped (D18 — NO `chats.ownerId`), so
 // their authority is the host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1
 // done); the block is the chat roster/membership data world-info doesn't own (Phase-5).

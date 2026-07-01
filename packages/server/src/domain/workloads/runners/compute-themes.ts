@@ -1,5 +1,5 @@
 // runner: compute-themes — the discovery k-means theme pass. The `k` tunable follows the §7.2 precedence:
-// per-run param → (the user-settings tier slots in when `UserSettings.workloads.themes.k` lands — DEFER) →
+// per-run param → (the user-settings tier slots in when `UserSettings.workloads.themes.k` lands — FLAG[PD-75]) →
 // the runner floor const. Wraps `ctx.env.discovery.computeThemes`.
 
 import type { Runner } from "../contract/runner";

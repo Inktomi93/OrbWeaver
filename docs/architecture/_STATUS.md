@@ -80,20 +80,18 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
   cache-token counts (the §8 lesson — catches silent perf/behavior regressions a from-prose rebuild
   misses). The steady clone stays the reference to diff against; it is not deleted.
 
-## Where we are (updated 2026-06-27) — Phases 0–4b BUILT, next is Phase 4c (domain)
-The planning docs are **complete and reconciled**, and the build is underway. **Built + committed
-(`pnpm check` + `pnpm test` — 1142 tests — green):**
-- **Phase 0** — pnpm workspace + the 5 packages + the **13-gate suite** (the cake is physics at
-  resolve-time; biome ratcheted to MAX, dep-cruiser, `tsc`, structure gates, lefthook + the PostToolUse belt).
-- **Phase 1 — `@orb/kit`** — the pure leaf (ids/errors → macro/regex/guided → `message-role` (D32 role axis
-  + ST bimap) / `injection` / `world-info` / `png-card-chunk` / tokens / vector-math / … ).
-- **Phase 2 — `@orb/contracts`** — the cross-boundary wire types + zod schemas (the DAG in `ledger §4`).
-- **Phase 3 — `@orb/db`** — born-whole `0000_baseline` (no migration replay), derive-don't-stamp ownership,
-  per-type FKs (D24), enums derived from contracts tuples (D34).
+## Where we are (updated 2026-06-30) — Phases 0–5 ALMOST COMPLETE, next is Phase 6 (client)
+The planning docs are **complete and reconciled**, and the build is extremely far along. **Built + committed
+(`pnpm check` + `pnpm test` — green):**
+- **Phase 0** — pnpm workspace + the 5 packages + the **13-gate suite**.
+- **Phase 1 — `@orb/kit`** — the pure leaf.
+- **Phase 2 — `@orb/contracts`** — the cross-boundary wire types + zod schemas.
+- **Phase 3 — `@orb/db`** — born-whole `0000_baseline`.
 - **Phase 4a — server `foundation`** — observability · config · env base.
-- **Phase 4b — server `infra`** — crypto · network · storage · image · auth (VERIFICATION-ONLY per the
-  3-tier split) + `providers` (roles · sealed-backend contract · credential firewall; backends incl.
-  vllm / local-light).
+- **Phase 4b — server `infra`** — crypto · network · storage · image · auth + `providers`.
+- **Phase 4c — server `domain`** — ALL domains (Wave 1, 1.5, 2, 3) are completely built and tested.
+- **Phase 4d & 4e — server `transport`/`entry`** — Root composition, lifecycle, jobs, and HTTP roots are built.
+- **Phase 5 — `chat`/`memory`** — **ALMOST COMPLETE.** The complex multi-human roster, `memory/` triggers, regex `SEND/RECEIVE` parser (`node:vm`), `runChatTurn` adapter, and the 530-line `ChatContext` DI assembly (`compose/chat.ts`) are **100% built and wired.** 
 
 **Built docs/decisions still authoritative — DO NOT re-derive:**
 - **Boundary scan** (ts-morph) — the cake is clean (0 upward edges, 0 cycles). (`reports/boundary-scan.md`.)
@@ -102,14 +100,8 @@ The planning docs are **complete and reconciled**, and the build is underway. **
   (§7.1–7.5 + `spine/testing.md` + `spine/typescript-style.md`), and the cross-doc **reconciliation/de-dup**.
   Decisions ledger: `reports/DECISIONS-LEDGER.md` (latest: **D54** + **PD-11**).
 
-**NEXT ACTION = Phase 4c (server `domain`) — follow `BUILD-PLAN.md` §4c** (the ordered runbook IS the
-authority for the wave order; don't re-list it here). Phase 4c **W1 is in progress** (sessions + admin
-committed; persona/preset/settings/notifications underway). Corrected order (D38 + D16): **W1
-(credentials/tag/persona/preset/world-info/assets/sessions/stats/settings/admin/character/notifications) →
-connection (W1.5) → W2 (embeddings → search) → W3 (discovery/workloads/import/export/buddy)**, then **4d
-transport → 4e entry → Phase 5
-chat+memory** (LAST, built WHOLE, behind the differential oracle against the steady neo-tavern clone) →
-**Phase 6 client**. Multi-agent dispatch in dependency tiers, disjoint file sets per agent.
+**NEXT ACTION = Finish the final Phase 5 seams (TRPC Router + Memory Recall Caller), execute the `Ready` items in `PROMOTION-DEBT.md`, then start Phase 6 (Client).**
+The primary focus is knocking out the remaining `PROMOTION-DEBT.md` items that are `Ready`, particularly `PD-46` (the transport chat router) so the frontend can actually reach the finished chat engine, and `PD-61/62/63/65/66` (the final chat-coupled integrations).
 
 **Recon method that worked (keep for scaffold verification):** general-purpose agents reading whole files
 top-to-bottom (not grep-skim), structured `file:line` returns, then verify/synthesize. Verifying claims

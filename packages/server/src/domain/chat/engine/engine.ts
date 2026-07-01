@@ -340,7 +340,7 @@ async function executeTurn(
       // The per-speaker two-axis SHAPE (chat.md Part III §7) — set by the group round driver; ABSENT ⇒ the
       // single-speaker core's pinned per-speaker/merged default (solo byte-identical, D16).
       shape: prep.shape,
-      // FLAG[abort-into-engine] RESOLVED: thread the caller's abort signal → the role; the runner aborts its
+      // Thread the caller's abort signal → the role; the runner aborts its
       // in-flight request when signalled (a single engine turn is now interruptible mid-generation).
       signal: prep.signal,
       onDelta: (delta) => {

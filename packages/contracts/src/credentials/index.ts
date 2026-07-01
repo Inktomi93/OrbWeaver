@@ -22,11 +22,11 @@
 //
 // v1 deferral (shared-dissolution §1.3 cycle break + credentials.md Open decisions): the metadata
 // schema is `baseUrl`/`headers` (custom_openai) + project/region (google_vertex) only. The BYO
-// `modelProfile?: CustomModelProfile` is DEFERRED — defining it here would tempt importing
+// `modelProfile?: CustomModelProfile` is FLAG[PD-12] — defining it here would tempt importing
 // `connection.ModelCapability` and invert the D31 `connection → credentials` edge into a cycle. When
 // it lands, `CustomModelProfile` is homed HERE as an independent subset shape (never importing
 // `ModelCapability`). The per-endpoint request/response transforms (`includeBody`/`excludeBody`/
-// `responseMap`) are likewise deferred to the custom-endpoint runner.
+// `responseMap`) are likewise FLAG[PD-12] to the custom-endpoint runner.
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -160,7 +160,7 @@ export type LocalLightCredential = CredentialBrand & {
 /**
  * User-defined OpenAI-compatible endpoint. The active `custom_openai` row IS the endpoint selection.
  * `apiKey` is `null` for no-auth local servers; `headers` carries the per-endpoint request transform
- * resolved from the credential's metadata. (Request/response body transforms are v1-deferred.)
+ * resolved from the credential's metadata. (Request/response body transforms are v1-deferred, FLAG[PD-12].)
  */
 export type CustomOpenAiCredential = CredentialBrand & {
   readonly source: "custom_openai";

@@ -36,7 +36,7 @@ import type { WorldInfoService } from "#domain/world-info";
  * chat.ts) and carried here. Its tRPC ROUTER (`chat.send`/`swipe`/`start`/`streamMessages`) is the remaining
  * PD-46 piece — the SSE `streamMessages` resume needs the chat bus replay-ring handle surfaced from compose
  * (the bus is currently held internally; see the integration report's hand-off). `embeddings` (the admin
- * inline `embed` write) is deferred with its router — see `routers/` DEFER notes.
+ * inline `embed` write) is FLAG[PD-90] — see `routers/` DEFER notes.
  */
 export interface Services {
   readonly admin: AdminService;

@@ -1,6 +1,6 @@
 # Orbweaver — `imagery`: chat-facing image generation (prompt-template modes · img2img · `/imagine`)
 
-> **Status: PROPOSAL, not law.** This sketches a home for the GENERATIVE IMAGE cluster (D47 item 1 +
+> **Status: PROPOSAL FLAG[PD-93], not law.** This sketches a home for the GENERATIVE IMAGE cluster (D47 item 1 +
 > the §5 gap-register rows). Nothing here is decided until a ledger entry promotes it. The cake, D39
 > (hosted-only image-gen), D44/D45 (display vs send), and D46 (automation Tier-1) WIN on any conflict.
 

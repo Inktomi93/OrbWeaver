@@ -221,7 +221,7 @@ function buildMessages(
 // Build the request body: the OpenAI base (model/messages/stream/sampling), then the preset's
 // `customParameters` overlaid (user wins — the one request-body overlay decided + present today).
 //
-// FLAG (DEFERRED): the per-endpoint `includeBody`/`excludeBody` transforms (§1a request mappings) have NO
+// FLAG[PD-13]: the per-endpoint `includeBody`/`excludeBody` transforms (§1a request mappings) have NO
 // contract home yet (credentials.md v1 deferral: the metadata carries only baseUrl/model/headers). When
 // they land on the credential/metadata they apply here as the second `applyIncludeExclude` layer; the
 // `customParameters` overlay is shallow because the deep-merge proto-pollution defense

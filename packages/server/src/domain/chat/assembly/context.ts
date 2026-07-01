@@ -29,7 +29,7 @@
 // out-param (it persists the row); the verbatim greeting path (start-chat) takes NO composer input, so USER_INPUT
 // regex never applies there.
 //
-// FLAG[wi-regex-vm] RESOLVED: the node:vm ReDoS watchdog now exists (`@orb/server/kit/regex`) and is INJECTED as
+// The node:vm ReDoS watchdog now exists (`@orb/server/kit/regex`) and is INJECTED as
 // `ctx.applyRegexReplace` (D53) — both the WORLD_INFO pass (here) and the SEND USER_INPUT pass run their one
 // `text.replace` under the per-call timeout, so a catastrophic-backtracking host-tier pattern throws (→ the kit
 // executor's per-script try/catch) instead of hanging the turn.

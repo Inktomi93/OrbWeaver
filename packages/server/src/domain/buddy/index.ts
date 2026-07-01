@@ -11,7 +11,7 @@
 // The taxonomy (`CompanionBones`, `Mood`, `Rarity`, …) is NOT re-exported here — it lives in
 // `@orb/contracts/buddy` (buddy.md invariant #7); db/client/this domain import it from there directly.
 //
-// DEFERRED (FLAG[PD-45], NOT exported yet): the live reaction feed (`bus.ts`), `BuddyObserverEnv`,
+// DEFERRED (FLAG[PD-45, PD-64], NOT exported yet): the live reaction feed (`bus.ts`), `BuddyObserverEnv`,
 // `createBuddyObserverReads`, `startBuddyObserver` — the observer reaction engine reacts to chat/workload
 // event sources that do not exist before chat (D38: buddy builds first to expose the agent-turn seam);
 // it lands as a follow-on with chat.

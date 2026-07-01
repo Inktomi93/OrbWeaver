@@ -1,6 +1,6 @@
 # Proposed: `expression-stage` — character expressions/sprites + app background
 
-> **STATUS: PROPOSAL, not law.** This is the evidence base for a yes/no, NOT a spec. Nothing here is
+> **STATUS: PROPOSAL FLAG[PD-56], not law.** This is the evidence base for a yes/no, NOT a spec. Nothing here is
 > committed until it graduates to a ledger D-entry and a real `docs/architecture/domains/<name>.md`. Do not
 > build from this doc. Both features are currently **OUT by design** per **D47** ("Out … expressions/sprites,
 > backgrounds/BGM"); this proposal exists to re-evaluate them now that **D44** (theming) and **D45** (vision)

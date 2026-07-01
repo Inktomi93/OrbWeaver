@@ -16,12 +16,14 @@ import type { Check, Violation } from "../harness.ts";
 
 const DOMAIN_DIR = "/packages/server/src/domain/";
 const SERVER_SRC = "/packages/server/src/";
+const CONTRACTS_SRC = "/packages/contracts/src/";
 const EXT_RE = /\.tsx?$/u;
 
 const MSG = {
   verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (spine/testing.md §5).",
   persistence: "persistence file has no .int.test.ts at its mirror (spine/testing.md §5).",
   contract: "contract schema has no .contract.test.ts at its mirror (spine/testing.md §5).",
+  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (spine/testing.md §5).",
   infra:
     "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (spine/testing.md §5). Pure-type + index files are exempt.",
 } as const;
@@ -31,9 +33,14 @@ function serverSrcRel(path: string): string | undefined {
   return parts.length > 1 ? parts[1] : undefined;
 }
 
-function hasTest(root: string, rel: string, kinds: readonly string[]): boolean {
+function contractsSrcRel(path: string): string | undefined {
+  const parts = path.split(CONTRACTS_SRC);
+  return parts.length > 1 ? parts[1] : undefined;
+}
+
+function hasTest(root: string, pkg: string, rel: string, kinds: readonly string[]): boolean {
   const base = rel.replace(EXT_RE, "");
-  return kinds.some((kind) => existsSync(join(root, "tests", "server", `${base}${kind}`)));
+  return kinds.some((kind) => existsSync(join(root, "tests", pkg, `${base}${kind}`)));
 }
 
 function hasSchema(text: string): boolean {
@@ -65,30 +72,36 @@ function hasCallableExport(sf: SourceFile): boolean {
   return false;
 }
 
-function missing(rel: string, message: string): Violation {
-  return { file: `packages/server/src/${rel}`, line: 0, message };
+function missing(pkg: string, rel: string, message: string): Violation {
+  return { file: `packages/${pkg}/src/${rel}`, line: 0, message };
 }
 
 function pushDomain(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
-  if (rel.includes("/verbs/") && !hasTest(root, rel, [".test.ts", ".int.test.ts"])) {
-    out.push(missing(rel, MSG.verb));
+  if (rel.includes("/verbs/") && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+    out.push(missing("server", rel, MSG.verb));
   }
-  if (rel.includes("/persistence/") && !hasTest(root, rel, [".int.test.ts"])) {
-    out.push(missing(rel, MSG.persistence));
+  if (rel.includes("/persistence/") && !hasTest(root, "server", rel, [".int.test.ts"])) {
+    out.push(missing("server", rel, MSG.persistence));
   }
   if (
     rel.includes("/contract/") &&
     hasSchema(sf.getFullText()) &&
-    !hasTest(root, rel, [".contract.test.ts"])
+    !hasTest(root, "server", rel, [".contract.test.ts"])
   ) {
-    out.push(missing(rel, MSG.contract));
+    out.push(missing("server", rel, MSG.contract));
   }
 }
 
 function pushInfra(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
   const inTier = rel.startsWith("infra/") || rel.startsWith("foundation/");
-  if (inTier && hasCallableExport(sf) && !hasTest(root, rel, [".test.ts", ".int.test.ts"])) {
-    out.push(missing(rel, MSG.infra));
+  if (inTier && hasCallableExport(sf) && !hasTest(root, "server", rel, [".test.ts", ".int.test.ts"])) {
+    out.push(missing("server", rel, MSG.infra));
+  }
+}
+
+function pushContracts(root: string, rel: string, sf: SourceFile, out: Violation[]): void {
+  if (hasSchema(sf.getFullText()) && !hasTest(root, "contracts", rel, [".contract.test.ts"])) {
+    out.push(missing("contracts", rel, MSG.sharedContract));
   }
 }
 
@@ -100,14 +113,20 @@ export const testPresence: Check = {
       if (sf.getBaseName() === "index.ts") {
         continue;
       }
-      const rel = serverSrcRel(sf.getFilePath());
-      if (rel === undefined) {
+      
+      const serverRel = serverSrcRel(sf.getFilePath());
+      if (serverRel !== undefined) {
+        if (sf.getFilePath().includes(DOMAIN_DIR)) {
+          pushDomain(root, serverRel, sf, violations);
+        } else {
+          pushInfra(root, serverRel, sf, violations);
+        }
         continue;
       }
-      if (sf.getFilePath().includes(DOMAIN_DIR)) {
-        pushDomain(root, rel, sf, violations);
-      } else {
-        pushInfra(root, rel, sf, violations);
+
+      const contractsRel = contractsSrcRel(sf.getFilePath());
+      if (contractsRel !== undefined) {
+        pushContracts(root, contractsRel, sf, violations);
       }
     }
     return violations;

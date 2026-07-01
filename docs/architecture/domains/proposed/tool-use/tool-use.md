@@ -1,6 +1,6 @@
 # Orbweaver — `tool-use`: tool/function calling + structured output (the unified tool model)
 
-> **Status: PROPOSED (domain proposal — not yet ledgered).** Scope: (1) tool/function calling on the
+> **Status: PROPOSED FLAG[PD-54] (domain proposal — not yet ledgered).** Scope: (1) tool/function calling on the
 > **OpenAI-wire** path (`chat-completions` + `responses`, plus custom-byo/vLLM which share the
 > openai-compat reducer) AND the landing of the wire `tool` role; (2) structured / JSON-schema output
 > (`response_format`/`json_schema`). It **reconciles** the OpenAI-wire path with the agent-sdk

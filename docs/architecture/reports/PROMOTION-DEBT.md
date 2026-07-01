@@ -5,14 +5,21 @@ commitment to move (promote/relocate/replace) it later.** Born 2026-06-27 becaus
 scattered across code `FLAG` comments + per-`D`-entry ledger notes + agent reports — collectively
 invisible, individually forgettable. This file makes the set greppable in one place.
 
-## The convention (how nothing gets lost)
+## The Flagging System
 
-1. Every deferral lives here as a `PD-<n>` row: **item · current home · target home · TRIGGER (the slice/
-   condition that unblocks it) · status**.
-2. Every in-code `FLAG` that defers a promotion/relocation **cites its id**: `// FLAG[PD-7]: …`. A grep of
-   `PD-` reconciles code ↔ this registry — a flag with no row, or a row with no flag, is a drift.
-3. When a trigger slice is built, its agent **clears every `PD-` row whose trigger is that slice** (or
-   flips it `done` with the resolving commit). The slice prompt names the relevant `PD-` ids.
+The codebase uses two distinct types of `FLAG` comments. It is critical to distinguish between them:
+
+### 1. Promotion Debt (`FLAG[PD-XX]`)
+Denotes **temporary debt**, missing features, stubs, and items deliberately homed in a temporary location with a commitment to move/build them later.
+- Every temporary deferral lives here as a `PD-<n>` row: **item · current home · target home · TRIGGER · status**.
+- Every in-code debt flag MUST cite its id: `// FLAG[PD-7]: …`. A grep of `PD-` reconciles code ↔ this registry. A flag with no row, or a row with no flag, is a drift.
+- When a trigger slice is built, its agent **clears every `PD-` row whose trigger is that slice** (or flips it `done` with the resolving commit).
+
+### 2. Architectural Markers (`FLAG[name]`)
+Denotes **permanent architectural boundaries**, design invariants, and structural decisions. 
+- These flags (e.g., `FLAG[scope]`, `FLAG[bus-not-on-ctx]`, `FLAG[neo-quirk]`) do **NOT** have a `PD-XX` ID.
+- They exist to explicitly document *why* a design is the way it is, preventing future developers or agents from mistakenly "fixing" or refactoring them.
+- **DO NOT** remove or "resolve" these markers. They are load-bearing documentation.
 
 Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting on that slice · `done`.
 
@@ -31,14 +38,14 @@ Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting o
 
 | PD-21 | stats canon OWNER-ATTRIBUTION for the group-chat edge — `reconcileStats` attributes assistant economics by `characters.ownerId` + user turns by chat membership; the multi-owner group-chat case is unsettled (`applyStatsDelta` itself is attribution-agnostic, so chat retains control) | `domain/stats/write/rebuild-from-canon.ts` (`FLAG[PD-21]`) | confirm against chat's D18 membership model; the stats-drift test is the enforcer | chat lands (P5) | blocked:chat(P5) |
 | PD-22 | stats→discovery per-message economics read seam — NOT built. DECIDED (Nate 2026-06-28): build it **D26-aware** (read economics from `message_variants`, NEVER neo's `messages`-columns premise). The stats domain itself (`applyStatsDelta`/`reconcileStats`) is ALREADY D26-aware (built post-D26) — there is no existing jank to rewrite; this is the consumer-side READ. Build it WITH the discovery corpus-economics consumer (PD-40), not as a consumer-less seam now. | `domain/stats/persistence/` (D26-aware) + the discovery consumer | the discovery corpus-economics surface lands (PD-40) | blocked:discovery-corpus(PD-40) |
-| PD-23 | notifications `emit` → transport bus FAN-OUT — the durable `record` is built; the after-commit per-user bus subscription/stream is transport's job | `domain/notifications` provides `record` + the `EmitNotification` type | transport wires the subscription over the durable inbox | transport(4d) | blocked:transport(4d) |
+| PD-23 | notifications `emit` → transport bus FAN-OUT — the durable `record` is built; the after-commit per-user bus subscription/stream is built in transport, but the domain producers (chat) are not wired to it | `domain/notifications` provides `record` + the `EmitNotification` type | chat domain wires the subscription producer emit | chat lands (P5) | blocked:chat(P5) |
 | PD-24 | notifications `record` TX-ATOMICITY — runs durable-first on `ctx.db`; the doc wants the INSERT inside the producer's membership-transition tx (a tx-executor seam no domain threads yet) | `domain/notifications/verbs/record.ts` (durable-first today) | widen `record`/context to accept the producer's tx executor | chat lands (P5 — chat is the producer) | blocked:chat(P5) |
 | PD-25 | credentials DRAFT (pre-save) endpoint inspect — `providers.inspect` takes a `ResolvedCredential` (non-null `credentialId`), so an unsaved custom_openai draft can't be inspected without a raw-args inspect op or a contract change | `domain/credentials/verbs/inspect-endpoint.ts` (saved-credential-only) | a draft-inspect path (raw args) on the providers front door, or a contract widening | custom-endpoint form (connection/client) | blocked:connection/client |
 | PD-26 | assets maintenance verbs (`backfillAvatars`/`collectGarbage`/`reapIfOrphan`/`fsck`/`rebuildFromTree`) + the avatar-ref registry | not built (deliberate v1-defer) | `domain/assets` + injection into character.remove / the workloads runner | DECIDED (Nate 2026-06-28): a NAMED v2 maintenance/ops pass, not "someday" — the orphan-blob leak is slow + benign (avatars are small, hard-deletes rare), so there is no v1 driver; build when blob-store growth is a real concern OR an ops/maintenance admin surface lands. The workloads runner-env already holds the inert seams. | deferred:v2-maintenance |
 | PD-29 | assets `sniffMime` → `@orb/kit/assets` | `domain/assets/substrate/mime.ts` | `@orb/kit` | iff the client ever pre-sniffs | blocked:client(P6) |
 | PD-30 | world-info chat-scope attach/detach/list + `WiBusEvent` emit (hard block: `chats` has no `ownerId` D18; admin `ResourceRef = GlobalResource` only) | `domain/world-info` (`chatBooks` table + `WiBusEvent` type declared, unwired) | wire when the `can({kind:'chat',roster})` arm + the chat bus exist | chat lands (P5) | blocked:chat(P5) |
 | PD-34 | embeddings memory lenses — the `chat-block` SourceKind + `segment`/`digest` lenses + `newChatDigestId`/`newChatSegmentId` (the `satisfies Record<SourceLens,VectorTable>` belt + the store `assertNever` go red until added) | `domain/embeddings` (W2 = card/image only) | `domain/embeddings` store arms + indexer | chat/memory built whole (P5, D16) | blocked:chat(P5) |
-| PD-35 | search memory-retrieval verbs — `digests`/`segments`/`corpus`/`discover` + the `MemoryQueryOptions` consumers + mix modes + membership-derived chat scope (D18) | `domain/search` (W2 = card knn/findCharacters only); the `@orb/contracts/search` seam exists | `domain/search` verbs | chat/memory (P5) | blocked:chat(P5) |
+| PD-35 | search memory-retrieval verbs — `discover` (note: `digests`/`segments`/`corpus` are BUILT) + the `MemoryQueryOptions` consumers + mix modes + membership-derived chat scope (D18) | `domain/search` (W2 = card knn/findCharacters only); the `@orb/contracts/search` seam exists | `domain/search` verbs | chat/memory (P5) | blocked:chat(P5) |
 | PD-36 | search cross-modal `images` verb (text→image) + the cross-modal CSLS-skip exception | `domain/search` | `domain/search` | imageEmbed space + a later wave | blocked:later |
 | PD-37 | search lexical BM25 `fields`/`suggest` engine (`minisearch` not in the workspace) | `domain/search` | `domain/search` + the minisearch dep | a later lexical-search wave | blocked:later |
 | PD-38 | search unified `search(UnifiedSearchParams)` dispatch + `SearchScope` (premature with a partial verb set) | `domain/search` | `domain/search` | after the memory + lexical verbs land | blocked:chat(P5)/later |
@@ -86,3 +93,28 @@ Status: `ready` = trigger has landed, do it now · `blocked:<slice>` = waiting o
 | PD-28 | assets roster-avatar membership exception — a chat participant may fetch the avatar of another participant in the same chat | DONE: `assets.getMetadata` gains a roster-avatar fallback via optional injected `loadCoParticipantOwner` op on `AssetsContext`. Two-query check: (1) find candidate hash owner, (2) confirm both users share a present-member chat. `AssetMetadata` gains optional `ownerId`; blob route reads from the correct per-user CAS partition via `meta.ownerId`. `BlobAssetsPort` updated to carry the wider result type. |
 | PD-51 | healthz `credentialsKeyOk` self-canary probe (could not detect key rotation vs existing ciphertext) | DONE: `probeKeyDecrypt` verb added to `CredentialsService`. Reads the first stored credential row and attempts to decrypt it with the current `CREDENTIALS_KEY`. Returns `false` (→ `credentials_key_mismatch` in healthz) if decryption fails (rotated/lost key). Lifecycle.boot now calls `credentials.probeKeyDecrypt()` instead of the synthetic canary. The `SecretBox` type import and `probeCredentialsKey` local fn removed from `lifecycle.ts`. Integration test covers: no-credentials → true, valid credential → true, rotated key → false. |
 | PD-52 | `deriveClientIp` took the leftmost XFF hop unconditionally (spoofable by any client behind any proxy) | DONE: `deriveClientIp` now only honours `X-Forwarded-For` when the connection peer is loopback/private OR explicitly listed in `FORWARD_AUTH_TRUSTED_PROXIES`. A client behind an untrusted proxy can no longer spoof its IP via XFF. `TRUSTED_PROXIES` constant built once at module-init from `parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES)` (zero per-request cost). FLAG comment and constant removed. |
+| PD-61 | invite verb dependencies (`emit`, `hashToken`, `loadParticipantViews`) | passed as verb factory params | `ChatContext` | context refinement wave | ready |
+| PD-62 | chat lock primitive | `domain/chat/persistence/lock.ts` | `infra/` | infra primitives split | ready |
+| PD-63 | guided steer routing | unrouted parameter in read/turn verbs | routed to generation pipeline | guided chunk wave | ready |
+| PD-64 | buddy observer / reaction engine | unwired in `domain/buddy` | wired to chat/workload buses | chat lands (P5) | blocked:chat(P5) |
+| PD-65 | `reapTemporaryChats` implementation | no-op in `domain/chat/verbs/chat-lifecycle.ts` | schema-backed query | DB adds `chats.temporary` column | ready |
+| PD-66 | targeted invites | hard error in `invites.ts` | fully wired verb | `resolveHandle` op built | ready |
+| PD-67 | decline invite by ID | inline DB write in `invites.ts` | `persistence/invites.ts` | persistence write extraction | ready |
+| PD-70 | read presence stub | `entry/compose/chat.ts` | real presence service | presence architecture lands | blocked:chat(P5) |
+| PD-71 | search corpus owner ID | `entry/compose/chat.ts` | properly resolved from context | context resolution enhancement | blocked:chat(P5) |
+| PD-72 | memory log sink | thin structured log in `entry/compose/chat.ts` | `foundation/observability` | dedicated MemoryLog sink | blocked:observability |
+| PD-73 | host principal home | `entry/compose/chat.ts` | domain-level extraction | D1-clean host principal extraction | ready |
+| PD-74 | sharp image extraction | inline in `domain/export/contract/service.ts` | extracted module | second domain needs image transcode | ready |
+| PD-75 | `UserSettings.workloads.themes.k` | `domain/workloads/runners/compute-themes.ts` | `contracts/user-settings` | user-settings tier slots in | blocked:user-settings |
+| PD-77 | import loader subsystem | `entry/import/run-profile-import.ts` | extracted importer | `collectBundlesFromDir` / `importChats` lands | blocked:later |
+| PD-78 | import stats rollup | `entry/import/run-profile-import.ts` | `domain/stats/` | `reconcileStats` / `enqueueBackfill` wired | blocked:later |
+| PD-80 | OpenRouter account activity | `infra/providers/backends/openrouter/account.ts` | management key logic | management key in scope | blocked:later |
+| PD-83 | password verify injection | `entry/http/auth-routes.ts` | `domain/identity` | `authenticate` verb built | ready |
+| PD-84 | orphan-blob edge rebuild | `domain/assets/verbs/store.ts` | DR rebuild subsystem | DR tools built | blocked:later |
+| PD-86 | `messageHidden` bus event | `domain/chat/verbs/edit.ts` fallback | `@orb/contracts/chat` | explicit event contract | ready |
+| PD-87 | `participant_not_found` error | `domain/chat/verbs/roster.ts` | `CHAT_OP_CODES` | explicit op code | ready |
+| PD-88 | `chat_events` writer | inline write in `domain/chat/bus.ts` | `persistence/events.ts` | dedicated persistence layer | ready |
+| PD-90 | admin `embed` router | `transport/trpc/router.ts` deferred | `routers/admin` | cross-domain producer check | ready |
+| PD-91 | IP allowlist middleware | `infra/network/index.ts` deferred | `entry/http` or `infra/network` | ingress belt dependency lands | ready |
+| PD-92 | DB structure gate producer-schema mirror | `scripts/check/gates/db-structure.ts` | `scripts/check/gates/db-structure.ts` | `domain/` tree lands (Phase 4c) | ready |
+| PD-93 | `imagery` / `image-studio` | not built (deferred); `domains/proposed/image-studio/image-studio.md` | generative image cluster (img2img/prompt modes) | only if hosted image-gen is requested | deferred:product-call |

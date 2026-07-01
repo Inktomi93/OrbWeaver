@@ -1,6 +1,6 @@
 # Orbweaver — `databank` (Data Bank / document-RAG) — PROPOSAL
 
-> **STATUS: PROPOSAL — the one explicit OPEN architectural call (ledger D47).** This is the evidence base
+> **STATUS: PROPOSAL FLAG[PD-57] — the one explicit OPEN architectural call (ledger D47).** This is the evidence base
 > for a yes/no on "RAG over the user's own uploaded documents." It is NOT law. Nothing here is committed
 > until it graduates to a ledger D-entry and a real `docs/architecture/domains/databank.md`. Do not build
 > from this file.
@@ -413,7 +413,7 @@ What this means concretely:
   `@orb/kit/chunk`, the scraper verbs, the `search.documents` verb, the chat GATHER branch.
 
 The `FLAG[PD-x]` Promotion/Relocation Debt convention (ledger 14c) is the right vehicle: if greenlit, drop a
-`FLAG[PD-databank]` on the embeddings tuples + the search scope union now, so the add-when-built site is
+`FLAG[PD-57]` on the embeddings tuples + the search scope union now, so the add-when-built site is
 discoverable.
 
 ---
@@ -468,7 +468,7 @@ scope as fast-follow (one more junction + scope branch). **Extractors v1:** txt/
 ~90% of real use); docx/epub fast-follow. **Scrapers v1:** file + text + web; youtube/wiki fast-follow.
 **Retrieval v1:** owner-scoped, host-only in groups (D16 mirror). If the answer is "not now," the cost of
 deferring is **zero** — nothing in the current substrate needs to change to keep databank a clean additive
-graft later (the `FLAG[PD-databank]` note is the only thing to drop).
+graft later (the `FLAG[PD-57]` note is the only thing to drop).
 
 ---
 

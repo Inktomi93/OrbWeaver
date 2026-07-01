@@ -6,7 +6,7 @@
 //
 // FLAG[PD-46]: the `chat` router (`send`/`swipe`/`start`/`streamMessages` + the chat SSE subscription) lands
 // when the chat + memory domains are built WHOLE at Phase 5 (ledger D16). The `embeddings` inline `embed`
-// (admin) router is deferred too — the producer-ownership check crosses embeddings+character (composition →
+// (admin) router is FLAG[PD-90] — the producer-ownership check crosses embeddings+character (composition →
 // `entry/`, not a thin driver); the bulk embed path is the admin `embed-corpus` workload.
 
 import { z } from "zod";

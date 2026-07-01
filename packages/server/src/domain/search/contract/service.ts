@@ -27,11 +27,11 @@
 // doc wins). No concurrent `domain/embeddings` file is touched or imported.
 //
 // ── DEFERRAL LEDGER ─────────────────────────────────────────────────────────────────────────────────────
-// FLAG[PD-35] (PARTIALLY RESOLVED): `digests`/`segments`/`corpus` are BUILT (the chat-memory retrieval the
-//   `recall` path depends on — `persistence/{scope,digest-rows}.ts` + `substrate/dedupe.ts`). What REMAINS
-//   under PD-35 is the `discover` verb (the DISCOVERY-domain character-discovery consumer, NOT memory —
-//   PD-39/40 territory) and its `DiscoverParams`/`DiscoverCharacter`/`DiscoverSegment` types. Open
-//   sub-flags inside the built verbs: `recencyBias`/`verbatimWindow` are accepted-but-not-applied on
+// FLAG[PD-35]: `discover` verb (the DISCOVERY-domain character-discovery consumer, NOT memory —
+//   PD-39/40 territory) and its `DiscoverParams`/`DiscoverCharacter`/`DiscoverSegment` types.
+//   Note: `digests`/`segments`/`corpus` are BUILT (the chat-memory retrieval the `recall` path depends on
+//   — `persistence/{scope,digest-rows}.ts` + `substrate/dedupe.ts`).
+//   Open sub-flags inside the built verbs: `recencyBias`/`verbatimWindow` are accepted-but-not-applied on
 //   `digests` (verbatimWindow shapes memory's pre-call query; recencyBias needs a formula); `corpus` drops a
 //   segment-only block (no matching digest ⇒ unkeyable). See each verb header.
 // FLAG[PD-36]: the cross-modal `images` verb → a later wave when the `imageEmbed` text→image path +

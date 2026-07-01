@@ -65,7 +65,7 @@ describe("computeThemes", () => {
 
     const assigns = await db.select().from(digestThemeAssignments);
     expect(assigns).toHaveLength(4);
-    expect(assigns.every((a) => a.msgMidAt === null)).toBe(true); // DEFER: msgMidAt backfill
+    expect(assigns.every((a) => a.msgMidAt === null)).toBe(true); // DEFER FLAG[PD-39]: msgMidAt backfill
   });
 
   test("excludes group-room digests from solo clustering (esoteric #13)", async () => {

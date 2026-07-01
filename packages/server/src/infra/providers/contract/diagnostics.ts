@@ -13,7 +13,7 @@ import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
 
-/** Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation
+/** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation
  *  hook (carried for parity with the role requests; the OpenRouter SDK diagnostic ports + the BYO inspector
  *  don't yet accept request-level options, so it is not threaded for those today — see the front-door FLAG). */
 interface DiagnosticRequestCommon {

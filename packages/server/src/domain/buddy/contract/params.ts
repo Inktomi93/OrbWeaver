@@ -31,7 +31,7 @@ export interface ConfirmBuddyParams extends BuddyActorParams {
 export interface BuddyHistoryParams extends BuddyActorParams {}
 export interface ClearBuddyChatParams extends BuddyActorParams {}
 
-/** Toggle whether the buddy reacts to app events (the observer kill switch — observer DEFERRED). */
+/** Toggle whether the buddy reacts to app events (the observer kill switch — FLAG[PD-64]). */
 export interface SetReactionsParams extends BuddyActorParams {
   readonly enabled: boolean;
 }

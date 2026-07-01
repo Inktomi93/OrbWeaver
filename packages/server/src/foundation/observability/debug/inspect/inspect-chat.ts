@@ -29,8 +29,8 @@ const RECENT_EVENT_LIMIT = 50;
 /** One roster member (the actor XOR + the resolved character name when it's a character). */
 export interface InspectedParticipant {
   id: string;
-  kind: string;
-  role: string;
+  kind: string; // FLAG[PD-8]
+  role: string; // FLAG[PD-8]
   userId: UserId | null;
   characterId: CharacterId | null;
   characterName: string | null;

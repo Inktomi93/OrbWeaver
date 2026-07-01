@@ -12,11 +12,11 @@
 // solo path), `forceCharacterTurn` (host-only), `abort` (the active-turns registry); PLUS the auxiliary
 // single-speaker turns the engine MODES (D26) now back: `swipe`/regenerate (append-variant), `continueTurn`
 // (+ `undoContinue`/`revertContinue` restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE
-// `generate`. Every generating verb threads the active-turns abort signal into the engine (FLAG[abort-into-
-// engine] resolved). FLAG[send-regex] RESOLVED (D53 step 2): SEND USER_INPUT regex runs in the producer (the
+// generate`. Every generating verb threads the active-turns abort signal into the engine (abort propagation).
+// D53 step 2: SEND USER_INPUT regex runs in the producer (the
 // post-regex row is persisted via the `SendRegexSink`); the host-tier scripts are the union the GATHER computes
 // (`gatherAssembleContext` → `resolveHostTierRegexScripts`) onto the assemble ctx (RECEIVE applies AI_OUTPUT/
-// REASONING in the pipeline). FLAG[guided-placement]: the `guided` steer stays a seam for a later chunk (the
+// REASONING in the pipeline). FLAG[PD-63]: the `guided` steer stays a seam for a later chunk (the
 // `guided` param is accepted, not yet routed).
 //
 // DEPS NOT ON `ChatContext` (the second factory arg — the `invites.ts`/`roster.ts` precedent; FLAG
@@ -130,7 +130,7 @@ type TurnVerbs = Pick<
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
 
-/** The synthetic trailing-user nudges (chat.md §6 — turn instructions; FLAG[guided-placement]: the guided-
+/** The synthetic trailing-user nudges (chat.md §6 — turn instructions; FLAG[PD-63]: the guided-
  *  steering chunk refines WHERE these land — for now they ride `appendUserTurn`). No magic strings (one home). */
 const CONTINUE_NUDGE =
   "[Continue the previous message from exactly where it left off, without repeating it.]";
@@ -926,7 +926,7 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *
  * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
  * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
- * `appendUserTurn`. FLAG[guided-placement]: the swipe/continue/impersonate `guided` steer is left a seam for the
+ * `appendUserTurn`. FLAG[PD-63]: the swipe/continue/impersonate `guided` steer is left a seam for the
  * guided-steering chunk (the `guided` param is accepted, not yet routed). The SEND/RECEIVE regex pass is wired
  * (D53 step 2): aux turns (swipe/continue/generate/force) carry the host-tier scripts onto the assemble ctx, so
  * their generated output runs the RECEIVE AI_OUTPUT/REASONING regex + post-process in the pipeline.

@@ -11,23 +11,14 @@
 > with **chat + memory LAST** behind the differential oracle. The cake is validated at resolve-time on the
 > empty tree (Phase 0) before any feature code exists.
 >
-> **Progress (2026-06-29):** Phases 0–4 BUILT + committed; **Phase 5 (chat + memory + roster) IN PROGRESS.**
+> **Progress (2026-06-30):** Phases 0–4 BUILT + committed; **Phase 5 (chat + memory + roster) ALMOST COMPLETE.**
 > Committed (the leaf chunks, leaf-first): contract + DI foundation · persistence · auth substrate (PD-1
 > `can()` unification) · bus + membership/roster/invites + host-handoff (chunks 1–5 + PD-60) · the turn
 > VERBS (turn/edit/fork/compaction/start-chat/read/roster/chat-lifecycle) · **assembly** RESOLVE→GATHER→BUILD
-> (chunk 8, `ad169a3`) · **engine** single-turn core execute+persist+emit (chunk 9, `3d754ca`) · the
-> **memory/** subsystem build+recall+persistence logic (incl. the `build/` tier recovered from a gitignore
-> swallow, `41d8212`) · the regex `node:vm` watchdog (`607c3df`) + host-tier resolver (`69dafd8`) · the D45
-> multimodal REQUEST seam.
-> **STILL REMAINING (integration + unwired seams + committed turn-features):** (a) the domain is NOT
-> assembled or wired — `chat/service.ts` + `chat/index.ts` are 1-line stubs, no compose-root construction of
-> the `ChatContext` ops, no transport chat router (PD-46); (b) **memory is built-but-orphaned** — `recall`
-> has no caller, the post-turn build TRIGGER + `chat_digest_speakers` write are stubbed (FLAG[on-turn-memory-trigger], PD-41), and the
-> `search.*` digest/corpus retrieval verbs recall depends on don't exist (PD-35); (c) the regex SEND
-> (`USER_INPUT`) / RECEIVE (`AI_OUTPUT`/`REASONING`) wiring + `<think>` inline-parse (D53 step 2 / D47#3) —
-> watchdog+resolver ready, just unwired; (d) the `runChatTurn` adapter in compose/chat.ts (FLAG[runChatTurn-adapter]) + committed turn-coupled features — upload verb (D45 write
-> side), guided routing, OpenAI-path tool-loop (D48), image-gen-in-chat caller (D47#1); (e) `reapTemporaryChats`
-> + `getVariables` runtime-plane schema decisions (D46); (f) Stryker calibration. See `_STATUS.md` + the ledger.
+> (chunk 8) · **engine** single-turn core execute+persist+emit (chunk 9) · the
+> **memory/** subsystem build logic · the regex `node:vm` watchdog + host-tier resolver · the D45
+> multimodal REQUEST seam · **composition root wiring** (`chat/service.ts` + `compose/chat.ts` fully assembled) · **turn regex pipeline** (SEND/RECEIVE completely wired) · **`runChatTurn` adapter** built.
+> **STILL REMAINING (the final P5 seams):** (a) the transport chat router (PD-46); (b) **memory recall** has no caller (the trigger is wired, but recall is orphaned); (c) committed turn-coupled features — upload verb (D45 write side), guided routing (PD-63), OpenAI-path tool-loop (D48), image-gen-in-chat caller (D47#1); (d) `reapTemporaryChats` schema (PD-65); (e) `resolveHandle` identity lookup (PD-66). See `PROMOTION-DEBT.md` for the exact remaining targets.
 >
 > **Scope note (post-2026-06-27 commitments):** decisions **D44–D50** + the scripting/automation proposal
 > landed AFTER the original 0→6 plan was written, adding work this runbook now schedules: the born-compliant

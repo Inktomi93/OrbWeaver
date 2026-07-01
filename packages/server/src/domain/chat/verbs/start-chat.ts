@@ -79,7 +79,7 @@ type MessageViewSeed = ReturnType<typeof buildCommittedMessageView>;
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** The neutral opening instruction the `generate` path rides on `appendUserTurn` (chat.md §6 — `opening` is
- *  the action whose resolved template IS the turn prompt). FLAG[guided-placement]: the rich guided `opening`
+ *  the action whose resolved template IS the turn prompt). FLAG[PD-63]: the rich guided `opening`
  *  template is the guided-steering chunk's seam — a neutral nudge stands in (mirrors `turn.ts`'s nudges). */
 const OPENING_NUDGE = "[Open the scene: write the first message to begin the conversation.]";
 

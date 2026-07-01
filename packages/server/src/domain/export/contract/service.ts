@@ -24,8 +24,8 @@
 // shapes) now live in the shared serde core (`@orb/server/kit/serde/card`) next to the `cardFromJson` IN
 // adapter — one card emitter, composed DOWN by `exportCharacter` (never re-implemented here).
 //
-// FLAG[image-inject]: export.md's literal text says `sharp` stays INLINE in `export-character.ts` for the
-// initial port, with a DEFERRED criterion to extract "iff a SECOND domain needs image transcode." That
+// FLAG[PD-74]: export.md's literal text says `sharp` stays INLINE in `export-character.ts` for the
+// initial port, with a DEFERRED criterion FLAG[PD-74] to extract "iff a SECOND domain needs image transcode." That
 // criterion is ALREADY met — `infra/image` (the sealed sharp adapter, D6) exists and `domain/assets`
 // consumes it — so this slice follows the doc's own resolution: it injects `imageTransform` (exactly as
 // assets does) rather than re-importing the heavy native `sharp` into a domain verb (which would also
@@ -47,7 +47,7 @@ import type { ExportedCard } from "./results";
  *     is read with a single `cas.read` attempt (the TOCTOU-safe pattern — export.md Esoteric).
  *   - `imageTransform` — the `sharp` adapter op (`infra/image`, D6). Used to transcode a non-PNG avatar
  *     (jpg/webp) → PNG before the card JSON is embedded. The op strips all metadata; the width is omitted
- *     (no resize — the avatar is embedded at its source size). See FLAG[image-inject] above.
+ *     (no resize — the avatar is embedded at its source size). See FLAG[PD-74] above.
  */
 export interface ExportContext {
   readonly db: Db;

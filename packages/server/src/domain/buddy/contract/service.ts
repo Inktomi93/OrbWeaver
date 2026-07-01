@@ -83,7 +83,7 @@ export type BuddyServiceDeps = BuddyContext;
  * Caller-scoped buddy operations — each user has exactly one buddy (PK = userId). Bones are rolled
  * deterministically from the user id; the soul is model-authored at hatch. `ask` is the tool-using
  * agent turn (may surface a proposal); `confirm` is the SOLE executor of a proposed action (buddy.md
- * invariant #3). The reaction engine is started out-of-band (DEFERRED with the observer), not a verb.
+ * invariant #3). The reaction engine is started out-of-band (FLAG[PD-64]), not a verb.
  */
 export interface BuddyService {
   /** The caller's buddy — `unhatched` preview (deterministic bones) if not hatched, else the stored view. */

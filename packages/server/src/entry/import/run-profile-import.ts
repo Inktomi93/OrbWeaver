@@ -18,10 +18,10 @@
 // set of card files. The FULL profile driver (import.md §"bulk-loop unification": personas-first →
 // collect-from-dir → per-character store→import → reconcileStats → emit) is NOT buildable in this slice and
 // is deliberately NOT faked here:
-//   • DEFER(promotion): `collectBundlesFromDir` (the loader subsystem) + `importChats`/`importPersonas`
+//   • FLAG[PD-77]: `collectBundlesFromDir` (the loader subsystem) + `importChats`/`importPersonas`
 //     are the chats/personas/loader waves (import.md §8-slot "loader/", §Verbs) — not built, so a profile
 //     ZIP/dir is not collected here; callers pass already-extracted card files.
-//   • DEFER(promotion): `reconcileStats` (stats rollup) + the `emit`/`enqueueBackfill` ops are wired into
+//   • FLAG[PD-78]: `reconcileStats` (stats rollup) + the `emit`/`enqueueBackfill` ops are wired into
 //     the import CONTEXT only when the chats wave lands (import.md §"Injected into the import context");
 //     this card slice's `ImportContext` carries none, so no post-import reconcile/emit runs here yet.
 
