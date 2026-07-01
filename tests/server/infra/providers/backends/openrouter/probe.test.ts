@@ -2,7 +2,8 @@
 // CredentialHealth (ok / revoked / unreachable). The SDK client is a fake; the clock is injected.
 
 import { probeOpenRouterCredential } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const FIXED_NOW = 5000;
 type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];

@@ -1,6 +1,7 @@
 import type { OidcTransaction, OidcTransactionStore, ResolveDeps } from "@orb/server/infra/auth";
 import { verifyPkceState } from "@orb/server/infra/auth";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 // `verifyPkceState` — the db-free OIDC callback state/PKCE verify: atomically CONSUME the single-use
 // transaction matching the returned `state` (replay-proof). The store is injected (db-backed at 4e).

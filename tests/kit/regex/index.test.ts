@@ -6,7 +6,8 @@ import {
   REGEX_PLACEMENTS,
   SubstituteFindRegex,
 } from "@orb/kit/regex";
-import { expect, test, vi } from "vitest";
+import { vi } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Fixed macro context — no Date/random, per the determinism gate.
 function macroOpts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {

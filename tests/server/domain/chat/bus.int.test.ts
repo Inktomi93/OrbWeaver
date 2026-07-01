@@ -6,9 +6,10 @@
 import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
 import { asc, eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createChatBus } from "../../../../packages/server/src/domain/chat/bus";
 import { freshDb } from "../../../support/db";
+import { expect, test } from "../../../support/fixtures";
 import { makeChatContext, seedChat } from "./_support";
 
 let db: Db;

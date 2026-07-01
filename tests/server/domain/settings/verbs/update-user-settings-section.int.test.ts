@@ -3,8 +3,9 @@
 // serializer makes the read-merge-write atomic w.r.t. other same-user writes — without it last-write-wins
 // would silently drop one). Plus: a section patch deep-merges (doesn't clobber sibling sections/keys).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateUserSettingsSection", () => {

@@ -6,7 +6,7 @@ import type {
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Sample values: TypeID ids are MINTED (valid prefix + suffix, so they pass the prefix-checking
 // `typeIdSchema`); plain brands use the sanctioned `castId`. No pasted random-looking literals (noSecrets).

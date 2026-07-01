@@ -9,7 +9,8 @@ import {
   buildOpenAiSamplingFields,
   redactHeaders,
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../support/fixtures";
 
 describe("buildOpenAiSamplingFields", () => {
   test("emits only the set knobs, in snake_case wire form", () => {

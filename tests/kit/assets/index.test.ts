@@ -1,5 +1,5 @@
 import { isAssetHash } from "@orb/kit/assets";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Low-entropy, obviously-non-secret way to build a 64-char hex string (noSecrets-safe).
 const HEX64 = "abcd".repeat(16);

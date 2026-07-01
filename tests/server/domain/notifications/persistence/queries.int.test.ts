@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   dismissScoped,
   insertNotification,
@@ -13,6 +13,7 @@ import {
   selectInbox,
 } from "../../../../../packages/server/src/domain/notifications/persistence/queries";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { ALICE, BOB, inviteEvent, kickedEvent, seedUser } from "../_support";
 
 let db: Db;

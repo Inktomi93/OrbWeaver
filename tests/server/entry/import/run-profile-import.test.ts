@@ -9,7 +9,8 @@ import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { userSettings } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   ensureUserSettings,
   readAppOverrideRaw,
@@ -22,6 +22,7 @@ import {
   writeUserConfig,
 } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

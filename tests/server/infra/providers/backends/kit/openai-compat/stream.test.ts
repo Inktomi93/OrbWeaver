@@ -12,7 +12,8 @@ import {
   parseOpenAiSse,
   reduceChatCompletionStream,
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../support/fixtures";
 
 async function* streamOf(
   items: readonly ChatCompletionStreamChunk[],

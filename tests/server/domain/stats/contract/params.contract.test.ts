@@ -2,9 +2,10 @@
 // derives from it. This pins the membership so the verb's `sortCols` mapped Record + the tRPC `z.enum`
 // stay in lockstep with the one home (a dropped/renamed member is caught here + by exhaustive-dispatch).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import type { LeaderboardSort } from "../../../../../packages/server/src/domain/stats/contract/params.ts";
 import { LEADERBOARD_SORTS } from "../../../../../packages/server/src/domain/stats/contract/params.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("LEADERBOARD_SORTS", () => {
   test("is the exact sort axis, in order", () => {

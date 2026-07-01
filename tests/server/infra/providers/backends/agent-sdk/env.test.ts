@@ -11,7 +11,8 @@ import {
   buildClaudeVllmEnv,
   RESERVED_CLAUDE_ENV_KEYS,
 } from "@orb/server/infra/providers/backends/agent-sdk";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const OR_KEY = "sk-or-test-key";
 const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";

@@ -8,7 +8,7 @@ import {
   resolveEntryPosition,
   resolveEntryScope,
 } from "@orb/kit/world-info";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── tuples ─────────────────────────────────────────────────────────────────
 

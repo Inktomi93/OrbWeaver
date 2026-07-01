@@ -1,7 +1,8 @@
 // Runner test: distill-characters — wraps discovery.distillCharacters, projects AnalyticsResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { distillCharactersRunner } from "../../../../../packages/server/src/domain/workloads/runners/distill-characters.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("distill-characters runner", () => {

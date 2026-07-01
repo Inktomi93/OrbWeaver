@@ -1,5 +1,5 @@
 import { escapeRegExp } from "@orb/kit/strings";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("escapeRegExp prefixes each regex metacharacter with a backslash", () => {
   const metachars = [".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]", "\\"];

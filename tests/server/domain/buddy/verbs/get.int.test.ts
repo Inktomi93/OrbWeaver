@@ -1,8 +1,9 @@
 // verb: get — unhatched → deterministic preview; hatched → stored view with lazy read-time mood decay.
 
 import { createBuddyService } from "@orb/server/domain/buddy";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("get", () => {

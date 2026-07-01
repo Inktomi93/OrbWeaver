@@ -2,8 +2,9 @@
 // schemaVersion, returns the post-write view, and audits. Scoped to the principal's userId.
 
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("updateUserSettings", () => {

@@ -3,7 +3,8 @@
 
 import { ProviderError } from "@orb/server/infra/providers";
 import { computeBackoffMs, runWithPreCommitRetry } from "@orb/server/infra/providers/backends/kit";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const serverErr = (): ProviderError =>
   new ProviderError({ kind: "server", retryable: true, message: "boom" });

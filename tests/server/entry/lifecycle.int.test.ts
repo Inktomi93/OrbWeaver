@@ -5,7 +5,8 @@
 // `foundation/env` parses the throwaway config (it is frozen at module load).
 
 import { rmSync } from "node:fs";
-import { afterAll, expect, test, vi } from "vitest";
+import { afterAll, vi } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // A fixed high port + temp db (the integration lane runs serially — no port contention; no random ids, the
 // determinism gate bans Math.random). Cleaned up in afterAll.

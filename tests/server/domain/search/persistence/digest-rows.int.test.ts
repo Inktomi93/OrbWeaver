@@ -3,12 +3,13 @@
 // (a different-`model` row never returned), the cross-chat OWNER belt (derived via the producer card — a
 // foreign owner's digest is never returned), the within-chat belt, and the candidate restriction.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   nearestDigests,
   nearestSegments,
 } from "../../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   EMBED_MODEL,
   seedCharacter,

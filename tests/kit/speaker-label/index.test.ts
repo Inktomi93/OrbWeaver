@@ -7,7 +7,7 @@ import {
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
 } from "@orb/kit/speaker-label";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitively", () => {
   expect(LEADING_SPEAKER_TAG.test("<speaker>hi")).toBe(true);

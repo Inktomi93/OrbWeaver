@@ -6,8 +6,9 @@
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedUser, vec } from "../_support.ts";
 
 /** A `MemoryQueryOptions` with the within-chat defaults filled; override per test. */

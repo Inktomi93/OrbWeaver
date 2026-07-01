@@ -1,12 +1,13 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveCfg } from "../../../../../../packages/server/src/domain/chat/memory/constants";
 import { buildRecallQuery } from "../../../../../../packages/server/src/domain/chat/memory/recall/query";
 import type {
   MemoryScope,
   MsgRow,
 } from "../../../../../../packages/server/src/domain/chat/memory/types";
+import { expect, test } from "../../../../../support/fixtures";
 
 const chatId = castId<ChatId>("chat_q");
 const aria = castId<CharacterId>("character_aria");

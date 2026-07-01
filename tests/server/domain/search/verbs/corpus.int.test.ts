@@ -3,8 +3,9 @@
 // block collapse to ONE — the better-ranked lens wins under mixC), content-hash collapse (fork/import copies
 // across chats collapse to one representative), and the empty-pool short-circuit.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeSearch,
   seedCharacter,

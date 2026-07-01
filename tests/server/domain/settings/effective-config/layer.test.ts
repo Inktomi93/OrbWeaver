@@ -4,8 +4,9 @@
 // floors (born-in-DB: local-compute ON, max-pro-sub OFF, budget null).
 
 import { env } from "@orb/server/foundation/env";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { layer } from "../../../../../packages/server/src/domain/settings/effective-config/layer.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("layer (floor-merge)", () => {
   test("layer({}) reads the env floor for env-mirrored fields", () => {

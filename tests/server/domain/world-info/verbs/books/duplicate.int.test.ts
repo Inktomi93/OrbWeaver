@@ -2,8 +2,9 @@
 // copied verbatim with new ids; the copy is unattached (no junctions); a foreign source is NotFound.
 
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../../_support.ts";
 
 describe("duplicateBook", () => {

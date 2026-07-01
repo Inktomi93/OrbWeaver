@@ -9,7 +9,8 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatRequest } from "@orb/server/infra/providers";
 import { buildScriptedOverrideRunner, ProviderError } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 // A minimal capability — the scripted runner never reads it, but ChatRequest requires it.
 const CAPABILITY = {

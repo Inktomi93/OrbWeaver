@@ -10,10 +10,11 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import type { RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
+import { expect, test } from "../../../../support/fixtures";
 
 const CAPABILITY = {
   reasoning: { mode: "none", enabled: false },

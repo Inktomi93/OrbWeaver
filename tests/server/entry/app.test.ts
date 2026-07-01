@@ -8,9 +8,10 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp } from "../../../packages/server/src/entry/app.ts";
+import { expect, test } from "../../support/fixtures";
 
 const FROZEN_NOW = 1_750_000_000_000;
 const OK = 200;

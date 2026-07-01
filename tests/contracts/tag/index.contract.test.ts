@@ -20,7 +20,7 @@ import {
 } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Sample branded values built at the sanctioned `castId` seam — no pasted high-entropy literals (noSecrets).
 const SAMPLE_TAG_ID = castId<TagId>("tag-romance");

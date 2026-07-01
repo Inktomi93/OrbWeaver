@@ -7,7 +7,8 @@ import {
   toEmbedPrompt,
   truncateToDim,
 } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const L2 = (v: Float32Array): number => Math.sqrt(v.reduce((a, x) => a + x * x, 0));
 

@@ -2,9 +2,10 @@
 // content → a positive estimate.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 function card(overrides: Partial<CharacterCard> = {}): CharacterCard {
   return { ...buildGroupCard(), name: "", description: null, ...overrides };

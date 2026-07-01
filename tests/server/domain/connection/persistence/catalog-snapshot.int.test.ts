@@ -3,7 +3,7 @@
 // and the tightened parse (a malformed stored blob degrades to null, replacing neo's blind cast).
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe } from "vitest";
 import { settings } from "../../../../../packages/db/src/schema/index.ts";
 import {
   readCatalogSnapshot,
@@ -14,6 +14,7 @@ import {
   getCachedOrModels,
 } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const FETCHED_AT = 1_750_000_000_000;
 const MODELS: ModelCatalogEntry[] = [

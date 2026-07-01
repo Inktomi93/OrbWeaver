@@ -9,7 +9,6 @@
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
 import type {
   DigestStoreParams,
   SegmentStoreParams,
@@ -22,6 +21,7 @@ import {
   SOURCE_LENSES,
   TEXT_LENSES,
 } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const SAMPLE_CHAT_ID = castId<ChatId>("chat_sample");
 const SAMPLE_CHARACTER_ID = castId<CharacterId>("character_sample");

@@ -2,8 +2,9 @@
 // and the equivalent UTF-8 bytes hash identically (so a re-index of the same content collapses regardless of
 // the caller's content form), and that distinct content hashes distinctly.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 

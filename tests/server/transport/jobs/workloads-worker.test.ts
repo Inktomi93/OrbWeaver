@@ -2,12 +2,13 @@
 // testing §3) + a frozen clock, so the claim/dispatch decisions are asserted with zero db or wall time. The
 // tick cores (`claimAndRunNext`/`reapOnce`) are tested directly; one loop test covers boot-reap + abort.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import {
   claimAndRunNext,
   reapOnce,
   startWorkloadsWorker,
 } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
+import { expect, test } from "../../../support/fixtures";
 import { makeRow, makeWorkerDeps, T0 } from "./_support.ts";
 
 describe("workloads-worker claim tick", () => {

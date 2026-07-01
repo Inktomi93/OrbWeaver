@@ -3,7 +3,7 @@
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   readByModel,
   readCharacter,
@@ -16,6 +16,7 @@ import {
   readWrapped,
 } from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   seedCharacter,
   seedCharacterStats,

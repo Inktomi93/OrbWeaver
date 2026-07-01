@@ -1,11 +1,12 @@
 // engine/result — the pure TurnOutcome builders.
 
 import type { MessageView } from "@orb/contracts/chat";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   abortedOutcome,
   committedOutcome,
 } from "../../../../../packages/server/src/domain/chat/engine/result";
+import { expect, test } from "../../../../support/fixtures";
 
 const view = { id: "message_1", content: "hi" } as unknown as MessageView;
 

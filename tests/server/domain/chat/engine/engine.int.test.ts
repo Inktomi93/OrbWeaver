@@ -13,7 +13,7 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ChatId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type {
@@ -24,6 +24,7 @@ import { createTurnEngine } from "../../../../../packages/server/src/domain/chat
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
   makeChatContext,

@@ -1,8 +1,9 @@
 // Verb test: start — enqueue, the re-parse defense, and the single-active conflict translation.
 
 import { DomainConflictError } from "@orb/kit/errors";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeService } from "../_support.ts";
 
 describe("workloads.start", () => {

@@ -1,8 +1,9 @@
 // Runner test: import-st — wraps import.importAll, then reconciles stats post-import when a real run changed
 // rows; a dry run skips the reconcile. Projects MaintenanceResult.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { importStRunner } from "../../../../../packages/server/src/domain/workloads/runners/import-st.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("import-st runner", () => {

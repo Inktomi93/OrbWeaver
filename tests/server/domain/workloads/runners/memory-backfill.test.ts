@@ -1,8 +1,9 @@
 // Runner test: memory-backfill — the INERT P5 stub. Returns a DeferredResult and does NOT touch the
 // (declared-but-deferred) memory env op.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { memoryBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/memory-backfill.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("memory-backfill runner (P5 stub)", () => {

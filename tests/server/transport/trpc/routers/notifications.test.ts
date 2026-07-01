@@ -7,7 +7,8 @@
 import type { ChatId, NotificationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { InboxView, NotificationsService } from "@orb/server/domain/notifications";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const RECIPIENT = castId<UserId>("user_recipient");

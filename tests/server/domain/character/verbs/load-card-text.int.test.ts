@@ -7,9 +7,10 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { buildCardEmbedText } from "../../../../../packages/server/src/domain/character/substrate/embed-text.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("loadCardText", () => {

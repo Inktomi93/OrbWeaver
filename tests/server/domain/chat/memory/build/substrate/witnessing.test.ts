@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { spanWitnessed } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/witnessing";
 import type { WitnessInterval } from "../../../../../../../packages/server/src/domain/chat/memory/types";
+import { expect, test } from "../../../../../../support/fixtures";
 
 describe("memory/build/substrate/witnessing — spanWitnessed", () => {
   test("a span fully inside a present interval is witnessed", () => {

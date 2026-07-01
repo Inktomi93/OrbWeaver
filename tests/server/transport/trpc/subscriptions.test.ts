@@ -7,7 +7,8 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorkloadService } from "@orb/server/domain/workloads";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 import { caller, makeContext, principal } from "./_support.ts";
 
 /** Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1. */

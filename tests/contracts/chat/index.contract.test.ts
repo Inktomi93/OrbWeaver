@@ -37,7 +37,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
 // allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (core/Spine-Testing.md §1). This

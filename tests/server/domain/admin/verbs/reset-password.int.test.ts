@@ -7,8 +7,9 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 const NEW_PASSWORD = "brand-new-secret";

@@ -10,7 +10,8 @@ import type {
   ResolvedCredential,
 } from "@orb/server/infra/providers";
 import { createGenerateImageRole, ProviderError } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
   return { source, credentialId: null } as unknown as ResolvedCredential;

@@ -3,9 +3,10 @@
 // greetings split (first message vs alternates), {{char}}/{{user}} normalization, and HTML stripping.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { buildCardEmbedText } from "../../../../../packages/server/src/domain/character/substrate/embed-text.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 function card(overrides: Partial<CharacterCard> = {}): CharacterCard {
   return { ...buildGroupCard(), name: "", description: null, greetings: [], ...overrides };

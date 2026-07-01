@@ -16,7 +16,8 @@ import {
   placeHistoryCacheBreakpoint,
   runChatCompletionTurn,
 } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";

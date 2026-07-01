@@ -4,7 +4,7 @@
 
 import { cosineSim } from "@orb/kit/vector-math";
 import { ProviderError } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 // The cache's pure helpers are slice-internal (not on the family barrel), so import them via the
 // mirror-relative source path rather than the `@orb/server/*` (index-only) export map.
 import {
@@ -12,6 +12,7 @@ import {
   resolveModelId,
   throwIfAborted,
 } from "../../../../../../packages/server/src/infra/providers/backends/local-light/model-cache.ts";
+import { expect, test } from "../../../../../support/fixtures";
 
 describe("resolveModelId", () => {
   test("returns the requested id when it is non-empty", () => {

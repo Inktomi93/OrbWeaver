@@ -5,10 +5,11 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { BuddyToolSpec } from "@orb/server/domain/buddy";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { peekProposal } from "../../../../../packages/server/src/domain/buddy/agency/proposals.ts";
 import { createBuddyTools } from "../../../../../packages/server/src/domain/buddy/agent/tools.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

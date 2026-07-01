@@ -1,5 +1,5 @@
 import { slugifyHandle } from "@orb/kit/slug";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("slugifyHandle lowercases and hyphenates word runs", () => {
   expect(slugifyHandle("Block of Cheese")).toBe("block-of-cheese");

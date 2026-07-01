@@ -3,13 +3,14 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   modelLatencyKey,
   readLatency,
   readModelLatencies,
 } from "../../../../../packages/server/src/domain/stats/persistence/latency.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

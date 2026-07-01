@@ -1,6 +1,6 @@
 import { neutralizeMacros, resolveGuidedInstruction, ZWSP } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // Fixed macro context — no Date/random, per the determinism gate.
 function macroOpts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {

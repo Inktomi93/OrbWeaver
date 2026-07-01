@@ -6,7 +6,8 @@
 
 import type { CredentialSource } from "@orb/server/infra/providers";
 import { assertCredentialAllowed, ProviderError } from "@orb/server/infra/providers";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 
 const ALL_SOURCES: readonly CredentialSource[] = [
   "max-pro-sub",

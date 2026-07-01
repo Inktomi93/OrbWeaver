@@ -1,5 +1,5 @@
 import { stripUndefined } from "@orb/kit/objects";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("stripUndefined drops undefined keys but preserves null and other falsy values", () => {
   const result = stripUndefined({ a: 1, b: undefined, c: null, d: 0, e: "", f: false });

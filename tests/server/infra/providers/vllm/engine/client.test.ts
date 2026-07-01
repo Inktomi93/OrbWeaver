@@ -3,7 +3,8 @@
 
 import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 

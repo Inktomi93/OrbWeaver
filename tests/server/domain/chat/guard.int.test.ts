@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   ChatNotFoundError,
   ChatOperationError,
@@ -18,6 +18,7 @@ import {
   requireParticipant,
 } from "../../../../packages/server/src/domain/chat/guard";
 import { freshDb } from "../../../support/db";
+import { expect, test } from "../../../support/fixtures";
 import { seedChat, seedParticipant, seedUser } from "./_support";
 
 let db: Db;

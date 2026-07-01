@@ -17,7 +17,8 @@ import {
   createLocalLightBackend,
   DEFAULT_IMAGE_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const CRED = { source: "local-light", credentialId: null } as unknown as ResolvedCredential;
 const MODEL = "Xenova/test-clip" as ModelId;

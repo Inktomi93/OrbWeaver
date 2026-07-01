@@ -1,8 +1,9 @@
 // Runner test: group-character-backfill — the INERT P5 stub. Returns a DeferredResult and does NOT touch
 // the (declared-but-deferred) character env op.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { groupCharacterBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/group-character-backfill.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
 describe("group-character-backfill runner (P5 stub)", () => {

@@ -1,9 +1,10 @@
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   createTokenHasher,
   SESSION_TTL_MS,
   SLIDE_THROTTLE_MS,
 } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
+import { expect, test } from "../../../../support/fixtures";
 
 // Invariant #3: the token is never stored — only its PEPPERED hash; the hasher THROWS (loud
 // misconfiguration beats silent forgery) when the pepper is unset, never HMACs "".

@@ -3,12 +3,13 @@
 // exhaustive `PARAMS_SCHEMAS` Record (one entry per WORKLOAD_KIND).
 
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   PARAMS_SCHEMAS,
   parseParamsForKind,
   startWorkloadInput,
 } from "../../../../../packages/server/src/domain/workloads/contract/workload-params.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("workload-params", () => {
   test("PARAMS_SCHEMAS has exactly one schema per WORKLOAD_KIND (exhaustive)", () => {

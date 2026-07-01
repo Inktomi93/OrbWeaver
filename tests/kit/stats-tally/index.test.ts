@@ -1,5 +1,5 @@
 import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 test("wordCount matches ST's \\b\\w+\\b semantics", () => {
   expect(wordCount("hello world")).toBe(2);

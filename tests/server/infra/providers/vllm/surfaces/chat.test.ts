@@ -11,7 +11,8 @@ import type { ChatRequest } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const CRED = { source: "vllm", credentialId: null } as unknown as ResolvedCredential;
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;

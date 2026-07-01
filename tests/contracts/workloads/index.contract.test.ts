@@ -6,7 +6,7 @@ import {
   workloadKindSchema,
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). Members are verbatim from domains/workloads.md L96–104; a drift here

@@ -6,7 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   ChatNotFoundError,
   ChatOperationError,
@@ -16,6 +16,7 @@ import {
   assertHost,
   assertParticipant,
 } from "../../../../../../packages/server/src/domain/chat/substrate/auth";
+import { expect, test } from "../../../../../support/fixtures";
 
 const CHAT = castId<ChatId>("chat_x");
 const ALICE = castId<UserId>("user_alice");

@@ -1,8 +1,9 @@
 // verb: mintLocalLightCredential — the keyless in-process local-light marker (PD-9 / D39).
 
 import { createCredentialsService } from "@orb/server/domain/credentials";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness } from "../_support.ts";
 
 describe("mintLocalLightCredential", () => {

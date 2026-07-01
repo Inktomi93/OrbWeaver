@@ -3,11 +3,12 @@
 // the single-active conflict swallow — zero db, zero wall time (testing §3).
 
 import { DomainConflictError } from "@orb/kit/errors";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import {
   runCatalogCheck,
   startCatalogRefreshScheduler,
 } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
+import { expect, test } from "../../../support/fixtures";
 import { makeRow, makeSchedulerDeps, T0 } from "./_support.ts";
 
 const MS_PER_HOUR = 3_600_000;

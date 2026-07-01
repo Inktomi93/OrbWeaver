@@ -4,8 +4,9 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeDiscoveryHarness,
   seedCharacter,

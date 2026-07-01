@@ -1,6 +1,7 @@
 // SHAPE shaper: fitHistoryToWindow (chat.md Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { fitHistoryToWindow } from "../../../../../packages/server/src/domain/chat/assembly/history-budget";
+import { expect, test } from "../../../../support/fixtures";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });
 

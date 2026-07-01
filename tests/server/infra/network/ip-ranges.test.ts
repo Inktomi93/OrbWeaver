@@ -5,7 +5,8 @@ import {
   matchesCidr,
   parseIp,
 } from "@orb/server/infra/network";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 describe("parseIp", () => {
   test("parses an IPv4 dotted-quad (32-bit)", () => {

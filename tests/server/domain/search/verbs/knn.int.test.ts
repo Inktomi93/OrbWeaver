@@ -4,8 +4,9 @@
 // hosted not-supported rerank path PROPAGATING (no silent fallback), and the empty-query SearchError.
 
 import { SearchError } from "@orb/server/domain/search";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeSearch, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("knn", () => {

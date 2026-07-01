@@ -4,7 +4,8 @@
 // Fetch is mocked.
 
 import { inspectCustomByoEndpoint } from "@orb/server/infra/providers/backends/custom-byo";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const BASE_URL = "https://byo.example.com/v1";
 const EXPECTED_URL = "https://byo.example.com/v1/chat/completions";

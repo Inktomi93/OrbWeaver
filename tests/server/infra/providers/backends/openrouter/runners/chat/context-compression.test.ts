@@ -2,7 +2,8 @@
 // deterministically; OR must not middle-out on top); user opt-in flips it to an enabled middle-out engine.
 
 import { withContextCompressionPlugin } from "@orb/server/infra/providers/backends/openrouter";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../../../support/fixtures";
 
 // biome-ignore lint/security/noSecrets: the describe label is a function name, not a secret.
 describe("withContextCompressionPlugin", () => {

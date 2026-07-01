@@ -13,8 +13,9 @@ import { castId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
 import { createExportService } from "@orb/server/domain/export";
 import { cardFromJson } from "@orb/server/kit/serde/card";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   AVATAR_PNG,
   makeHarness,

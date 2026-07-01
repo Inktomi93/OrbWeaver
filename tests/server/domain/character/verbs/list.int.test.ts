@@ -2,8 +2,9 @@
 // in a user-facing list (they'd leak the hidden memory identities). Also owner-scoped (no foreign rows).
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("list", () => {

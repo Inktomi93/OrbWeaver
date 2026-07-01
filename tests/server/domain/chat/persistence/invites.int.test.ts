@@ -1,7 +1,7 @@
 import type { Db } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   countPresentMembers,
   createInvite,
@@ -15,6 +15,7 @@ import {
   revokeInvite,
 } from "../../../../../packages/server/src/domain/chat/persistence/invites";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   FROZEN_AT,
   seedChat,

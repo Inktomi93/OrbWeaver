@@ -8,12 +8,13 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { ProviderError } from "@orb/server/infra/providers";
 import { disciplineOptions } from "@orb/server/infra/providers/backends/agent-sdk";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 // `toSdkGeneration` is an @internal helper (not on the agent-sdk barrel), so — like resolve-chat /
 // local-light's model-cache — the test reaches it by relative path. It MAPS resolve-chat's resolved
 // decision into the SDK's typed Options; we lock that SDK-shape mapping here (the policy itself is
 // covered by resolve-chat.test.ts).
 import { toSdkGeneration } from "../../../../../../packages/server/src/infra/providers/backends/agent-sdk/translate.ts";
+import { expect, test } from "../../../../../support/fixtures";
 
 const OR_KEY = "sk-or-translate-test";
 const OPENROUTER_BASE = "https://openrouter.ai/api";

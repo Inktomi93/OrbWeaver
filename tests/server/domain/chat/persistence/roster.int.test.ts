@@ -5,12 +5,13 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   buildInitialRosterRows,
   loadRoster,
 } from "../../../../../packages/server/src/domain/chat/persistence/roster";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;

@@ -9,8 +9,9 @@ import { createHash } from "node:crypto";
 import { assets } from "@orb/db";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
-import { describe, expect, onTestFinished, test } from "vitest";
+import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, pngBytes, principal, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

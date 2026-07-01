@@ -9,7 +9,7 @@ import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CredentialView } from "@orb/server/domain/credentials";
 import { seedCredentialFromEnv } from "@orb/server/entry/boot";
-import { expect, test } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const OWNER: Principal = {
   userId: castId<UserId>("u_owner"),

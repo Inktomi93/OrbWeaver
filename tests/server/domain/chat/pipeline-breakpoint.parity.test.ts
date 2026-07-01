@@ -17,7 +17,8 @@
 // Determinism: every input carries frozen ids/text (the fixture); no clock/random. The reference is
 // keyed by neoHead (no wall-clock) so a re-capture is a clean diff.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 import type { ShapeCase } from "../../../support/parity-runner";
 import {
   loadFixture,

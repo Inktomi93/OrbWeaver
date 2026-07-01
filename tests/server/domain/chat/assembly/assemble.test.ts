@@ -3,8 +3,9 @@
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
 import type { AssembleContext, ChatInjection } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
+import { expect, test } from "../../../../support/fixtures";
 
 let sectionSeq = 0;
 function marker(over: Partial<Extract<PromptSection, { type: "marker" }>>): PromptSection {

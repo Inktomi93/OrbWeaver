@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createAuthSeam } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
-import { expect, test } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const OWNER_HANDLE = "owner";
 

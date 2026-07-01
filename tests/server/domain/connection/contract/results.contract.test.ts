@@ -2,8 +2,9 @@
 // snapshot and rejects a malformed one (a missing required field is a parse failure, not a silent pass —
 // the replacement for neo's `.loose()` blind cast).
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { catalogSnapshotSchema } from "../../../../../packages/server/src/domain/connection/contract/results.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const VALID = {
   fetchedAt: 1_750_000_000_000,

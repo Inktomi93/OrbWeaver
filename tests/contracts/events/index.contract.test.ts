@@ -2,7 +2,7 @@ import type { DomainEvent, DomainEventType, EmitDomainEvent } from "@orb/contrac
 import { DOMAIN_EVENT_TYPES } from "@orb/contracts/events";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── The in-process domain-event union (the embeddings indexer's payload contract) ──
 // One home for the event discriminant axis (§7.5). A drift here means a handler/emitter re-spelled the

@@ -9,7 +9,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { createImportService, ImportCardError } from "@orb/server/domain/import";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness } from "../_support.ts";
 
 const V3_CARD = {

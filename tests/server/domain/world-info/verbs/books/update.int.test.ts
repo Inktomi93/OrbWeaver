@@ -2,8 +2,9 @@
 // patch updates the whitelisted fields; a no-op edit re-reads without throwing.
 
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../../_support.ts";
 
 describe("updateBook", () => {

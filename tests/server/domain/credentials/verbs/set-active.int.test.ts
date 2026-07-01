@@ -1,8 +1,9 @@
 // verb: setActive — promote one credential, demote the prior active in the slot; ownership-checked.
 
 import { createCredentialsService } from "@orb/server/domain/credentials";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("setActive", () => {

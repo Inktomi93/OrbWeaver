@@ -3,7 +3,7 @@
 // aborted run that returned normally), and the reaper-vs-zombie guard (a row reaped mid-run is not
 // resurrected). Timers are disabled (makeRunnerDeps `*Ms: 0`) so the run is synchronous + deterministic.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import {
@@ -12,6 +12,7 @@ import {
   markTerminal,
 } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
 
 const sig = (): AbortSignal => new AbortController().signal;

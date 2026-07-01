@@ -1,8 +1,9 @@
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   parseDigest,
   renderDigestFacets,
 } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse";
+import { expect, test } from "../../../../../../support/fixtures";
 
 describe("memory/build/substrate/parse", () => {
   test("parses the three-part digest (anchor · facts · keywords)", () => {

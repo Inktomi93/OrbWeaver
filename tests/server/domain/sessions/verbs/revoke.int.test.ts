@@ -5,9 +5,10 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");

@@ -13,7 +13,8 @@ import {
   runInRequest,
   securityEvent,
 } from "@orb/server/foundation/observability";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 function rec(id: string): RequestRecord {
   return { id, method: "GET", path: `/${id}`, status: 200, durationMs: 1, at: 1 };

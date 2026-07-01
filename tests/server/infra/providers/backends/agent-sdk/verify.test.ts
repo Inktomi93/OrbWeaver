@@ -7,7 +7,8 @@
 // wrong-typed) throws, and a well-formed one passes.
 
 import { assertInitFrameShape } from "@orb/server/infra/providers/backends/agent-sdk";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const MISSING_SESSION_ID_RE = /missing session_id/u;
 const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;

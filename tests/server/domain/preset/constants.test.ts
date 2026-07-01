@@ -5,7 +5,8 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 describe("SYSTEM_DEFAULT_PRESET_ID", () => {
   test("is the all-zero NIL TypeID literal", () => {

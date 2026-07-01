@@ -8,12 +8,13 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { like } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   createMemberBudget,
   createRateLimiter,
 } from "../../../packages/server/src/transport/rate-limit.ts";
 import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures";
 
 const T0 = 1_700_000_000_000;
 const WINDOW_MS = 60_000;

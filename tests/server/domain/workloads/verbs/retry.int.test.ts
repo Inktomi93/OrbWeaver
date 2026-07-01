@@ -4,8 +4,9 @@
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeService, seedWorkloadRow } from "../_support.ts";
 
 describe("workloads.retry", () => {

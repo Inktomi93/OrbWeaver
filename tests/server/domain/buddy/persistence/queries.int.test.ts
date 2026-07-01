@@ -4,7 +4,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   appendTurn,
   clearTurns,
@@ -17,6 +17,7 @@ import {
 } from "../../../../../packages/server/src/domain/buddy/persistence/queries.ts";
 import { roll } from "../../../../../packages/server/src/domain/buddy/substrate/roll.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

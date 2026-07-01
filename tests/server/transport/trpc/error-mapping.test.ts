@@ -12,7 +12,8 @@ import {
   DomainUnavailableError,
 } from "@orb/kit/errors";
 import { classifyDomainError } from "@orb/server/transport/trpc";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 describe("classifyDomainError — one case per subclass", () => {
   test("DomainNotFoundError → NOT_FOUND", () => {

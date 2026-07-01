@@ -9,10 +9,11 @@ import { chatInjections, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;

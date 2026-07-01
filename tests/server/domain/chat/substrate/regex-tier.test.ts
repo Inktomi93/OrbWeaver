@@ -7,8 +7,9 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveHostTierRegexScripts } from "../../../../../packages/server/src/domain/chat/substrate/regex-tier";
+import { expect, test } from "../../../../support/fixtures";
 
 /** A fully-defaulted `RegexScript` with a given id (+ optional overrides) — exercises the parse seam so the
  *  fixture matches the persisted shape exactly (every flag defaulted). */

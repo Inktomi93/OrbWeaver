@@ -1,7 +1,8 @@
 import type { Db } from "@orb/db";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

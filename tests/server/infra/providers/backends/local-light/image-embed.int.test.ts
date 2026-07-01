@@ -19,7 +19,8 @@ import {
   DEFAULT_IMAGE_EMBED_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import sharp from "sharp";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 const suite = RUN ? describe : describe.skip;

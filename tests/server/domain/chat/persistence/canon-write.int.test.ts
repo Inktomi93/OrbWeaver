@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -15,6 +15,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/canon-write";
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../_support";
 
 let db: Db;

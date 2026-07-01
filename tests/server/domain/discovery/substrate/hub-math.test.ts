@@ -1,12 +1,13 @@
 // Unit: CSLS hubness math — the top-K mean cosine, the dense/streaming bit-identity (esoteric #1), and the
 // hub-vs-outlier ordering.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   CSLS_K,
   computeGroupHubs,
   HUBNESS_DENSE_MAX,
 } from "../../../../../packages/server/src/domain/discovery/substrate/hub-math.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const v = (...xs: number[]): Float32Array => new Float32Array(xs);
 

@@ -5,10 +5,11 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { isActiveKindUniqueViolation } from "../../../../../packages/server/src/domain/workloads/persistence/constraints.ts";
 import { insertWorkload } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { T0 } from "../_support.ts";
 
 describe("isActiveKindUniqueViolation", () => {

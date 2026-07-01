@@ -3,12 +3,13 @@
 // the seed timestamp is the snapshot's own fetchedAt, so expiry is measured against the caller's clock.
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe } from "vitest";
 import {
   __resetOrModelCache,
   getCachedOrModels,
   seedOrModelCache,
 } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const FETCHED_AT = 1_750_000_000_000;
 const TTL_MS = 3_600_000; // mirrors OR_CATALOG_TTL_MS

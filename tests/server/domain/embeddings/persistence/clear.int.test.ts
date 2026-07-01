@@ -3,10 +3,11 @@
 import { characterEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { clearVectorTable } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

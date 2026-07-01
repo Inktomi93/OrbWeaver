@@ -4,8 +4,9 @@
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createPersonaService } from "@orb/server/domain/persona";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeHarness, principal, seedCharacter, seedUser } from "../../_support.ts";
 
 describe("disconnectFromCharacter", () => {

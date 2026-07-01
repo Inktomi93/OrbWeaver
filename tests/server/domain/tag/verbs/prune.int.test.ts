@@ -1,8 +1,9 @@
 // verb: pruneUnusedTags — deletes only zero-usage tags; returns the removed count.
 
 import { createTagService } from "@orb/server/domain/tag";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 describe("pruneUnusedTags", () => {

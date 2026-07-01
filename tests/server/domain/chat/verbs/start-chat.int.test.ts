@@ -15,7 +15,7 @@ import { chatParticipants, messages } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import type {
   TurnEngine,
   TurnOutcome,
@@ -23,6 +23,7 @@ import type {
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedUser } from "../_support";
 
 let db: Db;

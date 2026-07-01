@@ -14,7 +14,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import type { ChatService } from "../../../../packages/server/src/domain/chat";
 import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns";
 import type {
@@ -24,6 +24,7 @@ import type {
 import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
 import { createChatService } from "../../../../packages/server/src/domain/chat/service";
 import { freshDb } from "../../../support/db";
+import { expect, test } from "../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "./_support";
 
 let db: Db;

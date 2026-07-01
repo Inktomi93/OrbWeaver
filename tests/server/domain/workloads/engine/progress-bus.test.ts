@@ -3,12 +3,13 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
   subscribeWorkloadWake,
 } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { T0 } from "../_support.ts";
 
 describe("progress-bus", () => {

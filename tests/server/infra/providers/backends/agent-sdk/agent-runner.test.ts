@@ -14,7 +14,8 @@ import { castId } from "@orb/kit/ids";
 import type { AgentToolServer, AgentTurnRequest, ChatResult } from "@orb/server/infra/providers";
 import type { consumeTurnStream } from "@orb/server/infra/providers/backends/agent-sdk";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 const MODEL = "claude-agent-x";
 const SESSION_ID = "agent-sess-1";

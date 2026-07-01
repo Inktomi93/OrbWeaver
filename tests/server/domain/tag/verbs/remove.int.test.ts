@@ -5,8 +5,9 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeTagHarness, principal, seedCharacter, seedTag, seedUser } from "../_support.ts";
 
 describe("removeTag", () => {

@@ -3,12 +3,13 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   listAllUsers,
   loadUser,
 } from "../../../../../packages/server/src/domain/admin/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedUser } from "../_support.ts";
 
 describe("admin persistence queries", () => {

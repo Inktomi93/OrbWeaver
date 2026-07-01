@@ -16,7 +16,8 @@ import {
   createCustomByoBackend,
   reshapeChunk,
 } from "@orb/server/infra/providers/backends/custom-byo";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import { expect, test } from "../../../../../../support/fixtures";
 
 const FIXED_NOW = 1000;
 const BASE_URL = "https://byo.example.com/v1";

@@ -2,7 +2,7 @@ import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contr
 import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // D17 PIN: the global-role axis is EXACTLY [owner, admin, user] — the `owner` member is the new one
 // (was neo's 2-member admin|user). A drift here is the whole point of this node's existence.

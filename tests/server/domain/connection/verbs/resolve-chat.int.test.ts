@@ -2,8 +2,9 @@
 // overlay; an empty row falls through to the settings default. Delegates to resolveRole (one home).
 
 import { createConnectionService } from "@orb/server/domain/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, principal } from "../_support.ts";
 
 describe("resolveChat — row beats settings", () => {

@@ -4,7 +4,8 @@ import {
   getVllmEngineController,
   registerVllmEngineController,
 } from "@orb/server/infra/providers/vllm/engine";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe } from "vitest";
+import { expect, test } from "../../../../../support/fixtures";
 
 // The registry is module-scope; reset it after each test so cases don't leak into one another.
 afterEach(() => registerVllmEngineController(null));

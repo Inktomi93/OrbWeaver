@@ -6,7 +6,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
@@ -14,6 +14,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode";
+import { expect, test } from "../../../../support/fixtures";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const sp = (k: string): CastName => ({ characterId: cid(k), name: k });

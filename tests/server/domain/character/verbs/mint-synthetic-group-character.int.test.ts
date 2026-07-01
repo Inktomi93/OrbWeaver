@@ -7,8 +7,9 @@ import { castId } from "@orb/kit/ids";
 import { characters } from "@orb/db";
 import { createCharacterService } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, seedUser } from "../_support.ts";
 
 describe("mintSyntheticGroupCharacter", () => {

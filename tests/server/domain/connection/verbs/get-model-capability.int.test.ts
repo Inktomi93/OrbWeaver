@@ -2,12 +2,13 @@
 // cache; an OR id reads the seeded TTL cache for synthesis.
 
 import { createConnectionService } from "@orb/server/domain/connection";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe } from "vitest";
 import {
   __resetOrModelCache,
   seedOrModelCache,
 } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeConnHarness, makeOrEntry } from "../_support.ts";
 
 afterEach(() => {

@@ -10,13 +10,14 @@ import { messages, messageVariants } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   ChatNotFoundError,
   ChatOperationError,
 } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
   makeChatContext,

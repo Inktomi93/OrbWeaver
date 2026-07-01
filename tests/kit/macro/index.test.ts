@@ -8,7 +8,7 @@ import {
   processMacros,
   SimpleMacroRegistry,
 } from "@orb/kit/macro";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // A fixed epoch so every clock assertion is deterministic — 2021-01-02T03:04:05Z (literal ms so no
 // `Date`/`Date.now` enters the test, per the determinism gate).

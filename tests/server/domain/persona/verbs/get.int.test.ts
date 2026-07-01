@@ -4,8 +4,9 @@
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("get", () => {

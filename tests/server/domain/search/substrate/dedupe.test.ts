@@ -6,12 +6,13 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   blockKeyStr,
   collapseByContentHash,
   dedupeRankedBlocks,
 } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 const CHAT = castId<ChatId>("chat_a");
 const CHAR_X = castId<CharacterId>("character_x");

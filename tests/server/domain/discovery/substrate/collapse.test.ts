@@ -1,7 +1,8 @@
 // Unit: content-hash collapse (esoteric #3) — one min-id rep per hash, stable rep order, repOf back-mapping.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { collapseByHash } from "../../../../../packages/server/src/domain/discovery/substrate/collapse.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 interface Row {
   readonly id: string;

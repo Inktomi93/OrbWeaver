@@ -1,7 +1,7 @@
 // Integration: the read-only SELECTs over the embeddings vector store — synthetic exclusion + owner
 // derivation (characters.ownerId / digest→chat→host) + cross-tenant hub reads.
 
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   readCharacterHubVectors,
   readDigestHubVectors,
@@ -11,6 +11,7 @@ import {
   readSegmentHubVectors,
 } from "../../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   EMBED_MODEL,
   seedAsset,

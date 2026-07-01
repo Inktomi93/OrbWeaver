@@ -108,36 +108,24 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import process from "node:process";
-import {
-  type CallExpression,
-  type DiagnosticMessageChain,
-  type ExportDeclaration,
-  type ExportSpecifier,
-  type ImportDeclaration,
-  type ImportSpecifier,
-  type JsxAttribute,
-  type JsxElement,
-  type JsxOpeningElement,
-  type JsxSelfClosingElement,
-  Node,
-  Project,
-  type ProjectOptions,
-  type SourceFile,
-  type SourceFileReferencingNodes,
-  type Statement,
-  type StringLiteral,
-  SyntaxKind,
+import type {
+  CallExpression,
+  Diagnostic,
+  DiagnosticMessageChain,
+  ExportDeclaration,
+  ImportDeclaration,
+  ImportSpecifier,
+  JsxAttribute,
+  JsxOpeningElement,
+  JsxSelfClosingElement,
+  ProjectOptions,
+  PropertyAssignment,
+  SourceFile,
+  SourceFileReferencingNodes,
+  StringLiteral,
 } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 
-// ── §1 ─ Re-exports ──────────────────────────────────────────────────────────
-// Re-exporting ts-morph essentials so a codemod can `import { ... } from
-// "./codemod-kit"` and never name ts-morph directly. Avoids version drift in
-// downstream codemods (this file is the one place that pins to v28).
-export {
-  Node,
-  Project,
-  SyntaxKind,
-} from "ts-morph";
 export type {
   CallExpression,
   ExportDeclaration,
@@ -153,7 +141,16 @@ export type {
   SourceFileReferencingNodes,
   Statement,
   StringLiteral,
-};
+} from "ts-morph";
+// ── §1 ─ Re-exports ──────────────────────────────────────────────────────────
+// Re-exporting ts-morph essentials so a codemod can `import { ... } from
+// "./codemod-kit"` and never name ts-morph directly. Avoids version drift in
+// downstream codemods (this file is the one place that pins to v28).
+export {
+  Node,
+  Project,
+  SyntaxKind,
+} from "ts-morph";
 
 // ── §2 ─ Errors, options, types ──────────────────────────────────────────────
 
@@ -261,6 +258,7 @@ export function createCodemodProject(opts: CreateProjectOptions = {}): Project {
   if (!existsSync(tsConfigFilePath)) {
     throw new CodemodError(
       `tsconfig.json not found at ${tsConfigFilePath}`,
+      // biome-ignore lint/security/noSecrets: an error hint string, not a credential (high-entropy false positive).
       "Run the codemod from the repo root, or pass `tsConfigFilePath`.",
     );
   }
@@ -298,13 +296,13 @@ export interface CodemodContext {
   /** Queue a plan returned by a kit helper. The plan's transform runs
    *  immediately on the in-memory project; the file system is only touched
    *  when the harness decides to commit. */
-  plan(plan: Plan): void;
+  plan: (plan: Plan) => void;
   /** Record an arbitrary log line that ends up in the preview output. */
-  log(line: string): void;
+  log: (line: string) => void;
   /** Mark a file as visited so the diff layer captures its original text
    *  before any helper has mutated it. Most helpers call this for you.
    *  Idempotent. */
-  snapshot(sourceFile: SourceFile): void;
+  snapshot: (sourceFile: SourceFile) => void;
   /** Whether the harness is running in dry-run mode (`--apply` was NOT
    *  passed). Most codemods don't need to inspect this — it's exposed for
    *  callers that want to add extra-loud preview output. */
@@ -362,14 +360,9 @@ export interface RunCodemodOptions {
   readonly maxOutputLines?: number;
 }
 
-export async function runCodemod(
-  name: string,
-  codemod: (ctx: CodemodContext) => void | Promise<void>,
-  options: RunCodemodOptions = {},
-): Promise<CodemodResult> {
-  const startedAt = Date.now();
-  const repoRoot = resolve(options.repoRoot ?? process.cwd());
-  const argv = process.argv.slice(2);
+/** Reconcile the `--apply` / `--dry-run` CLI flags (and the `forceApply` escape hatch) into a
+ *  single dry-run flag. Throws if both flags were passed — they're mutually exclusive. */
+function resolveIsDryRun(options: RunCodemodOptions, argv: readonly string[]): boolean {
   const hasApply = options.forceApply === true || argv.includes("--apply");
   const hasDryRun = argv.includes("--dry-run");
   if (hasApply && hasDryRun) {
@@ -378,18 +371,23 @@ export async function runCodemod(
       "Pick one. --apply writes changes; --dry-run is the default preview mode.",
     );
   }
-  const isDryRun = !hasApply;
+  return !hasApply;
+}
 
-  const project = createCodemodProject(options.setup);
-  const snapshots = new Map<string, FileSnapshot>();
-  const plans: Plan[] = [];
-  const logs: string[] = [];
-
+function buildCodemodContext(opts: {
+  project: Project;
+  repoRoot: string;
+  isDryRun: boolean;
+  snapshots: Map<string, FileSnapshot>;
+  plans: Plan[];
+  logs: string[];
+}): CodemodContext {
+  const { project, repoRoot, isDryRun, snapshots, plans, logs } = opts;
   const ctx: CodemodContext = {
     project,
     repoRoot,
     isDryRun,
-    plan(plan) {
+    plan(plan): void {
       plans.push(plan);
       // Snapshot every file the plan declares it will touch BEFORE the plan
       // mutates anything. (The plan may also touch additional files at
@@ -399,13 +397,89 @@ export async function runCodemod(
       }
       plan.transform(ctx);
     },
-    log(line) {
+    log(line): void {
       logs.push(line);
     },
-    snapshot(sourceFile) {
+    snapshot(sourceFile): void {
       snapshotFile(ctx, project, snapshots, sourceFile.getFilePath());
     },
   };
+  return ctx;
+}
+
+/** Capture every source file that has been modified (by helpers OR by the user directly), even
+ *  if we never explicitly snapshot()-ed it. We can't diff what we don't have an original for —
+ *  but at least we can say "this file changed" using ts-morph's own dirty tracking. */
+function captureUnsavedFiles(
+  ctx: CodemodContext,
+  project: Project,
+  snapshots: Map<string, FileSnapshot>,
+): void {
+  for (const sf of project.getSourceFiles()) {
+    if (sf.isSaved()) {
+      continue;
+    }
+    snapshotFile(ctx, project, snapshots, sf.getFilePath());
+  }
+}
+
+/** Post-transform pre-emit diagnostics. Surfaces "the codemod produced broken TS" BEFORE we save
+ *  it. Filter to the files we touched so an unrelated upstream error in node_modules doesn't
+ *  drown the signal. Throws if applying (not dry-run) and any diagnostics were found. */
+function checkDiagnostics(opts: {
+  project: Project;
+  snapshots: ReadonlyMap<string, FileSnapshot>;
+  isDryRun: boolean;
+  options: RunCodemodOptions;
+  argv: readonly string[];
+}): number {
+  const { project, snapshots, isDryRun, options, argv } = opts;
+  // Skip via the per-script option OR the `--no-diagnostics-check` CLI flag. The flag is the
+  // run-time opt-out for codemods that INTENTIONALLY leave a residual cascade frontier (e.g. a
+  // per-entity TypeID pass that clears the mechanical bulk and leaves the edges for a follow-up
+  // hand-fix), so they don't have to hardcode `skipDiagnosticsCheck` and lose the guard forever.
+  const skipDiagnostics =
+    options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
+  let diagnosticErrors = 0;
+  if (!skipDiagnostics) {
+    const touched = new Set<string>([...snapshots.keys()]);
+    for (const diag of project.getPreEmitDiagnostics()) {
+      const sf = diag.getSourceFile();
+      if (sf && touched.has(sf.getFilePath())) {
+        diagnosticErrors += 1;
+      }
+    }
+  }
+  if (diagnosticErrors > 0) {
+    console.error(
+      `\n⚠ ${diagnosticErrors} TypeScript pre-emit diagnostic${diagnosticErrors === 1 ? "" : "s"} found in modified files.\n` +
+        "  This usually means the codemod produced broken code. Run with --no-diagnostics-check (per-script flag) to override.\n",
+    );
+    if (!isDryRun) {
+      throw new CodemodError(
+        `Refused to apply: ${diagnosticErrors} pre-emit diagnostic(s) in modified files.`,
+        "Fix the underlying transform, OR pass skipDiagnosticsCheck: true if intentional.",
+      );
+    }
+  }
+  return diagnosticErrors;
+}
+
+export async function runCodemod(
+  name: string,
+  codemod: (ctx: CodemodContext) => void | Promise<void>,
+  options: RunCodemodOptions = {},
+): Promise<CodemodResult> {
+  const startedAt = Date.now();
+  const repoRoot = resolve(options.repoRoot ?? process.cwd());
+  const argv = process.argv.slice(2);
+  const isDryRun = resolveIsDryRun(options, argv);
+
+  const project = createCodemodProject(options.setup);
+  const snapshots = new Map<string, FileSnapshot>();
+  const plans: Plan[] = [];
+  const logs: string[] = [];
+  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, plans, logs });
 
   console.log(headerBox(name, isDryRun));
 
@@ -417,56 +491,25 @@ export async function runCodemod(
     throw err;
   }
 
-  // Capture every source file that has been modified (by helpers OR by the
-  // user directly), even if we never explicitly snapshot()-ed it. We can't
-  // diff what we don't have an original for — but at least we can say "this
-  // file changed" using ts-morph's own dirty tracking.
-  for (const sf of project.getSourceFiles()) {
-    if (sf.isSaved()) continue;
-    snapshotFile(ctx, project, snapshots, sf.getFilePath());
-  }
-
-  // Post-transform pre-emit diagnostics. Surfaces "the codemod produced
-  // broken TS" BEFORE we save it. Filter to the files we touched so an
-  // unrelated upstream error in node_modules doesn't drown the signal.
-  let diagnosticErrors = 0;
-  // Skip via the per-script option OR the `--no-diagnostics-check` CLI flag. The flag is the
-  // run-time opt-out for codemods that INTENTIONALLY leave a residual cascade frontier (e.g. a
-  // per-entity TypeID pass that clears the mechanical bulk and leaves the edges for a follow-up
-  // hand-fix), so they don't have to hardcode `skipDiagnosticsCheck` and lose the guard forever.
-  const skipDiagnostics =
-    options.skipDiagnosticsCheck === true || argv.includes("--no-diagnostics-check");
-  if (!skipDiagnostics) {
-    const touched = new Set<string>([...snapshots.keys()]);
-    for (const diag of project.getPreEmitDiagnostics()) {
-      const sf = diag.getSourceFile();
-      if (!sf) continue;
-      if (!touched.has(sf.getFilePath())) continue;
-      diagnosticErrors += 1;
-    }
-    if (diagnosticErrors > 0) {
-      console.error(
-        `\n⚠ ${diagnosticErrors} TypeScript pre-emit diagnostic${diagnosticErrors === 1 ? "" : "s"} found in modified files.\n` +
-          `  This usually means the codemod produced broken code. Run with --no-diagnostics-check (per-script flag) to override.\n`,
-      );
-      if (!isDryRun) {
-        throw new CodemodError(
-          `Refused to apply: ${diagnosticErrors} pre-emit diagnostic(s) in modified files.`,
-          "Fix the underlying transform, OR pass skipDiagnosticsCheck: true if intentional.",
-        );
-      }
-    }
-  }
+  captureUnsavedFiles(ctx, project, snapshots);
+  const diagnosticErrors = checkDiagnostics({ project, snapshots, isDryRun, options, argv });
 
   // Render the diff summary.
-  const stats = renderPreview(name, plans, logs, snapshots, project, options.maxOutputLines);
+  const stats = renderPreview({
+    name,
+    plans,
+    logs,
+    snapshots,
+    project,
+    maxOutputLines: options.maxOutputLines,
+  });
 
   // Apply or warn.
   if (!isDryRun) {
     project.saveSync();
     console.log(`\n✓ Applied ${plans.length} plan(s). Wrote ${stats.filesChanged} file(s).\n`);
   } else {
-    console.log(`\nℹ This was a DRY RUN. No bytes were written. Re-run with --apply to commit.\n`);
+    console.log("\nℹ This was a DRY RUN. No bytes were written. Re-run with --apply to commit.\n");
   }
 
   return {
@@ -488,7 +531,9 @@ function snapshotFile(
   filePath: string,
 ): void {
   const resolved = absolutePath(filePath, ctx.repoRoot);
-  if (snapshots.has(resolved)) return;
+  if (snapshots.has(resolved)) {
+    return;
+  }
   const sf = project.getSourceFile(resolved);
   let originalText: string;
   let wasCreated = false;
@@ -543,12 +588,18 @@ export interface Plan {
  *  several smaller plans (e.g. "delete file + remove its imports everywhere"). */
 export function composePlans(description: string, plans: readonly Plan[]): Plan {
   const touched = new Set<string>();
-  for (const p of plans) for (const t of p.touchedFiles) touched.add(t);
+  for (const p of plans) {
+    for (const t of p.touchedFiles) {
+      touched.add(t);
+    }
+  }
   return {
     description,
     touchedFiles: [...touched],
-    transform(ctx) {
-      for (const p of plans) p.transform(ctx);
+    transform(ctx): void {
+      for (const p of plans) {
+        p.transform(ctx);
+      }
     },
   };
 }
@@ -559,7 +610,9 @@ export function composePlans(description: string, plans: readonly Plan[]): Plan 
  *  and a hint. Prefer this over bare `if (...) throw` so failures look
  *  consistent in the harness output. */
 export function assert(cond: unknown, msg: string, hint = "(no hint)"): asserts cond {
-  if (!cond) throw new CodemodError(msg, hint);
+  if (!cond) {
+    throw new CodemodError(msg, hint);
+  }
 }
 
 /** Validate a glob/path string is well-formed enough to feed into ts-morph.
@@ -602,16 +655,20 @@ export function isUnderSrc(filePath: string): boolean {
   return filePath.includes(`${sep}src${sep}`) || filePath.startsWith(`src${sep}`);
 }
 
+const TEST_FILE_PATTERN = /\.(test|spec)\.(ts|tsx|mts|cts)$/u;
+
 /** Does this filename look like a test/spec? */
 export function isTestFile(filePath: string): boolean {
-  return /\.(test|spec)\.(ts|tsx|mts|cts)$/.test(filePath);
+  return TEST_FILE_PATTERN.test(filePath);
 }
+
+const TS_EXTENSION_PATTERN = /\.(tsx?)$/u;
 
 /** Convert a TS file path to its likely test sibling (`foo.ts` →
  *  `foo.test.ts`). Useful when a move codemod wants to find + co-move the
  *  test file. */
 export function siblingTestPath(filePath: string): string {
-  return filePath.replace(/\.(tsx?)$/, ".test.$1");
+  return filePath.replace(TS_EXTENSION_PATTERN, ".test.$1");
 }
 
 // ── §8 ─ File operations ─────────────────────────────────────────────────────
@@ -657,6 +714,7 @@ export function moveFiles(
     );
     if (existsSync(toAbs)) {
       const targetText = readFileSync(toAbs, "utf-8");
+      // biome-ignore lint/nursery/noConditionalExpect: this is our own guard-clause assert() helper, not vitest's expect().
       assert(
         opts.confirm === true && targetText.length === 0,
         `moveFiles: destination already exists: ${repoRelative(toAbs, ctx.repoRoot)}`,
@@ -675,7 +733,7 @@ export function moveFiles(
   return {
     description: `Move ${moves.length} file(s)${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...touched],
-    transform() {
+    transform(): void {
       for (const { sf, toAbs } of resolved) {
         // SourceFile.move() returns the same SourceFile at the new path AND
         // updates every importer of the old path within the project graph.
@@ -724,8 +782,10 @@ export function deleteFiles(
   return {
     description: `Delete ${paths.length} file(s)${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: resolved.map((r) => r.abs),
-    transform() {
-      for (const { sf } of resolved) sf.delete();
+    transform(): void {
+      for (const { sf } of resolved) {
+        sf.delete();
+      }
     },
   };
 }
@@ -744,6 +804,7 @@ export function createSourceFile(
   const abs = absolutePath(filePath, ctx.repoRoot);
   const exists = existsSync(abs) || ctx.project.getSourceFile(abs) !== undefined;
   if (exists) {
+    // biome-ignore lint/nursery/noConditionalExpect: this is our own guard-clause assert() helper, not vitest's expect().
     assert(
       opts.confirm === true,
       `createSourceFile: ${repoRelative(abs, ctx.repoRoot)} already exists`,
@@ -754,13 +815,15 @@ export function createSourceFile(
   return {
     description: `Create ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform(innerCtx) {
+    transform(innerCtx): void {
       // Make sure the parent dir exists in-memory (ts-morph handles this on
       // saveSync, but mkdirSync the physical dir if we're going to apply so
       // saveSync has a path to write to — saveSync doesn't mkdir -p).
       if (!innerCtx.isDryRun) {
         const parent = dirname(abs);
-        if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
+        if (!existsSync(parent)) {
+          mkdirSync(parent, { recursive: true });
+        }
       }
       innerCtx.project.createSourceFile(abs, text, { overwrite: opts.confirm === true });
     },
@@ -787,6 +850,7 @@ export function copyFile(
     `copyFile: source not in project: ${repoRelative(fromAbs, ctx.repoRoot)}`,
   );
   if (existsSync(toAbs)) {
+    // biome-ignore lint/nursery/noConditionalExpect: this is our own guard-clause assert() helper, not vitest's expect().
     assert(
       opts.confirm === true,
       `copyFile: destination already exists: ${repoRelative(toAbs, ctx.repoRoot)}`,
@@ -796,7 +860,7 @@ export function copyFile(
   return {
     description: `Copy ${repoRelative(fromAbs, ctx.repoRoot)} → ${repoRelative(toAbs, ctx.repoRoot)}`,
     touchedFiles: [fromAbs, toAbs],
-    transform() {
+    transform(): void {
       sf.copy(toAbs, { overwrite: opts.confirm === true });
     },
   };
@@ -875,7 +939,7 @@ export function repointImports(
       `(${matches.length} declaration${matches.length === 1 ? "" : "s"})` +
       `${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...new Set(matches.map((d) => d.getSourceFile().getFilePath()))],
-    transform() {
+    transform(): void {
       for (const decl of matches) {
         decl.setModuleSpecifier(toSpecifier);
       }
@@ -911,14 +975,16 @@ export function repointAliasPaths(
   return {
     description: `Alias-path sweep (${rewrites.length} pattern${rewrites.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: affected,
-    transform(innerCtx) {
+    transform(innerCtx): void {
       for (const sf of innerCtx.project.getSourceFiles()) {
         const before = sf.getFullText();
         let after = before;
         for (const [re, replacement] of rewrites) {
           after = after.replace(re, replacement);
         }
-        if (after !== before) sf.replaceWithText(after);
+        if (after !== before) {
+          sf.replaceWithText(after);
+        }
       }
     },
   };
@@ -946,9 +1012,49 @@ export function moduleStringArg(call: CallExpression): StringLiteral | null {
     Node.isPropertyAccessExpression(expr) &&
     expr.getExpression().getText() === "vi" &&
     VI_MODULE_METHODS.has(expr.getName());
-  if (!isDynImport && !isViMock) return null;
+  if (!(isDynImport || isViMock)) {
+    return null;
+  }
   const arg0 = call.getArguments()[0];
   return arg0 && Node.isStringLiteral(arg0) ? arg0 : null;
+}
+
+/** Merge a named import into an EXISTING import declaration for the same module (the "already
+ *  importing from here" branch of `addNamedImport`). */
+function mergeNamedImportInto(
+  existing: ImportDeclaration,
+  named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean },
+): void {
+  const wantValue = named.isTypeOnly !== true;
+  // Adding a VALUE specifier into an `import type {…}` declaration would silently make the value
+  // type-only (TS1361 at its use site). Convert the declaration to a value import and push the
+  // `type` modifier onto each existing (type-only) specifier instead.
+  if (wantValue && existing.isTypeOnly()) {
+    existing.setIsTypeOnly(false);
+    for (const ni of existing.getNamedImports()) {
+      ni.setIsTypeOnly(true);
+    }
+  }
+  const match = existing
+    .getNamedImports()
+    .find(
+      (n) =>
+        n.getName() === named.name &&
+        (n.getAliasNode()?.getText() ?? n.getName()) === (named.alias ?? named.name),
+    );
+  if (match !== undefined) {
+    // Already imported — but a prior pass may have added it type-only; a later value use must
+    // downgrade it so it's callable.
+    if (wantValue && match.isTypeOnly()) {
+      match.setIsTypeOnly(false);
+    }
+    return;
+  }
+  existing.addNamedImport({
+    name: named.name,
+    ...(named.alias !== undefined ? { alias: named.alias } : {}),
+    ...(named.isTypeOnly !== undefined ? { isTypeOnly: named.isTypeOnly } : {}),
+  });
 }
 
 /**
@@ -961,10 +1067,15 @@ export function moduleStringArg(call: CallExpression): StringLiteral | null {
 export function addNamedImport(
   ctx: CodemodContext,
   filePath: string,
-  moduleSpecifier: string,
-  named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean },
+  named: {
+    readonly moduleSpecifier: string;
+    readonly name: string;
+    readonly alias?: string;
+    readonly isTypeOnly?: boolean;
+  },
   opts: OperationOptions = {},
 ): Plan {
+  const { moduleSpecifier } = named;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(
@@ -979,36 +1090,15 @@ export function addNamedImport(
       `Add named import { ${named.isTypeOnly ? "type " : ""}${named.name}${named.alias ? ` as ${named.alias}` : ""} } ` +
       `from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform() {
-      const existing = sf.getImportDeclaration(moduleSpecifier);
-      const wantValue = named.isTypeOnly !== true;
+    transform(): void {
+      // A value-import lookup by string alone can't tell a value declaration from a type-only one
+      // sharing the same specifier (`import type { X } from "m"` + `import { Y } from "m"`) — match
+      // on the non-type-only declaration explicitly, or we'd silently merge into the wrong one.
+      const existing = sf.getImportDeclaration(
+        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
+      );
       if (existing !== undefined) {
-        // Already importing from this module? Merge. First reconcile type-only-ness: adding a
-        // VALUE specifier into an `import type {…}` declaration would silently make the value
-        // type-only (TS1361 at its use site). Convert the declaration to a value import and push
-        // the `type` modifier onto each existing (type-only) specifier instead.
-        if (wantValue && existing.isTypeOnly()) {
-          existing.setIsTypeOnly(false);
-          for (const ni of existing.getNamedImports()) ni.setIsTypeOnly(true);
-        }
-        const match = existing
-          .getNamedImports()
-          .find(
-            (n) =>
-              n.getName() === named.name &&
-              (n.getAliasNode()?.getText() ?? n.getName()) === (named.alias ?? named.name),
-          );
-        if (match !== undefined) {
-          // Already imported — but a prior pass may have added it type-only; a later value use
-          // must downgrade it so it's callable.
-          if (wantValue && match.isTypeOnly()) match.setIsTypeOnly(false);
-          return;
-        }
-        existing.addNamedImport({
-          name: named.name,
-          ...(named.alias !== undefined ? { alias: named.alias } : {}),
-          ...(named.isTypeOnly !== undefined ? { isTypeOnly: named.isTypeOnly } : {}),
-        });
+        mergeNamedImportInto(existing, named);
         return;
       }
       // New declaration. Insert near the top, after existing imports if any.
@@ -1035,10 +1125,10 @@ export function addNamedImport(
 export function removeNamedImport(
   ctx: CodemodContext,
   filePath: string,
-  moduleSpecifier: string,
-  names: readonly string[],
+  target: { readonly moduleSpecifier: string; readonly names: readonly string[] },
   opts: OperationOptions & { removeWholeDeclaration?: boolean } = {},
 ): Plan {
+  const { moduleSpecifier, names } = target;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(
@@ -1050,16 +1140,24 @@ export function removeNamedImport(
   return {
     description: `Remove import { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform() {
-      const decl = sf.getImportDeclaration(moduleSpecifier);
-      if (!decl) return;
+    transform(): void {
+      // See addNamedImport's matching comment: don't grab a type-only declaration sharing the
+      // same specifier as the value declaration we actually mean to strip names from.
+      const decl = sf.getImportDeclaration(
+        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
+      );
+      if (!decl) {
+        return;
+      }
       if (opts.removeWholeDeclaration === true) {
         decl.remove();
         return;
       }
       const namesSet = new Set(names);
       for (const spec of decl.getNamedImports()) {
-        if (namesSet.has(spec.getName())) spec.remove();
+        if (namesSet.has(spec.getName())) {
+          spec.remove();
+        }
       }
       // If we removed everything from the declaration AND it has no default
       // / namespace, drop the declaration itself.
@@ -1067,7 +1165,9 @@ export function removeNamedImport(
         decl.getNamedImports().length > 0 ||
         decl.getDefaultImport() !== undefined ||
         decl.getNamespaceImport() !== undefined;
-      if (!stillHas) decl.remove();
+      if (!stillHas) {
+        decl.remove();
+      }
     },
   };
 }
@@ -1081,20 +1181,22 @@ export function removeNamedImport(
 export function renameNamedImport(
   ctx: CodemodContext,
   moduleSpecifier: string,
-  oldName: string,
-  newName: string,
+  rename: { readonly oldName: string; readonly newName: string },
   opts: OperationOptions = {},
 ): Plan {
+  const { oldName, newName } = rename;
   const importers = findImporters(ctx.project, moduleSpecifier).filter((d) =>
     d.getNamedImports().some((n) => n.getName() === oldName),
   );
   return {
     description: `Rename named import "${oldName}" → "${newName}" from "${moduleSpecifier}" (${importers.length} file${importers.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...new Set(importers.map((d) => d.getSourceFile().getFilePath()))],
-    transform() {
+    transform(): void {
       for (const decl of importers) {
         for (const spec of decl.getNamedImports()) {
-          if (spec.getName() === oldName) spec.setName(newName);
+          if (spec.getName() === oldName) {
+            spec.setName(newName);
+          }
         }
       }
     },
@@ -1116,10 +1218,12 @@ export function makeImportTypeOnly(
   return {
     description: `Flip imports to type-only from "${moduleSpecifier}"${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...new Set(decls.map((d) => d.getSourceFile().getFilePath()))],
-    transform() {
+    transform(): void {
       for (const decl of decls) {
         for (const spec of decl.getNamedImports()) {
-          if (filter(spec)) spec.setIsTypeOnly(true);
+          if (filter(spec)) {
+            spec.setIsTypeOnly(true);
+          }
         }
       }
     },
@@ -1137,6 +1241,53 @@ export function makeImportTypeOnly(
  * `deleteFiles(...)` and run `repointAliasPaths(...)` to catch any string-
  * literal references in comments.
  */
+/** Group a declaration's named imports by which new module specifier they route to (skipping any
+ *  name not in the map — those stay on the original declaration). */
+function groupImportsByDestination(
+  decl: ImportDeclaration,
+  symbolToNewSpecifier: Readonly<Record<string, string>>,
+): Map<string, ImportSpecifier[]> {
+  const groups = new Map<string, ImportSpecifier[]>();
+  for (const spec of decl.getNamedImports()) {
+    const dest = symbolToNewSpecifier[spec.getName()];
+    if (dest === undefined) {
+      continue;
+    }
+    const bucket = groups.get(dest) ?? [];
+    bucket.push(spec);
+    groups.set(dest, bucket);
+  }
+  return groups;
+}
+
+/** Add-or-merge an import declaration for `dest` carrying `specs`, then remove the specifiers
+ *  from their original declaration now that they've moved. */
+function routeSpecifiersToDestination(
+  sf: SourceFile,
+  dest: string,
+  specs: readonly ImportSpecifier[],
+): void {
+  const target = sf.getImportDeclaration(dest);
+  const incoming = specs.map((s) => {
+    const aliasNode = s.getAliasNode();
+    return {
+      name: s.getName(),
+      ...(aliasNode !== undefined ? { alias: aliasNode.getText() } : {}),
+      isTypeOnly: s.isTypeOnly(),
+    };
+  });
+  if (target !== undefined) {
+    // Don't duplicate symbols already imported.
+    const haveNames = new Set(target.getNamedImports().map((n) => n.getName()));
+    target.addNamedImports(incoming.filter((i) => !haveNames.has(i.name)));
+  } else {
+    sf.addImportDeclaration({ moduleSpecifier: dest, namedImports: incoming });
+  }
+  for (const s of specs) {
+    s.remove();
+  }
+}
+
 export function routeSymbolsByMap(
   ctx: CodemodContext,
   fromSpecifier: string,
@@ -1144,52 +1295,19 @@ export function routeSymbolsByMap(
   opts: OperationOptions = {},
 ): Plan {
   const symbols = Object.keys(symbolToNewSpecifier);
+  // biome-ignore lint/security/noSecrets: an assertion message, not a credential (high-entropy false positive).
   assert(symbols.length > 0, "routeSymbolsByMap: empty map");
   const matches = findImporters(ctx.project, fromSpecifier);
 
   return {
     description: `Route ${symbols.length} symbols from "${fromSpecifier}" to per-symbol destinations across ${matches.length} importer(s)${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...new Set(matches.map((d) => d.getSourceFile().getFilePath()))],
-    transform() {
+    transform(): void {
       for (const decl of matches) {
         const sf = decl.getSourceFile();
-        // Group this declaration's named imports by target module.
-        const groups = new Map<string, ImportSpecifier[]>();
-        const leftover: ImportSpecifier[] = [];
-        for (const spec of decl.getNamedImports()) {
-          const dest = symbolToNewSpecifier[spec.getName()];
-          if (dest === undefined) {
-            leftover.push(spec);
-            continue;
-          }
-          const bucket = groups.get(dest) ?? [];
-          bucket.push(spec);
-          groups.set(dest, bucket);
-        }
-
-        // For each target module, add or merge an import declaration.
+        const groups = groupImportsByDestination(decl, symbolToNewSpecifier);
         for (const [dest, specs] of groups) {
-          const target = sf.getImportDeclaration(dest);
-          const incoming = specs.map((s) => {
-            const aliasNode = s.getAliasNode();
-            return {
-              name: s.getName(),
-              ...(aliasNode !== undefined ? { alias: aliasNode.getText() } : {}),
-              isTypeOnly: s.isTypeOnly(),
-            };
-          });
-          if (target !== undefined) {
-            // Don't duplicate symbols already imported.
-            const haveNames = new Set(target.getNamedImports().map((n) => n.getName()));
-            target.addNamedImports(incoming.filter((i) => !haveNames.has(i.name)));
-          } else {
-            sf.addImportDeclaration({
-              moduleSpecifier: dest,
-              namedImports: incoming,
-            });
-          }
-          // Remove the original specifiers we moved.
-          for (const s of specs) s.remove();
+          routeSpecifiersToDestination(sf, dest, specs);
         }
 
         // If leftovers remain, leave the declaration in place (it still
@@ -1220,10 +1338,15 @@ export function routeSymbolsByMap(
 export function addReExport(
   ctx: CodemodContext,
   filePath: string,
-  moduleSpecifier: string,
-  named: { readonly name: string; readonly alias?: string; readonly isTypeOnly?: boolean },
+  named: {
+    readonly moduleSpecifier: string;
+    readonly name: string;
+    readonly alias?: string;
+    readonly isTypeOnly?: boolean;
+  },
   opts: OperationOptions = {},
 ): Plan {
+  const { moduleSpecifier } = named;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(sf !== undefined, `addReExport: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
@@ -1231,11 +1354,16 @@ export function addReExport(
   return {
     description: `Add re-export { ${named.isTypeOnly ? "type " : ""}${named.name}${named.alias ? ` as ${named.alias}` : ""} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform() {
-      const existing = sf.getExportDeclaration(moduleSpecifier);
+    transform(): void {
+      // Same type-only vs value ambiguity as addNamedImport — match the value declaration only.
+      const existing = sf.getExportDeclaration(
+        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
+      );
       if (existing !== undefined) {
         const already = existing.getNamedExports().some((n) => n.getName() === named.name);
-        if (already) return;
+        if (already) {
+          return;
+        }
         existing.addNamedExport({
           name: named.name,
           ...(named.alias !== undefined ? { alias: named.alias } : {}),
@@ -1266,10 +1394,10 @@ export function addReExport(
 export function removeReExport(
   ctx: CodemodContext,
   filePath: string,
-  moduleSpecifier: string,
-  names: readonly string[],
+  target: { readonly moduleSpecifier: string; readonly names: readonly string[] },
   opts: OperationOptions & { removeWholeDeclaration?: boolean } = {},
 ): Plan {
+  const { moduleSpecifier, names } = target;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(
@@ -1280,16 +1408,23 @@ export function removeReExport(
   return {
     description: `Remove re-export { ${names.join(", ")} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform() {
-      const decl = sf.getExportDeclaration(moduleSpecifier);
-      if (!decl) return;
+    transform(): void {
+      // Same type-only vs value ambiguity as removeNamedImport — match the value declaration only.
+      const decl = sf.getExportDeclaration(
+        (d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly(),
+      );
+      if (!decl) {
+        return;
+      }
       if (opts.removeWholeDeclaration === true) {
         decl.remove();
         return;
       }
       const namesSet = new Set(names);
       for (const spec of decl.getNamedExports()) {
-        if (namesSet.has(spec.getName())) spec.remove();
+        if (namesSet.has(spec.getName())) {
+          spec.remove();
+        }
       }
       if (decl.getNamedExports().length === 0 && decl.getNamespaceExport() === undefined) {
         decl.remove();
@@ -1303,6 +1438,23 @@ export function removeReExport(
  * the same module twice (sneaks in when manual barrels get touched by many
  * hands). Stable — earlier declaration wins.
  */
+/** Remove named exports from `decl` already present in `seen` (by module::name::type-vs-value
+ *  key), then drop the whole declaration if it ends up empty. Mutates `seen` with survivors. */
+function dedupeExportDeclaration(decl: ExportDeclaration, seen: Set<string>): void {
+  const mod = decl.getModuleSpecifierValue() ?? "<no-module>";
+  for (const spec of decl.getNamedExports()) {
+    const key = `${mod}::${spec.getName()}::${spec.isTypeOnly() ? "type" : "value"}`;
+    if (seen.has(key)) {
+      spec.remove();
+      continue;
+    }
+    seen.add(key);
+  }
+  if (decl.getNamedExports().length === 0 && decl.getNamespaceExport() === undefined) {
+    decl.remove();
+  }
+}
+
 export function dedupeReExports(
   ctx: CodemodContext,
   filePath: string,
@@ -1317,21 +1469,10 @@ export function dedupeReExports(
   return {
     description: `Dedupe re-exports in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
-    transform() {
+    transform(): void {
       const seen = new Set<string>();
       for (const decl of sf.getExportDeclarations()) {
-        const mod = decl.getModuleSpecifierValue() ?? "<no-module>";
-        for (const spec of decl.getNamedExports()) {
-          const key = `${mod}::${spec.getName()}::${spec.isTypeOnly() ? "type" : "value"}`;
-          if (seen.has(key)) {
-            spec.remove();
-            continue;
-          }
-          seen.add(key);
-        }
-        if (decl.getNamedExports().length === 0 && decl.getNamespaceExport() === undefined) {
-          decl.remove();
-        }
+        dedupeExportDeclaration(decl, seen);
       }
     },
   };
@@ -1398,7 +1539,9 @@ export function findCallSites(project: Project, functionName: string): Node[] {
   for (const sf of project.getSourceFiles()) {
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const expr = call.getExpression();
-      if (expr.getText() === functionName) out.push(call);
+      if (expr.getText() === functionName) {
+        out.push(call);
+      }
     }
   }
   return out;
@@ -1425,10 +1568,10 @@ export function findCallSites(project: Project, functionName: string): Node[] {
 export function renameExportedSymbol(
   ctx: CodemodContext,
   filePath: string,
-  oldName: string,
-  newName: string,
+  rename: { readonly oldName: string; readonly newName: string },
   opts: OperationOptions = {},
 ): Plan {
+  const { oldName, newName } = rename;
   const abs = absolutePath(filePath, ctx.repoRoot);
   const sf = ctx.project.getSourceFile(abs);
   assert(
@@ -1441,7 +1584,7 @@ export function renameExportedSymbol(
     // and let the post-transform snapshot catch the rest (the harness
     // captures every unsaved file at preview time).
     touchedFiles: [abs],
-    transform() {
+    transform(): void {
       const decl = findExportedDeclaration(sf, oldName);
       assert(decl !== undefined, `renameExportedSymbol: no exported "${oldName}" in ${filePath}`);
       // Locate the actual name node. ts-morph's RenameableNode trait lives
@@ -1499,7 +1642,9 @@ export function applyTextReplacements(
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1];
       const cur = sorted[i];
-      if (prev === undefined || cur === undefined) continue;
+      if (prev === undefined || cur === undefined) {
+        continue;
+      }
       assert(
         cur.start >= prev.end,
         `applyTextReplacements: overlapping ranges in ${repoRelative(file, ctx.repoRoot)}`,
@@ -1511,7 +1656,7 @@ export function applyTextReplacements(
   return {
     description: `Apply ${replacements.length} text replacement(s) across ${byFile.size} file(s)${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...byFile.keys()],
-    transform(innerCtx) {
+    transform(innerCtx): void {
       for (const [file, plans] of byFile) {
         const sf = innerCtx.project.getSourceFile(file);
         assert(
@@ -1566,10 +1711,14 @@ export function findJsxByTag(project: Project, tagName: string): JsxLike[] {
   const out: JsxLike[] = [];
   for (const sf of project.getSourceFiles()) {
     for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement)) {
-      if (el.getTagNameNode().getText() === tagName) out.push(el);
+      if (el.getTagNameNode().getText() === tagName) {
+        out.push(el);
+      }
     }
     for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
-      if (el.getTagNameNode().getText() === tagName) out.push(el);
+      if (el.getTagNameNode().getText() === tagName) {
+        out.push(el);
+      }
     }
   }
   return out;
@@ -1589,11 +1738,13 @@ export function renameJsxTag(
 ): Plan {
   const matches = findJsxByTag(ctx.project, oldTagName);
   const touched = new Set<string>();
-  for (const el of matches) touched.add(el.getSourceFile().getFilePath());
+  for (const el of matches) {
+    touched.add(el.getSourceFile().getFilePath());
+  }
   return {
     description: `Rename JSX <${oldTagName}> → <${newTagName}> (${matches.length} instance${matches.length === 1 ? "" : "s"})${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...touched],
-    transform() {
+    transform(): void {
       for (const el of matches) {
         const nameNode = el.getTagNameNode();
         // Set the opening / self-closing tag's name.
@@ -1621,7 +1772,9 @@ export function findJsxAttributes(project: Project, attrName: string): JsxAttrib
   for (const sf of project.getSourceFiles()) {
     for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
       const name = attr.getNameNode().getText();
-      if (name === attrName) out.push(attr);
+      if (name === attrName) {
+        out.push(attr);
+      }
     }
   }
   return out;
@@ -1647,8 +1800,12 @@ export function findJsxAttributes(project: Project, attrName: string): JsxAttrib
  *  `string`, or the `string` member of a `string | null` / `string | undefined`
  *  union. `[]` when the annotation isn't string-family (so nothing is rewritten). */
 function stringKeywordNodes(typeNode: Node | undefined): Node[] {
-  if (typeNode === undefined) return [];
-  if (typeNode.getKind() === SyntaxKind.StringKeyword) return [typeNode];
+  if (typeNode === undefined) {
+    return [];
+  }
+  if (typeNode.getKind() === SyntaxKind.StringKeyword) {
+    return [typeNode];
+  }
   // Union (`string | null`, `string | undefined`): the member type nodes hang off a SyntaxList,
   // so `getChildrenOfKind` (immediate children only) misses them — use the union's typed members.
   const union = typeNode.asKind(SyntaxKind.UnionType);
@@ -1691,22 +1848,34 @@ export function retypeIdAnnotations(ctx: CodemodContext, opts: RetypeIdAnnotatio
 
   for (const sf of ctx.project.getSourceFiles()) {
     const fp = sf.getFilePath();
-    if (exclude.some((s) => fp.includes(s))) continue;
+    if (exclude.some((s) => fp.includes(s))) {
+      continue;
+    }
     const consider = (name: string | undefined, typeNode: Node | undefined): void => {
-      if (name === undefined || !nameSet.has(name)) return;
+      if (name === undefined || !nameSet.has(name)) {
+        return;
+      }
       const sks = stringKeywordNodes(typeNode);
-      if (sks.length === 0) return;
-      for (const sk of sks) keywords.push(sk);
+      if (sks.length === 0) {
+        return;
+      }
+      for (const sk of sks) {
+        keywords.push(sk);
+      }
       files.add(fp);
     };
-    for (const d of sf.getDescendantsOfKind(SyntaxKind.Parameter))
+    for (const d of sf.getDescendantsOfKind(SyntaxKind.Parameter)) {
       consider(d.getName(), d.getTypeNode());
-    for (const d of sf.getDescendantsOfKind(SyntaxKind.PropertySignature))
+    }
+    for (const d of sf.getDescendantsOfKind(SyntaxKind.PropertySignature)) {
       consider(d.getName(), d.getTypeNode());
-    for (const d of sf.getDescendantsOfKind(SyntaxKind.PropertyDeclaration))
+    }
+    for (const d of sf.getDescendantsOfKind(SyntaxKind.PropertyDeclaration)) {
       consider(d.getName(), d.getTypeNode());
-    for (const d of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration))
+    }
+    for (const d of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
       consider(d.getName(), d.getTypeNode());
+    }
   }
 
   const plans: Plan[] = [];
@@ -1723,7 +1892,11 @@ export function retypeIdAnnotations(ctx: CodemodContext, opts: RetypeIdAnnotatio
     );
     for (const fp of files) {
       plans.push(
-        addNamedImport(ctx, fp, opts.importModule, { name: opts.brand, isTypeOnly: true }),
+        addNamedImport(ctx, fp, {
+          moduleSpecifier: opts.importModule,
+          name: opts.brand,
+          isTypeOnly: true,
+        }),
       );
     }
   }
@@ -1738,7 +1911,9 @@ export function retypeIdAnnotations(ctx: CodemodContext, opts: RetypeIdAnnotatio
  *  `update(...).set()` into — `undefined` if the property isn't in such a call. */
 function insertTargetTable(pa: Node): string | undefined {
   const objLit = pa.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
-  if (objLit === undefined) return;
+  if (objLit === undefined) {
+    return;
+  }
   // `.values({...})` (single row) or `.values([{...}, {...}])` (multi-row) — climb past an
   // optional array literal so both forms resolve to the same `insert(<table>)` call.
   const wrapper = objLit.getParent();
@@ -1746,17 +1921,29 @@ function insertTargetTable(pa: Node): string | undefined {
     wrapper !== undefined && wrapper.getKind() === SyntaxKind.ArrayLiteralExpression
       ? wrapper.getParentIfKind(SyntaxKind.CallExpression)
       : objLit.getParentIfKind(SyntaxKind.CallExpression);
-  if (valuesCall === undefined) return;
+  if (valuesCall === undefined) {
+    return;
+  }
   const valuesAccess = valuesCall.getExpression();
-  if (!Node.isPropertyAccessExpression(valuesAccess)) return;
+  if (!Node.isPropertyAccessExpression(valuesAccess)) {
+    return;
+  }
   const method = valuesAccess.getName();
-  if (method !== "values" && method !== "set") return;
+  if (method !== "values" && method !== "set") {
+    return;
+  }
   const insertCall = valuesAccess.getExpression();
-  if (!Node.isCallExpression(insertCall)) return;
+  if (!Node.isCallExpression(insertCall)) {
+    return;
+  }
   const insertAccess = insertCall.getExpression();
-  if (!Node.isPropertyAccessExpression(insertAccess)) return;
+  if (!Node.isPropertyAccessExpression(insertAccess)) {
+    return;
+  }
   const verb = insertAccess.getName();
-  if (verb !== "insert" && verb !== "update") return;
+  if (verb !== "insert" && verb !== "update") {
+    return;
+  }
   return insertCall.getArguments()[0]?.getText();
 }
 
@@ -1791,55 +1978,112 @@ export interface CastIdLiteralsOptions {
  * named table). Only string-literal initializers are touched, so it never double-wraps and
  * never touches values fixed by `retypeIdAnnotations`. Test-scoped by default.
  */
+/** Is this property assignment one we should cast — either an always-branded name, or the
+ *  generic `id` scoped to a matching insert/update table? */
+function isCastTargetProperty(
+  pa: PropertyAssignment,
+  always: ReadonlySet<string>,
+  tableScoped: readonly { readonly table: string; readonly prop: string }[],
+): boolean {
+  const name = pa.getName();
+  if (always.has(name)) {
+    return true;
+  }
+  const scoped = tableScoped.find((t) => t.prop === name);
+  return scoped !== undefined && insertTargetTable(pa) === scoped.table;
+}
+
+/** The node to wrap in `castFn<brand>(...)` for a matched property, or undefined if this
+ *  property's initializer isn't eligible (already cast, wrong type, or vars disabled). */
+function resolveCastCandidate(
+  pa: PropertyAssignment,
+  opts: CastIdLiteralsOptions,
+): Node | undefined {
+  const literal =
+    pa.getInitializerIfKind(SyntaxKind.StringLiteral) ??
+    pa.getInitializerIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
+    pa.getInitializerIfKind(SyntaxKind.TemplateExpression); // `id: `msg-${i}``
+  if (literal !== undefined) {
+    return literal;
+  }
+  if (!opts.includeStringVars) {
+    return;
+  }
+  // Non-literal initializer (`id: charId`, `characterId: opts.id`): cast ONLY when its type is
+  // exactly plain `string` — never nullable, never an already-branded value (would double-cast).
+  const expr = pa.getInitializer();
+  if (expr === undefined) {
+    return;
+  }
+  if (Node.isCallExpression(expr)) {
+    const callee = expr.getExpression().getText();
+    if (callee === opts.castFn || callee.startsWith(`${opts.castFn}<`)) {
+      return;
+    }
+  }
+  // Plain `string`, or a string-LITERAL type (`const id = "foo"` infers `"foo"`, not `string`) —
+  // the common test pattern of a literal id stored in a const before the insert. Both are safe:
+  // an already-branded value is neither, so it's never double-cast.
+  const exprType = expr.getType();
+  return exprType.getText() === "string" || exprType.isStringLiteral() ? expr : undefined;
+}
+
+function scanObjectLiteralCastTargets(
+  ctx: CodemodContext,
+  opts: CastIdLiteralsOptions,
+): { targets: Node[]; files: Set<string> } {
+  const always = new Set(opts.alwaysProps);
+  const tableScoped = opts.tableScopedIdProps ?? [];
+  const testOnly = opts.testFilesOnly ?? true;
+  const targets: Node[] = [];
+  const files = new Set<string>();
+  for (const sf of ctx.project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (testOnly && !isTestFile(fp)) {
+      continue;
+    }
+    for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
+      if (!isCastTargetProperty(pa, always, tableScoped)) {
+        continue;
+      }
+      const candidate = resolveCastCandidate(pa, opts);
+      if (candidate !== undefined) {
+        targets.push(candidate);
+        files.add(fp);
+      }
+    }
+  }
+  return { targets, files };
+}
+
+/** Add the `castFn` value import + `brand` type-only import to every touched file. Shared by all
+ *  the cast-literal helpers (object literals, comparisons, diagnostic-driven). */
+function buildCastImportPlans(
+  ctx: CodemodContext,
+  opts: { readonly importModule: string; readonly castFn: string; readonly brand: string },
+  files: ReadonlySet<string>,
+): Plan[] {
+  const plans: Plan[] = [];
+  for (const fp of files) {
+    plans.push(addNamedImport(ctx, fp, { moduleSpecifier: opts.importModule, name: opts.castFn }));
+    plans.push(
+      addNamedImport(ctx, fp, {
+        moduleSpecifier: opts.importModule,
+        name: opts.brand,
+        isTypeOnly: true,
+      }),
+    );
+  }
+  return plans;
+}
+
 export function castIdInObjectLiterals(ctx: CodemodContext, opts: CastIdLiteralsOptions): Plan {
   assertPathString(opts.brand, "brand");
   assertPathString(opts.castFn, "castFn");
   assertPathString(opts.importModule, "importModule");
   const always = new Set(opts.alwaysProps);
   const tableScoped = opts.tableScopedIdProps ?? [];
-  const testOnly = opts.testFilesOnly ?? true;
-  const targets: Node[] = [];
-  const files = new Set<string>();
-
-  for (const sf of ctx.project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    if (testOnly && !isTestFile(fp)) continue;
-    for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-      const name = pa.getName();
-      let matched = always.has(name);
-      if (!matched) {
-        const scoped = tableScoped.find((t) => t.prop === name);
-        if (scoped !== undefined && insertTargetTable(pa) === scoped.table) matched = true;
-      }
-      if (!matched) continue;
-      const literal =
-        pa.getInitializerIfKind(SyntaxKind.StringLiteral) ??
-        pa.getInitializerIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
-        pa.getInitializerIfKind(SyntaxKind.TemplateExpression); // `id: `msg-${i}``
-      if (literal !== undefined) {
-        targets.push(literal);
-        files.add(fp);
-        continue;
-      }
-      if (!opts.includeStringVars) continue;
-      // Non-literal initializer (`id: charId`, `characterId: opts.id`): cast ONLY when its type is
-      // exactly plain `string` — never nullable, never an already-branded value (would double-cast).
-      const expr = pa.getInitializer();
-      if (expr === undefined) continue;
-      if (Node.isCallExpression(expr)) {
-        const callee = expr.getExpression().getText();
-        if (callee === opts.castFn || callee.startsWith(`${opts.castFn}<`)) continue;
-      }
-      // Plain `string`, or a string-LITERAL type (`const id = "foo"` infers `"foo"`, not `string`) —
-      // the common test pattern of a literal id stored in a const before the insert. Both are safe:
-      // an already-branded value is neither, so it's never double-cast.
-      const exprType = expr.getType();
-      if (exprType.getText() === "string" || exprType.isStringLiteral()) {
-        targets.push(expr);
-        files.add(fp);
-      }
-    }
-  }
+  const { targets, files } = scanObjectLiteralCastTargets(ctx, opts);
 
   const plans: Plan[] = [];
   if (targets.length > 0) {
@@ -1853,12 +2097,7 @@ export function castIdInObjectLiterals(ctx: CodemodContext, opts: CastIdLiterals
         { note: `cast ${targets.length} fixture literal(s)` },
       ),
     );
-    for (const fp of files) {
-      plans.push(addNamedImport(ctx, fp, opts.importModule, { name: opts.castFn }));
-      plans.push(
-        addNamedImport(ctx, fp, opts.importModule, { name: opts.brand, isTypeOnly: true }),
-      );
-    }
+    plans.push(...buildCastImportPlans(ctx, opts, files));
   }
   return composePlans(
     `cast {${[...always, ...tableScoped.map((t) => `${t.table}.${t.prop}`)].join(", ")}} ` +
@@ -1892,53 +2131,79 @@ export interface CastIdComparisonsOptions {
  * is a `columns`-matching column reference and the other is a string literal (and `inArray`'s
  * literal array elements). Idempotent (skips literals already wrapped in `castFn`). Test-scoped.
  */
-export function castIdInComparisons(ctx: CodemodContext, opts: CastIdComparisonsOptions): Plan {
-  assertPathString(opts.brand, "brand");
-  assertPathString(opts.castFn, "castFn");
-  assertPathString(opts.importModule, "importModule");
+function isUnwrappedComparisonLiteral(n: Node | undefined, castFn: string): boolean {
+  if (n === undefined) {
+    return false;
+  }
+  if (
+    n.getKind() !== SyntaxKind.StringLiteral &&
+    n.getKind() !== SyntaxKind.NoSubstitutionTemplateLiteral &&
+    n.getKind() !== SyntaxKind.TemplateExpression
+  ) {
+    return false;
+  }
+  const parent = n.getParent();
+  if (parent !== undefined && Node.isCallExpression(parent)) {
+    const callee = parent.getExpression().getText();
+    if (callee === castFn || callee.startsWith(`${castFn}<`)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** For one matched `eq`/`inArray`/… call, collect the comparand(s) still needing a cast wrap.
+ *  `inArray`'s second arg is an array of comparands; every other op compares directly. */
+function collectComparisonTargets(
+  call: CallExpression,
+  opts: CastIdComparisonsOptions,
+): readonly Node[] {
+  const [first, second] = call.getArguments();
+  if (first === undefined || second === undefined) {
+    return [];
+  }
+  const matchesColumn = opts.columns.some((c) =>
+    c.startsWith(".") ? first.getText().endsWith(c) : first.getText() === c,
+  );
+  if (!matchesColumn) {
+    return [];
+  }
+  const operands = Node.isArrayLiteralExpression(second) ? second.getElements() : [second];
+  return operands.filter((operand) => isUnwrappedComparisonLiteral(operand, opts.castFn));
+}
+
+function scanComparisonCastTargets(
+  ctx: CodemodContext,
+  opts: CastIdComparisonsOptions,
+): { targets: Node[]; files: Set<string> } {
   const ops = new Set(opts.ops ?? ["eq", "ne", "gt", "gte", "lt", "lte", "inArray", "notInArray"]);
   const testOnly = opts.testFilesOnly ?? true;
   const targets: Node[] = [];
   const files = new Set<string>();
-
-  const matchesColumn = (text: string): boolean =>
-    opts.columns.some((c) => (c.startsWith(".") ? text.endsWith(c) : text === c));
-  const isUnwrappedStringLiteral = (n: Node | undefined): boolean => {
-    if (n === undefined) return false;
-    if (
-      n.getKind() !== SyntaxKind.StringLiteral &&
-      n.getKind() !== SyntaxKind.NoSubstitutionTemplateLiteral &&
-      n.getKind() !== SyntaxKind.TemplateExpression
-    )
-      return false;
-    const parent = n.getParent();
-    if (parent !== undefined && Node.isCallExpression(parent)) {
-      const callee = parent.getExpression().getText();
-      if (callee === opts.castFn || callee.startsWith(`${opts.castFn}<`)) return false;
-    }
-    return true;
-  };
-
   for (const sf of ctx.project.getSourceFiles()) {
     const fp = sf.getFilePath();
-    if (testOnly && !isTestFile(fp)) continue;
+    if (testOnly && !isTestFile(fp)) {
+      continue;
+    }
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const callee = call.getExpression();
-      if (!Node.isIdentifier(callee) || !ops.has(callee.getText())) continue;
-      const [first, second] = call.getArguments();
-      if (first === undefined) continue;
-      if (!matchesColumn(first.getText())) continue;
-      if (second === undefined) continue;
-      // `eq`/`ne`/… → the second arg is the comparand; `inArray` → it's an array of comparands.
-      const operands = Node.isArrayLiteralExpression(second) ? second.getElements() : [second];
-      for (const operand of operands) {
-        if (isUnwrappedStringLiteral(operand)) {
-          targets.push(operand);
-          files.add(fp);
-        }
+      if (!(Node.isIdentifier(callee) && ops.has(callee.getText()))) {
+        continue;
+      }
+      for (const operand of collectComparisonTargets(call, opts)) {
+        targets.push(operand);
+        files.add(fp);
       }
     }
   }
+  return { targets, files };
+}
+
+export function castIdInComparisons(ctx: CodemodContext, opts: CastIdComparisonsOptions): Plan {
+  assertPathString(opts.brand, "brand");
+  assertPathString(opts.castFn, "castFn");
+  assertPathString(opts.importModule, "importModule");
+  const { targets, files } = scanComparisonCastTargets(ctx, opts);
 
   const plans: Plan[] = [];
   if (targets.length > 0) {
@@ -1952,12 +2217,7 @@ export function castIdInComparisons(ctx: CodemodContext, opts: CastIdComparisons
         { note: `cast ${targets.length} comparison literal(s)` },
       ),
     );
-    for (const fp of files) {
-      plans.push(addNamedImport(ctx, fp, opts.importModule, { name: opts.castFn }));
-      plans.push(
-        addNamedImport(ctx, fp, opts.importModule, { name: opts.brand, isTypeOnly: true }),
-      );
-    }
+    plans.push(...buildCastImportPlans(ctx, opts, files));
   }
   return composePlans(
     `cast {${opts.columns.join(", ")}} comparison literals → ${opts.castFn}<${opts.brand}> ` +
@@ -1968,11 +2228,18 @@ export function castIdInComparisons(ctx: CodemodContext, opts: CastIdComparisons
 
 /** Flatten a ts-morph diagnostic message (string or nested chain) to one string. */
 function flattenDiagnosticMessage(msg: string | DiagnosticMessageChain): string {
-  if (typeof msg === "string") return msg;
+  if (typeof msg === "string") {
+    return msg;
+  }
   let out = msg.getMessageText();
-  for (const next of msg.getNext() ?? []) out += ` ${flattenDiagnosticMessage(next)}`;
+  for (const next of msg.getNext() ?? []) {
+    out += ` ${flattenDiagnosticMessage(next)}`;
+  }
   return out;
 }
+
+const TS_ARGUMENT_TYPE_MISMATCH = 2345;
+const TS_ASSIGNMENT_TYPE_MISMATCH = 2322;
 
 export interface CastByDiagnosticOptions {
   /** The brand type to cast TO, e.g. `"ChatId"`. */
@@ -2002,6 +2269,85 @@ export interface CastByDiagnosticOptions {
  * string-literal nodes already at a reported error are touched, and a literal already wrapped in
  * `castFn(...)` is skipped — so it's safe to re-run, and the tsc gate proves the result.
  */
+/** The string-literal node a diagnostic points at (or just under), skipping literals already
+ *  wrapped in `castFn(...)` (idempotent). Undefined if this diagnostic isn't a brand-mismatch
+ *  on a literal we can locate. */
+function resolveDiagnosticCastLiteral(
+  diag: Diagnostic,
+  opts: CastByDiagnosticOptions,
+): Node | undefined {
+  const sf = diag.getSourceFile();
+  if (sf === undefined) {
+    return;
+  }
+  const message = flattenDiagnosticMessage(diag.getMessageText());
+  if (!opts.brandHints.some((h) => message.includes(h))) {
+    return;
+  }
+  const start = diag.getStart();
+  if (start === undefined) {
+    return;
+  }
+  const node = sf.getDescendantAtPos(start);
+  if (node === undefined) {
+    return;
+  }
+  // The error node is (or sits just under) the offending string literal.
+  const lit =
+    node.getKind() === SyntaxKind.StringLiteral ||
+    node.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral ||
+    node.getKind() === SyntaxKind.TemplateExpression
+      ? node
+      : (node.getParentIfKind(SyntaxKind.StringLiteral) ??
+        node.getParentIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
+        node.getParentIfKind(SyntaxKind.TemplateExpression));
+  if (lit === undefined) {
+    return;
+  }
+  // Already wrapped in castFn(...)? Skip (idempotent).
+  const parent = lit.getParent();
+  if (parent !== undefined && Node.isCallExpression(parent)) {
+    const callee = parent.getExpression().getText();
+    if (callee === opts.castFn || callee.startsWith(`${opts.castFn}<`)) {
+      return;
+    }
+  }
+  return lit;
+}
+
+function scanDiagnosticCastTargets(
+  ctx: CodemodContext,
+  opts: CastByDiagnosticOptions,
+): { targets: Node[]; files: Set<string> } {
+  const codes = new Set(opts.codes ?? [TS_ARGUMENT_TYPE_MISMATCH, TS_ASSIGNMENT_TYPE_MISMATCH]);
+  const testOnly = opts.testFilesOnly ?? true;
+  const seen = new Set<string>();
+  const targets: Node[] = [];
+  const files = new Set<string>();
+  for (const diag of ctx.project.getPreEmitDiagnostics()) {
+    if (!codes.has(diag.getCode())) {
+      continue;
+    }
+    const sf = diag.getSourceFile();
+    const fp = sf?.getFilePath();
+    if (fp === undefined || (testOnly && !isTestFile(fp))) {
+      continue;
+    }
+    const lit = resolveDiagnosticCastLiteral(diag, opts);
+    if (lit === undefined) {
+      continue;
+    }
+    const key = `${fp}:${lit.getStart()}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    targets.push(lit);
+    files.add(fp);
+  }
+  return { targets, files };
+}
+
 export function castStringLiteralsByDiagnostic(
   ctx: CodemodContext,
   opts: CastByDiagnosticOptions,
@@ -2009,46 +2355,7 @@ export function castStringLiteralsByDiagnostic(
   assertPathString(opts.brand, "brand");
   assertPathString(opts.castFn, "castFn");
   assertPathString(opts.importModule, "importModule");
-  const codes = new Set(opts.codes ?? [2345, 2322]);
-  const testOnly = opts.testFilesOnly ?? true;
-  const seen = new Set<string>();
-  const targets: Node[] = [];
-  const files = new Set<string>();
-
-  for (const diag of ctx.project.getPreEmitDiagnostics()) {
-    if (!codes.has(diag.getCode())) continue;
-    const sf = diag.getSourceFile();
-    if (sf === undefined) continue;
-    const fp = sf.getFilePath();
-    if (testOnly && !isTestFile(fp)) continue;
-    const message = flattenDiagnosticMessage(diag.getMessageText());
-    if (!opts.brandHints.some((h) => message.includes(h))) continue;
-    const start = diag.getStart();
-    if (start === undefined) continue;
-    const node = sf.getDescendantAtPos(start);
-    if (node === undefined) continue;
-    // The error node is (or sits just under) the offending string literal.
-    const lit =
-      node.getKind() === SyntaxKind.StringLiteral ||
-      node.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral ||
-      node.getKind() === SyntaxKind.TemplateExpression
-        ? node
-        : (node.getParentIfKind(SyntaxKind.StringLiteral) ??
-          node.getParentIfKind(SyntaxKind.NoSubstitutionTemplateLiteral) ??
-          node.getParentIfKind(SyntaxKind.TemplateExpression));
-    if (lit === undefined) continue;
-    // Already wrapped in castFn(...)? Skip (idempotent).
-    const parent = lit.getParent();
-    if (parent !== undefined && Node.isCallExpression(parent)) {
-      const callee = parent.getExpression().getText();
-      if (callee === opts.castFn || callee.startsWith(`${opts.castFn}<`)) continue;
-    }
-    const key = `${fp}:${lit.getStart()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    targets.push(lit);
-    files.add(fp);
-  }
+  const { targets, files } = scanDiagnosticCastTargets(ctx, opts);
 
   const plans: Plan[] = [];
   if (targets.length > 0) {
@@ -2062,12 +2369,7 @@ export function castStringLiteralsByDiagnostic(
         { note: `cast ${targets.length} diagnostic-flagged literal(s)` },
       ),
     );
-    for (const fp of files) {
-      plans.push(addNamedImport(ctx, fp, opts.importModule, { name: opts.castFn }));
-      plans.push(
-        addNamedImport(ctx, fp, opts.importModule, { name: opts.brand, isTypeOnly: true }),
-      );
-    }
+    plans.push(...buildCastImportPlans(ctx, opts, files));
   }
   return composePlans(
     `cast tsc-flagged string literals → ${opts.castFn}<${opts.brand}> ` +
@@ -2100,21 +2402,29 @@ const DEFAULT_MAX_OUTPUT_LINES = 200;
 /** Half the budget goes to the head, half to the tail. The remaining lines
  *  appear as `... [N lines truncated] ...` in the middle. */
 const TRUNCATION_HEAD_FRACTION = 0.6; // bias toward head; first impression is the codemod's intent
+/** Lines consumed by the banner + tip + separator printed before the head/tail split. */
+const RESERVED_BANNER_LINES = 4;
 
 /** Parse the --max-output-lines flag (or env override). Falls back to the
  *  default. Validates positive integer. */
 function resolveMaxOutputLines(override?: number): number {
-  if (typeof override === "number" && override > 0) return override;
+  if (typeof override === "number" && override > 0) {
+    return override;
+  }
   const envVal = process.env["NEO_CODEMOD_MAX_LINES"];
   if (envVal !== undefined) {
     const n = Number.parseInt(envVal, 10);
-    if (Number.isFinite(n) && n > 0) return n;
+    if (Number.isFinite(n) && n > 0) {
+      return n;
+    }
   }
   const argv = process.argv.slice(2);
   const flag = argv.find((a) => a.startsWith("--max-output-lines="));
   if (flag !== undefined) {
     const n = Number.parseInt(flag.slice("--max-output-lines=".length), 10);
-    if (Number.isFinite(n) && n > 0) return n;
+    if (Number.isFinite(n) && n > 0) {
+      return n;
+    }
   }
   return DEFAULT_MAX_OUTPUT_LINES;
 }
@@ -2133,13 +2443,15 @@ function flushBuffer(
   const flat = buffer.flatMap((entry) => entry.split("\n"));
   const limit = resolveMaxOutputLines(maxLines);
   if (flat.length <= limit) {
-    for (const line of flat) console.log(line);
+    for (const line of flat) {
+      console.log(line);
+    }
     return;
   }
 
   // Write the full output to /tmp BEFORE printing the head, so the path
   // shows up in the banner.
-  const slug = tag.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const slug = tag.replace(/[^a-zA-Z0-9._-]/gu, "_");
   const tmpPath = join(tmpdir(), `codemod-${slug}-${Date.now()}.txt`);
   try {
     writeFileSync(tmpPath, flat.join("\n"));
@@ -2147,7 +2459,9 @@ function flushBuffer(
     // If /tmp isn't writable we can't preserve the full output. Fall back
     // to printing the whole thing — better noisy than silent loss.
     console.log(`(warning: couldn't write overflow file ${tmpPath}: ${(err as Error).message})`);
-    for (const line of flat) console.log(line);
+    for (const line of flat) {
+      console.log(line);
+    }
     return;
   }
 
@@ -2156,14 +2470,21 @@ function flushBuffer(
   console.log("│  Tip: cat the path above for the full result, or pass --max-output-lines=N.");
   console.log("╰────────────────────────────────────────────────────────────────────────────");
 
-  const headLines = Math.max(1, Math.floor((limit - 4) * TRUNCATION_HEAD_FRACTION));
-  const tailLines = Math.max(1, limit - 4 - headLines);
+  const headLines = Math.max(
+    1,
+    Math.floor((limit - RESERVED_BANNER_LINES) * TRUNCATION_HEAD_FRACTION),
+  );
+  const tailLines = Math.max(1, limit - RESERVED_BANNER_LINES - headLines);
 
-  for (let i = 0; i < headLines; i++) console.log(flat[i] ?? "");
+  for (let i = 0; i < headLines; i++) {
+    console.log(flat[i] ?? "");
+  }
   console.log("");
   console.log(`    ... [${flat.length - headLines - tailLines} lines truncated] ...`);
   console.log("");
-  for (let i = flat.length - tailLines; i < flat.length; i++) console.log(flat[i] ?? "");
+  for (let i = flat.length - tailLines; i < flat.length; i++) {
+    console.log(flat[i] ?? "");
+  }
 
   console.log("");
   console.log(`╭─ ${banner}`);
@@ -2179,14 +2500,72 @@ interface PreviewStats {
   readonly overflowFile?: string;
 }
 
-function renderPreview(
-  name: string,
-  plans: readonly Plan[],
-  logs: readonly string[],
+type FileEntryStatus = "deleted" | "created" | "changed" | "unchanged";
+
+/** Render one file's line for the "Files" preview section, and classify it for the tally. */
+function renderFileEntry(
+  snap: FileSnapshot,
+  project: Project,
+): { line: string; status: FileEntryStatus } {
+  const sf = project.getSourceFile(snap.filePath);
+  const repoRel = repoRelative(snap.filePath, process.cwd());
+  if (sf === undefined) {
+    return { line: `  − ${repoRel}    (deleted)`, status: "deleted" };
+  }
+  if (snap.wasCreated) {
+    return {
+      line: `  + ${repoRel}    (created, ${sf.getFullText().split("\n").length} lines)`,
+      status: "created",
+    };
+  }
+  const after = sf.getFullText();
+  if (after === snap.originalText) {
+    return { line: "", status: "unchanged" };
+  }
+  return {
+    line: `  ~ ${repoRel}    ${summarizeDiff(snap.originalText, after)}`,
+    status: "changed",
+  };
+}
+
+function renderFilesSection(
   snapshots: ReadonlyMap<string, FileSnapshot>,
   project: Project,
-  maxOutputLines?: number,
-): PreviewStats {
+): { lines: string[]; filesChanged: number; filesCreated: number; filesDeleted: number } {
+  const sorted = [...snapshots.values()].sort((a, b) => a.filePath.localeCompare(b.filePath));
+  if (sorted.length === 0) {
+    return { lines: ["  (no files touched)"], filesChanged: 0, filesCreated: 0, filesDeleted: 0 };
+  }
+  let filesChanged = 0;
+  let filesCreated = 0;
+  let filesDeleted = 0;
+  const lines: string[] = [];
+  for (const snap of sorted) {
+    const entry = renderFileEntry(snap, project);
+    if (entry.status === "unchanged") {
+      continue;
+    }
+    lines.push(entry.line);
+    if (entry.status === "deleted") {
+      filesDeleted += 1;
+    } else if (entry.status === "created") {
+      filesCreated += 1;
+    } else if (entry.status === "changed") {
+      filesChanged += 1;
+    }
+  }
+  return { lines, filesChanged, filesCreated, filesDeleted };
+}
+
+function renderPreview(opts: {
+  name: string;
+  plans: readonly Plan[];
+  logs: readonly string[];
+  snapshots: ReadonlyMap<string, FileSnapshot>;
+  project: Project;
+  maxOutputLines?: number | undefined;
+}): PreviewStats {
+  const { name, plans, logs, snapshots, project, maxOutputLines } = opts;
   const buf: string[] = [];
   buf.push("\n── Plans ──");
   if (plans.length === 0) {
@@ -2198,38 +2577,17 @@ function renderPreview(
   }
   if (logs.length > 0) {
     buf.push("\n── Notes ──");
-    for (const line of logs) buf.push(`  • ${line}`);
+    for (const line of logs) {
+      buf.push(`  • ${line}`);
+    }
   }
 
   buf.push("\n── Files ──");
-  let filesChanged = 0;
-  let filesCreated = 0;
-  let filesDeleted = 0;
-  const sorted = [...snapshots.values()].sort((a, b) => a.filePath.localeCompare(b.filePath));
-
-  if (sorted.length === 0) {
-    buf.push("  (no files touched)");
-  } else {
-    for (const snap of sorted) {
-      const sf = project.getSourceFile(snap.filePath);
-      const repoRel = repoRelative(snap.filePath, process.cwd());
-      if (sf === undefined) {
-        buf.push(`  − ${repoRel}    (deleted)`);
-        filesDeleted += 1;
-        continue;
-      }
-      if (snap.wasCreated) {
-        buf.push(`  + ${repoRel}    (created, ${sf.getFullText().split("\n").length} lines)`);
-        filesCreated += 1;
-        continue;
-      }
-      const after = sf.getFullText();
-      if (after === snap.originalText) continue; // unchanged
-      filesChanged += 1;
-      const stat = summarizeDiff(snap.originalText, after);
-      buf.push(`  ~ ${repoRel}    ${stat}`);
-    }
-  }
+  const { lines, filesChanged, filesCreated, filesDeleted } = renderFilesSection(
+    snapshots,
+    project,
+  );
+  buf.push(...lines);
   const overflowFile = flushBuffer(buf, `preview-${name}`, maxOutputLines);
   return {
     filesChanged,
@@ -2445,6 +2803,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
         when: "When the value side of a symbol is going away and only the type remains.",
       },
       {
+        // biome-ignore lint/security/noSecrets: a recipe function name, not a credential (high-entropy false positive).
         name: "routeSymbolsByMap",
         summary:
           "Split one file's exports across many: route each importer to the right destination.",
@@ -2536,24 +2895,29 @@ export const MANIFEST: readonly ManifestCategory[] = [
         name: "retypeIdAnnotations",
         summary:
           "Retype `chatId: string` → `chatId: ChatId` on every named param/field/var; preserves `| null`/`?`; adds the import.",
+        // biome-ignore lint/security/noSecrets: recipe doc prose, not a credential (high-entropy false positive).
         when: "Per-entity TypeID rollout, production side — after the DB columns carry `.$type<Brand>()`. Parameterized by id names + brand.",
       },
       {
         name: "castIdInObjectLiterals",
         summary:
+          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
           'Wrap fixture id string-literals (`chatId: "ch1"`, table-scoped `id: "ch1"`) in `castId<Brand>(...)`. Test-scoped.',
         when: "Per-entity TypeID rollout, test side — the literal-fixture insert/values bulk the column brand now rejects.",
       },
       {
         name: "castIdInComparisons",
         summary:
+          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
           'Wrap string literals compared against a branded column (`eq(chats.id, "ch1")`, `inArray`) in `castId<Brand>(...)`.',
         when: "Per-entity TypeID rollout — WHERE-clause literals that surface as TS2769 on the operator, which the other cast passes can't see.",
       },
       {
         name: "castStringLiteralsByDiagnostic",
         summary:
+          // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
           "Wrap every tsc-flagged string literal unassignable to the brand (call args, assignments, returns) in `castId<Brand>(...)`.",
+        // biome-ignore lint/security/noSecrets: recipe doc prose with example literals, not a credential (high-entropy false positive).
         when: 'Run LAST — type-checker-driven mop-up of literal value sites that `retypeIdAnnotations` pushes errors to (e.g. `f(db, "ch1")`).',
       },
     ],
@@ -2563,6 +2927,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
     title: "JSX (for client codemods)",
     entries: [
       {
+        // biome-ignore lint/security/noSecrets: a recipe function name, not a credential (high-entropy false positive).
         name: "findJsxByTag",
         summary: "Find every JSX element with a given tag name (opening + self-closing).",
         when: "Sweeping every <OldButton> in the client.",
@@ -2657,7 +3022,9 @@ await runCodemod("split-types", (ctx) => {
     code: `import { renameExportedSymbol, runCodemod } from "./codemod-kit";
 
 await runCodemod("rename-foo", (ctx) => {
-  ctx.plan(renameExportedSymbol(ctx, "src/feature/api.ts", "oldFoo", "newFoo"));
+  ctx.plan(
+    renameExportedSymbol(ctx, "src/feature/api.ts", { oldName: "oldFoo", newName: "newFoo" }),
+  );
 });`,
   },
   {
@@ -2688,7 +3055,9 @@ await runCodemod("flip-foo-call", (ctx) => {
 
 await runCodemod("rename-button", (ctx) => {
   ctx.plan(renameJsxTag(ctx, "OldButton", "NewButton"));
-  ctx.plan(renameNamedImport(ctx, "@/components/ui/button", "OldButton", "NewButton"));
+  ctx.plan(
+    renameNamedImport(ctx, "@/components/ui/button", { oldName: "OldButton", newName: "NewButton" }),
+  );
 });`,
   },
   {
@@ -2697,10 +3066,13 @@ await runCodemod("rename-button", (ctx) => {
     code: `import { addReExport, runCodemod } from "./codemod-kit";
 
 await runCodemod("lift-fooDetail", (ctx) => {
-  ctx.plan(addReExport(ctx, "src/feature/index.ts", "./contract/views", {
-    name: "FooDetail",
-    isTypeOnly: true,
-  }));
+  ctx.plan(
+    addReExport(ctx, "src/feature/index.ts", {
+      moduleSpecifier: "./contract/views",
+      name: "FooDetail",
+      isTypeOnly: true,
+    }),
+  );
 });`,
   },
 ];
@@ -2713,6 +3085,10 @@ await runCodemod("lift-fooDetail", (ctx) => {
 // entry is harder to merge.
 
 const KIT_FILE_RELATIVE = "scripts/codemods/codemod-kit.ts";
+/** Column width for category ids in the `help` overview listing. */
+const CATEGORY_ID_COLUMN_WIDTH = 14;
+/** Column width for recipe names in the `help` overview listing. */
+const RECIPE_NAME_COLUMN_WIDTH = 22;
 
 const OVERVIEW = `
 ts-morph codemod toolkit — quick reference
@@ -2736,10 +3112,10 @@ The doc-comment at the top is the authoritative spec; the manifest below is
 its categorical index.
 
 Categories:
-${MANIFEST.map((c) => `  • ${c.id.padEnd(14)} ${c.title}`).join("\n")}
+${MANIFEST.map((c) => `  • ${c.id.padEnd(CATEGORY_ID_COLUMN_WIDTH)} ${c.title}`).join("\n")}
 
 Recipes:
-${RECIPES.map((r) => `  • ${r.name.padEnd(22)} ${r.description}`).join("\n")}
+${RECIPES.map((r) => `  • ${r.name.padEnd(RECIPE_NAME_COLUMN_WIDTH)} ${r.description}`).join("\n")}
 `;
 
 /** Print the high-level overview. Default `pnpm codemod` output. Short
@@ -2807,12 +3183,16 @@ export function searchHelpers(query: string, maxOutputLines?: number): void {
   for (const cat of MANIFEST) {
     for (const e of cat.entries) {
       const hay = `${e.name}\n${e.summary}\n${e.when}`.toLowerCase();
-      if (hay.includes(q)) hits.push(`  [${cat.id}] ${e.name}\n    ${e.summary}`);
+      if (hay.includes(q)) {
+        hits.push(`  [${cat.id}] ${e.name}\n    ${e.summary}`);
+      }
     }
   }
   for (const r of RECIPES) {
     const hay = `${r.name}\n${r.description}`.toLowerCase();
-    if (hay.includes(q)) hits.push(`  [recipe] ${r.name}\n    ${r.description}`);
+    if (hay.includes(q)) {
+      hits.push(`  [recipe] ${r.name}\n    ${r.description}`);
+    }
   }
   if (hits.length === 0) {
     buf.push(`No matches for "${query}".`);
@@ -2907,7 +3287,7 @@ export const kit = {
  * Usage of the example would be:
  *   await exampleRestructureCodemod();
  */
-export async function exampleRestructureCodemod(): Promise<CodemodResult> {
+export function exampleRestructureCodemod(): Promise<CodemodResult> {
   return runCodemod("example-restructure", (ctx) => {
     // 1. Move some files. ts-morph auto-rewrites relative specifiers.
     ctx.plan(
@@ -2918,7 +3298,7 @@ export async function exampleRestructureCodemod(): Promise<CodemodResult> {
     );
 
     // 2. Sweep alias paths ts-morph couldn't follow.
-    ctx.plan(repointAliasPaths(ctx, [[/#server\/foo/g, "#server/feature/foo"]]));
+    ctx.plan(repointAliasPaths(ctx, [[/#server\/foo/gu, "#server/feature/foo"]]));
 
     // 3. Route a split: types.ts has 3 symbols going to 3 new files.
     ctx.plan(
@@ -2931,7 +3311,8 @@ export async function exampleRestructureCodemod(): Promise<CodemodResult> {
 
     // 4. Add a re-export to the new front door.
     ctx.plan(
-      addReExport(ctx, "src/feature/index.ts", "./contract/foo-detail", {
+      addReExport(ctx, "src/feature/index.ts", {
+        moduleSpecifier: "./contract/foo-detail",
         name: "FooDetail",
         isTypeOnly: true,
       }),
@@ -2988,9 +3369,13 @@ export function removeEmptyDirectory(
   return {
     description: `Remove empty directory ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [],
-    transform(innerCtx) {
-      if (innerCtx.isDryRun) return; // we don't simulate fs ops in dry-run
-      if (!existsSync(abs)) return;
+    transform(innerCtx): void {
+      if (innerCtx.isDryRun) {
+        return;
+      } // we don't simulate fs ops in dry-run
+      if (!existsSync(abs)) {
+        return;
+      }
       // ts-morph still tracks the directory inside the project; verify no
       // source files reside under it.
       for (const sf of innerCtx.project.getSourceFiles()) {

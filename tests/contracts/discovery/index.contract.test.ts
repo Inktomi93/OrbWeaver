@@ -1,6 +1,6 @@
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import { duplicateRelationSchema, RELATIONS } from "@orb/contracts/discovery";
-import { expect, test } from "vitest";
+import { expect, test } from "../../support/fixtures";
 
 // ── The dedup `relation` axis (D34 — promoted to contracts so db `duplicate_chat_pairs.relation` derives it) ──
 // The ONE home for the duplicate|forked union (§7.5). A drift here would mean the db enum / CHECK /

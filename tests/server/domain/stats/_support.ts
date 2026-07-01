@@ -32,6 +32,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { createFrozenClock } from "../../../support/clock.ts";
 
@@ -129,7 +130,7 @@ export interface VariantSeed {
 interface MessageSeed {
   chatId: ChatId;
   seq: number;
-  role: "user" | "assistant" | "system";
+  role: MessageRole;
   characterId?: CharacterId | null;
   personaId?: PersonaId | null;
   createdAt?: number;

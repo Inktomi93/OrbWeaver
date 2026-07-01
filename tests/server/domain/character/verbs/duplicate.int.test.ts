@@ -2,8 +2,9 @@
 // content is copied, import provenance is CLEARED (the clone is app-authored), and character.updated emits.
 
 import { createCharacterService } from "@orb/server/domain/character";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("duplicate", () => {

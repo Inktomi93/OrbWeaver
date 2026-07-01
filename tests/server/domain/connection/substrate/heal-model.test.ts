@@ -2,8 +2,9 @@
 // passes; a null/non-shortlist id heals to the system default.
 
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { healToChatDefault } from "../../../../../packages/server/src/domain/connection/substrate/heal-model.ts";
+import { expect, test } from "../../../../support/fixtures";
 
 describe("healToChatDefault", () => {
   test("null heals to the curated default", () => {

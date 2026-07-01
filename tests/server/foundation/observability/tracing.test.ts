@@ -9,7 +9,8 @@ import {
   withRequestSpan,
   wrapLibSqlClient,
 } from "@orb/server/foundation/observability";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const PROBE_VALUE = 7;
 

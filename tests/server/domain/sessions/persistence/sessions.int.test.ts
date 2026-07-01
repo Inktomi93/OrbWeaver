@@ -2,7 +2,7 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import {
   insertSession,
   listForUser,
@@ -13,6 +13,7 @@ import {
   slideExpiry,
 } from "../../../../../packages/server/src/domain/sessions/persistence/sessions";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 
 const USER_ID = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");

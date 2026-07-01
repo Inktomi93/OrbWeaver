@@ -8,8 +8,9 @@
 // test reaches it by relative path rather than the `@orb/server/*` barrel exports map.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { resolveChat } from "../../../../packages/server/src/infra/providers/resolve-chat.ts";
+import { expect, test } from "../../../support/fixtures";
 
 // A fully-capable model: every sampling range present, every flag on, an effort ladder. Tests narrow it
 // down (drop a range / flip a flag / switch the reasoning mode) to exercise each gate in isolation.

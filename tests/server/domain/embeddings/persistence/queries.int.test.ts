@@ -7,7 +7,7 @@ import { characterEmbeddings, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import {
   existingCharacterHash,
   existingImageHash,
@@ -16,6 +16,7 @@ import {
   writeHubScoreRows,
 } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import {
   EMBED_DIM,
   EMBED_MODEL,

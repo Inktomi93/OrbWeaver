@@ -6,7 +6,7 @@ import { characterTags, tags } from "@orb/db";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { insertJunctionRow } from "../../../../../packages/server/src/domain/tag/persistence/junctions.ts";
 import {
   deleteOwnedTag,
@@ -20,6 +20,7 @@ import {
   updateOwnedTag,
 } from "../../../../../packages/server/src/domain/tag/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("tag persistence/queries", () => {

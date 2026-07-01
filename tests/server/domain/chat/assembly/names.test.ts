@@ -1,6 +1,7 @@
 // SHAPE shaper: applyNamesBehavior (chat.md Part II §3 rule 5 — the trusted out-of-band Name: label).
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { applyNamesBehavior } from "../../../../../packages/server/src/domain/chat/assembly/names";
+import { expect, test } from "../../../../support/fixtures";
 
 const SPEAKERS = { user: "User", assistant: "Aria" };
 

@@ -4,7 +4,8 @@ import {
   safeFetch,
   shouldBlockEgress,
 } from "@orb/server/infra/network";
-import { describe, expect, test, vi } from "vitest";
+import { describe, vi } from "vitest";
+import { expect, test } from "../../../support/fixtures";
 
 const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);

@@ -267,7 +267,6 @@
         "noIdenticalTestTitle": "error",
         "useConsistentTestIt": "error",
         "useExplicitReturnType": "error",
-        "noMisleadingReturnType": "error",
         "noDrizzleDeleteWithoutWhere": "error",
         "noDrizzleUpdateWithoutWhere": "error",
         "useTestHooksInOrder": "error",
@@ -347,6 +346,10 @@
     },
     {
       "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts"],
+      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+    },
+    {
+      "includes": ["scripts/codemods/codemod-kit.ts"],
       "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
     },
     {

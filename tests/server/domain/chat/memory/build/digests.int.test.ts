@@ -3,7 +3,7 @@ import { chatDigestSpeakers, chatDigests, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import type {
   EmbeddingsStoreOp,
   StoreDigestParams,
@@ -17,6 +17,7 @@ import type {
   MsgRow,
 } from "../../../../../../packages/server/src/domain/chat/memory/types";
 import { freshDb } from "../../../../../support/db";
+import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, seedDigest } from "../_support";
 

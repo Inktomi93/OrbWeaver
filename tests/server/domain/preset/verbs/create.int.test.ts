@@ -2,8 +2,9 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { createPresetService } from "@orb/server/domain/preset";
-import { describe, expect, test } from "vitest";
+import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, seedUser } from "../_support.ts";
 
 describe("create", () => {

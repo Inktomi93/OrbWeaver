@@ -11,9 +11,10 @@ import { chatInjections, chatParticipants, messages, messageVariants } from "@or
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe } from "vitest";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
 import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
 import {
   makeChatContext,
   seedCharacter,
