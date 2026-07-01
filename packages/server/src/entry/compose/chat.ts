@@ -12,12 +12,11 @@
 // by `Principal`, and there is NO front-door op to resolve a `Principal` from a bare `userId`. TWO bridges:
 //   • role-IRRELEVANT ops (getCard/persona/mint — gated on `userId` only): the cheap synthetic `hostPrincipal`.
 //   • role-SENSITIVE ops (resolveChat/resolveCredential — the D17 max-pro-sub owner-gate, identity §3): the
-//     authoritative `realHostPrincipal`, which reads the host's REAL `users.role` (entry MAY read users — the
-//     `no-direct-users-read` gate scopes to `domain/`). FLAG[PD-73]: the D1-clean home is a
-//     `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal mint site).
+//     INJECTED `resolveHostPrincipal` (PD-73 resolved — `entry/auth.createHostPrincipalResolver` over
+//     `sessions.loadUserById`, the sanctioned `users` reader; the seam stays the one Principal mint site).
 
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
-import type { Can, Principal, UserRole } from "@orb/contracts/identity";
+import type { Can, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
@@ -81,6 +80,9 @@ export interface ChatComposeInput {
   readonly holder: string;
   /** The invite-token pepper (mirrors sessions). */
   readonly sessionSecret: string | null;
+  /** The frozen-host → `Principal` bridge for the ROLE-SENSITIVE ops (PD-73 —
+   *  `entry/auth.createHostPrincipalResolver`: the host's real `users.role` via `sessions.loadUserById`). */
+  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The PD-1 privilege-decision seam (admin's `can`, injected DOWN). */
   readonly can: Can;
@@ -118,27 +120,10 @@ export function buildChatService(input: ChatComposeInput): ChatService {
   });
 
   // The ROLE-SENSITIVE bridge: the D17 `max-pro-sub` owner-gate keys on the host's REAL role (identity §3 —
-  // an authoritative DB role read on `runAsUserId`), so a fabricated `role:"user"` would fail-closed-DENY the
-  // OWNER's own Max-sub turn. Entry MAY read `users` (the `no-direct-users-read` gate scopes to `domain/`), so
-  // the root resolves the real role here for `resolveChat`/`resolveCredential`. FLAG[PD-73]: the
-  // D1-clean home is a `sessions.loadUserById` op + a `resolveHostPrincipal` on the auth seam (the ONE Principal
-  // mint site) — this entry-local read is the bounded correctness fix until that op lands.
-  const realHostPrincipal = async (userId: UserId): Promise<Principal> => {
-    const rows = await db
-      .select({ role: users.role, handle: users.handle, externalId: users.externalId })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    const row = rows[0];
-    const role: UserRole = row?.role ?? "user";
-    return {
-      userId,
-      role,
-      handle: row?.handle ?? castId<Handle>(userId),
-      externalId: row?.externalId ?? null,
-      via: "fallback",
-    };
-  };
+  // an authoritative role read on `runAsUserId`), so a fabricated `role:"user"` would fail-closed-DENY the
+  // OWNER's own Max-sub turn. PD-73 resolved: the read is INJECTED (`entry/auth.createHostPrincipalResolver`
+  // over `sessions.loadUserById`) — no entry-local `users` table reach for the principal fields.
+  const realHostPrincipal = input.resolveHostPrincipal;
 
   // The per-turn connection resolution funnel (the chat row's routing BEATS the host's UserSettings defaults,
   // which `connection.resolveChat` overlays internally). The row carries only `metadata.providerRouting`
@@ -278,8 +263,8 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     },
     resolveChat: (params) => resolveChatVia(params.runAsUserId, params.routable),
     resolveCredential: async ({ runAsUserId, source }) =>
-      // The D17 max-pro-sub owner-gate reads the host's REAL role (resolved authoritatively from `users`), so
-      // the owner's own max-pro-sub turn is no longer fail-closed-denied. See FLAG[PD-73].
+      // The D17 max-pro-sub owner-gate reads the host's REAL role (the injected resolveHostPrincipal —
+      // PD-73), so the owner's own max-pro-sub turn is no longer fail-closed-denied.
       input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
     // Chat hands `{runAsUserId, source, status}`. We resolve the credential here
     // to get the `credentialId` and pass it to `credentials.maybeRevokeOnAuthFailed`.

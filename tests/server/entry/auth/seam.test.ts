@@ -8,7 +8,7 @@
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createAuthSeam } from "@orb/server/entry/auth";
+import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { expect, test } from "../../../support/fixtures";
 
@@ -43,6 +43,8 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     listForUser: unused("listForUser"),
     ensureUser: unused("ensureUser") as SessionsService["ensureUser"],
     provisionIdentity: unused("provisionIdentity") as SessionsService["provisionIdentity"],
+    // biome-ignore lint/security/noSecrets: a verb name literal, not a secret (high-entropy false positive).
+    loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
     ...overrides,
   };
 }
@@ -209,4 +211,36 @@ test("isAdmin is true for owner/admin, false otherwise, and never throws", async
     }),
   });
   expect(await brokenSeam.isAdmin(new Headers({ cookie: "__Host-orb_session=t" }))).toBe(false);
+});
+
+test("createHostPrincipalResolver mints the host Principal from the LIVE row (real role carried)", async () => {
+  const resolve = createHostPrincipalResolver(
+    stubSessions({
+      loadUserById: (userId) =>
+        Promise.resolve(
+          userId === FALLBACK_UID
+            ? { role: "owner", handle: castId<Handle>("owner"), externalId: null }
+            : null,
+        ),
+    }),
+  );
+
+  // The known host: the D17 owner-gates see the REAL role (a fabricated "user" would fail-closed-deny).
+  expect(await resolve(FALLBACK_UID)).toEqual({
+    userId: FALLBACK_UID,
+    role: "owner",
+    handle: "owner",
+    externalId: null,
+    via: "fallback",
+  });
+});
+
+test("createHostPrincipalResolver degrades an unknown id to role=user (fail-closed for privileged gates)", async () => {
+  const resolve = createHostPrincipalResolver(
+    stubSessions({ loadUserById: () => Promise.resolve(null) }),
+  );
+  const principal = await resolve(COOKIE_UID);
+  expect(principal.role).toBe("user");
+  expect(principal.userId).toBe(COOKIE_UID);
+  expect(principal.handle).toBe(COOKIE_UID); // the userId-as-handle degrade, never a throw
 });

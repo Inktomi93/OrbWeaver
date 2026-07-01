@@ -74,6 +74,7 @@ import {
 import { createCas, createVariantCache } from "#infra/storage";
 import { getGroupConfig, requireAuthorOrHost, requireParticipant } from "../../domain/chat";
 import type { Services } from "../../transport/trpc/context";
+import { createHostPrincipalResolver } from "../auth";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
@@ -487,6 +488,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
+    // The PD-73 frozen-host → Principal bridge (sessions is the sanctioned users reader).
+    resolveHostPrincipal: createHostPrincipalResolver(sessions),
     audit,
     can,
     roleClients,

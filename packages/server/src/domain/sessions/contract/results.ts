@@ -34,3 +34,13 @@ export interface ProvisionResult {
   enabled: boolean;
   role: UserRole;
 }
+
+/** `loadUserById` output (PD-73): a bare row id's live principal-fields — the entry root's frozen-host →
+ *  `Principal` bridge (D19: the host funds the turn and may be offline, so the role-sensitive ops re-read
+ *  the REAL `users.role` instead of fabricating one). NOT a login path: no `enabled` gate rides this read
+ *  (the host isn't authenticating; their turn-funding policy is the D17 verbs' concern). */
+export interface UserPrincipalFields {
+  role: UserRole;
+  handle: Handle;
+  externalId: ExternalId | null;
+}
