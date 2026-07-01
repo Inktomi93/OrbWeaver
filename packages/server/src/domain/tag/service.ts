@@ -29,7 +29,6 @@ export function createTagService(ctx: TagContext): TagService {
     attachTag: attach.attachTag,
     detachTag: attach.detachTag,
     bulkAttachTag: attach.bulkAttachTag,
-
     attachCardTagByName: createAttachCardTagByName(ctx),
   };
 }

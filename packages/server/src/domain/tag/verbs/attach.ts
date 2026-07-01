@@ -21,9 +21,9 @@ import { fetchOwnedTagIds, loadOwnedTag } from "../persistence/queries";
 // A manual attach is a LIVE tag; the staging (`pending`) flavor is reached only by passing `status` explicitly.
 const DEFAULT_ATTACH_STATUS: TagStatus = "accepted";
 
-type AttachGroup = Pick<TagService, "attachTag" | "bulkAttachTag" | "detachTag">;
+type AttachTrio = Pick<TagService, "attachTag" | "bulkAttachTag" | "detachTag">;
 
-export function createAttach(ctx: TagContext): AttachGroup {
+export function createAttach(ctx: TagContext): AttachTrio {
   const attachTag: TagService["attachTag"] = async (params: AttachTagParams) => {
     const ownerId = params.principal.userId;
     const tag = await loadOwnedTag(ctx.db, params.tagId, ownerId);

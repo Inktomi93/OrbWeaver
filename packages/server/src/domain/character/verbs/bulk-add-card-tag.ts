@@ -14,40 +14,20 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
     const ownerId = principal.userId;
     const name = tagName.trim();
     if (name === "") {
-      return { updated: 0, missing: 0, skipped: characterIds.length };
+      return;
     }
 
-    const results = await Promise.allSettled(
+    const attached = await Promise.all(
       characterIds.map(async (characterId) => {
         const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
         if (row === undefined) {
-          return { status: "missing" as const };
+          return false;
         }
-        const attached = await ctx.attachCardTag({ ownerId, characterId, tagName: name });
-        if (!attached) {
-          return { status: "skipped" as const };
-        }
-        return { status: "updated" as const };
+        return ctx.attachCardTag({ ownerId, characterId, tagName: name });
       }),
     );
 
-    let updated = 0;
-    let missing = 0;
-    let skipped = 0;
-
-    for (const res of results) {
-      if (res.status === "rejected") {
-        throw res.reason;
-      }
-      if (res.value.status === "missing") {
-        missing++;
-      } else if (res.value.status === "skipped") {
-        skipped++;
-      } else {
-        updated++;
-      }
-    }
-
+    const updated = attached.filter(Boolean).length;
     if (updated > 0) {
       await ctx.audit(
         {
@@ -59,7 +39,5 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
         ctx.now(),
       );
     }
-
-    return { updated, missing, skipped };
   };
 }

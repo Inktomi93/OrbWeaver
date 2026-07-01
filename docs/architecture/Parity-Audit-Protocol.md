@@ -57,7 +57,7 @@ Update the Running Log below. Check off the domain and write a concise bulleted 
 ## 📋 The Running Log
 
 - [x] **tag**
-  - **Fixed:** Canonicalization bypass. Added `normalizeTagName` to `updateTag` and empty-string guards to both `createTag` and `updateTag`.
+  - **Finding:** Canonicalization bypass. Missing `normalizeTagName` in `updateTag` and empty-string guards in both `createTag` and `updateTag`.
   - **Reverted Mistake:** We initially thought `attachTagToTargets` (One-to-Many library bulk-edit) was dropped. A directory-wide search revealed it was intentionally MOVED to the `character` domain as `bulkAddCardTag`. We reverted the architectural violation of adding it back to `tag`.
 - [x] **admin**
   - **Verified:** Perfect parity. No capabilities dropped, 2-layer role gates are intact, atomic `WHERE role <> 'owner'` is correctly applied on mutations, and TOCTOU handle conflicts translate cleanly. No ICKs found.
@@ -69,8 +69,8 @@ Update the Running Log below. Check off the domain and write a concise bulleted 
   - **Verified:** State logic (`proposals.ts`) assumes single-replica execution, consistent with expectations.
 - [x] **character**
   - **Redesign (Verified):** `description` and `creatorNotes` were deliberately dropped from `CharacterSummary` (`views.ts` docs confirm it is a "light" read-model). Catalog labels are now powered by the `discovery` domain's `character_summaries` distillation table.
-  - **Fixed:** `tags` is missing from `CharacterSummary`. Restored by implementing the read-only join via the "pool.ts pattern" in `queries.ts` (`listOwnedCharactersWithAvatar`), maintaining strict domain boundaries.
-  - **Fixed:** Bulk mutations (`bulkRemove`, `bulkArchive`, `bulkAddCardTag`) were returning `void`. Restored to return `{ updated, skipped, missing }` tallies using `Promise.allSettled`.
+  - **Finding:** `tags` is missing from `CharacterSummary` (dropped in transition from neo-tavern).
+  - **Finding:** Bulk mutations (`bulkRemove`, `bulkArchive`, `bulkAddCardTag`) return `void` instead of the `{ updated, skipped, missing }` tallies used in neo-tavern. (Note: The `void` return types and throwing on partial failures appear to be an intentional Orbweaver design for junctions. We will not implement partial writes).
 - [ ] **chat**
 - [ ] **connection**
 - [ ] **credentials**
