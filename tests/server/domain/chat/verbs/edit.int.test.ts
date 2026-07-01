@@ -183,6 +183,8 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
     expect(view.excludedFromPrompt).toBe(true);
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.excludedFromPrompt).toBe(true);
+    // The dedicated carrier (PD-86) — not the messageEdited fallback.
+    expect(emitted.at(-1)).toEqual({ type: "messageHidden", chatId, messageId, view });
   });
 
   test("editReasoning sets, clearReasoning nulls, the variant's reasoning", async () => {
