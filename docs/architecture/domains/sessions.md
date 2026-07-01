@@ -8,10 +8,10 @@
 > `users`-row upsert** out of the `_shared` drawer, and the whole stack stops resolving identity twice.
 > The central boundary the name forces: **BFF session ≠ SDK chat session** — two unrelated concepts that
 > share the word "session." Authoritative upstream: `domains.md` (the `sessions` row: "auth/BFF
-> sessions — distinct from SDK chat sessions"); `_FANOUT-BRIEF.md` §4 (sessions pain) + **§7.1
-> (identity/auth/permission spine)** + §7.4 (types); `reports/shared-dissolution.md` §5 (`_shared/users.ts`
+> sessions — distinct from SDK chat sessions"); `AGENTS.md` §4 (sessions pain) + **§7.1
+> (identity/auth/permission spine)** + §7.4 (types); `core/Core-Core-Legacy-Migration-and-Gaps.md` §5 (`_shared/users.ts`
 > → `domain/sessions`), §4 (`ResolvedIdentity` → `@orb/contracts/identity`; `SessionView` →
-> `@orb/contracts/session`); `structure.md` §3 (tiers), §4 (the 8-slot template), §7 (gates).
+> `@orb/contracts/session`); `Core-0-Architecture-and-Structure.md` §3 (tiers), §4 (the 8-slot template), §7 (gates).
 
 ---
 
@@ -43,14 +43,14 @@ Specifically:
   The sanctioned call-time `process.env` trio lives here (see §Esoteric).
 - **The `sessions` table** — all SELECT/INSERT/UPDATE for the BFF session rows.
 - **The `users`-row read/write seam** — the lookup + upsert queries against the `users` table (the
-  table *definition* stays in `@orb/db`; this domain is its only resolution-path writer).
+  table _definition_ stays in `@orb/db`; this domain is its only resolution-path writer).
 
 This domain does **NOT** own:
 
 - **The SDK "chat session"** — `DbSessionStore` / `buildSeedFrames` / reseed (prompt-cache lineage). That
   is a **backend-internal concern of the claude-agent-sdk strategy, owned by the agent-sdk backend in
   `infra/providers/backends/agent-sdk/session/`** (D8); the `chat` domain is **stateless-first** and does
-  NOT own it either. Only the `session_entries` *table* lives in `@orb/db/schema/sdk-session.ts`
+  NOT own it either. Only the `session_entries` _table_ lives in `@orb/db/schema/sdk-session.ts`
   (producer-owned schema). It shares only the word "session." See §"BFF session ≠ SDK chat session."
 - **Auth VERIFICATION** — JWT/JWKS validation, the mode-resolver dispatch, cookie/CSRF/host parsing
   (`auth/trust-header.ts`, `auth/<mode>/resolver.ts`, `auth/_shared/{jwks-cache,cookie,csrf,host,config}.ts`).
@@ -66,7 +66,7 @@ This domain does **NOT** own:
 - **The boot owner-seed** — the one-time `role=owner` backfill for the owner handle (D17). A `entry/boot`
   concern (same tier as credentials' `seedCredentialFromEnv`).
 - **The `users` table definition** — `@orb/db` (a reserved cross-cutting schema file; admin / credentials
-  / sessions all FK it). This domain owns the *resolution queries*, not the schema.
+  / sessions all FK it). This domain owns the _resolution queries_, not the schema.
 - **`ResolvedIdentity` / `SessionView` / `Principal` types** — `@orb/contracts` (cross-boundary; see §7.4).
 - **Admin gating** — `admin` consumes `revoke` / `revokeAllForUser` / `listForUser` through an injected
   `SessionAdminPort`, never a sideways import.
@@ -78,19 +78,19 @@ This domain does **NOT** own:
 Two concepts wear the word "session." They are unrelated and must stay in different homes, different
 tables, different tiers:
 
-| | **BFF/auth session** (this domain) | **SDK chat session** (agent-sdk backend) |
-|---|---|---|
-| What | revocable browser login: identity + live login state | prompt-cache lineage for a stateful agent-sdk turn |
-| Table | `sessions` (`db/schema/sessions.ts`) | `session_entries` (`db/schema/sdk-session.ts`) |
-| Keyed on | peppered token hash → `users` row | chat + seed-frame transcript resume |
-| Produced by | a login mint (OIDC callback / local login) | `DbSessionStore` / `buildSeedFrames` / reseed |
-| Lifecycle | create → per-request validate → revoke | seed → resume → reseed across turns |
-| Owner | `domain/sessions` | the agent-sdk backend (`infra/providers/backends/agent-sdk/session/`, D8) — backend-internal; chat is stateless-first |
+|             | **BFF/auth session** (this domain)                   | **SDK chat session** (agent-sdk backend)                                                                              |
+| ----------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| What        | revocable browser login: identity + live login state | prompt-cache lineage for a stateful agent-sdk turn                                                                    |
+| Table       | `sessions` (`db/schema/sessions.ts`)                 | `session_entries` (`db/schema/sdk-session.ts`)                                                                        |
+| Keyed on    | peppered token hash → `users` row                    | chat + seed-frame transcript resume                                                                                   |
+| Produced by | a login mint (OIDC callback / local login)           | `DbSessionStore` / `buildSeedFrames` / reseed                                                                         |
+| Lifecycle   | create → per-request validate → revoke               | seed → resume → reseed across turns                                                                                   |
+| Owner       | `domain/sessions`                                    | the agent-sdk backend (`infra/providers/backends/agent-sdk/session/`, D8) — backend-internal; chat is stateless-first |
 
 The `db/schema/sessions.ts` comment already flags this ("NOT to be confused with `session_entries` …").
 Orbweaver makes the separation structural: the `sessions` domain has **zero** SDK-frame code, and the
 `stateful | stateless` `ChatRequest` dimension (which correlates 1:1 with the agent-sdk today) stays a
-`chat`↔`providers` concern. *Enforcement: resolve-time* — `domain/sessions` declares no dep on the
+`chat`↔`providers` concern. _Enforcement: resolve-time_ — `domain/sessions` declares no dep on the
 claude-sdk strategy or `session_entries`; the only shared token is a comment.
 
 ---
@@ -102,7 +102,7 @@ Today identity is resolved **twice per request** across **three shapes** with `r
 1. `infra/auth` (`resolveIdentity`) dispatches the mode → `ResolvedIdentity { externalId, handle, groups }`
    — **no `userId`** (infra must not know DB row ids).
 2. The seam calls `provisionIdentity(db, identity)` → computes the row id keyed on `externalId`, plus
-   `enabled` + `role`. (For cookie modes, `validate` *already* JOINed `users` and threw the id away.)
+   `enabled` + `role`. (For cookie modes, `validate` _already_ JOINed `users` and threw the id away.)
 3. `createContext` then calls `ensureUser(db, identity.handle)` **again**, re-resolving the SAME row by
    `handle` to populate `Context.userId` — a redundant query whose only correctness guarantee is that
    `users.handle` is unique so the two lookups converge.
@@ -116,19 +116,19 @@ immutable `Principal` at the seam; flow it down unchanged.
 //   ResolvedIdentity = the mode-resolver OUTPUT (pre-row, infra/auth produces it — no userId by design).
 //   Principal        = the post-seam, immutable, db-resolved caller. Constructed ONCE at the entry seam.
 export interface Principal {
-  userId: UserId;            // resolved ONCE — validate (cookie) / provisionIdentity (SSO) / owner-seed (fallback)
-  role: UserRole;            // owner | admin | user (D17) — the single global-authz axis carried downstream
+  userId: UserId; // resolved ONCE — validate (cookie) / provisionIdentity (SSO) / owner-seed (fallback)
+  role: UserRole; // owner | admin | user (D17) — the single global-authz axis carried downstream
   handle: Handle;
   externalId: ExternalId | null;
-  via: "cookie" | "header" | "fallback";  // subsumes viaCookie/viaFallback (CSRF + owner discriminators)
+  via: "cookie" | "header" | "fallback"; // subsumes viaCookie/viaFallback (CSRF + owner discriminators)
 }
 ```
 
 `AuthContext` and `Context.{userId,role}` collapse into `Principal`. The seam builds it from whichever
 path resolved the caller — `sessions.validate` returns the `userId` for cookie modes (the JOIN already
 has it), `provisionIdentity` returns it for header/SSO modes, the owner-fallback mints it without a DB
-touch. **One construction site, no re-query.** *Enforcement: compile-time* (`Principal.userId` is
-required; nothing downstream can fabricate it) + *lint* (dep-cruiser: `ensureUser`/`provisionIdentity`
+touch. **One construction site, no re-query.** _Enforcement: compile-time_ (`Principal.userId` is
+required; nothing downstream can fabricate it) + _lint_ (dep-cruiser: `ensureUser`/`provisionIdentity`
 are called ONLY from the `entry/` seam — a domain verb that re-resolves identity is RED).
 
 The 4 auth modes stay clean — one dispatcher (`MODE_RESOLVERS`), one branch point — and stay in
@@ -200,26 +200,26 @@ injected `SessionAdminPort` (structural subset). The OIDC/local route handlers c
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `sessions/verbs/{create,validate,revoke,list}.ts` | stays domain feature | `domain/sessions/verbs/` | The BFF session lifecycle is the domain's core. Pure DB + crypto, no cookie I/O. | resolve-time |
-| `sessions/tokens.ts` (`hashToken`, `SESSION_TTL_MS`, `SLIDE_THROTTLE_MS`) | stays domain feature, named subsystem | `domain/sessions/tokens/tokens.ts` | Pure crypto + timing; reads `SESSION_SECRET` DOWN from `foundation/env`. A named subsystem, not `persistence/` (no DB) and not `kit` (reads env + is feature-specific). | resolve-time (foundation is below domain); test-time (round-trip + missing-secret-throws) |
-| `sessions/context.ts` — `ReturnType<typeof createSessionsContext>` | stays domain feature, made explicit | `domain/sessions/contract/service.ts` — `export interface SessionsContext` | The inferred type is invisible at a glance; the explicit interface satisfies `types-in-contract`. | lint-time (`types-in-contract` gate) |
-| `_shared/users.ts` — `ensureUser` | stays a feature, re-homed | `domain/sessions/verbs/ensure-user.ts` (query in `persistence/users.ts`) | Identity RESOLUTION + the `users`-row upsert is this domain (brief §7.1). Exiled to `_shared` only so the auth seam + ~30 callers could reach it. In orbweaver the seam injects it; other domains never call it (they receive `Principal.userId`). | resolve-time (`_shared` does not exist); lint (only the `entry/` seam imports it) |
-| `_shared/users.ts` — `provisionIdentity` | stays a feature, re-homed | `domain/sessions/verbs/provision-identity.ts` | The SSO upsert seam: externalId-keyed, role-seeded, enabled/role preserve-on-update. A sessions/identity verb. | resolve-time; test-time (the role-policy matrix) |
-| `_shared/users.ts` — `ownerHandles`, `determineRole` | stays a feature, re-homed | `domain/sessions/substrate/role-policy.ts` | Pure role-derivation policy (the one access-control decision the app owns). The sanctioned call-time `process.env` reads of the owner-role trio live here, isolated to one file. | lint-time (env-reader exception list = exactly these vars in this one substrate file) |
-| `_shared/users.ts` — the removed `withOwner` HOC (comment) | drop | — | Already removed 2026-06-02; the inline 2-line form is the live pattern. Do not resurrect. | n/a |
-| `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution` | → `entry` (the seam) | `entry/auth/seam.ts` | The composition-root seam: the ONE place allowed to wire `infra/auth` (verification) + `domain/sessions` (resolution/upsert/validate). Produces the one `Principal`. `entry/` is the topmost tier; it may import both. | resolve-time (`entry/` only) |
-| `auth/*` (`trust-header.ts` dispatcher, `<mode>/resolver.ts`, `_shared/{jwks-cache,cookie,csrf,host,config,password}.ts`) | → `infra` | `infra/auth/` | Auth VERIFICATION is a sealed, db-free Strategy executor. Its db/crypto VERIFICATION steps (OIDC PKCE consume, JWT verify) are INJECTED via `ResolveDeps` so infra never imports domain/db. Per **D40** the cookie→user read is NOT injected — it is RESOLUTION (`sessions.validate`, returns `userId`) called directly by the seam (the `validateCookie` port is removed at 4c/4e). | resolve-time (infra is below domain; injection only) |
-| `auth/_shared/oidc-store.ts` (`createOidcStore`) | → **`domain/sessions/persistence`** (NOT `infra/auth`) | `domain/sessions/persistence/oidc-store.ts` | **CORRECTED 2026-06-25** (verified + flagged by tiers/infra.md): it imports `@orb/db` (`Db` + `oidcTransactions`) — stateful PKCE/state KV persistence, NOT db-free verification, so it cannot be sealed `infra/auth`. The `oidc` route calls it through the sessions domain. Reconciles the §esoteric note that already acknowledged it's a DB table. | resolve-time (infra stays db-free; the DB write is the domain's) |
-| `auth/_shared/cookie.ts` (set/clear/refresh + `__Host-` name) + the OIDC/local route handlers | → `entry`/route layer | `entry/http/auth-routes.ts` | Cookie I/O is the route layer's job; the domain returns a token string. The §11 `__Host-` contract is route-tier. | resolve-time |
-| `auth-context.ts` owner-fallback identity mint (`{ externalId:null, handle, groups:[] }`, `viaFallback:true`) | → the seam (`entry`) | `entry/auth/seam.ts` | The un-credentialed owner path mints a `Principal` with `via:"fallback"` and NO DB touch (the owner is the owner by definition, not a revocable user). `via:"fallback"` is the safe "this IS the owner" discriminator. | compile-time (`Principal.via` discriminant) |
-| The one-time `role=owner` owner backfill / owner-seed (D17) | → `entry/boot` | `entry/boot/seed-owner.ts` (`ensureOwner`) | Composition-root boot concern (same tier as `seedCredentialFromEnv`, which already calls `ensureOwner`). Reads `OWNER_HANDLES`; calls the sessions upsert at boot. | resolve-time (`entry/` is topmost) |
-| `shared/contracts/session.ts` — `SessionView` | → `contracts` | `@orb/contracts/session` | Cross-boundary DTO: produced by sessions, consumed by admin (via port) and the client device list. Already in `shared/contracts` precisely to dodge the domain↔domain import. | resolve-time (`@orb/contracts` is below both server and client) |
-| `shared/contracts/identity.ts` — `ResolvedIdentity` | → `contracts` | `@orb/contracts/identity` | Cross-boundary: `infra/auth` produces it, `domain/sessions` + the seam consume it. Branded `Handle`/`ExternalId` cast lives at the producer. | resolve-time |
-| `trpc/context.ts` — `AuthContext` + `Context.{userId,role}` + `auth/identity.ts` `IdentityResolution` (3 principal shapes) | merge / reconcile | one `Principal` in `@orb/contracts/identity` | The §8.2 finding: identity/principal fragmented across 3 differently-named shapes for one concept (`AuthContext`/`IdentityResolution`/`OwnerResolution`/`Context.userId`). One immutable `Principal`, constructed once. | compile-time (the single `Principal` type) + manual reconcile |
-| `auth/identity.ts` — `AuthConfig`, `ResolveDeps`, `ModeResolver` | → `infra/auth` (cross-mode contract) | `infra/auth/contract.ts` | The infra auth module's internal contract (mode shape + injected db-deps). Infra-internal, not cross-package. | resolve-time |
-| SDK `DbSessionStore` / `buildSeedFrames` / reseed + the `session_entries` table (NOT in this slice) | → infra/providers (D8) | `infra/providers/backends/agent-sdk/session/` (table in `@orb/db/schema/sdk-session.ts`) | Explicitly NOT sessions: prompt-cache lineage, backend-internal to the agent-sdk strategy; chat is stateless-first. Naming collision only. | resolve-time (no dep from `domain/sessions`) |
+| Unit                                                                                                                       | Outcome                                                | Target                                                                                   | Rationale                                                                                                                                                                                                                                                                                                                                                                            | Enforcement tier                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `sessions/verbs/{create,validate,revoke,list}.ts`                                                                          | stays domain feature                                   | `domain/sessions/verbs/`                                                                 | The BFF session lifecycle is the domain's core. Pure DB + crypto, no cookie I/O.                                                                                                                                                                                                                                                                                                     | resolve-time                                                                              |
+| `sessions/tokens.ts` (`hashToken`, `SESSION_TTL_MS`, `SLIDE_THROTTLE_MS`)                                                  | stays domain feature, named subsystem                  | `domain/sessions/tokens/tokens.ts`                                                       | Pure crypto + timing; reads `SESSION_SECRET` DOWN from `foundation/env`. A named subsystem, not `persistence/` (no DB) and not `kit` (reads env + is feature-specific).                                                                                                                                                                                                              | resolve-time (foundation is below domain); test-time (round-trip + missing-secret-throws) |
+| `sessions/context.ts` — `ReturnType<typeof createSessionsContext>`                                                         | stays domain feature, made explicit                    | `domain/sessions/contract/service.ts` — `export interface SessionsContext`               | The inferred type is invisible at a glance; the explicit interface satisfies `types-in-contract`.                                                                                                                                                                                                                                                                                    | lint-time (`types-in-contract` gate)                                                      |
+| `_shared/users.ts` — `ensureUser`                                                                                          | stays a feature, re-homed                              | `domain/sessions/verbs/ensure-user.ts` (query in `persistence/users.ts`)                 | Identity RESOLUTION + the `users`-row upsert is this domain (brief §7.1). Exiled to `_shared` only so the auth seam + ~30 callers could reach it. In orbweaver the seam injects it; other domains never call it (they receive `Principal.userId`).                                                                                                                                   | resolve-time (`_shared` does not exist); lint (only the `entry/` seam imports it)         |
+| `_shared/users.ts` — `provisionIdentity`                                                                                   | stays a feature, re-homed                              | `domain/sessions/verbs/provision-identity.ts`                                            | The SSO upsert seam: externalId-keyed, role-seeded, enabled/role preserve-on-update. A sessions/identity verb.                                                                                                                                                                                                                                                                       | resolve-time; test-time (the role-policy matrix)                                          |
+| `_shared/users.ts` — `ownerHandles`, `determineRole`                                                                       | stays a feature, re-homed                              | `domain/sessions/substrate/role-policy.ts`                                               | Pure role-derivation policy (the one access-control decision the app owns). The sanctioned call-time `process.env` reads of the owner-role trio live here, isolated to one file.                                                                                                                                                                                                     | lint-time (env-reader exception list = exactly these vars in this one substrate file)     |
+| `_shared/users.ts` — the removed `withOwner` HOC (comment)                                                                 | drop                                                   | —                                                                                        | Already removed 2026-06-02; the inline 2-line form is the live pattern. Do not resurrect.                                                                                                                                                                                                                                                                                            | n/a                                                                                       |
+| `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution`                                | → `entry` (the seam)                                   | `entry/auth/seam.ts`                                                                     | The composition-root seam: the ONE place allowed to wire `infra/auth` (verification) + `domain/sessions` (resolution/upsert/validate). Produces the one `Principal`. `entry/` is the topmost tier; it may import both.                                                                                                                                                               | resolve-time (`entry/` only)                                                              |
+| `auth/*` (`trust-header.ts` dispatcher, `<mode>/resolver.ts`, `_shared/{jwks-cache,cookie,csrf,host,config,password}.ts`)  | → `infra`                                              | `infra/auth/`                                                                            | Auth VERIFICATION is a sealed, db-free Strategy executor. Its db/crypto VERIFICATION steps (OIDC PKCE consume, JWT verify) are INJECTED via `ResolveDeps` so infra never imports domain/db. Per **D40** the cookie→user read is NOT injected — it is RESOLUTION (`sessions.validate`, returns `userId`) called directly by the seam (the `validateCookie` port is removed at 4c/4e). | resolve-time (infra is below domain; injection only)                                      |
+| `auth/_shared/oidc-store.ts` (`createOidcStore`)                                                                           | → **`domain/sessions/persistence`** (NOT `infra/auth`) | `domain/sessions/persistence/oidc-store.ts`                                              | **CORRECTED 2026-06-25** (verified + flagged by core/Tier-3-Infra.md): it imports `@orb/db` (`Db` + `oidcTransactions`) — stateful PKCE/state KV persistence, NOT db-free verification, so it cannot be sealed `infra/auth`. The `oidc` route calls it through the sessions domain. Reconciles the §esoteric note that already acknowledged it's a DB table.                         | resolve-time (infra stays db-free; the DB write is the domain's)                          |
+| `auth/_shared/cookie.ts` (set/clear/refresh + `__Host-` name) + the OIDC/local route handlers                              | → `entry`/route layer                                  | `entry/http/auth-routes.ts`                                                              | Cookie I/O is the route layer's job; the domain returns a token string. The §11 `__Host-` contract is route-tier.                                                                                                                                                                                                                                                                    | resolve-time                                                                              |
+| `auth-context.ts` owner-fallback identity mint (`{ externalId:null, handle, groups:[] }`, `viaFallback:true`)              | → the seam (`entry`)                                   | `entry/auth/seam.ts`                                                                     | The un-credentialed owner path mints a `Principal` with `via:"fallback"` and NO DB touch (the owner is the owner by definition, not a revocable user). `via:"fallback"` is the safe "this IS the owner" discriminator.                                                                                                                                                               | compile-time (`Principal.via` discriminant)                                               |
+| The one-time `role=owner` owner backfill / owner-seed (D17)                                                                | → `entry/boot`                                         | `entry/boot/seed-owner.ts` (`ensureOwner`)                                               | Composition-root boot concern (same tier as `seedCredentialFromEnv`, which already calls `ensureOwner`). Reads `OWNER_HANDLES`; calls the sessions upsert at boot.                                                                                                                                                                                                                   | resolve-time (`entry/` is topmost)                                                        |
+| `shared/contracts/session.ts` — `SessionView`                                                                              | → `contracts`                                          | `@orb/contracts/session`                                                                 | Cross-boundary DTO: produced by sessions, consumed by admin (via port) and the client device list. Already in `shared/contracts` precisely to dodge the domain↔domain import.                                                                                                                                                                                                        | resolve-time (`@orb/contracts` is below both server and client)                           |
+| `shared/contracts/identity.ts` — `ResolvedIdentity`                                                                        | → `contracts`                                          | `@orb/contracts/identity`                                                                | Cross-boundary: `infra/auth` produces it, `domain/sessions` + the seam consume it. Branded `Handle`/`ExternalId` cast lives at the producer.                                                                                                                                                                                                                                         | resolve-time                                                                              |
+| `trpc/context.ts` — `AuthContext` + `Context.{userId,role}` + `auth/identity.ts` `IdentityResolution` (3 principal shapes) | merge / reconcile                                      | one `Principal` in `@orb/contracts/identity`                                             | The §8.2 finding: identity/principal fragmented across 3 differently-named shapes for one concept (`AuthContext`/`IdentityResolution`/`OwnerResolution`/`Context.userId`). One immutable `Principal`, constructed once.                                                                                                                                                              | compile-time (the single `Principal` type) + manual reconcile                             |
+| `auth/identity.ts` — `AuthConfig`, `ResolveDeps`, `ModeResolver`                                                           | → `infra/auth` (cross-mode contract)                   | `infra/auth/contract.ts`                                                                 | The infra auth module's internal contract (mode shape + injected db-deps). Infra-internal, not cross-package.                                                                                                                                                                                                                                                                        | resolve-time                                                                              |
+| SDK `DbSessionStore` / `buildSeedFrames` / reseed + the `session_entries` table (NOT in this slice)                        | → infra/providers (D8)                                 | `infra/providers/backends/agent-sdk/session/` (table in `@orb/db/schema/sdk-session.ts`) | Explicitly NOT sessions: prompt-cache lineage, backend-internal to the agent-sdk strategy; chat is stateless-first. Naming collision only.                                                                                                                                                                                                                                           | resolve-time (no dep from `domain/sessions`)                                              |
 
 ---
 
@@ -232,10 +232,10 @@ its verbs, the `entry/` seam composes it, and `admin` consumes a slice of it. No
 **Injected INTO `infra/auth` (`ResolveDeps`) at the `entry/` seam** — the genuine db/crypto-dependent
 VERIFICATION steps only:
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| OIDC PKCE/state store (`oidcStore`) | sessions domain (`persistence/oidc-store.ts`) | the OIDC callback's single-use state consume — a db-backed *verification* step; keeps `infra/auth` db-free |
-| `verifyForwardJwt` | the route/entry layer (jose, 4e) | the forward-header signed path's JWT/JWKS verify; keeps `infra/auth` crypto-dep-free |
+| Op injected                         | Provided by                                   | Used for                                                                                                   |
+| ----------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| OIDC PKCE/state store (`oidcStore`) | sessions domain (`persistence/oidc-store.ts`) | the OIDC callback's single-use state consume — a db-backed _verification_ step; keeps `infra/auth` db-free |
+| `verifyForwardJwt`                  | the route/entry layer (jose, 4e)              | the forward-header signed path's JWT/JWKS verify; keeps `infra/auth` crypto-dep-free                       |
 
 **`sessions.validate` is NOT in this table (ledger D40).** The cookie→user read is RESOLUTION, not
 verification: equating it with an injected `ResolveDeps.validateCookie` port would force the `userId` to
@@ -246,22 +246,22 @@ port is removed at 4c/4e (FLAG planted at `infra/auth/contract.ts`). The cookie-
 
 **Consumed at the `entry/` seam (to build the one `Principal`):**
 
-| Op | Provided by | Used for |
-|---|---|---|
-| `sessions.validate` | sessions domain | cookie path → identity **+ userId** |
+| Op                           | Provided by     | Used for                                                                                       |
+| ---------------------------- | --------------- | ---------------------------------------------------------------------------------------------- |
+| `sessions.validate`          | sessions domain | cookie path → identity **+ userId**                                                            |
 | `sessions.provisionIdentity` | sessions domain | SSO/header path → `{ userId, enabled, role }`; the `enabled` gate (disabled → unauthenticated) |
-| `sessions.ensureUser` | sessions domain | the owner-fallback / single-user handle→`UserId` convergence |
+| `sessions.ensureUser`        | sessions domain | the owner-fallback / single-user handle→`UserId` convergence                                   |
 
 **Injected into `admin.context` at the composition root (the `SessionAdminPort`):**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `sessions.listForUser` | sessions domain | `AdminService.listSessions` (the per-user device table) |
-| `sessions.revoke` | sessions domain | `AdminService.revokeSession` (kick one device) |
+| Op injected                 | Provided by     | Used for                                                              |
+| --------------------------- | --------------- | --------------------------------------------------------------------- |
+| `sessions.listForUser`      | sessions domain | `AdminService.listSessions` (the per-user device table)               |
+| `sessions.revoke`           | sessions domain | `AdminService.revokeSession` (kick one device)                        |
 | `sessions.revokeAllForUser` | sessions domain | `AdminService.revokeUserSessions` + `setEnabled` (disable → kick-all) |
 
 The `admin` port is structural dependency-inversion: `admin/contract` declares `SessionAdminPort`
-(`listForUser`/`revoke`), the real `SessionsService` satisfies it. *Enforcement: resolve-time* —
+(`listForUser`/`revoke`), the real `SessionsService` satisfies it. _Enforcement: resolve-time_ —
 `domain/admin` may not import `#domain/sessions`; it receives the port type + the runtime op at the root.
 
 ---
@@ -390,45 +390,45 @@ fresh session + revoke the old at that transition.
    (`domain/sessions` vs the agent-sdk backend in `infra/providers`, D8), separate tiers. `domain/sessions`
    has zero SDK-frame code.
    *Enforcement: resolve-time (no dep from `domain/sessions` on the agent-sdk strategy / `session_entries`)
-   + the `db/schema/sessions.ts` cross-reference comment.*
+   - the `db/schema/sessions.ts` cross-reference comment.*
 
 2. **Identity is resolved ONCE → one immutable `Principal`; `userId` is carried, never re-queried.**
-   *Enforcement: compile-time (`Principal.userId` required; one construction site at the seam) + lint
+   _Enforcement: compile-time (`Principal.userId` required; one construction site at the seam) + lint
    (`ensureUser`/`provisionIdentity` imported ONLY by the `entry/` seam — a domain/transport re-resolve
-   is RED).*
+   is RED)._
 
 3. **The token is never stored; only its peppered hash.** No `token` column; `hashToken` throws if
    `SESSION_SECRET` is unset. *Enforcement: compile-time (the `sessions` row has `tokenHash`, no `token`)
-   + test (round-trip; missing-secret throws, never HMACs `""`).*
+   - test (round-trip; missing-secret throws, never HMACs `""`).*
 
 4. **`externalId` keys SSO, `handle` keys the rest.** A username rename updates `handle` on the same
-   row; no duplicate tenant. *Enforcement: test (rename → same row; concurrent first-login → one row).*
+   row; no duplicate tenant. _Enforcement: test (rename → same row; concurrent first-login → one row)._
 
 5. **The owner/admin fallback is granted only via the `via:"fallback"` discriminator + origin gate;
-   never via `externalId === null`.** *Enforcement: compile-time (`Principal.via` discriminant) + test
-   (anonymous request on a public origin → `null`/401; on a local origin → owner+admin).*
+   never via `externalId === null`.** _Enforcement: compile-time (`Principal.via` discriminant) + test
+   (anonymous request on a public origin → `null`/401; on a local origin → owner+admin)._
 
 6. **`enabled` is never reset on a provision UPDATE; `role` is preserved unless
-   `RE_DERIVE_ROLE_ON_LOGIN`.** *Enforcement: test (the role-policy matrix — disabled-stays-disabled;
-   preserve-vs-re-derive; tolerant boolean parse).*
+   `RE_DERIVE_ROLE_ON_LOGIN`.** _Enforcement: test (the role-policy matrix — disabled-stays-disabled;
+   preserve-vs-re-derive; tolerant boolean parse)._
 
-7. **Revoke is one atomic statement; only the flipping call audits.** *Enforcement: test (concurrent
-   revoke → single audit row; freshly-minted session never escapes a kick-all).*
+7. **Revoke is one atomic statement; only the flipping call audits.** _Enforcement: test (concurrent
+   revoke → single audit row; freshly-minted session never escapes a kick-all)._
 
-8. **Per-request validate enforces revoked/expired/`enabled` every request.** *Enforcement: test
-   (revoke / disable takes effect on the next request, not at TTL).*
+8. **Per-request validate enforces revoked/expired/`enabled` every request.** _Enforcement: test
+   (revoke / disable takes effect on the next request, not at TTL)._
 
 9. **Verification (infra) / resolution+upsert (domain) / minting (route) / owner-seed (entry/boot) are
-   distinct tiers.** *Enforcement: resolve-time (`infra/auth` declares no domain/db dep — db steps
-   injected via `ResolveDeps`; cookie I/O is route-tier; the seam is `entry/`).*
+   distinct tiers.** _Enforcement: resolve-time (`infra/auth` declares no domain/db dep — db steps
+   injected via `ResolveDeps`; cookie I/O is route-tier; the seam is `entry/`)._
 
-10. **The sanctioned `process.env` trio lives only in `substrate/role-policy.ts`.** *Enforcement: lint
+10. **The sanctioned `process.env` trio lives only in `substrate/role-policy.ts`.** _Enforcement: lint
     (the env-reader exception allowlist = exactly `OWNER_HANDLES`/`OWNER_GROUP`/`RE_DERIVE_ROLE_ON_LOGIN`
-    in this one file; any other `process.env` read in the domain is RED).*
+    in this one file; any other `process.env` read in the domain is RED)._
 
 11. **`UserRole` has one declaration.** `owner|admin|user` (D17) lives once in `@orb/contracts/identity`; the `db`
-    enum + `determineRole` return + `Principal.role` derive it. *Enforcement: `no-inline-union-redecl`
-    (count must be 1) + a test asserting the db enum matches.*
+    enum + `determineRole` return + `Principal.role` derive it. _Enforcement: `no-inline-union-redecl`
+    (count must be 1) + a test asserting the db enum matches._
 
 ---
 
@@ -440,7 +440,7 @@ fresh session + revoke the old at that transition.
   consumer needs live group membership (none today).
 - **Does `validate` return `userId` directly, or a full `Principal`? — RESOLVED (ledger D40): YES, it
   returns `userId`.** `sessions.validate` returns the principal-fields incl. `userId` (`{ userId, role,
-  handle, externalId, enabled }`) — the cookie→user resolution is a DOMAIN step the `entry/auth/seam`
+handle, externalId, enabled }`) — the cookie→user resolution is a DOMAIN step the `entry/auth/seam`
   calls DIRECTLY (not an injected infra port), and the seam constructs the one `Principal` from it.
   `infra/auth` holds NO `userId`-bearing cookie port: the former `ResolveDeps.validateCookie` (typed
   `=> ResolvedIdentity`, no `userId`) would have FORCED the id to be dropped (infra invariant #3),

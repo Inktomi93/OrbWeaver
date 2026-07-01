@@ -1,4 +1,4 @@
-// transport/trpc/routers/connection — the model-catalog + capability surface (tiers/transport.md). The
+// transport/trpc/routers/connection — the model-catalog + capability surface (core/Tier-4-Transport.md). The
 // browse reads are authed; `refreshCatalog` (fetch OR `/models` → write the KV snapshot) is admin-gated.
 // Thin: validate → `ctx.services.connection.<verb>` → map errors. The turn-time `resolveRole`/`resolveChat`
 // verbs are internal (chat's turn path, P5) — NOT exposed here. `source` derives from the credentials axis

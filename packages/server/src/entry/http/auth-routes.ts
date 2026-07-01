@@ -1,5 +1,5 @@
-// entry/http/auth-routes — the auth MINT routes + cookie I/O (tiers/entry.md §layout "auth-routes.ts";
-// spine identity-auth-permission.md §3 "Construction"; sessions.md movement "cookie I/O is the route
+// entry/http/auth-routes — the auth MINT routes + cookie I/O (core/Tier-5-Entry.md §layout "auth-routes.ts";
+// spine Spine-Identity-and-Auth.md §3 "Construction"; sessions.md movement "cookie I/O is the route
 // layer's job"). This is the WRITE side of the `__Host-orb_session` cookie — the READ side is the seam +
 // `infra/auth` (`SESSION_COOKIE_NAME`, imported here so writer + reader agree on the ONE constant). It
 // NEVER re-implements identity resolution: it mints sessions via `domain/sessions` (create / revokeByToken

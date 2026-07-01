@@ -8,11 +8,11 @@
 > computed ON READ. The defining change from neo-tavern: the stats domain is already clean (zero vector
 > tables, confirmed) — the job here is to make the **stats↔discovery line type-enforced** rather than
 > prose-enforced, and to land the `_shared/stats-tally.ts` three-way split correctly. Authoritative
-> upstream: `knowledge-cluster.md` §7 (the economics-vs-semantics line + invariant #7) + §8 (ownership);
-> `_FANOUT-BRIEF.md` §4 (the **stats** pain entry — "economics only, zero vector tables, but the line to
+> upstream: `domains/memory.md` §7 (the economics-vs-semantics line + invariant #7) + §8 (ownership);
+> `AGENTS.md` §4 (the **stats** pain entry — "economics only, zero vector tables, but the line to
 > discovery is prose-only not type-enforced") + §7.4 (types one-home) + §7.5 (string-union dispatch);
-> `reports/shared-dissolution.md` §1/§4/§5/§7 (the `stats-tally` split — CITE, don't re-derive);
-> `structure.md` §4 (the 8-slot template) + §6 (partitioning: "turn economics → `stats`, zero vector
+> `core/Core-Core-Legacy-Migration-and-Gaps.md` §1/§4/§5/§7 (the `stats-tally` split — CITE, don't re-derive);
+> `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template) + §6 (partitioning: "turn economics → `stats`, zero vector
 > tables") + §7 (the gates).
 
 ---
@@ -50,9 +50,9 @@
 This domain does **not** own: the **`StatsDelta` / `ApplyStatsDelta` wire types** (those are
 `@orb/contracts/stats` — the chat↔stats contract); the **tally primitives** `wordCount` / `utcDay` /
 `modelKey` (those are `@orb/kit/stats-tally` — pure, isomorphic, shared so the live delta can't drift
-from reconcile); the **per-canon-write delta *math*** (`messageDelta` / `variantDelta` /
+from reconcile); the **per-canon-write delta _math_** (`messageDelta` / `variantDelta` /
 `chatCreatedDelta` — those read chat's own canon row shapes and live in `domain/chat/engine/`; they
-*produce* the `StatsDelta` this domain *consumes*); the **canon tables** `messages` / `message_variants`
+_produce_ the `StatsDelta` this domain _consumes_); the **canon tables** `messages` / `message_variants`
 / `chats` (it reads them; `chat` owns the writes); any **vector / semantic table** (`character_summaries`,
 `theme_clusters`, `chat_digests`, embeddings — those are `discovery` / `embeddings` / `memory`); the
 tRPC wire layer (`transport/trpc/routers/stats.ts`); the workload dispatch (`transport/jobs` +
@@ -64,14 +64,14 @@ tRPC wire layer (`transport/trpc/routers/stats.ts`); the workload dispatch (`tra
 
 Two paths write the rollups; one path reads them. Both writers MUST produce identical numbers.
 
-| Path | What | Where | Trigger |
-|---|---|---|---|
-| **Live delta** | `applyStatsDelta` upserts `col = col + excluded.col` into the SAME batch as each canon write | `domain/stats/write/apply-delta.ts`; injected into chat | every chat send / edit / fork / delete |
-| **Reconcile** | `reconcileStats` streams canon → atomic per-owner `delete ×4 + chunked inserts` | `domain/stats/write/rebuild-from-canon.ts` | `reconcile-stats` workload (backfill / import settle / drift-repair) |
-| **Read** | thin projections + read-derived rates; percentiles/heatmap/momentum on-read | `domain/stats/persistence/` + `verbs/` | tRPC `stats.*` |
+| Path           | What                                                                                         | Where                                                   | Trigger                                                              |
+| -------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Live delta** | `applyStatsDelta` upserts `col = col + excluded.col` into the SAME batch as each canon write | `domain/stats/write/apply-delta.ts`; injected into chat | every chat send / edit / fork / delete                               |
+| **Reconcile**  | `reconcileStats` streams canon → atomic per-owner `delete ×4 + chunked inserts`              | `domain/stats/write/rebuild-from-canon.ts`              | `reconcile-stats` workload (backfill / import settle / drift-repair) |
+| **Read**       | thin projections + read-derived rates; percentiles/heatmap/momentum on-read                  | `domain/stats/persistence/` + `verbs/`                  | tRPC `stats.*`                                                       |
 
 **The correctness contract (the drift gate):** `applyStatsDelta` over a turn's canon change MUST equal a
-fresh `reconcileStats` rebuild over the same canon, column-for-column. This is made *structural* (not
+fresh `reconcileStats` rebuild over the same canon, column-for-column. This is made _structural_ (not
 merely test-enforced) by both writers importing the ONE `@orb/kit/stats-tally` — a tweak to `wordCount`
 or `utcDay` lands in both paths at once. The drift test is the backstop, not the only guard.
 
@@ -84,17 +84,17 @@ workload. Latency percentiles are **never stored** (they moved on-read in the St
 
 ## The stats↔discovery line (the type-enforced seam — the core design question)
 
-`knowledge-cluster.md` invariant #7: *"`discovery` (semantics) and `stats` (economics) share no tables;
-discovery computes no usage rollup."* In neo-tavern this held **only by prose** (a comment + a 2026-06-16
+`domains/memory.md` invariant #7: _"`discovery` (semantics) and `stats` (economics) share no tables;
+discovery computes no usage rollup."_ In neo-tavern this held **only by prose** (a comment + a 2026-06-16
 deletion), with a **residual gray zone**: `corpus/insights.ts` reads raw `messages` for
 economics-flavored aggregates (`forgottenGems` SUMs `tokens_out`; `modelRouting` tallies per-model
 message volume). Orbweaver makes the line RED at compile/lint, three ways:
 
 1. **`stats` touches no vector table** — `StatsContext` carries only the canon tables (`messages`,
    `message_variants`, `chats`, `characters`, `personas`) + the four rollup
-   tables. *Enforcement: lint-time — dep-cruiser `stats-no-vector-tables`: `domain/stats/**` may not
+   tables. _Enforcement: lint-time — dep-cruiser `stats-no-vector-tables`: `domain/stats/**` may not
    import the embeddings schema namespace (`character_embeddings` / `image_embeddings` / `chat_digests`
-   / `chat_segments` / `theme_clusters`) or the `search` / `embeddings` / `discovery` front doors.*
+   / `chat_segments` / `theme_clusters`) or the `search` / `embeddings` / `discovery` front doors._
 
 2. **`discovery` computes no usage rollup** — the economics columns of `messages` (`tokens_in`,
    `tokens_out`, `cost_usd`, `cache_read_tokens`, `cache_write_tokens`, `gen_started`, `gen_finished`,
@@ -102,33 +102,33 @@ message volume). Orbweaver makes the line RED at compile/lint, three ways:
    `messages` row; `discovery` reads `messages` through a **semantic projection**
    (`role`/`content`/`model`/`characterId`/`createdAt`) that does not name the economics columns. A
    discovery query that SUMs `tokens_out` then fails to type-check — the column isn't on the shape it can
-   see. *Enforcement: compile-time — two disjoint row projections (the economics one in
+   see. _Enforcement: compile-time — two disjoint row projections (the economics one in
    `@orb/contracts/stats` or `domain/stats/persistence/`, constructed only by stats persistence; the
    semantic one in `domain/discovery/persistence/`). Lint backstop: dep-cruiser `discovery-no-stats-rollups`
-   (discovery imports none of the four rollup tables).*
+   (discovery imports none of the four rollup tables)._
 
 3. **The insights gray zone resolves by composition, not co-location** — `forgottenGems` (revisit
-   candidates) keeps its *semantic* ranking (message-volume COUNT + recency) in discovery, but its
+   candidates) keeps its _semantic_ ranking (message-volume COUNT + recency) in discovery, but its
    `tokensOut` field is sourced from `character_stats.tokensOut` via an injected `stats` op, not a raw
    `messages` SUM. `modelRouting` (which model per genre) becomes a composition root wiring: discovery
    supplies `genre` (its `character_summaries` facet), stats supplies the per-`(model)` tallies. The
-   purely-semantic insights (`themeDrift`, `unusedCharacters`) stay wholly in discovery. *Enforcement:
+   purely-semantic insights (`themeDrift`, `unusedCharacters`) stay wholly in discovery. _Enforcement:
    compile-time — the economics field can only arrive through the injected `stats` op's typed result; the
-   raw-`messages` economics SUM is unspellable in discovery (see #2).*
+   raw-`messages` economics SUM is unspellable in discovery (see #2)._
 
 ---
 
-## The `_shared/stats-tally.ts` three-way split (CITE — `reports/shared-dissolution.md`)
+## The `_shared/stats-tally.ts` three-way split (CITE — `core/Core-Core-Legacy-Migration-and-Gaps.md`)
 
-`reports/shared-dissolution.md` §7.2 **refines the brief** (which filed the whole file "own feature
+`core/Core-Core-Legacy-Migration-and-Gaps.md` §7.2 **refines the brief** (which filed the whole file "own feature
 stats"): the file SPLITS by nature. A single feature home would force an illegal `chat → stats` sideways
 import at runtime, because chat builds deltas every turn.
 
-| `_shared/stats-tally.ts` export | Nature | Orbweaver home | Why |
-|---|---|---|---|
-| `wordCount`, `utcDay`, `modelKey` | pure, isomorphic, zero-I/O | `@orb/kit/stats-tally` | both the chat delta builders AND `reconcileStats` import them at runtime → one home so the live delta can't drift from reconcile; ST `\b\w+\b` parity |
-| `StatsDelta`, `ApplyStatsDelta` | cross-boundary wire type | `@orb/contracts/stats` | the chat↔stats contract: chat *produces* a `StatsDelta`, stats *consumes* it; `ApplyStatsDelta` is the injected-op signature |
-| the apply-delta *impl* (the upsert that touches the stats schema) | domain feature | `domain/stats/write/apply-delta.ts` | it writes the four rollup tables → must live in stats; injected into chat's composition root |
+| `_shared/stats-tally.ts` export                                   | Nature                     | Orbweaver home                      | Why                                                                                                                                                   |
+| ----------------------------------------------------------------- | -------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wordCount`, `utcDay`, `modelKey`                                 | pure, isomorphic, zero-I/O | `@orb/kit/stats-tally`              | both the chat delta builders AND `reconcileStats` import them at runtime → one home so the live delta can't drift from reconcile; ST `\b\w+\b` parity |
+| `StatsDelta`, `ApplyStatsDelta`                                   | cross-boundary wire type   | `@orb/contracts/stats`              | the chat↔stats contract: chat _produces_ a `StatsDelta`, stats _consumes_ it; `ApplyStatsDelta` is the injected-op signature                          |
+| the apply-delta _impl_ (the upsert that touches the stats schema) | domain feature             | `domain/stats/write/apply-delta.ts` | it writes the four rollup tables → must live in stats; injected into chat's composition root                                                          |
 
 The chat-side **builders** (`messageDelta` / `variantDelta` / `chatCreatedDelta`,
 `domain/chat/engine/stats-delta.ts`) are NOT part of this split — they read chat's canon row shapes
@@ -233,22 +233,31 @@ character/model rollups. Do not fold it into the write path.
 
 ```typescript
 // Read service + factory
-export { createStatsService } from './service'
-export type { StatsService } from './contract/service'
+export { createStatsService } from "./service";
+export type { StatsService } from "./contract/service";
 
 // Params
-export type { LatencyScope, LeaderboardSort } from './contract/params'
+export type { LatencyScope, LeaderboardSort } from "./contract/params";
 
 // View types (what the client receives)
 export type {
-  OwnerStatsView, CharacterStatsView, LeaderboardRow, DailyPoint, ModelStatRow,
-  StatsFreshness, PersonaUsageRow, TemporalStats, WrappedSummary,
-  ActivityHeatmap, CharacterMomentum, LatencyStats,
-} from './contract/views'
+  OwnerStatsView,
+  CharacterStatsView,
+  LeaderboardRow,
+  DailyPoint,
+  ModelStatRow,
+  StatsFreshness,
+  PersonaUsageRow,
+  TemporalStats,
+  WrappedSummary,
+  ActivityHeatmap,
+  CharacterMomentum,
+  LatencyStats,
+} from "./contract/views";
 
 // The standalone write substrate (NOT service verbs — injected / workload-driven)
-export { applyStatsDelta } from './write/apply-delta'
-export { reconcileStats, type ReconcileStatsResult } from './write/rebuild-from-canon'
+export { applyStatsDelta } from "./write/apply-delta";
+export { reconcileStats, type ReconcileStatsResult } from "./write/rebuild-from-canon";
 ```
 
 **`StatsDelta` and `ApplyStatsDelta` are NOT re-exported here.** In neo-tavern `index.ts` re-exports them
@@ -260,28 +269,28 @@ composition root import them from there directly — no double-homing through th
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `_shared/stats-tally.ts` — `wordCount`, `utcDay`, `modelKey` | → `kit` | `@orb/kit/stats-tally` | Pure, isomorphic, zero-I/O; imported at runtime by BOTH chat's delta builders AND `reconcileStats` → one home makes "live delta == reconcile" structural, not just test-enforced. ST `\b\w+\b` parity. | resolve-time: `@orb/kit` is the bottom of the cake; `kit-purity` gate (no domain/Node/I/O import) |
-| `_shared/stats-tally.ts` — `StatsDelta`, `ApplyStatsDelta` types | → `contracts` | `@orb/contracts/stats` | Cross-boundary wire: chat produces `StatsDelta`, stats consumes it; a feature home forces an illegal chat→stats sideways import. | resolve-time: `@orb/contracts` is a declared dep of both; `domain-no-cross-feature` would fire on a chat→stats import |
-| `_shared/stats-tally.ts` — the apply-delta upsert impl | stays domain feature | `domain/stats/write/apply-delta.ts` | It writes the four rollup tables → must live in stats. Injected into chat's composition root. | resolve-time: chat receives it as `ChatServiceDeps.applyStatsDelta` (typed `ApplyStatsDelta`) |
-| `domain/stats/persistence/rollups.ts` + `activity.ts` + `latency.ts` | stays domain feature | `domain/stats/persistence/` (unchanged) | Read queries + cross-read composition; persistence is the one layer where same-layer calls are legal. | resolve-time (same package) |
-| `domain/stats/verbs/rollups.ts` (9 reads in one file) | **split** → `verbs/` | `verbs/overview.ts` · `character.ts` · `leaderboard.ts` · `timeseries.ts` · `by-model.ts` · `freshness.ts` · `persona-usage.ts` · `wrapped.ts` · `temporal.ts` | One verb per file per the §4 template. | lint-time: `verb-naming` gate |
-| `domain/stats/verbs/activity.ts` (2 reads) | **split** → `verbs/` | `verbs/activity-heatmap.ts` · `verbs/momentum.ts` | Same split. | lint-time: `verb-naming` gate |
-| `domain/stats/verbs/latency.ts` | stays domain feature | `domain/stats/verbs/latency.ts` | Already one verb. Path keeps. | resolve-time |
-| `persistence/rollups.ts` — `deriveExtra`, `div`, `reasoningRate` (pure rate math) | → `substrate/` | `domain/stats/substrate/rates.ts` | Pure read-layer math, zero I/O; belongs in substrate not mixed into the query file. | lint-time: `feature-structure` (pure helpers in substrate/) |
-| `persistence/latency.ts` — `percentiles(arr)` (pure) | → `substrate/` | `domain/stats/substrate/percentiles.ts` | Pure float-array math; substrate. `readLatency`/`readModelLatencies`/`modelLatencyKey` (DB-bound) stay in persistence. | lint-time: `feature-structure` |
-| `context.ts` — `StatsContext = ReturnType<typeof createStatsContext>` | stays domain feature | `domain/stats/context.ts` top — explicit `export interface StatsContext` | The inferred shape is invisible at a glance; the explicit interface matches the template. | lint-time: `no-inline-types` / `types-in-contract` |
-| `db/schema/stats.ts` — the four rollup tables | → `db` (path keeps honest name) | `@orb/db/schema/stats.ts` | Schema file is already named for the producer, not a consumer (unlike `db/schema/search.ts`). Move with the cake; no rename needed. | resolve-time: `@orb/db` schema move; `tsc` flags broken importers |
-| `db/schema/stats.ts` — economics columns of the rollups + the `messages` economics columns | stays, but gains a stats-only projection | `@orb/contracts/stats` (economics row shape) + `domain/stats/persistence/messages-economics.ts` (the constructor) | The type-enforced stats↔discovery seam: token/cost/cache/timing columns of `messages` are reachable only through this projection; discovery's `messages` projection omits them. | compile-time: disjoint row projections; lint backstop `discovery-no-stats-rollups` |
-| `corpus/verbs/insights.ts` — `forgottenGems` `SUM(tokens_out)` (economics-flavored over raw messages) | **resolve gray zone** → stats-sourced | discovery keeps the verb; `tokensOut` comes from `character_stats.tokensOut` via an injected `stats` op | The revisit ranking (message volume + recency) is semantics; the token figure is economics — it must come from the stats rollup, not a raw `messages` SUM. | compile-time: the economics column is unspellable in discovery's `messages` projection |
-| `corpus/verbs/insights.ts` — `modelRouting` (per-model message tally × genre) | **resolve gray zone** → composition | discovery supplies `genre` (its facet); stats supplies per-`(model)` tallies; wired at the composition root | A genuine cross-domain JOIN (semantic facet × economics provenance) → a composition, not a discovery-owned raw aggregate. | resolve-time: injected `stats` op; `domain-no-cross-feature` backstop |
-| `corpus/verbs/insights.ts` — `themeDrift`, `unusedCharacters` (purely semantic) | stays in discovery | `domain/discovery/verbs/` | No economics; wholly semantics (theme assignments / library catalog). | resolve-time |
-| `write/apply-delta.ts` + `rebuild-from-canon.ts` — inline `as BatchItem<"sqlite">` casts | wire to db-kit helper | `@orb/db/kit` (`batchMany` / `batchStmt`) | The ~59 inline `BatchItem` casts on the chat send/persist path bypass the existing batch helper (escape-hatch cluster #1). Both stats writers commit batches → use the db-kit batch helper. | resolve-time: `@orb/db/kit` per `reports/shared-dissolution.md` §3 |
-| `write/*` — `newTypeId(ID_PREFIX.characterStat | dailyStat | modelStat)` | → `kit` | `@orb/kit/ids` | Pure TypeID mint; the canonical kit case (446 importers). | resolve-time |
-| `write/rebuild-from-canon.ts` — `chunkRows` / `rowsPerInsert` | → `db` | `@orb/db` (`insert-chunk`) | libSQL bound-variable chunking is a db-layer concern. | resolve-time |
-| `verbs/rollups.ts` + `verbs/activity.ts` — inline `opts: { sort?; limit? }` / `{ from?; to? }` param shapes | → `contract/params.ts` | `domain/stats/contract/params.ts` | The verb arg shapes are domain-internal types; declared inline in the verb files today. | lint-time: `no-inline-types` |
-| `trpc/routers/stats.ts` — comments claiming "compute now" / "stale" / "recompute" affordance | **rewrite prose** | `transport/trpc/routers/stats.ts` | Stale prose: post-Stage-3 the rollups are live, `freshness.stale` is always false, the manual recompute is gone. The router's own header still describes the pre-pivot model. | (doc-only; no enforcer — flag for the rewrite) |
+| Unit                                                                                                        | Outcome                                  | Target                                                                                                                                                         | Rationale                                                                                                                                                                                              | Enforcement tier                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `_shared/stats-tally.ts` — `wordCount`, `utcDay`, `modelKey`                                                | → `kit`                                  | `@orb/kit/stats-tally`                                                                                                                                         | Pure, isomorphic, zero-I/O; imported at runtime by BOTH chat's delta builders AND `reconcileStats` → one home makes "live delta == reconcile" structural, not just test-enforced. ST `\b\w+\b` parity. | resolve-time: `@orb/kit` is the bottom of the cake; `kit-purity` gate (no domain/Node/I/O import)                     |
+| `_shared/stats-tally.ts` — `StatsDelta`, `ApplyStatsDelta` types                                            | → `contracts`                            | `@orb/contracts/stats`                                                                                                                                         | Cross-boundary wire: chat produces `StatsDelta`, stats consumes it; a feature home forces an illegal chat→stats sideways import.                                                                       | resolve-time: `@orb/contracts` is a declared dep of both; `domain-no-cross-feature` would fire on a chat→stats import |
+| `_shared/stats-tally.ts` — the apply-delta upsert impl                                                      | stays domain feature                     | `domain/stats/write/apply-delta.ts`                                                                                                                            | It writes the four rollup tables → must live in stats. Injected into chat's composition root.                                                                                                          | resolve-time: chat receives it as `ChatServiceDeps.applyStatsDelta` (typed `ApplyStatsDelta`)                         |
+| `domain/stats/persistence/rollups.ts` + `activity.ts` + `latency.ts`                                        | stays domain feature                     | `domain/stats/persistence/` (unchanged)                                                                                                                        | Read queries + cross-read composition; persistence is the one layer where same-layer calls are legal.                                                                                                  | resolve-time (same package)                                                                                           |
+| `domain/stats/verbs/rollups.ts` (9 reads in one file)                                                       | **split** → `verbs/`                     | `verbs/overview.ts` · `character.ts` · `leaderboard.ts` · `timeseries.ts` · `by-model.ts` · `freshness.ts` · `persona-usage.ts` · `wrapped.ts` · `temporal.ts` | One verb per file per the §4 template.                                                                                                                                                                 | lint-time: `verb-naming` gate                                                                                         |
+| `domain/stats/verbs/activity.ts` (2 reads)                                                                  | **split** → `verbs/`                     | `verbs/activity-heatmap.ts` · `verbs/momentum.ts`                                                                                                              | Same split.                                                                                                                                                                                            | lint-time: `verb-naming` gate                                                                                         |
+| `domain/stats/verbs/latency.ts`                                                                             | stays domain feature                     | `domain/stats/verbs/latency.ts`                                                                                                                                | Already one verb. Path keeps.                                                                                                                                                                          | resolve-time                                                                                                          |
+| `persistence/rollups.ts` — `deriveExtra`, `div`, `reasoningRate` (pure rate math)                           | → `substrate/`                           | `domain/stats/substrate/rates.ts`                                                                                                                              | Pure read-layer math, zero I/O; belongs in substrate not mixed into the query file.                                                                                                                    | lint-time: `feature-structure` (pure helpers in substrate/)                                                           |
+| `persistence/latency.ts` — `percentiles(arr)` (pure)                                                        | → `substrate/`                           | `domain/stats/substrate/percentiles.ts`                                                                                                                        | Pure float-array math; substrate. `readLatency`/`readModelLatencies`/`modelLatencyKey` (DB-bound) stay in persistence.                                                                                 | lint-time: `feature-structure`                                                                                        |
+| `context.ts` — `StatsContext = ReturnType<typeof createStatsContext>`                                       | stays domain feature                     | `domain/stats/context.ts` top — explicit `export interface StatsContext`                                                                                       | The inferred shape is invisible at a glance; the explicit interface matches the template.                                                                                                              | lint-time: `no-inline-types` / `types-in-contract`                                                                    |
+| `db/schema/stats.ts` — the four rollup tables                                                               | → `db` (path keeps honest name)          | `@orb/db/schema/stats.ts`                                                                                                                                      | Schema file is already named for the producer, not a consumer (unlike `db/schema/search.ts`). Move with the cake; no rename needed.                                                                    | resolve-time: `@orb/db` schema move; `tsc` flags broken importers                                                     |
+| `db/schema/stats.ts` — economics columns of the rollups + the `messages` economics columns                  | stays, but gains a stats-only projection | `@orb/contracts/stats` (economics row shape) + `domain/stats/persistence/messages-economics.ts` (the constructor)                                              | The type-enforced stats↔discovery seam: token/cost/cache/timing columns of `messages` are reachable only through this projection; discovery's `messages` projection omits them.                        | compile-time: disjoint row projections; lint backstop `discovery-no-stats-rollups`                                    |
+| `corpus/verbs/insights.ts` — `forgottenGems` `SUM(tokens_out)` (economics-flavored over raw messages)       | **resolve gray zone** → stats-sourced    | discovery keeps the verb; `tokensOut` comes from `character_stats.tokensOut` via an injected `stats` op                                                        | The revisit ranking (message volume + recency) is semantics; the token figure is economics — it must come from the stats rollup, not a raw `messages` SUM.                                             | compile-time: the economics column is unspellable in discovery's `messages` projection                                |
+| `corpus/verbs/insights.ts` — `modelRouting` (per-model message tally × genre)                               | **resolve gray zone** → composition      | discovery supplies `genre` (its facet); stats supplies per-`(model)` tallies; wired at the composition root                                                    | A genuine cross-domain JOIN (semantic facet × economics provenance) → a composition, not a discovery-owned raw aggregate.                                                                              | resolve-time: injected `stats` op; `domain-no-cross-feature` backstop                                                 |
+| `corpus/verbs/insights.ts` — `themeDrift`, `unusedCharacters` (purely semantic)                             | stays in discovery                       | `domain/discovery/verbs/`                                                                                                                                      | No economics; wholly semantics (theme assignments / library catalog).                                                                                                                                  | resolve-time                                                                                                          |
+| `write/apply-delta.ts` + `rebuild-from-canon.ts` — inline `as BatchItem<"sqlite">` casts                    | wire to db-kit helper                    | `@orb/db/kit` (`batchMany` / `batchStmt`)                                                                                                                      | The ~59 inline `BatchItem` casts on the chat send/persist path bypass the existing batch helper (escape-hatch cluster #1). Both stats writers commit batches → use the db-kit batch helper.            | resolve-time: `@orb/db/kit` per `core/Core-Core-Legacy-Migration-and-Gaps.md` §3                                      |
+| `write/*` — `newTypeId(ID_PREFIX.characterStat                                                              | dailyStat                                | modelStat)`                                                                                                                                                    | → `kit`                                                                                                                                                                                                | `@orb/kit/ids`                                                                                                        | Pure TypeID mint; the canonical kit case (446 importers). | resolve-time |
+| `write/rebuild-from-canon.ts` — `chunkRows` / `rowsPerInsert`                                               | → `db`                                   | `@orb/db` (`insert-chunk`)                                                                                                                                     | libSQL bound-variable chunking is a db-layer concern.                                                                                                                                                  | resolve-time                                                                                                          |
+| `verbs/rollups.ts` + `verbs/activity.ts` — inline `opts: { sort?; limit? }` / `{ from?; to? }` param shapes | → `contract/params.ts`                   | `domain/stats/contract/params.ts`                                                                                                                              | The verb arg shapes are domain-internal types; declared inline in the verb files today.                                                                                                                | lint-time: `no-inline-types`                                                                                          |
+| `trpc/routers/stats.ts` — comments claiming "compute now" / "stale" / "recompute" affordance                | **rewrite prose**                        | `transport/trpc/routers/stats.ts`                                                                                                                              | Stale prose: post-Stage-3 the rollups are live, `freshness.stale` is always false, the manual recompute is gone. The router's own header still describes the pre-pivot model.                          | (doc-only; no enforcer — flag for the rewrite)                                                                        |
 
 ---
 
@@ -293,8 +302,8 @@ stats internals; all access is the front door or composition-root injection.
 
 **Injected into `chat.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected                                 | Provided by  | Used for                                                                                                                                                         |
+| ------------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `applyStatsDelta` (typed `ApplyStatsDelta`) | stats domain | the chat engine persist arms + the canon-mutator verbs (`start-chat`, `edit-message`, `delete-messages`, `fork`) push live rollup upserts into their canon batch |
 
 Chat builds the `StatsDelta` itself (`domain/chat/engine/stats-delta.ts`, importing
@@ -303,14 +312,14 @@ is a **no-op** (tests/scripts that don't assert stats).
 
 **Injected into the `reconcile-stats` workload runner (`transport/jobs`) at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected      | Provided by  | Used for                                                                                                                           |
+| ---------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `reconcileStats` | stats domain | the full rebuild (backfill / post-import settle / admin drift-repair); also called by the `import-st` workload after a bulk import |
 
 **Injected into `discovery.context` at the composition root (the resolved insights seam):**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected                                 | Provided by  | Used for                                                                                                                             |
+| ------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `stats.byModel` (or a focused economics op) | stats domain | `modelRouting` per-model tallies; `forgottenGems` `tokensOut` from `character_stats` — discovery never SUMs raw `messages` economics |
 
 **Consumed by the tRPC transport layer:** `transport/trpc/routers/stats.ts` delegates every procedure to
@@ -360,7 +369,7 @@ dashboard is an owner-account view).
   member fails the build. The tRPC `z.discriminatedUnion("kind", [...])` mirrors it — derive, don't
   re-declare.
 
-### knowledge-cluster.md invariant #7 (the domain's defining invariant)
+### domains/memory.md invariant #7 (the domain's defining invariant)
 
 > `discovery` (semantics) and `stats` (economics) share no tables; discovery computes no usage rollup.
 
@@ -380,9 +389,9 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
    `dailyTokensOut`, DECOUPLED from scalar `tokensIn`/`tokensOut`), and the **model** slice
    (`modelGenerations`/`modelTokensIn`/… DECOUPLED from scalar). A write that touches two model buckets
    (a swipe whose model differs from the original) emits ONE scalar delta + ONE model-only delta per
-   bucket into the same batch — without double-counting the scalar tables. *Esoteric: a variant bumps
+   bucket into the same batch — without double-counting the scalar tables. _Esoteric: a variant bumps
    `day.swipes`/`day.genTimeMs` but NOT `day.tokens` (daily credits the MESSAGE stream only), so
-   `variantDelta` omits `dailyTokensIn/Out` while still setting scalar `tokensIn`.* Break this and a
+   `variantDelta` omits `dailyTokensIn/Out` while still setting scalar `tokensIn`._ Break this and a
    re-rolled turn double-counts daily tokens.
 
 2. **ST `\b\w+\b` word-count parity** — `wordCount` uses SillyTavern's exact `\b\w+\b` regex so the
@@ -438,7 +447,7 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
     only because reconcile is the source of truth.
 
 11. **Atomic per-owner REPLACE-write** — `reconcileStats` does ONE `db.batch([delete ×4, ...chunked
-    inserts])` per owner so a read never sees a half-rebuilt owner (the cooccurrence pattern). Inserts
+inserts])` per owner so a read never sees a half-rebuilt owner (the cooccurrence pattern). Inserts
     are chunked under the libSQL bound-variable cap (char=25 cols, daily=13, model=15). `owner_stats` is
     ALWAYS written (even all-zeros) so `freshness` distinguishes computed-empty from never-run.
 
@@ -448,36 +457,36 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
 
 1. **`stats` touches zero vector tables** — no `domain/stats` file imports the embeddings schema
    namespace or the `search`/`embeddings`/`discovery` front doors.
-   *Enforcement: lint-time — dep-cruiser `stats-no-vector-tables`.*
+   _Enforcement: lint-time — dep-cruiser `stats-no-vector-tables`._
 
 2. **`discovery` computes no usage rollup** — the economics columns of `messages` are reachable only
    through the stats-owned economics projection; discovery's `messages` projection omits them.
-   *Enforcement: compile-time (disjoint row projections); lint backstop `discovery-no-stats-rollups`.*
+   _Enforcement: compile-time (disjoint row projections); lint backstop `discovery-no-stats-rollups`._
 
 3. **Live delta ≡ reconcile rebuild** — `applyStatsDelta` over a turn's canon change equals a fresh
    `reconcileStats` rebuild over the same canon, column-for-column.
-   *Enforcement: test-time — the drift test; structurally reinforced by both importing
-   `@orb/kit/stats-tally`.*
+   _Enforcement: test-time — the drift test; structurally reinforced by both importing
+   `@orb/kit/stats-tally`._
 
 4. **`wordCount` / `utcDay` / `modelKey` have one home** — `@orb/kit/stats-tally`; no re-rolled local
    copy in any write or read path. ST `\b\w+\b` parity preserved.
-   *Enforcement: resolve-time (one module) + test-time (`stats-validate` parity test).*
+   _Enforcement: resolve-time (one module) + test-time (`stats-validate` parity test)._
 
 5. **`model_stats.provider` is `NOT NULL DEFAULT '(unknown)'`** and all three key sites coalesce
    identically.
-   *Enforcement: compile-time (schema) + test-time (a null-provider model upserts to one row across
-   recompute and its reach/latency read non-zero).*
+   _Enforcement: compile-time (schema) + test-time (a null-provider model upserts to one row across
+   recompute and its reach/latency read non-zero)._
 
 6. **Percentiles are computed on read, never stored** — no avg/p50/p90 column on any rollup table.
-   *Enforcement: compile-time — the rollup row types carry no percentile columns; `LatencyStats` is
-   produced only by `persistence/latency.ts`.*
+   _Enforcement: compile-time — the rollup row types carry no percentile columns; `LatencyStats` is
+   produced only by `persistence/latency.ts`._
 
 7. **`reconcileStats` is an atomic per-owner replace** — delete ×4 + inserts in one `db.batch`.
-   *Enforcement: test-time — a concurrent read during rebuild never sees a partial owner.*
+   _Enforcement: test-time — a concurrent read during rebuild never sees a partial owner._
 
 8. **`StatsDelta` is the only chat↔stats wire** — chat imports `@orb/contracts/stats` +
    `@orb/kit/stats-tally`, never `domain/stats`; `applyStatsDelta` is injected, never sideways-imported.
-   *Enforcement: resolve-time — `domain-no-cross-feature` fires on a chat→stats import.*
+   _Enforcement: resolve-time — `domain-no-cross-feature` fires on a chat→stats import._
 
 ---
 
@@ -491,7 +500,7 @@ import of `character_embeddings` / `image_embeddings` / `chat_digests` / `chat_s
 - **The economics `messages` projection home** — `@orb/contracts/stats` (shared shape, lets discovery's
   injected `stats` op return it) vs `domain/stats/persistence/` (domain-internal, discovery never sees
   the type at all). The latter is stricter (discovery can't even name the shape); the former is reusable.
-  Lean: the *constructor* in persistence, the *result shape discovery receives* in contracts (a narrowed,
+  Lean: the _constructor_ in persistence, the _result shape discovery receives_ in contracts (a narrowed,
   already-aggregated economics result — not the raw row).
 - **`forgottenGems` / `modelRouting` final placement** — keep as discovery verbs with injected stats
   economics (proposed), vs promote the economics-flavored halves to first-class stats verbs (e.g.

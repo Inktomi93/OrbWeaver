@@ -6,9 +6,9 @@
 > 641 lines of resolve logic + store primitives were exiled to `domain/_shared/credentials.ts` because
 > `chat/engine` couldn't import across a domain boundary; in orbweaver that exile ends and every piece
 > lives in its natural home (the feature, its contracts, or the injected-op model). Authoritative
-> upstream: `domains.md` §"credentials" + §"Cross-cutting concept homes"; `_FANOUT-BRIEF.md` §4
+> upstream: `domains.md` §"credentials" + §"Cross-cutting concept homes"; `AGENTS.md` §4
 > (credentials pain ledger) + §7.1 (identity/auth/permission spine, esp. the `max-pro-sub` owner-gate
-> and AAD invariant); `structure.md` §4 (the 8-slot template).
+> and AAD invariant); `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template).
 
 ---
 
@@ -58,17 +58,17 @@ through a sideways import); connection routing (that is the `connection` domain'
 The inversion happened because `chat/engine` and `buddy/ask` could not cross the domain boundary to
 reach `domain/credentials/persistence/`. The fix in orbweaver is the injection model:
 
-| `_shared/credentials.ts` export | Neo-tavern caller | Orbweaver destination |
-|---|---|---|
-| `resolveCredential` | chat/context, buddy/ask, models/context | `domain/credentials/verbs/resolve.ts`; injected into `chat.context`, `connection.context`, `buddy.context` at the composition root |
-| `maybeRevokeOnAuthFailed` | chat/engine, chat/compaction | `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts`; injected into `chat.context` at the composition root |
-| `upsertCredential`, `setCredentialActive`, `removeCredential` | credentials/verbs (own feature) | `domain/credentials/persistence/queries.ts`; called from own verbs directly |
-| `markCredentialRevoked`, `clearCredentialRevoked` | credentials/verbs/test-health | `domain/credentials/persistence/queries.ts`; called from own verbs directly |
-| `decryptCredentialById` | credentials/verbs/test-health | `domain/credentials/persistence/queries.ts`; called from own verbs directly |
-| `mintVllmCredential` | entry/_shared/role-clients-binder | `domain/credentials/verbs/mint-vllm.ts`; injected into the vLLM role-clients builder at the composition root |
-| `buildKeylessCatalogCredential` | models/persistence/snapshot | `domain/credentials/verbs/build-keyless-catalog.ts`; injected into `connection.context` at the composition root |
-| `parseProviderMetadata`, `providerMetadataSchema` | credentials/* own feature | `domain/credentials/contract/params.ts` (the schema) + `domain/credentials/substrate/parse-metadata.ts` (the parser) |
-| `CredentialProvider` re-export | credentials/contract/params, credentials/contract/views | `@orb/contracts/credentials` (the canonical source) |
+| `_shared/credentials.ts` export                               | Neo-tavern caller                                       | Orbweaver destination                                                                                                              |
+| ------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveCredential`                                           | chat/context, buddy/ask, models/context                 | `domain/credentials/verbs/resolve.ts`; injected into `chat.context`, `connection.context`, `buddy.context` at the composition root |
+| `maybeRevokeOnAuthFailed`                                     | chat/engine, chat/compaction                            | `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts`; injected into `chat.context` at the composition root                    |
+| `upsertCredential`, `setCredentialActive`, `removeCredential` | credentials/verbs (own feature)                         | `domain/credentials/persistence/queries.ts`; called from own verbs directly                                                        |
+| `markCredentialRevoked`, `clearCredentialRevoked`             | credentials/verbs/test-health                           | `domain/credentials/persistence/queries.ts`; called from own verbs directly                                                        |
+| `decryptCredentialById`                                       | credentials/verbs/test-health                           | `domain/credentials/persistence/queries.ts`; called from own verbs directly                                                        |
+| `mintVllmCredential`                                          | entry/_shared/role-clients-binder                       | `domain/credentials/verbs/mint-vllm.ts`; injected into the vLLM role-clients builder at the composition root                       |
+| `buildKeylessCatalogCredential`                               | models/persistence/snapshot                             | `domain/credentials/verbs/build-keyless-catalog.ts`; injected into `connection.context` at the composition root                    |
+| `parseProviderMetadata`, `providerMetadataSchema`             | credentials/* own feature                               | `domain/credentials/contract/params.ts` (the schema) + `domain/credentials/substrate/parse-metadata.ts` (the parser)               |
+| `CredentialProvider` re-export                                | credentials/contract/params, credentials/contract/views | `@orb/contracts/credentials` (the canonical source)                                                                                |
 
 ---
 
@@ -87,12 +87,12 @@ owner principal:
 
 ```typescript
 // @orb/contracts/credentials.ts (cross-boundary; consumed by both domain and infra/providers)
-declare const CredentialBrand: unique symbol
+declare const CredentialBrand: unique symbol;
 export type ResolvedCredential =
-  | MaxProSubCredential     // opaque — constructed ONLY by domain/credentials; sub path only
-  | OpenRouterCredential    // branded  — requires a key; any user
-  | VllmCredential          // branded  — loopback; boot-time or per-turn
-  | CustomOpenAiCredential  // branded  — requires baseUrl + optional key
+  | MaxProSubCredential // opaque — constructed ONLY by domain/credentials; sub path only
+  | OpenRouterCredential // branded  — requires a key; any user
+  | VllmCredential // branded  — loopback; boot-time or per-turn
+  | CustomOpenAiCredential; // branded  — requires baseUrl + optional key
 
 // The max-pro-sub factory: accepts a Principal, returns the opaque type ONLY IF requireOwner passes
 // (the factory lives in domain/credentials/verbs/resolve.ts; the type lives in @orb/contracts)
@@ -219,20 +219,20 @@ to probe inactive credentials.
 
 ```typescript
 // Errors
-export { CredentialsNotFoundError, CredentialsConflictError } from './contract/errors'
+export { CredentialsNotFoundError, CredentialsConflictError } from "./contract/errors";
 
 // Service types
 export type {
   CredentialsService,
   CredentialsServiceDeps,
   CredentialContext,
-} from './contract/service'
+} from "./contract/service";
 
 // View types (what the client receives — no secret fields)
-export type { CredentialView } from './contract/views'
+export type { CredentialView } from "./contract/views";
 
 // Factory
-export { createCredentialsService } from './service'
+export { createCredentialsService } from "./service";
 ```
 
 **`ResolvedCredential`, `CredentialHealth`, `ProviderMetadata`, `CredentialProvider`** live in
@@ -254,29 +254,29 @@ has provisioned the owner at entry, and is never imported by any domain.
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `_shared/credentials.ts` — `resolveCredential` / `resolveCredentialImpl` | stays domain feature | `domain/credentials/verbs/resolve.ts` | The resolver is the domain's core verb. Exile to `_shared` was a workaround for the cross-feature ban. Chat/connection/buddy call it through composition-root injection. | resolve-time: `_shared` does not exist in orbweaver; dep-cruiser `domain-no-cross-feature` enforces injection model |
-| `_shared/credentials.ts` — `maybeRevokeOnAuthFailed` | stays domain feature | `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts` | Feature verb; chat/compaction access it through an injected op, not a sideways import. | resolve-time (same package dep discipline) |
-| `_shared/credentials.ts` — `upsertCredential`, `setCredentialActive`, `removeCredential`, `markCredentialRevoked`, `clearCredentialRevoked`, `decryptCredentialById` | stays domain feature | `domain/credentials/persistence/queries.ts` | DB-store primitives; lived in `_shared` only so test-health and the own verbs could reach them without triggering the cross-feature rule. In orbweaver they are own-feature persistence, accessed directly from own verbs. | resolve-time |
-| `_shared/credentials.ts` — `mintVllmCredential` | stays domain feature | `domain/credentials/verbs/mint-vllm.ts` | A named credentials verb (mint a boot-time vLLM loopback credential). The boot binder calls it through composition-root injection. | resolve-time |
-| `_shared/credentials.ts` — `buildKeylessCatalogCredential` | stays domain feature | `domain/credentials/verbs/build-keyless-catalog.ts` | A named credentials verb (mint a keyless OR catalog credential). Injected into `connection` at the composition root. | resolve-time |
-| `_shared/credentials.ts` — `providerMetadataSchema`, `parseProviderMetadata`, `ProviderMetadata` type | → `contracts` (schema/type) + domain substrate (parser) | `@orb/contracts/credentials` (schema + type); `domain/credentials/substrate/parse-metadata.ts` (the parser call) | `ProviderMetadata` is a cross-boundary wire type (client needs it for custom-endpoint form fields). The Zod schema is a cross-boundary validator. The `parse` call is a domain substrate helper. | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; client imports schema from there, not from server domain |
-| `_shared/credentials.ts` — `CredentialProvider` re-export | → `contracts` | `@orb/contracts/credentials` (canonical source) | `CredentialProvider` is a cross-boundary type; the re-export through `_shared` was double-homing. Callers import from `@orb/contracts` directly. | resolve-time |
-| `_shared/credentials.ts` — `aadFor()` helper | stays domain feature | `domain/credentials/persistence/aad.ts` | The AAD binding `${userId}|${provider}` is a domain-persistence concern (one file, never inline). Must be a single canonical site to make the byte-identical invariant auditable. | test-time: round-trip crypto test asserts AAD format is stable |
-| `persistence/health-cache.ts` (module-scope LRU Maps) | stays domain feature, renamed | `domain/credentials/health/cache.ts` | In-memory throttle + strike state is NOT a DB query; belongs in a named subsystem not in `persistence/`. Adds the `ASSUMES(single-replica)` annotation. | lint-time: dep-cruiser `persistence-no-in-memory-state` rule (gate candidate) |
-| `persistence/openai-models.ts` (raw `fetch()`) | → `infra` | `infra/network/openai-models.ts` | A raw I/O adapter against a user-supplied URL is not a DB query. `persistence/` is queries only. The `fetch-models` verb calls it through an injected op. | lint-time: dep-cruiser `persistence-no-io` rule (gate candidate) |
-| `boot-seed.ts` | → `entry` | `entry/boot/seed-credential.ts` | A composition-root concern: runs after the boot owner-seed (`entry/boot/seed-owner.ts` — `provisionIdentity` + `determineRole`, `domain/sessions`) + calls `createCredentialsService`. In neo-tavern it imports from both `_shared/credentials.ts` and `_shared/users.ts` — cross-_shared coupling. In orbweaver `entry/` is the correct tier for boot wiring; it can import any domain front door. | resolve-time: `entry/` is the topmost tier; imports flow downward |
-| `providers/contract/credential.ts` — `ResolvedCredential` brand type | → `contracts` | `@orb/contracts/credentials` | A cross-boundary type: the credentials domain produces it; `infra/providers` runners consume it. Currently in `providers/contract/` (infra) which creates an infra→domain conceptual dependency for the type. In `@orb/contracts` both tiers are consumers (down from contracts). | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; `infra/providers` imports from there, not from domain |
-| `providers/contract/health.ts` — `CredentialHealth` type | → `contracts` | `@orb/contracts/credentials` | Cross-boundary: the credentials domain's `testHealth` return type AND `infra/providers` `probe()` return type. Currently in `providers/contract/` (infra); moving to `@orb/contracts` makes both consumers equal. | resolve-time |
-| `context.ts` — `ReturnType<>` inference (implicit interface shape) | stays domain feature | `domain/credentials/contract/service.ts` top — as `export interface CredentialContext` | The inferred type is invisible at a glance. The explicit interface is readable, matches the 8-slot template, and satisfies the `no-inline-types` rule. | lint-time: `no-inline-types` dep-cruiser gate |
-| `contract/errors.ts` — `CredentialsNotFoundError extends DomainOperationError` (HTTP 400, not 404) | stays domain feature | `domain/credentials/contract/errors.ts` — unchanged; the 400 asymmetry is DOCUMENTED as a contract invariant | 400 is deliberate: not-owned and not-found collapse to prevent existence leaks. Any client that keys on 404 for "row gone" will miss credential errors; the discriminator is the `code: 'credential_not_found'` field, not the HTTP status. Add a contract docstring. | test-time: contract test asserts the HTTP status is 400 and `code` field is 'credential_not_found' |
-| `_shared/ids.ts` — `newTypeId` (used across credentials) | → `@orb/kit` | `@orb/kit/ids` | Pure TypeID mint; zero I/O, zero domain. The canonical `kit` case (shared across all domain docs). | resolve-time |
-| `_shared/errors.ts` — `DomainOperationError`, `DomainNotFoundError` etc. | → `@orb/kit` | `@orb/kit/errors` | Pure error base classes; no domain deps. | resolve-time |
-| `_shared/db-errors.ts` — `isConstraintViolation` / `isCredentialUniqueViolation` (4-depth walk) | → `@orb/db` | `@orb/db/kit` | DB-error classifier; domain-agnostic. The 4-depth `error.cause` walk that finds `LibsqlError` is a DB-layer concern. | resolve-time |
-| `ResolveCredentialArgs` inline interface (`_shared/credentials.ts:492–496`) | stays domain feature | `domain/credentials/contract/params.ts` | The resolver verb's input shape; currently inline in `_shared` because the resolver lives there. Moves to the domain contract. | lint-time: `no-inline-types` |
-| `CredentialRow` subset interface (`_shared/credentials.ts:364–373`) | stays domain feature | `domain/credentials/persistence/queries.ts` (as a local type or `typeof` drizzle `$inferSelect`) | Internal DB-row projection for the resolver's column-subset query. Not a cross-boundary type; stays in persistence. Prefer the drizzle inferred type. | lint-time: `no-inline-types` (it's not exported; no leak today) |
-| `isCredentialUniqueViolation` — 4-depth `error.cause` walk | → `@orb/db` | `@orb/db/kit` | Same pattern as `workloads/persistence/constraints.ts` — a DB-error classifier that walks drizzle's wrapping chain. Lives in `@orb/db`, called from credentials persistence. | resolve-time |
+| Unit                                                                                                                                                                 | Outcome                                                 | Target                                                                                                           | Rationale                                                                                                                                                                                                                                                                                                                                                                                           | Enforcement tier                                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `_shared/credentials.ts` — `resolveCredential` / `resolveCredentialImpl`                                                                                             | stays domain feature                                    | `domain/credentials/verbs/resolve.ts`                                                                            | The resolver is the domain's core verb. Exile to `_shared` was a workaround for the cross-feature ban. Chat/connection/buddy call it through composition-root injection.                                                                                                                                                                                                                            | resolve-time: `_shared` does not exist in orbweaver; dep-cruiser `domain-no-cross-feature` enforces injection model                                    |
+| `_shared/credentials.ts` — `maybeRevokeOnAuthFailed`                                                                                                                 | stays domain feature                                    | `domain/credentials/verbs/maybe-revoke-on-auth-failed.ts`                                                        | Feature verb; chat/compaction access it through an injected op, not a sideways import.                                                                                                                                                                                                                                                                                                              | resolve-time (same package dep discipline)                                                                                                             |
+| `_shared/credentials.ts` — `upsertCredential`, `setCredentialActive`, `removeCredential`, `markCredentialRevoked`, `clearCredentialRevoked`, `decryptCredentialById` | stays domain feature                                    | `domain/credentials/persistence/queries.ts`                                                                      | DB-store primitives; lived in `_shared` only so test-health and the own verbs could reach them without triggering the cross-feature rule. In orbweaver they are own-feature persistence, accessed directly from own verbs.                                                                                                                                                                          | resolve-time                                                                                                                                           |
+| `_shared/credentials.ts` — `mintVllmCredential`                                                                                                                      | stays domain feature                                    | `domain/credentials/verbs/mint-vllm.ts`                                                                          | A named credentials verb (mint a boot-time vLLM loopback credential). The boot binder calls it through composition-root injection.                                                                                                                                                                                                                                                                  | resolve-time                                                                                                                                           |
+| `_shared/credentials.ts` — `buildKeylessCatalogCredential`                                                                                                           | stays domain feature                                    | `domain/credentials/verbs/build-keyless-catalog.ts`                                                              | A named credentials verb (mint a keyless OR catalog credential). Injected into `connection` at the composition root.                                                                                                                                                                                                                                                                                | resolve-time                                                                                                                                           |
+| `_shared/credentials.ts` — `providerMetadataSchema`, `parseProviderMetadata`, `ProviderMetadata` type                                                                | → `contracts` (schema/type) + domain substrate (parser) | `@orb/contracts/credentials` (schema + type); `domain/credentials/substrate/parse-metadata.ts` (the parser call) | `ProviderMetadata` is a cross-boundary wire type (client needs it for custom-endpoint form fields). The Zod schema is a cross-boundary validator. The `parse` call is a domain substrate helper.                                                                                                                                                                                                    | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; client imports schema from there, not from server domain                  |
+| `_shared/credentials.ts` — `CredentialProvider` re-export                                                                                                            | → `contracts`                                           | `@orb/contracts/credentials` (canonical source)                                                                  | `CredentialProvider` is a cross-boundary type; the re-export through `_shared` was double-homing. Callers import from `@orb/contracts` directly.                                                                                                                                                                                                                                                    | resolve-time                                                                                                                                           |
+| `_shared/credentials.ts` — `aadFor()` helper                                                                                                                         | stays domain feature                                    | `domain/credentials/persistence/aad.ts`                                                                          | The AAD binding `${userId}                                                                                                                                                                                                                                                                                                                                                                          | ${provider}` is a domain-persistence concern (one file, never inline). Must be a single canonical site to make the byte-identical invariant auditable. | test-time: round-trip crypto test asserts AAD format is stable |
+| `persistence/health-cache.ts` (module-scope LRU Maps)                                                                                                                | stays domain feature, renamed                           | `domain/credentials/health/cache.ts`                                                                             | In-memory throttle + strike state is NOT a DB query; belongs in a named subsystem not in `persistence/`. Adds the `ASSUMES(single-replica)` annotation.                                                                                                                                                                                                                                             | lint-time: dep-cruiser `persistence-no-in-memory-state` rule (gate candidate)                                                                          |
+| `persistence/openai-models.ts` (raw `fetch()`)                                                                                                                       | → `infra`                                               | `infra/network/openai-models.ts`                                                                                 | A raw I/O adapter against a user-supplied URL is not a DB query. `persistence/` is queries only. The `fetch-models` verb calls it through an injected op.                                                                                                                                                                                                                                           | lint-time: dep-cruiser `persistence-no-io` rule (gate candidate)                                                                                       |
+| `boot-seed.ts`                                                                                                                                                       | → `entry`                                               | `entry/boot/seed-credential.ts`                                                                                  | A composition-root concern: runs after the boot owner-seed (`entry/boot/seed-owner.ts` — `provisionIdentity` + `determineRole`, `domain/sessions`) + calls `createCredentialsService`. In neo-tavern it imports from both `_shared/credentials.ts` and `_shared/users.ts` — cross-_shared coupling. In orbweaver `entry/` is the correct tier for boot wiring; it can import any domain front door. | resolve-time: `entry/` is the topmost tier; imports flow downward                                                                                      |
+| `providers/contract/credential.ts` — `ResolvedCredential` brand type                                                                                                 | → `contracts`                                           | `@orb/contracts/credentials`                                                                                     | A cross-boundary type: the credentials domain produces it; `infra/providers` runners consume it. Currently in `providers/contract/` (infra) which creates an infra→domain conceptual dependency for the type. In `@orb/contracts` both tiers are consumers (down from contracts).                                                                                                                   | resolve-time: `@orb/contracts` is the declared dep for cross-boundary types; `infra/providers` imports from there, not from domain                     |
+| `providers/contract/health.ts` — `CredentialHealth` type                                                                                                             | → `contracts`                                           | `@orb/contracts/credentials`                                                                                     | Cross-boundary: the credentials domain's `testHealth` return type AND `infra/providers` `probe()` return type. Currently in `providers/contract/` (infra); moving to `@orb/contracts` makes both consumers equal.                                                                                                                                                                                   | resolve-time                                                                                                                                           |
+| `context.ts` — `ReturnType<>` inference (implicit interface shape)                                                                                                   | stays domain feature                                    | `domain/credentials/contract/service.ts` top — as `export interface CredentialContext`                           | The inferred type is invisible at a glance. The explicit interface is readable, matches the 8-slot template, and satisfies the `no-inline-types` rule.                                                                                                                                                                                                                                              | lint-time: `no-inline-types` dep-cruiser gate                                                                                                          |
+| `contract/errors.ts` — `CredentialsNotFoundError extends DomainOperationError` (HTTP 400, not 404)                                                                   | stays domain feature                                    | `domain/credentials/contract/errors.ts` — unchanged; the 400 asymmetry is DOCUMENTED as a contract invariant     | 400 is deliberate: not-owned and not-found collapse to prevent existence leaks. Any client that keys on 404 for "row gone" will miss credential errors; the discriminator is the `code: 'credential_not_found'` field, not the HTTP status. Add a contract docstring.                                                                                                                               | test-time: contract test asserts the HTTP status is 400 and `code` field is 'credential_not_found'                                                     |
+| `_shared/ids.ts` — `newTypeId` (used across credentials)                                                                                                             | → `@orb/kit`                                            | `@orb/kit/ids`                                                                                                   | Pure TypeID mint; zero I/O, zero domain. The canonical `kit` case (shared across all domain docs).                                                                                                                                                                                                                                                                                                  | resolve-time                                                                                                                                           |
+| `_shared/errors.ts` — `DomainOperationError`, `DomainNotFoundError` etc.                                                                                             | → `@orb/kit`                                            | `@orb/kit/errors`                                                                                                | Pure error base classes; no domain deps.                                                                                                                                                                                                                                                                                                                                                            | resolve-time                                                                                                                                           |
+| `_shared/db-errors.ts` — `isConstraintViolation` / `isCredentialUniqueViolation` (4-depth walk)                                                                      | → `@orb/db`                                             | `@orb/db/kit`                                                                                                    | DB-error classifier; domain-agnostic. The 4-depth `error.cause` walk that finds `LibsqlError` is a DB-layer concern.                                                                                                                                                                                                                                                                                | resolve-time                                                                                                                                           |
+| `ResolveCredentialArgs` inline interface (`_shared/credentials.ts:492–496`)                                                                                          | stays domain feature                                    | `domain/credentials/contract/params.ts`                                                                          | The resolver verb's input shape; currently inline in `_shared` because the resolver lives there. Moves to the domain contract.                                                                                                                                                                                                                                                                      | lint-time: `no-inline-types`                                                                                                                           |
+| `CredentialRow` subset interface (`_shared/credentials.ts:364–373`)                                                                                                  | stays domain feature                                    | `domain/credentials/persistence/queries.ts` (as a local type or `typeof` drizzle `$inferSelect`)                 | Internal DB-row projection for the resolver's column-subset query. Not a cross-boundary type; stays in persistence. Prefer the drizzle inferred type.                                                                                                                                                                                                                                               | lint-time: `no-inline-types` (it's not exported; no leak today)                                                                                        |
+| `isCredentialUniqueViolation` — 4-depth `error.cause` walk                                                                                                           | → `@orb/db`                                             | `@orb/db/kit`                                                                                                    | Same pattern as `workloads/persistence/constraints.ts` — a DB-error classifier that walks drizzle's wrapping chain. Lives in `@orb/db`, called from credentials persistence.                                                                                                                                                                                                                        | resolve-time                                                                                                                                           |
 
 ---
 
@@ -288,29 +288,29 @@ injection.
 
 **Injected into `connection.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `credentials.resolve` | credentials domain | `resolveRole` — resolves the credential for any role's backend |
-| `credentials.buildKeylessCatalogCredential` | credentials domain | keyless OR catalog fetch (public endpoints) |
+| Op injected                                 | Provided by        | Used for                                                       |
+| ------------------------------------------- | ------------------ | -------------------------------------------------------------- |
+| `credentials.resolve`                       | credentials domain | `resolveRole` — resolves the credential for any role's backend |
+| `credentials.buildKeylessCatalogCredential` | credentials domain | keyless OR catalog fetch (public endpoints)                    |
 
 **Injected into `chat.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `credentials.resolve` | credentials domain | per-turn credential resolution (passed through from `connection.context`) |
-| `credentials.maybeRevokeOnAuthFailed` | credentials domain | post-turn `auth_failed` side-effect in the engine and compaction verbs |
+| Op injected                           | Provided by        | Used for                                                                  |
+| ------------------------------------- | ------------------ | ------------------------------------------------------------------------- |
+| `credentials.resolve`                 | credentials domain | per-turn credential resolution (passed through from `connection.context`) |
+| `credentials.maybeRevokeOnAuthFailed` | credentials domain | post-turn `auth_failed` side-effect in the engine and compaction verbs    |
 
 **Injected into `buddy.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `credentials.resolve` | credentials domain | routing buddy turns (max-pro-sub → agent-sdk, else local vLLM) |
-| `credentials.mintVllmCredential` | credentials domain | building the vLLM credential for buddy's local turn |
+| Op injected                      | Provided by        | Used for                                                       |
+| -------------------------------- | ------------------ | -------------------------------------------------------------- |
+| `credentials.resolve`            | credentials domain | routing buddy turns (max-pro-sub → agent-sdk, else local vLLM) |
+| `credentials.mintVllmCredential` | credentials domain | building the vLLM credential for buddy's local turn            |
 
 **Injected into `infra/providers/vllm/role-clients` builder at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected                      | Provided by        | Used for                                                          |
+| -------------------------------- | ------------------ | ----------------------------------------------------------------- |
 | `credentials.mintVllmCredential` | credentials domain | minting the loopback vLLM credential at boot for each role client |
 
 No domain (chat, buddy, models/connection) reaches into `domain/credentials/persistence/` or
@@ -361,9 +361,9 @@ where the key comes from.
 - `CredentialView` → `domain/credentials/contract/views.ts` (domain-internal view; re-exported from
   front door for client type-only use).
 - `ResolveCredentialArgs` / `AddCredentialParams` / `TestHealthParams` / etc. → `domain/credentials/
-  contract/params.ts` (domain-internal arg shapes; currently inline in `_shared` or `persistence/`).
+contract/params.ts` (domain-internal arg shapes; currently inline in `_shared` or `persistence/`).
 - `CredentialContext` → `domain/credentials/context.ts` top — explicit `export interface
-  CredentialContext`, never `ReturnType<typeof createCredentialContext>`.
+CredentialContext`, never `ReturnType<typeof createCredentialContext>`.
 - `HealthCacheEntry` / `StrikeRecord` → `domain/credentials/health/types.ts` (subsystem-internal;
   never exported from the front door).
 - `CredentialRow` DB-row subset → `domain/credentials/persistence/queries.ts` as a local type (not
@@ -378,8 +378,9 @@ are schema-reserved forward-compat slots with no runner today. The gap must be e
 
 ```typescript
 // @orb/contracts/credentials.ts
-export type CredentialSource = 'max-pro-sub' | 'openrouter' | 'vllm' | 'custom_openai'
-export type CredentialProvider = 'openrouter' | 'anthropic' | 'openai' | 'google_vertex' | 'custom_openai'
+export type CredentialSource = "max-pro-sub" | "openrouter" | "vllm" | "custom_openai";
+export type CredentialProvider =
+  "openrouter" | "anthropic" | "openai" | "google_vertex" | "custom_openai";
 
 // The resolver dispatch is exhaustive over CredentialSource:
 // switch (source) { case 'max-pro-sub': ... case 'openrouter': ... case 'vllm': ...
@@ -411,53 +412,53 @@ validation, this is where it goes).
 
 1. **`ResolvedCredential` is constructed only inside `domain/credentials/verbs/resolve.ts`** (and the
    two named boot-helper verbs). No other file may produce a value satisfying the brand.
-   *Enforcement: compile-time — the opaque type's construction API is the only entry point; the `as`
+   _Enforcement: compile-time — the opaque type's construction API is the only entry point; the `as`
    cast is encapsulated in the factory; no exported constructor. Any attempt to construct it elsewhere
-   fails `tsc`.*
+   fails `tsc`._
 
 2. **`max-pro-sub` is owner-only (`requireOwner`, D17)** — the `MaxProSubCredential` factory returns
    the opaque type only after the `role === 'owner'` check.
-   *Enforcement: compile-time — the factory signature accepts a `Principal`; the owner check is
-   inside; the opaque return type can't be fabricated.*
+   _Enforcement: compile-time — the factory signature accepts a `Principal`; the owner check is
+   inside; the opaque return type can't be fabricated._
 
 3. **AAD = `${userId}|${provider}` — byte-identical, never inline** — the single `aadFor()` function
    in `persistence/aad.ts` is the only production site. No verb or persistence function re-derives
    the AAD string independently.
-   *Enforcement: lint-time (dep-cruiser: all `box.encrypt` / `box.decrypt` calls in the domain must
-   import from `persistence/aad.ts`); test-time: round-trip asserts format stability.*
+   _Enforcement: lint-time (dep-cruiser: all `box.encrypt` / `box.decrypt` calls in the domain must
+   import from `persistence/aad.ts`); test-time: round-trip asserts format stability._
 
 4. **`CredentialView` never exposes secret fields** — `ciphertext`, `iv`, `tag` are never present in
    any type or value returned by the front door or by any tRPC handler.
-   *Enforcement: compile-time — `CredentialView` does not include those fields; `toCredentialView`
-   in `persistence/queries.ts` is the only projection; tRPC return types are all `CredentialView`.*
+   _Enforcement: compile-time — `CredentialView` does not include those fields; `toCredentialView`
+   in `persistence/queries.ts` is the only projection; tRPC return types are all `CredentialView`._
 
 5. **`testHealth` probes by `credentialId`, not by `active=true`** — the inactive-credential probe
    path is distinct from the resolver's active-only read.
-   *Enforcement: test-time — a health contract test asserts an inactive credential can be probed
-   without activating it.*
+   _Enforcement: test-time — a health contract test asserts an inactive credential can be probed
+   without activating it._
 
 6. **`markRevoked` (runner-internal) does NOT ownership-check** — `markRevokedByUser` (user-facing)
    does. The two verbs MUST NOT be merged until `userId` is threaded through the runner revoke path.
-   *Enforcement: compile-time — two separate verb signatures; the `CredentialsService` interface
-   lists both explicitly; no shared implementation.*
+   _Enforcement: compile-time — two separate verb signatures; the `CredentialsService` interface
+   lists both explicitly; no shared implementation._
 
 7. **`persistence/` contains DB queries only** — no `fetch()`, no module-scope Maps.
-   *Enforcement: lint-time — dep-cruiser `persistence-no-io` rule: no `fetch`/`axios`/`http.request`
+   _Enforcement: lint-time — dep-cruiser `persistence-no-io` rule: no `fetch`/`axios`/`http.request`
    in `domain/*/persistence/`; dep-cruiser `persistence-no-in-memory-state` rule: no module-scope
-   `Map`/`Set` declarations in `domain/*/persistence/`.*
+   `Map`/`Set` declarations in `domain/*/persistence/`._
 
 8. **`health/cache.ts` carries the `ASSUMES(single-replica)` marker** — the in-memory throttle and
    strike state are per-process. If the single-replica assumption is ever abandoned, the `health/`
    subsystem is the seam to replace with a shared store.
-   *Enforcement: lint-time — a `check` gate validates the `ASSUMES(single-replica)` comment is
-   present on the module-scope Map declarations (same gate pattern neo-tavern uses for buddy).*
+   _Enforcement: lint-time — a `check` gate validates the `ASSUMES(single-replica)` comment is
+   present on the module-scope Map declarations (same gate pattern neo-tavern uses for buddy)._
 
 9. **The boot wiring (`entry/boot/seed-owner.ts` then `entry/boot/seed-credential.ts`) is the ONLY
    caller of the owner-seed (`provisionIdentity` + `determineRole`) + `credentials.add` at boot** — no
    domain imports another domain's users/auth primitives at the module level.
-   *Enforcement: resolve-time — `entry/` is the only tier that can import both `domain/credentials`
+   _Enforcement: resolve-time — `entry/` is the only tier that can import both `domain/credentials`
    and `domain/sessions`/`domain/admin` simultaneously; a cross-domain import from `domain/credentials`
-   into `domain/sessions` or vice versa fails the `domain-no-cross-feature` dep-cruiser rule.*
+   into `domain/sessions` or vice versa fails the `domain-no-cross-feature` dep-cruiser rule._
 
 ---
 
@@ -470,7 +471,7 @@ validation, this is where it goes).
   them into one usage site. Orbweaver explicitly separates them (dispatch vs storage). Confirm the
   distinction is enforced in `@orb/db/schema/credentials.ts` (the column is `CredentialProvider`) vs
   `domain/credentials/contract/params.ts` (the resolver arg is `CredentialSource`).
-- **Custom/BYO backend descriptor** — `tiers/providers.md §1a` says the user declares the model
+- **Custom/BYO backend descriptor** — `core/Tier-3b-Providers.md §1a` says the user declares the model
   profile (context window, max output, sampling, reasoning). The `providerMetadataSchema` today has only
   `baseUrl` + `headers`. In orbweaver, add `modelProfile?: CustomModelProfile` to the metadata schema
   (keyed into the `ModelCapability` descriptor). The inspector probes or the user fills it in.

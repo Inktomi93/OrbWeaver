@@ -2,7 +2,7 @@ import process from "node:process";
 import { defineConfig, devices } from "@playwright/experimental-ct-react";
 
 // Component tests — `.ct.tsx` at the tests/client mirror, in a real chromium via Playwright CT (the
-// vitest browser project was never adopted — it hangs cold-cache; spine/testing.md §7). Client
+// vitest browser project was never adopted — it hangs cold-cache; core/Spine-Testing.md §7). Client
 // pure-logic stays node `.test.ts`. Separate runner, NOT in `pnpm check` (`pnpm test:ct`).
 //
 // SKELETON (Phase 0): `ctViteConfig` — the client's `#` subpath aliases (Vite needs them EXPLICIT for

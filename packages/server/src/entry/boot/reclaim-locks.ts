@@ -1,5 +1,5 @@
 // entry/boot/reclaim-locks — boot step 4: single-replica boot reclaim of stale claims a dead process left
-// behind (tiers/entry.md §"Boot order" — `reclaimChatLocksOnBoot`).
+// behind (core/Tier-5-Entry.md §"Boot order" — `reclaimChatLocksOnBoot`).
 //
 // WORKLOADS (wired): reap every IN-FLIGHT workload row via the workloads front-door `reapOrphanedWorkloads`,
 // with a stale threshold of 0 — a boot reclaim is NOT the steady-state poll-loop reaper. Single replica

@@ -1,5 +1,5 @@
 // domain/notifications/contract/views — the read-model the caller (via transport) receives for ONE stored
-// notification (structure.md §4: "what shape does the client get?" → contract/views.ts). `InboxView` is a
+// notification (core/Core-0-Architecture-and-Structure.md §4: "what shape does the client get?" → contract/views.ts). `InboxView` is a
 // stored-row projection — it pairs the CLOSED `NotificationEvent` wire union (`@orb/contracts/notifications`,
 // the secret-free `type`+`payload`) with the durable inbox columns the client needs to render + page:
 // `seq` (the monotonic per-recipient cursor / `lastEventId` resume key), the `readAt`/`dismissedAt` state

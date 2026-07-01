@@ -38,7 +38,7 @@ export const WORKLOAD_KINDS = [
   "import-st",
   "reconcile-stats",
   "refresh-model-catalog",
-  // Seam reservation (reserve now, build v2 — ledger §5, knowledge-cluster.md §9).
+  // Seam reservation (reserve now, build v2 — ledger §5, domains/memory.md §9).
   "reconcile-world-state",
 ] as const;
 

@@ -3,16 +3,16 @@
 > **Status: planning (authoritative detail).** The settings domain owns the two DB-backed config
 > tiers — per-user `UserSettings` and admin-runtime `AppSettings` — plus the raw global KV escape
 > hatch, the per-user/per-app **write serializers**, and the **floor-merge** (`env` floor ⊕ stored
-> override → `EffectiveAppConfig`). It does NOT own the *shapes* (those move to `@orb/contracts`) and it
+> override → `EffectiveAppConfig`). It does NOT own the _shapes_ (those move to `@orb/contracts`) and it
 > does NOT own `process.env` (that is `foundation/env`, the one reader). The defining move from
 > neo-tavern: the schemas + the `defineVersionedConfig` primitive leave `shared/settings/` for
 > `@orb/contracts` (the client needs them for forms), three **misfiled chat blobs** leave for
 > `@orb/contracts/chat`, and the floor-merge (`server/config/app-config.ts`) folds INTO this domain as a
-> named subsystem. Authoritative upstream: `_FANOUT-BRIEF.md` §7.2 (the FOUR natures of config — the
-> spine for this doc) + §4 (settings pain: "confirm the floor rule"); `reports/shared-dissolution.md`
+> named subsystem. Authoritative upstream: `AGENTS.md` §7.2 (the FOUR natures of config — the
+> spine for this doc) + §4 (settings pain: "confirm the floor rule"); `core/Core-Core-Legacy-Migration-and-Gaps.md`
 > §4 (`contracts/settings`, `contracts/versioned-config`, the chat-blob misfiling), §5
 > (`loadUserSettings`, `requireAdmin`), §8 (boot order — `contracts/settings`
-> depends on `contracts/chat`); `structure.md` §4 (the 8-slot template) + §6 (partitioning) + §7 (gates);
+> depends on `contracts/chat`); `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template) + §6 (partitioning) + §7 (gates);
 > `domains.md` ("settings — keep — app + user setting tiers"). Read those first.
 
 ---
@@ -59,8 +59,8 @@ This domain does **not** own:
 - **The three misfiled "chat" blobs.** `room-overrides.ts`, `group-config.ts`, `opening-policy.ts`
   live in `shared/settings/` today but they are **chat shapes** — chatMetadata sub-blobs + a
   start-chat union consumed by chat verbs, chat assemble types, and client chat forms. They → `@orb/
-  contracts/chat`, NOT settings. (See "CONFLICT resolved" below.) `UserSettings.groupDefaults` merely
-  *references* `groupConfigSchema` — that reference is why `contracts/settings` depends on
+contracts/chat`, NOT settings. (See "CONFLICT resolved" below.) `UserSettings.groupDefaults` merely
+  _references_ `groupConfigSchema` — that reference is why `contracts/settings` depends on
   `contracts/chat` (the boot-order edge, §8 of the dissolution inventory).
 - **`process.env`.** The one reader is `foundation/env` (un-moved `server/env.ts`), with its boot-fatal
   `superRefine` per `AUTH_MODE`. Settings reads `env` DOWN through the floor-merge; it never writes env.
@@ -75,19 +75,19 @@ This domain does **not** own:
 
 ---
 
-## The four natures of config (the spine — `_FANOUT-BRIEF.md §7.2`)
+## The four natures of config (the spine — `core/AGENTS.md §7.2`)
 
 Config in neo-tavern wears four distinct natures that were never named. Making them legible IS the
 settings re-architecture. This domain owns exactly natures (b) and the read-side of (a/seed); the
 others have homes elsewhere and are listed so the boundary is explicit.
 
-| Nature | What it is | Home | This domain's role |
-|---|---|---|---|
-| **(a) true env** | boot / secret / identity (`PORT`, `DATABASE_URL`, `CREDENTIALS_KEY`, `AUTH_MODE`, OIDC, rate-limit budgets). The one `process.env` reader; `superRefine` boot-fatality per `AUTH_MODE`. | `foundation/env` | reads it DOWN as the floor; never writes it |
-| **(a/seed) env→DB-once** | env that writes a DB row once then goes inert. **The model: `OPENROUTER_API_KEY` → a labeled `openrouter` credential.** | `credentials` domain (`entry/boot/seed-credential.ts`) | NOT owned here — cited as the pattern the floor-merge generalizes; the *seed verb* is credentials' |
-| **(b) runtime toggles → AppSettings** | non-secret, non-bootstrap operational knobs an admin can flip at runtime; **env floor, DB override wins** via `layer()` + a versioned blob. Today: `corpusAutoindex`, `importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `memoryDefaults`, `memorySummarizer` (**NOT `guidedActions`** — guided actions live ONLY on the preset, D33; the neo "AppSettings.guidedActions" fallback was a phantom). Orbweaver adds the **D17 owner-box governance toggles**: `allowNonOwnerLocalCompute` (default ON), the per-member local-compute COUNT budget, `allowNonOwnerMaxProSub` (default OFF). | **`settings` domain (AppSettings)** | **OWNED — the core job.** |
-| **(c) agent-sdk runtime config** | THE homeless nature: ~13 isolation pins + the 11-key reserved-denylist + the 3-mode credential firewall (200+ lines, security-load-bearing, rebuilt every turn). Called "env" only because it *emits* env vars. | `infra/providers/backends/agent-sdk` (a named backend-internal config of the strategy, per DECISIONS-LEDGER §7 D8) | **NOT a settings tier — explicitly excluded.** |
-| **(d) generation params** | `UserIntent`/preset, translated per-backend (reasoning is typed SDK Options, not env). | `preset` (`contracts/preset`) | not owned here |
+| Nature                                | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Home                                                                                                               | This domain's role                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| **(a) true env**                      | boot / secret / identity (`PORT`, `DATABASE_URL`, `CREDENTIALS_KEY`, `AUTH_MODE`, OIDC, rate-limit budgets). The one `process.env` reader; `superRefine` boot-fatality per `AUTH_MODE`.                                                                                                                                                                                                                                                                                                                                                                                                          | `foundation/env`                                                                                                   | reads it DOWN as the floor; never writes it                                                        |
+| **(a/seed) env→DB-once**              | env that writes a DB row once then goes inert. **The model: `OPENROUTER_API_KEY` → a labeled `openrouter` credential.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `credentials` domain (`entry/boot/seed-credential.ts`)                                                             | NOT owned here — cited as the pattern the floor-merge generalizes; the _seed verb_ is credentials' |
+| **(b) runtime toggles → AppSettings** | non-secret, non-bootstrap operational knobs an admin can flip at runtime; **env floor, DB override wins** via `layer()` + a versioned blob. Today: `corpusAutoindex`, `importSkipCharacters`, `logLevel`, `forbidExternalMedia`, `memoryDefaults`, `memorySummarizer` (**NOT `guidedActions`** — guided actions live ONLY on the preset, D33; the neo "AppSettings.guidedActions" fallback was a phantom). Orbweaver adds the **D17 owner-box governance toggles**: `allowNonOwnerLocalCompute` (default ON), the per-member local-compute COUNT budget, `allowNonOwnerMaxProSub` (default OFF). | **`settings` domain (AppSettings)**                                                                                | **OWNED — the core job.**                                                                          |
+| **(c) agent-sdk runtime config**      | THE homeless nature: ~13 isolation pins + the 11-key reserved-denylist + the 3-mode credential firewall (200+ lines, security-load-bearing, rebuilt every turn). Called "env" only because it _emits_ env vars.                                                                                                                                                                                                                                                                                                                                                                                  | `infra/providers/backends/agent-sdk` (a named backend-internal config of the strategy, per DECISIONS-LEDGER §7 D8) | **NOT a settings tier — explicitly excluded.**                                                     |
+| **(d) generation params**             | `UserIntent`/preset, translated per-backend (reasoning is typed SDK Options, not env).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `preset` (`contracts/preset`)                                                                                      | not owned here                                                                                     |
 
 **The stranded (b) toggles (env-only today, SHOULD be AppSettings).** Three knobs are runtime-operational
 in nature but live env-only with no DB override path: `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`
@@ -140,12 +140,14 @@ domain/settings/
 
 **Renamed subsystem — `effective-config/`:** the neo-tavern `server/config/app-config.ts` is a config
 tier reaching across `env` + `db`; it folds into the settings domain as a named subsystem (the floor
-+ the sync cache). It is the read-side twin of the `app-settings` write verb — co-located so the
-"reload after every admin write" seam is auditable.
+
+- the sync cache). It is the read-side twin of the `app-settings` write verb — co-located so the
+  "reload after every admin write" seam is auditable.
 
 **Moved out of the source folder:** `merge.ts` moves under `substrate/` (it is pure feature-local
 helper logic, zero I/O — the 8-slot template's `substrate/` slot). `README.md` is deleted (the contract
-+ this doc are the map; the structure IS the documentation per `structure.md §7`).
+
+- this doc are the map; the structure IS the documentation per `core/Core-0-Architecture-and-Structure.md §7`).
 
 ---
 
@@ -153,16 +155,12 @@ helper logic, zero I/O — the 8-slot template's `substrate/` slot). `README.md`
 
 ```typescript
 // Service
-export { createSettingsService } from './service'
-export type {
-  SettingsService,
-  SettingsServiceDeps,
-  SettingsContext,
-} from './contract/service'
+export { createSettingsService } from "./service";
+export type { SettingsService, SettingsServiceDeps, SettingsContext } from "./contract/service";
 
 // Verb params + views (type-only; client/transport consume these)
-export type { UpdateUserSettingsInput, UpdateUserSettingsSectionInput } from './contract/params'
-export type { GlobalSettingView, UserSettingsView } from './contract/views'
+export type { UpdateUserSettingsInput, UpdateUserSettingsSectionInput } from "./contract/params";
+export type { GlobalSettingView, UserSettingsView } from "./contract/views";
 ```
 
 **`AppSettings`, `UserSettings`, `EffectiveAppConfig`, `MemoryDefaults`, `MemorySummarizerConfig`,
@@ -206,8 +204,8 @@ SettingsService = {
 ```
 
 **`getAppSettings` returns `EffectiveAppConfig` (resolved), `updateAppSettings` takes `AppSettings`
-(the partial override).** The asymmetry is deliberate: the admin edits the *override blob* (every field
-optional/nullable) but always reads back the *resolved floor⊕override* config. `updateAppSettings` is a
+(the partial override).** The asymmetry is deliberate: the admin edits the _override blob_ (every field
+optional/nullable) but always reads back the _resolved floor⊕override_ config. `updateAppSettings` is a
 read-merge-write through the process-wide chain, then calls `reloadEffectiveConfig` so the sync cache and
 `logger.level` reflect the write before the call returns.
 
@@ -223,23 +221,23 @@ one-image deploy invariant; the DB row is the multi-replica seam if that's ever 
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `shared/settings/versioned-config.ts` — `defineVersionedConfig`, `VersionedConfig`, `VersionedConfigDef` | → `contracts` | `@orb/contracts/versioned-config` | The ONE versioned-blob+lift primitive shared by AppSettings/UserSettings/PromptConfig. The client needs it (it parses settings forms); it depends only on `kit/guards` (`isPlainObject`). **Boot-critical: must exist before `contracts/settings` and `contracts/preset`** (the most boot-fragile cross-slice edge, dissolution §8). | resolve-time: package dep; both contracts namespaces import it down |
-| `shared/settings/app-settings.ts` — `AppSettings`, `appSettingsSchema`, `parseAppSettings`, `APP_SETTINGS_SCHEMA_VERSION`, `APP_SETTINGS_LIFTS`, `appSettingsConfig`, `memoryDefaultsSchema`/`MemoryDefaults`, `memorySummarizerSchema`/`MemorySummarizerConfig`, `LOG_LEVELS`/`LogLevel` | → `contracts` | `@orb/contracts/settings` | Cross-boundary: the client's server-settings surface (`use-app-settings`, the memory/guided-actions admin forms) validates against these. `foundation/env` also imports `LOG_LEVELS` DOWN. | resolve-time: package dep; `no-inline-types` keeps the schema single-homed |
-| `shared/settings/user-settings.ts` — `UserSettings`, `userSettingsSchema`, `parseUserSettings`, `USER_SETTINGS_SCHEMA_VERSION`, `USER_SETTINGS_LIFTS`, `userSettingsConfig`, `DEFAULT_USER_SETTINGS`, `USER_SETTINGS_SECTIONS`/`UserSettingsSection` | → `contracts` | `@orb/contracts/settings` | 74 consumers across server + client; the per-user settings forms parse it client-side. The v1→v2 lift (flat→namespaced) moves with the schema. | resolve-time: package dep |
-| `shared/settings/{room-overrides,group-config,opening-policy}.ts` | → **`contracts/chat`** (NOT settings) | `@orb/contracts/chat` | **MISFILED.** chatMetadata sub-blobs + a start-chat union consumed by chat verbs, chat assemble types, and client chat forms — never the settings KV. The settings domain owns ONLY AppSettings/UserSettings. `UserSettings.groupDefaults` *references* `groupConfigSchema`, which is why `contracts/settings` depends on `contracts/chat`. | resolve-time: package dep; dep-cruiser: `domain/settings/**` must not import these |
-| `server/config/app-config.ts` — `envDefaults`, `layer`, `getAppConfig`, `reloadAppConfig`, `cache`, `__resetAppConfigCache`, `EffectiveAppConfig` | fold INTO domain (type → contracts) | `domain/settings/effective-config/{layer,cache}.ts`; `EffectiveAppConfig` → `@orb/contracts/settings` | The floor-merge is the read-side twin of `updateAppSettings`; it belongs with the tier it resolves. It reads `foundation/env` (down) + `db` (down) — legal. `EffectiveAppConfig` is cross-boundary (the client reads resolved app settings), so the TYPE goes to contracts while the resolver stays domain. | resolve-time (the resolver moves with the domain); the type is a package dep |
-| `server/config/app-config.ts` — `APP_SETTINGS_KEY = "app"` constant | stays domain feature | `domain/settings/effective-config/layer.ts` (or `contract/`) | The reserved KV key for the AppSettings row; consumed by the global-settings reserved guard + the app-settings verb. A domain constant, not cross-boundary. | lint-time: `no-inline-types`/single-home |
-| `domain/_shared/user-settings.ts` — `loadUserSettings` | un-exiled → domain feature | `domain/settings/verbs/load-user-settings.ts` | Lived in `_shared` only so chat + workloads could reach it without a sideways import. In orbweaver it is a settings verb; chat/workloads receive it through composition-root injection. | resolve-time: `_shared` does not exist; `domain-no-cross-feature` enforces injection |
-| `domain/settings/merge.ts` — `deepMergeAppSettings`, `deepMergePlain`, `isPlainObject` | stays, relocated | `domain/settings/substrate/merge.ts` | Pure feature-local merge helpers (zero I/O) → the `substrate/` slot. `isPlainObject` is a duplicate of `kit/guards.isPlainObject` — import the kit one, drop the local copy. | lint-time: `feature-structure` (pure helpers live in `substrate/`); `kit-purity` keeps the guard single-homed |
-| `shared/settings/app-settings.ts` — `resolveGuidedActions` projection | **RETIRED** (was neo phantom) | — | **D33: guided actions have ONE home — the preset.** Neo's `resolveGuidedActions(appSettings)` read a `AppSettings.guidedActions` field that **never existed** (a phantom fallback). Orbweaver carries NO `AppSettings.guidedActions` and NO settings-side projection; resolution is `activePreset.guidedActions ?? DEFAULT_GUIDED_ACTIONS` at the preset/assembly consumer. `DEFAULT_GUIDED_ACTIONS`/`GuidedActionsConfig`/`guidedActionsSchema` live in `contracts/preset` (their one home). | n/a — nothing lands in `settings` |
-| `domain/_shared/admin.ts` — `requireAdmin` | → `admin` domain; INJECTED here | `domain/admin` (provides `requireAdmin`); injected into `settings.context` | The admin gate is a different concern from the AppSettings tier. The app-settings verbs receive `requireAdmin` as an injected op, not a sideways import. | resolve-time: `domain-no-cross-feature`; the op type lives in `settings/contract` |
-| `domain/_shared/audit.ts` — `logAudit` | → foundation; injected/called | `foundation/observability/audit` | fan-in 60; an observability concern read down by all. The settings verbs call it through the foundation tier (foundation is below domain). | resolve-time: tier order (domain → foundation is downward) |
-| `context.ts` — `SettingsContext = ReturnType<typeof createSettingsContext>` | stays domain feature, made explicit | `domain/settings/contract/service.ts` — `export interface SettingsContext` | The inferred type is invisible at a glance; the explicit interface matches the template + satisfies `types-in-contract`. | lint-time: `types-in-contract` / `no-inline-types` |
-| `server/env.ts` (whole) | stays a tier (un-moved) | `foundation/env` | The one `process.env` reader; keep the `superRefine` boot-fatality per `AUTH_MODE`. Imports `LOG_LEVELS` from `contracts/settings` (down). NOT a settings-domain file. | resolve-time: `foundation` tier; gate that it is the sole `process.env` reader |
-| `server/env.ts` — `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`, `VLLM_*_CONCURRENCY` | candidate promotion (b) | `@orb/contracts/settings` AppSettings fields (env floor preserved) | Stranded runtime toggles with no DB override path; nature-(b) by behavior. Each gets an env floor + an admin override. **Not a foregone move** — see Open decisions (rate-limit budgets may stay boot-env). | resolve-time (if promoted): the field joins `appSettingsSchema`; `layer()` resolves it env⊕override |
-| `db/schema/settings.ts` — `settings`, `userSettings` tables | stays db | `@orb/db/schema/settings` | DB row definitions; persistence reads/writes them. The `user_settings.schemaVersion` COLUMN is load-bearing (the `storedVersion` source). | resolve-time: db tier |
+| Unit                                                                                                                                                                                                                                                                                      | Outcome                               | Target                                                                                                | Rationale                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Enforcement tier                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `shared/settings/versioned-config.ts` — `defineVersionedConfig`, `VersionedConfig`, `VersionedConfigDef`                                                                                                                                                                                  | → `contracts`                         | `@orb/contracts/versioned-config`                                                                     | The ONE versioned-blob+lift primitive shared by AppSettings/UserSettings/PromptConfig. The client needs it (it parses settings forms); it depends only on `kit/guards` (`isPlainObject`). **Boot-critical: must exist before `contracts/settings` and `contracts/preset`** (the most boot-fragile cross-slice edge, dissolution §8).                                                                                                                                                          | resolve-time: package dep; both contracts namespaces import it down                                           |
+| `shared/settings/app-settings.ts` — `AppSettings`, `appSettingsSchema`, `parseAppSettings`, `APP_SETTINGS_SCHEMA_VERSION`, `APP_SETTINGS_LIFTS`, `appSettingsConfig`, `memoryDefaultsSchema`/`MemoryDefaults`, `memorySummarizerSchema`/`MemorySummarizerConfig`, `LOG_LEVELS`/`LogLevel` | → `contracts`                         | `@orb/contracts/settings`                                                                             | Cross-boundary: the client's server-settings surface (`use-app-settings`, the memory/guided-actions admin forms) validates against these. `foundation/env` also imports `LOG_LEVELS` DOWN.                                                                                                                                                                                                                                                                                                    | resolve-time: package dep; `no-inline-types` keeps the schema single-homed                                    |
+| `shared/settings/user-settings.ts` — `UserSettings`, `userSettingsSchema`, `parseUserSettings`, `USER_SETTINGS_SCHEMA_VERSION`, `USER_SETTINGS_LIFTS`, `userSettingsConfig`, `DEFAULT_USER_SETTINGS`, `USER_SETTINGS_SECTIONS`/`UserSettingsSection`                                      | → `contracts`                         | `@orb/contracts/settings`                                                                             | 74 consumers across server + client; the per-user settings forms parse it client-side. The v1→v2 lift (flat→namespaced) moves with the schema.                                                                                                                                                                                                                                                                                                                                                | resolve-time: package dep                                                                                     |
+| `shared/settings/{room-overrides,group-config,opening-policy}.ts`                                                                                                                                                                                                                         | → **`contracts/chat`** (NOT settings) | `@orb/contracts/chat`                                                                                 | **MISFILED.** chatMetadata sub-blobs + a start-chat union consumed by chat verbs, chat assemble types, and client chat forms — never the settings KV. The settings domain owns ONLY AppSettings/UserSettings. `UserSettings.groupDefaults` _references_ `groupConfigSchema`, which is why `contracts/settings` depends on `contracts/chat`.                                                                                                                                                   | resolve-time: package dep; dep-cruiser: `domain/settings/**` must not import these                            |
+| `server/config/app-config.ts` — `envDefaults`, `layer`, `getAppConfig`, `reloadAppConfig`, `cache`, `__resetAppConfigCache`, `EffectiveAppConfig`                                                                                                                                         | fold INTO domain (type → contracts)   | `domain/settings/effective-config/{layer,cache}.ts`; `EffectiveAppConfig` → `@orb/contracts/settings` | The floor-merge is the read-side twin of `updateAppSettings`; it belongs with the tier it resolves. It reads `foundation/env` (down) + `db` (down) — legal. `EffectiveAppConfig` is cross-boundary (the client reads resolved app settings), so the TYPE goes to contracts while the resolver stays domain.                                                                                                                                                                                   | resolve-time (the resolver moves with the domain); the type is a package dep                                  |
+| `server/config/app-config.ts` — `APP_SETTINGS_KEY = "app"` constant                                                                                                                                                                                                                       | stays domain feature                  | `domain/settings/effective-config/layer.ts` (or `contract/`)                                          | The reserved KV key for the AppSettings row; consumed by the global-settings reserved guard + the app-settings verb. A domain constant, not cross-boundary.                                                                                                                                                                                                                                                                                                                                   | lint-time: `no-inline-types`/single-home                                                                      |
+| `domain/_shared/user-settings.ts` — `loadUserSettings`                                                                                                                                                                                                                                    | un-exiled → domain feature            | `domain/settings/verbs/load-user-settings.ts`                                                         | Lived in `_shared` only so chat + workloads could reach it without a sideways import. In orbweaver it is a settings verb; chat/workloads receive it through composition-root injection.                                                                                                                                                                                                                                                                                                       | resolve-time: `_shared` does not exist; `domain-no-cross-feature` enforces injection                          |
+| `domain/settings/merge.ts` — `deepMergeAppSettings`, `deepMergePlain`, `isPlainObject`                                                                                                                                                                                                    | stays, relocated                      | `domain/settings/substrate/merge.ts`                                                                  | Pure feature-local merge helpers (zero I/O) → the `substrate/` slot. `isPlainObject` is a duplicate of `kit/guards.isPlainObject` — import the kit one, drop the local copy.                                                                                                                                                                                                                                                                                                                  | lint-time: `feature-structure` (pure helpers live in `substrate/`); `kit-purity` keeps the guard single-homed |
+| `shared/settings/app-settings.ts` — `resolveGuidedActions` projection                                                                                                                                                                                                                     | **RETIRED** (was neo phantom)         | —                                                                                                     | **D33: guided actions have ONE home — the preset.** Neo's `resolveGuidedActions(appSettings)` read a `AppSettings.guidedActions` field that **never existed** (a phantom fallback). Orbweaver carries NO `AppSettings.guidedActions` and NO settings-side projection; resolution is `activePreset.guidedActions ?? DEFAULT_GUIDED_ACTIONS` at the preset/assembly consumer. `DEFAULT_GUIDED_ACTIONS`/`GuidedActionsConfig`/`guidedActionsSchema` live in `contracts/preset` (their one home). | n/a — nothing lands in `settings`                                                                             |
+| `domain/_shared/admin.ts` — `requireAdmin`                                                                                                                                                                                                                                                | → `admin` domain; INJECTED here       | `domain/admin` (provides `requireAdmin`); injected into `settings.context`                            | The admin gate is a different concern from the AppSettings tier. The app-settings verbs receive `requireAdmin` as an injected op, not a sideways import.                                                                                                                                                                                                                                                                                                                                      | resolve-time: `domain-no-cross-feature`; the op type lives in `settings/contract`                             |
+| `domain/_shared/audit.ts` — `logAudit`                                                                                                                                                                                                                                                    | → foundation; injected/called         | `foundation/observability/audit`                                                                      | fan-in 60; an observability concern read down by all. The settings verbs call it through the foundation tier (foundation is below domain).                                                                                                                                                                                                                                                                                                                                                    | resolve-time: tier order (domain → foundation is downward)                                                    |
+| `context.ts` — `SettingsContext = ReturnType<typeof createSettingsContext>`                                                                                                                                                                                                               | stays domain feature, made explicit   | `domain/settings/contract/service.ts` — `export interface SettingsContext`                            | The inferred type is invisible at a glance; the explicit interface matches the template + satisfies `types-in-contract`.                                                                                                                                                                                                                                                                                                                                                                      | lint-time: `types-in-contract` / `no-inline-types`                                                            |
+| `server/env.ts` (whole)                                                                                                                                                                                                                                                                   | stays a tier (un-moved)               | `foundation/env`                                                                                      | The one `process.env` reader; keep the `superRefine` boot-fatality per `AUTH_MODE`. Imports `LOG_LEVELS` from `contracts/settings` (down). NOT a settings-domain file.                                                                                                                                                                                                                                                                                                                        | resolve-time: `foundation` tier; gate that it is the sole `process.env` reader                                |
+| `server/env.ts` — `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`, `VLLM_*_CONCURRENCY`                                                                                                                                                                                                           | candidate promotion (b)               | `@orb/contracts/settings` AppSettings fields (env floor preserved)                                    | Stranded runtime toggles with no DB override path; nature-(b) by behavior. Each gets an env floor + an admin override. **Not a foregone move** — see Open decisions (rate-limit budgets may stay boot-env).                                                                                                                                                                                                                                                                                   | resolve-time (if promoted): the field joins `appSettingsSchema`; `layer()` resolves it env⊕override           |
+| `db/schema/settings.ts` — `settings`, `userSettings` tables                                                                                                                                                                                                                               | stays db                              | `@orb/db/schema/settings`                                                                             | DB row definitions; persistence reads/writes them. The `user_settings.schemaVersion` COLUMN is load-bearing (the `storedVersion` source).                                                                                                                                                                                                                                                                                                                                                     | resolve-time: db tier                                                                                         |
 
 ---
 
@@ -252,29 +250,29 @@ injection.
 
 **Injected into `settings.context` at the composition root (deps OF this domain):**
 
-| Dep injected | Provided by | Used for |
-|---|---|---|
-| `admin.requireAdmin` | admin domain | the `app-settings` verbs gate `getAppSettings`/`updateAppSettings` |
-| `observability.logAudit` | foundation | audit the user-settings writes + the global/app-settings writes |
-| `env` (the floor) | foundation/env | `envDefaults()` reads env-mirrored toggles for the floor-merge |
+| Dep injected             | Provided by    | Used for                                                           |
+| ------------------------ | -------------- | ------------------------------------------------------------------ |
+| `admin.requireAdmin`     | admin domain   | the `app-settings` verbs gate `getAppSettings`/`updateAppSettings` |
+| `observability.logAudit` | foundation     | audit the user-settings writes + the global/app-settings writes    |
+| `env` (the floor)        | foundation/env | `envDefaults()` reads env-mirrored toggles for the floor-merge     |
 
 **Injected into `chat.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `settings.loadUserSettings` | settings domain | per-turn read of the user's typed settings (routing/worldInfo/chat/memory/seeds) |
+| Op injected                   | Provided by     | Used for                                                                                                                                              |
+| ----------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings.loadUserSettings`   | settings domain | per-turn read of the user's typed settings (routing/worldInfo/chat/memory/seeds)                                                                      |
 | `settings.getEffectiveConfig` | settings domain | the engine/assembly read `memoryDefaults`, `corpusAutoindex`, `forbidExternalMedia` (NOT `guidedActions` — those resolve from the active preset, D33) |
 
 **Injected into `workloads.runner-env` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `settings.loadUserSettings` | settings domain | the triggering user's workload tunables (`dupThreshold`, `computeThemesK`) |
+| Op injected                   | Provided by     | Used for                                                                   |
+| ----------------------------- | --------------- | -------------------------------------------------------------------------- |
+| `settings.loadUserSettings`   | settings domain | the triggering user's workload tunables (`dupThreshold`, `computeThemesK`) |
 | `settings.getEffectiveConfig` | settings domain | runner reads `importSkipCharacters`, `memorySummarizer`, `corpusAutoindex` |
 
 **`connection` is a CONSUMER of `UserSettings.routing.roleDefaults`, not of this domain's service** —
 `connection.context` receives the `UserSettings` projection it needs (via `loadUserSettings` injection
-or a narrower routing projection). `connection` owns role *resolution*; `settings` owns the KV. (See
+or a narrower routing projection). `connection` owns role _resolution_; `settings` owns the KV. (See
 `domains/connection.md` §7.2.)
 
 **Boot wiring (`entry/`):** `entry/boot` calls `reloadEffectiveConfig(db)` once at startup to warm the
@@ -292,7 +290,7 @@ The `AppSettings` tier is **admin-only**: `getAppSettings`/`updateAppSettings` c
 only the owner, provisioned `role:'admin'` by `ensureUser`, passes. Orbweaver D17: `requireAdmin` =
 `can(p,'admin',global)` passes for **owner ∪ admin**; the owner is provisioned `role:'owner'` by
 `seed-owner`, and delegated admins also pass.) The raw global KV setter is admin-gated
-at the *router*, not the verb (the `settings` table backs admin-only runtime config). `UserSettings`
+at the _router_, not the verb (the `settings` table backs admin-only runtime config). `UserSettings`
 verbs are **owner-scoped** by `userId` (a user reads/writes only their own row; PK is `userId`). The
 admin gate is injected, never re-implemented — `settings` does not know how admin is determined, only
 that an op enforces it.
@@ -347,7 +345,7 @@ dispatch hotspot), but each gets one canonical home:
   `updateUserSettingsSection` dispatch keys on it. Adding a section = extend the tuple; the section
   patch is generic (deep-merge), so no per-section switch needs `assertNever`.
 - The `roleDefaults` chat-role `api`/`source` unions are `connection`'s (`@orb/contracts/connection`) —
-  `UserSettings.routing.roleDefaults.chat` *references* them; it does not re-spell them.
+  `UserSettings.routing.roleDefaults.chat` _references_ them; it does not re-spell them.
 
 ---
 
@@ -423,66 +421,66 @@ dispatch hotspot), but each gets one canonical home:
 ## Invariants (gate candidates)
 
 1. **`foundation/env` is the ONLY `process.env` reader; settings never writes env.**
-   *Enforcement: lint-time — a `check`/dep-cruiser rule asserts no `process.env` access outside
-   `foundation/env`; `domain/settings/**` containing `process.env` is RED.*
+   _Enforcement: lint-time — a `check`/dep-cruiser rule asserts no `process.env` access outside
+   `foundation/env`; `domain/settings/**` containing `process.env` is RED._
 
 2. **`storedVersion` (the DB column) beats the in-blob probe.**
-   *Enforcement: test-time — a stored-v2 UserSettings blob with no in-blob `schemaVersion` does NOT
-   re-run the v1 lift on read; a non-idempotent-lift fixture proves the column wins.*
+   _Enforcement: test-time — a stored-v2 UserSettings blob with no in-blob `schemaVersion` does NOT
+   re-run the v1 lift on read; a non-idempotent-lift fixture proves the column wins._
 
 3. **The `null` = CLEAR sentinel survives; every `AppSettings` field is `.nullable()`.**
-   *Enforcement: compile-time — `appSettingsSchema` field types are nullable (a contract test asserts
+   _Enforcement: compile-time — `appSettingsSchema` field types are nullable (a contract test asserts
    `z.infer<…>` admits `null`); test-time — PATCH `{ field: null }` wipes the override and the env floor
-   reads back.*
+   reads back._
 
 4. **ONE `defineVersionedConfig` primitive for all three tiers.**
-   *Enforcement: compile-time — the duplicated lift loops are deleted; AppSettings/UserSettings/
+   _Enforcement: compile-time — the duplicated lift loops are deleted; AppSettings/UserSettings/
    PromptConfig are all `defineVersionedConfig(...)` call-sites; any re-implemented lift loop fails the
-   `no-inline-types`/duplication gate.*
+   `no-inline-types`/duplication gate._
 
 5. **The floor rule: env floor, DB override wins.**
-   *Enforcement: test-time — `layer({})` equals `envDefaults()` for env-mirrored fields; an override
-   field wins over the env value; a `null`/absent override falls through to the floor.*
+   _Enforcement: test-time — `layer({})` equals `envDefaults()` for env-mirrored fields; an override
+   field wins over the env value; a `null`/absent override falls through to the floor._
 
 6. **Per-user writes are serialized (same-user read-merge-write is atomic w.r.t. other same-user
    writes).**
-   *Enforcement: test-time — two concurrent `updateUserSettingsSection` calls on sibling sections of the
-   SAME user both land (neither clobbers the other); different users run concurrently.*
+   _Enforcement: test-time — two concurrent `updateUserSettingsSection` calls on sibling sections of the
+   SAME user both land (neither clobbers the other); different users run concurrently._
 
 7. **`APP_SETTINGS_KEY` is reserved in the generic setter.**
-   *Enforcement: test-time — `setGlobalSetting("app", …)` throws `DomainOperationError(reserved_key)`;
-   the dedicated `updateAppSettings` is the only writer of the `"app"` row.*
+   _Enforcement: test-time — `setGlobalSetting("app", …)` throws `DomainOperationError(reserved_key)`;
+   the dedicated `updateAppSettings` is the only writer of the `"app"` row._
 
 8. **`UserSettingsView.config` is always parsed+defaulted — never a raw blob.**
-   *Enforcement: compile-time — the view type is `UserSettings` (the parsed contract), not `unknown`;
-   `persistence/queries.ts` is the only projection and always routes through `parseUserSettings`.*
+   _Enforcement: compile-time — the view type is `UserSettings` (the parsed contract), not `unknown`;
+   `persistence/queries.ts` is the only projection and always routes through `parseUserSettings`._
 
 9. **The `app-settings` verbs are admin-gated via the INJECTED `requireAdmin` (admin domain).**
-   *Enforcement: compile-time — `requireAdmin` is an injected op on `SettingsContext`, not a sideways
+   _Enforcement: compile-time — `requireAdmin` is an injected op on `SettingsContext`, not a sideways
    import; `domain-no-cross-feature` makes a `domain/settings → domain/admin` source import RED.
-   Test-time — a `role:'user'` caller gets `DomainForbiddenError`.*
+   Test-time — a `role:'user'` caller gets `DomainForbiddenError`._
 
 10. **The misfiled chat blobs are NOT owned by settings.**
-    *Enforcement: lint-time — dep-cruiser: `domain/settings/**` must not import `group-config`/
+    _Enforcement: lint-time — dep-cruiser: `domain/settings/**` must not import `group-config`/
     `room-overrides`/`opening-policy`; they live in `@orb/contracts/chat`. `UserSettings.groupDefaults`
-    references `groupConfigSchema` from `contracts/chat` (the legal downward edge).*
+    references `groupConfigSchema` from `contracts/chat` (the legal downward edge)._
 
 11. **The agent-sdk runtime config (nature c) is NOT in this domain.**
-    *Enforcement: lint-time — the isolation pins / credential-firewall config live in
+    _Enforcement: lint-time — the isolation pins / credential-firewall config live in
     `infra/providers/backends/agent-sdk` (per DECISIONS-LEDGER §7 D8); `domain/settings/**` has zero
-    references to them; a settings import of the agent-sdk env config is RED.*
+    references to them; a settings import of the agent-sdk env config is RED._
 
 12. **`effective-config/cache.ts` carries the `ASSUMES(single-replica)` marker.**
-    *Enforcement: lint-time — a `check` gate validates the annotation is present on the module-scope
+    _Enforcement: lint-time — a `check` gate validates the annotation is present on the module-scope
     cache (same pattern credentials' `health/cache.ts` uses); the DB `"app"` row is the documented
-    multi-replica seam.*
+    multi-replica seam._
 
 ---
 
 ## CONFLICT resolved (cite, don't re-litigate)
 
-`_FANOUT-BRIEF.md §4` grouped `room-overrides.ts` / `group-config.ts` / `opening-policy.ts` under
-"settings (7 files)" — but `reports/shared-dissolution.md` §4 + §7.4 ruled them **MISFILED**: they are
+`core/AGENTS.md §4` grouped `room-overrides.ts` / `group-config.ts` / `opening-policy.ts` under
+"settings (7 files)" — but `core/Core-Core-Legacy-Migration-and-Gaps.md` §4 + §7.4 ruled them **MISFILED**: they are
 chat shapes (chatMetadata sub-blobs + the start-chat union), consumed by chat verbs, chat assemble
 types, and client chat forms — never the settings KV. **Resolution (this doc follows the dissolution
 inventory):** the settings DOMAIN owns only `AppSettings`/`UserSettings`; those three shapes →
@@ -513,5 +511,5 @@ counter-intuitive boot-order edge, dissolution §8 — `contracts/chat` builds b
   empty. Drop it unless a future verb grows a non-view result (the template tolerates an absent slot).
 - **A typed error class?** Today the only failures are `DomainOperationError(reserved_key)` + the
   injected `requireAdmin` throw — both from foundation/kit. No `SettingsNotFoundError` (a missing
-  user-settings row is *defaults*, not an error; a missing global key is `null`). Keep `errors.ts`
+  user-settings row is _defaults_, not an error; a missing global key is `null`). Keep `errors.ts`
   absent unless a new failure mode appears.

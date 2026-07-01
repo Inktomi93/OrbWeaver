@@ -3,7 +3,7 @@
 // `PersonaContext` is assembled at the entry root (db + injected clock/id + db-bound `logAudit`) and passed
 // in; persona injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
 //
-// See PROMOTION-DEBT.md PD-19.
+// See Audits-and-Debt.md PD-19.
 
 import type { PersonaContext, PersonaService } from "./contract/service";
 import { createConnect, createDisconnect, createListConnected } from "./verbs/connection";

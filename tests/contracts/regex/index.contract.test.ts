@@ -59,7 +59,7 @@ test("rejects an unknown placement value", () => {
   expect(regexScriptSchema.safeParse(bad).success).toBe(false);
 });
 
-// ── The kit↔contracts satisfies-seam (shared-dissolution.md §6) ───────────────
+// ── The kit↔contracts satisfies-seam (Legacy-Migration-and-Gaps.md §6) ───────────────
 // The pure executor in `@orb/kit/regex` reads a structural `RegexScriptInput`; kit may not import
 // contracts, so the persisted `RegexScript` must `satisfies RegexScriptInput` FROM HERE. A field drift
 // (rename/retype/widen) makes this assignment tsc-red — that is the whole point of the seam.

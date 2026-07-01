@@ -1,4 +1,4 @@
-// transport/trpc/routers/admin — the user-administration + ops surface (tiers/transport.md). Every
+// transport/trpc/routers/admin — the user-administration + ops surface (core/Tier-4-Transport.md). Every
 // procedure is `adminProcedure` (LAYER-1, owner ∪ admin); the AdminService verbs re-check via
 // `requireAdmin`/`requireOwner` (LAYER-2). Thin: validate → `ctx.services.admin.<verb>` → let the typed
 // domain error map. The acting `Principal` is threaded as `params.principal` (the verb gates on it).

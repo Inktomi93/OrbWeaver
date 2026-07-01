@@ -1,5 +1,5 @@
 // infra/auth — the cross-mode CONTRACT (read before adding a 5th mode). `auth/` is the sealed, db-free
-// VERIFICATION executor (tiers/infra.md + spine identity-auth-permission.md §1/§3): it turns a request's
+// VERIFICATION executor (core/Tier-3-Infra.md + spine Spine-Identity-and-Auth.md §1/§3): it turns a request's
 // headers into a pre-row `ResolvedIdentity` (+ the per-request signals) — and NOTHING more. It does NOT
 // resolve a `userId`, does NOT read/derive a role, does NOT upsert, does NOT mint a `Principal`. Those
 // are LOWER tiers:
@@ -10,7 +10,7 @@
 // VERIFICATION steps (`ResolveDeps` — the proof the sealed executor never imports `@orb/db`/domain), the
 // JWT/JWKS + OIDC-PKCE ports, and the verification OUTPUT (`IdentityResolution`).
 //
-// LAYER RULE (structure.md §3): `infra` reaches DOWN (foundation, kit) only — NEVER `@orb/db`, NEVER a
+// LAYER RULE (core/Core-0-Architecture-and-Structure.md §3): `infra` reaches DOWN (foundation, kit) only — NEVER `@orb/db`, NEVER a
 // domain. Every db-dependent VERIFICATION step (the JWT/JWKS crypto; the OIDC PKCE store) arrives INJECTED
 // via `ResolveDeps`, wired at `entry/auth/seam.ts`. (Post-D40 the cookie→user read is NOT an infra step —
 // the seam calls `sessions.validate` directly; see `modes/cookie-session.ts`.)
@@ -132,7 +132,7 @@ export interface ResolveDeps {
  * The uniform shape every mode strategy implements: headers + parsed config + the injected verification
  * deps → a pre-row `ResolvedIdentity` (or `null` when the mode resolves nothing). `dispatch.ts` keys the
  * dispatcher `Record<AuthConfig["mode"], ModeResolver>` — exhaustive over the modes (invariant #4). The
- * one cross-mode shape, homed here with the rest of the contract (tiers/infra.md), not file-local.
+ * one cross-mode shape, homed here with the rest of the contract (core/Tier-3-Infra.md), not file-local.
  */
 export type ModeResolver = (
   headers: Headers,

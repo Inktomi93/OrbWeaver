@@ -1,4 +1,4 @@
-// entry/index — THE process entry point (`tsx packages/server/src/entry/index.ts`; tiers/entry.md
+// entry/index — THE process entry point (`tsx packages/server/src/entry/index.ts`; core/Tier-5-Entry.md
 // §"Boot order"). It is intentionally tiny: construct the lifecycle, wire the OS shutdown signals, run
 // `boot()`. All the wiring lives in `lifecycle.ts` (boot/serve) + `app.ts` (the HTTP edge). Nothing imports
 // this file — it sits at the very top of the cake (entry invariant #3); importing `@orb/server/foundation/env`

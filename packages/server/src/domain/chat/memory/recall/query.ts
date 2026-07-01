@@ -1,5 +1,5 @@
 // domain/chat/memory/recall/query — build the `MemoryQueryOptions` memory threads into `search.digests`
-// (knowledge-cluster.md §3b/§6). The chat-scope (#5), the egocentric `scopedCharacterId` (#4), the
+// (domains/memory.md §3b/§6). The chat-scope (#5), the egocentric `scopedCharacterId` (#4), the
 // name-prefixed query TEXT (#4), and the knobs (#6) ALL ride `MemoryQueryOptions` (the `@orb/contracts/search`
 // seam — the foundation homed `queryText`/`scopedCharacterId` there; the chat-side wrapper is gone). PURE —
 // the egocentric query text is memory's pre-call assembly (the resolved-name two-phase, §3 rule 4); the cosine

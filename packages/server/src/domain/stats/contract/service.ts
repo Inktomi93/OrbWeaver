@@ -1,4 +1,4 @@
-// domain/stats/contract/service — the typed API surface (structure.md §4). `StatsService` is the
+// domain/stats/contract/service — the typed API surface (core/Core-0-Architecture-and-Structure.md §4). `StatsService` is the
 // authoritative verb listing (read it to know everything the read side does); `StatsContext` is the
 // explicit DI bundle (the inferred `ReturnType<>` is invisible at a glance, so it's hand-written here per
 // §7.4 + the no-inline-types gate — matches the sessions/admin precedent of homing the context interface

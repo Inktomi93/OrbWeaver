@@ -1,4 +1,4 @@
-// Gate: test-presence (spine/testing.md §5) — required tests on the surfaces where an untested change
+// Gate: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested change
 // silently breaks behavior:
 //   • every domain verbs/*.ts            → .test or .int.test
 //   • every domain persistence/*.ts      → .int.test
@@ -20,12 +20,12 @@ const CONTRACTS_SRC = "/packages/contracts/src/";
 const EXT_RE = /\.tsx?$/u;
 
 const MSG = {
-  verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (spine/testing.md §5).",
-  persistence: "persistence file has no .int.test.ts at its mirror (spine/testing.md §5).",
-  contract: "contract schema has no .contract.test.ts at its mirror (spine/testing.md §5).",
-  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (spine/testing.md §5).",
+  verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5).",
+  persistence: "persistence file has no .int.test.ts at its mirror (core/Spine-Testing.md §5).",
+  contract: "contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
+  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
   infra:
-    "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (spine/testing.md §5). Pure-type + index files are exempt.",
+    "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (core/Spine-Testing.md §5). Pure-type + index files are exempt.",
 } as const;
 
 function serverSrcRel(path: string): string | undefined {

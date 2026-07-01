@@ -4,7 +4,7 @@
 // cross-space / cross-scope / non-candidate row out of the result, applied BEFORE cosine rank (the no-leak
 // invariant, D18/D20 — scope lives in the WHERE, never a post-filter).
 //
-// THE BELTS (knowledge-cluster.md §6 is authoritative; it WINS over search.md's stale "host-only v1"):
+// THE BELTS (domains/memory.md §6 is authoritative; it WINS over search.md's stale "host-only v1"):
 //   • SPACE — `model = ?` (the active embed model = the `(model, dim)` space tag; compare ONLY within one
 //     space — providers.md §2b/§11). ALWAYS applied.
 //   • WITHIN-CHAT — `chatId IN (...)`. The within-chat `digests`/`segments` lenses pass the ONE authorized

@@ -5,7 +5,7 @@
 //
 // Covers IPv4 + IPv6, including the IPv4-mapped IPv6 form (`::ffff:127.0.0.1`) proxies emit — reduced to
 // its IPv4 value so a mapped loopback matches `127.0.0.0/8`. (Kit candidate — kept as infra/network
-// substrate per tiers/infra.md until a client consumer appears.)
+// substrate per core/Tier-3-Infra.md until a client consumer appears.)
 
 // biome-ignore-all lint/suspicious/noBitwiseOperators: IP/CIDR math is fundamentally bitwise — parsing an
 // address packs octets/hextets via shift+OR, and prefix masking is shift+AND on the integer address.

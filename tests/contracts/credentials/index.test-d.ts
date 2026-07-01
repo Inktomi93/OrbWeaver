@@ -1,7 +1,7 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { expectTypeOf, test } from "vitest";
 
-// Type-level pin for the credentials contract (spine/testing.md §1 — the brand-unconstructable pin is a
+// Type-level pin for the credentials contract (core/Spine-Testing.md §1 — the brand-unconstructable pin is a
 // `tsc`-time assertion, so it lives in the `.test-d.ts` lane).
 
 // ── The ResolvedCredential brand is unconstructable from a bare literal (phantom `unique symbol`) ─────

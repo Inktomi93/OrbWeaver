@@ -1,4 +1,4 @@
-// transport/trpc/routers/character — the character-card surface (tiers/transport.md). authed; owner-scoped.
+// transport/trpc/routers/character — the character-card surface (core/Tier-4-Transport.md). authed; owner-scoped.
 // Thin: validate → `ctx.services.character.<verb>` → map errors. Input shapes derive from
 // `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
 // resolved room `ownerId`, not a request principal) — NOT exposed here.

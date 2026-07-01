@@ -3,7 +3,7 @@
 // seam without any real backend (the three backend agents fulfill ProviderBackend against this shape).
 //
 // FIREWALL RECONCILIATION (flagged for the lead): the brief's "an openrouter cred is REJECTED for the
-// agent-sdk backend" conflicts with the AUTHORITATIVE tiers/providers.md (which keeps the agent-sdk
+// agent-sdk backend" conflicts with the AUTHORITATIVE core/Tier-3b-Providers.md (which keeps the agent-sdk
 // OpenRouter "skin" — agent-sdk legitimately CONSUMES an openrouter credential). The "openrouter ↛
 // agent-sdk" firewall is the ENV/strategy-isolation layer (the sub OAuth token can't leak to an OR
 // spawn; no openrouter module imports the agent-sdk backend), enforced by the agent-sdk `env.ts` test +

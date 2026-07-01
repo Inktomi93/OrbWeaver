@@ -1,4 +1,4 @@
-// Gate: sole-env-reader (tiers/foundation.md invariant #1, ENFORCEMENT.md) — `foundation/env` is the ONE
+// Gate: sole-env-reader (core/Tier-2-Foundation.md invariant #1, Core-Laws-and-Precedents.md) — `foundation/env` is the ONE
 // place that touches `process.env`. Every other tier imports the frozen `env` object and dot-accesses a
 // typed key. biome's `noProcessEnv` (scoped-off only for foundation/env) already catches the property form
 // `process.env.X`; this gate is the AST backstop that ALSO catches the bracket trick `process["env"]`
@@ -67,7 +67,7 @@ function scan(sf: SourceFile, root: string, out: Violation[]): void {
         file: relPath(root, sf.getFilePath()),
         line: node.getStartLineNumber(),
         message:
-          "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (tiers/foundation.md inv #1).",
+          "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).",
       });
     }
   }

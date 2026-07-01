@@ -9,11 +9,11 @@
 > **(2) import + export share ONE serde core** — the tolerant `RawCard`→canonical reader, the strict
 > V3 emitter, the WI-entry mapper, and the PNG codec live once (`@orb/server/kit/serde/*` +
 > `@orb/contracts/character` + `@orb/kit/png-card-chunk`) and are consumed by both directions.
-> Authoritative upstream: `_FANOUT-BRIEF.md` §4 (import pain ledger) + §7.3 (serialization/serde core,
-> LOCKED) + §7.4/§7.5 (types + dispatch); `reports/shared-dissolution.md` §1–§5 (the serde homes, the
+> Authoritative upstream: `AGENTS.md` §4 (import pain ledger) + §7.3 (serialization/serde core,
+> LOCKED) + §7.4/§7.5 (types + dispatch); `core/Core-Core-Legacy-Migration-and-Gaps.md` §1–§5 (the serde homes, the
 > authoritative inventory); `domains.md` + `embeddings.md` §"events" (the indexer subscribers);
 > `character.md` §7.3 + the D28 one-row card model; `tag.md` (`proposedTags` → junction status);
-> `structure.md` §4 (the 8-slot template).
+> `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template).
 
 ---
 
@@ -61,12 +61,12 @@ reached only through the event/indexer path); persona/character business logic b
 > indexer until a manual reconcile.** In orbweaver every import that creates or edits canonical content
 > emits the same domain event a first-class CRUD write would.
 
-| neo-tavern (verified) | orbweaver |
-|---|---|
-| `importCharacter` ends at `db.batch` + a `log.info` | emits `character.updated` per created/edited character (via injected `emit` op) |
-| card text never reaches `character_embeddings` until a separate run | `embeddings/indexer:onCharacterUpdated` fires → `embeddings.store(kind='card', lens='card-text', …)` |
-| imported `real_conversation` chats never embed digests | import **enqueues a memory backfill workload** for the imported chats (the `bucket` field is the gate) |
-| `import-st` calls `reconcileStats` inline at the end (the lone post-import refresh) | stats reconcile stays (economics is not event-driven); the *content* indexes now run via the event path, not a bespoke inline call |
+| neo-tavern (verified)                                                               | orbweaver                                                                                                                          |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `importCharacter` ends at `db.batch` + a `log.info`                                 | emits `character.updated` per created/edited character (via injected `emit` op)                                                    |
+| card text never reaches `character_embeddings` until a separate run                 | `embeddings/indexer:onCharacterUpdated` fires → `embeddings.store(kind='card', lens='card-text', …)`                               |
+| imported `real_conversation` chats never embed digests                              | import **enqueues a memory backfill workload** for the imported chats (the `bucket` field is the gate)                             |
+| `import-st` calls `reconcileStats` inline at the end (the lone post-import refresh) | stats reconcile stays (economics is not event-driven); the _content_ indexes now run via the event path, not a bespoke inline call |
 
 The event bus SHAPE is an `entry/` decision (in-process `EventEmitter` vs a typed bus — see
 `embeddings.md` §open); the payload shapes live in `@orb/contracts/events`. Import receives an `emit`
@@ -79,14 +79,14 @@ op + an `enqueueBackfill` op on its context, wired at the composition root — i
 > exactly one module, consumed by both directions.** `import` is the IN consumer (tolerant), `export`
 > is the OUT consumer (strict); a round-trip (import → export → reimport) is pinned by tests.
 
-| Shared unit | One home | import uses | export uses |
-|---|---|---|---|
-| `cardFromJson` (tolerant IN adapter) | `@orb/server/kit/serde/card` | `parseCardPng`/`parseCardJson` wrap it | — |
-| `buildCardV3` (strict OUT emitter) | `@orb/server/kit/serde/card` | — | `exportCharacter` calls it |
-| `loreEntryColumns`/`loreEntryMetadata` (IN) · `exportBookEntry` (OUT) | `@orb/server/kit/serde/world-entry` | character writer | export verb |
-| `CharacterCard` + `characterCardV3Schema` + `CHARA_CARD_V3_SPEC` | `@orb/contracts/character` | parser return type | emit/validate |
-| `readCardChunk`/`writeCardChunk`/`isPng` (string-based) | `@orb/kit/png-card-chunk` | `readCardChunk` (read) | `writeCardChunk` (write) |
-| ST injection-role bimap `injectionRoleFromSt`/`injectionRoleToSt` | `@orb/kit/world-info` | serde + persona parser | serde |
+| Shared unit                                                           | One home                            | import uses                            | export uses                |
+| --------------------------------------------------------------------- | ----------------------------------- | -------------------------------------- | -------------------------- |
+| `cardFromJson` (tolerant IN adapter)                                  | `@orb/server/kit/serde/card`        | `parseCardPng`/`parseCardJson` wrap it | —                          |
+| `buildCardV3` (strict OUT emitter)                                    | `@orb/server/kit/serde/card`        | —                                      | `exportCharacter` calls it |
+| `loreEntryColumns`/`loreEntryMetadata` (IN) · `exportBookEntry` (OUT) | `@orb/server/kit/serde/world-entry` | character writer                       | export verb                |
+| `CharacterCard` + `characterCardV3Schema` + `CHARA_CARD_V3_SPEC`      | `@orb/contracts/character`          | parser return type                     | emit/validate              |
+| `readCardChunk`/`writeCardChunk`/`isPng` (string-based)               | `@orb/kit/png-card-chunk`           | `readCardChunk` (read)                 | `writeCardChunk` (write)   |
+| ST injection-role bimap `injectionRoleFromSt`/`injectionRoleToSt`     | `@orb/kit/world-info`               | serde + persona parser                 | serde                      |
 
 ---
 
@@ -173,29 +173,39 @@ re-resolves.
 
 ```typescript
 // Service + factory
-export { createImportService } from './service'
-export type { ImportService, ImportServiceDeps } from './contract/service'
+export { createImportService } from "./service";
+export type { ImportService, ImportServiceDeps } from "./contract/service";
 
 // Input types (consumed by the bulk driver at entry/ + integration tests)
 export type {
-  ImportCardInput, ImportChatInput, ImportPersonaInput,
-  ImportCharacterInput, ImportChatsInput,
-} from './contract/params'
+  ImportCardInput,
+  ImportChatInput,
+  ImportPersonaInput,
+  ImportCharacterInput,
+  ImportChatsInput,
+} from "./contract/params";
 export type {
-  ImportCharacterResult, ImportChatsResult, ImportPersonasResult,
-} from './contract/results'
+  ImportCharacterResult,
+  ImportChatsResult,
+  ImportPersonasResult,
+} from "./contract/results";
 
 // Parsers (pure — driven by the entry bulk driver + tests)
-export { parseCardPng, parseCardJson, cardContentHash } from './substrate/card'
-export { parseChatJsonl, parseStDate } from './substrate/chat'
-export { parseStPersonas } from './substrate/persona'
+export { parseCardPng, parseCardJson, cardContentHash } from "./substrate/card";
+export { parseChatJsonl, parseStDate } from "./substrate/chat";
+export { parseStPersonas } from "./substrate/persona";
 export type {
-  ParsedChat, ParsedChatMessage, ParsedVariant, ChatBucket, ParsedPersona, ParsedPersonas,
-} from './contract/views'
+  ParsedChat,
+  ParsedChatMessage,
+  ParsedVariant,
+  ChatBucket,
+  ParsedPersona,
+  ParsedPersonas,
+} from "./contract/views";
 
 // Profile collector (the loader subsystem; fs-port injected by the caller)
-export { collectBundlesFromDir } from './loader'
-export type { CollectResult } from './contract/views'
+export { collectBundlesFromDir } from "./loader";
+export type { CollectResult } from "./contract/views";
 ```
 
 **`slugifyHandle` is no longer re-exported here** — it moves to `@orb/kit/slug`; the loader + the bulk
@@ -209,62 +219,63 @@ from this front door) moves to `@orb/contracts` (the canonical `messageRole`) �
 
 Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `_shared/serde/card-serde.ts` — `cardFromJson` (tolerant IN), `buildCardV3` (strict OUT) + internals | → `server/kit` | `@orb/server/kit/serde/card` | The ONE serde core shared by import+export. Server-only pure (no client consumer), so `server/kit` not `kit`. | resolve-time: `_shared` gone; `@orb/server/kit` is a declared seam below domains |
-| `_shared/serde/world-entry-serde.ts` — `loreEntryColumns`, `loreEntryMetadata`, `exportBookEntry` | → `server/kit` | `@orb/server/kit/serde/world-entry` | Same serde core; the WI-entry mapper, both directions adjacent. | resolve-time |
-| `_shared/png-card-codec.ts` — `isPng`, `readCardChunk`, `writeCardChunk` (+ crc32/makeChunk/PNG_SIGNATURE) | → `kit` | `@orb/kit/png-card-chunk` | String-based (never imports the card type) → isomorphic-pure → `kit`. Dual-chunk (chara V2 + ccv3 V3) load-bearing. Drops the steady `node:buffer` import (base64/latin1 over `Uint8Array`). | lint-time: `kit-purity` gate (NO `node:*` import — `node:buffer` included; no domain import) |
-| canonical `CharacterCard` + `characterCardV3Schema` + `CHARA_CARD_V3_SPEC` | → `contracts` | `@orb/contracts/character` | The one canonical card shape (§7.3 LOCKED). Parser return type + emit validator; both server directions + client forms consume it. | resolve-time: `@orb/client` declares `@orb/contracts`, never `@orb/server` |
-| `card.ts` — `parseCardPng`/`parseCardJson`/`cardContentHash` | stays domain feature | `domain/import/substrate/card.ts` | The import ENTRY: compose `kit/png-card-chunk` (decode) + `server/kit/serde/card` (`cardFromJson`) + the content-hash dedup key. The dedup key is import-specific. | resolve-time (same server package) |
-| `chat.ts` — `parseChatJsonl`, `parseStDate`, the bucket classifier | stays domain feature | `domain/import/substrate/chat.ts` | Pure ST-format reader; no shared consumer (export emits canon, doesn't re-read JSONL). | resolve-time |
-| `chat.ts` — `export type MessageRole = "user"\|"assistant"\|"system"` | → `contracts` | `@orb/contracts` (the canonical `messageRole`) | §7.5: the most-respelled axis (132 touches). One importable union; the parser imports it. | compile-time: inline re-spelling diverges → `tsc`; lint: `no-inline-union-redecl` |
-| `chat.ts` — `ParsedChat`/`ParsedChatMessage`/`ParsedVariant`/`ChatBucket` (inline exported interfaces) | stays domain feature | `domain/import/contract/views.ts` | The parser RETURN contract; today inline in a substrate file. | lint-time: `no-inline-types` |
-| `persona.ts` — `parseStPersonas` + `stPositionToNeo`/`metadataFromDescriptor` | stays domain feature | `domain/import/substrate/persona.ts` | Pure ST→neo persona normalization; uses `@orb/kit/persona` (`PersonaDescriptionPosition`) + `@orb/kit/world-info` (the role bimap). | resolve-time |
-| `persona.ts` — `ParsedPersona`/`ParsedPersonas` (inline exported) | stays domain feature | `domain/import/contract/views.ts` | Parser return contract. | lint-time: `no-inline-types` |
-| `loader.ts` — `collectBundlesFromDir` pairing/collision/fuzzy logic | stays domain feature | `domain/import/loader/collect.ts` | Import business logic (the slug-pairing semantics). | resolve-time |
-| `loader.ts` — `readdir`/`readFile`/`stat` (node:fs) | split: inject the I/O | `domain/import/loader/fs-port.ts` (port type); fs impl at `entry/`/`infra/storage` | `substrate`/domain must be testable without a filesystem; the node:fs lives at the composition tier. | lint-time: `substrate-no-io` / `domain-no-node-fs` (gate candidate) |
-| `import-profile.ts` — `importCollectedProfile` (store-then-import bulk glue) | → composition layer | `entry/import/run-profile-import.ts` | Orchestrates `domain/import` + `domain/assets` (injected `store`) — a cross-feature composition; can't live inside a domain. Shared by the HTTP route + the job runner. | resolve-time: only `entry/` may import two domain front doors |
-| `persistence/chat-writer.ts` — `importChatsIntoVersion` (neo) → `importChatsIntoCharacter` | stays domain feature, **D28-flattened** | `domain/import/persistence/chat-writer.ts` | The shared chats→messages→variants writer + branch resolution. Rewritten to key chats + branch resolution on `characters.id`, not `characterVersionId` (D28; no version exists). | compile-time: `chats.characterVersionId` column is gone → any reference fails `tsc` |
-| `verbs/import-character.ts` — the COW version-bump + `character_books` INSERT-FROM-SELECT carry-forward | **deleted / replaced** | edit-in-place or `character.snapshot` | This block is the SAME `forkVersion` INSERT-FROM-SELECT `character.md` deletes; in neo it existed only because the cv-pin welded chats to an old version. D28 removes versions entirely, so there is nothing to fork (edit-in-place is always safe). | compile-time: `forkVersion` is gone; there is no version row to bump (D28) |
-| `verbs/import-character.ts` — `card.tags` → `character_versions.proposedTags` (JSON) | **reshape (BUILT 2026-06-28)** | `character_tags` rows `source:'card', status:'pending'` | `tag.md` §"DECIDED + the write side BUILT": proposed = a junction STATUS, not a parallel JSON store. DECIDED path: import carries `card.tags` (trim + case-insensitive dedupe) via the **injected `tag.attachCardTagByName({source:'card',status:'pending'})` op** (wired at compose — NOT a direct `@orb/db` write; the tag domain owns the source/status + the race-safe resolve-or-create). This is ST's `importTags` minus the 4-way `tag_import_setting`/ASK dialog — every card tag lands as a `pending` suggestion the user Accepts later (the distill pass joins the SAME junction as `source:'auto'`). | compile-time: `proposedTags` column absent from schema → read site is `tsc` red |
-| `verbs/import-character.ts` — the typed columns `creator`/`cardVersion`/`regexScripts`/`extensions`/`depthPrompt` | **keep (already correct)** | flat `characters` typed columns (D28) | Steady ALREADY promotes these (the `raw`-blob lossiness is fixed); D28 lands them on the flat `characters` row. Carry forward. | compile-time: schema columns are the type source |
-| `context.ts` — `ReturnType<typeof createImportContext>` | stays domain feature | explicit `export interface ImportContext` | Inferred type is invisible; add `emit`/`enqueueBackfill` ops to the bundle. | lint-time: `no-inline-types` |
-| `context.ts` — `ensureUser(db, ownerHandle)` (owner resolution) | → `domain/sessions` (via entry) | `entry/` resolves owner; domain takes `ownerId` | §7.1: identity resolved once at the edge; `ensureUser` is a sessions verb. | resolve-time: `entry/` is the only tier importing both |
-| `_shared/ids.ts` — `newTypeId` | → `@orb/kit` | `@orb/kit/ids` | Pure TypeID mint; the canonical kit case. Import keeps minting strict prefixed IDs. | resolve-time |
-| `_shared/errors.ts` — `DomainNotFoundError` | → `@orb/kit` | `@orb/kit/errors` | Pure error base; `import-chats` throws it. | resolve-time |
-| `_shared/batch.ts` — `batchStmt`/`batchMany` | → `@orb/db/kit` | `@orb/db/kit` | DB primitive (needs drizzle `BatchItem` types). The ~per-chat inline `BatchItem<"sqlite">` casts wire to it. | resolve-time |
-| `_shared/roster-rows.ts` — `buildInitialRosterRows` | → `domain/chat` (chat-private) | `domain/chat/persistence/roster` | Roster is chat's concern. Import (a bulk db writer) builds the same `chat_participants` row shape against `@orb/db` directly — it does NOT import chat's front door. | resolve-time: `domain-no-cross-feature`; the shape agreement is a contract |
-| `http/import.ts` — inline `isPng` (3rd copy) | → `@orb/kit` | `@orb/kit/png-card-chunk` | Dedupe with the codec's `isPng`. | resolve-time |
-| `env.IMPORT_DEFAULT_SOURCE` (read in chat-writer) | **DROPPED (PD-15)** | — | **PD-15 (2026-06-28): neo-jank.** No chat-level default source — each imported ST message maps its per-message provenance → its `message_variant` (D26); the env comment was pulled from `foundation/env`. No AppSettings toggle. | — |
-| direct `@orb/db` reads/writes in the two writers | **sanctioned, stays** | `@orb/db` schema | Import is a bulk serializer (like export, `world-info/pool.ts`, `character/list` tag joins) — it reads/writes schema directly, not through sibling front doors. Enqueue still goes through workloads; events through the injected bus op. | lint-time: dep-cruiser exempts import/export persistence from the front-door rule but still forbids reaching another domain's `verbs/` |
+| Unit                                                                                                              | Outcome                                 | Target                                                                             | Rationale                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Enforcement tier                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `_shared/serde/card-serde.ts` — `cardFromJson` (tolerant IN), `buildCardV3` (strict OUT) + internals              | → `server/kit`                          | `@orb/server/kit/serde/card`                                                       | The ONE serde core shared by import+export. Server-only pure (no client consumer), so `server/kit` not `kit`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | resolve-time: `_shared` gone; `@orb/server/kit` is a declared seam below domains                                                       |
+| `_shared/serde/world-entry-serde.ts` — `loreEntryColumns`, `loreEntryMetadata`, `exportBookEntry`                 | → `server/kit`                          | `@orb/server/kit/serde/world-entry`                                                | Same serde core; the WI-entry mapper, both directions adjacent.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | resolve-time                                                                                                                           |
+| `_shared/png-card-codec.ts` — `isPng`, `readCardChunk`, `writeCardChunk` (+ crc32/makeChunk/PNG_SIGNATURE)        | → `kit`                                 | `@orb/kit/png-card-chunk`                                                          | String-based (never imports the card type) → isomorphic-pure → `kit`. Dual-chunk (chara V2 + ccv3 V3) load-bearing. Drops the steady `node:buffer` import (base64/latin1 over `Uint8Array`).                                                                                                                                                                                                                                                                                                                                                                                                                    | lint-time: `kit-purity` gate (NO `node:*` import — `node:buffer` included; no domain import)                                           |
+| canonical `CharacterCard` + `characterCardV3Schema` + `CHARA_CARD_V3_SPEC`                                        | → `contracts`                           | `@orb/contracts/character`                                                         | The one canonical card shape (§7.3 LOCKED). Parser return type + emit validator; both server directions + client forms consume it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | resolve-time: `@orb/client` declares `@orb/contracts`, never `@orb/server`                                                             |
+| `card.ts` — `parseCardPng`/`parseCardJson`/`cardContentHash`                                                      | stays domain feature                    | `domain/import/substrate/card.ts`                                                  | The import ENTRY: compose `kit/png-card-chunk` (decode) + `server/kit/serde/card` (`cardFromJson`) + the content-hash dedup key. The dedup key is import-specific.                                                                                                                                                                                                                                                                                                                                                                                                                                              | resolve-time (same server package)                                                                                                     |
+| `chat.ts` — `parseChatJsonl`, `parseStDate`, the bucket classifier                                                | stays domain feature                    | `domain/import/substrate/chat.ts`                                                  | Pure ST-format reader; no shared consumer (export emits canon, doesn't re-read JSONL).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | resolve-time                                                                                                                           |
+| `chat.ts` — `export type MessageRole = "user"\|"assistant"\|"system"`                                             | → `contracts`                           | `@orb/contracts` (the canonical `messageRole`)                                     | §7.5: the most-respelled axis (132 touches). One importable union; the parser imports it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | compile-time: inline re-spelling diverges → `tsc`; lint: `no-inline-union-redecl`                                                      |
+| `chat.ts` — `ParsedChat`/`ParsedChatMessage`/`ParsedVariant`/`ChatBucket` (inline exported interfaces)            | stays domain feature                    | `domain/import/contract/views.ts`                                                  | The parser RETURN contract; today inline in a substrate file.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | lint-time: `no-inline-types`                                                                                                           |
+| `persona.ts` — `parseStPersonas` + `stPositionToNeo`/`metadataFromDescriptor`                                     | stays domain feature                    | `domain/import/substrate/persona.ts`                                               | Pure ST→neo persona normalization; uses `@orb/kit/persona` (`PersonaDescriptionPosition`) + `@orb/kit/world-info` (the role bimap).                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | resolve-time                                                                                                                           |
+| `persona.ts` — `ParsedPersona`/`ParsedPersonas` (inline exported)                                                 | stays domain feature                    | `domain/import/contract/views.ts`                                                  | Parser return contract.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | lint-time: `no-inline-types`                                                                                                           |
+| `loader.ts` — `collectBundlesFromDir` pairing/collision/fuzzy logic                                               | stays domain feature                    | `domain/import/loader/collect.ts`                                                  | Import business logic (the slug-pairing semantics).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | resolve-time                                                                                                                           |
+| `loader.ts` — `readdir`/`readFile`/`stat` (node:fs)                                                               | split: inject the I/O                   | `domain/import/loader/fs-port.ts` (port type); fs impl at `entry/`/`infra/storage` | `substrate`/domain must be testable without a filesystem; the node:fs lives at the composition tier.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | lint-time: `substrate-no-io` / `domain-no-node-fs` (gate candidate)                                                                    |
+| `import-profile.ts` — `importCollectedProfile` (store-then-import bulk glue)                                      | → composition layer                     | `entry/import/run-profile-import.ts`                                               | Orchestrates `domain/import` + `domain/assets` (injected `store`) — a cross-feature composition; can't live inside a domain. Shared by the HTTP route + the job runner.                                                                                                                                                                                                                                                                                                                                                                                                                                         | resolve-time: only `entry/` may import two domain front doors                                                                          |
+| `persistence/chat-writer.ts` — `importChatsIntoVersion` (neo) → `importChatsIntoCharacter`                        | stays domain feature, **D28-flattened** | `domain/import/persistence/chat-writer.ts`                                         | The shared chats→messages→variants writer + branch resolution. Rewritten to key chats + branch resolution on `characters.id`, not `characterVersionId` (D28; no version exists).                                                                                                                                                                                                                                                                                                                                                                                                                                | compile-time: `chats.characterVersionId` column is gone → any reference fails `tsc`                                                    |
+| `verbs/import-character.ts` — the COW version-bump + `character_books` INSERT-FROM-SELECT carry-forward           | **deleted / replaced**                  | edit-in-place or `character.snapshot`                                              | This block is the SAME `forkVersion` INSERT-FROM-SELECT `character.md` deletes; in neo it existed only because the cv-pin welded chats to an old version. D28 removes versions entirely, so there is nothing to fork (edit-in-place is always safe).                                                                                                                                                                                                                                                                                                                                                            | compile-time: `forkVersion` is gone; there is no version row to bump (D28)                                                             |
+| `verbs/import-character.ts` — `card.tags` → `character_versions.proposedTags` (JSON)                              | **reshape (BUILT 2026-06-28)**          | `character_tags` rows `source:'card', status:'pending'`                            | `tag.md` §"DECIDED + the write side BUILT": proposed = a junction STATUS, not a parallel JSON store. DECIDED path: import carries `card.tags` (trim + case-insensitive dedupe) via the **injected `tag.attachCardTagByName({source:'card',status:'pending'})` op** (wired at compose — NOT a direct `@orb/db` write; the tag domain owns the source/status + the race-safe resolve-or-create). This is ST's `importTags` minus the 4-way `tag_import_setting`/ASK dialog — every card tag lands as a `pending` suggestion the user Accepts later (the distill pass joins the SAME junction as `source:'auto'`). | compile-time: `proposedTags` column absent from schema → read site is `tsc` red                                                        |
+| `verbs/import-character.ts` — the typed columns `creator`/`cardVersion`/`regexScripts`/`extensions`/`depthPrompt` | **keep (already correct)**              | flat `characters` typed columns (D28)                                              | Steady ALREADY promotes these (the `raw`-blob lossiness is fixed); D28 lands them on the flat `characters` row. Carry forward.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | compile-time: schema columns are the type source                                                                                       |
+| `context.ts` — `ReturnType<typeof createImportContext>`                                                           | stays domain feature                    | explicit `export interface ImportContext`                                          | Inferred type is invisible; add `emit`/`enqueueBackfill` ops to the bundle.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | lint-time: `no-inline-types`                                                                                                           |
+| `context.ts` — `ensureUser(db, ownerHandle)` (owner resolution)                                                   | → `domain/sessions` (via entry)         | `entry/` resolves owner; domain takes `ownerId`                                    | §7.1: identity resolved once at the edge; `ensureUser` is a sessions verb.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | resolve-time: `entry/` is the only tier importing both                                                                                 |
+| `_shared/ids.ts` — `newTypeId`                                                                                    | → `@orb/kit`                            | `@orb/kit/ids`                                                                     | Pure TypeID mint; the canonical kit case. Import keeps minting strict prefixed IDs.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | resolve-time                                                                                                                           |
+| `_shared/errors.ts` — `DomainNotFoundError`                                                                       | → `@orb/kit`                            | `@orb/kit/errors`                                                                  | Pure error base; `import-chats` throws it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | resolve-time                                                                                                                           |
+| `_shared/batch.ts` — `batchStmt`/`batchMany`                                                                      | → `@orb/db/kit`                         | `@orb/db/kit`                                                                      | DB primitive (needs drizzle `BatchItem` types). The ~per-chat inline `BatchItem<"sqlite">` casts wire to it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | resolve-time                                                                                                                           |
+| `_shared/roster-rows.ts` — `buildInitialRosterRows`                                                               | → `domain/chat` (chat-private)          | `domain/chat/persistence/roster`                                                   | Roster is chat's concern. Import (a bulk db writer) builds the same `chat_participants` row shape against `@orb/db` directly — it does NOT import chat's front door.                                                                                                                                                                                                                                                                                                                                                                                                                                            | resolve-time: `domain-no-cross-feature`; the shape agreement is a contract                                                             |
+| `http/import.ts` — inline `isPng` (3rd copy)                                                                      | → `@orb/kit`                            | `@orb/kit/png-card-chunk`                                                          | Dedupe with the codec's `isPng`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | resolve-time                                                                                                                           |
+| `env.IMPORT_DEFAULT_SOURCE` (read in chat-writer)                                                                 | **DROPPED (PD-15)**                     | —                                                                                  | **PD-15 (2026-06-28): neo-jank.** No chat-level default source — each imported ST message maps its per-message provenance → its `message_variant` (D26); the env comment was pulled from `foundation/env`. No AppSettings toggle.                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                      |
+| direct `@orb/db` reads/writes in the two writers                                                                  | **sanctioned, stays**                   | `@orb/db` schema                                                                   | Import is a bulk serializer (like export, `world-info/pool.ts`, `character/list` tag joins) — it reads/writes schema directly, not through sibling front doors. Enqueue still goes through workloads; events through the injected bus op.                                                                                                                                                                                                                                                                                                                                                                       | lint-time: dep-cruiser exempts import/export persistence from the front-door rule but still forbids reaching another domain's `verbs/` |
 
 ---
 
 ## Cross-feature composition (the injection model)
 
 Import is driven BY the bulk driver (`entry/import/run-profile-import.ts`) + the HTTP card/chat routes
-+ the `import-st` job runner. It composes other domains only through injected ops + direct `@orb/db`.
+
+- the `import-st` job runner. It composes other domains only through injected ops + direct `@orb/db`.
 
 **Injected into the import context at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `emit` (domain-event bus op) | `entry/` bus | emit `character.updated` after a character create/edit |
-| `enqueueBackfill` | `workloads` | enqueue a memory backfill for the imported `real_conversation` chats |
+| Op injected                  | Provided by  | Used for                                                             |
+| ---------------------------- | ------------ | -------------------------------------------------------------------- |
+| `emit` (domain-event bus op) | `entry/` bus | emit `character.updated` after a character create/edit               |
+| `enqueueBackfill`            | `workloads`  | enqueue a memory backfill for the imported `real_conversation` chats |
 
 **Injected into the bulk driver (entry/), not the domain:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `store(bytes, kind)` | `assets` domain | CAS-store the card/avatar PNG → `avatarAssetId` (one blob, both roles) |
-| `ownerId` | `sessions`/auth seam | the resolved principal id (replaces the `ownerHandle`+`ensureUser` branch) |
-| `collectBundlesFromDir` + an `fs-port` | `domain/import` + `infra/storage` | walk the staged profile dir |
-| `reconcileStats` | `stats` domain | post-import economics rollup (unchanged; economics is not event-driven) |
+| Op injected                            | Provided by                       | Used for                                                                   |
+| -------------------------------------- | --------------------------------- | -------------------------------------------------------------------------- |
+| `store(bytes, kind)`                   | `assets` domain                   | CAS-store the card/avatar PNG → `avatarAssetId` (one blob, both roles)     |
+| `ownerId`                              | `sessions`/auth seam              | the resolved principal id (replaces the `ownerHandle`+`ensureUser` branch) |
+| `collectBundlesFromDir` + an `fs-port` | `domain/import` + `infra/storage` | walk the staged profile dir                                                |
+| `reconcileStats`                       | `stats` domain                    | post-import economics rollup (unchanged; economics is not event-driven)    |
 
 **Consumed downstream via the event/indexer path (import never calls these directly):**
 
 - `character.updated` → `embeddings/indexer:onCharacterUpdated` → `embeddings.store(kind='card',
-  lens='card-text', key=characterId, …)`. Card text auto-indexes on import — the central fix.
+lens='card-text', key=characterId, …)`. Card text auto-indexes on import — the central fix.
 - the card PNG store emits `asset.created` (from the `assets` domain) → `embeddings/indexer:onAssetCreated`
   → image embeddings. Import doesn't emit this; `assets.store` does.
 - the enqueued memory backfill → `memory` generates digests/segments for the imported chats and calls
@@ -275,6 +286,7 @@ Import is driven BY the bulk driver (`entry/import/run-profile-import.ts`) + the
 ## Spine thread intersections
 
 ### §7.3 serialization / serde core
+
 Import is the IN consumer of the LOCKED one-card model. The tolerant `RawCard`→`CharacterCard`
 normalization (`cardFromJson`) stays — but only as the tolerant input adapter that normalizes INTO the
 canonical `@orb/contracts/character` shape, never as a parallel lossy shape. `creator` / `cardVersion` /
@@ -284,6 +296,7 @@ canonical `@orb/contracts/character` shape, never as a parallel lossy shape. `cr
 `cardFromJson`. The PNG codec is `@orb/kit/png-card-chunk` (string-based, dual-chunk).
 
 ### §7.4 types and schemas — one home, one direction
+
 - `CharacterCard` / `characterCardV3Schema` → `@orb/contracts/character` (cross-boundary).
 - `MessageRole` → `@orb/contracts` (canonical `messageRole`).
 - `ParsedChat` / `ParsedChatMessage` / `ParsedVariant` / `ChatBucket` / `ParsedPersona` /
@@ -296,6 +309,7 @@ canonical `@orb/contracts/character` shape, never as a parallel lossy shape. `cr
 - `ChatWriteCounts` (the writer's return tally) → `contract/results.ts` (today inline in `chat-writer.ts`).
 
 ### §7.5 string-union dispatch discipline
+
 The "role-map triplication" the ledger names is **mostly already resolved**: the ST WI injection-role
 bimap (`injectionRoleFromSt`/`injectionRoleToSt`) is single-homed in `#shared/world-info`
 (→ `@orb/kit/world-info`) and imported by the card serde, the WI-entry serde, and the persona parser —
@@ -307,6 +321,7 @@ a distinct axis (persona description placement) and map to `PersonaDescriptionPo
 `@orb/contracts/connection`.
 
 ### §8.6 first-class principal blast radius
+
 Import writes `chat_participants` rows (the founding roster) and stamps persona attribution. Under the
 first-class-principal model, imported chats are still owner-authored (no agent principal at import time),
 but the writer must build roster rows against the orbweaver `chat_participants` shape (the `kind`/`isAi`
@@ -314,9 +329,10 @@ split, `authorUserId`). Import constructs these directly against `@orb/db` (the 
 shape, owned by chat) — the row shape is a contract both sides honor.
 
 ### persona.md / tag.md intersections
+
 - **persona.md** (drop `chats.personaId`): the chat writer stamps `chats.personaId` + `pinnedPersonaId`
-  + per-message `personaId` today. Orbweaver drops `chats.personaId`; the anchor (neo `pinnedPersonaId` →
-  renamed `chats.anchorPersonaId`) + per-message attribution stay; active-persona lives on `chat_participants`.
+  - per-message `personaId` today. Orbweaver drops `chats.personaId`; the anchor (neo `pinnedPersonaId` →
+    renamed `chats.anchorPersonaId`) + per-message attribution stay; active-persona lives on `chat_participants`.
 - **tag.md** (`proposedTags` → status): import writes `character_tags` rows with `status:'pending'`
   instead of the `character_versions.proposedTags` JSON column; export reads `accepted` rows, closing
   the round-trip gap.
@@ -337,7 +353,7 @@ shape, owned by chat) — the row shape is a contract both sides honor.
    per-chat dedup oracle, pre-fetched in ONE query AND updated mid-loop (two byte-identical files in
    one run both skip).
 3. **The `constant → scopeMode:"always"` WI round-trip.** `loreEntryMetadata` derives `scopeMode:
-   "always"` from ST's `constant: true` (the runtime reads `scopeMode`, not `constant` — a keyed
+"always"` from ST's `constant: true` (the runtime reads `scopeMode`, not `constant` — a keyed
    constant entry would otherwise silently demote to keyword scope); `extensions.{position:4,depth,role}`
    → `metadata.inject`. `exportBookEntry` is the exact inverse. Byte-identical round-trip is test-pinned.
 4. **`parseStDate` — the filename date wins.** ST re-save/migration rewrites header + every message
@@ -365,47 +381,47 @@ shape, owned by chat) — the row shape is a contract both sides honor.
 
 1. **Import emits `character.updated` for every created/edited character** — no import path writes a
    `characters` row without emitting (so the embeddings indexer always runs).
-   *Enforcement: test-time — a contract test asserts importing a card emits `character.updated` and
-   enqueues a backfill for `real_conversation` chats.*
+   _Enforcement: test-time — a contract test asserts importing a card emits `character.updated` and
+   enqueues a backfill for `real_conversation` chats._
 
 2. **The serde core is single-homed** — `cardFromJson`/`buildCardV3` exist ONLY in
    `@orb/server/kit/serde/card`; the WI-entry mapper ONLY in `@orb/server/kit/serde/world-entry`; the
    PNG codec ONLY in `@orb/kit/png-card-chunk`. No second card↔wire mapper.
-   *Enforcement: resolve-time (the modules are the only export sites) + a `serde-core` lint that fails
-   on a duplicate mapper declaration; round-trip test pins import↔export agreement.*
+   _Enforcement: resolve-time (the modules are the only export sites) + a `serde-core` lint that fails
+   on a duplicate mapper declaration; round-trip test pins import↔export agreement._
 
 3. **The canonical card is the ONE shape** — `cardFromJson` normalizes INTO `@orb/contracts/character`;
    `creator`/`cardVersion`/`regexScripts`/`extensions`/`depthPrompt` are typed columns; `raw`/residual
    `extensions` holds only genuinely-unknown vendor keys.
-   *Enforcement: compile-time — promoting a known field into the residual blob is a `tsc` error (the
-   typed column is the only home); round-trip test.*
+   _Enforcement: compile-time — promoting a known field into the residual blob is a `tsc` error (the
+   typed column is the only home); round-trip test._
 
 4. **Chats never reference a character version (D28: none exists)** — the chat writer + branch
    resolution key on `characters.id`; `chats.characterVersionId` does not exist.
-   *Enforcement: compile-time — the column is absent from `@orb/db/schema/chat`.*
+   _Enforcement: compile-time — the column is absent from `@orb/db/schema/chat`._
 
 5. **No COW version carry-forward** — import does not mint a new version row via an
    INSERT-FROM-SELECT book carry-forward (the deleted `forkVersion` path; D28 has no version to mint).
    Re-import with new content edits the flat `characters` row in place (always safe — no cv pin ever
    existed); an explicit `character.snapshot` is the only history path, and re-import never triggers it.
-   *Enforcement: compile-time — `forkVersion` is deleted; there is no version row or cv-pin column (D28).*
+   _Enforcement: compile-time — `forkVersion` is deleted; there is no version row or cv-pin column (D28)._
 
 6. **Proposed tags are junction rows, not a JSON column** — import writes `character_tags`
    `status:'pending'`; no write to `character_versions.proposedTags`.
-   *Enforcement: compile-time — the `proposedTags` column is absent from the schema → any write is `tsc` red.*
+   _Enforcement: compile-time — the `proposedTags` column is absent from the schema → any write is `tsc` red._
 
 7. **The parsers are pure; the loader's I/O is injected** — no `node:fs` in `substrate/`; the loader's
    reads come through the injected `fs-port`.
-   *Enforcement: lint-time — `substrate-no-io` + a `domain-no-node-fs` dep-cruiser rule.*
+   _Enforcement: lint-time — `substrate-no-io` + a `domain-no-node-fs` dep-cruiser rule._
 
 8. **Each character + each chat commits as ONE atomic `db.batch`** — `db.transaction()` is banned
    (`:memory:` trap); a mid-import crash leaves a character/chat fully written or not at all.
-   *Enforcement: lint-time (`no-db-transaction`) + test-time (a kill-mid-import test asserts no
-   half-written character).*
+   _Enforcement: lint-time (`no-db-transaction`) + test-time (a kill-mid-import test asserts no
+   half-written character)._
 
 9. **Identity is resolved once at the edge** — the domain takes `ownerId`; no `ensureUser`/handle
    round-trip inside import.
-   *Enforcement: resolve-time — `domain/import` does not import `domain/sessions`; `entry/` resolves the owner.*
+   _Enforcement: resolve-time — `domain/import` does not import `domain/sessions`; `entry/` resolves the owner._
 
 ---
 
@@ -414,7 +430,7 @@ shape, owned by chat) — the row shape is a contract both sides honor.
 - **`character.updated` vs a dedicated `import.completed` event — RESOLVED: reuse `character.updated`.** The
   embeddings indexer already subscribes; a bulk import firing N events is coalesced/debounced at the
   `entry/` bus (the debounce window is `entry/` tuning, not a new event type). No `import.completed`. (Same
-  resolution as `spine/serialization-core.md` §5.)
+  resolution as `core/Spine-Config-and-Serialization.md` §5.)
 - **Backfill granularity — RESOLVED: ONE memory-backfill workload per import run** (owner-scoped, scans the
   freshly imported `real_conversation` chats), not per-character. Matches the post-import `reconcileStats`
   shape and avoids N job rows.
@@ -445,7 +461,7 @@ shape, owned by chat) — the row shape is a contract both sides honor.
   neo-jank. Each imported ST message maps its **per-message provenance → its `message_variant`** (D26); the
   env comment was pulled from `foundation/env`. The criterion + env-floor discussion below is **VOID** —
   retained only as historical context.
-  *Env-floor status (D40):* the floor itself is ALSO deferred to this (import) slice — it does NOT yet live in
+  _Env-floor status (D40):_ the floor itself is ALSO deferred to this (import) slice — it does NOT yet live in
   `foundation/env`. It is a `z.enum(CRED_SOURCES)` env floor with a NODE_ENV-conditional default
   (`max-pro-sub` dev/test, `openrouter` prod) that needs a post-parse transform (unlike env's two simple
   import toggles `IMPORT_SKIP_CHARACTERS`/`CORPUS_AUTOINDEX`), so it lands in `foundation/env` — co-located

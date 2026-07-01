@@ -9,7 +9,7 @@
 // is NO `contracts/sessions`. This is NOT the agent-sdk chat session: that prompt-cache lineage lives in
 // the `session_entries` table, backend-internal to the agent-sdk provider (D8,
 // `infra/providers/backends/agent-sdk/session/`). The two share only the word "session"
-// (spine/identity-auth-permission.md "BFF session ≠ SDK chat session").
+// (core/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat session").
 //
 // Layer 0 (kit-only): the only dep is the `SessionId` brand. `SessionView` carries NO `UserRole` — it is
 // the device-list projection (id + timestamps + user-agent), not the principal — so the DAG's "if it

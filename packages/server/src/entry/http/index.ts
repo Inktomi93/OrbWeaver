@@ -1,4 +1,4 @@
-// entry/http — FRONT DOOR for the non-tRPC route registrars (tiers/entry.md §layout "http/"). `app.ts`
+// entry/http — FRONT DOOR for the non-tRPC route registrars (core/Tier-5-Entry.md §layout "http/"). `app.ts`
 // mounts each `register<X>` on the shared Hono app; the test mirror imports the registrars + the pure
 // cookie helpers from here, never an internal file (the directory-module rule). These compose domain front
 // doors + infra + the auth seam — they own no business logic (entry invariant #1).

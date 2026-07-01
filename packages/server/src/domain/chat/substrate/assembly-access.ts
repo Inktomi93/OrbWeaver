@@ -1,5 +1,5 @@
 // domain/chat/substrate/assembly-access — the substrate DI seam between the `engine/` and `assembly/` named
-// subsystems (structure.md §4 / dep-cruiser `domain-no-cross-subsystem`). The two subsystems stay
+// subsystems (core/Core-0-Architecture-and-Structure.md §4 / dep-cruiser `domain-no-cross-subsystem`). The two subsystems stay
 // independent: a file in `engine/` may NOT import `assembly/` directly — cross-subsystem coordination goes
 // THROUGH `substrate/` (the exempt seam). This module wraps the pure BUILD + SHAPE + FIT entrypoints the
 // engine's turn pipeline orchestrates, so `engine/pipeline.ts` calls them via HERE, not from `assembly/`.

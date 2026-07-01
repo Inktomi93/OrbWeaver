@@ -13,7 +13,7 @@ import { processMacros } from "#macro";
 // ── Engine vocab (ported from neo shared/_kit/regex.ts — the SHAPE only) ──────
 // The zod `regexScriptSchema` / `RegexScript` it also defined are NOT ported:
 // the persisted shape lives in @orb/contracts, and kit MUST NOT import contracts
-// (reports/shared-dissolution.md §1/§6 — contracts depends on kit, never the
+// (core/Legacy-Migration-and-Gaps.md §1/§6 — contracts depends on kit, never the
 // reverse). The executor instead reads a kit-local STRUCTURAL `RegexScriptInput`
 // (below); `contracts/regex.RegexScript satisfies RegexScriptInput` keeps them
 // aligned from the contracts side.

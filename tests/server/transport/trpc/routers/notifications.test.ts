@@ -1,4 +1,4 @@
-// notifications.notifications — the PD-23 per-user durable inbox subscription (tiers/transport.md). The
+// notifications.notifications — the PD-23 per-user durable inbox subscription (core/Tier-4-Transport.md). The
 // load-bearing property: on RECONNECT (a `lastEventId`) it replays the durable rows with `seq > lastEventId`
 // from the inbox `list` (DURABLE-FIRST), ascending, BEFORE attaching the live bus. Driven through the real
 // ladder via `createCaller` (authed). The live bus is module state; the test takes only the durable yields

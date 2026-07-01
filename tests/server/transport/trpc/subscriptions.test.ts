@@ -1,4 +1,4 @@
-// The SSE subscription typed-error wrapper, end-to-end through `workloads.subscribe` (tiers/transport.md
+// The SSE subscription typed-error wrapper, end-to-end through `workloads.subscribe` (core/Tier-4-Transport.md
 // §D2 / Esoteric #5). A subscription generator bypasses the domain-error middleware, so a thrown
 // DomainError (here, the `workloads.get` existence check) must surface as a typed terminal frame — never a
 // raw 500. Driven through the real ladder via `createCaller` (admin-gated; no @trpc import needed).

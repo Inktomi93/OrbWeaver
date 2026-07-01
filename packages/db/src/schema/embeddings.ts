@@ -2,7 +2,7 @@
 // `embeddings.store`, the inserter is the domain — the SCHEMA is here). Five tables: character_embeddings
 // · image_embeddings · chat_digests · chat_segments · chat_digest_speakers (MOVED out of the neo
 // `search.ts` lie — the producer, not the consumer, names the schema file). Authoritative spec:
-// `docs/architecture/domains/embeddings.md` + `knowledge-cluster.md` + `tiers/db.md`.
+// `docs/architecture/domains/embeddings.md` + `domains/memory.md` + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D20 — the vector substrate does NOT denormalize ownership: there is NO `ownerId` / `owner_idx` on
@@ -27,7 +27,7 @@
 // The column carries both the drizzle `{ enum }` (type-side) AND a CHECK built from the same tuple
 // (SQL-side) — never a re-spelled union; a `.int` test-mirror pins the column enum === the contracts
 // tuple. `chat_digests.scopedCharacterId` is ALWAYS a real branded `CharacterId` FK → `characters.id`
-// (knowledge-cluster.md §4 / inv 8 — solo's cast char, the synthetic group-as-character, or a per-
+// (domains/memory.md §4 / inv 8 — solo's cast char, the synthetic group-as-character, or a per-
 // witnessing-char; NO `''` sentinel, NO NULL). The `(chatId, scopedCharacterId, tier, blockIdx)`
 // idempotent-upsert UNIQUE keys off the real id; SQLite UNIQUE never sees a NULL here.
 //
@@ -62,7 +62,7 @@ import { assets } from "./assets";
 import { characters } from "./character";
 import { chats } from "./chat";
 
-// The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — knowledge-cluster.md §1). Every
+// The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — domains/memory.md §1). Every
 // `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.
 const VECTOR_DIM = 1024;
 
@@ -173,7 +173,7 @@ export const chatDigests = sqliteTable(
       .$type<ChatId>()
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    // The egocentric scope key (knowledge-cluster.md §4 / inv 8): ALWAYS a real `CharacterId` — solo's
+    // The egocentric scope key (domains/memory.md §4 / inv 8): ALWAYS a real `CharacterId` — solo's
     // single cast char, the synthetic group-as-character (`__group__${chatId}`, a real hidden id), or a
     // per-witnessing cast char under `scoped`. FK → characters.id CASCADE (a deleted character drops its
     // scoped digests). NEVER the `''` sentinel, NEVER NULL — the UNIQUE below keys off the real id.
@@ -255,7 +255,7 @@ export const chatSegments = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_digest_speakers — the "which characters this digest CONTAINS" join (knowledge-cluster.md §4). Lets
+// chat_digest_speakers — the "which characters this digest CONTAINS" join (domains/memory.md §4). Lets
 // `search`/`discovery` find a character's moments ACROSS rooms regardless of the egocentric bucketing.
 // Identity-keyed (digest ↔ character); composite PK (there is no TypeID brand for this join). Both FKs
 // CASCADE. Re-queried by the store verb after a digest upsert (the kept id may differ from a fresh mint).

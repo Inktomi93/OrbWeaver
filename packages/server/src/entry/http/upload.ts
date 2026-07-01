@@ -1,4 +1,4 @@
-// entry/http/upload — the multipart ingest registrar (tiers/entry.md §layout "upload.ts"). Two routes,
+// entry/http/upload — the multipart ingest registrar (core/Tier-5-Entry.md §layout "upload.ts"). Two routes,
 // both auth+CSRF-gated mutating writes (app.ts resolves the `Principal` + enforces CSRF before these run):
 //   • POST /api/assets/upload  — a single asset file → `assets.store({ enforceMagic:true })` → StoredAsset.
 //   • POST /api/import         — character-card file(s) → DELEGATES to `entry/import/run-profile-import`

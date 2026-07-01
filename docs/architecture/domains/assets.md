@@ -5,12 +5,12 @@
 > (`src/server/storage/` — `cas.ts`, `variant-cache.ts`, `zip-extract.ts`), the blob/upload HTTP
 > routes (`src/server/http/assets.ts`), the addressing helpers (`src/shared/_kit/assets.ts`,
 > `src/client/lib/assets.ts`), and `db/schema/assets.ts`. The defining design line: **the CAS
-> *index* (the `assets` table + its verbs) is a domain; the raw byte read/write/hash-store is
+> _index_ (the `assets` table + its verbs) is a domain; the raw byte read/write/hash-store is
 > `infra/storage`** — keep the split clean. Authoritative upstream: `domains.md` §"assets" + the
-> "assets vs infra/storage" open call; `_FANOUT-BRIEF.md` §2 (one-directional rule), §3 (placement
+> "assets vs infra/storage" open call; `AGENTS.md` §2 (one-directional rule), §3 (placement
 > rule), §4 (assets pain ledger), §7.3 (serde/PNG codec), §7.4/§7.5 (types/dispatch);
-> `structure.md` §3 (server tiers), §4 (8-slot template), §6 (derived-data = event-driven indexer),
-> §7 (the 13 legibility gates); and `reports/shared-dissolution.md` §1/§4/§5 (the three-way split of
+> `Core-0-Architecture-and-Structure.md` §3 (server tiers), §4 (8-slot template), §6 (derived-data = event-driven indexer),
+> §7 (the 13 legibility gates); and `core/Core-Core-Legacy-Migration-and-Gaps.md` §1/§4/§5 (the three-way split of
 > `shared/_kit/assets.ts` — **cited, not re-derived**).
 
 ---
@@ -23,7 +23,7 @@ recording `(id, ownerId, kind, mime, size, hash, uploadedAt)`. **Assets are PER-
 NOT global (ledger D21):** `ownerId` (FK users), `unique(ownerId, hash)`, `fetchOwned` — they join the
 single-owned category exactly like characters/presets. **Dedup is within-user** (a user's two
 characters sharing an avatar = one of THEIR blobs); cross-user dedup is dropped on purpose (no shared
-bytes, no existence oracle, no leak). The domain owns the *row* and the *coherence* between row and
+bytes, no existence oracle, no leak). The domain owns the _row_ and the _coherence_ between row and
 blob; the bytes live in `infra/storage` (a **per-user-keyed** CAS — `<owner>/<ab>/<cd>/<hash>`).
 
 Specifically:
@@ -49,7 +49,7 @@ Specifically:
   (`characters.avatarAssetId`, `personas.avatarAssetId` — `character_versions` is gone, the card is the
   flat `characters` row per ledger D28). The single source both GC paths read.
 - **Variant-sizing policy** — `BLOB_WIDTHS` + `snapBlobWidth` (the resize ladder that bounds the
-  variant cache's keyspace). Domain policy, not a kit primitive — per `shared-dissolution.md` §5.
+  variant cache's keyspace). Domain policy, not a kit primitive — per `Core-Legacy-Migration-and-Gaps.md` §5.
 - **The magic-byte sniff** — `sniffMime` (pure; PNG/JPEG/GIF/WebP signatures).
 
 This domain does **NOT** own:
@@ -80,16 +80,16 @@ This domain does **NOT** own:
 
 The one design question for this domain. Map every current unit to one side:
 
-| Side | Tier | Holds | May import |
-|---|---|---|---|
-| **CAS index** | `domain/assets` | `assets` table + verbs; the coherence primitive (`storeBlob`); GC/reap/fsck/rebuild; the avatar-ref registry; variant-sizing policy; `sniffMime` | `@orb/db`, `@orb/kit`, `@orb/contracts`, **down** into `infra/storage` (the `Cas`/`VariantCache` handles) |
+| Side           | Tier            | Holds                                                                                                                                                                           | May import                                                                                                |
+| -------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **CAS index**  | `domain/assets` | `assets` table + verbs; the coherence primitive (`storeBlob`); GC/reap/fsck/rebuild; the avatar-ref registry; variant-sizing policy; `sniffMime`                                | `@orb/db`, `@orb/kit`, `@orb/contracts`, **down** into `infra/storage` (the `Cas`/`VariantCache` handles) |
 | **Byte store** | `infra/storage` | `cas.ts` (sharded **per-user** `<owner>/ab/cd/<hash>` blob I/O (D21), atomic write, dedup, listHashes), `variant-cache.ts` (derived-webp cache), `zip-extract.ts` (archive I/O) | `@orb/kit` (`isAssetHash`), `node:*`, `atomically`/`fflate`/`sharp`. **NEVER `@orb/db`, NEVER a domain.** |
 
 The blob is content; the row is metadata; the domain is **where they are kept coherent.** The single
 chokepoint that proves the split: `storeBlob` calls `cas.putBytes(bytes)` (infra) then upserts the
 `assets` row (db) — infra has no idea the row exists, the domain orchestrates both. `infra/storage`
-is a sealed executor (the same rule as `connection`↔`providers`): the domain owns the *index +
-policy*, infra owns the *bytes*.
+is a sealed executor (the same rule as `connection`↔`providers`): the domain owns the _index +
+policy_, infra owns the _bytes_.
 
 ---
 
@@ -149,8 +149,8 @@ AssetsService = {
 }
 ```
 
-**`collectGarbage` vs `reapIfOrphan`:** mark-sweep over the *whole* CAS with a grace window
-(guards racing imports) vs a *targeted* check of a known id set with no grace (the caller — 
+**`collectGarbage` vs `reapIfOrphan`:** mark-sweep over the _whole_ CAS with a grace window
+(guards racing imports) vs a _targeted_ check of a known id set with no grace (the caller —
 `character.remove` — has just deleted a known set of references). They MUST stay distinct: reap
 without grace is correct only because the caller proved the references are gone; collectGarbage
 needs grace because an in-flight import may have stored a blob it hasn't linked yet.
@@ -166,8 +166,12 @@ export { createAssetsService } from "#domain/assets/service";
 
 // Domain-internal result/param types (consumed by the CLI scripts + workload runners)
 export type { BackfillCard, GcOptions } from "#domain/assets/contract/params";
-export type { BackfillResult, FsckResult, GcResult, ReapResult }
-  from "#domain/assets/contract/results";
+export type {
+  BackfillResult,
+  FsckResult,
+  GcResult,
+  ReapResult,
+} from "#domain/assets/contract/results";
 ```
 
 **`StoredAsset` + `AssetKind`** live in `@orb/contracts/assets` (cross-boundary upload wire — see
@@ -183,27 +187,27 @@ narrowed slice of it) as an **injected dep**, never a sideways domain import.
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `storage/cas.ts` — `Cas`, `createCas`, `PutResult`, sharded blob I/O, atomic write, dedup, `listHashes` | **→ `infra`** | `infra/storage/cas.ts` | The byte store. Pure filesystem adapter keyed by hash; imports only kit + node + `atomically`. The domain orchestrates it; it knows nothing of the index. `domain → infra` is a legal downward dep. | resolve-time: `infra/storage` may not import `@orb/db` (not in its consuming-direction) + dep-cruiser `infra-no-db` backstop |
-| `storage/variant-cache.ts` — `VariantCache`, `createVariantCache` | **→ `infra`** | `infra/storage/variant-cache.ts` | Derived-image cache, sibling to the CAS; filesystem-only, reproducible-from-original. Imports only `isAssetHash`. | resolve-time (same infra/storage tier) |
-| `storage/zip-extract.ts` — `extractZipToDir` (+ options/result) | **→ `infra`** (import flow) | `infra/storage/zip-extract.ts` | Archive byte I/O with zip-bomb/zip-slip defenses; serves **import**, not assets. Not an assets concern; listed here only because it's the third file in `storage/`. | resolve-time |
-| `domain/assets/persistence/queries.ts` — `storeBlob`, `assetIdForHash` | **stays domain** | `domain/assets/persistence/queries.ts` | The CAS+row coherence primitive — the ONE writer of the blob↔row pair. DB upsert + a `cas.putBytes` call; pure index logic. | lint-time: dep-cruiser `assets-single-writer` — no `cas.putBytes` / `db.insert(assets)` outside this file (gate candidate) |
-| `domain/assets/verbs/*` — store/getMetadata/backfill/gc/reap/fsck/rebuild | **stays domain** | `domain/assets/verbs/` | Business logic over the index; fits the 8-slot template; one owner. | compile-time: `AssetsService` interface lists all 7 |
-| avatar-ref subqueries (inline in `verbs/gc.ts`, twice) | **stays domain, extracted** | `domain/assets/persistence/avatar-refs.ts` | Today the `characterVersions`/`personas` `.avatarAssetId` ref list is hardcoded in BOTH `collectGarbage` and `reapIfOrphan`. README flags it load-bearing: "adding a new avatar column MUST update both lists, or its blobs become silently GC-eligible." One registry, both verbs iterate it — same pattern as tag's junction registry. | compile-time: one typed `AvatarRef[]`; both verbs import it. test-time: a schema-introspection test asserts every `avatarAssetId`-typed FK column is in the registry (closes the "silently GC-eligible" gap) |
-| `shared/_kit/assets.ts` — `isAssetHash` | **→ `kit`** | `@orb/kit/assets` | Pure hash guard (64-hex regex); zero I/O, zero domain; the path-traversal defense at every boundary. Per `shared-dissolution.md` §1. | resolve-time: `@orb/kit` is the universal leaf; CAS/variant-cache/route all import down |
-| `shared/_kit/assets.ts` — `BLOB_ROUTE`, `blobUrl` | **→ `contracts`** | `@orb/contracts/assets` | The `/blob/<hash>` route contract — cross-boundary (client builds the URL, server/caddy serves it). Per `shared-dissolution.md` §1/§4. | resolve-time: client may import `@orb/contracts`, not `@orb/server` |
-| `shared/_kit/assets.ts` — `BLOB_WIDTHS`, `snapBlobWidth` | **→ this domain** | `domain/assets/substrate/variant-policy.ts` | Variant-sizing POLICY, not a kit primitive — per `shared-dissolution.md` §5. Only the server blob route snaps (the client has its own `AVATAR_SIZES` ladder); no client consumer, so it stays domain-internal. The route (entry/http) imports it down. | resolve-time: `entry/` is above `domain/` (downward import OK) |
-| `shared/_kit/assets.ts` — `AssetKind` (`"card"\|"avatar"\|"export"`) | **→ `@orb/contracts/assets`** (RESOLVED) | `@orb/contracts/assets` (`assetKindSchema` + inferred `AssetKind`) | The union is the upload **wire** `kind` field, re-spelled inline across 3 sites today (upload route validation, client `uploadAsset` helper, the `assets.kind` db enum). §7.5 → ONE canonical home in contracts; the db enum derives from the same tuple. `shared-dissolution.md` §5's "feature-internal → domain" line was CORRECTED 2026-06-25 → contracts (that table now agrees). | resolve-time (contracts importable by client + db + domain) + §7.5 `no-inline-union-redecl` |
-| `domain/assets/contract/results.ts` — `StoredAsset` | **→ `contracts`** | `@orb/contracts/assets` | The upload POST response; the client hand-redeclares it as `UploadedAsset` (flagged in `_FANOUT-BRIEF.md` §8.2 "client hand-redeclares server zod — asset result"). Cross-boundary ⇒ contracts. The other results (Backfill/Gc/Fsck/Reap) are CLI/workload-only (no client) ⇒ stay domain. | resolve-time: client imports `StoredAsset` from contracts; domain `contract/` re-exports |
-| `domain/assets/mime.ts` — `sniffMime` | **stays domain** | `domain/assets/substrate/mime.ts` | Pure isomorphic, but asset-specific and server-only (store `enforceMagic` + DR rebuild). Promote to `@orb/kit` only if the client ever needs to pre-sniff (deferred — see Resolved/deferred decisions). | lint-time: `kit-purity` would accept it; kept domain by intent |
-| `http/assets.ts` — blob serve + upload registrars | **→ `entry`** | `entry/http/assets.ts` | Non-tRPC binary/multipart registrar (the `register<X>Routes` discipline). Calls DOWN: `assetsService` (domain), `cas`/`variants` (infra), `resolveOwner` (auth). | resolve-time: `entry/` is the topmost tier |
-| `http/assets.ts` — the `?w=&f=webp` snap+variant-cache+sharp transform block | **split: policy → domain, sharp → infra** | new `domain/assets/verbs/resolve-variant.ts` injecting an `imageTransform` infra op (the `sharp` adapter in `infra/image`) + the variant cache | Today the route inlines sharp. The width-snap is domain policy; sharp is CPU/I/O infra. A thin verb (snap → cache-read → transform-via-injected-op → cache-put) keeps the route thin and the policy in the domain. (RESOLVED per DECISIONS-LEDGER §7 D6 — EXTRACT to `infra/image`, NOT inline in the route.) | resolve-time (sharp behind the `infra/image` adapter) + lint-time (no `sharp` import in `entry/` — it is extracted) |
-| `_shared/ids.ts` — `newTypeId`; `shared/_kit/ids.ts` — `AssetId`, `castId`, `ID_PREFIX` | **→ `kit`** | `@orb/kit/ids` | Pure TypeID mint + brands; the canonical kit case (`shared-dissolution.md` §1, fanIn 446). | resolve-time |
-| `_shared/audit.ts` — `logAudit` (used by GC/reap) | **→ `foundation`** | `foundation/observability/audit` | Audit sink; read-down-into by all. Per `shared-dissolution.md` §6. | resolve-time: `foundation` is below domain |
-| `observability/logger.ts` — `getLog` | **→ `foundation`** | `foundation/observability/logger` | Logging seam. | resolve-time |
-| `BatchItem<"sqlite">` inline casts (backfill `db.batch`) | **→ `@orb/db/kit`** | wire to `@orb/db/kit` `batchMany`/`batchStmt` | `_FANOUT-BRIEF.md` §8.4 flags inline `BatchItem` casts that bypass the existing batch helper. The non-empty-tuple spread in backfill is the same family. | compile-time: typed `db.batch` call via the db-kit helper |
-| `errorMessage` (zip-extract) | **→ `kit`** | `@orb/kit/error-message` | Pure primitive. | resolve-time |
+| Unit                                                                                                    | Outcome                                   | Target                                                                                                                                         | Rationale                                                                                                                                                                                                                                                                                                                                                                                         | Enforcement tier                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `storage/cas.ts` — `Cas`, `createCas`, `PutResult`, sharded blob I/O, atomic write, dedup, `listHashes` | **→ `infra`**                             | `infra/storage/cas.ts`                                                                                                                         | The byte store. Pure filesystem adapter keyed by hash; imports only kit + node + `atomically`. The domain orchestrates it; it knows nothing of the index. `domain → infra` is a legal downward dep.                                                                                                                                                                                               | resolve-time: `infra/storage` may not import `@orb/db` (not in its consuming-direction) + dep-cruiser `infra-no-db` backstop                                                                                 |
+| `storage/variant-cache.ts` — `VariantCache`, `createVariantCache`                                       | **→ `infra`**                             | `infra/storage/variant-cache.ts`                                                                                                               | Derived-image cache, sibling to the CAS; filesystem-only, reproducible-from-original. Imports only `isAssetHash`.                                                                                                                                                                                                                                                                                 | resolve-time (same infra/storage tier)                                                                                                                                                                       |
+| `storage/zip-extract.ts` — `extractZipToDir` (+ options/result)                                         | **→ `infra`** (import flow)               | `infra/storage/zip-extract.ts`                                                                                                                 | Archive byte I/O with zip-bomb/zip-slip defenses; serves **import**, not assets. Not an assets concern; listed here only because it's the third file in `storage/`.                                                                                                                                                                                                                               | resolve-time                                                                                                                                                                                                 |
+| `domain/assets/persistence/queries.ts` — `storeBlob`, `assetIdForHash`                                  | **stays domain**                          | `domain/assets/persistence/queries.ts`                                                                                                         | The CAS+row coherence primitive — the ONE writer of the blob↔row pair. DB upsert + a `cas.putBytes` call; pure index logic.                                                                                                                                                                                                                                                                       | lint-time: dep-cruiser `assets-single-writer` — no `cas.putBytes` / `db.insert(assets)` outside this file (gate candidate)                                                                                   |
+| `domain/assets/verbs/*` — store/getMetadata/backfill/gc/reap/fsck/rebuild                               | **stays domain**                          | `domain/assets/verbs/`                                                                                                                         | Business logic over the index; fits the 8-slot template; one owner.                                                                                                                                                                                                                                                                                                                               | compile-time: `AssetsService` interface lists all 7                                                                                                                                                          |
+| avatar-ref subqueries (inline in `verbs/gc.ts`, twice)                                                  | **stays domain, extracted**               | `domain/assets/persistence/avatar-refs.ts`                                                                                                     | Today the `characterVersions`/`personas` `.avatarAssetId` ref list is hardcoded in BOTH `collectGarbage` and `reapIfOrphan`. README flags it load-bearing: "adding a new avatar column MUST update both lists, or its blobs become silently GC-eligible." One registry, both verbs iterate it — same pattern as tag's junction registry.                                                          | compile-time: one typed `AvatarRef[]`; both verbs import it. test-time: a schema-introspection test asserts every `avatarAssetId`-typed FK column is in the registry (closes the "silently GC-eligible" gap) |
+| `shared/_kit/assets.ts` — `isAssetHash`                                                                 | **→ `kit`**                               | `@orb/kit/assets`                                                                                                                              | Pure hash guard (64-hex regex); zero I/O, zero domain; the path-traversal defense at every boundary. Per `Core-Legacy-Migration-and-Gaps.md` §1.                                                                                                                                                                                                                                                  | resolve-time: `@orb/kit` is the universal leaf; CAS/variant-cache/route all import down                                                                                                                      |
+| `shared/_kit/assets.ts` — `BLOB_ROUTE`, `blobUrl`                                                       | **→ `contracts`**                         | `@orb/contracts/assets`                                                                                                                        | The `/blob/<hash>` route contract — cross-boundary (client builds the URL, server/caddy serves it). Per `Core-Legacy-Migration-and-Gaps.md` §1/§4.                                                                                                                                                                                                                                                | resolve-time: client may import `@orb/contracts`, not `@orb/server`                                                                                                                                          |
+| `shared/_kit/assets.ts` — `BLOB_WIDTHS`, `snapBlobWidth`                                                | **→ this domain**                         | `domain/assets/substrate/variant-policy.ts`                                                                                                    | Variant-sizing POLICY, not a kit primitive — per `Core-Legacy-Migration-and-Gaps.md` §5. Only the server blob route snaps (the client has its own `AVATAR_SIZES` ladder); no client consumer, so it stays domain-internal. The route (entry/http) imports it down.                                                                                                                                | resolve-time: `entry/` is above `domain/` (downward import OK)                                                                                                                                               |
+| `shared/_kit/assets.ts` — `AssetKind` (`"card"\|"avatar"\|"export"`)                                    | **→ `@orb/contracts/assets`** (RESOLVED)  | `@orb/contracts/assets` (`assetKindSchema` + inferred `AssetKind`)                                                                             | The union is the upload **wire** `kind` field, re-spelled inline across 3 sites today (upload route validation, client `uploadAsset` helper, the `assets.kind` db enum). §7.5 → ONE canonical home in contracts; the db enum derives from the same tuple. `Core-Legacy-Migration-and-Gaps.md` §5's "feature-internal → domain" line was CORRECTED 2026-06-25 → contracts (that table now agrees). | resolve-time (contracts importable by client + db + domain) + §7.5 `no-inline-union-redecl`                                                                                                                  |
+| `domain/assets/contract/results.ts` — `StoredAsset`                                                     | **→ `contracts`**                         | `@orb/contracts/assets`                                                                                                                        | The upload POST response; the client hand-redeclares it as `UploadedAsset` (flagged in `AGENTS.md` §8.2 "client hand-redeclares server zod — asset result"). Cross-boundary ⇒ contracts. The other results (Backfill/Gc/Fsck/Reap) are CLI/workload-only (no client) ⇒ stay domain.                                                                                                               | resolve-time: client imports `StoredAsset` from contracts; domain `contract/` re-exports                                                                                                                     |
+| `domain/assets/mime.ts` — `sniffMime`                                                                   | **stays domain**                          | `domain/assets/substrate/mime.ts`                                                                                                              | Pure isomorphic, but asset-specific and server-only (store `enforceMagic` + DR rebuild). Promote to `@orb/kit` only if the client ever needs to pre-sniff (deferred — see Resolved/deferred decisions).                                                                                                                                                                                           | lint-time: `kit-purity` would accept it; kept domain by intent                                                                                                                                               |
+| `http/assets.ts` — blob serve + upload registrars                                                       | **→ `entry`**                             | `entry/http/assets.ts`                                                                                                                         | Non-tRPC binary/multipart registrar (the `register<X>Routes` discipline). Calls DOWN: `assetsService` (domain), `cas`/`variants` (infra), `resolveOwner` (auth).                                                                                                                                                                                                                                  | resolve-time: `entry/` is the topmost tier                                                                                                                                                                   |
+| `http/assets.ts` — the `?w=&f=webp` snap+variant-cache+sharp transform block                            | **split: policy → domain, sharp → infra** | new `domain/assets/verbs/resolve-variant.ts` injecting an `imageTransform` infra op (the `sharp` adapter in `infra/image`) + the variant cache | Today the route inlines sharp. The width-snap is domain policy; sharp is CPU/I/O infra. A thin verb (snap → cache-read → transform-via-injected-op → cache-put) keeps the route thin and the policy in the domain. (RESOLVED per DECISIONS-LEDGER §7 D6 — EXTRACT to `infra/image`, NOT inline in the route.)                                                                                     | resolve-time (sharp behind the `infra/image` adapter) + lint-time (no `sharp` import in `entry/` — it is extracted)                                                                                          |
+| `_shared/ids.ts` — `newTypeId`; `shared/_kit/ids.ts` — `AssetId`, `castId`, `ID_PREFIX`                 | **→ `kit`**                               | `@orb/kit/ids`                                                                                                                                 | Pure TypeID mint + brands; the canonical kit case (`Core-Legacy-Migration-and-Gaps.md` §1, fanIn 446).                                                                                                                                                                                                                                                                                            | resolve-time                                                                                                                                                                                                 |
+| `_shared/audit.ts` — `logAudit` (used by GC/reap)                                                       | **→ `foundation`**                        | `foundation/observability/audit`                                                                                                               | Audit sink; read-down-into by all. Per `Core-Legacy-Migration-and-Gaps.md` §6.                                                                                                                                                                                                                                                                                                                    | resolve-time: `foundation` is below domain                                                                                                                                                                   |
+| `observability/logger.ts` — `getLog`                                                                    | **→ `foundation`**                        | `foundation/observability/logger`                                                                                                              | Logging seam.                                                                                                                                                                                                                                                                                                                                                                                     | resolve-time                                                                                                                                                                                                 |
+| `BatchItem<"sqlite">` inline casts (backfill `db.batch`)                                                | **→ `@orb/db/kit`**                       | wire to `@orb/db/kit` `batchMany`/`batchStmt`                                                                                                  | `AGENTS.md` §8.4 flags inline `BatchItem` casts that bypass the existing batch helper. The non-empty-tuple spread in backfill is the same family.                                                                                                                                                                                                                                                 | compile-time: typed `db.batch` call via the db-kit helper                                                                                                                                                    |
+| `errorMessage` (zip-extract)                                                                            | **→ `kit`**                               | `@orb/kit/error-message`                                                                                                                       | Pure primitive.                                                                                                                                                                                                                                                                                                                                                                                   | resolve-time                                                                                                                                                                                                 |
 
 ---
 
@@ -214,23 +218,23 @@ None import `domain/assets` internals — all access is the front door or compos
 
 **Injected into `character.context` at the composition root (optional dep):**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected           | Provided by   | Used for                                                                                                                                                                                                                                          |
+| --------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `assets.reapIfOrphan` | assets domain | `character.remove` / `bulk-remove` — targeted cleanup of the deleted character's exclusively-owned cards/avatars, without the full mark-sweep cost. Optional: tests/scripts omit it (the cascade still completes; the next `assets:gc` reclaims). |
 
 **Injected into the `workloads` runner-env at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
+| Op injected                                                        | Provided by   | Used for                                                                                                        |
+| ------------------------------------------------------------------ | ------------- | --------------------------------------------------------------------------------------------------------------- |
 | `assets.createAssetsService(db)` → a `WorkloadAssetsService` slice | assets domain | the `assets-backfill` + `import-st` runners build a per-job assets service and call `store` / `backfillAvatars` |
 
 **Consumed down from `entry` (no injection — entry is above domain):**
 
-| Consumer | Calls | Used for |
-|---|---|---|
-| `entry/http/assets.ts` (blob route) | `assets.getMetadata(caller,hash)` (owner-gate, D21) + `cas`/`variants` + `snapBlobWidth` | resolve caller (session cookie) → `fetchOwned`/roster-avatar exception → Content-Type + resized-webp serve of `/api/blob/:hash`; `Cache-Control: private, immutable` |
-| `entry/http/assets.ts` (upload route) | `assets.store(..., { enforceMagic: true })` | multipart ingest; auth + CSRF required |
-| CLI scripts (`assets:gc`, `assets:fsck`) | `assets.collectGarbage` / `fsck` / `rebuildFromTree` | maintenance off the box |
+| Consumer                                 | Calls                                                                                    | Used for                                                                                                                                                             |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entry/http/assets.ts` (blob route)      | `assets.getMetadata(caller,hash)` (owner-gate, D21) + `cas`/`variants` + `snapBlobWidth` | resolve caller (session cookie) → `fetchOwned`/roster-avatar exception → Content-Type + resized-webp serve of `/api/blob/:hash`; `Cache-Control: private, immutable` |
+| `entry/http/assets.ts` (upload route)    | `assets.store(..., { enforceMagic: true })`                                              | multipart ingest; auth + CSRF required                                                                                                                               |
+| CLI scripts (`assets:gc`, `assets:fsck`) | `assets.collectGarbage` / `fsck` / `rebuildFromTree`                                     | maintenance off the box                                                                                                                                              |
 
 **The asset → embeddings event seam (one-directional, NO sideways call):**
 
@@ -238,7 +242,7 @@ None import `domain/assets` internals — all access is the front door or compos
 embeds it (image lens, the one 1024-dim space). **Assets emits `asset.created`; it does NOT import
 `embeddings` or `discovery`.** Today this is a whole-CAS scan workload (`embed-assets` runner →
 `corpus.embedAndStoreImages`); the orbweaver target is the event-driven coalesced indexer
-(`structure.md` §6, "import just works; no manual backfill scripts"). The `asset.created` payload is
+(`Core-0-Architecture-and-Structure.md` §6, "import just works; no manual backfill scripts"). The `asset.created` payload is
 a `@orb/contracts` event shape; `embeddings` subscribes. Assets having zero knowledge of who consumes
 the event is the tell the split is right (mirrors `corpus`'s incest being removed).
 
@@ -262,7 +266,7 @@ member-visible) — never arbitrary blobs; never fires in solo/single-user. (Bro
 to members is governed by the host's `memberCardVisibility` room toggle — D22 — but that's a `character`
 read-view concern, not a blob route concern; the blob route only ever serves the avatar to a member.) The
 **upload** route requires a resolved identity + CSRF (a mutating write) and stamps `ownerId` from the
-`Principal`. `backfillAvatars` takes `ownerId` purely to scope the *character* query; under the `Principal` migration that argument
+`Principal`. `backfillAvatars` takes `ownerId` purely to scope the _character_ query; under the `Principal` migration that argument
 becomes `principal.userId`. There is no host/member hierarchy here — assets predate the permission
 model and sit beneath it.
 
@@ -300,11 +304,11 @@ importable `assetKindSchema` (zod) in `@orb/contracts/assets`, `AssetKind` infer
 enum derived from the same tuple, the upload route validating against it, and the client importing it.
 A new kind is added in exactly one place. (RESOLVED → `@orb/contracts/assets` — see §Movement.)
 
-### §6 / structure.md §6 — derived data is event-driven
+### §6 / core/Core-0-Architecture-and-Structure.md §6 — derived data is event-driven
 
 The image-embed pass was already moved OUT of assets (pre-2026-06) to `corpus/embed-images.ts`. The
 orbweaver finish: the whole-CAS-scan workload (`embed-assets`) becomes the `asset.created` →
-coalesced-embeddings-workload seam, so "import just works." Assets owns the *emit*, not the index.
+coalesced-embeddings-workload seam, so "import just works." Assets owns the _emit_, not the index.
 
 ---
 
@@ -313,7 +317,7 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 1. **`isAssetHash` path-traversal guard** (`shared/_kit/assets.ts:12` → `@orb/kit/assets`): the
    `^[0-9a-f]{64}$` check is the security guard at every boundary that accepts an external hash —
    `cas.blobPath`, `variantCache.hashDir`, and the blob route all throw/404 on a non-hash, so a hash
-   can never contain `/` or `..`. It must remain the guard, called *before* any path construction.
+   can never contain `/` or `..`. It must remain the guard, called _before_ any path construction.
 
 2. **The blob-width ladder bounds the variant keyspace** (`BLOB_WIDTHS` + `snapBlobWidth`): a fixed
    6-rung ladder means the variant cache stores at most `|BLOB_WIDTHS|` webp files per hash, not
@@ -324,7 +328,7 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 3. **CAS dedup-by-hash + the mtime touch** (`cas.ts:108-126`): identical bytes hash identically; the
    second `putBytes` skips the write but **bumps the blob's mtime**. Without the touch, an in-flight
    import deduping onto an old orphan blob (delete-then-reimport of the same card) looks stale to
-   `collectGarbage`'s mtime grace check and can be swept *between* the put and the row link. ENOENT
+   `collectGarbage`'s mtime grace check and can be swept _between_ the put and the row link. ENOENT
    on the touch means a concurrent GC just removed it → write fresh.
 
 4. **`storeBlob` is the single coherence writer** (`persistence/queries.ts:22`): one CAS-put + one
@@ -335,7 +339,7 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 
 5. **Mark-sweep GC with NO refcount column + drop-row-BEFORE-blob ordering** (`verbs/gc.ts`): GC is a
    mark-sweep over the live avatar refs; a refcount column would be a drift hazard. Both deletion
-   paths delete the DB row *first*, then the blob, then `variants?.removeAll`. A crash between leaves
+   paths delete the DB row _first_, then the blob, then `variants?.removeAll`. A crash between leaves
    a benign orphan blob (reclaimed by the next sweep), **never** a row pointing at a missing blob.
    Self-heal beats repair. The `biome-ignore no-await-db-in-loop` on the per-asset sequencing is
    deliberate — batching all rows then all blobs would widen the row-without-blob window.
@@ -347,23 +351,23 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
    typed registry + a coverage test (introspect the schema for asset FKs).
 
 7. **`enforceMagic` at the upload boundary** (`storeBlob` + `http/assets.ts:134`): `sniffMime`
-   verifies the claimed mime against the byte signature. Two *distinct* rejections kept legible —
+   verifies the claimed mime against the byte signature. Two _distinct_ rejections kept legible —
    `octet-stream` (the "unrecognized signature" sentinel, never a valid claimed mime since we only
    serve PNG/JPEG/GIF/WebP) and claimed-vs-sniffed mismatch (a PNG renamed `.jpg`). Defends against a
    user smuggling an arbitrary binary (PHP, SVG-with-script) labeled `image/png`.
 
 8. **CAS durability vs cache disposability** (`cas.ts` vs `variant-cache.ts`): the CAS writes a temp
-   file *under rootDir* (same filesystem — a cross-device rename silently degrades to a non-atomic
+   file _under rootDir_ (same filesystem — a cross-device rename silently degrades to a non-atomic
    copy) → `fsync` → rename → explicit parent-dir fsync (POSIX durability; Windows best-effort). The
    variant cache is a CACHE — atomic rename (no torn reads) but **no fsync** (a lost entry is just a
    recompute). Preserve the asymmetry.
 
 9. **`variants` is optional** (`context.ts`): DR rebuild and some workload envs omit it. Every path
-   that removes an *original* also drops its cached resize variants — but only when `variants` is wired
+   that removes an _original_ also drops its cached resize variants — but only when `variants` is wired
    (`ctx.variants?.removeAll`).
 
 10. **Per-user (`ownerId`), no custom error class** — assets are single-owned (`ownerId` + `unique(ownerId,
-    hash)` + `fetchOwned`; ledger D21, was global+deduped); failures are still plain `Error` (magic mismatch,
+hash)` + `fetchOwned`; ledger D21, was global+deduped); failures are still plain `Error` (magic mismatch,
     missing-row-after-upsert). The `contract/errors.ts` slot is documented-empty (ownership denial surfaces
     as a 404 from the gated blob route / `fetchOwned`, not an assets-specific error).
 
@@ -380,46 +384,46 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
    the `/blob/:hash` route is owner-gated, NOT global/unauthenticated (ledger D21).** Access control is at
    the asset itself (`fetchOwned`), with one membership exception (a roster character's avatar). Dedup is
    within-user only; the CAS is per-user keyed.
-   *Enforcement: compile-time (`assets.ownerId` column + `unique(ownerId,hash)`); lint — the blob route
+   _Enforcement: compile-time (`assets.ownerId` column + `unique(ownerId,hash)`); lint — the blob route
    resolves the caller (session cookie) + `fetchOwned`, never serves on bare row-existence; test — a
-   non-owner (and a non-member) GET of `/blob/:hash` → 404, a roster member gets only the avatar.*
+   non-owner (and a non-member) GET of `/blob/:hash` → 404, a roster member gets only the avatar._
 
 2. **`storeBlob` is the only CAS-put + row-upsert site.** No verb calls `cas.putBytes` or
    `db.insert(assets)` outside `persistence/queries.ts`.
-   *Enforcement: lint-time — dep-cruiser `assets-single-writer` (no `cas.putBytes`/`db.insert(assets)`
-   outside `persistence/queries.ts`).*
+   _Enforcement: lint-time — dep-cruiser `assets-single-writer` (no `cas.putBytes`/`db.insert(assets)`
+   outside `persistence/queries.ts`)._
 
 3. **Drop-row-BEFORE-blob ordering in both deletion paths.** A crash mid-delete leaves an orphan blob,
    never a dangling row.
-   *Enforcement: test-time — a crash-injection test asserts a mid-delete failure leaves a blob with no
-   row (reclaimable), never a row with no blob.*
+   _Enforcement: test-time — a crash-injection test asserts a mid-delete failure leaves a blob with no
+   row (reclaimable), never a row with no blob._
 
 4. **The avatar-ref registry is the single source for "what references an asset."** Both
    `collectGarbage` and `reapIfOrphan` read it.
-   *Enforcement: compile-time (one typed `AvatarRef[]`, both verbs import it) + test-time (schema
-   introspection asserts every `avatarAssetId`-typed FK is in the registry — closes the silent-GC gap).*
+   _Enforcement: compile-time (one typed `AvatarRef[]`, both verbs import it) + test-time (schema
+   introspection asserts every `avatarAssetId`-typed FK is in the registry — closes the silent-GC gap)._
 
 5. **`infra/storage` (Cas / VariantCache / zip-extract) never imports `@orb/db` or a domain.** The byte
    store is a sealed executor below the domain.
-   *Enforcement: resolve-time (db not in the consuming direction) + dep-cruiser `infra-no-db`/`infra-no-domain`.*
+   _Enforcement: resolve-time (db not in the consuming direction) + dep-cruiser `infra-no-db`/`infra-no-domain`._
 
 6. **`enforceMagic: true` at every user-upload boundary.** A mislabeled binary is rejected before it
    reaches CAS.
-   *Enforcement: test-time — the upload route test asserts a non-image labeled `image/png` is rejected.*
+   _Enforcement: test-time — the upload route test asserts a non-image labeled `image/png` is rejected._
 
 7. **`isAssetHash` guards every path construction from an external hash.**
-   *Enforcement: compile-time (`blobPath`/`hashDir` throw on a non-hash) + the guard lives in `@orb/kit`.*
+   _Enforcement: compile-time (`blobPath`/`hashDir` throw on a non-hash) + the guard lives in `@orb/kit`._
 
 8. **`AssetKind` has one canonical declaration.** The union lives in `@orb/contracts/assets` as
    `assetKindSchema`; the db enum, the upload route, and the client derive from it. (RESOLVED → contracts.)
-   *Enforcement: §7.5 `no-inline-union-redecl` (count of re-spellings must be 1).*
+   _Enforcement: §7.5 `no-inline-union-redecl` (count of re-spellings must be 1)._
 
 9. **Assets emits `asset.created` but never imports `embeddings`/`discovery`.**
-   *Enforcement: resolve-time (no dep) + dep-cruiser `domain-no-cross-feature`.*
+   _Enforcement: resolve-time (no dep) + dep-cruiser `domain-no-cross-feature`._
 
 10. **A card blob's CAS hash == `characters.importHash`** (both sha-256 of the whole file; `importHash`
     is a column on the flat `characters` row per D28, distinct from `contentHash` the semantic-fields hash).
-    *Enforcement: test-time (store a card PNG, assert `stored.hash === importHash`).*
+    _Enforcement: test-time (store a card PNG, assert `stored.hash === importHash`)._
 
 ---
 
@@ -428,7 +432,7 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 - **`AssetKind` home — RESOLVED → `@orb/contracts/assets`** (`assetKindSchema` zod + inferred `AssetKind`;
   db enum derived from the same tuple). The union is the upload **wire** `kind` field re-spelled in 3
   places (db enum, route, client) — §7.5 → one contracts home, consistent with how `tag` handles
-  `TagSource`. `shared-dissolution.md` §5's "feature-internal → domain" line was CORRECTED 2026-06-25 to
+  `TagSource`. `Core-Legacy-Migration-and-Gaps.md` §5's "feature-internal → domain" line was CORRECTED 2026-06-25 to
   contracts; no conflict remains.
 
 - **`StoredAsset` home — RESOLVED → `@orb/contracts/assets`** (the upload POST response; the client
@@ -440,7 +444,7 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
   `domain/assets/verbs/resolve-variant.ts` injecting an `imageTransform` op backed by a `sharp` adapter
   in `infra/image` — the width-snap is domain policy, `sharp` is infra I/O; keeps `entry/http` thin and
   `sharp` out of the entry tier. NOT inline in the route. webp-only is by design (the client `avatarUrl`
-  hardcodes `f=webp`); non-webp stays JIT. (Aligned with `transport.md` + `tiers/infra.md`.)
+  hardcodes `f=webp`); non-webp stays JIT. (Aligned with `transport.md` + `core/Tier-3-Infra.md`.)
 
 - **`asset.created` event MECHANISM — RESOLVED (same pattern as import's emit).** Assets emits
   `asset.created` via an **injected `emit` op** on the `store` verb (the upload route's single coherence
@@ -451,14 +455,14 @@ coalesced-embeddings-workload seam, so "import just works." Assets owns the *emi
 
 - **`asset.created` at-least-once delivery — DEFERRED (jointly with `embeddings`).** The emit MECHANISM
   is locked (above); the open piece is whether the bus is fire-and-forget in-process vs an outbox with
-  at-least-once delivery to the coalesced embeddings workload. *Criterion:* matches whatever
+  at-least-once delivery to the coalesced embeddings workload. _Criterion:_ matches whatever
   `embeddings.md` §events picks for the indexer bus shape (one decision for all `*.created`/`*.updated`
   events; the contracts event shape is the shared seam). Same deferral as import's `character.updated`.
 
 - **`sniffMime` → `@orb/kit` — DEFERRED.** Pure isomorphic, but only server consumers today (store
-  `enforceMagic` + DR rebuild). Stays `domain/assets/substrate/mime.ts`. *Criterion to promote to
-  `@orb/kit/assets`:* iff the client ever needs to pre-sniff an upload before sending.
+  `enforceMagic` + DR rebuild). Stays `domain/assets/substrate/mime.ts`. _Criterion to promote to
+  `@orb/kit/assets`:_ iff the client ever needs to pre-sniff an upload before sending.
 
 - **The `"export"` `AssetKind` value — DEFERRED: keep as scaffolded intent.** Declared but the
-  export-blob path is a "future generated export." Keep it ("unwired ≠ worthless"). *Criterion:* confirm
+  export-blob path is a "future generated export." Keep it ("unwired ≠ worthless"). _Criterion:_ confirm
   the export-blob write path is wired before any code relies on the `"export"` kind being produced.

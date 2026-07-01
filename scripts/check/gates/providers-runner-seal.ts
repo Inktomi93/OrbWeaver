@@ -1,4 +1,4 @@
-// Gate: providers-runner-seal (tiers/providers.md invariant #3) — the runner DERIVATION + VOCAB
+// Gate: providers-runner-seal (core/Tier-3b-Providers.md invariant #3) — the runner DERIVATION + VOCAB
 // (`deriveRunner` / `backendForSource` / `BackendKey` / `BACKEND_KEYS`) are sealed INSIDE infra/providers
 // and never leave it. They ARE legitimately reachable on the providers barrel — the role dispatchers and
 // the `roles/dispatch.test.ts` self-test consume them, and the derivation is unit-tested directly. What
@@ -31,7 +31,7 @@ export const providersRunnerSeal: Check = {
             violations.push({
               file: relPath(root, path),
               line: named.getStartLineNumber(),
-              message: `'${name}' is sealed inside infra/providers (the runner derivation/vocab) — a domain/transport/entry module must not import it; route through the providers role surface, never the runner key (tiers/providers.md inv #3).`,
+              message: `'${name}' is sealed inside infra/providers (the runner derivation/vocab) — a domain/transport/entry module must not import it; route through the providers role surface, never the runner key (core/Tier-3b-Providers.md inv #3).`,
             });
           }
         }

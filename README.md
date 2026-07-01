@@ -10,8 +10,8 @@ rest so the **file structure is self-documenting** and the **boundaries are phys
 
 ## Read first
 
-- **`docs/architecture/BUILD-PLAN.md`** — the ordered build runbook (start here to build).
-- **`docs/architecture/structure.md`** — the constitution: package layout, server tiers, per-feature
+- **`docs/architecture/core/BUILD-PLAN.md`** — the ordered build runbook (start here to build).
+- **`docs/architecture/core/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
   template, central test mirror, the partitioning rule, and the 13 enforcement gates.
 
 ## Core bets

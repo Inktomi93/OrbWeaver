@@ -1,4 +1,4 @@
-// entry/http/blob — the binary blob-serve registrar (tiers/entry.md §layout "blob.ts"; assets.md §"the
+// entry/http/blob — the binary blob-serve registrar (core/Tier-5-Entry.md §layout "blob.ts"; assets.md §"the
 // blob route"). `GET /api/blob/:hash` serves an owned CAS blob; `?w=<px>` (the client always pairs it with
 // `f=webp`) serves a resized-webp variant. It composes the `assets` front door (the owner-gate
 // `getMetadata` + the `resolveVariant` snap→cache→transform pipeline, D6) with the `infra/storage` CAS

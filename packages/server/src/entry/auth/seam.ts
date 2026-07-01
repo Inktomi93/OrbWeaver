@@ -1,5 +1,5 @@
 // entry/auth/seam — THE auth seam: the ONE place a `Principal` is constructed (spine
-// identity-auth-permission.md §1/§3; tiers/entry.md; DECISIONS-LEDGER §7 D1). It is the only module
+// Spine-Identity-and-Auth.md §1/§3; core/Tier-5-Entry.md; DECISIONS-LEDGER §7 D1). It is the only module
 // allowed to import BOTH `infra/auth` (sealed db-free VERIFICATION) and `domain/sessions` (RESOLUTION +
 // the users-row upsert) — invariant #2. It turns a request's headers into the immutable, db-resolved
 // `Principal` that flows down unchanged; everything below re-reads `Principal.userId`, never re-resolves.

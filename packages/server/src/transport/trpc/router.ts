@@ -1,5 +1,5 @@
 // transport/trpc/router — the root `appRouter`: one thin router per domain front door + the loose
-// public procs (tiers/transport.md §"router.ts"). The type `AppRouter` is what the client type-imports
+// public procs (core/Tier-4-Transport.md §"router.ts"). The type `AppRouter` is what the client type-imports
 // (`@orb/client` → `import type { AppRouter }`); it is `typeof` the root router, so its ONLY possible home
 // is here (a value below `server` in the cake cannot reference a server value — it can't live in
 // `@orb/contracts`), hence the one sanctioned `no-inline-types` exception below.

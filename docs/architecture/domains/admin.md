@@ -5,11 +5,11 @@
 > (`requireAdmin`), `_shared/users.ts` (the user-management primitives), `src/server/trpc/trpc.ts`
 > (the `adminProcedure`/`adminMiddleware` rung), and `trpc/routers/user-admin.ts`. The defining tension:
 > **admin is the GATING surface, but the permission model it gates with is only one-third wired.** Per
-> `_FANOUT-BRIEF.md` §7.1 (identity/auth/permission spine), permission = global-role × resource-role ×
-> capability, and only global `admin|user` exists today. Authoritative upstream: `_FANOUT-BRIEF.md` §4
+> `AGENTS.md` §7.1 (identity/auth/permission spine), permission = global-role × resource-role ×
+> capability, and only global `admin|user` exists today. Authoritative upstream: `AGENTS.md` §4
 > (admin pain — "gating surfaces: requireAdmin, role") + §7.1 (the spine, READ IN FULL) + §7.4 (types) +
-> §7.5 (the `users.role` axis — 35 touches / 33 inline redecls); `reports/shared-dissolution.md` §5
-> (`_shared/admin.ts` → `domain/admin`; `_shared/users.ts` → `domain/sessions`); `structure.md` §4
+> §7.5 (the `users.role` axis — 35 touches / 33 inline redecls); `core/Core-Core-Legacy-Migration-and-Gaps.md` §5
+> (`_shared/admin.ts` → `domain/admin`; `_shared/users.ts` → `domain/sessions`); `Core-0-Architecture-and-Structure.md` §4
 > (the 8-slot template) + §7 (the gates); `domains.md` (the admin row — "admin surfaces / gating").
 
 ---
@@ -35,8 +35,8 @@
   immutable: `setRole` (demote) and `setEnabled` (disable) can NEVER demote, disable, or remove it, and
   there is **exactly one** (the bootstrap OWNER; transfer is a future owner-only action). This **replaces**
   neo's "never zero out the enabled-admin set" last-admin guard: since `requireAdmin` = owner∪admin (D17),
-  the immutable owner is *always* an administrator, so the admin-capable set can never be emptied — demoting
-  the last *delegated* admin is therefore allowed (the owner remains). `setRole` is **owner-only** (only the
+  the immutable owner is _always_ an administrator, so the admin-capable set can never be emptied — demoting
+  the last _delegated_ admin is therefore allowed (the owner remains). `setRole` is **owner-only** (only the
   owner grants/revokes `admin`; `user↔admin` only, never to/from `owner`). Mechanism (two layers, same
   shape as neo's guard but keyed on the owner row): a friendly `SELECT` owner-row check for the fast-path
   `cannot_modify_owner` error, plus the atomic backstop — a `WHERE role <> 'owner'` clause ON THE UPDATE so
@@ -50,15 +50,15 @@ This domain does **not** own:
 
 - **Identity resolution + the `users`-row upsert** — `ensureUser` / `provisionIdentity` (the
   handle/externalId → row primitives, OWNER_HANDLES role seeding, SSO provisioning) are
-  `_shared/users.ts` → **`domain/sessions`**. admin's `createUser`/`setRole` verbs *administer* the
-  `users` table; `sessions` *resolves identity into* it. The seam: admin's create/reset verbs lean on
+  `_shared/users.ts` → **`domain/sessions`**. admin's `createUser`/`setRole` verbs _administer_ the
+  `users` table; `sessions` _resolves identity into_ it. The seam: admin's create/reset verbs lean on
   `sessions` user primitives (today they bypass it with a direct `INSERT` — see §Movement) and on
   `infra/auth`'s `hashPassword`.
 - **Credential minting** — the `max-pro-sub` mint is the ONE privileged-credential construction site. It
   is the OWNER's box credential, so it is gated by **`requireOwner`, not `requireAdmin`** (D17 — a delegated
   admin is NOT the box owner and never resolves the owner's sub; was a `role === 'admin'` check,
-  `_shared/credentials.ts:547–565`). That mint is a **`credentials`** concern; admin owns the *gate
-  primitive* (`requireOwner`), not the construction. A member/agent-triggered `max-pro-sub` turn is refused
+  `_shared/credentials.ts:547–565`). That mint is a **`credentials`** concern; admin owns the _gate
+  primitive_ (`requireOwner`), not the construction. A member/agent-triggered `max-pro-sub` turn is refused
   unless explicit owner consent (`triggeredBy ≠ owner` → fail-closed). (The buddy `agent` route reuses the
   same gate primitive — confirming the gate is shared, the mint is not.)
 - **Session lifecycle** — `revoke` / `listForUser` / `revokeAllForUser` mechanics belong to
@@ -68,7 +68,7 @@ This domain does **not** own:
   admin's `vllmEngines`/`restartVllmEngine` are a thin admin-gated surface over them (today a direct
   `#server/providers` import — should be an injected port; see §Movement).
 - **The transport `adminProcedure` / `adminMiddleware`** — the request-edge half of the 2-layer gate is
-  **`transport/trpc`** (it reads `ctx.auth.role`, resolved once at the seam). The *role value* it checks
+  **`transport/trpc`** (it reads `ctx.auth.role`, resolved once at the seam). The _role value_ it checks
   comes from identity resolution (`sessions`/the auth seam); admin neither owns nor resolves it.
 - **`logAudit`** — every admin write audits, but the audit sink is **`foundation/observability/audit`**.
 
@@ -79,17 +79,17 @@ This domain does **not** own:
 Per §7.1 the target permission model is three-axis: **`permission = global-role × resource-role ×
 capability`**. Today only the first axis is wired, and admin is where it lives.
 
-| Axis | Today (verified) | Orbweaver target |
-|---|---|---|
-| **global-role** `owner \| admin \| user` (D17) | **WIRED, 2-layer** — `adminMiddleware` (transport) reads `ctx.auth.role`; `requireAdmin` (verb) re-checks. Real enforcement. (Today 2-member; D17 adds `owner`.) | Keep the 2-layer enforcement. `requireAdmin` = `can(p,'admin',global)` (**owner ∪ admin**); a new `requireOwner` = `can(p,'owner',global)` (owner-only) gates the box-credential mint + admin grant/revoke. The owner is the box owner (sole `max-pro-sub` holder, immutable, exactly one). |
-| **resource-role** `chat_participants.role: host \| member` | **EXISTS in schema, gates NOTHING** — principal-scout: 33 writes, 0 authority reads ("added-but-unwired"). Access control is pure single-owner row-scoping (`chats.ownerId === ctx.userId`). | Wire `host\|member` as **chat** authority (chat's to wire — but admin's permission model frames it). Replace owner-equality with participant-membership. |
-| **capability** (per-action) | **none** — privilege is scattered `role === 'admin'` / `ownerId === userId` checks. | Introduce a real `can(principal, action, resource)` seam; `requireAdmin` and `requireHost` are its first two implementations. |
+| Axis                                                       | Today (verified)                                                                                                                                                                             | Orbweaver target                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **global-role** `owner \| admin \| user` (D17)             | **WIRED, 2-layer** — `adminMiddleware` (transport) reads `ctx.auth.role`; `requireAdmin` (verb) re-checks. Real enforcement. (Today 2-member; D17 adds `owner`.)                             | Keep the 2-layer enforcement. `requireAdmin` = `can(p,'admin',global)` (**owner ∪ admin**); a new `requireOwner` = `can(p,'owner',global)` (owner-only) gates the box-credential mint + admin grant/revoke. The owner is the box owner (sole `max-pro-sub` holder, immutable, exactly one). |
+| **resource-role** `chat_participants.role: host \| member` | **EXISTS in schema, gates NOTHING** — principal-scout: 33 writes, 0 authority reads ("added-but-unwired"). Access control is pure single-owner row-scoping (`chats.ownerId === ctx.userId`). | Wire `host\|member` as **chat** authority (chat's to wire — but admin's permission model frames it). Replace owner-equality with participant-membership.                                                                                                                                    |
+| **capability** (per-action)                                | **none** — privilege is scattered `role === 'admin'` / `ownerId === userId` checks.                                                                                                          | Introduce a real `can(principal, action, resource)` seam; `requireAdmin` and `requireHost` are its first two implementations.                                                                                                                                                               |
 
 **What admin owns in this model:** the **global-role gate primitive** (`requireAdmin`) and the
 **user-admin verbs** that mutate the global-role axis (`setRole`/`setEnabled`/`createUser`). admin does
 NOT own the resource-role axis (that's chat's `chat_participants`) or the capability seam's other
 implementations (`requireHost`, agent capability ceilings — §7.1 LOCKED makes agents first-class
-principals with a capability ceiling enforced *by this model* rather than by borrowed identity).
+principals with a capability ceiling enforced _by this model_ rather than by borrowed identity).
 
 **The seam target (not a rewrite — a re-home + a wrapper):** the dispatch-scout measured the
 `users.role` axis at **35 touches with 33 inline `"admin" | "user"` re-spellings** (§7.5) — no exported
@@ -169,24 +169,24 @@ verb surface — it is the gate primitive the verbs and `settings` both consume)
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `_shared/admin.ts` — `requireAdmin(db, userId, role?)` | stays domain feature (the gate primitive) | `domain/admin/guard.ts` (a named in-domain primitive, NOT the front door — RESOLVED, Q1: the `can()`/`requireAdmin`/`requireOwner` seam home) | `_shared` dissolves. `requireAdmin` takes a `Db` + principal (imports `db`, downward — legal in a domain). It is the verb-tier half of the 2-layer gate; the settings domain consumes it via **composition-root injection** (settings can't sideways-import admin). | Resolve-time: `_shared` does not exist; the cross-feature ban means settings receives `requireAdmin` as an injected op, not an import |
-| All 7 admin verb files | stays domain feature | `domain/admin/verbs/*` | They are the user-admin business logic; fit the 8-slot template unchanged (the owner-immutability guard, TOCTOU translation, existence-before-audit all preserved). | Lint-time: `verb-naming` + `feature-structure` |
-| `_shared/users.ts` — `ensureUser`, `provisionIdentity`, `ownerHandles`, `determineRole` | **→ another feature** | `domain/sessions` | Identity *resolution* (handle/externalId → row, OWNER_HANDLES role seeding, SSO upsert) is sessions' job, not admin's. admin *administers* the `users` table; sessions *populates* it. `createUser` (admin) and `provisionIdentity` (sessions) are distinct write paths. | Resolve-time: `_shared` dissolves; admin's create/reset verbs receive sessions' user primitives via injection (cross-feature ban) |
-| `create-user.ts` / `reset-password.ts` — direct `users` INSERT/UPDATE + `hashPassword` import from `#server/auth/_shared/password` | re-routed | `infra/auth` for `hashPassword` (sealed adapter, injected); the row write stays in admin persistence but the **handle-uniqueness primitive** aligns with sessions' `ensureUser` shape | `hashPassword` is an I/O-adjacent auth adapter (`infra`, injected down). The `INSERT` is admin's (it owns admin-created local users), but it must share the TOCTOU-safe conflict shape with sessions to avoid two divergent user-creation paths. | Resolve-time (`infra/auth` injected) + Compile-time (shared `UserRole` on the role column) |
-| `SessionAdminPort` (the dependency-inversion port) | stays domain feature | `domain/admin/contract/service.ts` | The port pattern is exactly right: admin declares the slice of sessions it needs; the composition root injects the real `SessionsService`. No over-indirection. Preserve. | Compile-time: the port interface; the root's `createAdminService(db, { sessions, … })` fails `tsc` if sessions doesn't satisfy it |
-| `vllm.ts` — `allEngineStatuses` / `getVllmEngineController` from `#server/providers` (direct infra reach) | re-routed via injected port | `infra/providers` (the supervisor); admin declares a `VllmSupervisorPort` in `contract/service.ts`, injected at the root | A domain reaching directly into `infra` is a downward import that's *legal* by the cake but breaks the "domains receive infra via injection" discipline (so the verb is testable without a live supervisor). Mirror the SessionAdminPort pattern. | Lint-time: dep-cruiser `domain-no-direct-infra` (gate candidate) — domain verbs import infra adapters only as injected ports |
-| `users.role` axis — inline `"admin" \| "user"` re-spelled 33× (incl. `ActorRole` in `contract/service.ts`, every verb param, the tRPC `z.enum(["admin","user"])`) | **→ contracts** | `@orb/contracts/identity` — `userRoleSchema` (zod) + `UserRole` (inferred); `ActorRole` collapses into `UserRole` | §7.5 measured 35 touches / 33 redecls, no importable union. One zod schema the tRPC router, the client form, and the domain all import; the TS type derives from it. The `users.role` drizzle column derives its enum from the same source (or mirrors with a test). | Compile-time: downstream re-spellings diverging from the contracts import break at `tsc`; Lint-time: `no-inline-union-redecl` counts redecls (must be 1) |
-| Per-verb param shapes — `{ actorId; callerRole?; userId; role }` etc., re-declared inline in all 7 verbs AND the `AdminService` interface | stays domain, de-duplicated | `domain/admin/contract/params.ts` | The `no-inline-types` gate: arg shapes belong in `contract/params.ts`, declared once; verbs and the interface import them. Today the same 4-field object literal is spelled ~9 times. | Lint-time: `no-inline-types` / `types-in-contract` |
-| `AdminContext = ReturnType<typeof createAdminContext>` | stays domain, made explicit | `domain/admin/contract/service.ts` (top) as `export interface AdminContext` | The inferred type is invisible at a glance; the explicit interface matches the template and satisfies the no-inline-types rule (same change credentials.md makes for `CredentialContext`). | Lint-time: `no-inline-types` |
-| `AdminUserView` | stays domain-internal | `domain/admin/contract/views.ts` (re-exported from front door) | The client's user-admin feature receives it via **tRPC service-method-signature inference** (type-only, the legal client→server edge), NOT via a deep import — so it does not need a `contracts` home. (Contrast `TagView`, which the client *deep-imports* → contracts. Confirm the orbweaver client stays inference-only; if it ever imports the shape directly, promote to `contracts/identity`.) | Resolve-time: client imports `@orb/server` type-only; tRPC inference carries the shape |
-| `requireAdmin` consumer: `settings/verbs/app-settings.ts` (direct `import from ../../_shared/admin`) | re-wired to injection | `domain/settings` receives `requireAdmin` as an injected op at the composition root | settings' `getAppSettings`/`updateAppSettings` are admin-gated. In orbweaver settings can't sideways-import `domain/admin`; the root injects the gate primitive. This is the admin↔settings injection seam called out in the dissolution inventory. | Resolve-time: `domain-no-cross-feature` — settings importing `#domain/admin` is RED; the op arrives via context |
-| `max-pro-sub` mint + its `role === 'admin'` gate (`_shared/credentials.ts:547–565`) | **→ another feature** (the mint); the *gate primitive* is admin's | `domain/credentials/verbs/resolve.ts` (mint); the role check uses admin's `requireOwner`/`can()` seam (D17 — the box credential is owner-only) | admin owns the GATE, credentials owns the CONSTRUCTION. The mint is the only `ResolvedCredential` `max-pro-sub` construction site (credentials.md invariant #2); admin frames *why* it's gated (owner-only, D17) but does not mint. | Compile-time: the `MaxProSubCredential` opaque factory takes a `Principal`; the owner check is the gate primitive credentials injects/calls |
-| `logAudit` (from `_shared/audit.ts`, fanIn 60) | **→ foundation** | `foundation/observability/audit` | Audit is a cross-cutting observability sink, read-down-into by all tiers. admin is a heavy caller (every write audits) but does not own it. | Resolve-time: `foundation` is below domain; admin imports it downward |
-| `DomainForbiddenError` / `DomainOperationError` / `DomainNotFoundError` | **→ kit** | `@orb/kit/errors` | Pure error base classes, zero domain knowledge. admin throws all three; it declares none of its own (§Esoteric). **BOOT-CRITICAL** per dissolution §1. | Resolve-time |
-| `isConstraintViolation` (createUser TOCTOU translation) | **→ db-kit** | `@orb/db/kit` | DB-error classifier (the `cause`-chain walk), domain-agnostic; unify with credentials' variant. | Resolve-time |
-| `newId<UserId>()` (createUser) | **→ kit** | `@orb/kit/ids` | The canonical TypeID mint; zero I/O. | Resolve-time |
+| Unit                                                                                                                                                              | Outcome                                                           | Target                                                                                                                                                                                | Rationale                                                                                                                                                                                                                                                                                                                                                                                            | Enforcement tier                                                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_shared/admin.ts` — `requireAdmin(db, userId, role?)`                                                                                                            | stays domain feature (the gate primitive)                         | `domain/admin/guard.ts` (a named in-domain primitive, NOT the front door — RESOLVED, Q1: the `can()`/`requireAdmin`/`requireOwner` seam home)                                         | `_shared` dissolves. `requireAdmin` takes a `Db` + principal (imports `db`, downward — legal in a domain). It is the verb-tier half of the 2-layer gate; the settings domain consumes it via **composition-root injection** (settings can't sideways-import admin).                                                                                                                                  | Resolve-time: `_shared` does not exist; the cross-feature ban means settings receives `requireAdmin` as an injected op, not an import                    |
+| All 7 admin verb files                                                                                                                                            | stays domain feature                                              | `domain/admin/verbs/*`                                                                                                                                                                | They are the user-admin business logic; fit the 8-slot template unchanged (the owner-immutability guard, TOCTOU translation, existence-before-audit all preserved).                                                                                                                                                                                                                                  | Lint-time: `verb-naming` + `feature-structure`                                                                                                           |
+| `_shared/users.ts` — `ensureUser`, `provisionIdentity`, `ownerHandles`, `determineRole`                                                                           | **→ another feature**                                             | `domain/sessions`                                                                                                                                                                     | Identity _resolution_ (handle/externalId → row, OWNER_HANDLES role seeding, SSO upsert) is sessions' job, not admin's. admin _administers_ the `users` table; sessions _populates_ it. `createUser` (admin) and `provisionIdentity` (sessions) are distinct write paths.                                                                                                                             | Resolve-time: `_shared` dissolves; admin's create/reset verbs receive sessions' user primitives via injection (cross-feature ban)                        |
+| `create-user.ts` / `reset-password.ts` — direct `users` INSERT/UPDATE + `hashPassword` import from `#server/auth/_shared/password`                                | re-routed                                                         | `infra/auth` for `hashPassword` (sealed adapter, injected); the row write stays in admin persistence but the **handle-uniqueness primitive** aligns with sessions' `ensureUser` shape | `hashPassword` is an I/O-adjacent auth adapter (`infra`, injected down). The `INSERT` is admin's (it owns admin-created local users), but it must share the TOCTOU-safe conflict shape with sessions to avoid two divergent user-creation paths.                                                                                                                                                     | Resolve-time (`infra/auth` injected) + Compile-time (shared `UserRole` on the role column)                                                               |
+| `SessionAdminPort` (the dependency-inversion port)                                                                                                                | stays domain feature                                              | `domain/admin/contract/service.ts`                                                                                                                                                    | The port pattern is exactly right: admin declares the slice of sessions it needs; the composition root injects the real `SessionsService`. No over-indirection. Preserve.                                                                                                                                                                                                                            | Compile-time: the port interface; the root's `createAdminService(db, { sessions, … })` fails `tsc` if sessions doesn't satisfy it                        |
+| `vllm.ts` — `allEngineStatuses` / `getVllmEngineController` from `#server/providers` (direct infra reach)                                                         | re-routed via injected port                                       | `infra/providers` (the supervisor); admin declares a `VllmSupervisorPort` in `contract/service.ts`, injected at the root                                                              | A domain reaching directly into `infra` is a downward import that's _legal_ by the cake but breaks the "domains receive infra via injection" discipline (so the verb is testable without a live supervisor). Mirror the SessionAdminPort pattern.                                                                                                                                                    | Lint-time: dep-cruiser `domain-no-direct-infra` (gate candidate) — domain verbs import infra adapters only as injected ports                             |
+| `users.role` axis — inline `"admin" \| "user"` re-spelled 33× (incl. `ActorRole` in `contract/service.ts`, every verb param, the tRPC `z.enum(["admin","user"])`) | **→ contracts**                                                   | `@orb/contracts/identity` — `userRoleSchema` (zod) + `UserRole` (inferred); `ActorRole` collapses into `UserRole`                                                                     | §7.5 measured 35 touches / 33 redecls, no importable union. One zod schema the tRPC router, the client form, and the domain all import; the TS type derives from it. The `users.role` drizzle column derives its enum from the same source (or mirrors with a test).                                                                                                                                 | Compile-time: downstream re-spellings diverging from the contracts import break at `tsc`; Lint-time: `no-inline-union-redecl` counts redecls (must be 1) |
+| Per-verb param shapes — `{ actorId; callerRole?; userId; role }` etc., re-declared inline in all 7 verbs AND the `AdminService` interface                         | stays domain, de-duplicated                                       | `domain/admin/contract/params.ts`                                                                                                                                                     | The `no-inline-types` gate: arg shapes belong in `contract/params.ts`, declared once; verbs and the interface import them. Today the same 4-field object literal is spelled ~9 times.                                                                                                                                                                                                                | Lint-time: `no-inline-types` / `types-in-contract`                                                                                                       |
+| `AdminContext = ReturnType<typeof createAdminContext>`                                                                                                            | stays domain, made explicit                                       | `domain/admin/contract/service.ts` (top) as `export interface AdminContext`                                                                                                           | The inferred type is invisible at a glance; the explicit interface matches the template and satisfies the no-inline-types rule (same change credentials.md makes for `CredentialContext`).                                                                                                                                                                                                           | Lint-time: `no-inline-types`                                                                                                                             |
+| `AdminUserView`                                                                                                                                                   | stays domain-internal                                             | `domain/admin/contract/views.ts` (re-exported from front door)                                                                                                                        | The client's user-admin feature receives it via **tRPC service-method-signature inference** (type-only, the legal client→server edge), NOT via a deep import — so it does not need a `contracts` home. (Contrast `TagView`, which the client _deep-imports_ → contracts. Confirm the orbweaver client stays inference-only; if it ever imports the shape directly, promote to `contracts/identity`.) | Resolve-time: client imports `@orb/server` type-only; tRPC inference carries the shape                                                                   |
+| `requireAdmin` consumer: `settings/verbs/app-settings.ts` (direct `import from ../../_shared/admin`)                                                              | re-wired to injection                                             | `domain/settings` receives `requireAdmin` as an injected op at the composition root                                                                                                   | settings' `getAppSettings`/`updateAppSettings` are admin-gated. In orbweaver settings can't sideways-import `domain/admin`; the root injects the gate primitive. This is the admin↔settings injection seam called out in the dissolution inventory.                                                                                                                                                  | Resolve-time: `domain-no-cross-feature` — settings importing `#domain/admin` is RED; the op arrives via context                                          |
+| `max-pro-sub` mint + its `role === 'admin'` gate (`_shared/credentials.ts:547–565`)                                                                               | **→ another feature** (the mint); the _gate primitive_ is admin's | `domain/credentials/verbs/resolve.ts` (mint); the role check uses admin's `requireOwner`/`can()` seam (D17 — the box credential is owner-only)                                        | admin owns the GATE, credentials owns the CONSTRUCTION. The mint is the only `ResolvedCredential` `max-pro-sub` construction site (credentials.md invariant #2); admin frames _why_ it's gated (owner-only, D17) but does not mint.                                                                                                                                                                  | Compile-time: the `MaxProSubCredential` opaque factory takes a `Principal`; the owner check is the gate primitive credentials injects/calls              |
+| `logAudit` (from `_shared/audit.ts`, fanIn 60)                                                                                                                    | **→ foundation**                                                  | `foundation/observability/audit`                                                                                                                                                      | Audit is a cross-cutting observability sink, read-down-into by all tiers. admin is a heavy caller (every write audits) but does not own it.                                                                                                                                                                                                                                                          | Resolve-time: `foundation` is below domain; admin imports it downward                                                                                    |
+| `DomainForbiddenError` / `DomainOperationError` / `DomainNotFoundError`                                                                                           | **→ kit**                                                         | `@orb/kit/errors`                                                                                                                                                                     | Pure error base classes, zero domain knowledge. admin throws all three; it declares none of its own (§Esoteric). **BOOT-CRITICAL** per dissolution §1.                                                                                                                                                                                                                                               | Resolve-time                                                                                                                                             |
+| `isConstraintViolation` (createUser TOCTOU translation)                                                                                                           | **→ db-kit**                                                      | `@orb/db/kit`                                                                                                                                                                         | DB-error classifier (the `cause`-chain walk), domain-agnostic; unify with credentials' variant.                                                                                                                                                                                                                                                                                                      | Resolve-time                                                                                                                                             |
+| `newId<UserId>()` (createUser)                                                                                                                                    | **→ kit**                                                         | `@orb/kit/ids`                                                                                                                                                                        | The canonical TypeID mint; zero I/O.                                                                                                                                                                                                                                                                                                                                                                 | Resolve-time                                                                                                                                             |
 
 ---
 
@@ -198,21 +198,21 @@ factory or composition-root injection.
 
 **admin's own dependencies (injected into `AdminContext` at the root):**
 
-| Op / port injected | Provided by | Used for |
-|---|---|---|
+| Op / port injected                                               | Provided by                                                              | Used for                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
 | `SessionAdminPort` (`listForUser`, `revoke`, `revokeAllForUser`) | `domain/sessions` (the real `SessionsService` satisfies it structurally) | `listSessions` / `revokeSession` / `revokeUserSessions`; the disable/reset "revoke all" tail |
-| `VllmSupervisorPort` (`allEngineStatuses`, `getController`) | `infra/providers` (the supervisor) | `vllmEngines` / `restartVllmEngine` |
-| sessions' user primitives (`ensureUser`-shaped uniqueness) | `domain/sessions` | aligning `createUser`'s write path with identity resolution's |
-| `hashPassword` | `infra/auth` | `createUser` / `resetPassword` |
-| `logAudit` | `foundation/observability/audit` | every write verb |
+| `VllmSupervisorPort` (`allEngineStatuses`, `getController`)      | `infra/providers` (the supervisor)                                       | `vllmEngines` / `restartVllmEngine`                                                          |
+| sessions' user primitives (`ensureUser`-shaped uniqueness)       | `domain/sessions`                                                        | aligning `createUser`'s write path with identity resolution's                                |
+| `hashPassword`                                                   | `infra/auth`                                                             | `createUser` / `resetPassword`                                                               |
+| `logAudit`                                                       | `foundation/observability/audit`                                         | every write verb                                                                             |
 
 **admin as a provider (its primitives injected into others):**
 
-| Op injected | Into | Used for |
-|---|---|---|
-| `requireAdmin` (the gate primitive) | `domain/settings` (`getAppSettings`/`updateAppSettings`) | admin-gating the runtime-toggle reads/writes |
-| `requireOwner` / the `can()` seam | `domain/credentials` (the `max-pro-sub` box-credential gate — owner-only, D17) | the owner check at the box-credential mint |
-| `requireAdmin` / the `can()` seam | `transport/trpc` (`adminMiddleware` is the transport mirror) | the global-role check at every admin-privileged site |
+| Op injected                         | Into                                                                           | Used for                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `requireAdmin` (the gate primitive) | `domain/settings` (`getAppSettings`/`updateAppSettings`)                       | admin-gating the runtime-toggle reads/writes         |
+| `requireOwner` / the `can()` seam   | `domain/credentials` (the `max-pro-sub` box-credential gate — owner-only, D17) | the owner check at the box-credential mint           |
+| `requireAdmin` / the `can()` seam   | `transport/trpc` (`adminMiddleware` is the transport mirror)                   | the global-role check at every admin-privileged site |
 
 No domain imports `#domain/admin` internals; `transport/trpc/routers/user-admin.ts` imports only the
 front door.
@@ -236,17 +236,17 @@ fixes that touch this domain:
   redundancy to collapse. Keep both rungs; just route the privilege decision through one `can()` seam.
 - **`chat_participants.role: host | member` is added-but-unwired** (33 writes, 0 authority reads). It is
   the **resource-role** axis. Wiring it is **chat's** job (a `requireHost` predicate replacing
-  owner-equality), but admin's permission model is what *frames* it as the second axis — do not delete it
+  owner-equality), but admin's permission model is what _frames_ it as the second axis — do not delete it
   ("unwired ≠ worthless").
 - **Agents are first-class principals (LOCKED).** An agent gets its own `users` row + a capability
-  ceiling enforced *by the permission model* (not by borrowed owner-identity). admin's `setRole` should
+  ceiling enforced _by the permission model_ (not by borrowed owner-identity). admin's `setRole` should
   never grant a non-loginable agent principal `admin`; the `UserRole` axis and a future `isAgent`/`kind`
   column on `users` interact here (the column is sessions/identity's to add; admin's verbs must respect
   it — e.g. `createUser` mints loginable humans only).
 - **Esoteric to preserve (§7.1 list):** the **owner-fallback bootstrap belt** — `ensureUser`/`determineRole`
   provisions any handle in `OWNER_HANDLES` as **`owner`** (D17 — the one access-control decision the app
   owns; `admin` is granted later by the owner via `setRole`, never derived from env); in `single-user` mode
-  the owner is *always* `owner`, so `adminMiddleware`/`requireAdmin` can never deny there. This is both the
+  the owner is _always_ `owner`, so `adminMiddleware`/`requireAdmin` can never deny there. This is both the
   bootstrap (the first principal exists without a prior owner to create them) and a security belt. The
   `max-pro-sub` mint is the only privileged-credential construction site, **owner-gated** (`requireOwner`).
 
@@ -264,7 +264,7 @@ fixes that touch this domain:
 
 The `users.role` axis is the canonical offender: 33 inline `"admin" | "user"` re-spellings, no exported
 union, the gate scattered as `role === 'admin'` across transport, credentials, buddy, and admin itself.
-Target: ONE importable `UserRole` + `userRoleSchema` in contracts; the privilege *dispatch* converges on
+Target: ONE importable `UserRole` + `userRoleSchema` in contracts; the privilege _dispatch_ converges on
 a single `can(principal, action, resource)` seam (or `requireAdmin` as its first concrete form), so a new
 privilege check can't re-spell the union or re-implement the role read. Gate candidates:
 **`no-inline-union-redecl`** (union count must be 1) + a lint rule that the only `role === 'admin'`
@@ -287,14 +287,14 @@ attempt to demote/disable the owner row matches 0 rows → `cannot_modify_owner`
 owner-row pre-check gives the fast-path error; the `WHERE role <> 'owner'` on the write is the real defense
 under a race. Both survive — the pre-check is the friendly error, the UPDATE clause is the correctness.
 Neo's "≥1 enabled admin" last-admin guard is GONE: with `requireAdmin` = owner∪admin, the immutable owner
-is always an administrator, so the admin-capable set can never empty — demoting the last *delegated* admin
+is always an administrator, so the admin-capable set can never empty — demoting the last _delegated_ admin
 is allowed.
 
 **The `callerRole` fast-path / slow-path duality.** `requireAdmin(db, userId, role?)` skips the role
 `SELECT` when the resolved role is passed (the tRPC seam already has it in `ctx.auth.role`). The slow
 path (no role) preserves backward-compat for test fixtures that synthesize an `AuthContext` without
 running `provisionIdentity`, and for non-tRPC callers. Under the `Principal` refactor this collapses
-(the principal always carries its role), but the *behavior* — never trust a caller-supplied role without
+(the principal always carries its role), but the _behavior_ — never trust a caller-supplied role without
 the seam having resolved it — must be preserved.
 
 **Existence-before-audit.** Every targeted write (`setEnabled`, `resetPassword`) does `loadUser` (throws
@@ -303,7 +303,7 @@ a phantom audit row for an action that never happened, then throws — a forensi
 existence check → write → audit.
 
 **`cannot_disable_self`.** `setEnabled` rejects an admin disabling their own account (locks the deployment
-out of itself). Distinct from `cannot_modify_owner` (which protects the immutable owner row; this protects the *actor*).
+out of itself). Distinct from `cannot_modify_owner` (which protects the immutable owner row; this protects the _actor_).
 
 **TOCTOU translation on `createUser`.** The handle-existence `SELECT` then `INSERT` is check-then-act; a
 concurrent `createUser` taking the handle in between surfaces a raw `SQLITE_CONSTRAINT`, translated to the
@@ -316,7 +316,7 @@ same typed `user_exists` the `SELECT` path throws. Keep the translation (via the
 is the discriminator. This is correct; do not invent an `AdminError`.
 
 **The `no-direct-users-read` chokepoint exemption.** admin reads the `users` table directly (most
-features must not). The exemption holds *because* every read here `requireAdmin`s first. The orbweaver
+features must not). The exemption holds _because_ every read here `requireAdmin`s first. The orbweaver
 gate must carry the exemption forward (admin + sessions are the only `users`-table readers).
 
 ---
@@ -325,44 +325,44 @@ gate must carry the exemption forward (admin + sessions are the only `users`-tab
 
 1. **Every admin verb calls `requireAdmin` (defense-in-depth).** Independent of the transport
    `adminMiddleware`. No admin verb executes its body before the gate.
-   *Enforcement: lint-time — a dep-cruiser/AST rule asserts every export in `domain/admin/verbs/`
+   _Enforcement: lint-time — a dep-cruiser/AST rule asserts every export in `domain/admin/verbs/`
    awaits `requireAdmin` (or `can(p,'admin',…)`) as its first statement; test-time: a verb called with a
-   `user`-role principal throws `DomainForbiddenError`.*
+   `user`-role principal throws `DomainForbiddenError`._
 
 2. **`requireAdmin` is the single global-role gate seam.** No scattered `role === 'admin'` outside it
    (and its transport mirror `adminMiddleware`). credentials' max-pro-sub gate and buddy routing route
    through it.
-   *Enforcement: lint-time — `no-inline-union-redecl` + a rule that `role === 'admin'` appears only inside
-   the `can()`/`requireAdmin` primitive.*
+   _Enforcement: lint-time — `no-inline-union-redecl` + a rule that `role === 'admin'` appears only inside
+   the `can()`/`requireAdmin` primitive._
 
 3. **The owner-immutability guard keeps BOTH layers (D17).** The friendly `loadUser` owner-row pre-check
    AND the atomic `WHERE role <> 'owner'` on the UPDATE in `setRole` + `setEnabled` (the owner can't be
    demoted/disabled/removed; there is exactly one). Neo's `≥1 enabled admin` last-admin guard is dropped.
-   *Enforcement: test-time — an attempt to demote/disable the owner (direct or racing) returns
-   `cannot_modify_owner` and the owner row is unchanged; demoting the last delegated admin succeeds.*
+   _Enforcement: test-time — an attempt to demote/disable the owner (direct or racing) returns
+   `cannot_modify_owner` and the owner row is unchanged; demoting the last delegated admin succeeds._
 
 4. **Existence-check precedes audit on every targeted write.** A write to a missing `userId` throws
    `DomainNotFoundError` and writes NO audit row.
-   *Enforcement: test-time — a `setEnabled`/`resetPassword` on a nonexistent id asserts zero audit rows
-   written.*
+   _Enforcement: test-time — a `setEnabled`/`resetPassword` on a nonexistent id asserts zero audit rows
+   written._
 
 5. **`AdminUserView` never exposes secret columns.** `passwordHash` (and any future secret) is absent
    from `userCols`, the view, and every tRPC return.
-   *Enforcement: compile-time — `AdminUserView` excludes the field; `userCols` is the only projection;
-   all router returns are `AdminUserView`.*
+   _Enforcement: compile-time — `AdminUserView` excludes the field; `userCols` is the only projection;
+   all router returns are `AdminUserView`._
 
 6. **`UserRole` has one declaration.** `@orb/contracts/identity`; the db column, the tRPC schema, the
    client form, and the domain all derive from it.
-   *Enforcement: compile-time (drift breaks `tsc`) + lint-time (`no-inline-union-redecl`, count = 1).*
+   _Enforcement: compile-time (drift breaks `tsc`) + lint-time (`no-inline-union-redecl`, count = 1)._
 
 7. **admin imports no sibling domain or infra adapter directly.** sessions, credentials, providers,
    settings all arrive as injected ports/ops at the composition root.
-   *Enforcement: resolve-time — `domain-no-cross-feature`; lint-time — `domain-no-direct-infra`.*
+   _Enforcement: resolve-time — `domain-no-cross-feature`; lint-time — `domain-no-direct-infra`._
 
 8. **The `max-pro-sub` mint is gated by admin's owner-gate primitive (`requireOwner`, D17 — the box
    credential is owner-only) but constructed in credentials.** admin owns the gate, not the construction.
-   *Enforcement: compile-time — the `MaxProSubCredential` opaque factory (credentials) takes a
-   `Principal` and applies the owner check; the factory is the only construction site.*
+   _Enforcement: compile-time — the `MaxProSubCredential` opaque factory (credentials) takes a
+   `Principal` and applies the owner check; the factory is the only construction site._
 
 ---
 
@@ -399,4 +399,7 @@ gate must carry the exemption forward (admin + sessions are the only `users`-tab
   transport.** Under the `can()` model, do these deployment-global admin gates stay transport-only, or
   also gain a verb-tier `requireAdmin` (defense-in-depth like the user-admin verbs)? Lean: deployment-global
   ops can stay transport-gated; per-resource privileged ops get the 2-layer.
+
+```
+
 ```

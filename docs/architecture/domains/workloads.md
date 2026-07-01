@@ -12,11 +12,11 @@
 > is preserved verbatim. neo-tavern was "mostly the right shape here" — this doc confirms it and
 > maps it onto the orbweaver tiers, with two real wrinkles (the runner-env op providers re-partition
 > under the embeddings/discovery split; the env builder is an `entry/` concern, not `transport/`).
-> Authoritative upstream: `structure.md` §3 (server tiers — `transport/jobs` is the driver, the
-> domain is the logic), §4 (the 8-slot template), §7 (gates); `_FANOUT-BRIEF.md` §2 (one-directional
+> Authoritative upstream: `Core-0-Architecture-and-Structure.md` §3 (server tiers — `transport/jobs` is the driver, the
+> domain is the logic), §4 (the 8-slot template), §7 (gates); `AGENTS.md` §2 (one-directional
 > flow), §4 (workloads pain entry), §7.5 (**the `RUNNERS` mapped-type Record gold standard**), §8.1
 > (**`workloads/contract/runner-env.ts` is the one true cross-feature hub — model it, keep it**);
-> `reports/shared-dissolution.md` (`replay-buffer` → `@orb/kit`, `RoleClients` → `@orb/contracts`,
+> `core/Core-Core-Legacy-Migration-and-Gaps.md` (`replay-buffer` → `@orb/kit`, `RoleClients` → `@orb/contracts`,
 > `createDefaultRoleClients` DELETED, db-error classifier → `@orb/db/kit`); `domains.md`
 > ("the execution engine the indexer + bulk passes enqueue into").
 
@@ -47,7 +47,7 @@
 - **The progress/lifecycle bus** (`engine/progress-bus.ts`) — a single per-process `EventEmitter` +
   a per-workload replay ring; the tRPC SSE subscription and the buddy observer fan out from it.
 - **The runner-env CONTRACT** (`contract/runner-env.ts`) — the typed interface of every cross-feature
-  op the runners depend on. This is the composition seam (the *type*); the runtime value is built at
+  op the runners depend on. This is the composition seam (the _type_); the runtime value is built at
   `entry/`. (Defined as a contract here; constructed there.)
 - **The `WorkloadKind` / params / result / state / error / event vocabularies** — the per-kind
   discriminator union + its `ParamsByKind` / `ResultByKind` maps, the `WorkloadStatus` lifecycle
@@ -69,15 +69,15 @@ or rate-limit anything (none here); the tRPC wire layer (that is `transport/trpc
 
 ## The tier split — driver (transport/jobs) vs logic (domain/workloads)
 
-`structure.md` §3 names `transport/jobs` as a DRIVER tier — "thin; call DOWN into domain via front
+`Core-0-Architecture-and-Structure.md` §3 names `transport/jobs` as a DRIVER tier — "thin; call DOWN into domain via front
 doors only" — exactly analogous to tRPC for the chat verbs. The split is the spine of this doc:
 
-| Concern | Tier | Why |
-|---|---|---|
-| Poll loop, claim-the-next-row, wake-on-emit, periodic reap tick, graceful-shutdown signal | **`transport/jobs/workloads-worker.ts`** | A long-lived driver. Knows nothing of any kind; calls `nextRunnableWorkload` → `runWorkload` → `reapOrphanedWorkloads` through the domain front door. Crosses ZERO feature boundaries. |
-| Decide WHEN to enqueue the daily catalog refresh (boot check + hourly tick) | **`transport/jobs/catalog-refresh-scheduler.ts`** | A recurring driver. Calls `workloads.list` + `workloads.start` through the front door; swallows the single-active conflict as the desired end state. |
-| Build the `WorkloadRunnerEnv` from real services (corpus/discovery/embeddings/assets/import/memory/stats/connection) | **`entry/`** (composition root) | The ONE place legitimately allowed to cross every feature boundary — above `domain-no-cross-feature`. **NOT `transport/jobs`** (a driver must not reach sideways into features). |
-| The queue table, the verbs, the engine (`runWorkload`/dispatch/reaper/progress-bus), the runners, all contracts | **`domain/workloads`** | The business logic. The engine is the per-row state machine; the runners are the per-kind actions. |
+| Concern                                                                                                              | Tier                                              | Why                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Poll loop, claim-the-next-row, wake-on-emit, periodic reap tick, graceful-shutdown signal                            | **`transport/jobs/workloads-worker.ts`**          | A long-lived driver. Knows nothing of any kind; calls `nextRunnableWorkload` → `runWorkload` → `reapOrphanedWorkloads` through the domain front door. Crosses ZERO feature boundaries. |
+| Decide WHEN to enqueue the daily catalog refresh (boot check + hourly tick)                                          | **`transport/jobs/catalog-refresh-scheduler.ts`** | A recurring driver. Calls `workloads.list` + `workloads.start` through the front door; swallows the single-active conflict as the desired end state.                                   |
+| Build the `WorkloadRunnerEnv` from real services (corpus/discovery/embeddings/assets/import/memory/stats/connection) | **`entry/`** (composition root)                   | The ONE place legitimately allowed to cross every feature boundary — above `domain-no-cross-feature`. **NOT `transport/jobs`** (a driver must not reach sideways into features).       |
+| The queue table, the verbs, the engine (`runWorkload`/dispatch/reaper/progress-bus), the runners, all contracts      | **`domain/workloads`**                            | The business logic. The engine is the per-row state machine; the runners are the per-kind actions.                                                                                     |
 
 The worker is the analogue of tRPC: a thin driver that validates/sequences and delegates. The engine
 (`runWorkload`) stays in the domain because driving one row through its state machine IS the
@@ -97,34 +97,46 @@ compiler is the checklist:
 //   domain/workloads/contract, which @orb/db cannot import). WORKLOAD_STATUSES/ACTIVE_WORKLOAD_STATUSES
 //   live alongside it in @orb/contracts/workloads. The RUNNERS dispatch map below stays domain.
 export type WorkloadKind =
-  | "embed-corpus" | "embed-assets" | "distill-characters" | "compute-themes"
-  | "memory-backfill" | "group-character-backfill" | "compute-cooccurrence"
-  | "find-duplicates" | "csls" | "assets-backfill" | "import-st"
-  | "reconcile-stats" | "refresh-model-catalog"
+  | "embed-corpus"
+  | "embed-assets"
+  | "distill-characters"
+  | "compute-themes"
+  | "memory-backfill"
+  | "group-character-backfill"
+  | "compute-cooccurrence"
+  | "find-duplicates"
+  | "csls"
+  | "assets-backfill"
+  | "import-st"
+  | "reconcile-stats"
+  | "refresh-model-catalog"
   // Seam reservation (council 2026-06-25 — reserve now, build v2): the world-state reconciler.
   // Add with a stub runner so `exhaustive-dispatch` stays green; the feature is v2 (ledger §5,
-  // knowledge-cluster.md §9). A `re-index` parameterized kind (embed-model change) is also a candidate.
+  // domains/memory.md §9). A `re-index` parameterized kind (embed-model change) is also a candidate.
   | "reconcile-world-state";
-export const WORKLOAD_KINDS = [ /* … */ ] as const satisfies readonly WorkloadKind[];
+export const WORKLOAD_KINDS = [/* … */] as const satisfies readonly WorkloadKind[];
 
 // engine/dispatch.ts — the exhaustiveness pin. A missing kind is a `tsc` error HERE.
-export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = { /* kind → runner */ };
+export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {/* kind → runner */};
 
 // contract/runner.ts — ONE signature; lives in contract/ (NOT engine/) so the runner files
 // don't form a cycle with the dispatch table that imports them.
 export type Runner<K extends WorkloadKind> = (
-  ctx: WorkloadRunnerContext, params: ParamsByKind[K],
-  report: (p: WorkloadProgress) => void, signal: AbortSignal,
+  ctx: WorkloadRunnerContext,
+  params: ParamsByKind[K],
+  report: (p: WorkloadProgress) => void,
+  signal: AbortSignal,
 ) => Promise<ResultByKind[K]>;
 ```
 
 The five edits to add a kind: (1) a new arm in `WorkloadKind` + `WORKLOAD_KINDS`; (2) a params schema
-+ `ParamsByKind` entry + `StartWorkloadInput` arm; (3) a result type + `ResultByKind` entry; (4) a
-runner file; (5) a `RUNNERS` entry. Miss any of the type-side ones and `tsc` goes red — the
-`{ [K in WorkloadKind]: … }` mapped types over `ParamsByKind`/`ResultByKind`/`RUNNERS` are the
-backstop. The `dispatchAndRun` two-cast bridge (the index-lookup-through-the-union can't narrow) is
-the one sanctioned escape; it is encapsulated in `engine/runner.ts` and is the single seam where the
-static guarantee meets the runtime row — keep it there, do not spread it.
+
+- `ParamsByKind` entry + `StartWorkloadInput` arm; (3) a result type + `ResultByKind` entry; (4) a
+  runner file; (5) a `RUNNERS` entry. Miss any of the type-side ones and `tsc` goes red — the
+  `{ [K in WorkloadKind]: … }` mapped types over `ParamsByKind`/`ResultByKind`/`RUNNERS` are the
+  backstop. The `dispatchAndRun` two-cast bridge (the index-lookup-through-the-union can't narrow) is
+  the one sanctioned escape; it is encapsulated in `engine/runner.ts` and is the single seam where the
+  static guarantee meets the runtime row — keep it there, do not spread it.
 
 This is the **§7.5 target shape** other axes (`messageRole`, `guidedAction`, `routing.source`) are
 being reshaped toward. The gate candidate is `exhaustive-dispatch` — a new union member without its
@@ -134,7 +146,7 @@ being reshaped toward. The gate candidate is `exhaustive-dispatch` — a new uni
 
 ## `runner-env` — the ONE true cross-feature composition hub (model it, keep it)
 
-`_FANOUT-BRIEF.md` §8.1 calls `workloads/contract/runner-env.ts` "the one true cross-feature hub (the
+`AGENTS.md` §8.1 calls `workloads/contract/runner-env.ts` "the one true cross-feature hub (the
 composition seam) — model it explicitly, keep it." This is the heart of the domain's target design.
 
 **The model:** runners must do real cross-feature work (embed the corpus, reconcile stats, import a
@@ -142,7 +154,7 @@ profile) but `domain-no-cross-feature` bans `domain/workloads/*` from importing
 `domain/{embeddings,discovery,import,…}/index.ts`. The resolution is the injection model the whole
 codebase uses, concentrated here into ONE typed surface:
 
-1. `contract/runner-env.ts` declares `WorkloadRunnerEnv` — the *types* of every op a runner needs.
+1. `contract/runner-env.ts` declares `WorkloadRunnerEnv` — the _types_ of every op a runner needs.
 2. `entry/` constructs the runtime value once at boot from real service factories (the only tier
    above `domain-no-cross-feature`), and threads it through the worker into every dispatch.
 3. Runners reach in via `ctx.env.<feature>.<op>` — never a sideways import.
@@ -158,14 +170,14 @@ that owns BOTH the embed passes and the analytics passes, plus a `chatMemory` su
 orbweaver `embeddings`/`discovery`/`memory` re-architecture (`domains.md`), the op providers move —
 `runner-env` is **not a path rename, its field shape changes with the new domain map**:
 
-| neo-tavern field | op | orbweaver provider | orbweaver field |
-|---|---|---|---|
-| `corpus.createCorpusService` / `embedAndStoreCorpus` (embed-corpus) | embed text sources | **embeddings** (the one write path) | `embeddings.*` |
-| `corpus.embedAndStoreImages` (embed-assets) | embed image sources | **embeddings** | `embeddings.*` |
-| `corpus.computeThemes` / `computeCharacterSummaries` / `computeCooccurrence` / `computeDuplicatePairs` | analytics | **discovery** (rename of corpus, semantics-only) | `discovery.*` |
-| `corpus.compute{Character,Digest,Segment,Image}HubScores` (csls) | hub_score write-back | **discovery** computes, **embeddings** owns the column | `discovery.*` (reads/writes embeddings rows via db) |
-| `chatMemory.generateDigests` / `generateSegments` / `ensureGroupCharacter` (→ `mintSyntheticGroupCharacter`) / `resolveCurrentVersionId` (→ `getCard`, D28) | digest/segment gen, group mint | **memory** (a chat subsystem) + **character** (group mint) | `memory.*` / `character.*` |
-| `assets.*` / `import.*` / `stats.*` / `models.*` (catalog refresh) / `cas` | unchanged in spirit | assets / import / stats / **connection** (catalog) / infra | path/owner updates only |
+| neo-tavern field                                                                                                                                            | op                             | orbweaver provider                                         | orbweaver field                                     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------- | --------------------------------------------------- |
+| `corpus.createCorpusService` / `embedAndStoreCorpus` (embed-corpus)                                                                                         | embed text sources             | **embeddings** (the one write path)                        | `embeddings.*`                                      |
+| `corpus.embedAndStoreImages` (embed-assets)                                                                                                                 | embed image sources            | **embeddings**                                             | `embeddings.*`                                      |
+| `corpus.computeThemes` / `computeCharacterSummaries` / `computeCooccurrence` / `computeDuplicatePairs`                                                      | analytics                      | **discovery** (rename of corpus, semantics-only)           | `discovery.*`                                       |
+| `corpus.compute{Character,Digest,Segment,Image}HubScores` (csls)                                                                                            | hub_score write-back           | **discovery** computes, **embeddings** owns the column     | `discovery.*` (reads/writes embeddings rows via db) |
+| `chatMemory.generateDigests` / `generateSegments` / `ensureGroupCharacter` (→ `mintSyntheticGroupCharacter`) / `resolveCurrentVersionId` (→ `getCard`, D28) | digest/segment gen, group mint | **memory** (a chat subsystem) + **character** (group mint) | `memory.*` / `character.*`                          |
+| `assets.*` / `import.*` / `stats.*` / `models.*` (catalog refresh) / `cas`                                                                                  | unchanged in spirit            | assets / import / stats / **connection** (catalog) / infra | path/owner updates only                             |
 
 The `cas` handle stays at the top level (it's an infra adapter the image-embed pass consumes, not
 feature-owned). The `models.refreshCatalogSnapshot` op returns counts only (no provider shapes leak
@@ -273,40 +285,54 @@ the contract both name it).
 
 ```typescript
 // Service + factory
-export { createWorkloadService } from './service'
-export type { WorkloadService } from './contract/service'
-export type { WorkloadServiceDeps } from './context'
+export { createWorkloadService } from "./service";
+export type { WorkloadService } from "./contract/service";
+export type { WorkloadServiceDeps } from "./context";
 
 // The cross-feature composition seam (consumed by entry/ to build the runtime value)
 export type {
-  WorkloadRunnerEnv, WorkloadEmbeddingsEnv, WorkloadDiscoveryEnv,
-  WorkloadImportEnv, WorkloadMemoryEnv, WorkloadAssetsEnv,
-  WorkloadStatsEnv, WorkloadConnectionEnv, WorkloadCharacterEnv,
-} from './contract/runner-env'
-export type { Runner } from './contract/runner'
+  WorkloadRunnerEnv,
+  WorkloadEmbeddingsEnv,
+  WorkloadDiscoveryEnv,
+  WorkloadImportEnv,
+  WorkloadMemoryEnv,
+  WorkloadAssetsEnv,
+  WorkloadStatsEnv,
+  WorkloadConnectionEnv,
+  WorkloadCharacterEnv,
+} from "./contract/runner-env";
+export type { Runner } from "./contract/runner";
 
 // The kind/state/error/event vocabularies (tRPC derives its wire schemas from the tuples)
-export { WORKLOAD_KINDS, type WorkloadKind } from './contract/workload-kind'
-export { WORKLOAD_STATUSES, type WorkloadStatus, type WorkloadProgress } from './contract/workload-state'
-export { type ParamsByKind, StartWorkloadInput } from './contract/workload-params'
-export type { ResultByKind } from './contract/workload-result'
-export type { WorkloadError } from './contract/workload-error'
-export type { WorkloadEvent } from './contract/workload-events'
+export { WORKLOAD_KINDS, type WorkloadKind } from "./contract/workload-kind";
+export {
+  WORKLOAD_STATUSES,
+  type WorkloadStatus,
+  type WorkloadProgress,
+} from "./contract/workload-state";
+export { type ParamsByKind, StartWorkloadInput } from "./contract/workload-params";
+export type { ResultByKind } from "./contract/workload-result";
+export type { WorkloadError } from "./contract/workload-error";
+export type { WorkloadEvent } from "./contract/workload-events";
 
 // Engine entry points (the worker DRIVER calls these — the only domain-internal symbols on the surface)
-export { runWorkload } from './engine/runner'
-export { reapOrphanedWorkloads } from './engine/reaper'
-export { emitWorkloadEvent, getRecentWorkloadEvents, workloadStreamEmitter } from './engine/progress-bus'
+export { runWorkload } from "./engine/runner";
+export { reapOrphanedWorkloads } from "./engine/reaper";
+export {
+  emitWorkloadEvent,
+  getRecentWorkloadEvents,
+  workloadStreamEmitter,
+} from "./engine/progress-bus";
 
 /** @public — typed row + queue poll the worker driver projects (tRPC get/list responses too). */
-export { loadWorkload, nextRunnableWorkload, type WorkloadRowAnyKind } from './persistence/queries'
+export { loadWorkload, nextRunnableWorkload, type WorkloadRowAnyKind } from "./persistence/queries";
 
 // Verb param/result types (the tRPC router types against these)
-export type { StartWorkloadParams } from './verbs/start'
-export type { CancelWorkloadParams, CancelWorkloadResult } from './verbs/cancel'
-export type { RetryWorkloadParams } from './verbs/retry'
-export type { GetWorkloadParams } from './verbs/get'
-export type { ListWorkloadsParams } from './verbs/list'
+export type { StartWorkloadParams } from "./verbs/start";
+export type { CancelWorkloadParams, CancelWorkloadResult } from "./verbs/cancel";
+export type { RetryWorkloadParams } from "./verbs/retry";
+export type { GetWorkloadParams } from "./verbs/get";
+export type { ListWorkloadsParams } from "./verbs/list";
 ```
 
 The engine entry points (`runWorkload`, `reapOrphanedWorkloads`, the bus trio, `nextRunnableWorkload`)
@@ -318,26 +344,26 @@ are reached only by `dispatch.ts` internally.
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `jobs/workloads-worker.ts` (poll loop, reap tick, wake-on-emit, shutdown) | **stays a driver, re-tiered** | `transport/jobs/workloads-worker.ts` | The DRIVER. Calls DOWN into the domain front door only (`nextRunnableWorkload`/`runWorkload`/`reapOrphanedWorkloads`); crosses zero feature boundaries. | resolve-time: `transport/jobs` may import only `domain/*` front doors (package + tier order); dep-cruiser `drivers-through-domain` backstop |
-| `jobs/catalog-refresh-scheduler.ts` (when-to-enqueue) | **stays a driver, re-tiered** | `transport/jobs/catalog-refresh-scheduler.ts` | A recurring driver; calls `workloads.list`/`start` through the front door; swallows the single-active conflict as the desired end state. | resolve-time (same tier rule) |
-| `jobs/workloads-env.ts` — `buildWorkloadsEnv` (crosses corpus/assets/import/chat/stats/models) | **→ entry**, re-partitioned | `entry/` (composition root) | It crosses EVERY feature boundary — that is an `entry/` concern, above `domain-no-cross-feature`. **NOT `transport/jobs`** (a driver must not reach sideways into features). Op providers re-map to embeddings/discovery/memory under the new domain split. | resolve-time: only `entry/` may import multiple domain front doors; a `transport/`-located cross-feature build fails the tier rule |
-| `domain/workloads/engine/*` (`runWorkload`, `dispatch`, `reaper`, `progress-bus`) | **stays domain feature** | `domain/workloads/engine/` (named subsystem) | Driving one row through its state machine IS the domain's core logic. The worker decides which/when; the engine runs it. | resolve-time (same package); `feature-structure` keeps it a named subsystem |
-| `engine/dispatch.ts` — `RUNNERS: { [K in WorkloadKind]: Runner<K> }` | **stays domain feature — PRESERVE VERBATIM** | `domain/workloads/engine/dispatch.ts` | The §7.5 gold standard. A missing kind is a `tsc` error here; do not change the shape. | compile-time: the mapped-type `Record` is the exhaustiveness pin; gate candidate `exhaustive-dispatch` |
-| `contract/runner-env.ts` — `WorkloadRunnerEnv` + sub-interfaces | **stays domain feature, re-partitioned** | `domain/workloads/contract/runner-env.ts` | THE cross-feature seam (§8.1). Keep it; re-map `corpus`→`embeddings`+`discovery`, `chatMemory`→`memory`+`character`, `models`→`connection` per the new domain map. | resolve-time: `domain-no-cross-feature` bans runners from importing other feature internals → they MUST go through `ctx.env`; the env value is wired at `entry/` |
-| `context.ts` — `createDefaultRoleClients()` fallback (reach into `_shared/role-clients-binder`) | **DELETED** | `entry/` wires the binder; runner context takes it as a required dep | `_shared` does not exist in orbweaver; role-client construction is the composition root's job (mirrors search.md). | resolve-time: `_shared` is gone; the binder is a non-optional field — omitting it fails `tsc` |
-| `context.ts` — `RoleClients` import (`_shared/role-clients`) | **→ contracts** | `@orb/contracts/role-clients` | A cross-boundary type (29 importers, all type-only — §8.1); both infra and domain consume it flowing DOWN from contracts. | resolve-time: `@orb/contracts` is the declared dep for the wire type |
-| `context.ts` — `loadUserSettings` (`_shared/user-settings`) | **→ settings domain (injected)** | `domain/settings` op, injected into the runner context at `entry/` | un-inverted service per dissolution §5; the runner reads the triggering user's settings via an injected op, not a `_shared` reach. | resolve-time |
-| `context.ts` — `WorkloadServiceContext`/`WorkloadRunnerContext` via `ReturnType<>` | **stays domain feature, made explicit** | `domain/workloads/context.ts` — `export interface` | The inferred type is invisible at a glance; the explicit interface matches the template. | lint-time: `no-inline-types` / `types-in-contract` |
-| `persistence/constraints.ts` — `isActiveKindUniqueViolation` (4-depth `cause` walk) | **split: walk → db/kit, marker → stays** | classifier `@orb/db/kit` (`isConstraintViolation`); the `workloads.kind`-marker predicate stays `domain/workloads/persistence/constraints.ts` | The 4-depth `error.cause` walk is a DB-layer concern shared with credentials' `isCredentialUniqueViolation` (dissolution §3); the kind-active marker check is domain-specific and stays. | resolve-time: `@orb/db/kit` is a declared dep; the unified walk classifier replaces the three copies |
-| `engine/progress-bus.ts` — `createReplayBuffer` (`_shared/replay-buffer`) | **→ kit** | `@orb/kit/replay-buffer` | Pure, 3 feature consumers (chat/buddy/workloads) — dissolution §1 / §7.1 refines the brief's "feature-internal" to kit. | resolve-time: `@orb/kit` is a declared dep |
-| `persistence/queries.ts` — `newTypeId` (`_shared/ids`) | **→ kit** | `@orb/kit/ids` | The universal mint leaf (446 importers); zero I/O, zero domain. | resolve-time |
-| verbs — `DomainConflictError`/`DomainOperationError`/`DomainNotFoundError` (`_shared/errors`) | **→ kit** | `@orb/kit/errors` | Pure error base classes; `DomainNotFoundError` is boot-critical (front-door re-exports). | resolve-time |
-| `WorkloadRowAnyKind` typed projection (`toView`) | **stays domain feature** | `domain/workloads/persistence/queries.ts` | The per-kind narrowing of the Drizzle `unknown` JSON columns against the discriminator; one place (not every consumer casting). Same pattern as chat's `LoadedChat`. | lint-time: `no-inline-types` (it's exported from persistence, surfaced as `@public` on the front door) |
-| `db/schema/workloads.ts` + the `workloads_kind_active` partial unique index | **→ db package, unchanged** | `@orb/db/schema/workloads.ts` | The single-active-per-kind lock is the DB-level concurrency guard; the column-list marker (`workloads.kind`) the classifier keys on must stay byte-identical. | compile-time: schema move forces importers to update; the index predicate `status IN ('queued','running','cancelling')` MUST mirror `ACTIVE_WORKLOAD_STATUSES` |
-| `workload-result.ts` per-kind result types (workload-OWNED, not verb re-exports) | **stays domain feature** | `domain/workloads/contract/workload-result.ts` | `domain-no-cross-feature` bars the contract from reaching into discovery/memory/etc.; the runner translates the wrapped verb's stats into THESE shapes — keeps the workload contract stable as verbs evolve. | resolve-time + lint-time |
-| `tRPC` workload wire schemas (`z.enum(WORKLOAD_STATUSES)`, `StartWorkloadInput`) | **stays driver** | `transport/trpc/routers/workloads.ts` | Derives from the domain tuples so the wire can't drift from the union. Thin: validate → call `ctx.services.workloads.X` → map domain errors. | resolve-time (front-door import) |
+| Unit                                                                                            | Outcome                                      | Target                                                                                                                                        | Rationale                                                                                                                                                                                                                                                   | Enforcement tier                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `jobs/workloads-worker.ts` (poll loop, reap tick, wake-on-emit, shutdown)                       | **stays a driver, re-tiered**                | `transport/jobs/workloads-worker.ts`                                                                                                          | The DRIVER. Calls DOWN into the domain front door only (`nextRunnableWorkload`/`runWorkload`/`reapOrphanedWorkloads`); crosses zero feature boundaries.                                                                                                     | resolve-time: `transport/jobs` may import only `domain/*` front doors (package + tier order); dep-cruiser `drivers-through-domain` backstop                      |
+| `jobs/catalog-refresh-scheduler.ts` (when-to-enqueue)                                           | **stays a driver, re-tiered**                | `transport/jobs/catalog-refresh-scheduler.ts`                                                                                                 | A recurring driver; calls `workloads.list`/`start` through the front door; swallows the single-active conflict as the desired end state.                                                                                                                    | resolve-time (same tier rule)                                                                                                                                    |
+| `jobs/workloads-env.ts` — `buildWorkloadsEnv` (crosses corpus/assets/import/chat/stats/models)  | **→ entry**, re-partitioned                  | `entry/` (composition root)                                                                                                                   | It crosses EVERY feature boundary — that is an `entry/` concern, above `domain-no-cross-feature`. **NOT `transport/jobs`** (a driver must not reach sideways into features). Op providers re-map to embeddings/discovery/memory under the new domain split. | resolve-time: only `entry/` may import multiple domain front doors; a `transport/`-located cross-feature build fails the tier rule                               |
+| `domain/workloads/engine/*` (`runWorkload`, `dispatch`, `reaper`, `progress-bus`)               | **stays domain feature**                     | `domain/workloads/engine/` (named subsystem)                                                                                                  | Driving one row through its state machine IS the domain's core logic. The worker decides which/when; the engine runs it.                                                                                                                                    | resolve-time (same package); `feature-structure` keeps it a named subsystem                                                                                      |
+| `engine/dispatch.ts` — `RUNNERS: { [K in WorkloadKind]: Runner<K> }`                            | **stays domain feature — PRESERVE VERBATIM** | `domain/workloads/engine/dispatch.ts`                                                                                                         | The §7.5 gold standard. A missing kind is a `tsc` error here; do not change the shape.                                                                                                                                                                      | compile-time: the mapped-type `Record` is the exhaustiveness pin; gate candidate `exhaustive-dispatch`                                                           |
+| `contract/runner-env.ts` — `WorkloadRunnerEnv` + sub-interfaces                                 | **stays domain feature, re-partitioned**     | `domain/workloads/contract/runner-env.ts`                                                                                                     | THE cross-feature seam (§8.1). Keep it; re-map `corpus`→`embeddings`+`discovery`, `chatMemory`→`memory`+`character`, `models`→`connection` per the new domain map.                                                                                          | resolve-time: `domain-no-cross-feature` bans runners from importing other feature internals → they MUST go through `ctx.env`; the env value is wired at `entry/` |
+| `context.ts` — `createDefaultRoleClients()` fallback (reach into `_shared/role-clients-binder`) | **DELETED**                                  | `entry/` wires the binder; runner context takes it as a required dep                                                                          | `_shared` does not exist in orbweaver; role-client construction is the composition root's job (mirrors search.md).                                                                                                                                          | resolve-time: `_shared` is gone; the binder is a non-optional field — omitting it fails `tsc`                                                                    |
+| `context.ts` — `RoleClients` import (`_shared/role-clients`)                                    | **→ contracts**                              | `@orb/contracts/role-clients`                                                                                                                 | A cross-boundary type (29 importers, all type-only — §8.1); both infra and domain consume it flowing DOWN from contracts.                                                                                                                                   | resolve-time: `@orb/contracts` is the declared dep for the wire type                                                                                             |
+| `context.ts` — `loadUserSettings` (`_shared/user-settings`)                                     | **→ settings domain (injected)**             | `domain/settings` op, injected into the runner context at `entry/`                                                                            | un-inverted service per dissolution §5; the runner reads the triggering user's settings via an injected op, not a `_shared` reach.                                                                                                                          | resolve-time                                                                                                                                                     |
+| `context.ts` — `WorkloadServiceContext`/`WorkloadRunnerContext` via `ReturnType<>`              | **stays domain feature, made explicit**      | `domain/workloads/context.ts` — `export interface`                                                                                            | The inferred type is invisible at a glance; the explicit interface matches the template.                                                                                                                                                                    | lint-time: `no-inline-types` / `types-in-contract`                                                                                                               |
+| `persistence/constraints.ts` — `isActiveKindUniqueViolation` (4-depth `cause` walk)             | **split: walk → db/kit, marker → stays**     | classifier `@orb/db/kit` (`isConstraintViolation`); the `workloads.kind`-marker predicate stays `domain/workloads/persistence/constraints.ts` | The 4-depth `error.cause` walk is a DB-layer concern shared with credentials' `isCredentialUniqueViolation` (dissolution §3); the kind-active marker check is domain-specific and stays.                                                                    | resolve-time: `@orb/db/kit` is a declared dep; the unified walk classifier replaces the three copies                                                             |
+| `engine/progress-bus.ts` — `createReplayBuffer` (`_shared/replay-buffer`)                       | **→ kit**                                    | `@orb/kit/replay-buffer`                                                                                                                      | Pure, 3 feature consumers (chat/buddy/workloads) — dissolution §1 / §7.1 refines the brief's "feature-internal" to kit.                                                                                                                                     | resolve-time: `@orb/kit` is a declared dep                                                                                                                       |
+| `persistence/queries.ts` — `newTypeId` (`_shared/ids`)                                          | **→ kit**                                    | `@orb/kit/ids`                                                                                                                                | The universal mint leaf (446 importers); zero I/O, zero domain.                                                                                                                                                                                             | resolve-time                                                                                                                                                     |
+| verbs — `DomainConflictError`/`DomainOperationError`/`DomainNotFoundError` (`_shared/errors`)   | **→ kit**                                    | `@orb/kit/errors`                                                                                                                             | Pure error base classes; `DomainNotFoundError` is boot-critical (front-door re-exports).                                                                                                                                                                    | resolve-time                                                                                                                                                     |
+| `WorkloadRowAnyKind` typed projection (`toView`)                                                | **stays domain feature**                     | `domain/workloads/persistence/queries.ts`                                                                                                     | The per-kind narrowing of the Drizzle `unknown` JSON columns against the discriminator; one place (not every consumer casting). Same pattern as chat's `LoadedChat`.                                                                                        | lint-time: `no-inline-types` (it's exported from persistence, surfaced as `@public` on the front door)                                                           |
+| `db/schema/workloads.ts` + the `workloads_kind_active` partial unique index                     | **→ db package, unchanged**                  | `@orb/db/schema/workloads.ts`                                                                                                                 | The single-active-per-kind lock is the DB-level concurrency guard; the column-list marker (`workloads.kind`) the classifier keys on must stay byte-identical.                                                                                               | compile-time: schema move forces importers to update; the index predicate `status IN ('queued','running','cancelling')` MUST mirror `ACTIVE_WORKLOAD_STATUSES`   |
+| `workload-result.ts` per-kind result types (workload-OWNED, not verb re-exports)                | **stays domain feature**                     | `domain/workloads/contract/workload-result.ts`                                                                                                | `domain-no-cross-feature` bars the contract from reaching into discovery/memory/etc.; the runner translates the wrapped verb's stats into THESE shapes — keeps the workload contract stable as verbs evolve.                                                | resolve-time + lint-time                                                                                                                                         |
+| `tRPC` workload wire schemas (`z.enum(WORKLOAD_STATUSES)`, `StartWorkloadInput`)                | **stays driver**                             | `transport/trpc/routers/workloads.ts`                                                                                                         | Derives from the domain tuples so the wire can't drift from the union. Thin: validate → call `ctx.services.workloads.X` → map domain errors.                                                                                                                | resolve-time (front-door import)                                                                                                                                 |
 
 ---
 
@@ -349,27 +375,27 @@ door (the worker, the scheduler, the buddy observer, the tRPC router).
 
 **Injected INTO the runner context (the `WorkloadRunnerEnv`, built at `entry/`):**
 
-| Op bundle | Provided by | Consumed by runner(s) |
-|---|---|---|
-| `embeddings.*` (embed text / embed images) | embeddings domain (the one write path) | `embed-corpus`, `embed-assets` |
-| `discovery.*` (themes, summaries, cooccurrence, duplicates, hub scores) | discovery domain (semantics) | `compute-themes`, `distill-characters`, `compute-cooccurrence`, `find-duplicates`, `csls` |
-| `memory.*` (generateDigests, generateSegments) + `character.mintSyntheticGroupCharacter`/`getCard` (D28) | memory (chat subsystem) + character | `memory-backfill`, `group-character-backfill` |
-| `import.*` (collect, createImportService, importCollectedProfile, app-config) | import domain | `import-st`, `assets-backfill` |
-| `assets.createAssetsService` (store, backfillAvatars) | assets domain | `import-st`, `assets-backfill`, `embed-assets` (via `cas`) |
-| `stats.reconcileStats` | stats domain | `reconcile-stats`, `import-st` (post-import settle) |
-| `connection.refreshCatalogSnapshot` (keyless OR catalog, counts only) | connection domain (absorbs models) | `refresh-model-catalog` |
-| `cas` (blob bytes) | infra/storage | `embed-assets` (image pass) |
-| `roleClients` binder + `userSettings` reader | entry-wired (binder) + settings (injected) | every runner (bound per the workload's `ownerId`) |
+| Op bundle                                                                                                | Provided by                                | Consumed by runner(s)                                                                     |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `embeddings.*` (embed text / embed images)                                                               | embeddings domain (the one write path)     | `embed-corpus`, `embed-assets`                                                            |
+| `discovery.*` (themes, summaries, cooccurrence, duplicates, hub scores)                                  | discovery domain (semantics)               | `compute-themes`, `distill-characters`, `compute-cooccurrence`, `find-duplicates`, `csls` |
+| `memory.*` (generateDigests, generateSegments) + `character.mintSyntheticGroupCharacter`/`getCard` (D28) | memory (chat subsystem) + character        | `memory-backfill`, `group-character-backfill`                                             |
+| `import.*` (collect, createImportService, importCollectedProfile, app-config)                            | import domain                              | `import-st`, `assets-backfill`                                                            |
+| `assets.createAssetsService` (store, backfillAvatars)                                                    | assets domain                              | `import-st`, `assets-backfill`, `embed-assets` (via `cas`)                                |
+| `stats.reconcileStats`                                                                                   | stats domain                               | `reconcile-stats`, `import-st` (post-import settle)                                       |
+| `connection.refreshCatalogSnapshot` (keyless OR catalog, counts only)                                    | connection domain (absorbs models)         | `refresh-model-catalog`                                                                   |
+| `cas` (blob bytes)                                                                                       | infra/storage                              | `embed-assets` (image pass)                                                               |
+| `roleClients` binder + `userSettings` reader                                                             | entry-wired (binder) + settings (injected) | every runner (bound per the workload's `ownerId`)                                         |
 
 **Reaching IN through the front door (no internals touched):**
 
-| Consumer | Surface used | For |
-|---|---|---|
-| `transport/jobs/workloads-worker.ts` | `nextRunnableWorkload`, `runWorkload`, `reapOrphanedWorkloads`, `workloadStreamEmitter`, `loadWorkload` | the poll/dispatch/reap/wake driver loop |
-| `transport/jobs/catalog-refresh-scheduler.ts` | `createWorkloadService` → `list` + `start` | the daily catalog-refresh decision |
-| `transport/trpc/routers/workloads.ts` | `WorkloadService` verbs + `getRecentWorkloadEvents` + `workloadStreamEmitter` + the tuples | the admin UI (start/cancel/retry/get/list + SSE) |
-| `domain/buddy` (observer-env, agent-env) | `workloadStreamEmitter` (event fanout) + `WorkloadService.start` | the buddy reaction observer + buddy-initiated workloads (injected at `entry/`, never sideways) |
-| `embeddings` event-driven indexer | `WorkloadService.start` (injected) | enqueue `embed-corpus`/`embed-assets` on `character.updated`/`asset.created`/`digest.created`; the re-index-on-embed-model-change sweep |
+| Consumer                                      | Surface used                                                                                            | For                                                                                                                                     |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `transport/jobs/workloads-worker.ts`          | `nextRunnableWorkload`, `runWorkload`, `reapOrphanedWorkloads`, `workloadStreamEmitter`, `loadWorkload` | the poll/dispatch/reap/wake driver loop                                                                                                 |
+| `transport/jobs/catalog-refresh-scheduler.ts` | `createWorkloadService` → `list` + `start`                                                              | the daily catalog-refresh decision                                                                                                      |
+| `transport/trpc/routers/workloads.ts`         | `WorkloadService` verbs + `getRecentWorkloadEvents` + `workloadStreamEmitter` + the tuples              | the admin UI (start/cancel/retry/get/list + SSE)                                                                                        |
+| `domain/buddy` (observer-env, agent-env)      | `workloadStreamEmitter` (event fanout) + `WorkloadService.start`                                        | the buddy reaction observer + buddy-initiated workloads (injected at `entry/`, never sideways)                                          |
+| `embeddings` event-driven indexer             | `WorkloadService.start` (injected)                                                                      | enqueue `embed-corpus`/`embed-assets` on `character.updated`/`asset.created`/`digest.created`; the re-index-on-embed-model-change sweep |
 
 No domain reaches into `domain/workloads/engine/` or `runners/` — the worker enters through the front
 door; the indexer/buddy enqueue through an injected `WorkloadService`.
@@ -430,7 +456,7 @@ schema (kept, not omitted, so the UI renders a confirm dialog and `start()` vali
 `runner-env.ts` is "the one true cross-feature hub" — this domain is the proof that the codebase's
 clean coupling (zero cross-feature deep imports) is achievable even for the most cross-cutting
 feature: every edge is an injected op or a front-door call. The re-partition (corpus→embeddings+
-discovery, chatMemory→memory) is the only structural churn; the *mechanism* is unchanged.
+discovery, chatMemory→memory) is the only structural churn; the _mechanism_ is unchanged.
 
 ---
 
@@ -504,45 +530,45 @@ discovery, chatMemory→memory) is the only structural churn; the *mechanism* is
 
 1. **`WorkloadKind` dispatch is exhaustive** — `RUNNERS: { [K in WorkloadKind]: Runner<K> }`; a kind
    without a runner (or without a `ParamsByKind`/`ResultByKind` entry) fails the build.
-   *Enforcement: compile-time (the mapped-type `Record`). Gate candidate `exhaustive-dispatch`.*
+   _Enforcement: compile-time (the mapped-type `Record`). Gate candidate `exhaustive-dispatch`._
 
 2. **Single-active-per-kind** — at most one `{queued,running,cancelling}` row per kind exists.
-   *Enforcement: DB constraint (the `workloads_kind_active` partial unique index); `verbs/start.ts`
+   _Enforcement: DB constraint (the `workloads_kind_active` partial unique index); `verbs/start.ts`
    translates the violation to `DomainConflictError`. `ACTIVE_WORKLOAD_STATUSES` MUST mirror the
-   index predicate (test-time assertion the two match).*
+   index predicate (test-time assertion the two match)._
 
 3. **The state machine is linear (no backward / terminal→terminal transitions)** — `markTerminal` and
    `markCancelling` are status-guarded; a zombie runner whose row was reaped writes nothing.
-   *Enforcement: compile-time (the guarded UPDATE returns a boolean the engine branches on) +
-   test-time (reaper-vs-zombie + cancelling→succeeded-pin tests).*
+   _Enforcement: compile-time (the guarded UPDATE returns a boolean the engine branches on) +
+   test-time (reaper-vs-zombie + cancelling→succeeded-pin tests)._
 
 4. **Runners reach cross-feature ONLY through `ctx.env`** — no `domain/workloads/*` imports another
    feature's internals; the runtime env is built at `entry/`.
-   *Enforcement: resolve-time (`domain-no-cross-feature` bans the sideways import) + lint-time backstop.*
+   _Enforcement: resolve-time (`domain-no-cross-feature` bans the sideways import) + lint-time backstop._
 
 5. **`transport/jobs` calls DOWN into the domain front door only** — the worker + scheduler import
    `domain/workloads` (index), never `engine/`/`runners/`/`persistence/` directly, and never a sibling
    feature.
-   *Enforcement: resolve-time (tier order + front-door rule); dep-cruiser `drivers-through-domain`.*
+   _Enforcement: resolve-time (tier order + front-door rule); dep-cruiser `drivers-through-domain`._
 
 6. **`buildWorkloadsEnv` lives at `entry/`, not `transport/`** — the cross-every-feature construction
    is a composition-root concern.
-   *Enforcement: resolve-time (only `entry/` may import multiple domain front doors; a `transport/`-located
-   cross-feature build fails the tier rule).*
+   _Enforcement: resolve-time (only `entry/` may import multiple domain front doors; a `transport/`-located
+   cross-feature build fails the tier rule)._
 
 7. **`roleClients` (binder) is a required runner-context dep** — no `createDefaultRoleClients` fallback.
-   *Enforcement: compile-time (the binder field is non-optional; omitting it fails `tsc`).*
+   _Enforcement: compile-time (the binder field is non-optional; omitting it fails `tsc`)._
 
 8. **The `Runner<K>` signature lives in `contract/`** — runners depend on the contract for their type;
    `dispatch.ts` depends on the contract + each runner. No runner→engine edge (no cycle).
-   *Enforcement: resolve-time (the import direction); dep-cruiser `no-cycle` backstop.*
+   _Enforcement: resolve-time (the import direction); dep-cruiser `no-cycle` backstop._
 
 9. **`progress-bus.ts` carries the `ASSUMES(single-replica)` marker** — the per-process EventEmitter +
    replay ring is the seam to replace if multi-replica ships.
-   *Enforcement: lint-time (a `check` gate validating the annotation is present — same pattern as buddy).*
+   _Enforcement: lint-time (a `check` gate validating the annotation is present — same pattern as buddy)._
 
 10. **Every `WorkloadEvent` carries a non-empty `workloadId`** — the subscription filters on it.
-    *Enforcement: runtime (the defensive throw in `emitWorkloadEvent`) + test-time.*
+    _Enforcement: runtime (the defensive throw in `emitWorkloadEvent`) + test-time._
 
 ---
 
@@ -559,8 +585,8 @@ discovery, chatMemory→memory) is the only structural churn; the *mechanism* is
   PROVIDER details on the embeddings/discovery side are owned by those domains' docs.)
 - **`embed-corpus` + `embed-assets` vs a parameterized `index` kind — RESOLVED: keep TWO distinct kinds**
   for the initial port. Preserves explicit per-source progress + per-source single-active scoping (a
-  text reindex and an image reindex can run concurrently — they are different kinds). *Criterion to
-  revisit (deferred):* collapse into one parameterized `index` kind ONLY if the embeddings source-kind
+  text reindex and an image reindex can run concurrently — they are different kinds). _Criterion to
+  revisit (deferred):_ collapse into one parameterized `index` kind ONLY if the embeddings source-kind
   registry grows past card/avatar/segment/digest AND the re-index-on-embed-model-change sweep needs
   "embed everything for the new model" as one atomic unit — at that point the single-active scope would
   move from per-kind to per-(kind,source).
@@ -575,15 +601,15 @@ discovery, chatMemory→memory) is the only structural churn; the *mechanism* is
 
 - **`dependsOn` enforcement — DEFERRED: keep persisted-not-enforced (warn-seam) for the initial port.**
   The column + param exist (forward-compat); dispatch is `(status='queued', scheduledAt)` order;
-  `start`/`retry` warn loudly at the seam. *Criterion to wire a DAG scheduler:* when a runner genuinely
+  `start`/`retry` warn loudly at the seam. _Criterion to wire a DAG scheduler:_ when a runner genuinely
   needs ordering — then `nextRunnableWorkload` gains an "all deps terminal" predicate and the
   `WorkloadError` union re-gains a `dependency_failed` arm (currently removed as never-produced).
 - **Multi-replica — DEFERRED: single-replica is the target.** Claim correctness is already
   multi-replica-safe (the partial unique index + the reaper's periodic tick handle a sibling's death,
   no leader election). The only gap is the progress bus (per-process `EventEmitter` + replay ring,
-  annotated `ASSUMES(single-replica)`). *Criterion:* iff multi-replica ships — replace the
+  annotated `ASSUMES(single-replica)`). _Criterion:_ iff multi-replica ships — replace the
   `engine/progress-bus.ts` seam with a shared pub/sub (the annotated replacement point).
-- **Per-user workloads (F3) — DEFERRED: admin-global today.** *Criterion (when non-admin triggers land):*
+- **Per-user workloads (F3) — DEFERRED: admin-global today.** _Criterion (when non-admin triggers land):_
   wire the ownership assertion in the verbs (`ownerId === principal.userId || can(principal,'admin',global)` —
   owner∪admin via `can()`, never a bare `role==='admin'`, D17)
   replacing sole reliance on the procedure gate; `bindRoleClients(ownerId)` already picks up the user's

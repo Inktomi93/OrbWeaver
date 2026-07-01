@@ -3,7 +3,7 @@
 // match that tuple without help, which is why neo-tavern had ~59 inline `as BatchItem` casts on the chat
 // send path. These helpers centralize the ONE cast: build a plain array of statements, hand it to
 // `batchMany`. A db-layer primitive — it bridges `Parameters<Db["batch"]>`, a drizzle type, so it cannot
-// be `@orb/kit`-pure. (shared-dissolution.md §3.)
+// be `@orb/kit`-pure. (Legacy-Migration-and-Gaps.md §3.)
 
 import type { Db } from "../client";
 

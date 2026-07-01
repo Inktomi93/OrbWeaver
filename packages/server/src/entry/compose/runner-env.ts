@@ -1,5 +1,5 @@
 // entry/compose/runner-env — builds THE one true cross-feature hub, the `WorkloadRunnerEnv`
-// (domain/workloads/contract/runner-env; tiers/entry.md §layout "runner-env.ts"). It is the TYPED bundle of
+// (domain/workloads/contract/runner-env; core/Tier-5-Entry.md §layout "runner-env.ts"). It is the TYPED bundle of
 // every cross-feature op the workload runners depend on; the runtime VALUE is assembled HERE (the only tier
 // above `domain-no-cross-feature`) and threaded by the worker into every dispatch. Each op is wired to the
 // real backing domain verb where it EXISTS; ops whose backing verb is DEFERRED are typed INERT seams that

@@ -2,7 +2,7 @@
 // World info is BOOKS-ONLY: a `world_books` row is a container of keyword-triggered `world_entries`; a book
 // attaches at one of FOUR scopes (global / character / chat / persona) via a per-scope junction, and the
 // per-turn pool (a chat-assembly concern, NOT this domain) unions all four. Authoritative spec:
-// `docs/architecture/domains/world-info.md` + `tiers/db.md`.
+// `docs/architecture/domains/world-info.md` + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D23 — `world_books.ownerId` is KEPT (books are top-level single-owned / `fetchOwned`). `world_entries`

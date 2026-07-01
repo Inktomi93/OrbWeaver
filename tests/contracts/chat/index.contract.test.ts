@@ -40,7 +40,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "vitest";
 
 // Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
-// allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (spine/testing.md §1). This
+// allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (core/Spine-Testing.md §1). This
 // file keeps the runtime round-trips, the schema strip backstops, and the value-level shape checks.
 
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───

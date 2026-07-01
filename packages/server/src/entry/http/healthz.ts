@@ -1,7 +1,7 @@
-// entry/http/healthz — the liveness registrar (tiers/entry.md §layout "healthz"). Reports three boot/
+// entry/http/healthz — the liveness registrar (core/Tier-5-Entry.md §layout "healthz"). Reports three boot/
 // runtime signals the orchestrator + a load balancer poll: live (200), graceful-shutdown drain (503), and
 // the boot decrypt-probe failure (503 `credentials_key_mismatch`). It owns NO crypto — the decrypt-probe
-// runs ONCE at the crypto boot step (boot order step 2; see `reports/PRE-SCAFFOLD-CHECKLIST.md`); this
+// runs ONCE at the crypto boot step (boot order step 2; see `core/Planning-and-Checklists.md`); this
 // route reads its already-computed result via an injected getter and NEVER re-runs SecretBox here.
 //
 // Determinism: the route reads injected getters only — no clock, no ambient state of its own.

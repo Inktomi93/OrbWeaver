@@ -1,4 +1,4 @@
-// transport/trpc/routers/world-info — the books/entries + scope-junction surface (tiers/transport.md).
+// transport/trpc/routers/world-info — the books/entries + scope-junction surface (core/Tier-4-Transport.md).
 // authed; owner-scoped. Thin: validate → `ctx.services.worldInfo.<verb>` → map errors. Input shapes + the
 // `role` axis derive from `@orb/contracts/world-info`. The chat-attachment scope is DEFERRED (chats are
 // membership-scoped — needs the `can({kind:'chat'})` resource arm, P5).

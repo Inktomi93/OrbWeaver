@@ -15,7 +15,7 @@
 > `search.findCharacters`/`search.discover`, never re-implements top-k cosine); `domains/stats.md` (the
 > economics-vs-semantics boundary + the `insights.ts` gray-zone resolution); `_FANOUT-BRIEF.md` §4
 > (the corpus→discovery pain entry), §7.4/§7.5, §8.5 (knowledge-cluster recon); `reports/shared-
-> dissolution.md` (the `vector-math` → `@orb/kit`, `pair-cosine` → discovery, hubness compute-fns moves).
+dissolution.md` (the `vector-math` → `@orb/kit`, `pair-cosine` → discovery, hubness compute-fns moves).
 > `structure.md` §4 is the 8-slot template this domain follows.
 
 ---
@@ -95,14 +95,14 @@ Three concerns tangle in one domain. In orbweaver they split cleanly:
 
 ## Two cosine access patterns — and why discovery keeps one
 
-`knowledge-cluster.md` invariant #4: *"One retrieval engine (`search`) — memory + discovery call it,
-never reimplement cosine."* The reconciliation (`search.md` §"invariant #4"): discovery's analytics are
+`knowledge-cluster.md` invariant #4: _"One retrieval engine (`search`) — memory + discovery call it,
+never reimplement cosine."_ The reconciliation (`search.md` §"invariant #4"): discovery's analytics are
 a **different access pattern** from retrieval, and stay here:
 
-| Pattern | Who | Mechanism | Lives in |
-|---|---|---|---|
-| **top-k retrieval** ("more like this character/avatar", kNN, find-by-query) | `search` ONLY | SQL `vector_distance_cos … ORDER BY dist LIMIT k` | `domain/search/persistence/` |
-| **in-RAM all-pairs / clustering / paired** (hubness, dup all-pairs, themes/archetypes k-means, similarity graph, PCA, cross-modal alignment) | `discovery` | `@orb/kit/vector-math` over loaded vectors (no SQL cosine) | `domain/discovery/substrate/` + verbs |
+| Pattern                                                                                                                                      | Who           | Mechanism                                                  | Lives in                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------- | ------------------------------------- |
+| **top-k retrieval** ("more like this character/avatar", kNN, find-by-query)                                                                  | `search` ONLY | SQL `vector_distance_cos … ORDER BY dist LIMIT k`          | `domain/search/persistence/`          |
+| **in-RAM all-pairs / clustering / paired** (hubness, dup all-pairs, themes/archetypes k-means, similarity graph, PCA, cross-modal alignment) | `discovery`   | `@orb/kit/vector-math` over loaded vectors (no SQL cosine) | `domain/discovery/substrate/` + verbs |
 
 So **discovery issues NO `vector_distance_cos` SQL** — the two neo-tavern uses inside corpus
 (`duplicates/retrieve.ts:similarCharacters`, `image-analytics/retrieve.ts:similarArt`, both top-k kNN
@@ -282,32 +282,66 @@ export (re-exported from the front door) so the workload runners (`transport/job
 
 ```typescript
 // Errors
-export { DiscoveryError } from './contract/errors'
+export { DiscoveryError } from "./contract/errors";
 
 // Service + factory + injection shape
-export { createDiscoveryService } from './service'
-export type { DiscoveryService, DiscoveryServiceDeps, DiscoveryContext } from './contract/service'
+export { createDiscoveryService } from "./service";
+export type { DiscoveryService, DiscoveryServiceDeps, DiscoveryContext } from "./contract/service";
 
 // Params
-export type { BrowseFilter, TagAssignment, ImageFacetKey, ThemeLevel } from './contract/params'
+export type { BrowseFilter, TagAssignment, ImageFacetKey, ThemeLevel } from "./contract/params";
 
 // Result + view types (consumed via service-method-signature inference at the tRPC routers + tests)
 export type {
-  Archetype, BrowseCharacter, CatalogStats, CharacterComparison, DeepComparison,
-  CharacterDistillation, ForgottenGem, ModelRouting, ThemeDriftBucket, UnusedCharacter,
-  CorpusPoint, HubStats, SimilarityGraph, SimilarChat, SwipeHotspot, TagSuggestion,
-  ApplyTagsResult, DistillStats, ThemeRow, DuplicateCharacterPair, DuplicateChatPair,
-  ImageDuplicatePair, VisualArchetype, ImageFacets, ImageFacetMember, PortraitAlignmentReport,
-  CharacterPortrait, CharacterContentProfile, CharacterDossier, HomeView, ThemeDetail,
-  CooccurrenceStats, ThemeComputeStats, DuplicateComputeStats,
-} from './contract/results'  // (views in ./contract/views, re-exported here)
+  Archetype,
+  BrowseCharacter,
+  CatalogStats,
+  CharacterComparison,
+  DeepComparison,
+  CharacterDistillation,
+  ForgottenGem,
+  ModelRouting,
+  ThemeDriftBucket,
+  UnusedCharacter,
+  CorpusPoint,
+  HubStats,
+  SimilarityGraph,
+  SimilarChat,
+  SwipeHotspot,
+  TagSuggestion,
+  ApplyTagsResult,
+  DistillStats,
+  ThemeRow,
+  DuplicateCharacterPair,
+  DuplicateChatPair,
+  ImageDuplicatePair,
+  VisualArchetype,
+  ImageFacets,
+  ImageFacetMember,
+  PortraitAlignmentReport,
+  CharacterPortrait,
+  CharacterContentProfile,
+  CharacterDossier,
+  HomeView,
+  ThemeDetail,
+  CooccurrenceStats,
+  ThemeComputeStats,
+  DuplicateComputeStats,
+} from "./contract/results"; // (views in ./contract/views, re-exported here)
 
 // Standalone workload passes (driven by transport/jobs runners, not via tRPC)
 export {
-  computeThemes, computeDuplicatePairs, computeCooccurrence, computeCharacterSummaries,
-  computeCharacterHubScores, computeDigestHubScores, computeSegmentHubScores, computeImageHubScores,
-  CSLS_K, DEFAULT_DUP_THRESHOLD,
-} from '...'  // re-exported from their verb/subsystem homes
+  computeThemes,
+  computeDuplicatePairs,
+  computeCooccurrence,
+  computeCharacterSummaries,
+  computeCharacterHubScores,
+  computeDigestHubScores,
+  computeSegmentHubScores,
+  computeImageHubScores,
+  CSLS_K,
+  DEFAULT_DUP_THRESHOLD,
+} from "..."; // re-exported from their verb/subsystem homes
 
 // (No delete-time sweep export — duplicate_*_pairs use real FK + CASCADE; stale pairs die with their entity, D24)
 ```
@@ -322,40 +356,40 @@ or producer; `clearFieldIndexCache` + the field-search surface → `search`. The
 
 ## Movement table
 
-| Unit | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `domain/corpus/` (whole feature) | **rename** | `domain/discovery/` | The name needed insider knowledge (`_FANOUT-BRIEF.md` §4). `discovery` = library semantics; the partitioning map (`structure.md` §6) already calls it `discovery`. | resolve-time: old `domain/corpus` ceases to exist; front-door importers (`transport`, `entry`, `workloads/runner-env`) update to `domain/discovery` |
-| `corpus/service.ts` — `embedAndStore` + `embedAndStoreMany` + `existingKeys` | → `embeddings` | `domain/embeddings/verbs/store.ts` (+ indexer `onCharacterUpdated`) | Card embed is a vector WRITE — discovery embeds nothing. The two near-identical embed+upsert bodies collapse into `embeddings.store`. | resolve-time: bodies gone from discovery; lint-time: `discovery-no-vector-write` (no `INSERT INTO character_embeddings` outside `embeddings`) |
-| `corpus/verbs/embed-corpus.ts` (`runEmbedCorpusPass`, `filterEmbedTargets`, slice/skip pipeline) | → `embeddings` | the `re-index` workload calling `embeddings.store` in bulk | The full card embed pass is a write pass; in orbweaver it is the model-change re-index workload over `embeddings.store`. | resolve-time: verb file removed from discovery |
-| `corpus/verbs/embed-images.ts` (`runEmbedImagesPass`, `EmbedImagesPassOptions`) | → `embeddings` | `domain/embeddings/indexer/handlers.ts:onAssetCreated` (image-raw + image-captioned) | Image embed + caption is content production for two lenses; the indexer owns it (per `embeddings.md`). | resolve-time: verb file removed; `EmbedImagesPassOptions` → `embeddings/contract/params.ts` (`no-inline-types`) |
-| `corpus/substrate/caption.ts` (`CAPTION_SCHEMA`, `CAPTION_SYSTEM`, `parseCaption`, `flattenCaption`, `CaptionFields`) | → `embeddings` | `domain/embeddings/indexer/` (image-captioned content production) | The caption is produced DURING the image-captioned embed (the joint `{image, caption}` vector). discovery only READS the stored `caption_meta` column for faceting. | resolve-time: substrate file moves with the image embed pass; discovery reads `image_embeddings.caption_meta` via `@orb/db` |
-| `corpus/substrate/embed-text.ts` (`buildCardEmbedText`, `CardEmbedFields`, `MIN_SEARCH_TEXT_TOKENS`, `truncateAtCodepoint`, `cleanText`, `normalizePlaceholders`, `APPROX_CHARS_PER_TOKEN`) + `substrate/targets.ts` (`collectEmbedTargets`) | → producer | `embeddings` indexer / `character` (the card→embed-text builder) | "What text represents a card" is a producer concern (the embeddings indexer needs it to `store`). discovery's `distill` needs the SAME card text — it reads it via `@orb/db` (the flat `characters` card row, D28) OR the stored `character_embeddings.sourceText`, not by re-building. | resolve-time: builder leaves discovery; **open decision** on the exact producer home (see Open decisions) |
-| `corpus/verbs/hubness.ts` — `computeCharacterHubScores` / `computeDigestHubScores` / `computeSegmentHubScores` / `computeImageHubScores` (+ `computeAndWriteHubs`, `HubSpec`, the 4 specs) | stays domain feature | `domain/discovery/verbs/compute-hub-scores.ts` | Hubness is a semantic ranking signal — a discovery concern. The compute stays; only the WRITE changes. | resolve-time: `corpus/verbs/hubness.ts` gone; lint-time: `domain-no-cross-feature` (discovery must not import `embeddings/persistence`) |
-| `corpus/verbs/hubness.ts` — the `db.batch` `UPDATE … set hubScore` write path | **re-routed** | injected `embeddings.writeHubScores(table, updates[])` | The §8 seam: discovery computes the values, `embeddings` owns the column write. A vector write never nulls `hub_score`; `writeHubScores` is the only path that sets it. | compile-time: `compute-hub-scores.ts` has no `db.update` on a vector table; the write is the injected op's typed signature |
-| `corpus/verbs/hubness.ts` — `computeGroupHubs`, `offer`, `HUBNESS_DENSE_MAX`, `CSLS_K` | → `substrate/` | `domain/discovery/substrate/hub-math.ts` (`CSLS_K` re-exported from the verb for the runner log) | Pure top-K-mean math over float arrays (dense `pairwiseCosine` + streaming `cosineToMany`); zero I/O. | lint-time: `feature-structure` (pure math in substrate/) |
-| `providers/_shared/vector-math.ts` (`cosineSim`, `cosineDistance`, `l2Normalize`, `mean`, `pairwiseCosine`, `cosineToMany`) | → `@orb/kit` | `@orb/kit/vector-math` | 6 pure functions, zero I/O, zero domain; discovery's all-pairs analytics are the surviving consumer (search's only cosine is the SQL engine). Currently misfiled in `providers/_shared` (infra). | resolve-time: `providers/_shared` does not exist; `@orb/kit` is a declared dep of `@orb/server`; `kit-purity` gate (pure, isomorphic) |
-| `corpus/substrate/pair-cosine.ts` — `normalizeFlat` (duplicates `l2Normalize`) | **deleted** | — | Replaced by `@orb/kit/vector-math.l2Normalize`; one normalize implementation. | compile-time: the duplicate is removed; callers use kit |
-| `corpus/substrate/pair-cosine.ts` — `pairsAboveThreshold` + `DuplicatePair` (all-pairs CSLS-scored pairs) | stays domain feature | `domain/discovery/substrate/pair-cosine.ts` | Used only by near-duplicate + similarity-graph (discovery concerns). It is all-pairs analytics, NOT retrieval. `DuplicatePair` is a substrate-local shape. | resolve-time: imports `@orb/kit/vector-math`, never `search`; per `reports/shared-dissolution.md` (corpus/substrate/pair-cosine → discovery/substrate) |
-| `corpus/substrate/kmeans.ts` / `pca.ts` / `json-extract.ts` | stays domain feature | `domain/discovery/substrate/` | Pure clustering / projection / JSON-slice math; zero I/O. `kmeans` swaps its `providers/_shared` import for `@orb/kit/vector-math.l2Normalize`. | resolve-time (same package); `sliceJsonObject` → `@orb/kit/json` is an **open decision** (3 discovery consumers) |
-| `corpus/substrate/character-names.ts` (`characterNames` — reads db) | → `persistence/` | `domain/discovery/persistence/character-names.ts` | It runs a SELECT/JOIN; substrate must be pure. | lint-time: `feature-structure` (db reads in persistence/) |
-| `corpus/substrate/segment.ts` (`segmentChat`, the reference segmenter — test-only) | → `memory` | `domain/memory/substrate/` | Live per-block segmentation is `memory`'s; this standalone is the reference impl a corpus-text test exercises. "unwired ≠ worthless" → re-home with the live segmenter. | resolve-time; **DECIDED: `memory/substrate`** (ledger §2) |
-| `corpus/verbs/field-search.ts` (MiniSearch/BM25 + `clearFieldIndexCache`, `CardDoc`, `IndexCacheEntry`, `CARD_FIELDS`, `CardField`) | → `search` | `domain/search/verbs/fields.ts` + `domain/search/substrate/field-index.ts` | Lexical search is RETRIEVAL — the `search` domain. The tRPC router already exposes it under the `search` namespace. (Documented authoritatively in `search.md`.) | resolve-time: leaves discovery; the `character.updated` cache-invalidation seam re-homes with it |
-| `corpus/duplicates/retrieve.ts` — `similarCharacters` (`vector_distance_cos … LIMIT k` kNN) | **replaced** | injected `search.findCharacters(...)` | Top-k retrieval is `search`'s (invariant #4). discovery's "more like this character" calls the engine. | lint-time: no `vector_distance_cos` SQL outside `domain/search/persistence/` (dep-cruiser); resolve-time: `search.findCharacters` injected at composition root |
-| `corpus/image-analytics/retrieve.ts` — `similarArt` (`vector_distance_cos` image kNN) | **replaced** | injected `search` image kNN op | Same — top-k image retrieval is `search`'s. | lint-time: same `vector_distance_cos` gate |
-| `corpus/image-analytics/facets.ts` — `portraitAlignment` + `characterPortrait` cross-modal `1 - vector_distance_cos(ce, ie)` | **rewritten in-RAM** | `domain/discovery/image-analytics/facets.ts` using `@orb/kit/vector-math.cosineSim` over loaded vectors | A paired (card↔avatar) cosine, not top-k — but `vector_distance_cos` SQL is `search`-only. Load both vectors, compute in JS at corpus scale. | lint-time: `vector_distance_cos` gate; the JOIN keeps the caption-facet reads, drops the SQL cosine |
-| `corpus/verbs/insights.ts` — `forgottenGems` `SUM(tokens_out)` | **resolve gray zone** | `tokensOut` from injected `stats` op (`character_stats.tokensOut`); the message-volume COUNT + recency ranking stays in discovery | The revisit RANKING is semantics; the token figure is economics → it comes from the stats rollup, not a raw `messages` SUM (invariant #7, `stats.md`). | compile-time: the economics columns are unspellable in discovery's `messages-semantic` projection; lint backstop `discovery-no-stats-rollups` |
-| `corpus/verbs/insights.ts` — `modelRouting` (per-model message tally × genre) | **resolve gray zone** | composition: discovery supplies `genre` (`character_summaries`); stats supplies per-`(model)` tallies; wired at the composition root | A genuine cross-domain JOIN (semantic facet × economics provenance) → a composition, not a discovery-owned raw aggregate. | resolve-time: injected `stats` op; `domain-no-cross-feature` backstop |
-| `corpus/verbs/insights.ts` — `themeDrift`, `unusedCharacters` | stays domain feature | `domain/discovery/verbs/insights.ts` | Purely semantic (theme assignments / library catalog); no economics. | resolve-time (same package) |
-| `corpus/verbs/views.ts` — `characterContentProfile` (`DISTINCT m.model` per character) | stays domain feature | `domain/discovery/verbs/views.ts` (reads via `messages-semantic` projection) | "Which models I've run this character on" is per-character semantic context stats never tracks (per-model is GLOBAL in stats). `model` IS on the semantic projection (`stats.md` #2). | compile-time: read through the semantic projection; no economics column named |
-| `corpus/verbs/similarity.ts` (`characterSimilarityGraph` + `similarChats`) | **split** → `verbs/` | `verbs/similarity-graph.ts` + `verbs/similar-chats.ts` | One verb per file (§4). Both stay in-RAM (graph = `pairsAboveThreshold`; chats = segment-centroid `cosineToMany`) — neither is a `vector_distance_cos` scan. | lint-time: `verb-naming` gate |
-| `corpus/contract/results.ts` — `EmbedCorpus*` / `EmbedImagesPassStats` / `EmbedItem` / `CardEmbedFields` types | → `embeddings` | `domain/embeddings/contract/` | They describe the embed passes (now embeddings'). | resolve-time (move with the pass); `no-inline-types` |
-| `corpus/contract/results.ts:CardField` + `verbs/field-search.ts:CARD_FIELDS` | → `search` | `domain/search/` | Moves with the lexical engine. | resolve-time |
-| `corpus/image-analytics/facets.ts:ImageFacetKey` (inline) | → `contract/` | `domain/discovery/contract/params.ts` | An exported string-union param shape declared outside `contract/`. | lint-time: `no-inline-types` |
-| `corpus/substrate/pair-cosine.ts:DuplicatePair`, `verbs/field-search.ts:CardDoc/IndexCacheEntry`, `cooccurrence/generate.ts:DigestKeywords/CooccurrenceTally`, `duplicates/generate.ts:GroupRow/JaccardChatPair` | keep local (substrate/subsystem-private) | their (rehomed) files | File-private pipeline shapes, not the public surface — they stay where used, not in `contract/`. | lint-time: `no-inline-types` flags only the EXPORTED leaks |
-| `corpus/context.ts` — `createDefaultRoleClients()` fallback | **deleted** | `entry/` wires role clients; `DiscoveryContext.summarize` is a required dep | `_shared/role-clients-binder` does not exist; the composition root is the wiring site. discovery needs only `summarize` (never `embed`). | resolve-time: `_shared` gone; missing dep fails `tsc` |
-| `corpus/context.ts` — `CorpusContext = ReturnType<typeof createCorpusContext>` | stays domain feature | `domain/discovery/context.ts` top — explicit `export interface DiscoveryContext` | The inferred shape is invisible at a glance. | lint-time: `types-in-contract` / `no-inline-types` |
-| `db/schema/corpus.ts` — `duplicate_pairs` (polymorphic), `keyword_cooccurrence`, `character_keyword_profiles`, `character_summaries`, `theme_clusters`, `digest_theme_assignments` | **rename + move**; `duplicate_pairs` → **per-type FK tables (D24)** | `@orb/db/schema/discovery.ts` — `duplicate_character_pairs` + `duplicate_chat_pairs` (real FK ×2 + CASCADE) + the 5 others | The rollups follow the `corpus`→`discovery` rename; `duplicate_pairs` is also de-polymorphized (D24). `ownerId` is dropped from the entity-keyed ones (`character_summaries`/`_keyword_profiles`/`digest_theme_assignments`/`duplicate_*_pairs` — derive via the parent, D23); KEEP on the parentless aggregates (`keyword_cooccurrence`/`theme_clusters`). The `centroid` `vector32` stays a rollup. | compile-time: file move + the per-type FK tables; `tsc` flags broken imports |
-| `trpc/routers/corpus.ts` | **rename** | `transport/trpc/routers/discovery.ts` | Router follows the domain rename; delegates to `ctx.services.discovery.*` with `ownerId = principal.userId`. The `corpus.fieldSearch`/`fieldSuggest` procedures move to the `search.*` router. | resolve-time: `corpus.*` ceases to exist; `tsc` on the router context |
+| Unit                                                                                                                                                                                                                                         | Outcome                                                             | Target                                                                                                                               | Rationale                                                                                                                                                                                                                                                                                                                                                                                             | Enforcement tier                                                                                                                                               |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain/corpus/` (whole feature)                                                                                                                                                                                                             | **rename**                                                          | `domain/discovery/`                                                                                                                  | The name needed insider knowledge (`_FANOUT-BRIEF.md` §4). `discovery` = library semantics; the partitioning map (`structure.md` §6) already calls it `discovery`.                                                                                                                                                                                                                                    | resolve-time: old `domain/corpus` ceases to exist; front-door importers (`transport`, `entry`, `workloads/runner-env`) update to `domain/discovery`            |
+| `corpus/service.ts` — `embedAndStore` + `embedAndStoreMany` + `existingKeys`                                                                                                                                                                 | → `embeddings`                                                      | `domain/embeddings/verbs/store.ts` (+ indexer `onCharacterUpdated`)                                                                  | Card embed is a vector WRITE — discovery embeds nothing. The two near-identical embed+upsert bodies collapse into `embeddings.store`.                                                                                                                                                                                                                                                                 | resolve-time: bodies gone from discovery; lint-time: `discovery-no-vector-write` (no `INSERT INTO character_embeddings` outside `embeddings`)                  |
+| `corpus/verbs/embed-corpus.ts` (`runEmbedCorpusPass`, `filterEmbedTargets`, slice/skip pipeline)                                                                                                                                             | → `embeddings`                                                      | the `re-index` workload calling `embeddings.store` in bulk                                                                           | The full card embed pass is a write pass; in orbweaver it is the model-change re-index workload over `embeddings.store`.                                                                                                                                                                                                                                                                              | resolve-time: verb file removed from discovery                                                                                                                 |
+| `corpus/verbs/embed-images.ts` (`runEmbedImagesPass`, `EmbedImagesPassOptions`)                                                                                                                                                              | → `embeddings`                                                      | `domain/embeddings/indexer/handlers.ts:onAssetCreated` (image-raw + image-captioned)                                                 | Image embed + caption is content production for two lenses; the indexer owns it (per `embeddings.md`).                                                                                                                                                                                                                                                                                                | resolve-time: verb file removed; `EmbedImagesPassOptions` → `embeddings/contract/params.ts` (`no-inline-types`)                                                |
+| `corpus/substrate/caption.ts` (`CAPTION_SCHEMA`, `CAPTION_SYSTEM`, `parseCaption`, `flattenCaption`, `CaptionFields`)                                                                                                                        | → `embeddings`                                                      | `domain/embeddings/indexer/` (image-captioned content production)                                                                    | The caption is produced DURING the image-captioned embed (the joint `{image, caption}` vector). discovery only READS the stored `caption_meta` column for faceting.                                                                                                                                                                                                                                   | resolve-time: substrate file moves with the image embed pass; discovery reads `image_embeddings.caption_meta` via `@orb/db`                                    |
+| `corpus/substrate/embed-text.ts` (`buildCardEmbedText`, `CardEmbedFields`, `MIN_SEARCH_TEXT_TOKENS`, `truncateAtCodepoint`, `cleanText`, `normalizePlaceholders`, `APPROX_CHARS_PER_TOKEN`) + `substrate/targets.ts` (`collectEmbedTargets`) | → producer                                                          | `embeddings` indexer / `character` (the card→embed-text builder)                                                                     | "What text represents a card" is a producer concern (the embeddings indexer needs it to `store`). discovery's `distill` needs the SAME card text — it reads it via `@orb/db` (the flat `characters` card row, D28) OR the stored `character_embeddings.sourceText`, not by re-building.                                                                                                               | resolve-time: builder leaves discovery; **open decision** on the exact producer home (see Open decisions)                                                      |
+| `corpus/verbs/hubness.ts` — `computeCharacterHubScores` / `computeDigestHubScores` / `computeSegmentHubScores` / `computeImageHubScores` (+ `computeAndWriteHubs`, `HubSpec`, the 4 specs)                                                   | stays domain feature                                                | `domain/discovery/verbs/compute-hub-scores.ts`                                                                                       | Hubness is a semantic ranking signal — a discovery concern. The compute stays; only the WRITE changes.                                                                                                                                                                                                                                                                                                | resolve-time: `corpus/verbs/hubness.ts` gone; lint-time: `domain-no-cross-feature` (discovery must not import `embeddings/persistence`)                        |
+| `corpus/verbs/hubness.ts` — the `db.batch` `UPDATE … set hubScore` write path                                                                                                                                                                | **re-routed**                                                       | injected `embeddings.writeHubScores(table, updates[])`                                                                               | The §8 seam: discovery computes the values, `embeddings` owns the column write. A vector write never nulls `hub_score`; `writeHubScores` is the only path that sets it.                                                                                                                                                                                                                               | compile-time: `compute-hub-scores.ts` has no `db.update` on a vector table; the write is the injected op's typed signature                                     |
+| `corpus/verbs/hubness.ts` — `computeGroupHubs`, `offer`, `HUBNESS_DENSE_MAX`, `CSLS_K`                                                                                                                                                       | → `substrate/`                                                      | `domain/discovery/substrate/hub-math.ts` (`CSLS_K` re-exported from the verb for the runner log)                                     | Pure top-K-mean math over float arrays (dense `pairwiseCosine` + streaming `cosineToMany`); zero I/O.                                                                                                                                                                                                                                                                                                 | lint-time: `feature-structure` (pure math in substrate/)                                                                                                       |
+| `providers/_shared/vector-math.ts` (`cosineSim`, `cosineDistance`, `l2Normalize`, `mean`, `pairwiseCosine`, `cosineToMany`)                                                                                                                  | → `@orb/kit`                                                        | `@orb/kit/vector-math`                                                                                                               | 6 pure functions, zero I/O, zero domain; discovery's all-pairs analytics are the surviving consumer (search's only cosine is the SQL engine). Currently misfiled in `providers/_shared` (infra).                                                                                                                                                                                                      | resolve-time: `providers/_shared` does not exist; `@orb/kit` is a declared dep of `@orb/server`; `kit-purity` gate (pure, isomorphic)                          |
+| `corpus/substrate/pair-cosine.ts` — `normalizeFlat` (duplicates `l2Normalize`)                                                                                                                                                               | **deleted**                                                         | —                                                                                                                                    | Replaced by `@orb/kit/vector-math.l2Normalize`; one normalize implementation.                                                                                                                                                                                                                                                                                                                         | compile-time: the duplicate is removed; callers use kit                                                                                                        |
+| `corpus/substrate/pair-cosine.ts` — `pairsAboveThreshold` + `DuplicatePair` (all-pairs CSLS-scored pairs)                                                                                                                                    | stays domain feature                                                | `domain/discovery/substrate/pair-cosine.ts`                                                                                          | Used only by near-duplicate + similarity-graph (discovery concerns). It is all-pairs analytics, NOT retrieval. `DuplicatePair` is a substrate-local shape.                                                                                                                                                                                                                                            | resolve-time: imports `@orb/kit/vector-math`, never `search`; per `reports/shared-dissolution.md` (corpus/substrate/pair-cosine → discovery/substrate)         |
+| `corpus/substrate/kmeans.ts` / `pca.ts` / `json-extract.ts`                                                                                                                                                                                  | stays domain feature                                                | `domain/discovery/substrate/`                                                                                                        | Pure clustering / projection / JSON-slice math; zero I/O. `kmeans` swaps its `providers/_shared` import for `@orb/kit/vector-math.l2Normalize`.                                                                                                                                                                                                                                                       | resolve-time (same package); `sliceJsonObject` → `@orb/kit/json` is an **open decision** (3 discovery consumers)                                               |
+| `corpus/substrate/character-names.ts` (`characterNames` — reads db)                                                                                                                                                                          | → `persistence/`                                                    | `domain/discovery/persistence/character-names.ts`                                                                                    | It runs a SELECT/JOIN; substrate must be pure.                                                                                                                                                                                                                                                                                                                                                        | lint-time: `feature-structure` (db reads in persistence/)                                                                                                      |
+| `corpus/substrate/segment.ts` (`segmentChat`, the reference segmenter — test-only)                                                                                                                                                           | → `memory`                                                          | `domain/memory/substrate/`                                                                                                           | Live per-block segmentation is `memory`'s; this standalone is the reference impl a corpus-text test exercises. "unwired ≠ worthless" → re-home with the live segmenter.                                                                                                                                                                                                                               | resolve-time; **DECIDED: `memory/substrate`** (ledger §2)                                                                                                      |
+| `corpus/verbs/field-search.ts` (MiniSearch/BM25 + `clearFieldIndexCache`, `CardDoc`, `IndexCacheEntry`, `CARD_FIELDS`, `CardField`)                                                                                                          | → `search`                                                          | `domain/search/verbs/fields.ts` + `domain/search/substrate/field-index.ts`                                                           | Lexical search is RETRIEVAL — the `search` domain. The tRPC router already exposes it under the `search` namespace. (Documented authoritatively in `search.md`.)                                                                                                                                                                                                                                      | resolve-time: leaves discovery; the `character.updated` cache-invalidation seam re-homes with it                                                               |
+| `corpus/duplicates/retrieve.ts` — `similarCharacters` (`vector_distance_cos … LIMIT k` kNN)                                                                                                                                                  | **replaced**                                                        | injected `search.findCharacters(...)`                                                                                                | Top-k retrieval is `search`'s (invariant #4). discovery's "more like this character" calls the engine.                                                                                                                                                                                                                                                                                                | lint-time: no `vector_distance_cos` SQL outside `domain/search/persistence/` (dep-cruiser); resolve-time: `search.findCharacters` injected at composition root |
+| `corpus/image-analytics/retrieve.ts` — `similarArt` (`vector_distance_cos` image kNN)                                                                                                                                                        | **replaced**                                                        | injected `search` image kNN op                                                                                                       | Same — top-k image retrieval is `search`'s.                                                                                                                                                                                                                                                                                                                                                           | lint-time: same `vector_distance_cos` gate                                                                                                                     |
+| `corpus/image-analytics/facets.ts` — `portraitAlignment` + `characterPortrait` cross-modal `1 - vector_distance_cos(ce, ie)`                                                                                                                 | **rewritten in-RAM**                                                | `domain/discovery/image-analytics/facets.ts` using `@orb/kit/vector-math.cosineSim` over loaded vectors                              | A paired (card↔avatar) cosine, not top-k — but `vector_distance_cos` SQL is `search`-only. Load both vectors, compute in JS at corpus scale.                                                                                                                                                                                                                                                          | lint-time: `vector_distance_cos` gate; the JOIN keeps the caption-facet reads, drops the SQL cosine                                                            |
+| `corpus/verbs/insights.ts` — `forgottenGems` `SUM(tokens_out)`                                                                                                                                                                               | **resolve gray zone**                                               | `tokensOut` from injected `stats` op (`character_stats.tokensOut`); the message-volume COUNT + recency ranking stays in discovery    | The revisit RANKING is semantics; the token figure is economics → it comes from the stats rollup, not a raw `messages` SUM (invariant #7, `stats.md`).                                                                                                                                                                                                                                                | compile-time: the economics columns are unspellable in discovery's `messages-semantic` projection; lint backstop `discovery-no-stats-rollups`                  |
+| `corpus/verbs/insights.ts` — `modelRouting` (per-model message tally × genre)                                                                                                                                                                | **resolve gray zone**                                               | composition: discovery supplies `genre` (`character_summaries`); stats supplies per-`(model)` tallies; wired at the composition root | A genuine cross-domain JOIN (semantic facet × economics provenance) → a composition, not a discovery-owned raw aggregate.                                                                                                                                                                                                                                                                             | resolve-time: injected `stats` op; `domain-no-cross-feature` backstop                                                                                          |
+| `corpus/verbs/insights.ts` — `themeDrift`, `unusedCharacters`                                                                                                                                                                                | stays domain feature                                                | `domain/discovery/verbs/insights.ts`                                                                                                 | Purely semantic (theme assignments / library catalog); no economics.                                                                                                                                                                                                                                                                                                                                  | resolve-time (same package)                                                                                                                                    |
+| `corpus/verbs/views.ts` — `characterContentProfile` (`DISTINCT m.model` per character)                                                                                                                                                       | stays domain feature                                                | `domain/discovery/verbs/views.ts` (reads via `messages-semantic` projection)                                                         | "Which models I've run this character on" is per-character semantic context stats never tracks (per-model is GLOBAL in stats). `model` IS on the semantic projection (`stats.md` #2).                                                                                                                                                                                                                 | compile-time: read through the semantic projection; no economics column named                                                                                  |
+| `corpus/verbs/similarity.ts` (`characterSimilarityGraph` + `similarChats`)                                                                                                                                                                   | **split** → `verbs/`                                                | `verbs/similarity-graph.ts` + `verbs/similar-chats.ts`                                                                               | One verb per file (§4). Both stay in-RAM (graph = `pairsAboveThreshold`; chats = segment-centroid `cosineToMany`) — neither is a `vector_distance_cos` scan.                                                                                                                                                                                                                                          | lint-time: `verb-naming` gate                                                                                                                                  |
+| `corpus/contract/results.ts` — `EmbedCorpus*` / `EmbedImagesPassStats` / `EmbedItem` / `CardEmbedFields` types                                                                                                                               | → `embeddings`                                                      | `domain/embeddings/contract/`                                                                                                        | They describe the embed passes (now embeddings').                                                                                                                                                                                                                                                                                                                                                     | resolve-time (move with the pass); `no-inline-types`                                                                                                           |
+| `corpus/contract/results.ts:CardField` + `verbs/field-search.ts:CARD_FIELDS`                                                                                                                                                                 | → `search`                                                          | `domain/search/`                                                                                                                     | Moves with the lexical engine.                                                                                                                                                                                                                                                                                                                                                                        | resolve-time                                                                                                                                                   |
+| `corpus/image-analytics/facets.ts:ImageFacetKey` (inline)                                                                                                                                                                                    | → `contract/`                                                       | `domain/discovery/contract/params.ts`                                                                                                | An exported string-union param shape declared outside `contract/`.                                                                                                                                                                                                                                                                                                                                    | lint-time: `no-inline-types`                                                                                                                                   |
+| `corpus/substrate/pair-cosine.ts:DuplicatePair`, `verbs/field-search.ts:CardDoc/IndexCacheEntry`, `cooccurrence/generate.ts:DigestKeywords/CooccurrenceTally`, `duplicates/generate.ts:GroupRow/JaccardChatPair`                             | keep local (substrate/subsystem-private)                            | their (rehomed) files                                                                                                                | File-private pipeline shapes, not the public surface — they stay where used, not in `contract/`.                                                                                                                                                                                                                                                                                                      | lint-time: `no-inline-types` flags only the EXPORTED leaks                                                                                                     |
+| `corpus/context.ts` — `createDefaultRoleClients()` fallback                                                                                                                                                                                  | **deleted**                                                         | `entry/` wires role clients; `DiscoveryContext.summarize` is a required dep                                                          | `_shared/role-clients-binder` does not exist; the composition root is the wiring site. discovery needs only `summarize` (never `embed`).                                                                                                                                                                                                                                                              | resolve-time: `_shared` gone; missing dep fails `tsc`                                                                                                          |
+| `corpus/context.ts` — `CorpusContext = ReturnType<typeof createCorpusContext>`                                                                                                                                                               | stays domain feature                                                | `domain/discovery/context.ts` top — explicit `export interface DiscoveryContext`                                                     | The inferred shape is invisible at a glance.                                                                                                                                                                                                                                                                                                                                                          | lint-time: `types-in-contract` / `no-inline-types`                                                                                                             |
+| `db/schema/corpus.ts` — `duplicate_pairs` (polymorphic), `keyword_cooccurrence`, `character_keyword_profiles`, `character_summaries`, `theme_clusters`, `digest_theme_assignments`                                                           | **rename + move**; `duplicate_pairs` → **per-type FK tables (D24)** | `@orb/db/schema/discovery.ts` — `duplicate_character_pairs` + `duplicate_chat_pairs` (real FK ×2 + CASCADE) + the 5 others           | The rollups follow the `corpus`→`discovery` rename; `duplicate_pairs` is also de-polymorphized (D24). `ownerId` is dropped from the entity-keyed ones (`character_summaries`/`_keyword_profiles`/`digest_theme_assignments`/`duplicate_*_pairs` — derive via the parent, D23); KEEP on the parentless aggregates (`keyword_cooccurrence`/`theme_clusters`). The `centroid` `vector32` stays a rollup. | compile-time: file move + the per-type FK tables; `tsc` flags broken imports                                                                                   |
+| `trpc/routers/corpus.ts`                                                                                                                                                                                                                     | **rename**                                                          | `transport/trpc/routers/discovery.ts`                                                                                                | Router follows the domain rename; delegates to `ctx.services.discovery.*` with `ownerId = principal.userId`. The `corpus.fieldSearch`/`fieldSuggest` procedures move to the `search.*` router.                                                                                                                                                                                                        | resolve-time: `corpus.*` ceases to exist; `tsc` on the router context                                                                                          |
 
 ---
 
@@ -368,18 +402,18 @@ internals, always through the composition-root injected ops. It READS the vector
 
 **Injected into `discovery.context` at the composition root:**
 
-| Op injected | Provided by | Used for |
-|---|---|---|
-| `embeddings.writeHubScores(table, updates[])` | embeddings domain | `compute-hub-scores.ts` writes the CSLS scores back to vector rows after each compute batch — the ONLY non-`store` vector-table write, and the only `hub_score` writer |
-| `search.findCharacters(...)` | search domain | "more like this character" browse + per-character `similar` in the dossier (was the local `similarCharacters` `vector_distance_cos` kNN) |
-| `search.discover(...)` / search image kNN | search domain | character discovery by segment neighbourhood; "more like this avatar" (was the local `similarArt` kNN) |
-| `summarize` role op | connection/`entry` (the `summarize` role client) | distill, theme naming, `askCard`/`compareCharactersDeep`. discovery has `summarize` injected but **never `embed`** |
-| `stats` economics op (`stats.byModel` / a focused economics result) | stats domain | `forgottenGems.tokensOut` (from `character_stats`), `modelRouting` per-`(model)` tallies — discovery never SUMs raw `messages` economics |
+| Op injected                                                         | Provided by                                      | Used for                                                                                                                                                               |
+| ------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `embeddings.writeHubScores(table, updates[])`                       | embeddings domain                                | `compute-hub-scores.ts` writes the CSLS scores back to vector rows after each compute batch — the ONLY non-`store` vector-table write, and the only `hub_score` writer |
+| `search.findCharacters(...)`                                        | search domain                                    | "more like this character" browse + per-character `similar` in the dossier (was the local `similarCharacters` `vector_distance_cos` kNN)                               |
+| `search.discover(...)` / search image kNN                           | search domain                                    | character discovery by segment neighbourhood; "more like this avatar" (was the local `similarArt` kNN)                                                                 |
+| `summarize` role op                                                 | connection/`entry` (the `summarize` role client) | distill, theme naming, `askCard`/`compareCharactersDeep`. discovery has `summarize` injected but **never `embed`**                                                     |
+| `stats` economics op (`stats.byModel` / a focused economics result) | stats domain                                     | `forgottenGems.tokensOut` (from `character_stats`), `modelRouting` per-`(model)` tallies — discovery never SUMs raw `messages` economics                               |
 
 **Wired AT the composition root (discovery is the provider):**
 
-| Op exposed | Wired into | Used for |
-|---|---|---|
+| Op exposed                                                       | Wired into        | Used for                                                                                                                                                                                                                                                                      |
+| ---------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ~~`sweepStaleCharacterDuplicates` / `sweepStaleChatDuplicates`~~ | **DELETED (D24)** | The manual delete-time sweep + the `onContentDeleted` composition-root seam are GONE: `duplicate_character_pairs`/`duplicate_chat_pairs` are real FK tables with `CASCADE`, so a deleted character/chat removes its pairs by physics — no reaper, no cross-domain delete seam |
 
 **`search` and `discovery` both read the vector tables via `@orb/db` directly** — expected (bulk
@@ -398,31 +432,31 @@ Every cluster-doc decision binds here:
 - **§0 invariants** — discovery is a pure function of canon + the substrate; it is a derived index,
   never a second source of truth (every rollup row rebuilds from `messages`/vectors). Its compute passes
   run as workloads, never on the send hot path.
-- **The seam (§1/§8)** — *discovery computes → embeddings stores → search reads → a vector write never
-  nulls.* Enforced structurally: `compute-hub-scores.ts` writes via the injected `embeddings.writeHubScores`
+- **The seam (§1/§8)** — _discovery computes → embeddings stores → search reads → a vector write never
+  nulls._ Enforced structurally: `compute-hub-scores.ts` writes via the injected `embeddings.writeHubScores`
   (no `db.update` on a vector table); `embeddings.store` has no `hubScore` field (per `embeddings.md`
   invariant #2); `search` reads the column with `NULL_HUB_FALLBACK`.
 - **§7 stats line** — discovery is SEMANTICS; `stats` is ECONOMICS; they share zero tables. (Detail below.)
 
 ### The stats↔discovery line (the type-enforced seam — invariant #7)
 
-`knowledge-cluster.md` invariant #7: *"discovery (semantics) and stats (economics) share no tables;
-discovery computes no usage rollup."* In neo-tavern this held only by prose; the residual gray zone was
+`knowledge-cluster.md` invariant #7: _"discovery (semantics) and stats (economics) share no tables;
+discovery computes no usage rollup."_ In neo-tavern this held only by prose; the residual gray zone was
 `corpus/insights.ts` reading raw `messages` for economics-flavoured aggregates (`forgottenGems` SUMs
 `tokens_out`; `modelRouting` tallies per-model volume). Orbweaver makes it RED three ways (mirrors
 `stats.md`):
 
 1. **discovery touches no rollup/economics table** — `DiscoveryContext` carries the vector tables + its
    own rollup tables + a SEMANTIC `messages` projection (`role`/`content`/`model`/`characterId`/
-   `createdAt`) — never the economics columns. *Lint backstop: `discovery-no-stats-rollups` (discovery
-   imports none of the four stats rollup tables).*
+   `createdAt`) — never the economics columns. _Lint backstop: `discovery-no-stats-rollups` (discovery
+   imports none of the four stats rollup tables)._
 2. **The economics columns are compile-unreachable** — a discovery query that SUMs `tokens_out` fails to
-   type-check: the column isn't on the `messages-semantic` projection it can see. *Compile-time: two
-   disjoint `messages` projections (economics in stats, semantic in discovery).*
+   type-check: the column isn't on the `messages-semantic` projection it can see. _Compile-time: two
+   disjoint `messages` projections (economics in stats, semantic in discovery)._
 3. **The insights gray zone resolves by composition** — `forgottenGems` keeps its semantic ranking
    (message-volume COUNT + recency) but sources `tokensOut` from the injected `stats` op; `modelRouting`
    is a composition (discovery `genre` × stats per-model tallies); `themeDrift`/`unusedCharacters` stay
-   wholly semantic. *Compile-time: the economics field arrives only through the injected op's typed result.*
+   wholly semantic. _Compile-time: the economics field arrives only through the injected op's typed result._
 
 ### §7.4 types & schemas — one home, one direction
 
@@ -460,7 +494,7 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
    it streams row-by-row via `cosineToMany` (one `1×N` row, O(N) memory), folding each into the top-K.
    Results are bit-for-bit identical to the dense `pairwiseCosine` path below the threshold. Drop the
    streaming branch and a large corpus OOMs the `csls` workload. (A discovery concern — `embeddings.
-   writeHubScores` is a bulk UPDATE that handles any batch size; the dense/streaming choice is here.)
+writeHubScores` is a bulk UPDATE that handles any batch size; the dense/streaming choice is here.)
 
 2. **Image `hub_score` is image↔image ONLY** — CSLS is computed + stored for `image_embeddings` for a
    FUTURE image↔image similarity verb, but **must never be applied to text→image** retrieval: image↔image
@@ -544,40 +578,40 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
 
 1. **discovery embeds nothing + writes no vector row** — no `domain/discovery` file calls an `embed`/
    `imageEmbed` role op or executes `INSERT INTO` / `UPDATE … embedding` against any vector table.
-   *Enforcement: lint-time (`discovery-no-vector-write`: discovery may not import the embeddings schema in
-   a write context, nor an embed role op); compile-time (`DiscoveryContext` carries `summarize`, never `embed`).*
+   _Enforcement: lint-time (`discovery-no-vector-write`: discovery may not import the embeddings schema in
+   a write context, nor an embed role op); compile-time (`DiscoveryContext` carries `summarize`, never `embed`)._
 
 2. **`hub_score` is written ONLY through `embeddings.writeHubScores`** — discovery computes the values;
    no `db.update` on a `hub_score` column exists in `domain/discovery`.
-   *Enforcement: compile-time (the write is the injected op's typed signature); lint backstop
-   (`domain-no-cross-feature`: discovery may not import `embeddings/persistence/`).*
+   _Enforcement: compile-time (the write is the injected op's typed signature); lint backstop
+   (`domain-no-cross-feature`: discovery may not import `embeddings/persistence/`)._
 
 3. **discovery issues NO `vector_distance_cos`** — top-k retrieval delegates to `search`; all discovery
    cosine is in-RAM via `@orb/kit/vector-math`.
-   *Enforcement: lint-time (dep-cruiser: `vector_distance_cos` SQL string only in `domain/search/persistence/`).*
+   _Enforcement: lint-time (dep-cruiser: `vector_distance_cos` SQL string only in `domain/search/persistence/`)._
 
 4. **discovery computes no usage rollup** — the economics columns of `messages` are reachable only
    through stats' projection; discovery's `messages-semantic` projection omits them.
-   *Enforcement: compile-time (disjoint projections); lint backstop `discovery-no-stats-rollups`.*
+   _Enforcement: compile-time (disjoint projections); lint backstop `discovery-no-stats-rollups`._
 
 5. **contentHash collapse precedes every all-pairs/cluster pass** — hubness/dup/themes/cooccurrence
    collapse fork copies before the pairwise math; the full-space count gates naming.
-   *Enforcement: test-time — a fixture seeding N byte-identical digests asserts they collapse to one
-   representative (no hub ≈ 1 inflation; one named theme, not N).*
+   _Enforcement: test-time — a fixture seeding N byte-identical digests asserts they collapse to one
+   representative (no hub ≈ 1 inflation; one named theme, not N)._
 
 6. **Image `hub_score` is never read on text→image** — discovery stamps it (reserved for image↔image);
    `search` omits it cross-modally.
-   *Enforcement: test-time (the cross-modal ranking test in `search`); discovery-side: the column is
-   advisory and unread by discovery's own faceting.*
+   _Enforcement: test-time (the cross-modal ranking test in `search`); discovery-side: the column is
+   advisory and unread by discovery's own faceting._
 
 7. **`summarize` (and every cross-feature op) is a required injected dep** — `createDiscoveryService`
    is typed so `deps.summarize` / `deps.writeHubScores` / `deps.searchOps` / `deps.statsEconomics` are
    non-optional; an omitted dep fails `tsc`. No `createDefaultRoleClients` fallback.
-   *Enforcement: compile-time + resolve-time (`_shared` does not exist).*
+   _Enforcement: compile-time + resolve-time (`_shared` does not exist)._
 
 8. **`ownerId` is always `principal.userId`, never input** — every read verb forwards the resolved row
    id; no caller-supplied ownerId reaches a query (audit #1).
-   *Enforcement: compile-time (the verb signature takes `UserId`; the tRPC seam supplies it).*
+   _Enforcement: compile-time (the verb signature takes `UserId`; the tRPC seam supplies it)._
 
 ---
 
@@ -614,3 +648,92 @@ discovery computes no usage rollup."* In neo-tavern this held only by prose; the
 - **Image hub↔image browse verb** — the reserved `image_embeddings.hub_score` use case (image↔image
   similarity browse) is a future `search` verb that opts INTO reading the column; discovery already
   computes/stamps it. Decide when the browse surface lands (a `search` + discovery decision).
+
+# --- Merged from knowledge-cluster ---
+
+## 0. The spine: build once, read many
+
+There is **one substrate of embedded content, built once, stored once**, and **many read-only
+consumers**. Nothing re-embeds or re-stores for its own use.
+
+```
+                         ┌──────────────── embeddings (the store) ────────────────┐
+   canon writes ──emit──▶│ ONE vector store · ONE write path · ONE 1024-dim space  │
+   (chat turn / import /  │ source kinds: chat SEGMENT · chat DIGEST · character    │
+    character save /      │ CARD · avatar IMAGE. content_hash + hub_score columns.  │
+    avatar upload)        └───────────┬────────────────────────────────────────────┘
+                                      │ read-only
+        ┌─────────────────────────────┼──────────────────────────────┐
+        ▼                            ▼                               ▼
+     search                       memory                         discovery
+   the retrieval ENGINE       the BUILDER + chat-scoped         library SEMANTICS
+   (scope × lens × rerank)    RECALL policy (calls search)      (themes/hubness/dup/
+   over the whole store       → fills {{memory}}                 distill) + hub_score
+```
+
+**Two hard invariants (everything else follows):**
+
+1. **The substrate is a pure function of canon.** It is a derived index, never a second source of
+   truth. Any row can be deleted and rebuilt from `messages` alone. This is what keeps the
+   "enabled-later" roadmap (§9) free, makes edits/forks safe, AND makes mode-switching loss-free (§4).
+2. **Build never blocks the reply.** Substrate construction runs _after_ a turn commits
+   (fire-and-forget) or in bulk backfill — never on the send hot path.
+
+---
+
+## 7. `discovery` — library semantics (+ computes `hub_score`)
+
+Read-only over the store; **embeds nothing itself**. Owns:
+
+- **themes** — k-means clusters over digest embeddings → `theme_clusters` + assignments (partitioned by
+  the `isGroup`/`roomKind` tag so group rows don't blend in).
+- **hubness** — CSLS `hub_score` per (entity, model). Written to the embeddings rows via the embeddings
+  write helper; read by `search` ranking. (The seam: discovery computes, embeddings stores, search reads,
+  vector-write never nulls.)
+- **near-duplicates**, **distillation** (genre/tone/pitch → `character_summaries`), **archetypes**,
+  **similarity browsing**.
+
+`discovery` is **semantics**; `stats` is **economics** (tokens/cost/cache/timing — zero vector tables).
+The line is **type-enforced**: discovery never computes a usage rollup.
+
+---
+
+## 8. Ownership & boundaries (summary)
+
+| Concern                                                                                               | Owner                                    |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| vector store, single write path, one space, `content_hash`, `hub_score` column                        | **embeddings**                           |
+| substrate build (summarizer: block→segment+digest+tier; group-aware; self-heal; fork-lazy; host-only) | **memory**                               |
+| `{{memory}}` recall policy (scope=chat, window, mode, bridge-pool, assembly, mode-switch)             | **memory** (calls search)                |
+| the retrieval engine (vector: scope×lens×rerank; membership-gated cross-chat; + lexical BM25)         | **search**                               |
+| themes/hubness/dup/distill + computes `hub_score`                                                     | **discovery**                            |
+| turn economics                                                                                        | **stats** (separate; zero vector tables) |
+
+Every cross-domain access goes through a real boundary (`embeddings.store` / `search` / `memory.recall`)
+— never one domain reaching into another's tables.
+
+---
+
+## 11. Invariants (the things a gate should protect)
+
+1. Substrate is a **pure function of canon** — never a second source of truth.
+2. Build **never blocks the reply** (post-commit / backfill only).
+3. **One embedding space** (one model/dim); **one write path** (`embeddings.store`).
+4. **One retrieval engine** (`search`) — memory + discovery call it, never reimplement cosine. Memory
+   holds **zero cosine + zero vector-write**.
+5. `hub_score` is **never nulled by a vector write**.
+6. **Scoped recall is egocentric-only** (within a scoped era): the active speaker's own witnessed bucket;
+   a switched chat additionally reads the shared bucket for its merged/narrator eras (§4).
+7. `discovery` (semantics) and `stats` (economics) **share no tables**; discovery computes no usage
+   rollup.
+8. **`scopedCharacterId` is always a real `CharacterId`** (no `''` sentinel, no NULL); solo / merged-
+   narrator / scoped all key uniformly (§4).
+9. **Memory build + recall run under `runAsUserId` (host-only)**, never `triggeredBy` / the member.
+10. **Trigger discipline:** recall does not embed on an empty pool; build issues no summarizer call when
+    no block has aged out — a fresh chat does zero memory/embed work.
+11. **The scope/speaker is folded into `content_hash`** — a mode-switch or re-attribution invalidates the
+    affected digests; mode-switching is recall-handled (shared ∪ own-witnessed), never an eager re-digest.
+12. **The witnessing predicate is the join/leave horizon** (`joinSeq`/`leftSeq`), never the global
+    `excludedFromPrompt` boolean.
+
+> **See also:** [embeddings.md](embeddings.md) · [memory.md](memory.md) · [search.md](search.md) · [discovery.md](discovery.md)

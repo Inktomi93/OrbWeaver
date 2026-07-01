@@ -1,6 +1,6 @@
 // ── The differential oracle: §8 rolling-tail cache breakpoint parity vs neo-tavern ────────────────
 //
-// CHECKLIST §C1 / testing.md §6 / chat.md §8 + invariant 10. This is the `.parity.test` — the OPT-IN
+// CHECKLIST §C1 / Spine-Testing.md §6 / chat.md §8 + invariant 10. This is the `.parity.test` — the OPT-IN
 // `parity` vitest project (excluded from the default `pnpm test`; run via `pnpm test:parity`). It
 // validates the PARITY surface ONLY: the SHAPE-phase assembled history + the rolling cache breakpoint
 // (offset + placement). Memory is a rewrite — its own .int tests, NEVER the oracle.

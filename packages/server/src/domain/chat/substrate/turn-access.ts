@@ -1,5 +1,5 @@
 // domain/chat/substrate/turn-access — the substrate DI seam between the turn-running `verbs/` and the
-// `engine/` named subsystem (structure.md §4 / dep-cruiser `domain-substrate-mediates-subsystems` +
+// `engine/` named subsystem (core/Core-0-Architecture-and-Structure.md §4 / dep-cruiser `domain-substrate-mediates-subsystems` +
 // `domain-no-cross-subsystem`). The verbs MAY NOT import `engine/` directly (it is a named subsystem, not a
 // fixed slot) — they reach the arbitration (7a/7b), the AI→AI auto-mode chain, the group round driver, and the
 // pure D19 identity-triple resolver THROUGH HERE. (The stateful `TurnEngine` is the exception — it is built at

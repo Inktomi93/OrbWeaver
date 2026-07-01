@@ -1,4 +1,4 @@
-// entry/app — the Hono application BUILDER (tiers/entry.md §layout "app.ts"). Pure wiring: it takes the
+// entry/app — the Hono application BUILDER (core/Tier-5-Entry.md §layout "app.ts"). Pure wiring: it takes the
 // already-built deps (the auth seam, the `Services` bundle, the rate-limit gate, the http-route ports) and
 // assembles the HTTP edge — the middleware order, the tRPC mount, the non-tRPC registrars, the debug gate.
 // It owns NO business logic and NO boot protocol (that is `lifecycle.ts`); it constructs nothing stateful.

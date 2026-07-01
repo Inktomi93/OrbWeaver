@@ -1,5 +1,5 @@
 // domain/assets/substrate/variant-policy — the variant-sizing POLICY (pure). This is DOMAIN policy, not a
-// kit primitive (per shared-dissolution.md §5): only the server's blob route snaps (the client has its own
+// kit primitive (per Legacy-Migration-and-Gaps.md §5): only the server's blob route snaps (the client has its own
 // `AVATAR_SIZES` ladder), so there's no cross-boundary consumer — it stays domain-internal.
 //
 // BLOB_WIDTHS is a FIXED ladder for two load-bearing reasons (esoterica #2 — a DoS defense, not a nicety):

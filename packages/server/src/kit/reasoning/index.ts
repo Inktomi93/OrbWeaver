@@ -1,6 +1,6 @@
 // @orb/server/kit/reasoning — the inline `<think>` reasoning-tag parser (D47 #3 / D53 step 2). Pure,
 // deterministic (no I/O, clock, random), server-only (0 client consumers — sibling to `server/kit/post-process`
-// per reports/shared-dissolution.md). Modeled on SillyTavern's `parseReasoningFromString`.
+// per core/Legacy-Migration-and-Gaps.md). Modeled on SillyTavern's `parseReasoningFromString`.
 //
 // NATIVE-FIRST (the gate is the CALLER's — engine/pipeline RECEIVE): native reasoning is already handled across
 // every backend (vLLM `reasoning_content`, OpenRouter `reasoning`, agent-sdk `thinking`). This is the FALLBACK

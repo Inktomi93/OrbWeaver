@@ -8,9 +8,9 @@
 > former top-level `chat.md` (one home per topic).
 > Grounded in a 6-way whole-file sub-reader pass over the steady clone (`engine` 4.5k · `verbs` 3.8k ·
 > `assembly` 2.4k · `memory` 1.6k · `persistence` 1.6k · `contract`+top 1k). Upstream:
-> `spine/identity-auth-permission.md` (§7.1), `spine/serialization-core.md` (§7.3), `spine/types-and-schemas.md` (§7.4),
-> `spine/string-union-dispatch.md` (§7.5), `knowledge-cluster.md` (memory), `tiers/providers.md` (the agent-sdk
-> backend), `domains/connection.md` (routing), `reports/shared-dissolution.md` (kit/contracts homes).
+> `core/Spine-Identity-and-Auth.md` (§7.1), `core/Spine-Config-and-Serialization.md` (§7.3), `core/Spine-TypeScript-and-Patterns.md` (§7.4),
+> `core/Spine-TypeScript-and-Patterns.md` (§7.5), `domains/memory.md` (memory), `core/Tier-3b-Providers.md` (the agent-sdk
+> backend), `domains/connection.md` (routing), `core/Core-Core-Legacy-Migration-and-Gaps.md` (kit/contracts homes).
 > **Build path: greenfield, gated by a cross-repo differential oracle against running neo-tavern**
 > (diff SEND/ASSEMBLE/RECEIVE outputs + cache-token counts) — chat + memory are the highest-risk port.
 
@@ -20,13 +20,13 @@
 
 - **The turn lifecycle** — one per-turn driver (`engine`) for 8 turn kinds (send/swipe/continue/generate/
   opening/auto/force/simple-send): `lock → preflight → plan → [per-speaker | narrator | single]
-  executeTurn → persist → background`.
+executeTurn → persist → background`.
 - **Canon** — the `messages`/variants, `chats` row, `chat_participants` roster, `chat_events`, the
   resumable SSE stream log. Append-only; the substrate everything derives from.
 - **The five contexts** (DISPLAY/SEND/ASSEMBLE/RECEIVE/COMPOSER) and the **assembly** of the per-turn
   prompt (RESOLVE→GATHER→BUILD), orchestrating the pure `kit` engines in the canonical order.
-- **The `memory` subsystem** — digest *generation* (the ST-summarizer replacement) + the `{{memory}}`
-  recall *policy*; it **delegates** the vector embed (→ `embeddings`) and scan (→ `search`) but keeps the
+- **The `memory` subsystem** — digest _generation_ (the ST-summarizer replacement) + the `{{memory}}`
+  recall _policy_; it **delegates** the vector embed (→ `embeddings`) and scan (→ `search`) but keeps the
   6 chat-scoped query semantics (below).
 - **Speaker arbitration** (7a sync select + 7b async arbitrate + the side-LLM smart-arbitrate),
   **auto-mode** AI→AI chaining, **guided steering** (one typed steer), the **stats-delta builders**
@@ -66,7 +66,7 @@ connection registry, injected as a `presence.read` op).
    `sessionId`/seed/reseed concept). **This is the single biggest extraction.**
 4. **§8 cache breakpoint preserved + upgraded** — `computeHistoryBreakpoint` stays in SHAPE (it needs
    in_chat-depth + squash + nudge state the runner lacks), upgraded to ST's **rolling PAIR** (`depth` &
-   `depth+2`); the runner only *places* the `cache_control` tags. Carry `pipeline-breakpoint.test.ts` +
+   `depth+2`); the runner only _places_ the `cache_control` tags. Carry `pipeline-breakpoint.test.ts` +
    a cache-token differential. (Dropping it = silent ~5300-token/turn regression.)
 5. **Immutable turn ctx.** RESOLVE+GATHER produce an immutable ctx; per-speaker is `shape(ctx, speaker)`,
    not the ~17 in-place `assembleCtx` mutation sites today. (Must preserve "speaker k+1 sees speaker k's
@@ -150,8 +150,8 @@ domain/chat/
 └── connected-persona.ts  one-connection-only auto-activate (reads character_personas — formalize the reach)
 ```
 
-**Memory is a `chat/` subsystem, not its own domain** (per `structure.md §4` + the build path; reconciled
-with `knowledge-cluster.md §3/§8`). Memory is reached ONLY through `chat/context.ts` (the
+**Memory is a `chat/` subsystem, not its own domain** (per `core/Core-0-Architecture-and-Structure.md §4` + the build path; reconciled
+with `domains/memory.md §3/§8`). Memory is reached ONLY through `chat/context.ts` (the
 `domain-substrate-only-subsystem-access` seam).
 
 ---
@@ -179,31 +179,31 @@ The `@public` memory/persistence helpers wired by workload runners + bootstrap (
 
 ## Movement table (the headlines; the 6 sub-reader returns hold the per-file detail)
 
-| Unit (steady) | Outcome | Target | Rationale | Enforcement tier |
-|---|---|---|---|---|
-| `engine/pipeline.ts` `dispatchAgentSdk` + `shapeCanonForDelivery`/`appendSdkSeed`/`resolveSdkChat` + the mode-flip reseed (`:490-523`) | **→ infra/providers** | `infra/providers/agent-sdk/session` + the sealed backend | the backend's canon-derived cache leaks UP today; domain becomes stateless | compile: `ChatRequest` for agent-sdk carries no `sessionStore`/`resume`; domain has no session type |
-| `persistence/{store.ts,frames.ts,session.ts}` (whole) + `queries.ts:{extractCompactSummary,frameContentToText,COMPACTION_MARKER_PHRASE}` | **→ infra/providers** | `infra/providers/agent-sdk/session/{store,seed,reseed}.ts` | `DbSessionStore`/`buildSeedFrames`/reseed/compaction-frame are SDK substrate; provider orchestrators call BACK into chat `loadCanonHistory` (provider→chat-query is downward-legal) | resolve + boundary-lint |
-| `engine/pipeline.ts` `dispatchOpenrouter`/`dispatchVllm`/`dispatchCustomOpenai` + the runner `if/else` (`executeTurn:932-982`) | **collapse → one `runChatTurn(req)`** | `chat/engine` builds `req`, calls the `chat` role | "the domain calls a role, never a backend" | lint: dep-cruiser — no `domain/**` import of `infra/providers/backends/**` |
-| `engine/pipeline.ts` `computeHistoryBreakpoint` + `shapeCompletionHistory` | **STAYS chat (SHAPE)**, upgraded to rolling PAIR | `chat/engine` | assembly-coupled (in_chat depth + squash + nudge); runner only places the tags | test: `pipeline-breakpoint.test.ts` + cache-token differential |
-| `routing.ts` (whole: `resolveTurnRouting`/`TurnRouting`/`RoutableChat`/`RouteOverlay`/`pickOrModel`/`healToChatDefault`) | **→ connection** | `connection.resolveChat` → `ResolvedConnection{backend,model,credential,capability}` | routing keyed on `runner` is the infra-vocab leak | resolve: `domain-no-cross-feature`; compile: `runner`/`family` grep RED in `domain/chat/**` |
-| `persistence/resolve-current-version.ts` (whole) | **deleted (D28)** | `character.getCard` (injected — a flat `characters`-row read) | no version to resolve; the cv-era resolver is gone | resolve: cross-domain via injection |
-| `verbs/set-persona.ts` (`setChatPersona`, writes `chats.personaId`) | **→ persona** | `persona.setActivePersona` (per-participant `chat_participants.activePersonaId`) | `chats.personaId` is dropped; chat calls via injection; no reseed | host-or-self authority |
-| `persistence/group-character.ts` `ensureGroupCharacter` + `_shared/group-character-rows` | **→ character + a chat verb** | `character.mintSyntheticGroupCharacter` (injected); chat verb orchestrates | identity creation is character's; it's logic+writes (not a query) | resolve + structure §4 |
-| `memory/db.ts` `embedAndUpsert` (embed+upsert half) + `generate.ts` segment embed | **→ embeddings.store** | `embeddings.store(kind='chat-block', lens='digest'|'segment', fkRefs)` | the one write path; kills the conflation | resolve (injection) |
-| `memory/db.ts:391`/`db.ts:432`/`generate.ts:387` `hub_score=null` resets | **deleted** | — | the neo-tavern bug; `store` never touches `hub_score` | compile: `StoreParams` has no `hubScore` |
-| `memory/retrieve.ts` in-RAM `cosineSim` scan + `deps.rerank` | **→ search.digests/corpus** | the one engine (chat-scope param + the 6 semantics) | two cosine paths over one table collapse | compile: memory holds no cosine |
-| memory schema (`chat_digests`/`chat_segments`/`chat_digest_speakers`) | **→ db/schema/embeddings** | `@orb/db/schema/embeddings.ts` (producer-owned) | fixes the naming lie | compile: old path gone |
-| `engine/stats-delta.ts` builders | **stay chat**; `applyStatsDelta` injected | `chat/engine` (import kit/stats-tally + contracts/stats) | builders are chat's; the apply op is `stats` | resolve (injection) |
-| `engine.ts` `maybeRevokeOnAuthFailed` (from `_shared`) | **→ credentials** (injected) | `credentials.maybeRevokeOnAuthFailed` | un-invert the drawer | resolve |
-| the macro/regex/speaker/guided engines (consumed across assembly+engine) | **→ kit** | `@orb/kit/{macro,regex,speaker-label,guided}` (+ `@orb/server/kit/regex` vm-guard) | pure engines, two call sites (assemble + render) | resolve + kit-purity |
-| `resolveCharacterDepthPrompt` (assembly consumer) | **→ server/kit/serde** | `@orb/server/kit/serde` | 2 server consumers (chat + export) — see §7.3 correction | resolve |
-| AssembleContext family + `ChatDeltaEvent` + `RoomOverrides`/`GroupConfig`/`GroupConfigInput`/`OpeningPolicy` | **→ contracts/chat** | `@orb/contracts/chat` | cross-boundary; db schema + client both consume | resolve + `no-inline-types` |
-| `OpenRouterProviderRouting`/`parseProviderRouting` (metadata sub-parse) | **→ contracts/connection** | `@orb/contracts/connection` | provider-routing is connection vocab | resolve |
-| `context.ts` `ChatContext = ReturnType<typeof createChatContext>` | **→ explicit interface** | `export interface ChatContext` in `context.ts` | the no-inline-types / invisible-type anti-pattern | lint: `no-inline-types` |
-| engine inline types (`TurnRequest`/`TurnOutcome`/`TurnEngine`/`TurnPrep`/`TurnIntent`/`VariantProvenance`) | → chat `contract/` | `chat/contract/{params,results}.ts` | exported feature types belong in contract/ | lint: `types-in-contract` |
-| `batch`/`db-errors` inline casts on the persist path | **→ @orb/db/kit** | `@orb/db/kit` (`batchMany`/`isConstraintViolation`) | wire the ~59 inline `BatchItem` casts to the helper | kit-purity |
-| `escapeRegExp` (select-speakers dup) | **→ @orb/kit/strings** | one copy | triplicated | lint: `no-inline-union-redecl`-adjacent |
-| `chats.characterVersionId` reads (`backfill-roster.ts`, read.getChat, assembly primary) | **deleted (D28)** | live-identity read (`characters.id` → `getCard`) | no version table exists; the column is gone | compile: column + `character_versions` gone |
+| Unit (steady)                                                                                                                            | Outcome                                          | Target                                                                               | Rationale                                                                                                                                                                           | Enforcement tier                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `engine/pipeline.ts` `dispatchAgentSdk` + `shapeCanonForDelivery`/`appendSdkSeed`/`resolveSdkChat` + the mode-flip reseed (`:490-523`)   | **→ infra/providers**                            | `infra/providers/agent-sdk/session` + the sealed backend                             | the backend's canon-derived cache leaks UP today; domain becomes stateless                                                                                                          | compile: `ChatRequest` for agent-sdk carries no `sessionStore`/`resume`; domain has no session type |
+| `persistence/{store.ts,frames.ts,session.ts}` (whole) + `queries.ts:{extractCompactSummary,frameContentToText,COMPACTION_MARKER_PHRASE}` | **→ infra/providers**                            | `infra/providers/agent-sdk/session/{store,seed,reseed}.ts`                           | `DbSessionStore`/`buildSeedFrames`/reseed/compaction-frame are SDK substrate; provider orchestrators call BACK into chat `loadCanonHistory` (provider→chat-query is downward-legal) | resolve + boundary-lint                                                                             |
+| `engine/pipeline.ts` `dispatchOpenrouter`/`dispatchVllm`/`dispatchCustomOpenai` + the runner `if/else` (`executeTurn:932-982`)           | **collapse → one `runChatTurn(req)`**            | `chat/engine` builds `req`, calls the `chat` role                                    | "the domain calls a role, never a backend"                                                                                                                                          | lint: dep-cruiser — no `domain/**` import of `infra/providers/backends/**`                          |
+| `engine/pipeline.ts` `computeHistoryBreakpoint` + `shapeCompletionHistory`                                                               | **STAYS chat (SHAPE)**, upgraded to rolling PAIR | `chat/engine`                                                                        | assembly-coupled (in_chat depth + squash + nudge); runner only places the tags                                                                                                      | test: `pipeline-breakpoint.test.ts` + cache-token differential                                      |
+| `routing.ts` (whole: `resolveTurnRouting`/`TurnRouting`/`RoutableChat`/`RouteOverlay`/`pickOrModel`/`healToChatDefault`)                 | **→ connection**                                 | `connection.resolveChat` → `ResolvedConnection{backend,model,credential,capability}` | routing keyed on `runner` is the infra-vocab leak                                                                                                                                   | resolve: `domain-no-cross-feature`; compile: `runner`/`family` grep RED in `domain/chat/**`         |
+| `persistence/resolve-current-version.ts` (whole)                                                                                         | **deleted (D28)**                                | `character.getCard` (injected — a flat `characters`-row read)                        | no version to resolve; the cv-era resolver is gone                                                                                                                                  | resolve: cross-domain via injection                                                                 |
+| `verbs/set-persona.ts` (`setChatPersona`, writes `chats.personaId`)                                                                      | **→ persona**                                    | `persona.setActivePersona` (per-participant `chat_participants.activePersonaId`)     | `chats.personaId` is dropped; chat calls via injection; no reseed                                                                                                                   | host-or-self authority                                                                              |
+| `persistence/group-character.ts` `ensureGroupCharacter` + `_shared/group-character-rows`                                                 | **→ character + a chat verb**                    | `character.mintSyntheticGroupCharacter` (injected); chat verb orchestrates           | identity creation is character's; it's logic+writes (not a query)                                                                                                                   | resolve + structure §4                                                                              |
+| `memory/db.ts` `embedAndUpsert` (embed+upsert half) + `generate.ts` segment embed                                                        | **→ embeddings.store**                           | `embeddings.store(kind='chat-block', lens='digest'                                   | 'segment', fkRefs)`                                                                                                                                                                 | the one write path; kills the conflation                                                            | resolve (injection) |
+| `memory/db.ts:391`/`db.ts:432`/`generate.ts:387` `hub_score=null` resets                                                                 | **deleted**                                      | —                                                                                    | the neo-tavern bug; `store` never touches `hub_score`                                                                                                                               | compile: `StoreParams` has no `hubScore`                                                            |
+| `memory/retrieve.ts` in-RAM `cosineSim` scan + `deps.rerank`                                                                             | **→ search.digests/corpus**                      | the one engine (chat-scope param + the 6 semantics)                                  | two cosine paths over one table collapse                                                                                                                                            | compile: memory holds no cosine                                                                     |
+| memory schema (`chat_digests`/`chat_segments`/`chat_digest_speakers`)                                                                    | **→ db/schema/embeddings**                       | `@orb/db/schema/embeddings.ts` (producer-owned)                                      | fixes the naming lie                                                                                                                                                                | compile: old path gone                                                                              |
+| `engine/stats-delta.ts` builders                                                                                                         | **stay chat**; `applyStatsDelta` injected        | `chat/engine` (import kit/stats-tally + contracts/stats)                             | builders are chat's; the apply op is `stats`                                                                                                                                        | resolve (injection)                                                                                 |
+| `engine.ts` `maybeRevokeOnAuthFailed` (from `_shared`)                                                                                   | **→ credentials** (injected)                     | `credentials.maybeRevokeOnAuthFailed`                                                | un-invert the drawer                                                                                                                                                                | resolve                                                                                             |
+| the macro/regex/speaker/guided engines (consumed across assembly+engine)                                                                 | **→ kit**                                        | `@orb/kit/{macro,regex,speaker-label,guided}` (+ `@orb/server/kit/regex` vm-guard)   | pure engines, two call sites (assemble + render)                                                                                                                                    | resolve + kit-purity                                                                                |
+| `resolveCharacterDepthPrompt` (assembly consumer)                                                                                        | **→ server/kit/serde**                           | `@orb/server/kit/serde`                                                              | 2 server consumers (chat + export) — see §7.3 correction                                                                                                                            | resolve                                                                                             |
+| AssembleContext family + `ChatDeltaEvent` + `RoomOverrides`/`GroupConfig`/`GroupConfigInput`/`OpeningPolicy`                             | **→ contracts/chat**                             | `@orb/contracts/chat`                                                                | cross-boundary; db schema + client both consume                                                                                                                                     | resolve + `no-inline-types`                                                                         |
+| `OpenRouterProviderRouting`/`parseProviderRouting` (metadata sub-parse)                                                                  | **→ contracts/connection**                       | `@orb/contracts/connection`                                                          | provider-routing is connection vocab                                                                                                                                                | resolve                                                                                             |
+| `context.ts` `ChatContext = ReturnType<typeof createChatContext>`                                                                        | **→ explicit interface**                         | `export interface ChatContext` in `context.ts`                                       | the no-inline-types / invisible-type anti-pattern                                                                                                                                   | lint: `no-inline-types`                                                                             |
+| engine inline types (`TurnRequest`/`TurnOutcome`/`TurnEngine`/`TurnPrep`/`TurnIntent`/`VariantProvenance`)                               | → chat `contract/`                               | `chat/contract/{params,results}.ts`                                                  | exported feature types belong in contract/                                                                                                                                          | lint: `types-in-contract`                                                                           |
+| `batch`/`db-errors` inline casts on the persist path                                                                                     | **→ @orb/db/kit**                                | `@orb/db/kit` (`batchMany`/`isConstraintViolation`)                                  | wire the ~59 inline `BatchItem` casts to the helper                                                                                                                                 | kit-purity                                                                                          |
+| `escapeRegExp` (select-speakers dup)                                                                                                     | **→ @orb/kit/strings**                           | one copy                                                                             | triplicated                                                                                                                                                                         | lint: `no-inline-union-redecl`-adjacent                                                             |
+| `chats.characterVersionId` reads (`backfill-roster.ts`, read.getChat, assembly primary)                                                  | **deleted (D28)**                                | live-identity read (`characters.id` → `getCard`)                                     | no version table exists; the column is gone                                                                                                                                         | compile: column + `character_versions` gone                                                         |
 
 ---
 
@@ -212,19 +212,19 @@ The `@public` memory/persistence helpers wired by workload runners + bootstrap (
 `chat/context.ts` (the explicit `ChatContext`) bundles every cross-feature op the verbs/subsystems reach
 through — wired at the composition root, never sideways-imported:
 
-| Injected op | Provided by | Used for |
-|---|---|---|
-| `connection.resolveChat` | connection | per-turn `{backend,model,credential,capability}` from the chat row + UserSettings |
-| the `chat` role (`runChatTurn`) | infra/providers | the ONE turn dispatch (replaces the 4 arms) |
-| `credentials.resolve` / `credentials.maybeRevokeOnAuthFailed` | credentials | turn-time credential + post-turn auth_failed side-effect |
-| `character.getCard` / `mintSyntheticGroupCharacter` / `findSyntheticGroupCharacter` | character | live card per roster member (the flat `characters` row — D28); the group-memory bucket |
-| `persona.setActivePersona` | persona | per-participant active persona (host-or-self) |
-| `embeddings.store` | embeddings | memory's digest/segment vector write (into the memory subsystem) |
-| `search.digests` / `search.corpus` | search | memory's chat-scoped recall (the 6 semantics as params); `search.corpus` is the search METHOD — the cross-chat corpus/digest+segment scan (Q6), distinct from the dissolved `corpus` domain |
-| `stats.applyDelta` | stats | persist the turn-economics delta the builders produced |
-| `RoleClients.summarize` | connection/providers | the memory summarizer + smart-arbitrate side-LLM |
-| `notifications.emit` | notifications | invite/kick/handoff delivery to non-members (the per-chat bus can't reach them) — durable-first, fan-out after commit |
-| `presence.read` | transport | server-derived SSE liveness per `userId` → cast-gating (offline → dropped from the present cast) |
+| Injected op                                                                         | Provided by          | Used for                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connection.resolveChat`                                                            | connection           | per-turn `{backend,model,credential,capability}` from the chat row + UserSettings                                                                                                           |
+| the `chat` role (`runChatTurn`)                                                     | infra/providers      | the ONE turn dispatch (replaces the 4 arms)                                                                                                                                                 |
+| `credentials.resolve` / `credentials.maybeRevokeOnAuthFailed`                       | credentials          | turn-time credential + post-turn auth_failed side-effect                                                                                                                                    |
+| `character.getCard` / `mintSyntheticGroupCharacter` / `findSyntheticGroupCharacter` | character            | live card per roster member (the flat `characters` row — D28); the group-memory bucket                                                                                                      |
+| `persona.setActivePersona`                                                          | persona              | per-participant active persona (host-or-self)                                                                                                                                               |
+| `embeddings.store`                                                                  | embeddings           | memory's digest/segment vector write (into the memory subsystem)                                                                                                                            |
+| `search.digests` / `search.corpus`                                                  | search               | memory's chat-scoped recall (the 6 semantics as params); `search.corpus` is the search METHOD — the cross-chat corpus/digest+segment scan (Q6), distinct from the dissolved `corpus` domain |
+| `stats.applyDelta`                                                                  | stats                | persist the turn-economics delta the builders produced                                                                                                                                      |
+| `RoleClients.summarize`                                                             | connection/providers | the memory summarizer + smart-arbitrate side-LLM                                                                                                                                            |
+| `notifications.emit`                                                                | notifications        | invite/kick/handoff delivery to non-members (the per-chat bus can't reach them) — durable-first, fan-out after commit                                                                       |
+| `presence.read`                                                                     | transport            | server-derived SSE liveness per `userId` → cast-gating (offline → dropped from the present cast)                                                                                            |
 
 Memory is injected the `embeddings.store` + `search.digests`/`corpus` ops at the same seam
 (`chat/context.ts`) — the substrate-mediated access that keeps memory a sealed subsystem.
@@ -234,6 +234,7 @@ Memory is injected the `embeddings.store` + `search.digests`/`corpus` ops at the
 ## Spine thread intersections
 
 ### §7.1 identity / auth / permission
+
 Chat is the **blast site** for the permission rework. `requireParticipant`/`requireHost(Principal)`
 replace the `loadOwnedChat` owner-equality predicate (~45 sites / 31 files); host-only verbs
 (roster-mutation, participant-control, group-config, room-overrides, force-character, delete-chat) use
@@ -244,38 +245,43 @@ work (§8.6) lands here too — the `chat_participants.kind` XOR (`participant.t
 principal — but the mechanics are owned by the identity spine; chat implements its predicates + stamping.
 
 ### §7.3 serialization / serde core
+
 Chat is a **consumer**, not an owner, of the serde core: it imports `resolveCharacterDepthPrompt` from
 `@orb/server/kit/serde`. The card/WI mappers + canonical card are import/export's. (The canonical card
 is already fully typed — see character.md §7.3.)
 
 ### §7.4 types & schemas
+
 `ChatContext` becomes an explicit interface (not `ReturnType<>`); the engine's exported types
 (`TurnRequest`/`TurnOutcome`/`VariantProvenance`/…) move to `chat/contract/`; the **AssembleContext
 family** → `@orb/contracts/chat` (the boot prerequisite — you cannot compile chat until `AssembleContext`
 has a home there; db schema's `promptSnapshot` also consumes it).
 
 ### §7.5 string-union dispatch
+
 `messageRole` (the `user|assistant|system` axis re-spelled across simple-send/injections/seed) → one
 importable union in `@orb/contracts/chat`. `guidedAction` (6 actions) → a mapped-Record dispatch (the
 `GUIDED_ACTIONS` tuple + Record substrate already exists; the verbs converge on it). The backend dispatch
 becomes an `assertNever` over the sealed backend union (in providers, not chat).
 
 ### knowledge-cluster (memory)
+
 Memory delegates embed→`embeddings`, scan→`search`, keeps the **6 chat-scoped semantics** (below); build
 never blocks the reply (post-turn fire-and-forget + import backfill, same functions); scoped recall is
 **egocentric-only**.
 
 #### The 6 memory semantics (preserved as search params or memory pre-call assembly — the rewrite risk)
+
 1. **5 recall modes** (off/mixA/mixB/mixC/tiered) — memory owns the mode switch; mixA/tiered are pure
    assembly (no search call), mixB/mixC call `search.digests({rerank: mode==='mixC'})`.
 2. **tiered bridge** (uncovered-digests-only) — memory computes coverage + passes the bridge block-keys
-   as a **candidate-restriction param**; *search must accept this* (owner-wide scan doesn't model it).
+   as a **candidate-restriction param**; _search must accept this_ (owner-wide scan doesn't model it).
 3. **verbatimWindow / protected tail** (`cutoff = maxSeq − verbatimWindow`) — BUILD-side cutoff stays in
    memory; recall never surfaces the tip because digests only exist for aged-out blocks.
 4. **egocentric scoped-query** — bucket → a `scopedCharacterId` **scope param** (with the `''` shared
    sentinel); the name-prefixed query **text** is memory's pre-call assembly.
-5. **in-chat single-chat focus** — `scope=this chat` param; *search must expose chat-scope as
-   first-class* (today `search.digests` is owner-scoped — the risk to manage).
+5. **in-chat single-chat focus** — `scope=this chat` param; _search must expose chat-scope as
+   first-class_ (today `search.digests` is owner-scoped — the risk to manage).
 6. **keywordMatch / recencyBias / minScore** — params on `search.digests`; the mechanism moves to search,
    memory passes the knob values.
 
@@ -303,7 +309,7 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
 - **trusted speaker label after all regex** — `sanitizeSpeakerLookalike` (zero-width-space wedge) on raw
   body; the `Name:` prefix applied post-squash so no USER_INPUT/AI_OUTPUT regex can forge a speaker.
 - **keyword-match two-phase** — RESOLVE produces names first so GATHER matches over `recent + names +
-  pending user text` in resolved form (kills the one-turn lag).
+pending user text` in resolved form (kills the one-turn lag).
 - **self-heal hash-diff** — stable-speaker-id IN the digest hash (rename-robust, re-attribution-aware,
   guarded on distinctness so solo hashes stay byte-identical); `scopedCharacterId=''` sentinel (SQLite
   UNIQUE NULL≠NULL); the speaker re-query after upsert (filtered by the bucket — drop it and scoped
@@ -332,52 +338,52 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
 ## Invariants (gate candidates)
 
 1. **One canonical order** — RESOLVE→GATHER→BUILD→SHAPE as named ordered stages; no order logic split
-   across files. *(lint/review: a reviewer reads the order in one place.)*
-2. **The domain calls a role, never a backend** — no per-backend dispatch arms in chat. *(lint:
-   dep-cruiser — `domain/chat/**` imports the role contract, never `infra/providers/backends/**`.)*
-3. **No agent-sdk session/seed/env in the chat domain** — it's backend-internal to providers. *(compile:
-   the chat domain has no `SessionStore`/`SessionStoreEntry`/seed type; resolve: no import of the SDK.)*
+   across files. _(lint/review: a reviewer reads the order in one place.)_
+2. **The domain calls a role, never a backend** — no per-backend dispatch arms in chat. _(lint:
+   dep-cruiser — `domain/chat/**` imports the role contract, never `infra/providers/backends/**`.)_
+3. **No agent-sdk session/seed/env in the chat domain** — it's backend-internal to providers. _(compile:
+   the chat domain has no `SessionStore`/`SessionStoreEntry`/seed type; resolve: no import of the SDK.)_
 4. **Immutable turn ctx** — per-speaker is `shape(ctx, speaker)`; no shared-ctx mutation across the
-   per-speaker loop. *(gate candidate; Part II §10 inv 5.)*
-5. **One injection list + one budget pass** — no second WI budget, no unbudgeted injection. *(test.)*
+   per-speaker loop. _(gate candidate; Part II §10 inv 5.)_
+5. **One injection list + one budget pass** — no second WI budget, no unbudgeted injection. _(test.)_
 6. **The §8 rolling-pair breakpoint is preserved** — computed in SHAPE, placed by the runner; never
-   dropped. *(test: `pipeline-breakpoint.test.ts` + a cache-token differential vs running neo-tavern.)*
-7. **Macros before regex; macros before framing; render once; macros never on model output.** *(stage
-   order + test.)*
-8. **Trusted speaker label applied after all USER_INPUT/AI_OUTPUT regex** — un-forgeable. *(test.)*
+   dropped. _(test: `pipeline-breakpoint.test.ts` + a cache-token differential vs running neo-tavern.)_
+7. **Macros before regex; macros before framing; render once; macros never on model output.** _(stage
+   order + test.)_
+8. **Trusted speaker label applied after all USER_INPUT/AI_OUTPUT regex** — un-forgeable. _(test.)_
 9. **Engines are `kit`** — chat imports `kit/macro` + `kit/regex` + `kit/speaker-label`, never
-   reimplements them. *(resolve + kit-purity.)*
+   reimplements them. _(resolve + kit-purity.)_
 10. **No character version table (D28)** — `chats.characterVersionId` and `character_versions` do not
-    exist; the card is the flat `characters` row, read via `character.getCard`. *(compile: column + table absent.)*
+    exist; the card is the flat `characters` row, read via `character.getCard`. _(compile: column + table absent.)_
 11. **Participant-membership authority** — `requireParticipant`/`requireHost` replace owner-equality; no
-    `loadOwnedChat` owner-equality predicate survives. *(lint: a `can()`/predicate seam; grep for
-    `ownerId === ` in chat verbs goes RED.)*
+    `loadOwnedChat` owner-equality predicate survives. _(lint: a `can()`/predicate seam; grep for
+    `ownerId ===` in chat verbs goes RED.)_
 12. **Memory delegates** embed→`embeddings.store` + scan→`search`, keeps the 6 semantics; `hub_score` is
-    never nulled by a write. *(compile: `StoreParams` has no `hubScore`; memory holds no cosine.)*
+    never nulled by a write. _(compile: `StoreParams` has no `hubScore`; memory holds no cosine.)_
 13. **`persistence/` is queries only** — the group-character mint + the reseed batch-writers leave
-    (to a verb / to providers). *(lint: `persistence-no-io` / `persistence-no-logic`.)*
-14. **`context.ts` is an explicit interface**, not `ReturnType<>`. *(lint: `no-inline-types`.)*
+    (to a verb / to providers). _(lint: `persistence-no-io` / `persistence-no-logic`.)_
+14. **`context.ts` is an explicit interface**, not `ReturnType<>`. _(lint: `no-inline-types`.)_
 15. **A message is a pure slot; all content lives on the variant (D26)** — `messages` carries only
     `{id, chatId, seq, role, personaId, characterId, authorUserId, selectedVariantId, excludedFromPrompt,
-    timestamps}`; every generation's `content`/`reasoning`/economics/`promptSnapshot`/continue-state live on
+timestamps}`; every generation's `content`/`reasoning`/economics/`promptSnapshot`/continue-state live on
     `message_variants`. Every message has ≥1 variant (user/system = exactly 1); a swipe APPENDS a variant and
     `selectVariant` flips `messages.selectedVariantId` (pointer move — never a content copy). Attribution is
-    **slot-level** — a swipe never changes the speaker. *(compile: `messages.content` does not exist → every
-    reader joins the selected variant.)*
+    **slot-level** — a swipe never changes the speaker. _(compile: `messages.content` does not exist → every
+    reader joins the selected variant.)_
 16. **A fork is a deep copy with a lineage pointer (D27)** — `forkChat` COPIES the chat + its messages/
     variants into a new membership-scoped chat; the only link is `chats.parentChatId` (self-FK, SET NULL so a
     fork outlives its parent as a root). No rows are shared; there is no message-level branch axis
     (`messages.parentId` does not exist). The lineage walk is membership-gated — a fork grants NO parent
-    membership (inv §12). *(compile: `messages.parentId` gone; lint: lineage walkers `requireParticipant` per ancestor.)*
+    membership (inv §12). _(compile: `messages.parentId` gone; lint: lineage walkers `requireParticipant` per ancestor.)_
 
 ---
 
 ## Decisions (resolved / deferred)
 
-- **memory-as-subsystem vs domain — RESOLVED: a chat subsystem** (per `structure.md §4` + the build
-  path; `knowledge-cluster.md §3/§8` reconciled to match).
+- **memory-as-subsystem vs domain — RESOLVED: a chat subsystem** (per `core/Core-0-Architecture-and-Structure.md §4` + the build
+  path; `domains/memory.md §3/§8` reconciled to match).
 - **the `search` param contract for the 6 semantics — chat's REQUIREMENT is RESOLVED (non-negotiable);
-  the param *shape* is DEFERRED to the search contract.** Chat requires that **chat-scope (#5)** and the
+  the param _shape_ is DEFERRED to the search contract.** Chat requires that **chat-scope (#5)** and the
   **bridge-candidate restriction (#2)** be **first-class params on `search.digests`** — `search.digests`
   is owner-scoped today, so this is a hard build prerequisite, not a nicety. The remaining choice (flat
   `DigestsParams` fields vs a nested `MemoryQueryOptions` sub-shape) is the search domain's to make;
@@ -396,20 +402,21 @@ never blocks the reply (post-turn fire-and-forget + import backfill, same functi
   the verb is wired with the engine's `runTurn` at the composition root.
 - **the agent-principal mechanics (§8.6) — RESOLVED: delegated to the identity spine.** The `kind` split,
   `authorUserId` threading, and the `buddy_turns` firewall inversion are **owned by the identity spine
-  (`spine/identity-auth-permission.md`)**; chat only implements its predicates (`requireParticipant`/
+  (`core/Spine-Identity-and-Auth.md`)**; chat only implements its predicates (`requireParticipant`/
   `requireHost`) + the live `authorUserId` stamping. Not a chat decision.
 - **guided placement default — RESOLVED: system-marker** (the `{{guided_instruction}}` marker), matching
   `Part II §6/§11` and the steady clone's `role:"system"` default for all 6 actions; per-action
   `placement` can select a depth-0 injection where a steer must read as an in-character turn.
 - **memory DEFAULTS adoption — RESOLVED: adopt the new tuning at build** (`blockSize 16 · verbatimWindow
-  30 · fanOut 8`, vs the steady clone's `8 · 8 · 4`). A config value, not a code semantic — set in
+30 · fanOut 8`, vs the steady clone's `8 · 8 · 4`). A config value, not a code semantic — set in
   `memory/constants.ts` at build.
 - **persistence→assembly up-reach — RESOLVED.** `sanitizeSpeakerLookalike` moves to
-  `@orb/kit/speaker-label` (the speaker-label family's destination per `shared-dissolution.md §1` — kills
+  `@orb/kit/speaker-label` (the speaker-label family's destination per `Core-Legacy-Migration-and-Gaps.md §1` — kills
   the up-reach for it). The shared `frame()` stays a chat-internal pure helper in `assembly/injections.ts`;
   `persistence/queries.ts` importing it is an **accepted intra-domain edge** (persistence→assembly is
   within one domain — the layer-cake governs cross-domain/cross-package edges, not intra-domain subsystem
   imports). The SDK-frame up-reaches leave entirely with the agent-sdk extraction.
+
 ```
 
 ---
@@ -870,7 +877,7 @@ room-overrides/invites/kick/handoff/anchor-reassignment/**memberCardVisibility**
 (cut a kicked member's stream within the kick tx) + bus delivery + cross-domain lineage walkers (fork/export/corpus) +
 `forkChat` + `chat_injections` + anchor reassignment** — an unlisted chatId surface defaults to deny. The global
 `owner|admin|user` axis (`D17`) is orthogonal: `requireAdmin` (owner∪admin) gates admin surfaces; `requireOwner` gates
-the box-credential mint + admin grant. (Authoritative: `spine/identity-auth-permission.md`.)
+the box-credential mint + admin grant. (Authoritative: `core/Spine-Identity-and-Auth.md`.)
 
 ## 12. Invariants (gate candidates — the §10.4 cross-cutting set)
 
@@ -899,3 +906,4 @@ the box-credential mint + admin grant. (Authoritative: `spine/identity-auth-perm
     `NotificationEvent`; all chat bus events are room-public. *(compile + a type-level test.)*
 12. **The membership chokepoint covers every chatId surface** incl. SSE subscribe + lineage walkers + chat_injections +
     forkChat + anchor; default-deny unlisted. *(lint: a `scripts/check` enforcer; grep for `ownerId ===` in chat → RED.)*
+```

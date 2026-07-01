@@ -5,7 +5,7 @@
 //
 // HOME NOTE (born-compliant vs doc): workloads.md sketches this type living in `persistence/queries.ts`, but
 // the `no-inline-types` grit flags ANY `export type` outside a type home — a persistence file is not one. So
-// the TYPE homes here in `contract/` (the gate wins, structure.md §7.4) and `persistence/` imports it; the
+// the TYPE homes here in `contract/` (the gate wins, core/Core-0-Architecture-and-Structure.md §7.4) and `persistence/` imports it; the
 // front door re-exports it. The PROJECTION FUNCTION (`toView`) stays in `persistence/` (it touches the row).
 
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";

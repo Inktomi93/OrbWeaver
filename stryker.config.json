@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Stryker mutation testing — flips operators / removes branches in src and reruns the suite to see which mutants the tests CATCH. A surviving mutant = a test that covers the line but asserts nothing that would notice the change (the 'shitty test' signal coverage can't detect). SCHEDULED: this is a skeleton — it cannot run until Phase 4+ when there is code, a `vitest.config.ts` (Phase 0.3), a root aggregating `tsconfig.json`, and the target modules below exist. The mutate list is forward-looking to orbweaver's planned structure; calibrate it (and the gate's break threshold) when those modules land. See docs/architecture/spine/testing.md › Mutation testing + reports/ENFORCEMENT.md.",
+  "_comment": "Stryker mutation testing — flips operators / removes branches in src and reruns the suite to see which mutants the tests CATCH. A surviving mutant = a test that covers the line but asserts nothing that would notice the change (the 'shitty test' signal coverage can't detect). SCHEDULED: this is a skeleton — it cannot run until Phase 4+ when there is code, a `vitest.config.ts` (Phase 0.3), a root aggregating `tsconfig.json`, and the target modules below exist. The mutate list is forward-looking to orbweaver's planned structure; calibrate it (and the gate's break threshold) when those modules land. See docs/architecture/core/Spine-Testing.md › Mutation testing + core/Core-Laws-and-Precedents.md.",
 
   "packageManager": "pnpm",
   "testRunner": "vitest",

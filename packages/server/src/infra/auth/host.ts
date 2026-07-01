@@ -1,7 +1,7 @@
 // Pure host normalize — lowercase + strip the `:port`, handling the bracketed IPv6 form
 // (`[::1]:8788` → `::1`). Multiple auth callers need it: the owner-fallback origin gate (`dispatch.ts`)
 // and the JWKS-allowlist host match (`config.ts`). Pure (no env, no I/O) → a `@orb/kit/net` candidate;
-// kept infra-local while every consumer is infra (tiers/infra.md Open decisions).
+// kept infra-local while every consumer is infra (core/Tier-3-Infra.md Open decisions).
 
 export function normalizeHost(host: string): string {
   const h = host.trim().toLowerCase();

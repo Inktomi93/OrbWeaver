@@ -3,9 +3,9 @@
  * transport boundary by the domain-error middleware.
  *
  * BOOT-CRITICAL: `DomainNotFoundError` must exist before the tag / credentials /
- * character front doors re-export it (`reports/shared-dissolution.md` §1). Lives
+ * character front doors re-export it (`core/Legacy-Migration-and-Gaps.md` §1). Lives
  * in `@orb/kit` (isomorphic — `extends Error` is the one sanctioned class shape,
- * `spine/typescript-style.md` §6).
+ * `core/Spine-TypeScript-and-Patterns.md` §6).
  */
 
 /** Capture a clean stack trace where the V8 API is available (Node + Chromium); a

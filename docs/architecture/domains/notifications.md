@@ -6,8 +6,8 @@
 > delivery needs a **per-user** channel. neo-tavern's group-chat plan (`docs/plans/unified-group-chat.md` §9/§10) names
 > this the "invite DELIVERY surface" and corrects (twice) that it must be built on the resumable `chat.streamMessages`
 > shape, **NOT `buddy.stream`** (an in-memory ramp-up ring that drops offline events). Authoritative upstream:
-> `domains/chat.md` Part III §3, `tiers/transport.md` (the subscription lives there), `tiers/db.md`
-> (`schema/notifications.ts`), `spine/identity-auth-permission.md` (the `AUTH_MODE` gate).
+> `domains/chat.md` Part III §3, `core/Tier-4-Transport.md` (the subscription lives there), `core/Tier-1-DB.md`
+> (`schema/notifications.ts`), `core/Spine-Identity-and-Auth.md` (the `AUTH_MODE` gate).
 
 ---
 
@@ -27,7 +27,7 @@
 This domain does **NOT** own:
 
 - **The subscription transport** — the `authedProcedure.subscription` (filtered to the caller, `tracked()` yields,
-  `lastEventId` replay — the `chat.streamMessages` resume shape) is **`transport`** (`tiers/transport.md`). This domain
+  `lastEventId` replay — the `chat.streamMessages` resume shape) is **`transport`** (`core/Tier-4-Transport.md`). This domain
   supplies the durable backing + the verbs; transport streams them.
 - **Presence** — the server-derived SSE connection ref-count is **transport** state (injected into chat as
   `presence.read`); only the `PresenceView` wire shape is a contract.
@@ -77,10 +77,10 @@ No named subsystems; no `substrate/` (it's a thin durable surface).
 ## Invariants (gate candidates)
 
 1. **Durable-first** — a notification is INSERTed before any fan-out; deliverable from the table alone (kill the emit
-   path → `list` still returns it). *(test: `notifications-durable-first`.)*
+   path → `list` still returns it). _(test: `notifications-durable-first`.)_
 2. **The event union is closed + secret-free** — `NotificationEvent` cannot represent a credential/baseUrl;
-   `recipientUserId` is mandatory. *(compile-time + a type-level test; `bus-payload-allowlist`.)*
+   `recipientUserId` is mandatory. _(compile-time + a type-level test; `bus-payload-allowlist`.)_
 3. **Recipient-scoped reads** — every read/markRead/dismiss is scoped to `Principal.userId`; no cross-user inbox read.
-   *(test.)*
+   _(test.)_
 4. **The stream uses the resume shape, never `buddy.stream`** — `tracked()` + `lastEventId` replay from the durable
-   table. *(resolve-time: the subscription is transport's, over this table.)*
+   table. _(resolve-time: the subscription is transport's, over this table.)_

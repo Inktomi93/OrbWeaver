@@ -127,7 +127,7 @@ describe("reconcileStats", () => {
   });
 
   test("re-running is idempotent — the atomic per-owner replace doesn't double-count", async () => {
-    // Inject the global frozen clock and `advance` it between runs (the determinism seam, testing.md §4).
+    // Inject the global frozen clock and `advance` it between runs (the determinism seam, Spine-Testing.md §4).
     const clock = createFrozenClock(T0 + 1);
     await reconcileStats(db, { ownerId, now: clock.now });
     clock.advance(1);

@@ -1,0 +1,1 @@
+../docs/architecture/core/AGENTS.md

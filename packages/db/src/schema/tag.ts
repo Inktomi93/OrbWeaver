@@ -3,7 +3,7 @@
 // namespace, one owner", tag.md invariant #1). Five entity types can be tagged; each has its OWN per-type
 // FK junction (ledger D24: NO polymorphic `(type, untyped_id)` association table — only the registry-driven
 // DISPATCH is polymorphic, and that lives in the domain, not here). Authoritative spec:
-// `docs/architecture/domains/tag.md` + `tiers/db.md`.
+// `docs/architecture/domains/tag.md` + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D23 — the ownership-stamp rule. `tags.ownerId` is KEPT (a tag is top-level single-owned / `fetchOwned`;

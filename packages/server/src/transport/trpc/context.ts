@@ -1,4 +1,4 @@
-// transport/trpc/context — the per-request tRPC Context the procedure ladder reads (tiers/transport.md
+// transport/trpc/context — the per-request tRPC Context the procedure ladder reads (core/Tier-4-Transport.md
 // §"context.ts"). PURE PACKAGING: it carries the entry-built `Principal`, the constructed `Services`
 // bundle, the injected rate-limit gate, and the per-request edge signals — NO db, NO header parsing, NO
 // identity resolution (those are the `entry/auth/seam.ts` + `entry/app.ts` concerns; transport CARRIES
@@ -71,7 +71,7 @@ export interface RateLimitDecision {
 }
 
 /**
- * The rate-limit gate — the injected middleware seam (tiers/transport.md §"rate-limit"). The DB-backed
+ * The rate-limit gate — the injected middleware seam (core/Tier-4-Transport.md §"rate-limit"). The DB-backed
  * limiter PRIMITIVE (`transport/rate-limit.ts`) and the bucket policy are constructed at `entry/` (db is
  * required at construction) and threaded onto `ctx`; transport declares only this port and calls
  * `enforce` from the ladder. `enforce` rejects with `DomainRateLimitError` when over cap (mapped to

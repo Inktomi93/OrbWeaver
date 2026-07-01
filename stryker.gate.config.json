@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "GATED mutation lane (ENFORCEMENT.md). Pinned to the highest-stakes pure modules — turn routing, credential resolution, prompt assembly — where a surviving mutant means a test asserts presence-of-behavior without asserting correctness (the `isVllmBackend`-lying-gate class neo founded this on). Unlike the exploratory stryker.config.json (break:null), this FAILS the build below `thresholds.break` — a ratchet-down regression guard. NOT in `pnpm check` (mutation runs are minutes; the check budget is structural-fast) — run on demand via `pnpm test:mutation:gate` + from CI. SCHEDULED: skeleton until the three target files + their tests exist (Phase 4c/5); `break` stays null until then.",
+  "_comment": "GATED mutation lane (Core-Laws-and-Precedents.md). Pinned to the highest-stakes pure modules — turn routing, credential resolution, prompt assembly — where a surviving mutant means a test asserts presence-of-behavior without asserting correctness (the `isVllmBackend`-lying-gate class neo founded this on). Unlike the exploratory stryker.config.json (break:null), this FAILS the build below `thresholds.break` — a ratchet-down regression guard. NOT in `pnpm check` (mutation runs are minutes; the check budget is structural-fast) — run on demand via `pnpm test:mutation:gate` + from CI. SCHEDULED: skeleton until the three target files + their tests exist (Phase 4c/5); `break` stays null until then.",
 
   "packageManager": "pnpm",
   "testRunner": "vitest",

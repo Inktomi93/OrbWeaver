@@ -1,4 +1,4 @@
-// entry/boot/seed-default-characters — boot step 4: the default-character pack (tiers/entry.md §"Boot order").
+// entry/boot/seed-default-characters — boot step 4: the default-character pack (core/Tier-5-Entry.md §"Boot order").
 //
 // Per-USER first-run seed, same precedent as `seedCredentialFromEnv` (the env→OpenRouter key) but for the
 // authored card pack. At boot it seeds the DEPLOYMENT OWNER once (single-user "it just works"); new users
