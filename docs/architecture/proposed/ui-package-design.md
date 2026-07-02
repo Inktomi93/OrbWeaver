@@ -288,3 +288,30 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
    Toolbar. Merged — `layout/toolbar` wraps Base UI Toolbar (roving tabindex) with layout skin.
 7. **`tabs` added** to the Base UI wrap set (not in the D42 §2 primitive list, but required by the
    committed game-panel/crew-panel designs and native to Base UI). Additive; flag for the ledger.
+
+## 11. Gate-coverage inventory (UI-Gates §8 registry vs what is LIVE — audited 2026-07-02)
+
+Nate's flag ("a lot of our ui grit/custom rules aren't present or wired") audited. Verdict: **nothing
+wired is dark** — all grit files on disk are registered in `biome.json` AND pinned by
+`tests/tooling/grit-plugins.int.test.ts` (a plugin that compiles-but-matches-nothing FAILS there);
+same for dep-cruiser rules (`dependency-cruiser.int.test.ts` derives the rule set from the config and
+fires each on a fixture). The gaps are the D43/D54 belts that were correctly PARKED for the
+client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them with their
+"waiting on" triggers). Status per §8 registry entry:
+
+| Gate (§8 registry) | Status | Where / when |
+| --- | --- | --- |
+| ui/client package physics | ✅ LIVE | resolver + biome `noUndeclaredDependencies` + depcruise `ui-cake` (this scaffold) |
+| `virtualizer-only-in-seal` · echarts/codemirror/streamdown/cmdk/dnd-kit/diff/lucide seals | ✅ LIVE | depcruise `ui-satellite-seals` (this scaffold) |
+| `no-raw-value` family (`no-color-literals` incl. arbitrary hex, `no-raw-spacing`, `no-raw-typography`, `no-raw-z-index`) | ✅ LIVE, ui-covered | grit; widened to `packages/ui/src` + `tv()` arms (this scaffold — they previously scoped to client-only and could not see tailwind-variants call sites) |
+| named non-token color ban (`bg-black/50` → `--scrim`) | ✅ LIVE | new arm in `no-color-literals` (this scaffold) |
+| `no-layout-context-props` | ✅ LIVE | new grit (this scaffold) |
+| `design-token-parity` | ✅ SUPERSEDED-BY-CONSTRUCTION | the codegen + freshness test (§4) — drift is a failing test, not a parity check |
+| `touch-target-floor` | ◐ PARTIAL | the token floor is test-locked (tests/ui/tokens); the per-component "no control below the token" half rides review + the CT computed-height assertions until a grit for h-* under the floor is worth writing |
+| `no-direct-useform` / `no-form-state-in-useeffect` / `no-chat-trpc-in-surface` / `no-inline-optimistic-in-surface` (the neo client four) | ✅ LIVE (dormant) | grit — wired since Phase 0; fire when client code lands |
+| `tanstack-form-only-in-shared` | ◐ PARTIAL | `no-direct-useform` covers the "no raw useForm" half; the single-`createFormHook` half lands with `client/forms` |
+| `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ⏸ PARKED (named) | need the app-shell/anchor structure to exist to allowlist against — client-foundation wave; until then ui ships zero `@media` (reviewable by grep) |
+| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ⏸ PARKED (correct) | the D43/D54 client-foundation belts — they gate constructs (`trpc.*`, stores, factories, features/) that do not exist yet; MUST land in the client-foundation wave BEFORE feature agents (§11.7/§13.6) — this is the ENFORCEMENT.md backlog's `optimistic-chat`/`client-structure` cluster |
+| D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ◐ Wave-2/Phase-6 | the ui half ships as Wave-2 CT containment tests; the lint/route halves need message-render + entry/http code to exist |
+| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | ⚠ DECISION NEEDED | orbweaver is biome-only — adopting these means adding an eslint lane to `check` (scoped to packages/client) at the client-foundation wave. Biome already carries `useExhaustiveDependencies`/`useHookAtTopLevel` (partial hooks coverage), but the Compiler's Rules-of-React enforcement + `prefer-query-options` have no biome twin. Flagged for Nate. |
+| visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
