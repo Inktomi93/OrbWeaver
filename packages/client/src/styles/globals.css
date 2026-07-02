@@ -1,0 +1,26 @@
+/* @orb/client — the app's single stylesheet. Pulls in @orb/ui's one CSS entry (Tailwind v4 + the
+ * generated @theme + the unlayered floors — UI-Arch §3) and adds the two globals @orb/ui's stylesheet
+ * defers to the consuming shell (Base UI stacking context + iOS backdrop coverage). */
+@import "@orb/ui/styles/globals.css";
+
+/* Tailwind v4 content sources (paths relative to THIS file). @orb/ui lives outside the client's Vite
+ * root, so its components' utility classes aren't auto-detected — declare its src explicitly, or every
+ * composed primitive renders unstyled. `../` is the client's own tree. */
+@source "../";
+@source "../../../ui/src";
+
+/* The shell owns these (per @orb/ui/styles/globals.css). */
+:root {
+  background-color: var(--color-background);
+}
+
+body {
+  position: relative;
+  min-height: 100dvh;
+  color: var(--color-foreground);
+  background-color: var(--color-background);
+}
+
+#root {
+  isolation: isolate;
+}

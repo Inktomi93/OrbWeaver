@@ -357,6 +357,9 @@ importers:
       '@orb/kit':
         specifier: workspace:*
         version: link:../kit
+      '@orb/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@tanstack/react-router':
         specifier: 'catalog:'
         version: 1.170.16(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
