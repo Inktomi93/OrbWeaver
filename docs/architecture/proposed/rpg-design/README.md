@@ -30,7 +30,7 @@ both solo tables and human-run tables with one codebase (no `if(gmMode)`).
 | [`02-domain-shape.md`](02-domain-shape.md) | one `domain/rpg` + satellites, the 8-slot layout, `RpgContext` injected ops, one-home-per-mechanic kill list, the service surface |
 | [`03-state-and-schema.md`](03-state-and-schema.md) | all 14 tables (DDL intent), every zod contract, swipe/commit/lock semantics, the variables-vs-snapshots reconciliation, hidden-column rule |
 | [`04-mechanics.md`](04-mechanics.md) | the house rules: every formula/constant/table (verbatim ports cited; redesigns argued), the consequence engine, golden-test plan |
-| [`05-turn-integration-and-tools.md`](05-turn-integration-and-tools.md) | the chat graft (3 injected ops, `no-if(isGame)`), `RpgGatherResult`, the 23-tool registry, write staging, the rpg bus, dice queueing, address modes |
+| [`05-turn-integration-and-tools.md`](05-turn-integration-and-tools.md) | the chat graft (3 injected ops, `no-if(isGame)`), `RpgGatherResult` (+ the `presetOverride` GM-voice field), the 26-tool registry (23 overworld + 3 encounter), write staging, the rpg bus, dice queueing, address modes |
 | [`06-gm-and-crew.md`](06-gm-and-crew.md) | the GM preset + format reminder (with the stolen-verbatim instruction set), the WorkloadKind crew, session zero, the coherence interlock, information rings |
 | [`07-encounters-scenes-party.md`](07-encounters-scenes-party.md) | the ONE deterministic encounter engine, scenes over `forkChat`, party = roster, the `can()` matrix |
 | [`08-generative-and-client-contract.md`](08-generative-and-client-contract.md) | imagery policy over the committed domain, illustration cadence, the client read contract, in-stream rendering rules, what the client may compute |

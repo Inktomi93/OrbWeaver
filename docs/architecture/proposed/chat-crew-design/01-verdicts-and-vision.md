@@ -101,8 +101,11 @@ which a crew workload serves:
    rebuilds group behavior from marinara parts.
 2. **Ephemeral flavor** (side-channel chatter that evaporates) — then it is, verbatim, **buddy's
    observer** (buddy.md `observer/`, PD-45/64): one normalized signal in → at most one quip out,
-   throttled, deduped, per-user SSE bus. That engine is designed, has a domain, has a bus, and is
-   already wired to chat/workload event sources.
+   throttled, deduped, per-user SSE bus. That engine is DESIGNED (buddy.md — signal taxonomy,
+   throttle/dedupe, the event-source seam) but **DEFERRED behind PD-45/64, not yet built or wired**
+   (`domain/buddy/index.ts` carries the deferral note; only `BuddySignalKind` exists in the tree —
+   design-review CREW-2 correction). The subsumption verdict binds regardless: when the observer
+   lands, echo-chamber richness grows THERE.
 
 **The reconciliation rule (binding — RATIFIED, Nate 2026-07-01):** the CAPABILITY IS WANTED and
 it HAS A HOME — buddy's observer is orbweaver's ambient-reaction engine, and echo-chamber is

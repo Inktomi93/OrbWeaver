@@ -64,6 +64,6 @@ message slot row (D37/D48) · structured output is a separate `responseFormat` a
 `tool_choice` (D48; Anthropic's forced-tool realization is a translator detail) · execution is
 server-side in the domain registry, never the browser (the ST anti-pattern) · `tool_choice` is a
 first-class union, never hardwired `"auto"` · crew members get NO tools (D59, chat-crew-design/05
-§b) · the 23 rpg tools are rpg-design/05 §3's vocabulary — ONE vocabulary, cited not restated ·
+§b) · the 26 rpg tools (23 overworld + 3 encounter) are rpg-design/05 §3's vocabulary — ONE vocabulary, cited not restated ·
 game chats REQUIRE tool-capable models until the Tier-3b textual-tool-call polyfill ships
 (rpg-design/09 §+ — the polyfill is backend-internal, invisible to this domain).

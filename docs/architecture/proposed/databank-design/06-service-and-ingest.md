@@ -267,8 +267,9 @@ the mapped-type Record makes a missing one a `tsc` error (the §7.5 gold standar
 
 **SSRF prerequisite (ONE-LINE cross-ref; designed elsewhere):** all scraper fetches ride
 `infra/network`'s `safeFetch` + response-validation belt — the shared remote-fetch prerequisite
-whose design home is `proposed/gallery-design.md` §6 (the B4/B5a rows); scrapers add NO guard logic of
-their own and do not land before that seam is wired.
+whose authoritative design is **`proposed/hub-browse-design/01-network-guard.md`** (B5a; D61 —
+gallery-design §6 carries the delta banner); scrapers add NO guard logic of
+their own and do not land before that seam is wired (hub-browse H1 ≡ gallery G6).
 
 | Verb | Fetch | Extract | Stamps |
 |---|---|---|---|

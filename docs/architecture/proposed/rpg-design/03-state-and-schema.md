@@ -47,6 +47,7 @@ deletes marinara's 413 raw `JSON.parse` + 324 casts (corpus 08). A failed parse 
 | `status` | text notNull CHECK in `RPG_GAME_STATUSES` | `setup → ready → active → concluded` (marinara: the shared type omitted `ready` — the runtime had 4 states; we model all 4) |
 | `sessionNumber` | int notNull default 1 | current session ordinal |
 | `gmUserId` | text FK → `users.id` SET NULL, nullable | **the GM SEAT** (doc 12 §1 — authoritative). NULL = the AI holds the seat (narrator); non-null = that human participant is the GM. Host-assigned (`assignGmSeat`), audited |
+| `gmPresetId` | text FK → `presets.id` SET NULL, nullable | **the game's GM voice** (02 §1.1 #1 — the domain-of-affect home; a chats-side preset binding is REJECTED, Nate 2026-07-02, "neo's sin"). Set by `createGame` after the packaged-preset clone; re-pointable via the game config verb; NULL/stale ⇒ turns degrade to the host's normal default preset. Consumed via `RpgGatherResult.presetOverride` (05 §1) |
 | `config` | text(json) `RpgGameConfig` notNull | the session-zero wizard output (§1.1) |
 | `worldOverview` | text notNull default `''` | player-visible world intro |
 | `storyArcSecret` | text notNull default `''` | **HIDDEN** — GM-only narrative spine |

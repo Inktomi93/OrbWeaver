@@ -10,7 +10,9 @@
 
 **DECISION (the lean, confirmed and specced — 06 §1):** the GM system prompt is a normal
 `PromptConfig` preset. `rpg.createGame` clones the packaged **"RPG Game Master"** preset into the
-host's library and activates it on the chat; rpg contributes only MACRO VALUES (the 8 `rpg*`
+host's library and records it on the game (`rpg_games.gmPresetId`; turns consume it via the
+gather result's `presetOverride` — 02 §1.1 #1, no chats-side binding); rpg contributes MACRO
+VALUES (the 8 `rpg*`
 macros, volatile-flagged) + ONE depth-0 format-reminder injection. Users tune the GM voice, section
 order, params, guided actions — everything — in the normal preset editor; a power user can build a
 whole alternative GM preset from scratch (the macros are the stable API). Game-mode-ness is DATA

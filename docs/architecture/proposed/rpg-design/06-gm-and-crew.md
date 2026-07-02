@@ -14,7 +14,10 @@
 
 **DECISION: game-mode GM prompting = a normal `PromptConfig` preset + rpg-supplied macros.** At
 `rpg.createGame` the server clones the packaged **"RPG Game Master"** preset into the host's
-library (the preset COW pattern) and sets it as the chat's active preset. Users tune the GM —
+library (the preset COW pattern) and records it as the game's voice: **`rpg_games.gmPresetId`**
+(rpg canon in rpg's own table — a chats-side preset binding is REJECTED, Nate 2026-07-02, 02 §1.1
+#1 / "neo's sin"). Game turns resolve it via `RpgGatherResult.presetOverride` (05 §1); the preset
+itself stays a normal library row. Users tune the GM —
 reorder sections, edit instruction text, adjust params — in the normal preset editor; `rpg` never
 builds a prompt string. *(Rejected: a hardcoded GM prompt builder à la marinara's 1,312-line
 `gm-prompts.ts` — untunable without a fork, and it duplicates the assembly pipeline the preset
@@ -165,6 +168,28 @@ export const rpgWorldGenPayloadSchema = z.object({
     consequence: z.string() })).max(2),                     // marinara's blueprint clock cap — kept
   questSeeds: z.array(z.string()).max(3),
   lootTable: rpgLootTableSchema,                            // 04 §5 — 20-40 campaign-themed items
+});
+
+/** The two referenced sub-schemas, inline (design-review RPG-6 — a cold reader builds these too): */
+export const rpgWorldGenNpcSchema = z.object({
+  name: z.string().min(1).max(60),
+  emoji: z.string().default("🧑"),
+  description: z.string().min(20).max(600),   // "first impression, voice/cadence, desire, and one
+                                              //  secret or complication" — the STEAL brief
+  gender: z.string().max(40).nullable().default(null),
+  pronouns: z.string().max(40).nullable().default(null),
+  location: z.string().min(1).max(60),        // must alias-match a startingMap region name
+  reputation: z.number().int().min(-100).max(100).default(0),
+});
+export const rpgWorldGenWidgetSchema = z.object({
+  type: z.enum(RPG_WIDGET_TYPES),             // 03 §8 — applyWorldGen infers bindings; unrecognized → custom
+  label: z.string().min(1).max(40),
+  icon: z.string().max(8).default(""),
+  position: z.enum(["hud_left", "hud_right"]).default("hud_right"),
+  /** For type-inferrable bindings applyWorldGen resolves the real binding (an HP widget →
+   *  party-hp); a `custom` widget seeds rpgCustomWidgetConfigSchema from these: */
+  initialValue: z.number().int().nullable().default(null),
+  max: z.number().int().min(1).nullable().default(null),
 });
 ```
 

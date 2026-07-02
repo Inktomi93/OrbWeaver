@@ -17,8 +17,8 @@ expressions post-turn-hook precedent:
 | Injected op (chat side) | Provided by `domain/rpg` | Called at |
 |---|---|---|
 | `rpg.gatherTurnContext(chatId, turn) → RpgGatherResult \| null` | `verbs/gather-turn-context.ts` | GATHER phase, after WI pool. `null` = not a game ⇒ byte-identical non-game turn |
-| `rpg.onUserCommit(chatId, messageId)` | `verbs/on-user-commit.ts` | SEND verb, after the user row commits (fires snapshot COMMIT, 03 §2.4, + consumes queued rolls §6) |
-| `rpg.onTurnCompleted(chatId, messageId, variantId)` | `verbs/on-turn-completed.ts` | post-turn background step (flush provisional quest writes, emit trace, poke the director cadence counter) |
+| `rpg.onUserCommit(chatId, messageId)` | `verbs/snapshot.ts` (02 §2's home — one file for the snapshot lifecycle verbs) | SEND verb, after the user row commits (fires snapshot COMMIT, 03 §2.4, + consumes queued rolls §6) |
+| `rpg.onTurnCompleted(chatId, messageId, variantId)` | `verbs/snapshot.ts` | post-turn background step (flush provisional quest writes, emit trace, poke the director cadence counter) |
 
 Tool EXECUTION needs no chat-side rpg op: rpg tools are registered in the ONE `domain/tool-use`
 registry (D48 source (a), builtin/host) at compose time; chat's recurse loop executes them like any
@@ -53,6 +53,13 @@ export interface RpgGatherResult {
   tools: readonly string[];
   /** Turn-variant flags GATHER computed (drive reminder variants — 06 §2): */
   flags: { playerRolledDice: boolean; addressMode: "scene" | "party" | "gm"; encounterActive: boolean };
+  /** The game's GM-voice preset (rpg_games.gmPresetId — 02 §1.1 #1). When present, chat's assembly
+   *  resolves THIS preset for the turn instead of the host's UserSettings default (owned-or-system
+   *  row under the host, else degrade to the normal default — the lenient-id rule). A GENERIC
+   *  optional field on the injected result — chat learns no rpg vocabulary from it, and a turn
+   *  without it is byte-identical. Per-chat preset binding on the chats side is REJECTED
+   *  (Nate 2026-07-02): the owning feature carries the association in its own canon. */
+  presetOverride?: PresetId;
 }
 ```
 
@@ -129,7 +136,8 @@ touch-point in gather — no `if(gmMode)` exists anywhere else.
 `encounter_round` (per-member typed actions → full deterministic round), `attempt_flee`,
 `conclude_encounter` (server has already flagged terminal; returns the `RpgCombatSummary`).
 
-Tool-count sanity: ~23 defs ≈ marinara's tag grammar + bespoke endpoints, but every one is
+Tool-count sanity: **26 registered defs** (the 23 overworld tools above + the 3 encounter-set
+tools — attachment varies per mode, registration does not) ≈ marinara's tag grammar + bespoke endpoints, but every one is
 schema-validated, capability-gated, provenance-recorded, and consumed by exactly one verb.
 `ModelCapability.tools` absent ⇒ game chats REQUIRE a tool-capable model — `rpg.createGame`
 validates the chat's resolved connection up front and refuses with a clear error (the Tier-3b
@@ -169,6 +177,7 @@ export type RpgBusEvent =
   | { type: "clockChanged"; chatId: ChatId; clockId: RpgClockId }                  // visible clocks only
   | { type: "clockCompleted"; chatId: ChatId; clockId: RpgClockId }
   | { type: "checkResolved"; chatId: ChatId; band: RpgCheckBand; skill: string }   // dice-toast UI
+  | { type: "checkRequested"; chatId: ChatId; pendingCheckId: RpgPendingCheckId }   // the doc-12 §3 handshake — the target player's "Roll it" chip (11 §16)
   | { type: "reputationMilestone"; chatId: ChatId; npcId: RpgNpcId; tier: RpgReputationTier; direction: "up" | "down" }
   | { type: "mapChanged"; chatId: ChatId; mapId: RpgMapId }
   | { type: "encounterStarted" | "encounterRound" | "encounterEnded"; chatId: ChatId; encounterId: RpgEncounterId }

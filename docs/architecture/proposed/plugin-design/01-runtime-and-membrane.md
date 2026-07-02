@@ -128,7 +128,8 @@ export interface PluginHostV1 {
     /** Register a tool into the ONE domain/tool-use registry (D48 source (b)) — 03 §5.
      *  capability: tools.register */
     register(def: {
-      name: string;                       // host prefixes to "plugin:<slug>:<name>" — 03 §5
+      name: string;                       // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to
+                                          // "plugin_<slug'>_<name>" (03 §5 — the tool-use charset)
       description: string;
       parameters: Record<string, unknown>;             // JSON Schema (validated host-side)
       handler: (args: unknown) => Promise<string>;     // runs IN the guest under the invocation budget

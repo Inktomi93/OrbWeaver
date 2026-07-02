@@ -224,6 +224,12 @@ precedent (chat.md: "embeds WiBusEvent so WI emits without importing back into c
 - **Cheap-model routing is free later:** the shaper resolves the `chat` role today; if a user wants
   classify on a cheap model, the v2 `classify` role (or pointing the shaper at the `summarize`
   role config — the imagery open-question precedent) is the seam. Not v1.
+- **Why `chat` here where imagery's extraction chose `summarize` (deliberate divergence, recorded
+  — design-review EXP-3):** extraction is keyword-listing — any cheap model does it, so routing it
+  off the conversation model is pure savings; classification into a CLOSED label set over roleplay
+  nuance tracks the conversation model's reading of the scene, and default-OFF + the no-sprites
+  early-out already bound the spend. The seam above is the convergence path if cost ever beats
+  fidelity.
 
 ## 6. Test plan (this doc's slice — full plan in 05)
 

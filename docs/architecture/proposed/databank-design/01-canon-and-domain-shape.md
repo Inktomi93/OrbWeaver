@@ -11,7 +11,7 @@
 
 | Concern                   | Lean on (exists)                                                              | Genuinely NEW                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| Vector write path         | `embeddings.store` — the ONE inserter                                          | a 5th `store` arm: `kind:'document', lens:'chunk'` (doc 05)                    |
+| Vector write path         | `embeddings.store` — the ONE inserter                                          | a new `store` arm: `kind:'document', lens:'chunk'` — the 4th `SOURCE_KINDS` member, the 5th vector TABLE (doc 05) |
 | Source-kind / lens tuples | `SOURCE_KINDS`/`SOURCE_LENSES`/`VECTOR_TABLES` with `satisfies`/`assertNever` | add `'document'` kind, `'chunk'` lens, `'document_chunks'` table — additive    |
 | Retrieval engine          | `search` — cosine scan + CSLS + rerank + threshold                             | a `search.documents` lens + a `document` scope branch (doc 05)                 |
 | Embed role                | `connection.resolveRole('embed')` → 1024-dim Qwen3-VL space                    | nothing — chunks land in the SAME space                                        |

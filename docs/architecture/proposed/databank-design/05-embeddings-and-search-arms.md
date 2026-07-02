@@ -52,7 +52,9 @@ export interface DocumentChunkStoreParams {
     readonly charEnd: number;
   };
 }
-// StoreParams is the discriminated union over kind; DocumentChunkStoreParams is the 5th arm.
+// StoreParams is the discriminated union over kind; DocumentChunkStoreParams is the NEW arm —
+// the 4th SOURCE_KINDS member ('card'|'avatar'|'chat-block'|'document') feeding the 5th vector
+// TABLE (the "5th arm" phrasing elsewhere counts tables, not kinds — design-review DB-1).
 ```
 
 The committed one-pager names this arm explicitly; `embeddings.md`'s current prose sketches one

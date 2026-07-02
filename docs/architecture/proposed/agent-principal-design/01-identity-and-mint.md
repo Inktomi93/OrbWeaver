@@ -217,9 +217,9 @@ INHERIT-for-OWNER.)*
    `kind='agent'` rows AND the `__agent__` namespace. *(test: the containment suite's auth
    matrix; lint: the refusal predicates live in sessions, the only `users`-auth reader.)*
 3. **`provisionAgentPrincipal` is the ONLY agent-row INSERT site** — no other verb writes
-   `kind:'agent'`. *(lint: dep-cruiser — `users` INSERTs outside `domain/sessions` +
-   `domain/admin` are already RED (the `no-direct-users-read/write` chokepoint); test: the mint
-   is the only green path.)*
+   `kind:'agent'`. *(lint: the `no-direct-users-read` STRUCTURAL gate — ts-morph,
+   `scripts/check/gates/no-direct-users-read.ts`, not dep-cruiser — `users` reads/writes outside
+   `domain/sessions` + `domain/admin` are already RED; test: the mint is the only green path.)*
 4. **The mint is idempotent under race** — two concurrent seat-joins converge on one row.
    *(test: the hatch-race pattern test, transplanted.)*
 5. **Owner-delete cascades the agent** — no orphaned agent principals, ever. *(compile-for-data:

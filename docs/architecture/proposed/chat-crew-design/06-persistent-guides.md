@@ -16,9 +16,15 @@
 ## 1. The shape — ONE generic mechanism, named guides as packaged TEMPLATES
 
 **DECISION: one `guide` mechanism in `domain/crew`: a per-chat guide DEFINITION row
-(`crew_guides`) + a side generation that refreshes ONE persistent chat injection
-(`id = "guide:<key>"`, written via the injected `chat.setChatInjection` op — injections are
-chat's data, the domain-of-affect rule again).** The extension's five named guides are packaged
+(`crew_guides`) + a side generation that refreshes ONE persistent chat injection, written via the
+injected `chat.setChatInjection` op — injections are chat's data, the domain-of-affect rule
+again.** **Linkage (corrected per design-review CREW-1):** `chat_injections.id` is a
+TypeID-branded PK (`ChatInjectionId`) — a literal `"guide:<key>"` id would violate the
+`no-raw-id`/`schema-branding` discipline — so the guide's injection is addressed by a **stored
+`crew_guides.injectionId`** (nullable `ChatInjectionId`; minted by chat on the first
+`setChatInjection`, persisted onto the definition row; NULL ⇔ no content yet / flushed).
+Injection `position` is **`"in_chat"`** (the per-guide depth/role knobs are `in_chat` semantics).
+The extension's five named guides are packaged
 TEMPLATE presets over this one mechanism, plus unlimited custom guides:
 
 | Packaged template | Prompt (FULL verbatim text: §1.1) | depth | label frame |
@@ -74,7 +80,8 @@ SUPERSEDED by rpg mode + the tracker-note-in-chatlog behavior is dropped — §6
 | Column | Type | Notes |
 |---|---|---|
 | `chatId` | text FK → `chats.id` CASCADE | composite PK `(chatId, guideKey)` |
-| `guideKey` | text | slug (`thinking`, `clothes`, custom slugs); the injection id is `guide:<guideKey>` |
+| `guideKey` | text | slug (`thinking`, `clothes`, custom slugs) — the DEFINITION key; the content row is linked via `injectionId` below |
+| `injectionId` | text FK → `chat_injections.id` SET NULL, nullable | the guide's content row (§1 linkage — a real branded FK, never a magic-id format); NULL ⇔ no content yet / flushed |
 | `name` | text NOT NULL | display name |
 | `template` | text NOT NULL | the side-generation prompt (user-editable; packaged guides seed it — editing never mutates the packaged constant) |
 | `depth` | integer NOT NULL | injection depth (per-guide — the extension's per-guide `depthPrompt*` knobs, kept) |
@@ -85,7 +92,7 @@ SUPERSEDED by rpg mode + the tracker-note-in-chatlog behavior is dropped — §6
 | `lastRefreshSeq` / `lastRefreshAt` | integer / nullable | display + staleness hint |
 | `createdAt` / `updatedAt` | integer | |
 
-**The guide CONTENT lives in the `chat_injections` row only** (id `guide:<guideKey>`) — one home;
+**The guide CONTENT lives in the `chat_injections` row only** (linked by `injectionId` — §1) — one home;
 `crew_guides` is definition. The refresh core reads the previous content back through the injected
 `chat.listChatInjections` when the template references `{{previousGuide}}` (a data-fed macro
 supplied by the refresh core — this REPLACES the extension's `previousInjectionAction:"move"`
@@ -188,8 +195,8 @@ One line each; NOT designed here:
 ## 7. Test plan additions (folded into 08 §3)
 
 Refresh-core goldens (mocked agentTurn): labeled vs raw framing; `{{previousGuide}}` supplied from
-the live injection; blank-completion refuses overwrite; injection id convention `guide:<key>`
-pinned. Auto-refresh: fires post-turn only for `autoRefresh` rows, never throws into the bus loop,
+the live injection; blank-completion refuses overwrite; the `injectionId` linkage pinned
+(first refresh mints + persists it; flush NULLs it; a re-refresh after flush mints a fresh row). Auto-refresh: fires post-turn only for `autoRefresh` rows, never throws into the bus loop,
 skips when a refresh for that guide is already in flight (an in-process per-`(chatId,guideKey)`
 latch, `ASSUMES(single-replica)` annotated — the buddy in-flight-Set pattern). Authority: host vs
 member matrix over all seven verbs. Round-trip: disable → injection gone, definition kept →

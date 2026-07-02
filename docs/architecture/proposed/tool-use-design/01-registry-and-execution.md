@@ -178,7 +178,7 @@ Concretely, at `entry/compose`:
 ```ts
 // entry/compose (sketch — the ONLY place register is called)
 const toolUse = createToolUseService({ can, clock });
-for (const def of rpgToolDefinitions(rpgService)) toolUse.register(def);   // 23 defs, rpg-design/05 §3
+for (const def of rpgToolDefinitions(rpgService)) toolUse.register(def);   // 26 defs (23 overworld + 3 encounter), rpg-design/05 §3
 for (const def of buddyToolDefinitions(db)) toolUse.register(def);          // buddy's status/counts + propose_* set
 ```
 

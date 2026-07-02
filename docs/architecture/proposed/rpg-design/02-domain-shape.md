@@ -27,11 +27,62 @@ Satellite work in committed homes (additive, small):
 | `@orb/kit/ids` | the rpg TypeID prefixes | 03 §0 |
 | `kit/macro` registry | the 8 `rpg*` data-fed macros | 06 §1 |
 | `domain/tool-use` | nothing structural — rpg registers via the existing registry API at compose | 05 §3 |
-| `domain/workloads` | 8 new `WorkloadKind`s + runners + `WorkloadRpgEnv` on the runner-env. NOTE the derivation chain: each `rpg-*` kind is a `WORKLOAD_KINDS` tuple member in `@orb/contracts/workloads` AND the db `workloads.kind` CHECK regenerates with it (D34; pre-launch this is a `0000_baseline` regen, not a migration). Kind + params/result entries + runner land together per chunk (10 R6/R7/R9/R10) — the five mechanical edits | 06 §3 |
-| `domain/chat` | NOTHING (three optional injected ops on `ChatContext`, wired at entry) | 05 §0 |
+| `domain/workloads` | 10 new `WorkloadKind`s + runners + `WorkloadRpgEnv` on the runner-env (`rpg-world-gen` · `rpg-session-distill` · `rpg-recap` · `rpg-director` · `rpg-lorebook-upkeep` · `rpg-illustration` · `rpg-npc-portrait` · `rpg-scene-plan` · `rpg-scene-distill` · `rpg-recruit-card`). NOTE the derivation chain: each `rpg-*` kind is a `WORKLOAD_KINDS` tuple member in `@orb/contracts/workloads` AND the db `workloads.kind` CHECK regenerates with it (D34; pre-launch this is a `0000_baseline` regen, not a migration). Kind + params/result entries + runner land together per chunk (10 R6/R7/R9/R10) — the five mechanical edits | 06 §3 |
+| `domain/chat` | NOTHING rpg-specific — three optional injected ops on `ChatContext` (05 §0) — **plus the GENERIC new chat surface in §1.1** (the gather-result `presetOverride` consumption point, `postNarratorMessage`, a membership-read op): small generic additions any feature could consume, declared honestly as new chat work | §1.1, 05 §0 |
 | `domain/world-info` | an `upsertEntries` bulk op exposed for injection (lorebook upkeep) | 06 §3 |
 | packaged preset seed | the "RPG Game Master" preset (a seed asset, preset domain unchanged) | 06 §1 |
 | `entry/compose` | the wiring: rpg service + chat ops + tool registration + workload env + bus | §4 |
+
+### 1.1 NEW chat-side surface (declared — generic chat verbs, not rpg knowledge)
+
+> **Honesty note (design-review 2026-07-01, RPG-1/RPG-2):** the ops below were previously implied
+> as existing machinery; they are NEW chat/preset work. None of them teaches chat anything about
+> rpg — each is a generic capability rpg happens to be the first consumer of. They land as small
+> chat PRs before/with the rpg chunk that consumes them (R3/R6/R10); chat.md takes the deltas.
+
+1. **The GM voice binding — `rpg_games.gmPresetId` + a `presetOverride` field on the gather
+   result. There is NO per-chat preset binding, anywhere — RULED (Nate, 2026-07-02):** *"presets
+   should be their own presets and we don't bind shit to chats — that was neo-tavern's sin."*
+   A chats-side preset column/metadata field/`chat.setActivePreset` verb is **REJECTED** (config
+   bound to chats is the named neo sin). The domain-of-affect shape instead:
+   - **The game owns its GM voice: `rpg_games.gmPresetId`** — nullable FK → `presets.id`,
+     SET NULL on preset delete (the game degrades to the host's normal default, never breaks).
+     rpg canon in rpg's own table (03 §1 takes the column). `createGame` sets it right after
+     cloning the packaged "RPG Game Master" preset into the host's library (06 §1); the game
+     config verb can re-point it. The presets domain is untouched; the `chats` table is untouched.
+   - **Chat consumes it through the seam that already exists:** `RpgGatherResult` gains
+     **`presetOverride?: PresetId`** (05 §1). When the optional gather op returns one, chat's
+     assembly resolves THAT preset for the turn (owned-or-system row under the host, else degrade
+     to the normal default — the lenient-id rule) instead of the host's
+     `UserSettings.seeds.defaultPresetId`. This is the ONE new chat-side consumption point: a
+     generic optional field on an injected result any future feature could use — chat still knows
+     nothing rpg-shaped, and a turn with no gather op / no override is byte-identical.
+   - **Why gather-supplied and not stored chat state:** the OWNING feature carries the association
+     in its own canon (the derive-don't-stamp instinct applied to config); chat resolves per turn
+     from what the seam hands it — no second config home, no chats-side binding to go stale.
+2. **`chat.postNarratorMessage(chatId, content, media?) — NEW chat verb.** Persists ONE
+   assistant-role narrator message through chat's normal canon-write path: authored by the
+   synthetic group character (D16 inv-9 — a real authoring identity, never NULL; minted lazily via
+   the existing `mintSyntheticGroupCharacter` path if the chat has none), body = a plain STRING
+   (media arrive as embedded `![alt](asset:<id>)` refs per D51 — never stored blocks), one variant,
+   normal bus emission (`messageCommitted`). Caller-gated by the injected op's own seam (rpg calls
+   it from host-authority verbs/workloads). Consumers here: recaps (06 §3), scene-merge summaries
+   (07 §2), illustration posts (08 §2). *(Why a chat verb and not rpg writing `messages`: the one
+   canon-write path — rpg persistence never touches chat tables.)*
+3. **`chat.getMembership(chatId, userId) → { role: ParticipantRole } | null` — NEW narrow read
+   op.** The 07 §3.1 `can()` matrix needs a loaded `ChatRoster` (`can(p, action, {kind:'chat',
+   roster})`), and `requireParticipant`/`requireHost` live in `domain/chat/guard.ts` —
+   sideways-unreachable. rpg receives this op on `RpgContext.chat`, loads the caller's membership
+   once per verb, and feeds `can()`; a `null` result is the not-a-participant 404. *(Why an op and
+   not rpg reading `chat_participants` via `@orb/db`: membership has ONE chokepoint — a second
+   loader is the drift the membership-enforcer gate exists to catch.)*
+4. **`kick` naming:** the roster-removal verb is `chat.kick` (the built name) — this set's earlier
+   `kickParticipant` spelling is corrected in §3.
+5. **`resolvePendingCheck`'s posted result (12 §3)** rides `postNarratorMessage`-style machinery?
+   NO — decided here: the server-minted `[check: …]` line posts as a **narrator message** (op #2)
+   that NAMES the player ("Vex rolls Stealth: 14 vs DC 15 — partial"), not as a forged user-authored
+   row (`authorUserId` is never stamped with an id whose principal didn't act — the D19/agent-principal
+   attribution honesty rule). 12 §3's "posts as that player's message" wording is amended accordingly.
 
 ## 2. The 8-slot layout
 
@@ -89,12 +140,14 @@ export interface RpgContext {
   emitDomainEvent: EmitDomainEvent;                  // the closed contracts/events bus (05 §5 mirror set)
   // cross-feature ops (types declared here; values wired at entry):
   chat: {
-    forkChat: (p: ForkChatParams) => Promise<ForkChatResult>;          // scenes (07 §2)
-    postNarratorMessage: (chatId, content, media?) => Promise<MessageId>; // recaps/summaries/illustrations
-    setGroupConfig: (chatId, cfg) => Promise<void>;                    // narrator-mode at createGame (07 §3)
-    setActivePreset: (chatId, presetId) => Promise<void>;
-    kickParticipant / addCharacterToChat: …;                           // scene roster pruning, recruit
+    forkChat: (p: ForkChatParams) => Promise<ForkChatResult>;          // scenes (07 §2) — BUILT
+    postNarratorMessage: (chatId, content, media?) => Promise<MessageId>; // recaps/summaries/illustrations — NEW chat verb (§1.1 #2)
+    setGroupConfig: (chatId, cfg) => Promise<void>;                    // narrator-mode at createGame (07 §3) — BUILT
+    getMembership: (chatId, userId) => Promise<{ role: ParticipantRole } | null>; // the can() roster feed — NEW narrow read op (§1.1 #3)
+    kick / addCharacterToChat: …;                                      // scene roster pruning, recruit — BUILT (the verb is `kick`, §1.1 #4)
   };
+  // NOTE: NO setActivePreset — per-chat preset binding is REJECTED (Nate 2026-07-02, §1.1 #1);
+  // the GM voice rides rpg_games.gmPresetId → RpgGatherResult.presetOverride.
   character: { getCard: …; create: … };              // sheets seeding, recruit promotion
   worldInfo: { upsertEntries: …; listEntryIndex: …; readConstantEntries: … };  // lorebook upkeep + world-gen canon
   imagery: { generatePicture: … };                   // 08
@@ -137,8 +190,8 @@ internals; the client imports `@orb/contracts/rpg` only. Enforcers: package deps
 ## 5. The `RpgService` surface (contract/service.ts, ~40 verbs)
 
 Groups: **game lifecycle** (createGame, startGame, updateConfig, regenerateWorldGen, applyWorldGen);
-**reads** (getGame, getHud, getTracker, getMap, getParty, listJournal, listQuests, listSessions,
-listCheckpoints, getEncounter); **turn seam** (gatherTurnContext, onUserCommit, onTurnCompleted,
+**reads** (getGame, getHud, getTracker, getMap, getParty, listNpcs, listJournal, listQuests,
+listSessions, listCheckpoints, getEncounter); **turn seam** (gatherTurnContext, onUserCommit, onTurnCompleted,
 applyToolCall); **player/host actions** (rollDice, editSnapshot, joinParty, recruitNpc,
 confirmCharacterDeath, widget CRUD, addJournalNote, checkpoint save/restore, startSession,
 concludeSession, applySessionOutcome, scene plan/create/conclude/abandon, retractRound,

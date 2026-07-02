@@ -79,16 +79,19 @@ domain (workloads.md: "bulk-pass implementations live in their owning feature").
 
 ```ts
 export interface ImageryOp {
-  /** domain/imagery's committed verb, committed vocabulary — mode/prompt/n/size (imagery.md §6). */
+  /** domain/imagery's verb, in the CURRENT imagery-design vocabulary (imagery-design/01 §3.2–3.3,
+   *  which wins on its own contract — corrected per design-review EXP-1: `caller: Principal`
+   *  (not a bare userId), NO `quiet` param (imagery has no posting concept — posting is a CALLER
+   *  concern, and this pass never posts), and the PLURAL `images[]` result of README flag 2). */
   generatePicture(p: {
+    caller: Principal;                       // bills/resolves as the requester (triggeredBy; ownerId for the CAS)
     mode: "free";                            // the sheet prompt is fully literal — no LLM extraction step
     prompt: string;
     negative?: string;
     n: 1;                                    // one sheet per job
     size: "landscape" | "square";            // §3.3 picks per grid aspect
-    quiet: true;                             // never posts to a chat
-    userId: UserId;                          // bills/resolves as the requester
-  }): Promise<GeneratedPicture>;             // { assetId, block, prompt, model, costUsd } — imagery.md §6.2
+  }): Promise<GeneratedPicture>;             // { images: [{assetId, generationId, block}], prompt, promptSource,
+                                             //   mode, model, costUsd, reused, warnings } — imagery-design/01 §3.3
 }
 
 export interface ImageOps {                  // provided by infra/image (the sharp adapter — D6 precedent)
@@ -168,9 +171,11 @@ have and doesn't want. The card IS the identity source, read directly via `getCa
 1. card ← getCard(characterId)                                   report 5%
 2. {cols, rows} ← gridFor(labels.length)
    {prompt, negative} ← compileSheetPrompt(...)
-3. pic ← imagery.generatePicture({ mode:"free", prompt, negative, n:1,
-     size: rows === 1 ? "landscape" : "landscape", quiet:true, userId })   report 50%
-4. sheet ← assets.readBytes(pic.assetId)
+3. pic ← imagery.generatePicture({ caller, mode:"free", prompt, negative, n:1,
+     size: labels.length === 1 ? "square" : "landscape" })   report 50%
+     // 1×1 grid → square; every multi-cell grid (n×1 strip, 4×2) is wider than tall → landscape
+     // (design-review EXP-2 — the earlier dead ternary picked "landscape" on both branches)
+4. sheetAssetId ← pic.images[0].assetId; sheet ← assets.readBytes(sheetAssetId)   // plural result (EXP-1)
 5. cells ← image.sliceGrid(sheet, {cols, rows})                  // throws SheetGenerationError on
                                                                  //   cells.length < labels.length
 6. for i in labels: cell ← switch (matte)                        // §4: arm resolved at the verb
@@ -181,7 +186,7 @@ have and doesn't want. The card IS the identity source, read directly via `getCa
    (signal checked between cells — cancel-safe)
 7. persistence.batchUpsert(characterId, labels.map((l,i) => ({label:l, assetId:stored[i].id})))
                                                                  report 100%
-8. return { written: labels.length, labels, sheetAssetId: pic.assetId, model: pic.model, costUsd: pic.costUsd }
+8. return { written: labels.length, labels, sheetAssetId, model: pic.model, costUsd: pic.costUsd }
 ```
 
 ## 4. Background removal — DESIGNED, two arms (model preferred, flood fallback)

@@ -125,5 +125,6 @@ alone is a shippable feature** (auto-lorebook upkeep); each later chunk adds one
 9. **Economics smoke** — a crew run lands a stats row under the host's ownerId via the standard
    workload path (no new stats surface).
 10. **Guides suite** (doc 06 §7) — refresh-core goldens (labeled vs raw, `{{previousGuide}}`,
-    blank-refusal, `guide:<key>` id convention), auto-refresh latch + never-throws-into-the-loop,
-    the seven-verb host/member authority matrix, the disable/re-enable round-trip.
+    blank-refusal, the `injectionId` linkage — mint-on-first-refresh / NULL-on-flush / re-mint),
+    auto-refresh latch + never-throws-into-the-loop, the seven-verb host/member authority matrix,
+    the disable/re-enable round-trip.

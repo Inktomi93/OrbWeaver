@@ -55,10 +55,15 @@ chat.generateImage(p: {
 ```
 
 Order: `requireParticipant(caller, chatId)` → map wire request → injected
-`imagery.generatePicture` → unless `quiet`: persist ONE message whose variant body =
-`picture.images[*].block` (n media blocks, one message — Q5) → map `picture.warnings` onto the
-chat `warning` event surface → return. `quiet: true` returns the picture with `messageId: null`
-(the composer preview flow).
+`imagery.generatePicture` → unless `quiet`: persist ONE message whose variant body is a
+**STRING containing n embedded asset refs** — `![<alt>](asset:<assetId>)` per image, one message
+(Q5: n images, one message) — per **D51's law**: a message body is stored as a `string` (D26 one
+content home); render blocks are PARSED from the string at render, never stored. The
+`GeneratedPictureImage.block` field is a render-ready convenience for DIRECT consumers (the
+composer preview, workload posters), never a persistence payload. → map `picture.warnings` onto
+the chat `warning` event surface → return. `quiet: true` returns the picture with
+`messageId: null` (the composer preview flow). *(Corrected per design-review IMG-1 — the earlier
+"variant body = blocks" wording was the exact shape D51 rejected.)*
 
 ### 2.2 Message authorship — DECIDED: the initiating principal
 
@@ -75,8 +80,10 @@ turn, not a stamp forgery.
 ### 2.3 In-turn vs post-turn — both, by caller (no imagery knowledge of either)
 
 - **In-turn (autonomous):** the model calls the `generate_image` TOOL mid-turn (D48 loop — agent-
-  sdk or the domain-owned OpenAI-wire recurse); the tool result carries the blocks; the loop's
-  persist path lands them on the variant. Imagery is just the tool executor.
+  sdk or the domain-owned OpenAI-wire recurse); the tool result (a `ToolCallRecord` — D48's
+  persistence) carries the asset ids; any image the model then shows rides the variant's body
+  STRING as embedded `![…](asset:<id>)` refs (D51 — never stored blocks). Imagery is just the
+  tool executor.
 - **Post-turn/explicit:** `chat.generateImage` (§2.1) from the client button//imagine arm.
 - Imagery itself is caller-blind — it returns blocks; whoever holds message-write authority posts
   them. WHY: imagery owns no table but `imagery_generations` and must never grow chat's membership

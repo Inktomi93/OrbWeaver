@@ -86,10 +86,18 @@ its D46 reconciliation clause already names plugins as **source (b)** gated by `
 (tool-use.md §4). The plugin side, concretely:
 
 - At activation, `host.tools.register(def)` hands the def to the injected tool-use registrar op.
-  The registered name is **namespaced `plugin:<slug>:<name>`** — collisions with builtin/host
-  tools (and rpg's 23) are structurally impossible, and provenance is legible in every
-  `ToolCallRecord`. *(Rejected: flat names — first collision breaks a shipped campaign; rejected:
-  a separate plugin-tool registry — the exact "parallel universe" D48 forbids.)*
+  The registered name is **namespaced `plugin_<slug'>_<name>`**, where `slug'` = the manifest slug
+  with `-` → `_` (injective — slugs contain no underscores by their own regex, 02 §1) and the
+  guest-supplied `name` must match `/^[a-z][a-z0-9_]{0,40}$/` (host-validated at registration);
+  the combined name must satisfy tool-use's registry contract `/^[a-z][a-z0-9_]{0,63}$/` (OpenAI
+  function-name ∩ MCP charset — tool-use-design/01 §1; an over-length combination is an
+  activation-fatal refusal). **Corrected per design-review PLG-1** — the earlier
+  `plugin:<slug>:<name>` colon form could never register (colons are outside the wire charset).
+  Collisions with builtin/host tools (and rpg's 26) stay structurally impossible via the prefix,
+  and provenance stays legible in every `ToolCallRecord`. *(Rejected: flat names — first collision
+  breaks a shipped campaign; rejected: a separate plugin-tool registry — the exact "parallel
+  universe" D48 forbids; rejected: widening the registry charset to admit `:` — it would break the
+  OpenAI-wire projection for every tool.)*
 - The registry entry's capability check runs `can()` **as the installing principal** at INVOCATION
   time (not just registration) — a plugin tool invoked in a chat its installer can't read fails
   the tool call with errors-as-data (the model corrects; never a crash).

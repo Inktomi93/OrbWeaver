@@ -135,7 +135,9 @@ membership + arbitration + per-agent isolation are BUILT):
   (narrator-mode output; the party-boundary reminder block) — marinara converged on the same
   design after its party-turn agent went vestigial (verified: zero client importers).
 - **The GM turn** = a narrator-mode group turn: game chats set
-  `GroupConfig{output:'narrator', cardScope:'merged'}` at `createGame`; narrator turns are
+  `GroupConfig{output:'narrator'}` at `createGame` — the landed narrator arm is `.strict()` and
+  OMITS `cardScope` (`narrator ⇒ merged` is enforced by shape; a literal `cardScope` on that arm
+  is REJECTED at parse — design-review RPG-3); narrator turns are
   authored by the synthetic group character (never NULL — chat Part III §10), which makes the GM
   a real authoring identity for memory/attribution for free.
 - **Arbitration**: humans post freely (never scheduled); the GM responds via normal narrator

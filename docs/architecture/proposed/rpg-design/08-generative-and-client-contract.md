@@ -111,6 +111,7 @@ tRPC read verbs (thin router → `RpgService`; every one `requireParticipant`, h
 | `rpg.getMap(chatId)` | `RpgMapView` | member: revealed geometry only; host: full + `revealed` flags |
 | `rpg.listJournal(chatId, filter?)` / `rpg.listQuests(chatId)` | paged entries / quests (member view strips `gmNotes`) | |
 | `rpg.getParty(chatId)` | sheets + arcs + volatile summary | |
+| `rpg.listNpcs(chatId)` | the living cast: name, emoji, portrait ref, reputation TIER label, location | the 11 §6 Cast tab's read |
 | `rpg.listSessions(chatId)` / `rpg.listCheckpoints(chatId)` | history surfaces | |
 | `rpg.getEncounter(chatId)` | active encounter state (combatant cards, round log, legal-action hints, counterplay text) | |
 | `rpg.stream(chatId)` | the rpg bus subscription (05 §5) — member stream; host stream adds hidden-clock events | resumable-shape like chat.streamMessages |

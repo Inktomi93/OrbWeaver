@@ -111,8 +111,8 @@ toAgentToolServer(
 - `CreateAgentToolServer` is the agent-sdk backend's exposed factory type (the D47 barrel seam,
   `infra/providers/contract/agent.ts`) — tool-use depends DOWN on infra (legal) and receives the
   factory injected so tests stub it without an SDK dependency.
-- `AgentToolServer` stays the opaque `unknown`-brand from the D47 contract (SDK-decoupled, D8);
-  tool-use never narrows it.
+- `AgentToolServer` stays the opaque `unknown` from the D47 contract (a plain `unknown` alias,
+  not a brand — `infra/providers/contract/agent.ts:18`; SDK-decoupled, D8); tool-use never narrows it.
 - **Buddy is the first consumer** (Phase 7): buddy's `ask` resolves its curated tool names,
   calls `toAgentToolServer`, passes the server on `AgentTurnRequest.mcpServer`, and persists the
   collected records with its turn row. Buddy's tools keep their propose-don't-execute posture at

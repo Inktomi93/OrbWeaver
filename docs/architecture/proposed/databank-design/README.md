@@ -21,7 +21,8 @@ document is a NEW **single-owned canon producer** (`documents.ownerId` + `fetchO
 `content_hash` staleness, `(model,dim)` space tag, NO `ownerId` — D20). ST's three scopes map onto
 orbweaver's two ownership categories via three per-type FK junctions
 (`global_documents`/`character_documents`/`chat_documents` — never a polymorphic `(type,id)` table,
-D24). The graft is ~70% reuse: chunks ride `embeddings.store` (a 5th discriminated arm — the ONE
+D24). The graft is ~70% reuse: chunks ride `embeddings.store` (a new discriminated arm — the 4th
+`SOURCE_KINDS` member feeding the 5th vector table; the ONE
 write path), retrieval is a `search.documents` lens (the ONE engine — rank, then reading-order
 restore, then dedupe), the original bytes ride the per-user CAS (D21, a `document` `AssetKind`),
 and the chat graft is ONE optional injected GATHER op (`databank.gatherRetrieval`) filling a
@@ -79,12 +80,13 @@ nothing about the substrate changes.
    the corpus union pattern exists in `search/persistence/scope.ts`, flipping databank to the
    membership union is a one-site change in `resolveActiveDocumentIds` (doc 05 §3). Flagging so
    the asymmetry is a known choice, not drift.
-3. **SSRF prerequisite home.** The scrapers' remote-fetch guard (`safeFetch` +
-   `isAllowedImageBuffer`) is a shared infra prerequisite whose design home is
-   `proposed/gallery-design.md` §6 (the B4/B5a rows); the staged seam itself is
+3. **SSRF prerequisite home — cite UPDATED (D61; design-review DB-2).** The scrapers'
+   remote-fetch guard (`safeFetch` + `isAllowedImageBuffer`) is a shared infra prerequisite whose
+   AUTHORITATIVE design is now **`proposed/hub-browse-design/01-network-guard.md`** (B5a —
+   self-enforcing posture, required host allowlist, dimension caps, `@orb/kit/image-sniff`);
+   `gallery-design.md` §6 carries the delta banner pointing there, and the staged seam itself is
    `infra/network/egress.ts` (`Tier-3-Infra.md`). This set cites it one-line only (doc 06 §5) and
-   designs nothing — if gallery-design relocates or renames the seam, doc 06's cite is the only
-   touch-point here.
+   designs nothing — exactly the relocation this flag anticipated.
 4. **Additive column extensions to the committed DDL** (doc 02 argues each): `documents` gains
    `updatedAt`, `extractorVersion`, `sourceUrl`; `document_chunks` gains `charStart`/`charEnd`.
    All additive, none alters a committed column/index/invariant. Lead sign-off requested since the

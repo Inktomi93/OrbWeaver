@@ -88,14 +88,13 @@ assets (D21).
    cites the real home.
 8. **PD flag:** imagery's registry flag is **PD-93** (the D49/BUILD-PLAN `PD-54` on imagery is a
    verified copy-paste stale — `Core-SillyTavern-Feature-Map.md` §note 1).
-9. **Vocabulary divergence vs the concurrent automation design (needs the lead).** Both sets agree
-   on the dictated names (`generate_image` arm → injected `imagery.generatePicture`), but
-   `proposed/automation-design/03-actions.md` §1.7 ships a NARROWER arm arg schema
-   (`{type, mode, promptTemplate, quiet}` — macro-rendered `promptTemplate`, no
-   negative/n/size/subjectCharacterId/useAvatarReference/reuse) than the
-   `generateImageActionArgsSchema` this set defines in `@orb/contracts/imagery` (doc 01 §6, per
-   the "spec the arm's args from imagery's side" directive). Reconcile one way: this set's
-   position is the arm imports imagery's schema (the args are imagery vocabulary — the
-   `ParamsByKind` kind-owner precedent), with automation's `promptTemplate` macro-render happening
-   before it fills `prompt`; if the lead prefers automation's minimal v1 arm, doc 01 §6 and
-   doc 04 §1 narrow accordingly.
+9. **RESOLVED (design-review IMG-2, 2026-07-02) — the flagged divergence is STALE.**
+   `proposed/automation-design/03-actions.md` §1.7 as it stands IMPORTS
+   `generateImageActionArgsSchema` from `@orb/contracts/imagery` verbatim (and names the inline
+   alternative as rejected) — exactly this set's position. The "narrower
+   `{type, mode, promptTemplate, quiet}` arm" this flag described was an earlier automation draft;
+   no divergence remains. One vocabulary, one schema home (doc 01 §6 / doc 04 §1).
+10. **D51 persist-path wording corrected (design-review IMG-1, 2026-07-02).** Doc 04 §2.1/§2.3 now
+   state the D51 law explicitly: the persisted message body is a STRING with embedded
+   `![alt](asset:<id>)` refs; `GeneratedPictureImage.block` is a render-ready convenience for
+   direct consumers, never a persistence payload.

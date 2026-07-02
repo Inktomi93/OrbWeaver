@@ -50,9 +50,12 @@ injections need their own gate.
 
 **DECISION: `ChatInjection` gains `audience?: "all" | "host"` (additive, default `"all"`).** The
 model always sees every injection (audience gates HUMANS, not the model). Chat's prompt-inspection
-projections — `previewAssembly`, `peekPrompt`, and the variant `promptSnapshot` read path —
-REDACT `audience:"host"` injections (elide content, keep a `[host-only injection]` placeholder)
-unless the caller `requireHost`s. This is a small, generic chat-contract amendment (the satellite
+projections — `previewAssembly`, `peekPrompt`, and the variant `promptSnapshot` read path (i.e.
+WHICHEVER chat read verbs project `message_variants.promptSnapshot` to a caller — the detail
+message read + any debug/inspect surface; the redaction lives in the projection layer, one helper,
+every snapshot-serving verb routes through it — design-review CREW-6) — REDACT `audience:"host"`
+injections (elide content, keep a `[host-only injection]` placeholder) unless the caller
+`requireHost`s. This is a small, generic chat-contract amendment (the satellite
 table, doc 02 §2) — generic on purpose: rpg's reminder or a future feature can use the same field.
 *(Rejected: no gate + "don't enable the director in chats where spoilers matter" — a prose-only
 boundary is a wish (AGENTS-1 §2.3). Rejected: a crew-side prompt filter — crew cannot reach into

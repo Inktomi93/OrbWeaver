@@ -76,7 +76,7 @@ auditor aren't "narrative".)*
 | `kit/macro` registry | nothing — the director rides the injection list, not a macro (04 §2 argues it) | 04 §2 |
 | `domain/chat` | ONE optional injected op: `ChatContext.crew?: { gatherTurnContext }`; preview/peek surfaces filter injections by `audience` vs caller authority | 04 §2 |
 | `domain/character` | `card_evolution_proposals` + 4 verbs (`proposeCardEvolution` env-only · `listCardEvolutionProposals` · `acceptCardEvolution` · `dismissCardEvolution`) | §5, 03 §2 |
-| `domain/world-info` | nothing new — the D58-committed `upsertEntries` bulk injected op is reused as-is | 03 §1 |
+| `domain/world-info` | nothing new to DESIGN — the `upsertEntries` bulk injected op is D58-COMMITTED but NOT YET IN THE TREE; whichever builder arrives first (crew CW2 or rpg R7) lands the same op (doc 08's dependency table owns the race) | 03 §1, 08 |
 | `domain/workloads` | 4 new `WorkloadKind`s + runners + `WorkloadChatCrewEnv` on the runner-env | 03 |
 | `@orb/contracts/workloads` + `@orb/db/schema/workloads.ts` | the `WORKLOAD_KINDS` tuple widens by the 4 `crew-*` kinds ⇒ the `workloads.kind` CHECK REGENERATES (the D34 derivation; rides the `0000_baseline` squash). All 4 kinds are born in CW1 with STUB runners so `RUNNERS`/`exhaustive-dispatch` stay green (the D58 `reconcile-world-state` stub precedent); CW2–CW5 replace their stubs | 08 CW1 |
 | `@orb/server/kit` | `runStructuredAgentTurn` — the shared call-agentTurn-with-responseFormat + zod-validate + ONE-bounded-retry helper (rpg crew runners converge on it too — doc 05 §e) | 03 §0 |
@@ -190,7 +190,7 @@ proposal-Map replace-on-new semantic, made durable).
 
 **`crew_guides`** — the persistent-guide definitions (composite PK `(chatId, guideKey)`): specced
 in full in doc 06 §2 (definition-only rows; the guide CONTENT's one home is the `chat_injections`
-row `guide:<guideKey>`).
+row linked by the stored `injectionId` FK — doc 06 §1's CREW-1 linkage, never a magic-id format).
 
 ## 5. The `domain/character` table — `card_evolution_proposals` (character-owned, NOT crew-owned)
 

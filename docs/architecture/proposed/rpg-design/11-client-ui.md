@@ -77,8 +77,8 @@ stakes (pillar P3) must survive "immersive-ST" mode, where both side panels are 
 homed in CONTEXT vanishes exactly when the player is most immersed. The shell's "leftover width
 feeds CONTEXT, not a wider chat" rule is unviolated: the flanks consume CONTENT-internal leftover
 around the 65–75ch prose cap, which is dead space in a game chat. *Rejected: HUD as a CONTEXT tab
-(vanishes in immersive mode); a fifth shell region (a shell change for one feature — D55's four
-regions stay).*
+(vanishes in immersive mode); a fifth shell region (a shell change for one feature — the D42/D43
+shell's four regions stay).*
 
 ## 2. The HUD — the 8 widget kinds → `@orb/ui` primitives
 
@@ -264,7 +264,7 @@ rendered through the standard asset/avatar path, sized by container.
 **DECISION:** ONE game panel as a CONTEXT-panel section with tabs — **Tracker · Party · Map ·
 Cast · Journal · Quests** — plus an encounter takeover state. Deep-dive surfaces (full character
 sheet, GM tools) are drawers on top. WHY: the CONTEXT panel is the shell's designed detail home and
-gets the dock⇄overlay⇄collapse behavior (D55 clamp-overlay) for free on every viewport. *Rejected:
+gets the dock⇄overlay⇄collapse behavior (the D43 clamp-overlay shell) for free on every viewport. *Rejected:
 a drawer per surface (stacking hell, six entry points to remember); a full-screen game dashboard
 route (the game happens IN the chat — a separate route re-creates marinara's mode split); marinara's
 draggable/lockable floating panels (the D44 appearance spec explicitly cut `movingUI` free-form
@@ -469,8 +469,9 @@ the game LOOP. This is the sanctioned pretty pass:
   lands, a "Scene view" panel tab rendering the latest `MessageMedia` large is the zero-risk
   interim. This recovers the best of marinara's VN presentation WITHOUT the VN layer.
 - **Expression sprites at the table edge** — the committed expressions stage (D49, 09e) IS the
-  sprite layer: `ChatEvent{kind:"expression"}` already fires per turn for sprite-equipped
-  characters; the rpg slice mounts the sprite holder beside the HUD. Zero rpg server work.
+  sprite layer: the `ChatBusEvent` `{type:"expression"}` member (expressions-design 02 §4 — `type`,
+  not `kind`; fires per turn for sprite-equipped characters once that set builds); the rpg slice
+  mounts the sprite holder beside the HUD. Zero rpg server work.
 - **Weather/ambience flourish** — subtle client-only gradient/particle treatment derived from the
   HUD's weather/time view data (rain streaks, night dimming). Respects `prefers-reduced-motion`;
   data already ships.

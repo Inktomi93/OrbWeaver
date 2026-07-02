@@ -96,9 +96,12 @@ R3 (views + bus exist) and grow with R4/R8. **Size: L** (see doc 11 sizing).
 **D58 confirmations + the GM-seat deltas (doc 12 §8):** RPG is COMMITTED — this plan is scheduled
 work, not a proposal. R8b (elements) confirmed ship-last-OPTIONAL. The C11 client polish pass is a
 COMMITTED chunk (11 §12.2). Seat additions fold into existing chunks: **R1** gains
-`rpg_games.gmUserId` + `rpg_pending_checks` + the `playerRollsOwnChecks`/`assist` config fields
+`rpg_games.gmUserId` + `rpg_games.gmPresetId` (the GM-voice column, 02 §1.1 #1) +
+`rpg_pending_checks` + the `playerRollsOwnChecks`/`assist` config fields
 (born into baseline); **R3** gains `requireGmSeat`/`requireGmEyes` + `assignGmSeat` + the re-keyed
-GM-eyes projections + the handshake verbs; **R4** gains the speaker-identity gather variants +
+GM-eyes projections + the handshake verbs + the NEW generic chat surface (02 §1.1:
+`postNarratorMessage` · `getMembership` · the gather `presetOverride` consumption point — small
+chat PRs landed with/before their consuming chunk); **R4** gains the speaker-identity gather variants +
 `request_check` + the per-speaker GroupConfig flip on seat assignment; **R6/R7** gain the crew
 seat-invokable arms + the director's seat-aware enqueue gate; the console UI is C12/C13 (11 §14).
 

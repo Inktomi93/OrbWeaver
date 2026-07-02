@@ -7,7 +7,11 @@
 
 **The frame (the governing rule): the GM is a SEAT, not a mode.** There is no `if (gmMode)`
 anywhere — the same discipline as `no-if(isGroup)`. The seat is game DATA: held by the synthetic
-group character → AI GM (docs 01–11 unchanged); held by a human participant → human GM. The
+group character → AI GM (docs 01–11 unchanged); held by a human participant → human GM.
+*(Pointer note — D60: an AGENT-PRINCIPAL holder is a committed THIRD seat state;
+`agent-principal-design/05` §2 amends this doc's three seat-keyed sites — `requireGmSeat`'s
+sentinel, the gather dispatch, and the director-disarm/GM-eyes keys — from "human vs NULL" to
+"holder KIND". This doc stays authoritative for the human/NULL states.)* The
 deterministic substrate, the state model, clocks, encounter legality, the information rings — all
 seat-agnostic. The one structural insight this design exploits: **the 23 D48 tools were already
 thin wrappers over `domain/rpg` VERBS** (05 §3 — every tool names its owning verb). A human GM
@@ -94,9 +98,11 @@ NEW table `rpg_pending_checks` (03 §10b, R1 baseline): `id` text PK `RpgPending
 Flow: the GM (human via console `rpg.requestCheck`, or the AI via the `request_check` tool variant)
 creates a pending check → `rpg.checkRequested` bus event → the target player sees a "Roll it" chip
 (11 §16) → `rpg.resolvePendingCheck(pendingId)` (member, own row only — distinct from the `resolveCheck` engine verb the `skill_check` tool wraps, 05 §3 #2) → the server rolls (04 §2, same
-engine, same consequence picker) → the result posts as that player's canonical
-`[check: Stealth 14 vs DC 15 — partial]` message text (server-minted, the dice-text pattern of
-05 §6) + lands in `result` → the next GM turn (human reads the chip; AI GATHER includes
+engine, same consequence picker) → the result posts as a server-minted NARRATOR message that
+names the player — `[check: Vex — Stealth 14 vs DC 15 — partial]` (via the `postNarratorMessage`
+chat verb, 02 §1.1 #2/#5; never a forged user-authored row — `authorUserId` is only ever a
+principal that acted, the D19 attribution-honesty rule) + lands in `result` → the next GM turn
+(human reads the chip; AI GATHER includes
 resolved-since-last-turn checks). `decline` is first-class (the player narrates refusal instead —
 agency). Auto-`expired` after 24h.
 
