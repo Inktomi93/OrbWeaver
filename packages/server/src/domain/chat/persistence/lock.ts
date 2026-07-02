@@ -6,8 +6,10 @@
 // eligible. Determinism: `now`/`expiresAt` arrive as PARAMS (the verb's injected clock + the LOCK_TTL_MS it
 // owns — the TTL constant is a domain concern, not a schema one).
 //
-// FLAG[PD-62]: the movement table marks this primitive "candidate → infra — open". It lives in `chat`
-// for now (chat is its only consumer); if a second domain ever needs a DB lock, lift it to `infra` verbatim.
+// Home DECIDED (PD-62, closed 2026-07-01): the old "candidate → infra" target was ILLEGAL under the
+// `infra-no-db` dep-cruiser law (a DB-backed primitive cannot live in infra — the proof case is
+// `oidc-store.ts`, which moved OUT of infra for exactly this). The lock stays domain-local; promote to
+// `@orb/db/kit` ONLY iff a second domain ever needs a DB lock (Alex-doctrine YAGNI).
 
 import type { Db } from "@orb/db";
 import { chatLocks } from "@orb/db";
