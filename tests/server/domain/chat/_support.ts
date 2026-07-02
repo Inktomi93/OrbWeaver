@@ -297,6 +297,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       }
     },
     readPresence: notStubbed,
+    resolveHandle: notStubbed,
     embeddingsStore: notStubbed,
     searchDigests: notStubbed,
     searchCorpus: notStubbed,

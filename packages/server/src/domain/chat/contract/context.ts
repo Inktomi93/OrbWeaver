@@ -36,6 +36,7 @@ import type {
   ChatInviteId,
   ChatParticipantId,
   ChatStreamEventId,
+  Handle,
   MessageId,
   MessageVariantId,
   PersonaId,
@@ -154,6 +155,11 @@ export type NotificationsEmitOp = (
   coStatements?: readonly unknown[],
 ) => Promise<void>;
 
+/** `sessions.resolveHandle` — the EXACT handle→userId lookup for TARGETED invites (PD-66; chat.md §2 —
+ *  no listing, rate-limited at transport). Unknown/disabled collapses to null. Sessions is the sanctioned
+ *  `users` reader; chat never reads `users` itself (`no-direct-users-read`). */
+export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
+
 /** `presence.read` — the server-derived SSE liveness for a `userId` (NEVER client-asserted — a spoofable
  *  presence is a prompt-composition attack). Read once per round for cast-gating (a flip takes next round). */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
@@ -271,6 +277,7 @@ export interface ChatContext {
   readonly summarizerContextTokens: number;
   // ── notifications / presence ──
   readonly emitNotification: NotificationsEmitOp;
+  readonly resolveHandle: ResolveHandleOp;
   readonly readPresence: PresenceReadOp;
   // ── memory substrate (consumed by memory/) ──
   readonly embeddingsStore: EmbeddingsStoreOp;

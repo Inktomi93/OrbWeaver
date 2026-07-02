@@ -98,6 +98,8 @@ export interface ChatComposeInput {
   readonly preset: PresetService;
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
+  /** sessions' EXACT handle→userId (PD-66 targeted invites) — the sanctioned users reader, injected DOWN. */
+  readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
@@ -391,6 +393,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // event (the subscription replays from the table by `seq`; the row is on `list` regardless).
     // `coStatements` (PD-24): the producer's membership-transition statements commit in ONE batch WITH the
     // INSERT (record owns the commit); the publish still runs strictly AFTER that commit.
+    resolveHandle: (handle) => input.resolveHandle(handle),
     emitNotification: async (event, coStatements) => {
       const view = await input.notifications.record({
         event,

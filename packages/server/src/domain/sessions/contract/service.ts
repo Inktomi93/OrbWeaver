@@ -13,7 +13,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams } from "./params";
 import type {
   CreateSessionResult,
@@ -82,6 +82,9 @@ export interface SessionsService {
    *  REAL role — sessions is the sanctioned `users` reader, so the read homes here. @internal — only the
    *  `entry/auth` seam's `createHostPrincipalResolver` calls it. */
   loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
+  /** EXACT handle→userId (PD-66 — targeted chat invites; chat consumes this as an injected op). A
+   *  disabled/unknown handle collapses to null (leak-free; no listing — exact match only). */
+  resolveHandle: (handle: Handle) => Promise<UserId | null>;
   /** LOCAL password login (PD-83): resolve `(handle, password)` → the row's `UserId`, or `null` for an
    *  unknown handle / SSO-only (null-hash) row / wrong password / DISABLED row — all four collapse into
    *  one leak-free null, and every path burns the same KDF time (the dummy-hash constant-time floor —

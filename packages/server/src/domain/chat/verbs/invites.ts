@@ -14,9 +14,11 @@
 //                          (service.ts — chat-internal, shared with fork/read/start-chat; not entry-wired,
 //                          so it cannot live on the entry-assembled `ChatContext`).
 //
-// FLAG[PD-66]: `createInvite` supports the SHARE-LINK path only. Targeted-by-handle needs a
-// `resolveHandle` (handle→userId) op (chat.md §2 "exact resolveHandle") that exists nowhere — so a targeted
-// request throws rather than silently degrading to a share-link.
+// TARGETED invites (PD-66 cleared): `createInvite` resolves `invitedHandle` through the injected
+// `ctx.resolveHandle` (sessions' EXACT handle→userId — chat.md §2: no listing; the probe surface is
+// transport-rate-limited). An unknown/disabled handle is a coded `invite_target_unknown` refusal (the
+// exact-handle existence answer is inherent to targeting; it is NEVER silently degraded to a share-link).
+// The stored `invitedUserId` scopes preview/redeem/decline to the target (already leak-free downstream).
 // FLAG[avatar-on-self-view]: the joining caller's `ParticipantView.avatarAssetId` resolves via
 // `loadParticipantViews` (root) — see that resolver; the verb does not read personas/assets directly.
 
@@ -30,7 +32,7 @@ import type {
 } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { ChatId, Handle } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
@@ -118,15 +120,21 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
 }
 
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered HASH, return the raw token ONCE for
- *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link only (FLAG[PD-66]). */
+ *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link by default; a targeted
+ *  invite resolves `invitedHandle` → `invitedUserId` (PD-66 — file header). */
 function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
+    // PD-66: resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
+    let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
-      throw new DomainOperationError(
-        "invite_target_unsupported",
-        "targeted-by-handle invites need a handle→userId resolver (not wired); use a share-link invite",
-      );
+      invitedUserId = await ctx.resolveHandle(input.invitedHandle);
+      if (invitedUserId === null) {
+        throw new DomainOperationError(
+          "invite_target_unknown",
+          "no invitable user with that exact handle",
+        );
+      }
     }
     const at = ctx.now();
     const token = randomBytes(TOKEN_BYTES).toString("base64url");
@@ -140,7 +148,7 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
       maxUses,
       uses: 0,
       expiresAt,
-      invitedUserId: null,
+      invitedUserId,
       status: "pending",
       createdAt: at,
     });
@@ -151,7 +159,7 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
       maxUses,
       remainingUses: maxUses, // uses = 0 at creation
       expiresAt,
-      invitedUserId: null,
+      invitedUserId,
       createdAt: at,
     };
     return { invite, token };
