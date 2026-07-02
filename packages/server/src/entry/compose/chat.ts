@@ -58,6 +58,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
+import { publishNotification } from "../../transport/trpc";
 
 /** Per-chat turn-lock TTL (ms), sized for one turn — the lock auto-expires so a crashed holder's lock is
  *  takeover-eligible (the steady-state recovery; boot reclaim handles this replica's own orphans). */
@@ -375,10 +376,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     summarize: input.roleClients.summarize,
     summarizerContextTokens: input.roleClients.summarizerContextTokens,
-    // emit = the durable INSERT (`record`) only; the after-commit per-user bus fan-out is TRANSPORT's
-    // (PD-23, not built) — FLAG[notifications-busfanout]. The row is deliverable from `list` regardless.
+    // emit = durable-FIRST then fan-out (PD-23): `record` INSERTs the row (assigning `seq`), THEN the
+    // persisted view is published onto transport's per-user live bus — a dead bus path never loses an
+    // event (the subscription replays from the table by `seq`; the row is on `list` regardless).
     emitNotification: async (event) => {
-      await input.notifications.record({ event });
+      const view = await input.notifications.record({ event });
+      publishNotification(view);
     },
     // FLAG[PD-70]: presence is not built (the transport SSE ref-count is its source). Report
     // everyone present / never-dropped so cast-gating never silently mutes a participant.

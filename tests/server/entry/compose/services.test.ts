@@ -6,9 +6,9 @@
 import { tmpdir } from "node:os";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, characterTags, tags } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { characterEmbeddings, characterTags, chatParticipants, chats, tags } from "@orb/db";
+import type { ChatParticipantId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
@@ -22,6 +22,7 @@ import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
+import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
 import { expect, test } from "../../../support/fixtures";
@@ -447,6 +448,75 @@ function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
     providerSeams: { vllmClient: fakeEmbedClient() },
   });
 }
+
+describe("notifications fan-out (PD-23) — record (durable) → publishNotification (live)", () => {
+  test("a chat producer emit is durable-first AND lands on the recipient's live bus", async () => {
+    const db = await freshDb();
+    const clock = createFrozenClock();
+    const result = await createServices({
+      db,
+      now: clock.now,
+      ownerId: castId<UserId>("u_owner"),
+      secretBoxKey: null,
+      casDir: tmpdir(),
+      variantDir: tmpdir(),
+      sessionSecret: "test-session-secret-at-least-32-chars",
+      vllmDisabled: true,
+    });
+    const host = await seedUser(db, { handle: "host" });
+    const member = await seedUser(db, { handle: "member" });
+    // A REAL TypeID — the notification event schema validates the branded id shape at the record seam.
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    await db.insert(chats).values({ id: chatId, createdAt: clock.now(), updatedAt: clock.now() });
+    await db.insert(chatParticipants).values([
+      {
+        id: castId<ChatParticipantId>("chat_participant_h"),
+        chatId,
+        kind: "human",
+        userId: host,
+        role: "host",
+        joinSeq: 0,
+        joinedAt: clock.now(),
+      },
+      {
+        id: castId<ChatParticipantId>("chat_participant_m"),
+        chatId,
+        kind: "human",
+        userId: member,
+        role: "member",
+        joinSeq: 0,
+        joinedAt: clock.now(),
+      },
+    ]);
+
+    // Tail the recipient's live channel BEFORE the producer emits (`on()` buffers from call time).
+    const ac = new AbortController();
+    const iter = subscribeNotifications(member, ac.signal)[Symbol.asyncIterator]();
+    const nextLive = iter.next();
+    try {
+      await result.services.chat.kick({ principal: principal(host), chatId, userId: member });
+
+      // LIVE half: the PERSISTED InboxView (with its seq) arrives on the per-user bus…
+      const live = await nextLive;
+      expect(live.done).toBe(false);
+      expect(live.value?.payload).toMatchObject({
+        type: "kicked",
+        recipientUserId: member,
+        chatId,
+      });
+      expect(live.value?.seq).toBeGreaterThan(0);
+      // …DURABLE half: the same event is on the recipient's inbox (deliverable without the bus).
+      const inbox = await result.services.notifications.list({ principal: principal(member) });
+      expect(inbox.items.map((i) => i.type)).toContain("kicked");
+      expect(inbox.items.find((i) => i.type === "kicked")?.seq).toBe(live.value?.seq);
+    } finally {
+      // Pre-arm the terminal next() so the abort's AbortError rejection is HANDLED (no unhandled noise).
+      const closed = iter.next().catch(() => undefined);
+      ac.abort();
+      await closed;
+    }
+  });
+});
 
 describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("corpusAutoindex ON → indexer subscribed; a character write embeds (row persisted)", async () => {
