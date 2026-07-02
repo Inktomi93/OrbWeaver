@@ -1,6 +1,6 @@
 # 03 — State Model & Schema (every table, every contract, every semantic)
 
-> **Status: PROPOSED design (prescriptive).** The complete persistence design for `domain/rpg`.
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete persistence design for `domain/rpg`.
 > Everything here is buildable from this doc alone: full DDL intent per table (columns/FKs/CHECKs),
 > the zod contract schema for every JSON column, and the behavioral semantics (swipe keying, commit,
 > locks, clone-forward) with their rationale. Marinara evidence: [`../rpg/01-state-model.md`](../rpg/01-state-model.md)
@@ -46,6 +46,7 @@ deletes marinara's 413 raw `JSON.parse` + 324 casts (corpus 08). A failed parse 
 | `chatId` | text notNull FK → `chats.id` CASCADE, **UNIQUE** | one game per chat; the game dies with the chat |
 | `status` | text notNull CHECK in `RPG_GAME_STATUSES` | `setup → ready → active → concluded` (marinara: the shared type omitted `ready` — the runtime had 4 states; we model all 4) |
 | `sessionNumber` | int notNull default 1 | current session ordinal |
+| `gmUserId` | text FK → `users.id` SET NULL, nullable | **the GM SEAT** (doc 12 §1 — authoritative). NULL = the AI holds the seat (narrator); non-null = that human participant is the GM. Host-assigned (`assignGmSeat`), audited |
 | `config` | text(json) `RpgGameConfig` notNull | the session-zero wizard output (§1.1) |
 | `worldOverview` | text notNull default `''` | player-visible world intro |
 | `storyArcSecret` | text notNull default `''` | **HIDDEN** — GM-only narrative spine |
@@ -85,8 +86,14 @@ export const rpgGameConfigSchema = z.object({
   houseRules: z.object({                                   // NET-NEW: the mechanics dials (04)
     failForward: z.boolean().default(true),
     criticalRange: z.number().int().min(19).max(20).default(20),
-    deathRule: z.enum(["defeat-only", "character-death"]).default("defeat-only"), // brutal ⇒ character-death allowed
-    elementPreset: z.enum(RPG_ELEMENT_PRESETS).nullable().default(null),          // 04 §12; null = elements off
+    deathRule: z.enum(["defeat-only", "character-death"]).default("defeat-only"), // brutal ⇒ character-death allowed — DECIDED (D58): a kill ALWAYS requires per-death host confirm
+    elementPreset: z.enum(RPG_ELEMENT_PRESETS).nullable().default(null),          // 04 §12; null = off — DECIDED (D58): ship-last-optional (R8b)
+    playerRollsOwnChecks: z.boolean().default(false),                              // doc 12 §3 — flips the AI GM to the request/resolve handshake
+  }).default({}),
+  assist: z.object({                                    // doc 12 §4 — the AI's role at a HUMAN-GM table
+    npcActors: z.boolean().default(false),
+    recapOnSessionStart: z.boolean().default(true),
+    lorebookUpkeep: z.boolean().default(false),
   }).default({}),
   imagery: z.object({
     enabled: z.boolean().default(false),
@@ -436,6 +443,15 @@ automation rules (09b) can create `manual` checkpoints if wanted. `restore` = cl
 snapshot as a new committed snapshot on a fresh narrator message (locks preserved), restore
 `activeState`; campaign tables are NOT rolled back (same as marinara — a checkpoint is a scene
 bookmark, not a full save; the doc for the verb says so loudly).
+
+## 10b. `rpg_pending_checks` — the check request/resolve handshake (doc 12 §3 — authoritative)
+
+`id` PK, `gameId` FK CASCADE, `targetPartyMemberId` FK → `rpg_party.id` CASCADE, `skill` text
+notNull, `dc` int CHECK 2..30, `advantage`/`disadvantage` int(bool), `reason` text, `requestedBy`
+CHECK in `["gm-seat","gm-model"]`, `status` CHECK in `["pending","resolved","declined","expired"]`,
+`result` text(json `RpgCheckResult`) nullable, `createdAt`, `resolvedAt` nullable. Partial unique
+index: one `pending` row per `targetPartyMemberId`. Used by the human GM always; by the AI GM when
+`houseRules.playerRollsOwnChecks` is on.
 
 ## 11. `rpg_encounters` + `rpg_scenes`
 

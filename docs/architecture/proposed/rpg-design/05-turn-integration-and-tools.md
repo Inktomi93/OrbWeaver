@@ -1,6 +1,6 @@
 # 05 — Turn Integration: GATHER, BUILD slots, the Tool Registry, the Bus
 
-> **Status: PROPOSED design (prescriptive).** How a game turn rides chat's ONE pipeline
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** How a game turn rides chat's ONE pipeline
 > (RESOLVE→GATHER→BUILD→SHAPE, chat.md Part II) with zero chat-domain knowledge of rpg. The model's
 > entire side-effect surface is the D48 tool registry below — there is NO text-tag grammar
 > (marinara's `[reputation:]`/`[state:]`/`[widget:]`/1,124-line client parser evaporates; corpus 08).
@@ -115,12 +115,21 @@ modal).
 | 20 | `request_illustration` | `{title, prompt, subjects: string[]}` | `requestIllustration` | cadence-gated (08 §3) → enqueues `rpg-illustration` workload → async `MessageMedia` message |
 | 21 | `end_session` | `{reason}` | `flagSessionEnd` | marks the session `concluding`; the HOST confirms (a verb, not auto) — model proposes, table disposes |
 | 22 | `offer_choices` | `{choices: string[] (2..4)}` | `offerChoices` | CYOA quick-replies: staged on the turn; the client renders choice chips under the GM message (11); a click sends the choice text as that player's normal message. TERMINAL by convention (the reminder says: last thing in a turn). *(marinara's `[choices:]` cards, kept — a strong agency affordance. Its `[qte:]` timed overlays are DROPPED: real-time reflex timers fight an async multi-human chat; rejected with that reason, not deferred.)* |
+| 23 | `request_check` | `{targetRef, skill, dc(2..30), advantage?, disadvantage?, reason}` | `requestCheck` | the request/resolve HANDSHAKE (doc 12 §3): creates an `rpg_pending_checks` row the TARGET PLAYER resolves (their die, their click). Attached INSTEAD of `skill_check` when `houseRules.playerRollsOwnChecks` is on; the human GM fires the same verb from the console |
+
+**The GM-seat rule (doc 12 — authoritative):** every tool above executes through
+`requireGmSeat(game, {kind:"gm-model"})` — the AI tool path is only live while `rpg_games.gmUserId`
+IS NULL. When a human holds the seat there are no AI-GM turns and the SAME owning verbs are invoked
+via tRPC from the GM console (one vocabulary, two invokers). `gatherTurnContext` contributes per
+SPEAKER IDENTITY: narrator/group-character → the full GM context; an AI NPC-actor speaker (doc 12
+§5) → the table-visible ring only (never `{{rpgSecrets}}`); this speaker dispatch is the ONE seat
+touch-point in gather — no `if(gmMode)` exists anywhere else.
 
 **Encounter set** (attached instead of 16/17 while an encounter is active — 07 §2):
 `encounter_round` (per-member typed actions → full deterministic round), `attempt_flee`,
 `conclude_encounter` (server has already flagged terminal; returns the `RpgCombatSummary`).
 
-Tool-count sanity: ~21 defs ≈ marinara's tag grammar + bespoke endpoints, but every one is
+Tool-count sanity: ~23 defs ≈ marinara's tag grammar + bespoke endpoints, but every one is
 schema-validated, capability-gated, provenance-recorded, and consumed by exactly one verb.
 `ModelCapability.tools` absent ⇒ game chats REQUIRE a tool-capable model — `rpg.createGame`
 validates the chat's resolved connection up front and refuses with a clear error (the Tier-3b

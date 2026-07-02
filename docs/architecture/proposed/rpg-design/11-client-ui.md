@@ -1,6 +1,6 @@
 # 11 — Client & UI Design (the game surface)
 
-> **Status: PROPOSED design (prescriptive).** The complete client design for RPG mode: where the game
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete client design for RPG mode: where the game
 > UI lives in the shell, what renders each server-computed fact, and how freshness flows. Built
 > against orbweaver client law (`core/UI-Architecture-and-Layout.md` D42/D43/D44/D54 — feature-slice,
 > container-driven layout, `@orb/ui` seals, the gate battery) and the server design (docs 01/03/04/05
@@ -533,12 +533,39 @@ C2–C10 parallelize after C1. Sizes: S ≈ a day-scale agent chunk, M ≈ a few
 | C8 | composer affordances | dice popover + `/roll` + address toggle | **S** |
 | C9 | encounter surface | panel takeover + initiative strip + summary card | **M** |
 | C10 | setup wizard | the 4-step factory form + create/ready flow | **M** |
-| C11 | polish pass (optional — §12.2) | scene-view interim · sprite holder · weather flourish · effect map · readables · dice animation | **M** |
+| C11 | polish pass (**COMMITTED** — D58; §12.2) | scene-view interim · sprite holder · weather flourish · effect map · readables · dice animation | **M** |
+| C12 | GM console + GM-eyes (§15; after C7) | verb palette/forms · GM-eyes panel tab · seat controls | **M** |
+| C13 | seat affordances (§16) | pending-check chips · GM message badge · wizard "who runs the game?" radio | **S** |
 
 Theming (§8) ships no v1 chunk — it activates with the D44 per-chat scope axis (§12.2's scene
 backdrop upgrades onto it when it lands).
 
-## 15. Cross-refs
+## 15. The GM console + the GM-eyes panel (doc 12 — the human-GM surface)
+
+**The console** grows the C7 GM drawer (host tools stay; seat tools join, each gated by what the
+server lets the CALLER do — the drawer renders from a server-delivered capability list, never a
+client-side role guess): a searchable **command palette** of the seat verbs (scene patch ·
+advance time · clocks create/tick · NPC upsert/reputation · quests/journal · map edit/reveal ·
+encounter start/round forms · loot · request-check · illustration) — each a small form over the
+SAME tRPC verbs the AI's tools wrap (doc 12 frame: one vocabulary, two invokers), all through
+`createEntityMutation`. *(Rejected: a D46 automation-action surface — automation is Phase 8 and
+these are direct verbs; rejected: free-text GM slash-commands — forms over typed verbs beat a
+grammar.)* **The GM-eyes panel** is a game-panel tab that mounts iff `RpgGmView` resolves for the
+caller (the seat holder; host only while the seat is NULL — doc 12 §6): story arc secret · twist
+bank · hidden clocks (`<SegmentedClock>` with a "hidden" treatment) · quest `gmNotes` · pending
+checks. Spoiler safety is server projection — this tab renders what arrives, and for a playing
+host with a friend GM, nothing arrives.
+
+## 16. Seat affordances in the stream + wizard
+
+The **pending-check chip**: `checkRequested` (bus) → the target player's client shows a banner/chip
+("The GM calls for a Stealth check, DC 15 — Roll it / Decline") → `rpg.resolvePendingCheck` → the
+server-minted `[check: …]` text posts as their message; the chip renders the band like any check
+chip (§4). **GM message badge**: messages whose `authorUserId` is the current `gmUserId` get a GM
+chrome badge (derived from the seat via `RpgGameView`, never from message text). **Wizard**: step 2
+gains the "Who runs the game?" radio (AI · Me · A friend…) per doc 12 §7.
+
+## 17. Cross-refs
 
 01 (the loop this UI serves) · 03 §2.3/§8/§12 (locks, widgets, views) · 04 (the math the client must
 NOT own) · 05 §3/§5/§6/§7 (tools, bus, dice text, address modes) · `core/UI-Architecture-and-Layout.md`

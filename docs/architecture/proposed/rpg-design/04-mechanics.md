@@ -1,6 +1,6 @@
 # 04 — The Deterministic Mechanics Rulebook (`domain/rpg/substrate/`)
 
-> **Status: PROPOSED design (prescriptive).** The complete house rules. Every function here is PURE
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete house rules. Every function here is PURE
 > (zero I/O, zero LLM, injected `Rng` + clock), lives in `domain/rpg/substrate/`, and ships with
 > golden tests. Where a marinara formula was sound it ports verbatim (cited); where the deep-dive
 > flagged a balance landmine it is REDESIGNED here with the rejected original named. The model never
@@ -146,8 +146,9 @@ same primitives.
   marinara's was aspirational doc text; enemies retreat narratively.)*
 - **Down/death:** hp≤0 → `downed` (acts no more); all party downed → encounter `defeat`.
   `houseRules.deathRule === "character-death"` (default under brutal) lets defeat narration kill —
-  the GM is TOLD it may; the server marks the party row `leftSession` if the host confirms via
+  the GM is TOLD it may; the server marks the party row `leftSession` ONLY when the host confirms via
   `rpg.confirmCharacterDeath` (a host verb, never a model tool — death is a table decision).
+  **DECIDED (D58): no unconfirmed kills, ever — the per-death host confirm is not a dial.**
 
 ## 4. (reserved)
 

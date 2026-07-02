@@ -1,6 +1,6 @@
 # 02 — The Domain Shape: `domain/rpg`, its Satellites, and One Home per Mechanic
 
-> **Status: PROPOSED design (prescriptive).** The code geography. ONE new domain (`domain/rpg`,
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The code geography. ONE new domain (`domain/rpg`,
 > 8-slot template) + additive arms in committed homes. No `domain/director`, no `domain/journal`,
 > no `domain/campaign` — everything game-shaped lives in `rpg` (they exist only together, for a
 > game); everything NOT game-shaped lands in its committed owner (the domain-of-affect rule,
@@ -23,7 +23,7 @@ Satellite work in committed homes (additive, small):
 |---|---|---|
 | `@orb/contracts/rpg` | NEW contracts module (views, tuples, bus events, tool result schemas) | 03 §12 |
 | `@orb/contracts/events` | additive rpg members on the closed domain-event union | 05 §5 |
-| `@orb/db/schema/rpg.ts` | the 13 tables | 03 |
+| `@orb/db/schema/rpg.ts` | the 14 tables | 03 |
 | `@orb/kit/ids` | the rpg TypeID prefixes | 03 §0 |
 | `kit/macro` registry | the 8 `rpg*` data-fed macros | 06 §1 |
 | `domain/tool-use` | nothing structural — rpg registers via the existing registry API at compose | 05 §3 |
@@ -43,13 +43,13 @@ domain/rpg/
 ├── bus.ts              the rpg SSE bus + replay ring (05 §5) — ASSUMES(single-replica) annotated
 ├── contract/           (03 §12 — the full file list)
 ├── verbs/              one logical verb per file, grouped:
-│   ├── game.ts             createGame · startGame · updateConfig · getGame/getHud/getTracker/… (reads)
+│   ├── game.ts             createGame · startGame · updateConfig · assignGmSeat (doc 12) · getGame/getHud/getTracker/… (reads)
 │   ├── world-gen.ts        applyWorldGen · regenerateWorldGen (workload enqueue + apply)
 │   ├── gather-turn-context.ts   the chat GATHER op (05 §1) — read-only assembly
 │   ├── apply-tool-call.ts  the tool executor entry: dispatch table over the tool tuple (mapped-type
 │   │                        Record — exhaustive-dispatch) → the owning verb per tool
 │   ├── snapshot.ts         patchSnapshot · editSnapshot · onUserCommit · onTurnCompleted · resolve reads
-│   ├── checks.ts           rollDice · resolveCheck (consequence application lives here)
+│   ├── checks.ts           rollDice · resolveCheck (consequence application lives here) · requestCheck/resolvePendingCheck (the doc-12 handshake)
 │   ├── time-weather.ts     advanceTime (+weather roll + encounter roll piggyback)
 │   ├── party.ts            joinParty · patchPartyVolatile · patchInventory · recruitNpc · confirmCharacterDeath
 │   ├── npcs.ts             upsertNpc · applyReputation

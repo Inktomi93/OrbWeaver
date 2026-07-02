@@ -1,6 +1,6 @@
 # 06 — The GM: Preset-Owned Voice, the Format Reminder, and the Async Crew
 
-> **Status: PROPOSED design (prescriptive).** How the GM is COMPOSED: (in-turn) the preset-owned
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** How the GM is COMPOSED: (in-turn) the preset-owned
 > system prompt + rpg macros + the depth-0 format reminder + the tool set; (async) the Workload
 > crew that does the offscreen GM work. There is NO agent pipeline (buddy.md invariant #3) and NO
 > out-of-band blocking LLM call anywhere in the turn path. Marinara evidence cited `(marinara: …)`;
@@ -122,6 +122,12 @@ is DEAD).
 | `rpg-lorebook-upkeep` | after `rpg-session-distill` succeeds, when `config.lorebook.keeperEnabled` | session summary + transcript + existing entry index (cap 80) → `{entries: {entryName, keys[], content, tag}[]}` — STEAL the brief: *"durable continuity only… When exact dialogue matters, copy the exact lines"*; session-stamped entry names; ≤1 world-lore + ≤1-per-member + ≤1 revelations | via injected `worldInfo.upsertEntries` op (domain-of-affect: world-info owns the write; rpg owns the WHEN) — constant entries, replace-same-session-on-rerun |
 | `rpg-illustration` | `request_illustration` tool (cadence-gated) or host button | prompt + subjects + art style + avatar refs → image | via injected `imagery.generatePicture` (08) — posts a `MessageMedia` narrator message on completion |
 | `rpg-npc-portrait` | new NPC upsert (when imagery enabled) | npc identity fields + art style → image | `rpg_npcs.avatarAssetId` (08 §2) |
+
+**Seat re-partition (doc 12 §4 — authoritative):** at a HUMAN-GM table the crew becomes
+seat-invokable console actions (recap · lorebook-upkeep · illustration/portrait · scene
+plan/distill), world-gen stays the host's prep assistant, session-distill is unchanged, and
+`rpg-director` NEVER runs (a human GM IS the director — its cadence counter doesn't arm while
+`gmUserId` is set).
 
 NOT crew (dissolved): marinara's tracker agents (world-state / character-tracker / persona-stats /
 custom-tracker / quest) — their entire job was extracting state from prose; tools made extraction

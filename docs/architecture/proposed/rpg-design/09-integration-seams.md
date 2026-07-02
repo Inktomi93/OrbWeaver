@@ -1,6 +1,6 @@
 # 09 — Integration Seams (the nine explicit answers + the polyfill)
 
-> **Status: PROPOSED design (prescriptive).** Each seam: the DECISION, the mechanism, the rejected
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Each seam: the DECISION, the mechanism, the rejected
 > alternative. These are the places rpg touches committed law — every answer stays inside what the
 > owning doc already commits.
 

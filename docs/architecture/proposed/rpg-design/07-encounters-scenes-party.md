@@ -1,6 +1,6 @@
 # 07 — Sub-Engines: the Encounter Engine, Scenes, and Party Play
 
-> **Status: PROPOSED design (prescriptive).** Three sealed subsystems. The governing template is
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Three sealed subsystems. The governing template is
 > marinara's ONE well-engineered subsystem — the turn-game framework (pure engine, engine-authored
 > legality, seeded RNG, snapshot-anchored rewind, tool-call moves with deterministic fallback) —
 > applied to combat; its two badly-engineered ones (the no-authority LLM combat sidecar; the
@@ -150,6 +150,13 @@ membership + arbitration + per-agent isolation are BUILT):
   `rpg_party.leftSession` stamp (history preserved; memory witnessing handles recall).
 
 ### 3.1 The `can()` matrix (rpg's half of the auth spine)
+
+> **Seat amendment (doc 12 §2 — authoritative where they differ):** the matrix below predates the
+> GM SEAT. Doc 12 splits the "host" column into **GM seat** (narrative authority — snapshot/clock/
+> NPC/map/encounter/scene/loot verbs + their tool twins) vs **host** (room/config authority —
+> config, sessions, checkpoints, seat assignment, death confirm, recruit, world-gen), and re-keys
+> GM-eyes reads to the seat holder (host only while the seat is NULL). Rows below not named by
+> doc 12 §2 stand unchanged.
 
 Every rpg verb routes `can(principal, action, {kind:'chat', roster})` — membership from
 `rpg_games.chatId`; no rpg-private auth code (the committed chat `can()` seam):

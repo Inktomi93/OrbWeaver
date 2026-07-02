@@ -1,6 +1,6 @@
 # 01 — Vision & the Experience Loop (what game we are building, and why it's fun)
 
-> **Status: PROPOSED design (prescriptive).** This doc defines the GAME — the player experience the
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** This doc defines the GAME — the player experience the
 > `domain/rpg` build must deliver — before any code shape. Every mechanic in the rest of the doc set
 > traces back to a loop stage here; a mechanic that serves no loop stage does not get built.
 > Marinara facts appear only as one-line rationale citations (the research corpus in
@@ -10,7 +10,7 @@
 
 ## 0. The one-paragraph pitch
 
-Orbweaver's RPG mode turns a chat room into a **table**: the model is the GM, the server is the
+Orbweaver's RPG mode turns a chat room into a **table**: the GM is a SEAT — held by the model (the default) or by a HUMAN participant (doc 12; "for folks who have friends and those who don't") —, the server is the
 **rules engine and dice tower**, and every human in the roster is a **player** with their own
 character. The server owns all math, state, and hidden information; the model narrates outcomes it is
 handed and *requests* mechanical actions through tools; the client renders visible stakes (HUD,
@@ -159,7 +159,7 @@ block a turn and never run a completion inside the turn path.
   it the single most genuinely designed system in marinara (real combinatorial depth, complete
   swappable preset tables). It only pays off inside the encounter engine, so it builds as the final
   encounter chunk (10 §chunks) — the full tables + resolver are specced in 04 §12 so the future
-  builder ports data, not judgment. The encounter contract carries `element` from day one
+  builder ports data, not judgment. **DECIDED (D58): ship-last-OPTIONAL (R8b), confirmed.** The encounter contract carries `element` from day one
   (reserved-additive; no schema change later).
 - **`GameGmMode` / intro "direction command" sequences** — presentation-era features of marinara's VN
   layer; orbweaver's client owns presentation (D44 world).

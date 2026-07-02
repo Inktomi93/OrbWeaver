@@ -1,6 +1,6 @@
 # 10 — The Phased Build Plan (independently shippable chunks)
 
-> **Status: PROPOSED design (prescriptive).** Phase 7+ work (this maps onto orbweaver's phase
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Phase 7+ work (this maps onto orbweaver's phase
 > numbering: everything here follows Phase 5 chat — BUILT — and rides Phase-7 committed domains).
 > Each chunk: scope → checkpoint (the observable it ships) → size (S/M/L) → hard dependencies.
 > Chunks are ordered so every one lands green (`pnpm check` + `pnpm test`) and playable-or-testable
@@ -22,7 +22,7 @@
 ## The chunks
 
 **R1 — Contracts + schema + substrate (the bedrock).** `@orb/contracts/rpg` (tuples, view/bus/
-tool-result schemas) · `@orb/db/schema/rpg.ts` (13 tables into baseline) · `@orb/kit/ids` prefixes ·
+tool-result schemas) · `@orb/db/schema/rpg.ts` (14 tables into baseline) · `@orb/kit/ids` prefixes ·
 ALL of `substrate/` (04: every engine + constants + `applyLockedPatch` + consequence picker) with
 the full golden suite. *Checkpoint:* `pnpm test` runs ~180 substrate goldens; schema round-trips
 green. **Size: L** (bulk is mechanical table-porting; the goldens are the work).
@@ -43,7 +43,7 @@ hidden-state canary tests green; a hand-seeded game renders correct HUD/tracker/
 not deep.
 
 **R4 — Turn integration (the heart).** `gatherTurnContext` + the 8 macros + `reminder.ts` +
-the tool registry (all 22 defs) + `applyToolCall` dispatch + the chat-side injected ops +
+the tool registry (all 23 defs) + `applyToolCall` dispatch + the chat-side injected ops +
 entry wiring. *Checkpoint:* the 05 §8 suite — scripted tool sequences through the REAL recurse
 loop mutate state correctly; non-game byte-identity holds; **first playable session** (solo, no
 crew, no art): create → hand-write worldOverview → play with checks/clocks/time/journal live on
@@ -89,9 +89,20 @@ scene, play it, merge the summary; recruit an NPC into the roster with a generat
 **R11 — Client (doc 11's own chunk plan).** The `features/rpg` slice per doc 11. Can start after
 R3 (views + bus exist) and grow with R4/R8. **Size: L** (see doc 11 sizing).
 
+**D58 confirmations + the GM-seat deltas (doc 12 §8):** RPG is COMMITTED — this plan is scheduled
+work, not a proposal. R8b (elements) confirmed ship-last-OPTIONAL. The C11 client polish pass is a
+COMMITTED chunk (11 §12.2). Seat additions fold into existing chunks: **R1** gains
+`rpg_games.gmUserId` + `rpg_pending_checks` + the `playerRollsOwnChecks`/`assist` config fields
+(born into baseline); **R3** gains `requireGmSeat`/`requireGmEyes` + `assignGmSeat` + the re-keyed
+GM-eyes projections + the handshake verbs; **R4** gains the speaker-identity gather variants +
+`request_check` + the per-speaker GroupConfig flip on seat assignment; **R6/R7** gain the crew
+seat-invokable arms + the director's seat-aware enqueue gate; the console UI is C12/C13 (11 §14).
+
 **Later / reserved (explicitly NOT scheduled):** per-player declared-action widgets for encounters
 (07 §1.2 flag) · the Tier-3b textual-tool-call polyfill (09 §+) · plugin game-tools capability (09c)
-· media/audio scoring · turn-games · a `propose_scene` tool · per-player secret notes ring.
+· media/audio scoring · turn-games · a `propose_scene` tool · per-player secret notes ring · the
+delegate-principal seam for chat's force-turn/mute when host ≠ GM (doc 12 §5 FLAG — a chat-domain
+decision).
 
 ## Cross-chunk rules
 

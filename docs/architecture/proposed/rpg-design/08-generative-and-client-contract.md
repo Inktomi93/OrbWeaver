@@ -1,6 +1,6 @@
 # 08 — The Generative Layer & the Client Contract (server side)
 
-> **Status: PROPOSED design (prescriptive).** Two halves: (§1–4) the rpg-owned IMAGERY
+> **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Two halves: (§1–4) the rpg-owned IMAGERY
 > orchestration — a thin policy layer over the committed `domain/imagery` (D49) — and (§5–7) the
 > exact server contract the game client consumes (views, streams, verbs). The client's own design
 > (surfaces, primitives, slices) is doc 11. Marinara evidence: [`../rpg/05-generative-pipeline.md`](../rpg/05-generative-pipeline.md)
@@ -94,6 +94,7 @@ tRPC read verbs (thin router → `RpgService`; every one `requireParticipant`, h
 | `rpg.stream(chatId)` | the rpg bus subscription (05 §5) — member stream; host stream adds hidden-clock events | resumable-shape like chat.streamMessages |
 
 Mutation verbs the client calls directly (beyond the model's tools): `rollDice` (dice button),
+`resolvePendingCheck` (the doc-12 handshake), `assignGmSeat` + the GM-console seat verbs (doc 12 §2),
 `editSnapshot` (tracker edits + lock toggles), widget CRUD, journal `note` add, checkpoint
 save/restore, session start/conclude/applyOutcome, scene verbs, `joinParty`, `recruitNpc`,
 `confirmCharacterDeath`, game config edit, `regenerateWorldGen` — the full list with authority in
