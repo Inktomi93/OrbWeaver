@@ -22,6 +22,14 @@
   integration/scheduler/rings, the interconnection map, persistent guides, client/UI, the CW1–CW7
   build plan). Closes the residue B7/B8 rows; echo-chamber is SUBSUMED BY BUDDY. The ledger D59
   entry is the decision record; this set wins on detail.
+- **[`agent-principal-design/`](agent-principal-design/README.md)** — **COMMITTED (D60).** The
+  authoritative, prescriptive design for agents as first-class principals — the §8.6/PD-17
+  transition ("buddy gets its own ID") (README + 7 docs: identity + the mint
+  (`users.kind`/`ownerUserId` + `provisionAgentPrincipal`), the roster kind split + live
+  `authorUserId` attribution, the capability ceiling (Principal-unconstructability + the closed
+  `canAgent` union), the buddy firewall inversion, the seats (party/GM/crew bright line),
+  ripples, the AP0–AP4 build plan + containment suite). The ledger D60 entry is the decision
+  record; this set wins on detail.
 - **[`tool-use-design/`](tool-use-design/README.md)** — **COMMITTED (D48).** The ONE tool
   registry + both wire projections (agent-sdk MCP / OpenAI-wire), the registration API, result
   serialization for the client chips, the structured-output axis, T1–T7 build plan. Its README

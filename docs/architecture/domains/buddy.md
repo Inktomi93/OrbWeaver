@@ -133,6 +133,10 @@ EXPOSED by the chat domain or constructed directly at `entry/` from the sealed r
 
 ## The §8.6 first-class-principal transition (blast radius — defer the mechanics)
 
+> **D60 (2026-07-01): the mechanics this section defers are now FULLY DESIGNED — authoritative:
+> [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md) (solo
+> `buddy_turns` survives byte-identical; the inversion + seating are its doc 04).
+
 Today the buddy is **not** a `users` row. `buddies.userId → users.id` makes it act **as the owner**, and
 that borrowed identity gives three safety properties _for free_:
 

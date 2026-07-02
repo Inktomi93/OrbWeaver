@@ -2,6 +2,10 @@
 
 > **Status: planning (authoritative detail).** This is a cross-cutting Spine document.
 
+> **D60 (2026-07-01): the agent-principal mechanics are now FULLY DESIGNED — authoritative:
+> [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md); this
+> file's agent digest is superseded on any conflict by that set + the ledger D60 entry.
+
 Findings that fix the target:
 
 - **Resolve identity ONCE at the edge → one immutable `Principal` flows down.** Today it's resolved
