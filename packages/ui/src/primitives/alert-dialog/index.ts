@@ -15,4 +15,3 @@ export {
 } from "./alert-dialog";
 export type { AlertDialogHandle } from "./handle";
 export { createAlertDialogHandle } from "./handle";
-export { alertDialogVariants } from "./variants";

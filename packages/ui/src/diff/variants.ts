@@ -5,7 +5,7 @@ import { tv } from "tailwind-variants";
  * success intent pair, removed text struck through on the destructive pair, unchanged plain.
  * Foreground/background always travel as a token PAIR — never an opacity calc over a raw color.
  */
-export const diffSegment = tv({
+export const diffSegmentVariants = tv({
   base: "whitespace-pre-wrap",
   variants: {
     kind: {

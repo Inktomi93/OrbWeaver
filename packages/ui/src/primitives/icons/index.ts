@@ -23,6 +23,7 @@ export {
   Minus,
   MoreHorizontal,
   MoreVertical,
+  MoveHorizontal,
   Pause,
   Pencil,
   Play,

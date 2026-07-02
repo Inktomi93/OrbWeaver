@@ -4,7 +4,7 @@ import { tv } from "tailwind-variants";
 // touch floor applies to the increment/decrement buttons, §4b axis 3); rings go inset because the
 // group clips overflow for the rounded border. The scrub area is a drag-to-scrub label (Base UI
 // ScrubArea) with a directional resize cursor; the ScrubAreaCursor is the custom pointer-lock glyph.
-export const numberField = tv({
+export const numberFieldVariants = tv({
   slots: {
     root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
     scrubArea:

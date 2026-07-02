@@ -4,7 +4,7 @@ import { tv } from "tailwind-variants";
 // native Clear button can sit flush inside it; the input fills the box transparently. The popup rides
 // bg-popover + z-(--z-overlay) (the stacking contract), items meet the touch floor and highlight on
 // bg-accent. --available-height/--anchor-width are Base UI Positioner-provided vars, not raw values.
-export const autocomplete = tv({
+export const autocompleteVariants = tv({
   slots: {
     inputGroup: [
       "relative flex h-control-sm w-full min-w-0 items-center rounded-control border border-border bg-input",

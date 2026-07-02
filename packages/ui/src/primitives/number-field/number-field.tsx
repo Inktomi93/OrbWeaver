@@ -2,26 +2,18 @@ import type { NumberFieldRootProps } from "@base-ui/react/number-field";
 import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import { numberField } from "./variants";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Icon/Minus/MoveHorizontal/Plus fine.
+import { Icon, Minus, MoveHorizontal, Plus } from "#primitives/icons";
+import { numberFieldVariants } from "./variants";
 
 const DECREMENT_LABEL = "Decrease";
 const INCREMENT_LABEL = "Increase";
 
-const slots = numberField();
+const slots = numberFieldVariants();
 
 // The scrub cursor glyph — a horizontal double-arrow shown during pointer lock while dragging. Base
-// UI ships the ScrubAreaCursor container, not the mark (inline SVG, the established seal pattern).
-const SCRUB_CURSOR_ICON: ReactElement = (
-  <svg aria-hidden="true" fill="none" height="14" viewBox="0 0 14 14" width="14">
-    <path
-      d="M4 4.5 1.5 7 4 9.5M10 4.5 12.5 7 10 9.5M1.5 7h11"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-    />
-  </svg>
-);
+// UI ships the ScrubAreaCursor container, not the mark (the lucide seal, not hand-SVG).
+const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
 export interface NumberFieldProps extends NumberFieldRootProps {
   className?: string;
@@ -61,20 +53,11 @@ export function NumberField(props: NumberFieldProps): ReactElement {
       ) : null}
       <BaseNumberField.Group className={slots.group()}>
         <BaseNumberField.Decrement aria-label={DECREMENT_LABEL} className={slots.decrement()}>
-          <svg aria-hidden="true" fill="none" height="12" viewBox="0 0 12 12" width="12">
-            <path d="M2.5 6h7" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
-          </svg>
+          <Icon icon={Minus} size="xs" />
         </BaseNumberField.Decrement>
         <BaseNumberField.Input className={slots.input()} />
         <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()}>
-          <svg aria-hidden="true" fill="none" height="12" viewBox="0 0 12 12" width="12">
-            <path
-              d="M6 2.5v7M2.5 6h7"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeWidth="1.5"
-            />
-          </svg>
+          <Icon icon={Plus} size="xs" />
         </BaseNumberField.Increment>
       </BaseNumberField.Group>
     </BaseNumberField.Root>

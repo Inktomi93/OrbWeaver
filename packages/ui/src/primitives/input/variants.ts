@@ -1,7 +1,7 @@
 import { tv } from "tailwind-variants";
 
 // The text-input skin — bg-input/border-border, h-control-sm floor (the ≥44px law, §4b axis 3).
-export const input = tv({
+export const inputVariants = tv({
   base: [
     "h-control-sm w-full min-w-0 rounded-control border border-border bg-input px-block text-body leading-body text-foreground",
     "placeholder:text-muted-foreground",

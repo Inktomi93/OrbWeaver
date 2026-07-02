@@ -15,4 +15,3 @@ export {
   PopoverTitle,
   PopoverTrigger,
 } from "./popover";
-export { popoverVariants } from "./variants";

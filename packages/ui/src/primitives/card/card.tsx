@@ -1,9 +1,9 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { card } from "./variants";
+import { cardVariants } from "./variants";
 
-export interface CardProps extends ComponentProps<"div">, VariantProps<typeof card> {}
+export interface CardProps extends ComponentProps<"div">, VariantProps<typeof cardVariants> {}
 
 /**
  * Card — the base surface container features compose (character cards, config panels). A styled
@@ -14,5 +14,5 @@ export interface CardProps extends ComponentProps<"div">, VariantProps<typeof ca
  * Usage: `<Card padding="section" interactive onClick={open}>…</Card>`.
  */
 export function Card({ className, padding, interactive, ...props }: CardProps): ReactElement {
-  return <div {...props} className={cn(card({ padding, interactive }), className)} />;
+  return <div {...props} className={cn(cardVariants({ padding, interactive }), className)} />;
 }

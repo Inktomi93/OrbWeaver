@@ -3,7 +3,7 @@ import { tv } from "tailwind-variants";
 // The checkbox skin — bg-input/border-border at rest; checked and indeterminate both flip to the
 // primary token with a glyph. The ::before pseudo lifts the hit area to the full touch-target
 // square so the ≥44px floor holds without a giant visible box (§4b axis 3).
-export const checkbox = tv({
+export const checkboxVariants = tv({
   slots: {
     root: [
       "relative inline-flex size-section shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-input text-primary-foreground",

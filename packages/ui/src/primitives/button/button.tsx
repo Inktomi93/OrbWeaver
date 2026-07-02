@@ -3,9 +3,9 @@ import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { button } from "./variants";
+import { buttonVariants } from "./variants";
 
-export interface ButtonProps extends BaseButtonProps, VariantProps<typeof button> {
+export interface ButtonProps extends BaseButtonProps, VariantProps<typeof buttonVariants> {
   className?: string;
   /** Busy state: sets `aria-busy` and disables the button (a state, not a variant). */
   loading?: boolean;
@@ -28,7 +28,7 @@ export function Button({
   return (
     <BaseButton
       aria-busy={loading ? true : undefined}
-      className={cn(button({ intent, size }), className)}
+      className={cn(buttonVariants({ intent, size }), className)}
       disabled={disabled || loading}
       {...rest}
     />

@@ -2,7 +2,7 @@ import type { ToggleGroupProps as BaseToggleGroupProps } from "@base-ui/react/to
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { toggleGroup } from "./variants";
+import { toggleGroupVariants } from "./variants";
 
 export interface ToggleGroupProps extends BaseToggleGroupProps<string> {
   className?: string;
@@ -16,5 +16,5 @@ export interface ToggleGroupProps extends BaseToggleGroupProps<string> {
  * Usage: `<ToggleGroup value={align} onValueChange={setAlign}><Toggle value="left">L</Toggle></ToggleGroup>`
  */
 export function ToggleGroup({ className, ...rest }: ToggleGroupProps): ReactElement {
-  return <BaseToggleGroup className={cn(toggleGroup(), className)} {...rest} />;
+  return <BaseToggleGroup className={cn(toggleGroupVariants(), className)} {...rest} />;
 }

@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ComponentPropsWithRef, ReactElement } from "react";
 import { cn } from "#lib";
-import { textarea } from "./variants";
+import { textareaVariants } from "./variants";
 
 export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
   className?: string;
@@ -22,6 +22,8 @@ export function Textarea({ className, ...rest }: TextareaProps): ReactElement {
   // data-invalid — onto it); Field.Control itself carries none, so its `<input>`-typed prop surface
   // never conflicts with the textarea's `onChange`/etc.
   return (
-    <BaseField.Control render={<textarea {...rest} className={cn(textarea(), className)} />} />
+    <BaseField.Control
+      render={<textarea {...rest} className={cn(textareaVariants(), className)} />}
+    />
   );
 }

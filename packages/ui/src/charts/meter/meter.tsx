@@ -3,7 +3,7 @@
 // rendering — so ONE hand-rolled ARIA mechanism (role="meter" + value semantics) covers all three
 // kinds (decision recorded in ui-package-design.md §10.4).
 import type { ReactElement } from "react";
-import { arcMeter, bipolarMeter, linearMeter } from "./variants";
+import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants } from "./variants";
 
 export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress (rpg-design/11 §2). */
@@ -63,7 +63,7 @@ interface TrackProps {
 }
 
 function LinearTrack({ aria, fraction, ticks, danger, className }: TrackProps): ReactElement {
-  const slots = linearMeter({ danger });
+  const slots = linearMeterVariants({ danger });
   return (
     <div {...aria} className={slots.root({ className })}>
       <div data-slot="fill" className={slots.fill()} style={{ width: pct(fraction) }} />
@@ -75,7 +75,7 @@ function LinearTrack({ aria, fraction, ticks, danger, className }: TrackProps): 
 }
 
 function ArcTrack({ aria, fraction, danger, className }: TrackProps): ReactElement {
-  const slots = arcMeter({ danger });
+  const slots = arcMeterVariants({ danger });
   const rotate = `rotate(${ARC_START_DEG} ${ARC_CENTER} ${ARC_CENTER})`;
   return (
     <svg {...aria} viewBox={`0 0 ${ARC_SIZE} ${ARC_SIZE}`} className={slots.root({ className })}>
@@ -122,7 +122,7 @@ function BipolarTrack({
   danger,
   className,
 }: BipolarTrackProps): ReactElement {
-  const slots = bipolarMeter({ danger });
+  const slots = bipolarMeterVariants({ danger });
   const start = Math.min(origin, fraction);
   const width = Math.abs(fraction - origin);
   return (

@@ -2,7 +2,7 @@ import type { Change } from "diff";
 import { diffChars, diffLines, diffWords } from "diff";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { diffSegment } from "./variants";
+import { diffSegmentVariants } from "./variants";
 
 // Axes declared ONCE as `as const` tuples, unions derived (§7.5 no-inline-union-redecl); both the
 // tuple and the alias stay local (no-inline-types + useComponentExportOnlyModules) — consumers name
@@ -61,7 +61,7 @@ export function DiffView({
   for (const change of changes) {
     const kind = kindOf(change);
     segments.push(
-      <span key={offset} data-diff={kind} className={diffSegment({ kind })}>
+      <span key={offset} data-diff={kind} className={diffSegmentVariants({ kind })}>
         {change.value}
       </span>,
     );

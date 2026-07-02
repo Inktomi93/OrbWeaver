@@ -4,12 +4,12 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve X/Icon fine (the spinner.tsx precedent).
 import { Icon, X } from "#primitives/icons";
-import { autocomplete } from "./variants";
+import { autocompleteVariants } from "./variants";
 
 // Breathing room between the input and the popup (a positioning input, not a styled length).
 const POPUP_SIDE_OFFSET = 4;
 
-const slots = autocomplete();
+const slots = autocompleteVariants();
 
 /** A category of suggestions rendered under a `GroupLabel` header. Values stay plain strings. */
 export interface AutocompleteGroup {

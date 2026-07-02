@@ -4,9 +4,9 @@ import type { RadioGroupProps as BaseRadioGroupProps } from "@base-ui/react/radi
 import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import { radioGroup } from "./variants";
+import { radioGroupVariants } from "./variants";
 
-const slots = radioGroup();
+const slots = radioGroupVariants();
 
 export interface RadioGroupProps extends BaseRadioGroupProps {
   className?: string;

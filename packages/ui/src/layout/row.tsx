@@ -1,8 +1,8 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { row } from "./variants";
+import { rowVariants } from "./variants";
 
-export interface RowProps extends ComponentProps<"div">, VariantProps<typeof row> {}
+export interface RowProps extends ComponentProps<"div">, VariantProps<typeof rowVariants> {}
 
 /**
  * Horizontal flex row, items centered by default, on the intent-token spacing scale
@@ -11,5 +11,5 @@ export interface RowProps extends ComponentProps<"div">, VariantProps<typeof row
  * Usage: `<Row gap="field" justify="between">…</Row>`.
  */
 export function Row({ className, gap, align, justify, padding, ...props }: RowProps): ReactElement {
-  return <div {...props} className={row({ gap, align, justify, padding, className })} />;
+  return <div {...props} className={rowVariants({ gap, align, justify, padding, className })} />;
 }

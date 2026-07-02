@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { emptyState } from "./variants";
+import { emptyStateVariants } from "./variants";
 
 export interface EmptyStateProps {
   /** Optional glyph slot — an `@orb/ui/icons` `<Icon>`, or the brand Weave glyph. */
@@ -26,7 +26,7 @@ export function EmptyState({
   action,
   className,
 }: EmptyStateProps): ReactElement {
-  const slots = emptyState();
+  const slots = emptyStateVariants();
   return (
     <div className={slots.root({ className })}>
       {icon === undefined ? null : <div className={slots.icon()}>{icon}</div>}

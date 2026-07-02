@@ -3,7 +3,7 @@ import { tv } from "tailwind-variants";
 // The badge/chip/pill skin — status token PAIRS on a rounded-full pill (ui-package-design §6.1).
 // There is no `info` color token (see theme.css), so `info` rides the accent surface pair — the
 // nearest neutral-highlight in the token set.
-export const badge = tv({
+export const badgeVariants = tv({
   base: "inline-flex select-none items-center gap-field whitespace-nowrap rounded-full font-medium",
   variants: {
     intent: {

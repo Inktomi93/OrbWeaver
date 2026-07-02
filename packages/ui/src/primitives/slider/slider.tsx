@@ -2,9 +2,9 @@ import type { SliderRootProps } from "@base-ui/react/slider";
 import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import { slider } from "./variants";
+import { sliderVariants } from "./variants";
 
-const slots = slider();
+const slots = sliderVariants();
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
 function thumbCount(value: number | readonly number[] | null | undefined): number {

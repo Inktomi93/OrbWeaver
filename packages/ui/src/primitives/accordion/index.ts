@@ -12,4 +12,3 @@ export {
   AccordionPanel,
   AccordionTrigger,
 } from "./accordion";
-export { accordionVariants } from "./variants";

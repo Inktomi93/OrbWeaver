@@ -1,8 +1,8 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { stack } from "./variants";
+import { stackVariants } from "./variants";
 
-export interface StackProps extends ComponentProps<"div">, VariantProps<typeof stack> {}
+export interface StackProps extends ComponentProps<"div">, VariantProps<typeof stackVariants> {}
 
 /**
  * Vertical flex stack on the intent-token spacing scale (UI-Arch §4; ui-package-design §6.1).
@@ -18,5 +18,5 @@ export function Stack({
   padding,
   ...props
 }: StackProps): ReactElement {
-  return <div {...props} className={stack({ gap, align, justify, padding, className })} />;
+  return <div {...props} className={stackVariants({ gap, align, justify, padding, className })} />;
 }

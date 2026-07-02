@@ -3,7 +3,7 @@ import { tv } from "tailwind-variants";
 // The select skin — slots across the sealed anatomy (trigger in-flow; positioner/popup portaled).
 // Popup rides bg-popover + z-(--z-overlay) (the stacking contract); items meet the touch floor.
 // --available-height/--anchor-width are Base UI Positioner-provided vars, not raw values.
-export const select = tv({
+export const selectVariants = tv({
   slots: {
     trigger: [
       "flex h-control-sm w-full min-w-0 cursor-pointer select-none items-center justify-between gap-row rounded-control border border-border bg-input px-block text-body leading-body text-foreground",
