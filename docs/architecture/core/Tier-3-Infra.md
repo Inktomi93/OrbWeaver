@@ -12,7 +12,7 @@
 > flow DOWN), §7 (the 13 legibility gates); `AGENTS.md` §2 (one-directional hard rule), §3 (the
 > `→ infra` taxonomy row: "external I/O adapter — provider, crypto, storage, network, auth
 > verification"), §7.1 (identity/auth spine — **auth VERIFICATION is infra; identity RESOLUTION + the
-> users-row upsert is `domain/sessions`**); `core/Core-Core-Legacy-Migration-and-Gaps.md` §0 (kit-purity LOCKED),
+> users-row upsert is `domain/sessions`**); `core/Core-Legacy-Migration-and-Gaps.md` §0 (kit-purity LOCKED),
 > §5 (`openai-models` → `infra/network`); the adjacent domain docs `domains/sessions.md` (the auth
 > seam split), `domains/credentials.md` (the crypto seam + AAD belt), `domains/assets.md` (the CAS
 > byte-store vs the assets-domain index split).

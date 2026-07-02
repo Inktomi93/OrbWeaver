@@ -3,7 +3,7 @@
 > **Status: planning (authoritative).** `entry/` is the topmost server tier — the ONE place allowed to
 > cross every boundary, because it _wires_ everything and owns no business logic. It was implicit across
 > ~12 docs (the scattered "→ entry" movement rows); this doc gives it a home (council/skeptic finding
-> #5). Upstream: `core/Core-0-Architecture-and-Structure.md §3` (the tier list — `entry` is the top), `core/Core-Core-Legacy-Migration-and-Gaps.md`
+> #5). Upstream: `core/Core-0-Architecture-and-Structure.md §3` (the tier list — `entry` is the top), `core/Core-Legacy-Migration-and-Gaps.md`
 > §8 (boot order), `core/Core-Laws-and-Precedents.md §4` (the build DAG), and every domain/tier doc's
 > "injected at the composition root" rows. Imports flow DOWN only; `entry` may import ANY lower tier
 > (transport, domain front doors, infra, foundation, kit) — it is the only tier that may, and nothing
@@ -118,7 +118,7 @@ sanctioned `@orb/db` bulk-read pattern) is a `domain-no-cross-feature` violation
 ## Boot order (the protocol `index.ts` runs)
 
 1. **env** (`foundation/env`) — the one `process.env` read; `superRefine` boot-fatality per `AUTH_MODE`.
-2. **crypto** — initialize `SecretBox` (the `.credentials-key` auto-key path + the boot decrypt-probe; see `core/Core-Core-Planning-and-Checklists.md`).
+2. **crypto** — initialize `SecretBox` (the `.credentials-key` auto-key path + the boot decrypt-probe; see `core/Core-Planning-and-Checklists.md`).
 3. **migrate** — `backupBeforeMigrate` → run migrations on an FK-off connection → `assertReferentialIntegrity` (`PRAGMA foreign_key_check`) → abort+restore on failure.
 4. **seed** — env→DB credential seed; default preset; default characters; `reclaimChatLocksOnBoot`.
 5. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the jobs worker poll loop.
@@ -126,7 +126,7 @@ sanctioned `@orb/db` bulk-read pattern) is a `domain-no-cross-feature` violation
 7. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`), start listening; healthz goes live.
 8. **shutdown** — drain in-flight turns, stop supervisors, healthz → 503.
 
-Package/contract build order: see `core/Core-Laws-and-Precedents.md §4` + `core/Core-Core-Audits-and-Debt.md`.
+Package/contract build order: see `core/Core-Laws-and-Precedents.md §4` + `core/Core-Audits-and-Debt.md`.
 
 ---
 
@@ -143,5 +143,5 @@ Package/contract build order: see `core/Core-Laws-and-Precedents.md §4` + `core
 ## Open decisions
 
 - **`compose/` granularity** — one `services.ts` graph vs per-concern files (recommended: the split shown above; collapse if it stays small).
-- **Event bus mechanism** — in-process typed `EventEmitter` for v1 (single-replica); the durable-outbox upgrade is the multi-replica seam (see `core/Core-Core-Planning-and-Checklists.md` — the `content_hash` catch-up sweep is the required reliability backstop regardless).
+- **Event bus mechanism** — in-process typed `EventEmitter` for v1 (single-replica); the durable-outbox upgrade is the multi-replica seam (see `core/Core-Planning-and-Checklists.md` — the `content_hash` catch-up sweep is the required reliability backstop regardless).
 - **`lifecycle.ts` home — DECIDED: `entry/lifecycle.ts`** (per DECISIONS-LEDGER §7 D5; the `foundation/lifecycle.ts` alternative is closed). It is a root entry file (boot protocol + injected deps, read by entry only); the one-directional invariant holds.

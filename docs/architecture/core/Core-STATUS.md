@@ -5,14 +5,14 @@
 > `/home/inktomi/inktomi-stack/development/orbweaver`). **We are BUILDING** — Phases 0–4b are committed
 > (planning is done; the design docs below remain authoritative). This file is the index + the locked
 > decisions + the NEXT action. **Latest decision: D54** (client-foundation modernization — the central-primitive
-> reuse model + surface→primitive map + the Form under-use fix standardized in `UI-Architecture-and-Layout.md` §13; **TanStack Virtual
+> reuse model + surface→primitive map + the Form under-use fix standardized in `UI-Primitives-and-Reuse.md` §13; **TanStack Virtual
 > KEPT, the "virtua swap" reversed** on refuted premises — `directDomUpdates` fix shipped + chat APIs native;
 > seven `client-tanstack-*`/`client-zustand` mine companions). Recent: D53 (regex scripts — three-source joint
 > attachment + host-authority vs per-user-display split + the `node:vm` ReDoS watchdog in `@orb/server/kit`),
-> D52 (charts: **ECharts**, nivo DROPPED at v0.99 — supersedes D43; `UI-Architecture-and-Layout.md` §11.3/§11.8), D46–D51
+> D52 (charts: **ECharts**, nivo DROPPED at v0.99 — supersedes D43; `UI-Gates-and-Lessons.md` §11.3/§11.8), D46–D51
 > (scripting/automation graduated · 7 ST feature gaps · tool-use + structured-output gates · the gap register
 > closed · `ChatBusEvent` parity · D45 multimodal threaded at the wire seam), D45 (image INPUT to vision models —
-> `ModelCapability.vision` + content-parts; `UI-Architecture-and-Layout.md` §12.4), D44 (theming + rich message content; §12), PD-11 (hosted rerank wired).
+> `ModelCapability.vision` + content-parts; `UI-Theming-and-Content.md` §12.4), D44 (theming + rich message content; `UI-Theming-and-Content.md` §12), PD-11 (hosted rerank wired).
 > Recent: D42 (Phase-6 client foundation), D43 (full neo-client audit → machine-enforceable plan, `UI-Architecture-and-Layout.md`
 > §11), D44 (theming + rich message content, §12).
 
@@ -102,8 +102,8 @@ The planning docs are **complete and reconciled**, and the build is extremely fa
 
 **Built docs/decisions still authoritative — DO NOT re-derive:**
 
-- **Boundary scan** (ts-morph) — the cake is clean (0 upward edges, 0 cycles). (`core/Core-Core-Audits-and-Debt.md`.)
-- **Dissolution inventory** — every `_shared`/`shared/*` symbol has a home + gate. (`core/Core-Core-Legacy-Migration-and-Gaps.md`.)
+- **Boundary scan** (ts-morph) — the cake is clean (0 upward edges, 0 cycles). (`core/Core-Audits-and-Debt.md`.)
+- **Dissolution inventory** — every `_shared`/`shared/*` symbol has a home + gate. (`core/Core-Legacy-Migration-and-Gaps.md`.)
 - **Per-domain target docs** (all 20 under `domains/`), **tier surveys** (`tiers/*`), **spine threads**
   (§7.1–7.5 + `core/Spine-Testing.md` + `core/Spine-TypeScript-and-Patterns.md`), and the cross-doc **reconciliation/de-dup**.
   Decisions ledger: `core/Core-Laws-and-Precedents.md` (latest: **D54** + **PD-11**).

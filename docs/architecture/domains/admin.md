@@ -8,7 +8,7 @@
 > `AGENTS.md` §7.1 (identity/auth/permission spine), permission = global-role × resource-role ×
 > capability, and only global `admin|user` exists today. Authoritative upstream: `AGENTS.md` §4
 > (admin pain — "gating surfaces: requireAdmin, role") + §7.1 (the spine, READ IN FULL) + §7.4 (types) +
-> §7.5 (the `users.role` axis — 35 touches / 33 inline redecls); `core/Core-Core-Legacy-Migration-and-Gaps.md` §5
+> §7.5 (the `users.role` axis — 35 touches / 33 inline redecls); `core/Core-Legacy-Migration-and-Gaps.md` §5
 > (`_shared/admin.ts` → `domain/admin`; `_shared/users.ts` → `domain/sessions`); `Core-0-Architecture-and-Structure.md` §4
 > (the 8-slot template) + §7 (the gates); `domains.md` (the admin row — "admin surfaces / gating").
 

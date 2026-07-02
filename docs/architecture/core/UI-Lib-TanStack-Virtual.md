@@ -1,6 +1,8 @@
 # UI-Lib-TanStack-Virtual
 
-> Auto-generated UI architecture doc.
+> **A lib companion of the nine-doc UI law set** — a full-read examples/deep-docs mine (evidence + provenance, NOT extra law; the distilled verdicts are folded into the spec sections of `UI-Architecture-and-Layout.md` / `UI-Gates-and-Lessons.md` / `UI-Primitives-and-Reuse.md`, cited per claim).
+>
+> **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.6 → `UI-Primitives-and-Reuse.md`.
 
 ## Table of Contents
 

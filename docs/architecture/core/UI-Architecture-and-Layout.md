@@ -1,6 +1,10 @@
 # UI-Architecture-and-Layout
 
-> Auto-generated UI architecture doc.
+> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: `archive/client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with the archive). The ledger entries (D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`) are the decision records; these docs are the expansion.
+>
+> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → the five lib companions (`UI-Lib-TanStack-{Query,Form,Router,Virtual}` · `UI-Lib-Zustand` — evidence/provenance mines; distilled verdicts already live in the spec sections).
+>
+> **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.6 → `UI-Primitives-and-Reuse.md`.
 
 ## Table of Contents
 
@@ -74,7 +78,8 @@ toolkit). Both are _prior art_, not law. This doc is the law.
 | icons                                                                         | lucide-react (gate `icons-lucide-only`)                | §2           |
 | diff                                                                          | `diff` (jsdiff v8+ — snapshot/edit-history diffs, D28) | §2           |
 | layout (Stack/Row/Section/Toolbar/Container)                                  | `container-type`                                       | §4           |
-| charts + meter                                                                | ECharts (`echarts`/`echarts-for-react`)                | §11.3 (D52)  |
+| charts                                                                        | ECharts (`echarts`/`echarts-for-react`)                | §11.3 (D52)  |
+| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock    | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per rpg-design/11 §2 (D58) | §11.3 (D52) · rpg-design/11 §2 |
 | virtual-list (generic) + message-list (chat)                                  | TanStack Virtual (`directDomUpdates`)                  | §11.3 (D54)  |
 | markdown                                                                      | Streamdown (two trust policies)                        | §6.3 / §11.6 |
 | stream (smooth-text pacer · TTFT shimmer)                                     | domain-free string-math                                | §6.3.1       |

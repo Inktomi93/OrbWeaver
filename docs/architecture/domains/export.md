@@ -9,7 +9,7 @@
 > (`raw`-blob-only provenance; the `proposedTags` accepted-tags round-trip). This doc is the
 > target spec. Authoritative upstream: `domains.md` (`export` row + Open decisions
 > "serialization core" / "proposedTags round-trip"), `AGENTS.md` §4 (import/export
-> pain), **§7.3 serde core**, §7.4 (types), `core/Core-Core-Legacy-Migration-and-Gaps.md` §1–§3 (the serde
+> pain), **§7.3 serde core**, §7.4 (types), `core/Core-Legacy-Migration-and-Gaps.md` §1–§3 (the serde
 > symbols' homes, CITE-authoritative), `character.md` §7.3 (the one canonical card),
 > `tag.md` (the proposed→status redesign). `Core-0-Architecture-and-Structure.md` §4 is the 8-slot template.
 
@@ -143,7 +143,7 @@ domain/export/
 ```
 
 **The shared serde core lives OUTSIDE this tree** (export composes it; it is not
-export-owned — see `core/Core-Core-Legacy-Migration-and-Gaps.md` §1–§3):
+export-owned — see `core/Core-Legacy-Migration-and-Gaps.md` §1–§3):
 
 ```
 @orb/server/kit/serde/card          buildCardV3 (OUT) + cardFromJson (IN) + ExportCardFields

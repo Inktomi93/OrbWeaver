@@ -53,8 +53,8 @@ tedious is exactly the moment this file exists to stop you.
 
 Read the relevant ones IN FULL before building. No grep-skimming, no guessing from "what most projects do."
 
-- `docs/architecture/core/Core-Laws-and-Precedents.md` §7 (D0–D38) — **canonical; wins on ANY conflict.**
-- `docs/architecture/core/Core-Core-Core-Core-BUILD-PLAN.md` — the phase/wave order + per-phase checkpoints.
+- `docs/architecture/core/Core-Laws-and-Precedents.md` §7 (the D-ledger — D1 onward; the count grows) — **canonical; wins on ANY conflict.**
+- `docs/architecture/core/Core-BUILD-PLAN.md` — the phase/wave order + per-phase checkpoints.
 - `docs/architecture/core/Core-0-Architecture-and-Structure.md` — the package cake, the directory-module rule, the enforcement gates.
 - `docs/architecture/core/*` — the cross-cutting law (identity-auth-permission, types-and-schemas,
   string-union-dispatch, settings-and-config, serialization-core, participants-agents-identity, testing).
@@ -195,7 +195,7 @@ seam), not tautologies. Tests are deterministic — injected clock/ids, no `Date
 5-package pnpm workspace under `packages/{kit,contracts,db,server,client}`; tests mirror under `tests/`.
 Node 24 · pnpm 11 · TypeScript strict · Biome (ratcheted to MAX) · dependency-cruiser · vitest · lefthook.
 Backend: Drizzle + libSQL · Zod · tRPC · `@anthropic-ai/claude-agent-sdk` · OpenRouter. Pinned versions +
-the rationale live in `Core-Core-Core-BUILD-PLAN.md` §0 and the ledger — check there, don't assume.
+the rationale live in `Core-BUILD-PLAN.md` §0 and the ledger — check there, don't assume.
 
 ## 4. The Pain Ledger (Historical Context)
 

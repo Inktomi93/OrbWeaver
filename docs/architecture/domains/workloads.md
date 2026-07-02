@@ -16,7 +16,7 @@
 > domain is the logic), §4 (the 8-slot template), §7 (gates); `AGENTS.md` §2 (one-directional
 > flow), §4 (workloads pain entry), §7.5 (**the `RUNNERS` mapped-type Record gold standard**), §8.1
 > (**`workloads/contract/runner-env.ts` is the one true cross-feature hub — model it, keep it**);
-> `core/Core-Core-Legacy-Migration-and-Gaps.md` (`replay-buffer` → `@orb/kit`, `RoleClients` → `@orb/contracts`,
+> `core/Core-Legacy-Migration-and-Gaps.md` (`replay-buffer` → `@orb/kit`, `RoleClients` → `@orb/contracts`,
 > `createDefaultRoleClients` DELETED, db-error classifier → `@orb/db/kit`); `domains.md`
 > ("the execution engine the indexer + bulk passes enqueue into").
 

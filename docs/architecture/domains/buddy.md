@@ -10,7 +10,7 @@
 > upstream: `participants-agents-identity.md` §0/§2/§6 (the agent model + the open
 > agent-as-domain-vs-pattern decision) — **the governing doc**; `domains/connection.md` §1
 > (`resolveRole('agent')` — buddy's own backend/model); `AGENTS.md` §4 (buddy pain
-> entry), §7.1 + §8.6 (first-class principal); `core/Core-Core-Legacy-Migration-and-Gaps.md` §4 (`contracts/buddy`
+> entry), §7.1 + §8.6 (first-class principal); `core/Core-Legacy-Migration-and-Gaps.md` §4 (`contracts/buddy`
 > taxonomy), §1 (`replay-buffer` → kit), §5 (the credentials injection). `Core-0-Architecture-and-Structure.md` §4 is the
 > 8-slot template this domain follows.
 

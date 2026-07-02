@@ -197,7 +197,7 @@ export const characterSprites = sqliteTable(
 
 ## 5. Background — NOT a domain, it's a D44 `ThemeOverride` token
 
-**Background is already homed.** `UI-Architecture-and-Layout.md` §12.1 lists it as one of the seven curated
+**Background is already homed.** `UI-Theming-and-Content.md` §12.1 lists it as one of the seven curated
 `ThemeOverride` tokens — it was decided in D44. There is nothing to invent here; there is a field to fill in
 and a shell slot to render it.
 

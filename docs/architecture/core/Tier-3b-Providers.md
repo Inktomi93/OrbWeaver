@@ -11,7 +11,7 @@
 > produces the descriptor) + `participants-agents-identity.md` (the agent-sdk backend is reserved for
 > the sub + agent mode; the stateless chat-turn foundation; the session is a backend-internal
 > canon-derived cache). `core/Core-0-Architecture-and-Structure.md §3` places infra as a sealed executor below domain; `§7` lists
-> the gates. `core/AGENTS.md §2/§3/§4(providers)/§8.1/§8.7` + `core/Core-Core-Legacy-Migration-and-Gaps.md`
+> the gates. `core/AGENTS.md §2/§3/§4(providers)/§8.1/§8.7` + `core/Core-Legacy-Migration-and-Gaps.md`
 > supply the dissolution rulings. The per-domain `domains/connection.md` + `domains/credentials.md`
 > are the format/depth exemplars and the two domains that call into this tier. Read those four
 > upstream docs first.

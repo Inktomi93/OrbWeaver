@@ -3,7 +3,7 @@
 > **Status: the single sequential guide — what to build, in what order, with the checkpoint that proves
 > each phase done.** It consolidates the order from `core/Core-Laws-and-Precedents.md §4` (the sequence + the
 > `@orb/contracts` DAG + the kit boot-order), the per-phase conditions from
-> `core/Core-Core-Planning-and-Checklists.md §A–E`, and the rationale from `core/Core-Core-Audits-and-Debt.md`. If anything
+> `core/Core-Planning-and-Checklists.md §A–E`, and the rationale from `core/Core-Audits-and-Debt.md`. If anything
 > here disagrees with the ledger, the ledger wins (this doc is the expansion, not a new authority).
 >
 > **The spine of the order:** build bottom-up so every import resolves downward —

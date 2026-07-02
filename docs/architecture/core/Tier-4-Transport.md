@@ -15,7 +15,7 @@
 > upstream: `Core-0-Architecture-and-Structure.md` §3 (server tiers — `transport` is `trpc/` + `jobs/`, `http/` is under
 > `entry/`; drivers are THIN, call DOWN into front doors only), §7 (the 13 legibility gates); `AGENTS.md`
 > §2 (one-directional flow), §3 (placement rule), §8.1 (coupling already clean — zero cross-feature
-> deep imports, zero domain→transport edges); `core/Core-Core-Legacy-Migration-and-Gaps.md` §6
+> deep imports, zero domain→transport edges); `core/Core-Legacy-Migration-and-Gaps.md` §6
 > (`_shared/rate-limit.ts` → `transport/rate-limit`); `domains/workloads.md` (the worker is
 > transport/jobs, the domain owns the engine, `buildWorkloadsEnv` is `entry/`);
 > `domains/credentials.md` + `domains/sessions.md` (the `Principal` is built at the `entry/` seam —

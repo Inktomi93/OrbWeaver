@@ -9,7 +9,7 @@
 > `@orb/contracts` (the client needs them for forms), three **misfiled chat blobs** leave for
 > `@orb/contracts/chat`, and the floor-merge (`server/config/app-config.ts`) folds INTO this domain as a
 > named subsystem. Authoritative upstream: `AGENTS.md` §7.2 (the FOUR natures of config — the
-> spine for this doc) + §4 (settings pain: "confirm the floor rule"); `core/Core-Core-Legacy-Migration-and-Gaps.md`
+> spine for this doc) + §4 (settings pain: "confirm the floor rule"); `core/Core-Legacy-Migration-and-Gaps.md`
 > §4 (`contracts/settings`, `contracts/versioned-config`, the chat-blob misfiling), §5
 > (`loadUserSettings`, `requireAdmin`), §8 (boot order — `contracts/settings`
 > depends on `contracts/chat`); `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template) + §6 (partitioning) + §7 (gates);
@@ -482,7 +482,7 @@ dispatch hotspot), but each gets one canonical home:
 ## CONFLICT resolved (cite, don't re-litigate)
 
 `core/AGENTS.md §4` grouped `room-overrides.ts` / `group-config.ts` / `opening-policy.ts` under
-"settings (7 files)" — but `core/Core-Core-Legacy-Migration-and-Gaps.md` §4 + §7.4 ruled them **MISFILED**: they are
+"settings (7 files)" — but `core/Core-Legacy-Migration-and-Gaps.md` §4 + §7.4 ruled them **MISFILED**: they are
 chat shapes (chatMetadata sub-blobs + the start-chat union), consumed by chat verbs, chat assemble
 types, and client chat forms — never the settings KV. **Resolution (this doc follows the dissolution
 inventory):** the settings DOMAIN owns only `AppSettings`/`UserSettings`; those three shapes →

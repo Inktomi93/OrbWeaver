@@ -10,7 +10,7 @@
 > V3 emitter, the WI-entry mapper, and the PNG codec live once (`@orb/server/kit/serde/*` +
 > `@orb/contracts/character` + `@orb/kit/png-card-chunk`) and are consumed by both directions.
 > Authoritative upstream: `AGENTS.md` §4 (import pain ledger) + §7.3 (serialization/serde core,
-> LOCKED) + §7.4/§7.5 (types + dispatch); `core/Core-Core-Legacy-Migration-and-Gaps.md` §1–§5 (the serde homes, the
+> LOCKED) + §7.4/§7.5 (types + dispatch); `core/Core-Legacy-Migration-and-Gaps.md` §1–§5 (the serde homes, the
 > authoritative inventory); `domains.md` + `embeddings.md` §"events" (the indexer subscribers);
 > `character.md` §7.3 + the D28 one-row card model; `tag.md` (`proposedTags` → junction status);
 > `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template).

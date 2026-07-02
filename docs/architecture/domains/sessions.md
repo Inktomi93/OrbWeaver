@@ -9,7 +9,7 @@
 > The central boundary the name forces: **BFF session ≠ SDK chat session** — two unrelated concepts that
 > share the word "session." Authoritative upstream: `domains.md` (the `sessions` row: "auth/BFF
 > sessions — distinct from SDK chat sessions"); `AGENTS.md` §4 (sessions pain) + **§7.1
-> (identity/auth/permission spine)** + §7.4 (types); `core/Core-Core-Legacy-Migration-and-Gaps.md` §5 (`_shared/users.ts`
+> (identity/auth/permission spine)** + §7.4 (types); `core/Core-Legacy-Migration-and-Gaps.md` §5 (`_shared/users.ts`
 > → `domain/sessions`), §4 (`ResolvedIdentity` → `@orb/contracts/identity`; `SessionView` →
 > `@orb/contracts/session`); `Core-0-Architecture-and-Structure.md` §3 (tiers), §4 (the 8-slot template), §7 (gates).
 

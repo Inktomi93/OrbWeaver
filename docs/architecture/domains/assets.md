@@ -10,7 +10,7 @@
 > "assets vs infra/storage" open call; `AGENTS.md` §2 (one-directional rule), §3 (placement
 > rule), §4 (assets pain ledger), §7.3 (serde/PNG codec), §7.4/§7.5 (types/dispatch);
 > `Core-0-Architecture-and-Structure.md` §3 (server tiers), §4 (8-slot template), §6 (derived-data = event-driven indexer),
-> §7 (the 13 legibility gates); and `core/Core-Core-Legacy-Migration-and-Gaps.md` §1/§4/§5 (the three-way split of
+> §7 (the 13 legibility gates); and `core/Core-Legacy-Migration-and-Gaps.md` §1/§4/§5 (the three-way split of
 > `shared/_kit/assets.ts` — **cited, not re-derived**).
 
 ---
