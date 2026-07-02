@@ -27,7 +27,7 @@ Satellite work in committed homes (additive, small):
 | `@orb/kit/ids` | the rpg TypeID prefixes | 03 §0 |
 | `kit/macro` registry | the 8 `rpg*` data-fed macros | 06 §1 |
 | `domain/tool-use` | nothing structural — rpg registers via the existing registry API at compose | 05 §3 |
-| `domain/workloads` | 8 new `WorkloadKind`s + runners + `WorkloadRpgEnv` on the runner-env | 06 §3 |
+| `domain/workloads` | 8 new `WorkloadKind`s + runners + `WorkloadRpgEnv` on the runner-env. NOTE the derivation chain: each `rpg-*` kind is a `WORKLOAD_KINDS` tuple member in `@orb/contracts/workloads` AND the db `workloads.kind` CHECK regenerates with it (D34; pre-launch this is a `0000_baseline` regen, not a migration). Kind + params/result entries + runner land together per chunk (10 R6/R7/R9/R10) — the five mechanical edits | 06 §3 |
 | `domain/chat` | NOTHING (three optional injected ops on `ChatContext`, wired at entry) | 05 §0 |
 | `domain/world-info` | an `upsertEntries` bulk op exposed for injection (lorebook upkeep) | 06 §3 |
 | packaged preset seed | the "RPG Game Master" preset (a seed asset, preset domain unchanged) | 06 §1 |

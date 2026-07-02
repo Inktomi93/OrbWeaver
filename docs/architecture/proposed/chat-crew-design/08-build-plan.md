@@ -25,8 +25,13 @@
 
 **CW1 — Contracts + schema + domain skeleton (no model calls).** `@orb/contracts/crew` (config
 schema, the 4 payload schemas, bus events, views, `CrewMember` tuple) · `@orb/db/schema/crew.ts`
-(3 tables) + `card_evolution_proposals` in `schema/character.ts` (all ride the `0000_baseline`
-squash — the D58 decide-before-launch economics) · `@orb/kit/ids` prefixes · `domain/crew`
+(ALL 4 tables — `crew_chats`/`crew_plots`/`crew_edit_proposals`/`crew_guides`) +
+`card_evolution_proposals` in `schema/character.ts` (all ride the `0000_baseline` squash — the
+D58 decide-before-launch economics; later chunks add NO tables) · the 4 `crew-*` members of
+`WORKLOAD_KINDS` (`@orb/contracts/workloads` tuple widening + the regenerated `workloads.kind`
+CHECK — the D34 derivation, born into the baseline) with **STUB runners** keeping
+`RUNNERS`/`exhaustive-dispatch` green until each chunk lands the real one (the D58
+`reconcile-world-state` stub precedent) · `@orb/kit/ids` prefixes · `domain/crew`
 8-slot skeleton: config verbs (incl. the game-chat refusal), `canon-reads.ts`, the bus, the tRPC
 router, the `can()` matrix · `domain/character` proposal verbs (propose/list/accept/dismiss with
 the pre-evolution snapshot) · the domain-event mirror members. *Checkpoint:* config CRUD +
@@ -36,7 +41,7 @@ depth). *Hard part:* none — deliberately the confidence chunk.
 
 **CW2 — The keeper + the scheduler (the first thinking member).** `runStructuredAgentTurn`
 (`@orb/server/kit`) · `members/lorebook-keeper.ts` (brief + payload shaping) ·
-`crew-lorebook-keeper` WorkloadKind + runner + `WorkloadChatCrewEnv` · `applyKeeperResult` (caps,
+the real `crew-lorebook-keeper` runner (replacing its CW1 stub) + `WorkloadChatCrewEnv` · `applyKeeperResult` (caps,
 span-stamp, replace-same-span, hand-edit guard, mark advance) · the book mint/attach path ·
 `scheduler/` + `onTurnCompleted` (keeper arm only) + `runNow` · entry wiring. *Checkpoint:* a
 scripted 80-message chat with keeper enabled produces capped, keyed, span-stamped entries that
@@ -74,7 +79,9 @@ scheduler arm. *Checkpoint:* audit → proposal → accept edits the message thr
 swipe-then-accept refuses (`superseded`); edit-then-accept refuses (`stale`); `clean` writes
 nothing; every-turn mode enqueues per assistant turn. **Size: M.**
 
-**CW6 — Persistent guides.** `crew_guides` persistence + the guide verbs (doc 06 §4) +
+**CW6 — Persistent guides.** The `crew_guides` TABLE already exists from CW1's baseline —
+this chunk lands the machinery only: the `persistence/guides.ts` query module + the guide verbs
+(doc 06 §4) +
 `substrate/guide-refresh.ts` + the packaged template constants + the auto-refresh arm in
 `onTurnCompleted` (per-guide in-flight latch) + the chat injection-CRUD injected ops.
 *Checkpoint:* add a packaged `thinking` guide → refresh returns content and the injection rides

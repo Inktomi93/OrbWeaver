@@ -110,7 +110,11 @@ workload.
 
 `domain/crew/bus.ts` — its OWN per-chat SSE bus (replay ring, `@orb/kit/replay-buffer`,
 `ASSUMES(single-replica)`), fanned out by tRPC `crew.stream(chatId)` (member-gated; host variant
-carries the host-ring members). WHY not the chat bus: `ChatBusEvent` is a closed union with a
+carries the host-ring members). **The host/member split is ONE procedure projecting by caller
+authority, never two endpoints:** the subscription resolves the caller once
+(`requireParticipant`), and the server-side filter forwards `plotUpdated` only when that caller
+`requireHost`s — the rpg host/member stream precedent (rpg-design/05 §5's hidden-clock rule).
+WHY not the chat bus: `ChatBusEvent` is a closed union with a
 frozen durable CHECK (D50) — the exact reason rpg grew its own bus (rpg-design/05 §5).
 
 ```ts

@@ -60,7 +60,11 @@ scaffold. *Checkpoint:* dice/address variant flips proven; automation-visible ev
 API path (create→workload→review→start) + `rpg-recap` + `rpg-session-distill` +
 `applySessionOutcome`. *Checkpoint:* full session-zero → play → conclude → next-session loop with
 model-generated world + recap + distilled summary; crew failure = retryable workload, never a
-wedged game. **Size: L.** *Hard part:* world-gen payload quality vs schema strictness — budget
+wedged game. **Size: L.** *Kind bookkeeping (applies to every crew chunk — R6/R7/R9/R10):* each
+`rpg-*` WorkloadKind added widens the `@orb/contracts/workloads` `WORKLOAD_KINDS` tuple and
+REGENERATES the `workloads.kind` CHECK (the D34 derivation; a pre-launch `0000_baseline` regen,
+not a migration) — tuple member + `ParamsByKind`/`ResultByKind` entries + the runner + its
+`RUNNERS` entry land in the SAME chunk, or `tsc` is red. *Hard part:* world-gen payload quality vs schema strictness — budget
 prompt iteration time; the schema's bounded-retry telemetry (log the failure shapes) is the tuning
 instrument.
 

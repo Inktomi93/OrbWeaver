@@ -21,14 +21,45 @@
 chat's data, the domain-of-affect rule again).** The extension's five named guides are packaged
 TEMPLATE presets over this one mechanism, plus unlimited custom guides:
 
-| Packaged template | Default prompt (STEAL verbatim, then trim shouting) | depth | label frame |
+| Packaged template | Prompt (FULL verbatim text: §1.1) | depth | label frame |
 |---|---|---|---|
-| `thinking` | *"[OOC: Answer me out of Character! Write what each character in the current scene is currently thinking, pure thought only. Do NOT continue the story or include narration or dialogue. Do not include {{user}}'s thoughts.]"* (gg: thinkingGuide.js) | 0 | `Characters are currently thinking: …` |
-| `clothes` | the outfits list prompt (gg: clothesGuide.js — *"…the clothes and look… of all participating characters, including {{user}}, present in the current scene. Don't mention people or clothing pieces no longer relevant…"*) | 1 | `Relevant information for portraying characters: …` |
-| `state` | the positions/physical-state prompt (gg: stateGuide.js — same frame, *"don't describe their clothes"*) | 1 | same frame |
-| `situational` | the 4-point scene summary prompt (gg: situationalGuide.js — location/present/objects/recent-events, *"factual and neutral without speculation"*) | 3 | `Current situation: …` |
-| `rules` | the learned-rules numbered list (gg: rulesGuide.js) | 0 | `Rules for the current scene: …` |
+| `thinking` | current inner thoughts, OOC, no narration (gg: thinkingGuide.js) | 0 | `Characters are currently thinking: …` |
+| `clothes` | the outfits/look list for everyone in scene (gg: clothesGuide.js) | 1 | `Relevant information for portraying characters: …` |
+| `state` | positions/physical state, explicitly not clothing (gg: stateGuide.js) | 1 | same frame |
+| `situational` | the 4-point factual scene summary (gg: situationalGuide.js) | 3 | `Current situation: …` |
+| `rules` | learned/established explicit rules, numbered (gg: rulesGuide.js) | 0 | `Rules for the current scene: …` |
 | *(custom)* | user-authored template | user | user (or raw — §3) |
+
+### 1.1 The packaged default templates (verbatim — the doc set needs no external folder)
+
+Ported as versioned constants in `substrate/constants.ts`. Sanctioned verbatim copies of the
+extension defaults (the `{{user}}`/`{{char}}` macros resolve through `kit/macro` as everywhere):
+
+- **`thinking`** (gg: thinkingGuide.js): `[OOC: Answer me out of Character! Write what each
+  characters in the current scene are currently thinking, pure thought only. Do NOT continue the
+  story or include narration or dialogue. Do not include the {{user}}'s thoughts.]`
+- **`clothes`** (gg: clothesGuide.js): `[OOC: Answer me out of Character! Considering where we are
+  currently in the story, write me a list entailing the clothes and look, what they are currently
+  wearing of all participating characters, including {{user}}, that are present in the current
+  scene. Don't mention People or clothing pieces who are no longer relevant to the ongoing scene.]`
+- **`state`** (gg: stateGuide.js): `[OOC: Answer me out of Character! Considering the last
+  response, write me a list entailing what state and position of all participating characters,
+  including {{user}}, that are present in the current scene. Don't describe their clothes or how
+  they are dressed. Don't mention People who are no longer relevant to the ongoing scene.]`
+- **`situational`** (gg: situationalGuide.js): `[Analyze the chat history and provide a concise
+  summary of:` `1. Current location and setting (indoors/outdoors, time of day, weather if
+  relevant)` `2. Present characters and their current activities` `3. Relevant objects, items, or
+  environmental details that could influence interactions` `4. Recent events or topics of
+  conversation (last 10-20 messages)` `Keep the overview factual and neutral without speculation.
+  Format in clear paragraphs.]` *(one template string; the numbered lines are literal newlines)*
+- **`rules`** (gg: rulesGuide.js): `[Create a list of explicit rules that {{char}} has learned and
+  follows from the story and their character description. Only include rules that have been
+  explicitly established in the chat history or character information. Format as a numbered list.]`
+
+The extension quirks NOT ported with the text: the `as=char` generation-role flag (clothes/state —
+our side generation is not a chat turn; the slice + template carry the context), and the grammar
+slip "each characters … are" in `thinking` is kept verbatim deliberately — it is the model-tested
+string; polish it later as a data commit if it bothers anyone.
 
 *(Rejected: five hardcoded guide features à la the extension's five script files — one mechanism
 with template rows is strictly more capable (users already hacked customGuide/customAutoGuide onto

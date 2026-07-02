@@ -1,7 +1,8 @@
 # proposed/ — Marinara-derived work (index)
 
-> What lives here after the 2026-07-01 slim: the **committed RPG design set** and the **non-RPG
-> residue** still awaiting ledger calls. The original marinara research corpus (five analysis docs +
+> What lives here after the 2026-07-01 slim: the **committed RPG design set (D58)**, the
+> **committed plain-chat crew design set (D59)**, and the **non-RPG residue** rows still awaiting
+> ledger calls. The original marinara research corpus (five analysis docs +
 > the exhaustive `rpg/` corpus) was fully absorbed into the design set and removed to prevent
 > parallel-prose drift — **full text in git history** (the "archive the marinara research corpus"
 > commit immediately preceding the slim).
@@ -13,12 +14,19 @@
   rulebook, turn integration + tool registry, GM preset + crew, encounters/scenes/party,
   generative + client contract, seams, R1–R11 build plan, client/UI, the GM seat). The ledger D58
   entry is the decision record; this set wins on detail.
+- **[`chat-crew-design/`](chat-crew-design/README.md)** — **COMMITTED (D59).** The
+  authoritative, prescriptive design + build plan for `domain/crew` — the plain-chat agent crew
+  (README + 8 docs: verdicts/vision, domain shape + state, the four WorkloadKind members,
+  integration/scheduler/rings, the interconnection map, persistent guides, client/UI, the CW1–CW7
+  build plan). Closes the residue B7/B8 rows; echo-chamber is SUBSUMED BY BUDDY. The ledger D59
+  entry is the decision record; this set wins on detail.
 - **[`Marinara-Residue-Non-RPG.md`](Marinara-Residue-Non-RPG.md)** — **PROPOSED.** Everything
   non-RPG that survived the mining and still needs its own ledger decision: the borrow list
   (sprite-sheet generation → expressions; asset-manifest pick-before-generate + avatar-ref
-  conditioning → imagery; gif proxy; the bot-browser/card-hub gap + its SSRF guards; saved rosters;
-  non-game lorebook-keeper/card-auditor workloads; roleplay-mode narrative agents), the scripting
-  cautionary evidence backing D46's rejected alternatives, and the agent-pipeline post-mortem.
+  conditioning → imagery; gif proxy; the bot-browser/card-hub gap + its SSRF guards; saved
+  rosters), the scripting cautionary evidence backing D46's rejected alternatives, and the
+  agent-pipeline post-mortem. (B7/B8 — the plain-chat crew rows — are DECIDED, D59, and point at
+  `chat-crew-design/`.)
 - **[`rpg/`](rpg/README.md)** — tombstone (the corpus location; points to git history).
 
 ## Ground rules

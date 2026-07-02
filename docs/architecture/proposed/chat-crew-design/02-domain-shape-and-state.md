@@ -78,6 +78,7 @@ auditor aren't "narrative".)*
 | `domain/character` | `card_evolution_proposals` + 4 verbs (`proposeCardEvolution` env-only · `listCardEvolutionProposals` · `acceptCardEvolution` · `dismissCardEvolution`) | §5, 03 §2 |
 | `domain/world-info` | nothing new — the D58-committed `upsertEntries` bulk injected op is reused as-is | 03 §1 |
 | `domain/workloads` | 4 new `WorkloadKind`s + runners + `WorkloadChatCrewEnv` on the runner-env | 03 |
+| `@orb/contracts/workloads` + `@orb/db/schema/workloads.ts` | the `WORKLOAD_KINDS` tuple widens by the 4 `crew-*` kinds ⇒ the `workloads.kind` CHECK REGENERATES (the D34 derivation; rides the `0000_baseline` squash). All 4 kinds are born in CW1 with STUB runners so `RUNNERS`/`exhaustive-dispatch` stay green (the D58 `reconcile-world-state` stub precedent); CW2–CW5 replace their stubs | 08 CW1 |
 | `@orb/server/kit` | `runStructuredAgentTurn` — the shared call-agentTurn-with-responseFormat + zod-validate + ONE-bounded-retry helper (rpg crew runners converge on it too — doc 05 §e) | 03 §0 |
 | `entry/compose` | wiring: crew service + the chat op + `WorkloadChatCrewEnv` + `startCrewScheduler` + notifications op | 04 §3 |
 
