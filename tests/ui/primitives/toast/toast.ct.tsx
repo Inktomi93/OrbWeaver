@@ -1,3 +1,4 @@
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ToastPlayground } from "./toast-fixture";
 
@@ -11,6 +12,20 @@ test("a toast appears via the imperative add API", async ({ mount, page }) => {
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText("Saved");
   await expect(toast).toContainText("All changes stored.");
+});
+
+test("a loading toast carries data-type=loading and the distinct primary border", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ToastPlayground />);
+  await page.getByRole("button", { name: "add loading toast", exact: true }).click();
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast).toHaveCount(1);
+  // Base UI sets data-type from the toast type; the seal tints the loading border with the primary
+  // accent so it reads distinctly from a plain toast (bg-popover border).
+  await expect(toast).toHaveAttribute("data-type", "loading");
+  await expect(toast).toHaveCSS("border-top-color", TOKENS["color.primary"].value);
 });
 
 test("toasts stack and can be dismissed via the close button", async ({ mount, page }) => {

@@ -27,6 +27,14 @@ function ToastButtons(): ReactElement {
       </button>
       <button
         onClick={(): void => {
+          toastManager.add({ title: "Working…", type: "loading" });
+        }}
+        type="button"
+      >
+        add loading toast
+      </button>
+      <button
+        onClick={(): void => {
           toastManager.add({
             title: "Character created",
             actionProps: {

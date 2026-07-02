@@ -9,6 +9,8 @@ export const textareaVariants = tv({
     "transition-colors duration-(--motion-fast) ease-out-expo",
     "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     "disabled:pointer-events-none disabled:opacity-50",
-    "aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive",
+    // Aligns with input/number-field/checkbox: Base UI Field.Control sets `data-invalid` on the
+    // control when the field is invalid (it also mirrors `aria-invalid`; we key off data-invalid).
+    "data-invalid:border-destructive data-invalid:focus-visible:ring-destructive",
   ],
 });

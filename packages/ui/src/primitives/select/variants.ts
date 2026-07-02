@@ -30,6 +30,10 @@ export const selectVariants = tv({
       "data-disabled:pointer-events-none data-disabled:opacity-50",
     ],
     itemIndicator: "flex shrink-0 text-primary",
+    // Between-group divider — Base UI Select.Separator (role="separator"); bleeds to the popup edge.
+    separator: "-mx-field my-field h-px bg-border",
+    // Opt-in dimming layer for the modal-by-default select (theme-aware scrim, never black/50).
+    backdrop: "fixed inset-0 z-(--z-overlay) bg-scrim",
     // Sticky hover-to-scroll affordances for long lists — Base UI ScrollUp/DownArrow. They only
     // mount when the popup overflows and are suppressed on touch input (Base UI behavior).
     scrollArrow:

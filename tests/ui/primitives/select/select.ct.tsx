@@ -129,6 +129,26 @@ test("grouped: renders group labels and selects a grouped option", async ({ moun
   await expect(page.getByRole("combobox")).toContainText("Slate");
 });
 
+test("grouped: renders a Separator between adjacent groups (not before the first)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<Select items={GROUPED} placeholder="Pick a shade" />);
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  // Two groups → exactly one between-group Separator (Base UI Select.Separator).
+  await expect(page.locator('[data-slot="select-separator"]')).toHaveCount(1);
+});
+
+test("backdrop: the opt-in scrim renders behind the popup", async ({ mount, page }) => {
+  await mount(<Select backdrop={true} items={ITEMS} placeholder="Pick one" />);
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const backdrop = page.locator('[data-slot="select-backdrop"]');
+  await expect(backdrop).toBeVisible();
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+});
+
 const LONG = Array.from({ length: 40 }, (_unused, i) => ({
   label: `Option ${i + 1}`,
   value: `opt-${i + 1}`,
