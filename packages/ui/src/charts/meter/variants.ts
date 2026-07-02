@@ -2,6 +2,27 @@
 // TOKEN SWAP (primary → destructive intent), never a color calculation.
 import { tv } from "tailwind-variants";
 
+/**
+ * The Base UI Meter.Root wrapper skin — the role="meter" container that holds the optional
+ * label/value readout row above the geometry. `kind` sets the container flow (bars stretch full
+ * width; the arc gauge is content-sized).
+ */
+export const meterVariants = tv({
+  slots: {
+    root: "flex flex-col gap-field",
+    header: "flex items-center justify-between gap-block",
+    label: "text-label font-medium leading-label text-foreground",
+    value: "text-label leading-label text-muted-foreground tabular-nums",
+  },
+  variants: {
+    kind: {
+      linear: { root: "w-full" },
+      bipolar: { root: "w-full" },
+      arc: { root: "w-max items-center" },
+    },
+  },
+});
+
 /** Linear meter skin — div track + fill (rpg-design/11 §2 `progress_bar`). */
 export const linearMeterVariants = tv({
   slots: {
