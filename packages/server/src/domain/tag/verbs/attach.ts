@@ -45,6 +45,18 @@ export function createAttach(ctx: TagContext): AttachTrio {
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
     });
+    // Best-effort audit AFTER the junction write (a not-found/denied target threw above).
+    await ctx.audit({
+      actorUserId: ownerId,
+      action: "tag.attach",
+      entityType: "tag",
+      entityId: params.tagId,
+      metadata: {
+        targetType: params.targetType,
+        targetId: params.targetId,
+        status: params.status ?? DEFAULT_ATTACH_STATUS,
+      },
+    });
   };
 
   const detachTag: TagService["detachTag"] = async (params: DetachTagParams) => {
@@ -66,6 +78,14 @@ export function createAttach(ctx: TagContext): AttachTrio {
       targetId: params.targetId,
       tagId: params.tagId,
       taggerId: ownerId,
+    });
+    // Best-effort audit AFTER the junction delete (see the attach note).
+    await ctx.audit({
+      actorUserId: ownerId,
+      action: "tag.detach",
+      entityType: "tag",
+      entityId: params.tagId,
+      metadata: { targetType: params.targetType, targetId: params.targetId },
     });
   };
 
@@ -94,6 +114,19 @@ export function createAttach(ctx: TagContext): AttachTrio {
       tagIds: params.tagIds,
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
+    });
+    // Best-effort audit — ONE row for the bulk op (no per-tag fan-out; the set rides metadata).
+    await ctx.audit({
+      actorUserId: ownerId,
+      action: "tag.bulkAttach",
+      entityType: "tag",
+      entityId: null,
+      metadata: {
+        targetType: params.targetType,
+        targetId: params.targetId,
+        tagIds: [...params.tagIds],
+        status: params.status ?? DEFAULT_ATTACH_STATUS,
+      },
     });
   };
 

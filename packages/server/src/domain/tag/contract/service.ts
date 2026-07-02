@@ -15,6 +15,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
+import type { AuditEntry } from "#foundation/observability";
 import type {
   AttachCardTagByNameParams,
   AttachTagParams,
@@ -46,12 +47,17 @@ export type RequireParticipant = (principal: Principal, chatId: ChatId) => Promi
  * The DI bundle the tag verbs close over (wired at `service.ts` / the entry root). `newTagId` is the
  * injected id seam (no ambient id — testing §3); `requireParticipant` is chat's membership gate (the only
  * cross-feature dep). `db` is the persistence handle. NO clock: tag rows born-stamp `createdAt` via the
- * schema's SQL default (no JS wall-clock), and no tag view surfaces a timestamp.
+ * schema's SQL default (no JS wall-clock), and no tag view surfaces a timestamp — which is also why `audit`
+ * takes NO `at` param: the root pre-binds the write timestamp from ITS injected clock
+ * (`(entry) => logAudit(db, entry, now())`), keeping the tag verbs clockless (test-determinism intact).
  */
 export interface TagContext {
   readonly db: Db;
   readonly newTagId: () => TagId;
   readonly requireParticipant: RequireParticipant;
+  /** Best-effort audit write (foundation `logAudit` contract — suppress-and-drop, never the primary
+   *  channel), timestamp pre-bound at the composition root. */
+  readonly audit: (entry: AuditEntry) => Promise<void>;
 }
 
 /**

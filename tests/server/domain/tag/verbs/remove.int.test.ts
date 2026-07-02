@@ -40,3 +40,21 @@ describe("removeTag", () => {
     ).rejects.toThrow(TagNotFoundError);
   });
 });
+
+describe("removeTag — audit", () => {
+  test("a successful remove writes tag.remove; a not-found throw writes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
+
+    await svc.removeTag({ principal: principal(owner), tagId });
+    expect(h.audits).toEqual([
+      { actorUserId: owner, action: "tag.remove", entityType: "tag", entityId: tagId },
+    ]);
+
+    await svc.removeTag({ principal: principal(owner), tagId }).catch((e: unknown) => e);
+    expect(h.audits).toHaveLength(1);
+  });
+});

@@ -9,6 +9,17 @@ import { pruneZeroUsageTags } from "../persistence/queries";
 export function createPrune(ctx: TagContext): TagService["pruneUnusedTags"] {
   return async (params: PruneUnusedTagsParams) => {
     const removed = await pruneZeroUsageTags(ctx.db, params.principal.userId);
+    // Best-effort audit only when something was actually pruned (a zero-work pass is a no-op — the
+    // idempotent-no-op-writes-no-row posture; the bulk delete has no single entity id, count in metadata).
+    if (removed > 0) {
+      await ctx.audit({
+        actorUserId: params.principal.userId,
+        action: "tag.prune",
+        entityType: "tag",
+        entityId: null,
+        metadata: { removed },
+      });
+    }
     return { removed };
   };
 }

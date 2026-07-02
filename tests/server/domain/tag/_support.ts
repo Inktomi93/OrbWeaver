@@ -22,6 +22,7 @@ import type {
   WorldBookId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { TagContext } from "../../../../packages/server/src/domain/tag/contract/service.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -32,13 +33,17 @@ export interface TagHarness {
   readonly allowChat: (chatId: ChatId) => void;
   /** Every `(chatId)` the gate was asked about — proves the chat junction routes through membership. */
   readonly participantChecks: ChatId[];
+  /** Every audit entry the verbs wrote (the recording fake of the root-bound best-effort `logAudit`). */
+  readonly audits: AuditEntry[];
 }
 
-/** Build a TagContext over a real db: seeded ids + a recording membership-gate fake (default-deny). */
+/** Build a TagContext over a real db: seeded ids + a recording membership-gate fake (default-deny) + a
+ *  recording audit fake (tag is clockless — the root binds the timestamp, so the op takes only the entry). */
 export function makeTagHarness(db: Db): TagHarness {
   const ids = createSeededIds();
   const allowed = new Set<string>();
   const participantChecks: ChatId[] = [];
+  const audits: AuditEntry[] = [];
   const ctx: TagContext = {
     db,
     newTagId: (): TagId => castId<TagId>(ids.next("tag")),
@@ -48,6 +53,10 @@ export function makeTagHarness(db: Db): TagHarness {
         ? Promise.resolve()
         : Promise.reject(new DomainForbiddenError(`not a participant of ${chatId}`));
     },
+    audit: (entry: AuditEntry): Promise<void> => {
+      audits.push(entry);
+      return Promise.resolve();
+    },
   };
   return {
     ctx,
@@ -55,6 +64,7 @@ export function makeTagHarness(db: Db): TagHarness {
       allowed.add(chatId);
     },
     participantChecks,
+    audits,
   };
 }
 

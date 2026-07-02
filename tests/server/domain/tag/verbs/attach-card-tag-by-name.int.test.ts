@@ -259,3 +259,28 @@ describe("cross-source tag dedupe", () => {
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
   });
 });
+
+describe("attach card tag by name — audit", () => {
+  test("a NEW attach writes tag.attachByName; an idempotent re-attach writes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const characterId = await seedCharacter(db, owner);
+
+    const first = await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "Mentor" });
+    expect(first).toBe(true);
+    expect(h.audits).toHaveLength(1);
+    expect(h.audits[0]).toMatchObject({
+      actorUserId: owner,
+      action: "tag.attachByName",
+      entityType: "tag",
+      metadata: { characterId, name: "Mentor", source: "manual", status: "accepted" },
+    });
+
+    // Re-attach (a card re-import) is an onConflictDoNothing no-op — no audit spam.
+    const again = await svc.attachCardTagByName({ ownerId: owner, characterId, tagName: "mentor" });
+    expect(again).toBe(false);
+    expect(h.audits).toHaveLength(1);
+  });
+});

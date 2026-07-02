@@ -53,6 +53,19 @@ export function createAttachCardTagByName(ctx: TagContext): TagService["attachCa
         `resolve-or-create tag "${name}" found no row after a unique conflict`,
       );
     }
-    return attachCharacterTag({ db: ctx.db, characterId, tagId, status });
+    const newlyAttached = await attachCharacterTag({ db: ctx.db, characterId, tagId, status });
+    // Best-effort audit only on a NEW attach — a re-import/re-add no-op (onConflictDoNothing) writes no
+    // row, so a bulk card re-import doesn't spam the log. Actor = the caller-resolved owner (this op is
+    // trusted/owner-already-gated by its composition-root callers — file header).
+    if (newlyAttached) {
+      await ctx.audit({
+        actorUserId: ownerId,
+        action: "tag.attachByName",
+        entityType: "tag",
+        entityId: tagId,
+        metadata: { characterId, name, source, status },
+      });
+    }
+    return newlyAttached;
   };
 }

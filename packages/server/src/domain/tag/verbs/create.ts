@@ -39,6 +39,14 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
       if (row === undefined) {
         throw new DomainOperationError("tag_insert_failed", "tag insert returned no row");
       }
+      // Best-effort audit AFTER the insert landed (a refused/conflicted create writes no row).
+      await ctx.audit({
+        actorUserId: ownerId,
+        action: "tag.create",
+        entityType: "tag",
+        entityId: row.id,
+        metadata: { name },
+      });
       return toTagView(row);
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {
