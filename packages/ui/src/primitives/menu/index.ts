@@ -26,4 +26,3 @@ export {
   MenuSubmenuTrigger,
   MenuTrigger,
 } from "./menu";
-export { menuVariants } from "./variants";

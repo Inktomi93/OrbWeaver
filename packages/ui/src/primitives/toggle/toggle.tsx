@@ -3,9 +3,9 @@ import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { toggle } from "./variants";
+import { toggleVariants } from "./variants";
 
-export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeof toggle> {
+export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeof toggleVariants> {
   className?: string;
 }
 
@@ -17,5 +17,5 @@ export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeo
  * Usage: `<Toggle aria-label="Bold" pressed={bold} onPressedChange={setBold}>B</Toggle>`
  */
 export function Toggle({ className, intent, size, ...rest }: ToggleProps): ReactElement {
-  return <BaseToggle className={cn(toggle({ intent, size }), className)} {...rest} />;
+  return <BaseToggle className={cn(toggleVariants({ intent, size }), className)} {...rest} />;
 }

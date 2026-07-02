@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import { field } from "./variants";
+import { fieldVariants } from "./variants";
 
 export interface FieldProps {
   /** Visible label — Base UI associates it with the control child automatically. */
@@ -32,7 +32,7 @@ export function Field({
   className,
   children,
 }: FieldProps): ReactElement {
-  const slots = field();
+  const slots = fieldVariants();
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
   return (

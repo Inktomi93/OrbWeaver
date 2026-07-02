@@ -2,7 +2,7 @@ import { tv } from "tailwind-variants";
 
 // The textarea skin — the Input token skin, multi-line: a min-height on the control-lg scale and
 // native `field-sizing: content` autosize (the 2026 CSS way — D54; no JS measuring).
-export const textarea = tv({
+export const textareaVariants = tv({
   base: [
     "field-sizing-content min-h-control-lg w-full min-w-0 rounded-control border border-border bg-input px-block py-field text-body leading-body text-foreground",
     "placeholder:text-muted-foreground",

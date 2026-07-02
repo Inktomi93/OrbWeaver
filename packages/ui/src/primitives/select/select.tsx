@@ -2,38 +2,20 @@ import type { SelectRootProps } from "@base-ui/react/select";
 import { Select as BaseSelect } from "@base-ui/react/select";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import { select } from "./variants";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/ChevronDown/Icon fine.
+import { Check, ChevronDown, Icon } from "#primitives/icons";
+import { selectVariants } from "./variants";
 
 // Breathing room between trigger and popup (a positioning input, not a styled length).
 const POPUP_SIDE_OFFSET = 4;
 
-const slots = select();
+const slots = selectVariants();
 
 // The chevron on the trigger and the check on a selected item are seal glyphs (Base UI ships the
-// Icon/ItemIndicator containers, not the marks) — inline SVG, the established seal pattern.
-const CHEVRON_ICON: ReactElement = (
-  <svg aria-hidden="true" fill="none" height="12" viewBox="0 0 12 12" width="12">
-    <path
-      d="M3 4.5 6 7.5l3-3"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-    />
-  </svg>
-);
+// Icon/ItemIndicator containers, not the marks) — the lucide seal, not hand-SVG.
+const CHEVRON_ICON: ReactElement = <Icon icon={ChevronDown} size="xs" />;
 
-const CHECK_ICON: ReactElement = (
-  <svg aria-hidden="true" fill="none" height="12" viewBox="0 0 12 12" width="12">
-    <path
-      d="m2.5 6.5 2.5 2.5 4.5-5"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="1.5"
-    />
-  </svg>
-);
+const CHECK_ICON: ReactElement = <Icon icon={Check} size="xs" />;
 
 export interface SelectOption<Value = string> {
   label: string;

@@ -3,7 +3,7 @@ import { tv } from "tailwind-variants";
 // The radio-group skin — a vertical stack of labeled options (rpg-design/11 §16, "who runs the
 // game"). Each item is a circle: bg-input/border-border at rest, primary fill + a light dot when
 // selected; the ::before pseudo lifts the hit area to the touch floor (§4b axis 3).
-export const radioGroup = tv({
+export const radioGroupVariants = tv({
   slots: {
     root: "flex flex-col gap-row",
     label: "inline-flex cursor-pointer items-center gap-row text-body leading-body text-foreground",

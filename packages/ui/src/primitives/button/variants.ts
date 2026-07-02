@@ -2,7 +2,7 @@ import { tv } from "tailwind-variants";
 
 // The button skin — tokens only (ui-package-design §5; D43 §11.4: no components/ui exemption).
 // Sizes ride the control-height tokens, so the ≥44px touch floor holds by construction (§4b axis 3).
-export const button = tv({
+export const buttonVariants = tv({
   base: [
     "inline-flex select-none items-center justify-center gap-field whitespace-nowrap rounded-control font-sans font-medium",
     "transition-colors duration-(--motion-fast) ease-out-expo",

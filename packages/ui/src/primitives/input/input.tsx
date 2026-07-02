@@ -2,7 +2,7 @@ import type { InputProps as BaseInputProps } from "@base-ui/react/input";
 import { Input as BaseInput } from "@base-ui/react/input";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { input } from "./variants";
+import { inputVariants } from "./variants";
 
 export interface InputProps extends BaseInputProps {
   className?: string;
@@ -15,5 +15,5 @@ export interface InputProps extends BaseInputProps {
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
 export function Input({ className, ...rest }: InputProps): ReactElement {
-  return <BaseInput className={cn(input(), className)} {...rest} />;
+  return <BaseInput className={cn(inputVariants(), className)} {...rest} />;
 }

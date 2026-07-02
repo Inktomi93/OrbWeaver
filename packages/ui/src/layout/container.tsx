@@ -1,8 +1,10 @@
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { container } from "./variants";
+import { containerVariants } from "./variants";
 
-export interface ContainerProps extends ComponentProps<"div">, VariantProps<typeof container> {
+export interface ContainerProps
+  extends ComponentProps<"div">,
+    VariantProps<typeof containerVariants> {
   /** Optional `container-name` so descendants can target `@container/<name>` queries. */
   name?: string;
 }
@@ -30,5 +32,5 @@ export function Container({
 }: ContainerProps): ReactElement {
   const named: CSSProperties | undefined =
     name === undefined ? style : { ...style, containerName: name };
-  return <div {...props} style={named} className={container({ size, className })} />;
+  return <div {...props} style={named} className={containerVariants({ size, className })} />;
 }

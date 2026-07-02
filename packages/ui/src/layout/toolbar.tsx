@@ -4,7 +4,7 @@
 // Toolbar; merged here).
 import { Toolbar as BaseToolbar } from "@base-ui/react/toolbar";
 import type { ComponentProps, ReactElement } from "react";
-import { toolbar, toolbarButton, toolbarSeparator } from "./variants";
+import { toolbarButtonVariants, toolbarSeparatorVariants, toolbarVariants } from "./variants";
 
 export interface ToolbarProps extends Omit<ComponentProps<typeof BaseToolbar.Root>, "className"> {
   className?: string;
@@ -18,7 +18,7 @@ export interface ToolbarProps extends Omit<ComponentProps<typeof BaseToolbar.Roo
  * Usage: `<Toolbar aria-label="formatting"><ToolbarButton>Bold</ToolbarButton></Toolbar>`.
  */
 export function Toolbar({ className, ...props }: ToolbarProps): ReactElement {
-  return <BaseToolbar.Root {...props} className={toolbar({ className })} />;
+  return <BaseToolbar.Root {...props} className={toolbarVariants({ className })} />;
 }
 
 export interface ToolbarButtonProps
@@ -32,7 +32,7 @@ export interface ToolbarButtonProps
  * `render` prop: `<ToolbarButton render={<Button variant="ghost" />} />`.
  */
 export function ToolbarButton({ className, ...props }: ToolbarButtonProps): ReactElement {
-  return <BaseToolbar.Button {...props} className={toolbarButton({ className })} />;
+  return <BaseToolbar.Button {...props} className={toolbarButtonVariants({ className })} />;
 }
 
 export interface ToolbarSeparatorProps
@@ -42,5 +42,5 @@ export interface ToolbarSeparatorProps
 
 /** A vertical rule between toolbar groups (Base UI Separator — correct ARIA orientation). */
 export function ToolbarSeparator({ className, ...props }: ToolbarSeparatorProps): ReactElement {
-  return <BaseToolbar.Separator {...props} className={toolbarSeparator({ className })} />;
+  return <BaseToolbar.Separator {...props} className={toolbarSeparatorVariants({ className })} />;
 }

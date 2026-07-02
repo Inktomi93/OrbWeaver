@@ -8,7 +8,7 @@ import type {
 import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { tabs } from "./variants";
+import { tabsVariants } from "./variants";
 
 export interface TabsProps extends BaseTabsRootProps {
   className?: string;
@@ -39,7 +39,7 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
  *  <TabsPanel value="prompt">…</TabsPanel></Tabs>`
  */
 export function Tabs({ className, ...rest }: TabsProps): ReactElement {
-  return <BaseTabs.Root className={cn(tabs().root(), className)} {...rest} />;
+  return <BaseTabs.Root className={cn(tabsVariants().root(), className)} {...rest} />;
 }
 
 /**
@@ -49,13 +49,17 @@ export function Tabs({ className, ...rest }: TabsProps): ReactElement {
  */
 export function TabsList({ className, ...rest }: TabsListProps): ReactElement {
   return (
-    <BaseTabs.List activateOnFocus={true} className={cn(tabs().list(), className)} {...rest} />
+    <BaseTabs.List
+      activateOnFocus={true}
+      className={cn(tabsVariants().list(), className)}
+      {...rest}
+    />
   );
 }
 
 /** One tab button. `<TabsTab value="sampling">Sampling</TabsTab>` */
 export function TabsTab({ className, ...rest }: TabsTabProps): ReactElement {
-  return <BaseTabs.Tab className={cn(tabs().tab(), className)} {...rest} />;
+  return <BaseTabs.Tab className={cn(tabsVariants().tab(), className)} {...rest} />;
 }
 
 /**
@@ -64,10 +68,10 @@ export function TabsTab({ className, ...rest }: TabsTabProps): ReactElement {
  * `transition-all` animates the slide. `<TabsList><TabsTab .../><TabsIndicator /></TabsList>`
  */
 export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {
-  return <BaseTabs.Indicator className={cn(tabs().indicator(), className)} {...rest} />;
+  return <BaseTabs.Indicator className={cn(tabsVariants().indicator(), className)} {...rest} />;
 }
 
 /** The content pane paired to a tab by `value`. `<TabsPanel value="sampling">…</TabsPanel>` */
 export function TabsPanel({ className, ...rest }: TabsPanelProps): ReactElement {
-  return <BaseTabs.Panel className={cn(tabs().panel(), className)} {...rest} />;
+  return <BaseTabs.Panel className={cn(tabsVariants().panel(), className)} {...rest} />;
 }

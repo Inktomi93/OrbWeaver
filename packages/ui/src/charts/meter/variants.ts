@@ -3,7 +3,7 @@
 import { tv } from "tailwind-variants";
 
 /** Linear meter skin — div track + fill (rpg-design/11 §2 `progress_bar`). */
-export const linearMeter = tv({
+export const linearMeterVariants = tv({
   slots: {
     root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
     fill: "h-full rounded-full bg-primary",
@@ -15,7 +15,7 @@ export const linearMeter = tv({
 });
 
 /** Arc (gauge) meter skin — SVG stroke ramp; colors ride currentColor via text-* tokens. */
-export const arcMeter = tv({
+export const arcMeterVariants = tv({
   slots: {
     root: "block size-control-lg",
     track: "text-muted",
@@ -27,7 +27,7 @@ export const arcMeter = tv({
 });
 
 /** Bipolar meter skin — center-origin −/+ fill over a shared track (rpg-design/11 §2 `relationship_meter`). */
-export const bipolarMeter = tv({
+export const bipolarMeterVariants = tv({
   slots: {
     root: "relative h-field w-full overflow-hidden rounded-full bg-muted",
     fill: "absolute inset-y-0 bg-primary",
@@ -43,7 +43,7 @@ export const bipolarMeter = tv({
  * `<SegmentedClock>` skin — intent accent via currentColor + text-primary; empty segments drop to
  * text-muted; size on the control-height token scale (rpg-design/11 §2).
  */
-export const segmentedClock = tv({
+export const segmentedClockVariants = tv({
   slots: {
     root: "text-primary",
     segment: "text-primary",

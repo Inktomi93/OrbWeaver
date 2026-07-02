@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Loader2/Icon fine (the icon-story.tsx precedent).
 import { Icon, Loader2 } from "#primitives/icons";
-import { spinner } from "./variants";
+import { spinnerVariants } from "./variants";
 
 export interface SpinnerProps {
   // Inline union (not a named tuple): {sm,md,lg} is the ubiquitous control-size scale — a competing
@@ -22,7 +22,7 @@ export interface SpinnerProps {
  * Usage: `<Spinner size="sm" label="Saving…" />`.
  */
 export function Spinner({ size = "md", label, className }: SpinnerProps): ReactElement {
-  const slots = spinner();
+  const slots = spinnerVariants();
   return (
     <span className={slots.root({ className })} role="status">
       <Icon icon={Loader2} size={size} className={slots.icon()} />

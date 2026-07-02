@@ -3,11 +3,12 @@
 // Same hand-rolled ARIA mechanism as <Meter> (role="meter" + value semantics).
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { segmentedClock } from "./variants";
+import { segmentedClockVariants } from "./variants";
 
 // `filled` is Omitted from the variant props: the tv `filled` variant is the per-segment boolean
 // skin switch; the public `filled` prop is the COUNT (rpg-design/11 §2 signature).
-export interface SegmentedClockProps extends Omit<VariantProps<typeof segmentedClock>, "filled"> {
+export interface SegmentedClockProps
+  extends Omit<VariantProps<typeof segmentedClockVariants>, "filled"> {
   /** Total segment count — any integer ≥ 2 (4/6/8/12 fit the tabletop clocks, not enforced). */
   segments: number;
   /** Filled segment count (clamped to 0..segments). */
@@ -70,7 +71,7 @@ export function SegmentedClock({
   const count = Math.max(MIN_SEGMENTS, Math.trunc(segments));
   const filledCount = Math.min(count, Math.max(0, Math.trunc(filled)));
   const isComplete = completed === true;
-  const slots = segmentedClock({ size });
+  const slots = segmentedClockVariants({ size });
   return (
     // biome-ignore lint/a11y/useSemanticElements: the D58 spec is ONE hand-rolled ARIA mechanism across all magnitude kinds — a native <meter> cannot render a segmented SVG circle (ui-package-design §10.4).
     <svg

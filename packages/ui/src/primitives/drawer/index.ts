@@ -20,4 +20,3 @@ export {
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,
 } from "./drawer";
-export { drawerVariants } from "./variants";

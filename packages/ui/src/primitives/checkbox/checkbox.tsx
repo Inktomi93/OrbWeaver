@@ -2,7 +2,9 @@ import type { CheckboxRootProps } from "@base-ui/react/checkbox";
 import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { checkbox } from "./variants";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Minus/Icon fine.
+import { Check, Icon, Minus } from "#primitives/icons";
+import { checkboxVariants } from "./variants";
 
 export interface CheckboxProps extends CheckboxRootProps {
   className?: string;
@@ -16,36 +18,12 @@ export interface CheckboxProps extends CheckboxRootProps {
  * Usage: `<Checkbox aria-label="Remember me" checked={on} onCheckedChange={setOn} />`
  */
 export function Checkbox({ className, ...rest }: CheckboxProps): ReactElement {
-  const slots = checkbox();
+  const slots = checkboxVariants();
   return (
     <BaseCheckbox.Root className={cn(slots.root(), className)} {...rest}>
       <BaseCheckbox.Indicator className={slots.indicator()} keepMounted={true}>
-        <svg
-          aria-hidden="true"
-          className={slots.check()}
-          fill="none"
-          height="12"
-          viewBox="0 0 12 12"
-          width="12"
-        >
-          <path
-            d="m2.5 6.5 2.5 2.5 4.5-5"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.5"
-          />
-        </svg>
-        <svg
-          aria-hidden="true"
-          className={slots.dash()}
-          fill="none"
-          height="12"
-          viewBox="0 0 12 12"
-          width="12"
-        >
-          <path d="M2.5 6h7" stroke="currentColor" strokeLinecap="round" strokeWidth="1.5" />
-        </svg>
+        <Icon className={slots.check()} icon={Check} size="xs" />
+        <Icon className={slots.dash()} icon={Minus} size="xs" />
       </BaseCheckbox.Indicator>
     </BaseCheckbox.Root>
   );

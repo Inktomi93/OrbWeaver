@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { section } from "./variants";
+import { sectionVariants } from "./variants";
 
 export interface SectionProps extends ComponentProps<"section"> {
   /** Optional heading rendered above the content in the section's heading slot. */
@@ -13,7 +13,7 @@ export interface SectionProps extends ComponentProps<"section"> {
  * Usage: `<Section heading="Sampling">…fields…</Section>`.
  */
 export function Section({ className, heading, children, ...props }: SectionProps): ReactElement {
-  const slots = section();
+  const slots = sectionVariants();
   return (
     <section {...props} className={slots.root({ className })}>
       {heading === undefined ? null : <h2 className={slots.heading()}>{heading}</h2>}

@@ -3,7 +3,7 @@ import { tv } from "tailwind-variants";
 // The tabs skin — segmented list on bg-muted; the active marker is the sliding Indicator (bg-background)
 // rather than a per-tab background, so it animates between tabs. Tabs ride h-control-sm (the ≥44px
 // touch floor, §4b axis 3) and sit above the indicator via z-(--z-raised).
-export const tabs = tv({
+export const tabsVariants = tv({
   slots: {
     root: "flex w-full flex-col gap-block",
     list: "relative inline-flex w-fit items-center gap-field rounded-control bg-muted p-field",
