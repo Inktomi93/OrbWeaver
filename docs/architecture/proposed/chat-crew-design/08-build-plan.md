@@ -52,7 +52,12 @@ roster-card input slice (host-owned, synthetic-filtered) · supersede-pending fl
 files a proposal; owner accepts one change of two → snapshot exists, card updated, status
 `accepted`; a second audit supersedes; empty-proposals is the no-op path. **Size: M.**
 
-**CW4 — The director.** The chat `audience` field + preview redaction (the pre-chunk chat PR) ·
+**CW4 — The director.** **Pre-build checkpoint (Nate, 2026-07-01): PLAY-TEST the director
+brief before building this chunk** — run the director prompt + payload schema by hand (or via a
+scratch harness) over a real roleplay transcript for 2–3 passes and judge the guidance quality;
+the chunk starts only after the brief survives the playtest (prompt text is versioned constants,
+so tuning is data, but the SHAPE of `guidance` is what the playtest validates). Then: the chat
+`audience` field + preview redaction (the pre-chunk chat PR) ·
 `crew_plots` persistence · `members/director.ts` · `crew-director` kind + runner +
 `applyDirectorPass` · `gatherTurnContext` + the `ChatContext.crew` op + entry wiring · plot verbs
 + host stream events. *Checkpoint:* the canary suite — plot string present in the wire request +

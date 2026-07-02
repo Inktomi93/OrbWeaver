@@ -71,8 +71,9 @@ one.)*
 
 Two touch points, both settled:
 
-1. **echo-chamber IS buddy's observer** wearing a different hat — cut + reconciled in 01 §4; the
-   resurrection path is additive `BuddySignalKind` members, never a crew member.
+1. **echo-chamber IS buddy's observer** wearing a different hat — SUBSUMED BY BUDDY (ratified,
+   Nate 2026-07-01; 01 §4): the capability lives in the observer, and ambient-reaction richness
+   grows there via additive `BuddySignalKind` members — never a crew member.
 2. **The crew consumes the SAME sealed `agentTurn`** buddy injects (Option B). The crew adds zero
    turn paths, zero provider imports, zero prompt-assembly engines — invariant #3 holds by
    construction. The crew's propose/confirm surfaces are the buddy agency gate's pattern

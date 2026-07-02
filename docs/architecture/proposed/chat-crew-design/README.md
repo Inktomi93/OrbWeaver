@@ -30,8 +30,8 @@ surfaced to the model as ONE host-ring injection — prompt-side pressure only, 
 RECEIVE, D53). A fifth capability, **persistent guides** (thinking/clothes/state/situational/rules
 + custom), is interactive rather than batch: a crew VERB awaiting one free-text `agentTurn`
 completion that maintains a labeled persistent chat injection (doc 06). The fifth marinara member,
-**echo-chamber, is CUT** — its product core is buddy's observer wearing a different hat (doc 01
-§4). A domain-owned **scheduler** (the buddy observer pattern) watches the chat bus, enqueues due
+**echo-chamber, is SUBSUMED BY BUDDY** — the capability is wanted and its home is buddy's
+observer/reaction engine; no crew member exists for it (doc 01 §4). A domain-owned **scheduler** (the buddy observer pattern) watches the chat bus, enqueues due
 members, and fires auto-guide refreshes; chat itself stays crew-blind (one optional injected
 GATHER op, the rpg precedent).
 
@@ -39,7 +39,7 @@ GATHER op, the rpg precedent).
 
 | Doc | What it locks |
 |---|---|
-| [`01-verdicts-and-vision.md`](01-verdicts-and-vision.md) | the per-member build/shape/cut verdicts (fun-test applied), the echo-chamber ↔ buddy-observer reconciliation, non-goals |
+| [`01-verdicts-and-vision.md`](01-verdicts-and-vision.md) | the per-member build/shape/subsume verdicts (fun-test applied), the echo-chamber ↔ buddy-observer reconciliation, non-goals |
 | [`02-domain-shape-and-state.md`](02-domain-shape-and-state.md) | **the director-state decision** (one `domain/crew`, the hard call argued), the 8-slot layout, `CrewContext`, all tables + config schema, staleness/swipe semantics |
 | [`03-members.md`](03-members.md) | every member: kind · trigger · ring-scoped input slice · output zod schema · write path · failure posture · prompt brief |
 | [`04-integration-scheduler-and-rings.md`](04-integration-scheduler-and-rings.md) | the chat graft (one GATHER op + the injection `audience` amendment), the scheduler, bus events, notifications, the `can()` matrix, multi-human consent |
@@ -55,7 +55,7 @@ GATHER op, the rpg precedent).
 | lorebook-keeper (B7a) | **BUILD** | `crew-lorebook-keeper` — keyed entries from aged-out transcript, direct world-info write, capped, hand-edit-safe |
 | card-evolution-auditor (B7b) | **BUILD** | `crew-card-evolution` — proposals in a `character`-owned table; owner accepts with an automatic pre-evolution snapshot |
 | story director (B8a) | **BUILD (shaped)** | `crew-director` — arc + twists in `crew_plots`, ONE host-ring guidance injection; no clocks, no tools, no message posts |
-| echo-chamber (B8b) | **CUT** | simulation noise by the 01 §5 fun test; its live core IS buddy's observer (PD-45/64) — extend that, never duplicate it |
+| echo-chamber (B8b) | **SUBSUMED BY BUDDY** | the capability is wanted; its home is buddy's observer (PD-45/64) — ambient-reaction richness grows there via additive `BuddySignalKind` members, never a crew member |
 | prose-guardian / continuity (B8c) | **BUILD (shaped)** | ONE `crew-prose-audit` kind (prose + local continuity in one brief), on-demand-first, propose→review→`chat.editMessage` |
 | persistent guides (guided-generations) | **BUILD** | one generic guide mechanism (verb-not-workload) + packaged templates; maintains labeled persistent injections; auto-refresh opt-in |
 
@@ -70,6 +70,7 @@ injected op + the additive injection `audience` field + the client `message-foot
 card evolution is propose-don't-dispose (the owner accepts; never an autonomous card write) ·
 guide CONTENT has one home (the `chat_injections` row; `crew_guides` is definition only) · the
 four MEMBERS never run on a chat with an active rpg game (the rpg crew is that chat's crew; guides
-are exempt — inert prompt aids) · echo-chamber stays cut unless the buddy-observer extension path
-(01 §4) is what's actually built · enablement is HOST-only, per chat, default OFF for every
-member and every auto-refresh.
+are exempt — inert prompt aids) · echo-chamber is SUBSUMED BY BUDDY — ambient reactions grow
+ONLY through the buddy-observer extension path (01 §4), never a crew member · enablement is
+HOST-only, per chat, default OFF for every member and every auto-refresh (keeper default-OFF
+ratified; revisit-on-evidence criterion stands — 02 §6).

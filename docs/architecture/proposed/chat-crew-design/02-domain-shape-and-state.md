@@ -253,7 +253,8 @@ Constants (in `substrate/constants.ts`, not config): `PROTECT_TAIL = 16` (messag
 auditor never read the newest 16 — they're swipe/edit-volatile), `KEEPER_ENTRY_CAP = 60`,
 `KEEPER_MAX_ENTRIES_PER_RUN = 6`, `PROPOSAL_CHANGE_CAP = 3`, `TWIST_CAP = 6`.
 
-**Config surfaces decision:** per-chat ONLY, host-set, every member default OFF. No
+**Config surfaces decision:** per-chat ONLY, host-set, every member default OFF (keeper
+default-OFF RATIFIED, Nate 2026-07-01; the revisit-on-evidence criterion below stands). No
 `UserSettings.crew` (per-user defaults for new chats) and no `AppSettings.crew` in v1 — YAGNI
 until someone wants defaults; the criterion that adds `UserSettings.crew.defaults` is "a user
 enabling the keeper on their third chat by hand." Spend governance is the D46 budget axis's job

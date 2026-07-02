@@ -212,7 +212,7 @@ memory/search retrieval and its own cadence — is DEFERRED; if built, it become
 then, and it overlaps memory's future trackers/clips roadmap enough that it should be judged
 against that substrate first, doc 05 §c.)*
 
-**Trigger — on-demand-FIRST (the cost posture).** `mode:"on-demand"` (default): a "review this
+**Trigger — on-demand-FIRST (the cost posture; RATIFIED as shipped, Nate 2026-07-01).** `mode:"on-demand"` (default): a "review this
 reply" affordance on any assistant message enqueues one audit for that variant. `mode:"every-turn"`:
 the scheduler enqueues per completed assistant turn — this DOUBLES the chat's per-turn model cost
 and the config UI says so in plain text. *(Rejected: every-turn default — an always-on +100% cost

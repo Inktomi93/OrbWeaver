@@ -1,4 +1,4 @@
-# 01 — Verdicts and Vision: what the plain-chat crew IS (and what got cut)
+# 01 — Verdicts and Vision: what the plain-chat crew IS (and what lives elsewhere)
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any
 > conflict.** The mission, the per-member verdicts, and the one reconciliation this feature forced
@@ -20,7 +20,8 @@ committed to bring into the fold in full (residue rows B7 + B8):
 3. **story director** — secret plot pressure for plain (non-game) roleplay.
 4. **prose-guardian / continuity** — post-turn output auditors proposing edits.
 
-(Marinara's fifth ambient member, echo-chamber, is evaluated in §4 and cut.)
+(Marinara's fifth ambient member, echo-chamber, is evaluated in §4 and SUBSUMED BY BUDDY —
+wanted, homed in the observer, not a crew member.)
 
 A fifth capability joined the same domain during design (Nate, 2026-07-01): **persistent guides**
 — the guided-generations extension's other half (side generations maintaining labeled persistent
@@ -82,15 +83,16 @@ the test adapts: **does it produce an artifact a user sees, uses, or decides on?
 | lorebook-keeper | keyed lore entries that FIRE in later prompts (verbatim recall memory digests can't give) + are browsable/editable in the WI editor | **BUILD** — visible, durable, decision-bearing (the host curates the book) |
 | card-evolution-auditor | a reviewable card diff with rationale; accept = the card grows with play | **BUILD** — the accept IS a user decision; the diff is the visible artifact |
 | story director | narrative direction the user FEELS (the model stops meandering) + a host-readable plot panel | **BUILD (shaped)** — the artifact is indirect but real; marinara users ran it by choice. Shaped THIN: prompt-side pressure only (no clocks, no state writes beyond its own table) because every visible-consequence lever (clocks, HUD, encounter pressure) belongs to rpg mode — a plain chat has nowhere to render them (rejected: porting clocks to plain chats — that's rpg mode without the game, and rpg mode exists) |
-| echo-chamber | ambient reactions alongside the main reply | **CUT** — §4 |
+| echo-chamber | ambient reactions alongside the main reply | **SUBSUMED BY BUDDY** — §4 (the capability has a home; it is not a crew member) |
 | prose-guardian / continuity | a reviewable edit proposal on a finished reply | **BUILD (shaped)** — ONE kind covering both briefs; on-demand-first (doc 03 §4 argues the cost posture) |
 
-## 4. The echo-chamber ↔ buddy-observer reconciliation (CUT, with the resurrection path)
+## 4. The echo-chamber ↔ buddy-observer reconciliation (SUBSUMED BY BUDDY)
 
 **What it was:** marinara's `echo-chamber` ran in the parallel phase (runtime-forced — *(marinara:
 §5, `resolveAgentRuntimePhase`)*), generating ambient reactions alongside the main generation.
 
-**Why it fails the test here.** Its output has exactly two possible destinations, both wrong:
+**Why it is not a CREW member.** Its output has exactly two possible destinations, neither of
+which a crew workload serves:
 
 1. **Into canon** (posted as messages) — then it's an uninvited speaker. Orbweaver's roster +
    arbitration system ALREADY owns "other characters react": per-turn re-arbitration,
@@ -102,17 +104,18 @@ the test adapts: **does it produce an artifact a user sees, uses, or decides on?
    throttled, deduped, per-user SSE bus. That engine is designed, has a domain, has a bus, and is
    already wired to chat/workload event sources.
 
-**The reconciliation rule (binding):** ambient reaction to app/chat activity is buddy's observer's
-job — ONE reaction engine. If richer in-chat ambience is ever wanted, the build is **additive
-`BuddySignalKind` members fed from chat-bus events** (e.g. a scene-beat signal), rendered by
-buddy's existing quip surface — NOT a crew member, NOT a parallel per-turn agent. *(Rejected: a
-`crew-echo-chamber` WorkloadKind — it would duplicate the observer's throttle/dedupe/mood machinery
-or lack it, and its per-turn LLM cost buys flavor text nobody acts on. Rejected: killing the idea
-without a path — the buddy-signal extension is the honest resurrection route, priced at one union
-member + one mood map entry.)*
+**The reconciliation rule (binding — RATIFIED, Nate 2026-07-01):** the CAPABILITY IS WANTED and
+it HAS A HOME — buddy's observer is orbweaver's ambient-reaction engine, and echo-chamber is
+SUBSUMED by it. Ambient-reaction richness grows THERE: **additive `BuddySignalKind` members fed
+from chat-bus events** (e.g. a scene-beat signal), rendered by buddy's existing quip surface —
+ONE reaction engine, never a crew member, never a parallel per-turn agent. *(Rejected: a
+`crew-echo-chamber` WorkloadKind — it would duplicate the observer's throttle/dedupe/mood
+machinery or lack it, and its per-turn LLM cost buys flavor text nobody acts on. Rejected:
+recording this as a cut/rejection — the record must read "this capability has a home," because a
+cold agent reading "CUT" would neither build the buddy signals nor stop a re-proposal framed
+differently.)*
 
-This is a **recommendation Nate ratified by committing the doc set**: echo-chamber's row in the
-residue flips to DECIDED-cut with this section as the reasons.
+Echo-chamber's residue row flips to DECIDED-subsumed with this section as the record.
 
 ## 5. Non-goals (explicit)
 
