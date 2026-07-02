@@ -25,8 +25,8 @@ gets a real column or table. **`chats.metadata` carries exactly ONE rpg key:** `
 CREATE `packages/db/src/schema/rpg.ts`, exported from the schema barrel, tables born into
 `0000_baseline` (pre-launch squash rule, D50 precedent). Conventions (non-negotiable, house law):
 TypeID text PKs with new prefixes registered in `@orb/kit/ids` (`rpggame_`, `rpgsnap_`, `rpgparty_`,
-`rpgnpc_`, `rpgclock_`, `rpgjournal_`, `rpgquest_`, `rpgmap_`, `rpgsession_`, `rpgcheck_`,
-`rpgwidget_`, `rpgenc_`, `rpgscene_`); integer ms timestamps `default(sql\`(unixepoch()*1000)\`)`;
+`rpgnpc_`, `rpgclock_`, `rpgjournal_`, `rpgquest_`, `rpgmap_`, `rpgsession_`, `rpgcheck_` (checkpoints),
+`rpgpend_` (pending checks), `rpgwidget_`, `rpgenc_`, `rpgscene_`); integer ms timestamps `default(sql\`(unixepoch()*1000)\`)`;
 enum columns derive from `@orb/contracts/rpg` tuples (never inline — `no-inline-union-redecl`);
 per-type FKs only (D24); NO `ownerId` on any rpg table — authority derives through
 `rpg_games.chatId → chat_participants` membership (D18/D20 discipline).
@@ -446,7 +446,7 @@ bookmark, not a full save; the doc for the verb says so loudly).
 
 ## 10b. `rpg_pending_checks` — the check request/resolve handshake (doc 12 §3 — authoritative)
 
-`id` PK, `gameId` FK CASCADE, `targetPartyMemberId` FK → `rpg_party.id` CASCADE, `skill` text
+`id` text PK `RpgPendingCheckId` (`rpgpend_`), `gameId` FK CASCADE, `targetPartyMemberId` FK → `rpg_party.id` CASCADE, `skill` text
 notNull, `dc` int CHECK 2..30, `advantage`/`disadvantage` int(bool), `reason` text, `requestedBy`
 CHECK in `["gm-seat","gm-model"]`, `status` CHECK in `["pending","resolved","declined","expired"]`,
 `result` text(json `RpgCheckResult`) nullable, `createdAt`, `resolvedAt` nullable. Partial unique

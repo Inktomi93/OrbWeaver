@@ -85,7 +85,7 @@ had to exist for ring enforcement):
 
 ### The check request/resolve handshake (built for the seat; a consent upgrade for the AI GM too)
 
-NEW table `rpg_pending_checks` (03 amendment, R1 baseline): `id` PK, `gameId` FK CASCADE,
+NEW table `rpg_pending_checks` (03 §10b, R1 baseline): `id` text PK `RpgPendingCheckId` (`rpgpend_`), `gameId` FK CASCADE,
 `targetPartyMemberId` FK, `skill`, `dc` (2..30), `advantage`/`disadvantage`, `reason`,
 `requestedBy` CHECK in `["gm-seat","gm-model"]`, `status` CHECK in
 `["pending","resolved","declined","expired"]`, `result` text(json) nullable, `createdAt`,

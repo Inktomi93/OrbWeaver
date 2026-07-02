@@ -21,7 +21,7 @@ File map (one engine per file): `dice.ts` · `check.ts` · `combat.ts` · `moral
 ## 1. Dice (`dice.ts`) — ONE implementation (kills the 3-way dupe)
 
 Marinara had three `rollDice` with three range policies (server clamp / tool reject / client
-uncapped — corpus 08 + deep-dive §DUPES). ONE home, the strict policy:
+uncapped — the archived corpus, Part 2 dupes table). ONE home, the strict policy:
 
 - Notation: `/^(\d+)?d(\d+)([+-]\d+)?$/i` — `NdM±K`. `N` default 1.
 - **Validation, not silent clamping** (the tool-executor policy wins): `1 ≤ N ≤ 100`,
@@ -166,14 +166,31 @@ encounter LIFECYCLE is 07. (Numbering stability for cross-refs.)
 - Combat drop count: `min(10, enemyCount + rng.int(0, enemyCount) + DIFFICULTY_LOOT_BONUS)` with
   bonus `{casual:0, normal:0, hard:1, brutal:2}` *(verbatim)*.
 - **Item CONTENT is campaign data, not code** — REDESIGN. Marinara shipped 36 hardcoded items with
-  rarity assigned by index position ("Flamebrand is THE legendary", flagged as placeholder). Here:
-  `rpg_games.config` gains no field — instead world-gen (06 §setup) emits a `lootTable`
-  (zod-validated: `{name, type: weapon|armor|potion|misc|currency, rarity, effect?: typed}[]`,
-  20–40 items themed to the campaign), stored as an `rpg_games.lootTable` json column; the
-  built-in default table (port marinara's 36 items with EXPLICIT rarity fields) is the fallback.
-  Rolls pick uniformly among items OF the rolled rarity. *(Why: earned progression only lands when
-  the sword has the campaign's fingerprints on it; determinism is preserved — the table is fixed at
-  setup, the roll is server-side.)*
+  rarity assigned by INDEX RATIO in each table (`ratio<0.3 common, <0.5 uncommon, <0.7 rare,
+  <0.9 epic, else legendary`) — which made "Flamebrand, a legendary sword wreathed in eternal
+  flame" roll as UNCOMMON (index 4 of 10). Here: world-gen (06 §4) emits a `lootTable`
+  (zod-validated: `{name, description, type: weapon|armor|potion|scroll|material|key|currency|misc,
+  rarity, modifiers?: Record<stat,int>}[]`, 20–40 items themed to the campaign), stored on
+  `rpg_games.lootTable`; the built-in DEFAULT table below is the fallback. Rolls pick uniformly
+  among items OF the rolled rarity. *(Why: earned progression only lands when the sword has the
+  campaign's fingerprints on it; determinism is preserved — the table is fixed at setup, the roll
+  is server-side. Rejected: marinara's index-ratio rarity — position is not power.)*
+
+  **The built-in default table** (marinara's 36 items, names/descriptions/modifiers verbatim;
+  rarities REASSIGNED explicitly by modifier strength — the redesign above):
+
+  | Rarity | Weapons (`modifiers.attack`) | Armor (`modifiers.defense[, speed]`) | Potions | Misc |
+  |---|---|---|---|---|
+  | common | Rusty Dagger (1) · Iron Shortsword (3) · Hunting Bow (2) | Leather Vest (1) · Wooden Shield (2) · Chainmail Shirt (3) | Minor Healing Potion · Healing Potion · Antidote | Torch (misc) · Rope 50ft (material) · Ancient Coin (currency) · Monster Hide (material) |
+  | uncommon | Staff of Sparks (4) · Steel Longsword (5) | Iron Buckler (4) | Greater Healing Potion · Potion of Strength · Potion of Iron Skin · Potion of Swiftness | Lockpick Set (misc) · Gemstone (currency) · Map Fragment (misc) |
+  | rare | Composite Longbow (6) · Warhammer (7) | Steel Breastplate (5) · Enchanted Cloak (6, +2 spd) | — | Mysterious Key (key) · Spell Scroll (scroll) · Enchanting Dust (material) |
+  | epic | Enchanted Rapier (8) · Shadowblade (10) | Mithril Chainmail (8, +1 spd) | Elixir of Vitality | — |
+  | legendary | Flamebrand (12) | Dragonscale Plate (12) | — | — |
+
+  Potion/utility effects are TYPED on generation (03 §2.2 condition/heal shapes) — e.g. Minor/
+  normal/Greater Healing heal 25%/50%/100% of maxHp (new explicit values; marinara's potions had
+  no numbers at all, item effects were narrated ad-hoc); stat potions apply `{stat, modifier:+2,
+  turnsLeft:3}` conditions.
 
 ## 6. Reputation (`reputation.ts`) — verbatim, tag→tool
 
@@ -187,7 +204,19 @@ encounter LIFECYCLE is 07. (Numbering stability for cross-refs.)
 - Tiers *(verbatim)*: ≥80 devoted, ≥50 allied, ≥20 friendly, ≥−20 neutral, ≥−50 unfriendly,
   ≥−80 hostile, else enemy. Milestone fires on tier crossing (direction-aware), appends the
   milestone note to `rpg_npcs.notes` and emits `rpg.reputationMilestone` on the bus (automation
-  trigger, 09b). Milestone description strings: port marinara's per-tier up/down table verbatim.
+  trigger, 09b). The milestone description = `"{npcName} {string}"`, from this table
+  *(marinara `MILESTONE_DESCRIPTIONS`, verbatim; `up` when the NEW tier was reached from below,
+  `down` from above)*:
+
+  | New tier | up | down |
+  |---|---|---|
+  | devoted | has pledged unwavering loyalty to the party | no longer holds unconditional devotion |
+  | allied | considers the party trusted allies | is reconsidering the alliance |
+  | friendly | has warmed up and views the party favorably | is growing distant from the party |
+  | neutral | has cooled down and returned to a neutral stance | has become indifferent towards the party |
+  | unfriendly | is slightly less hostile but still wary | is clearly displeased with the party |
+  | hostile | is somewhat less hostile, though still dangerous | now views the party with open hostility |
+  | enemy | is still hostile but no longer sworn to destroy the party | has declared themselves an enemy of the party |
 
 ## 7. Morale (`morale.ts`) — verbatim model, hook WIRED
 
@@ -200,8 +229,13 @@ encounter LIFECYCLE is 07. (Numbering stability for cross-refs.)
 - `MORALE_DICE_MODIFIER` (inspired +2 … broken −2) is a REAL input to checks (§2.1) and to
   encounter initiative (party side). Morale events fire from the owning verbs (a check fumble, an
   encounter outcome, a quest flip) — never from a model tool directly (it's derived pressure, not a
-  dial the narrator turns). The `<party_morale>` prose block for the prompt ports marinara's
-  per-tier flavor lines.
+  dial the narrator turns). The `<party_morale>` prose block renders
+  `Morale: {tier} ({value}/100)` + the tier line *(marinara `formatMoraleContext`, verbatim)*:
+  **inspired** "The party is fired up and brimming with confidence. They believe they can overcome
+  anything." · **high** "Spirits are high. The party moves with purpose and optimism." · **steady**
+  "The party's morale is stable — neither particularly motivated nor discouraged." · **low**
+  "Morale is flagging. Doubt and fatigue are setting in. The party is short-tempered." · **broken**
+  "The party is demoralized. Fear and despair hang heavy. Arguments may break out." 
 
 ## 8. Time (`time.ts`) — verbatim
 
@@ -214,18 +248,90 @@ afternoon 14, evening 18, night 21, midnight 0), +1 day when target ≤ current.
 tool takes `action | minutes | setTimeOfDay` and its verb ALSO runs the weather-change roll (§9)
 and, for explore/travel/rest actions, the encounter roll (§10) — one tool, the world moves.
 
-## 9. Weather (`weather.ts`) — verbatim tables
+## 9. Weather (`weather.ts`) — verbatim tables (inlined in full)
 
-Port ALL tables verbatim (deep-dive §8 has them complete): the 8 biome weight tables
-(temperate/tropical/arctic/desert/mountain/coastal/underground/urban), the 4 season modifier sets,
-`BASE_TEMP` ranges, season temp mods (spring 0 / summer +5 / autumn −3 / winter −10), weather temp
-mods (clear +2, heat_wave +8, storm −3, snow −5, blizzard −10, rain −2, fog −1), change
-probabilities (explore 0.2, travel 0.35, rest_long 0.6, rest_short 0.15, default 0.08), and the
-`inferBiome` regex priority chain (arctic→desert→mountain→coastal→tropical→underground→urban→
-temperate). Weather is generated server-side on a triggered change and narrated by the model as
-canonical truth. Memoryless regeneration is ACCEPTED (marinara's model; a Markov weather chain is
-simulation noise). One marinara inconsistency fixed: a forced `set` regenerates the FULL state for
-the target type (temperature/wind/visibility included), never a type-only overwrite.
+13 weather types: `clear cloudy overcast rain heavy_rain storm snow blizzard fog wind hail
+sandstorm heat_wave`. 8 biomes, 4 seasons. Generation = weighted pick over
+`BIOME_WEATHER[biome] + SEASON_MODIFIERS[season]` (weights floored at 0), then temperature/wind/
+visibility/description derived. All tables verbatim from marinara `weather.service.ts`:
+
+**`BIOME_WEATHER` (weights):**
+
+| Biome | Weights |
+|---|---|
+| temperate | clear 30 · cloudy 25 · overcast 15 · rain 15 · fog 5 · wind 5 · storm 3 · snow 2 |
+| tropical | clear 25 · cloudy 20 · rain 25 · heavy_rain 15 · storm 10 · fog 3 · heat_wave 2 |
+| arctic | clear 10 · cloudy 15 · overcast 15 · snow 25 · blizzard 15 · fog 10 · wind 10 |
+| desert | clear 40 · heat_wave 20 · sandstorm 15 · wind 15 · cloudy 10 |
+| mountain | clear 20 · cloudy 20 · overcast 15 · wind 15 · fog 10 · snow 10 · storm 5 · blizzard 5 |
+| coastal | clear 25 · cloudy 20 · fog 15 · wind 15 · rain 10 · storm 10 · overcast 5 |
+| underground | clear 100 (no weather variation) |
+| urban | clear 25 · cloudy 25 · overcast 15 · rain 15 · fog 10 · wind 5 · storm 5 |
+
+**`SEASON_MODIFIERS` (added to base weights):** spring `rain +10, fog +5, clear −5` · summer
+`clear +15, heat_wave +5, storm +5, snow −15, blizzard −15` · autumn `overcast +10, fog +10,
+wind +5, rain +5, clear −10` · winter `snow +15, blizzard +5, fog +5, clear −10, rain −5,
+heat_wave −10`.
+
+**Temperature:** `round(minT + rng·(maxT−minT) + seasonTempMod + weatherTempMod)` with `BASE_TEMP`
+°C ranges — temperate [5,28] · tropical [22,38] · arctic [−30,5] · desert [15,50] ·
+mountain [−10,18] · coastal [10,30] · underground [12,18] · urban [8,32]; season mods
+`spring 0 / summer +5 / autumn −3 / winter −10`; weather mods `clear +2, heat_wave +8, storm −3,
+snow −5, blizzard −10, rain −2, fog −1` (others 0).
+
+**Wind (pick one) / visibility (pick one) per type:**
+
+| Type | wind ∈ | visibility ∈ |
+|---|---|---|
+| clear / cloudy | calm, breezy | clear |
+| overcast | calm, breezy | clear, reduced |
+| rain | breezy, windy | reduced |
+| heavy_rain | windy, gale | reduced, poor |
+| storm | windy, gale | poor |
+| snow | calm, breezy, windy | reduced |
+| blizzard | gale | poor |
+| fog | calm | poor |
+| wind | windy, gale | clear, reduced |
+| hail | windy, gale | reduced |
+| sandstorm | gale | poor |
+| heat_wave | calm, breezy | clear, reduced |
+
+**Description templates** (pick one; verbatim — the string feeds `RpgWeather.description`, which the
+GM narrates as canonical): clear "Clear skies stretch overhead." / "The sky is bright and
+cloudless." / "A beautiful clear day." · cloudy "Scattered clouds drift across the sky." / "A
+partly cloudy sky hangs above." · overcast "Grey clouds blanket the sky." / "A thick overcast
+covers everything." · rain "A steady rain falls." / "Raindrops patter against every surface." ·
+heavy_rain "Heavy rain pours down in sheets." / "A torrential downpour drenches everything." ·
+storm "Thunder rumbles as lightning splits the sky." / "A violent storm rages overhead." · snow
+"Gentle snowflakes drift down." / "A light snowfall dusts the ground." · blizzard "A howling
+blizzard reduces visibility to nothing." / "Wind-driven snow blinds everything." · fog "A thick fog
+clings to the ground." / "Mist swirls through the air, limiting sight." · wind "Strong gusts whip
+through the area." / "The wind howls relentlessly." · hail "Pellets of ice clatter from the sky." /
+"Hailstones bounce off every surface." · sandstorm "Sand swirls in blinding clouds." / "A choking
+sandstorm obscures everything." · heat_wave "The air shimmers with oppressive heat." / "A
+relentless heat wave bakes the land."
+
+**Change probabilities** (rolled by `advance_time`, §8): explore 0.2 · travel 0.35 · rest_long 0.6
+· rest_short 0.15 · default 0.08.
+
+**`inferBiome(location)` — first-match regex chain (verbatim, order matters; case-insensitive over
+the lowercased location string):**
+
+```
+/arctic|tundra|frozen|ice|glacier/                          → arctic
+/desert|sand|dune|oasis|wasteland/                          → desert
+/mountain|peak|summit|highland|cliff/                       → mountain
+/coast|beach|harbor|port|sea|ocean|shore/                   → coastal
+/jungle|tropic|swamp|marsh/                                 → tropical
+/cave|cavern|mine|underground|dungeon|cellar|crypt|tomb/    → underground
+/city|town|village|market|tavern|inn|castle|fortress|tower/ → urban
+(else)                                                      → temperate
+```
+
+Weather is generated server-side on a triggered change and narrated by the model as canonical
+truth. Memoryless regeneration is ACCEPTED (marinara's model; a Markov weather chain is simulation
+noise). One marinara inconsistency fixed: a forced `set` regenerates the FULL state for the target
+type (temperature/wind/visibility included), never a type-only overwrite.
 
 ## 10. Perception (`perception.ts`) — formula kept, content regenerated from REAL secrets
 
@@ -264,17 +370,78 @@ the target type (temperature/wind/visibility included), never a type-only overwr
   verbatim (NFKD normalize, strip articles; exact 100 / substring≥4 80 / shared tokens 50+n);
   moving reveals (fog of war, 03 §7).
 
-## 12. Elemental reactions (`elements.ts`) — verbatim data, LAST build chunk
+## 12. Elemental reactions (`elements.ts`) — verbatim data (inlined in full), LAST build chunk
 
 Aura-gauge rules *(all verbatim)*: no aura → set `{element, gauge 1, sourceId}`; same
 element+source → refresh `gauge = min(2, gauge + 0.5)`; rule match (aura=trigger,
-incoming=appliedWith) → reaction fires, `gauge − 1`, aura consumed at ≤0; no rule → overwrite with
-incoming at gauge 1. `applyReactionDamage = floor(base × multiplier)`. HSR same-element reactions
-require two different sources (same source = refresh) — a real subtlety, golden-test it.
+incoming=appliedWith) → reaction fires with `damageMultiplier` + `effects` (03 §2.2 condition
+shape), `gauge − 1`, aura consumed at ≤0 (else it persists with the reduced gauge); no rule →
+overwrite aura with the incoming element at gauge 1. `applyReactionDamage = floor(base ×
+multiplier)`. HSR same-element reactions therefore require two DIFFERENT sources (same source =
+refresh, no rule lookup) — a real subtlety, golden-test it.
 
-Port the THREE preset tables verbatim as `RPG_ELEMENT_PRESET_DATA` (they are complete in the
-deep-dive return — §4 tables for `default` 6-element/8-reaction, `genshin` 7-element/17-reaction
-incl. the target-buffing Quicken +3 attack and Crystallize shields, `hsr` 7-element/11-reaction).
+The THREE presets, as `RPG_ELEMENT_PRESET_DATA` — all rules verbatim from marinara
+`element-reactions.service.ts`. Effect notation: `name (±N stat, T turns)`; `stat:"hp"` effects
+are DoT (§3). Emojis/colors ride the element defs for HUD/chip rendering (fire 🔥, ice ❄️, etc. —
+port the def objects as-is).
+
+**`default` — "Classic RPG" (6 elements: fire, ice, lightning, poison, holy, shadow — 8 rules):**
+
+| Aura (trigger) | + Incoming | Reaction | ×dmg | Effects | Description (narration cue) |
+|---|---|---|---|---|---|
+| fire | ice | Melt | 1.5 | Chilled (−2 speed, 2t) | "Fire and ice clash — a massive melt eruption deals extra damage" |
+| ice | fire | Shatter | 1.3 | Shattered (−3 defense, 1t) | "Frozen target shatters under the heat, cracking their armor" |
+| fire | lightning | Overload | 1.8 | Stunned (−5 speed, 1t) | "Electrical charge ignites the flames — a thunderous overload explosion" |
+| ice | lightning | Superconduct | 1.4 | Conductivity (−4 defense, 2t) | "Superconducting blast strips away physical resistance" |
+| poison | fire | Toxic Blaze | 1.6 | Burning Toxin (−5 hp, 3t) | "Poisonous fumes ignite into a noxious inferno" |
+| holy | shadow | Purification | 2.0 | — | "Light and darkness annihilate each other in a cataclysmic burst" |
+| shadow | holy | Eclipse | 2.0 | Blinded (−3 attack, 2t) | "Blinding eclipse — darkness engulfs the light, disorienting the target" |
+| lightning | poison | Electrotoxin | 1.5 | Paralytic Venom (−4 speed, 2t) + Corroding (−3 hp, 2t) | "Electric current accelerates the spread of toxins through the body" |
+
+**`genshin` — "Genshin Impact" (7 elements: pyro, hydro, electro, cryo, anemo, geo, dendro —
+23 rules incl. the reverse pairs; the deep-dive's "17" undercounted):**
+
+| Aura | + Incoming | Reaction | ×dmg | Effects |
+|---|---|---|---|---|
+| pyro | hydro | Vaporize | 2.0 | — |
+| hydro | pyro | Vaporize (Reverse) | 1.5 | — |
+| pyro | cryo | Melt | 2.0 | — |
+| cryo | pyro | Melt (Reverse) | 1.5 | — |
+| hydro | cryo | Frozen | 1.0 | Frozen (−99 speed, 1t) |
+| cryo | hydro | Frozen | 1.0 | Frozen (−99 speed, 1t) |
+| pyro | electro | Overloaded | 1.5 | Overloaded (−3 defense, 1t) |
+| electro | pyro | Overloaded | 1.5 | Overloaded (−3 defense, 1t) |
+| hydro | electro | Electro-Charged | 1.2 | Electro-Charged (−3 hp, 2t) |
+| electro | hydro | Electro-Charged | 1.2 | Electro-Charged (−3 hp, 2t) |
+| cryo | electro | Superconduct | 1.3 | Superconduct (−5 defense, 2t) |
+| electro | cryo | Superconduct | 1.3 | Superconduct (−5 defense, 2t) |
+| dendro | pyro | Burning | 1.0 | Burning (−4 hp, 3t) |
+| dendro | hydro | Bloom | 1.5 | Bloom Seed (−2 hp, 1t) |
+| dendro | electro | Quicken | 1.4 | Quickened (**+3 attack**, 2t — the one target-BUFFING reaction) |
+| pyro/hydro/cryo/electro | anemo | Swirl (Pyro/Hydro/Cryo/Electro) | 1.3 | — (4 rules) |
+| pyro/cryo/hydro/electro | geo | Crystallize (Pyro/Cryo/Hydro/Electro) | 1.0 | {Element} Shield (**+3 defense**, 2t) (4 rules) |
+
+Narration cues verbatim in source, e.g. Vaporize "A massive steam explosion as fire meets water —
+doubled damage", Quicken "Dendro and Electro catalyze — empowering follow-up attacks", Crystallize
+"A crystallized {element} shield forms, absorbing damage".
+
+**`hsr` — "Honkai: Star Rail" (7 elements: physical, fire, ice, lightning, wind, quantum,
+imaginary — 11 rules; the 7 same-element rules fire only cross-source per the gauge rule above):**
+
+| Aura | + Incoming | Reaction | ×dmg | Effects |
+|---|---|---|---|---|
+| fire | fire | Burn | 1.0 | Burn (−4 hp, 3t) |
+| ice | ice | Freeze | 1.0 | Frozen (−99 speed, 1t) |
+| lightning | lightning | Shock | 1.0 | Shocked (−3 hp, 2t) |
+| wind | wind | Wind Shear | 1.0 | Wind Shear (−3 hp, 3t) |
+| physical | physical | Bleed | 1.0 | Bleed (−3 hp, 3t) |
+| quantum | quantum | Entanglement | 1.2 | Entangled (−4 speed, 1t) |
+| imaginary | imaginary | Imprisonment | 1.0 | Imprisoned (−5 speed, 1t) |
+| fire | ice | Thermal Shock | 1.5 | Brittle (−3 defense, 2t) |
+| ice | fire | Flash Thaw | 1.5 | Weakened (−2 attack, 2t) |
+| lightning | quantum | Quantum Discharge | 1.8 | Disrupted (−4 defense, 1t) |
+| wind | imaginary | Void Storm | 1.6 | Void Touched (−3 attack, 2t) |
+
 Elements participate ONLY in the encounter engine (07); `houseRules.elementPreset` null = off.
 One marinara drift fixed by construction: there is no client-side aura path (its GM
 `[element_attack:]` tag bypassed reaction resolution) — the only element application is inside

@@ -36,12 +36,34 @@ marinara's deterministic hint→asset scoring pattern is noted in the corpus for
 
 - **Prompt composition** (`imagery/prompts.ts`, pure): STEAL marinara's verified composition
   inputs — NPC portraits: identity line synthesized from name/description/gender/pronouns + the
-  age/gender/non-human guard heuristics (port the regex heuristics; they exist to stop image models
-  hallucinating species from names) + `artStylePrompt` + "solo, portrait, upper body" composition
-  tags + the negative-prompt default. Illustrations: STEAL the player-POV rule (*"first-person view
-  from the player protagonist's eyes; do not show the protagonist except hands or arms"*), scene
-  moment + purpose + per-character appearance notes, `config.imagery.promptInstructions` appended
-  last. Length caps: portrait 1400 / illustration 2200 chars (marinara's, kept).
+  guard heuristics INLINED below + `artStylePrompt` + "solo, portrait, upper body" composition
+  tags + the negative-prompt defaults inlined below. Illustrations: STEAL the player-POV rule
+  (*"first-person view from the player protagonist's eyes; do not show the protagonist except
+  hands or arms"*), scene moment + purpose + per-character appearance notes,
+  `config.imagery.promptInstructions` appended last. Length caps: portrait 1400 / illustration
+  2200 chars (marinara's, kept).
+
+  **The identity-guard heuristics** (verbatim regex logic from `game-asset-generation.ts` — they
+  stop image models hallucinating species/gender/age from names):
+  - *Non-human cue* — only emit species tags when the description EXPLICITLY says so:
+    `/\b(?:animal|cat|kitten|dog|puppy|wolf|fox|bird|raven|crow|owl|horse|deer|rabbit|rat|mouse|snake|lizard|dragon|beast|creature|monster|spirit|ghost|construct|golem|doll|object|statue|mascot|non[-\s]?human|anthropomorphic|feral|quadruped)\b/i`
+    — no match ⇒ the prompt asserts a human subject.
+  - *Gender cue* — resolve in priority order: explicit `gender`/`pronouns` fields matched against
+    `non-binary|enby|androgynous|genderless|agender|they/them` → "androgynous",
+    `female|woman|girl|lady|feminine|she/her…` → "female", `male|man|boy|gentleman|masculine|he/him…`
+    → "male"; only then the same patterns over the description text; no match ⇒ omit the cue.
+  - *Age cue* — first match wins: a decade phrase (`(early|mid|late) (twenties…sixties)`), then an
+    age label (`young adult|middle-aged|elderly|senior|adult|teen(ager)?|child|kid`), then the
+    adult-milestone scorer (≥2 hits among the ownership/military/schooling/migration pattern sets
+    ⇒ "young adult"); no match ⇒ omit.
+
+  **The negative-prompt defaults** (verbatim): portrait — `"text, letters, captions, subtitles,
+  UI, watermark, logo, signature, speech bubble, split screen, panel, collage, contact sheet,
+  grid, four portraits, multiple portraits, duplicated face, extra head, extra person, bad
+  anatomy, low quality"`; illustration — `"text, letters, captions, subtitles, UI, watermark,
+  logo, signature, speech bubble, split screen, panel, collage, contact sheet, character sheet,
+  grid, four images, duplicated face, extra head, unrelated character, bad anatomy, low quality"`.
+  Default sizes: portrait 1024×1024, illustration 1280×720 (marinara's).
 - **Character consistency**: when `config.imagery.useAvatarReferences`, resolve up to 4 reference
   images (preference: full-body sprite → avatar asset — via injected `assets` reads) into
   `ImageEditInput`-style references on the imagery call (the D49 `edit`/reference seam); up to 5
@@ -64,9 +86,9 @@ STEAL marinara's verified model — the LLM decides IF a moment is CG-worthy, co
 the reminder (06 §2) only lists `request_illustration` when eligible; eligibility =
 `config.imagery.enabled && autoIllustrations && (sessionChanged || turnsSince(lastIllustration) ≥ 2)`;
 the prompt guidance keeps marinara's bar (*"only for a major, story-defining moment… most turns
-must not request one"*). `rpg_games` gains two bookkeeping columns (`lastIllustrationTurn`,
-`lastIllustrationSession` — the 03 schema carries them under `config` runtime state? NO — as real
-columns, updated by the workload; derive-don't-guess). Host `force` bypasses. *(Rejected: pure
+must not request one"*). The bookkeeping lives in the two real `rpg_games` columns
+(`lastIllustrationTurn` / `lastIllustrationSession` — 03 §1), updated by the workload on completion.
+Host `force` bypasses the gate. *(Rejected: pure
 every-N-turns cadence — art on a shopping turn; pure LLM discretion — every turn is "iconic".)*
 
 ## 4. Failure posture
