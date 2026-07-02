@@ -1,0 +1,214 @@
+// verb: exportChat (PD-42) — the transcript OUT against a real db. Load-bearing pins: the D29 HOST gate
+// (non-host / non-member / missing chat all collapse to null); the D26 mapping (content from the SELECTED
+// variant; the full variant set = the swipe array); the D28 primary-character name + anchor-persona name;
+// the roomOverrides.authorsNote → note_prompt + parentChatId → main_chat round-trip; the txt format.
+
+import type { Db } from "@orb/db";
+import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
+import type {
+  ChatId,
+  ChatParticipantId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
+import { eq } from "drizzle-orm";
+import { beforeEach, describe } from "vitest";
+import { createExportChat } from "../../../../../packages/server/src/domain/export/verbs/export-chat.ts";
+import { freshDb } from "../../../../support/db";
+import { expect, test } from "../../../../support/fixtures";
+import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
+
+const FROZEN_AT = 1_750_000_000_000;
+
+let db: Db;
+beforeEach(async () => {
+  db = await freshDb();
+});
+
+async function seedChatRow(
+  key: string,
+  over: {
+    title?: string;
+    anchorPersonaId?: PersonaId;
+    parentChatId?: ChatId;
+    metadata?: Record<string, unknown>;
+  } = {},
+): Promise<ChatId> {
+  const id = castId<ChatId>(`chat_${key}`);
+  await db.insert(chats).values({
+    id,
+    title: over.title ?? null,
+    anchorPersonaId: over.anchorPersonaId ?? null,
+    parentChatId: over.parentChatId ?? null,
+    // The typed metadata blob (tests inject raw — the read seam tolerates it).
+    metadata: (over.metadata ?? null) as never,
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+async function seedMember(
+  chatId: ChatId,
+  key: string,
+  actor: { userId?: UserId; characterId?: string; role?: "host" | "member" },
+): Promise<void> {
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(`chat_participant_${key}`),
+    chatId,
+    kind: actor.userId !== undefined ? "human" : "character",
+    userId: actor.userId ?? null,
+    characterId: (actor.characterId ?? null) as never,
+    role: actor.role ?? "member",
+    joinSeq: 0,
+    joinedAt: FROZEN_AT,
+  });
+}
+
+/** A canon slot + its variants; `selectedIdx` picks the pointer (default: the last variant). */
+async function seedSlot(args: {
+  chatId: ChatId;
+  key: string;
+  seq: number;
+  role: MessageRole;
+  variantContents: string[];
+  selectedIdx?: number;
+}): Promise<void> {
+  const messageId = castId<MessageId>(`message_${args.key}`);
+  await db.insert(messages).values({
+    id: messageId,
+    chatId: args.chatId,
+    seq: args.seq,
+    role: args.role,
+    createdAt: FROZEN_AT,
+  });
+  const ids = args.variantContents.map((_c, i) =>
+    castId<MessageVariantId>(`variant_${args.key}_${i}`),
+  );
+  await db.insert(messageVariants).values(
+    args.variantContents.map((content, i) => ({
+      id: ids[i] as MessageVariantId,
+      messageId,
+      idx: i,
+      content,
+      model: `m${i}`,
+      tokensOut: i + 1,
+      createdAt: FROZEN_AT,
+    })),
+  );
+  const chosen = ids[args.selectedIdx ?? ids.length - 1];
+  await db.update(messages).set({ selectedVariantId: chosen }).where(eq(messages.id, messageId));
+}
+
+describe("exportChat — D29 host gate", () => {
+  test("a member (non-host), a non-member, and a missing chat all collapse to null", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: "host" });
+    const member = await seedUser(db, { handle: "member" });
+    const outsider = await seedUser(db, { handle: "outsider" });
+    const chatId = await seedChatRow("a");
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "m", { userId: member, role: "member" });
+    const exportChat = createExportChat(ctx);
+
+    expect(await exportChat({ principal: principal(member), chatId })).toBeNull();
+    expect(await exportChat({ principal: principal(outsider), chatId })).toBeNull();
+    expect(
+      await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") }),
+    ).toBeNull();
+    // The host DOES get the artifact.
+    expect(await exportChat({ principal: principal(host), chatId })).not.toBeNull();
+  });
+});
+
+describe("exportChat — the D26/D28 assembly", () => {
+  test("jsonl: selected-variant content + swipe arrays >1; names + note/branch round-trip; filename", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: "host" });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const personaId = castId<PersonaId>("persona_nate");
+    await db.insert(personas).values({
+      id: personaId,
+      ownerId: host,
+      name: "Alex",
+      description: "d",
+      createdAt: FROZEN_AT,
+      updatedAt: FROZEN_AT,
+    });
+    const parentId = await seedChatRow("parent");
+    await db.update(chats).set({ importedFrom: "origin.jsonl" }).where(eq(chats.id, parentId));
+    const chatId = await seedChatRow("a", {
+      title: "Noir Night",
+      anchorPersonaId: personaId,
+      parentChatId: parentId,
+      metadata: { roomOverrides: { authorsNote: "keep it noir" } },
+    });
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "c", { characterId: aria });
+    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
+    await seedSlot({
+      chatId,
+      key: "a1",
+      seq: 2,
+      role: "assistant",
+      variantContents: ["take one", "take two"],
+      selectedIdx: 1,
+    });
+
+    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    expect(out).not.toBeNull();
+    expect(out?.filename).toBe("Aria-Noir_Night.jsonl");
+    const lines = (out?.text ?? "").trim().split("\n");
+    expect(lines).toHaveLength(3);
+    const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
+    expect(header["character_name"]).toBe("Aria");
+    expect(header["user_name"]).toBe("Alex");
+    expect(header["chat_metadata"]).toEqual({
+      // biome-ignore lint/style/useNamingConvention: the ST wire keys are snake_case by format.
+      main_chat: "origin.jsonl",
+      // biome-ignore lint/style/useNamingConvention: the ST wire keys are snake_case by format.
+      note_prompt: "keep it noir",
+    });
+    const userLine = JSON.parse(lines[1] ?? "") as Record<string, unknown>;
+    expect(userLine["name"]).toBe("Alex");
+    expect(userLine["is_user"]).toBe(true);
+    expect(userLine["mes"]).toBe("hi");
+    expect(userLine["swipes"]).toBeUndefined();
+    const assistantLine = JSON.parse(lines[2] ?? "") as Record<string, unknown>;
+    // The SELECTED variant is the primary contribution (D26); the full set is the swipe array.
+    expect(assistantLine["mes"]).toBe("take two");
+    expect(assistantLine["swipes"]).toEqual(["take one", "take two"]);
+    expect(assistantLine["swipe_id"]).toBe(1);
+  });
+
+  test("txt: active-variant transcript with author labels", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: "host" });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const chatId = await seedChatRow("a");
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "c", { characterId: aria });
+    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
+    await seedSlot({
+      chatId,
+      key: "a1",
+      seq: 2,
+      role: "assistant",
+      variantContents: ["take one", "take two"],
+      selectedIdx: 1,
+    });
+
+    const out = await createExportChat(ctx)({
+      principal: principal(host),
+      chatId,
+      format: "txt",
+    });
+    expect(out?.filename).toBe("Aria-chat.txt");
+    // No anchor persona → the user label falls back to "You"; only the ACTIVE variant appears.
+    expect(out?.text).toBe("You: hi\n\nAria: take two\n");
+  });
+});

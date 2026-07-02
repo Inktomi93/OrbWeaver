@@ -7,9 +7,9 @@
 //                     (domain-no-cross-feature — the infra handles arrive type-only here).
 //   • ExportService   the verb interface (the front door re-exports the type).
 //
-// SCOPE (4c W3 — the character-card OUT half of the shared serde core): `exportCharacter` only. The chat
-// transcript verb (`exportChat` + `ExportChatFormat` + the JSONL/TXT builders + `ExportedText`) needs the
-// chat domain (P5) — see FLAG[PD-42] below; it is NOT in this slice.
+// SCOPE: the two verbs — `exportCharacter` (the character-card OUT half of the shared serde core) and
+// `exportChat` (PD-42 — the chat transcript OUT: ST JSONL interchange / TXT; the builders live in
+// `substrate/chat-jsonl.ts`).
 //
 // `exportCharacter` is OWNER-SCOPED off `principal.userId` (§7.1 — never a `users` read; the
 // `no-direct-users-read` chokepoint). It gates through `fetchOwned` on the single-owned `characters` row
@@ -32,8 +32,8 @@
 import type { Db } from "@orb/db";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ExportCharacterParams } from "./params";
-import type { ExportedCard } from "./results";
+import type { ExportCharacterParams, ExportChatParams } from "./params";
+import type { ExportedCard, ExportedText } from "./results";
 
 /**
  * The DI bundle every export verb closes over (wired at `service.ts`). Explicit interface (not
@@ -53,6 +53,10 @@ export interface ExportContext {
   readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
 }
 
+// The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the
+// canonical import surface stays here + the front door.
+export type { ExportChatFormat } from "./params";
+
 export interface ExportService {
   /** Read the owner's live character card (flat `characters` row + attached books + ACCEPTED tags) and
    *  emit a V3 character-card PNG: the card JSON embedded as `chara`(V2)+`ccv3`(V3) tEXt chunks in the
@@ -60,10 +64,10 @@ export interface ExportService {
    *  `{ bytes, filename }`, or `null` when the character doesn't exist OR isn't the caller's (the two
    *  collapse — no foreign-existence leak; the HTTP layer maps null → 404). */
   readonly exportCharacter: (params: ExportCharacterParams) => Promise<ExportedCard | null>;
+  /** Read the chat + messages + variants + the persona/character names and emit the ST-compatible JSONL
+   *  interchange (default) or a human-readable TXT transcript (PD-42). HOST-gated (D29 — chats are
+   *  membership-scoped, D18; export resolves the host from the loaded roster itself, the sanctioned
+   *  bulk-serializer read): a non-host caller / missing chat returns `null` (the two collapse — no
+   *  foreign-existence leak; the HTTP layer maps null → 404). */
+  readonly exportChat: (params: ExportChatParams) => Promise<ExportedText | null>;
 }
-
-// FLAG[PD-42]: `exportChat` (chat transcript → ST JSONL / TXT), the `ExportChatFormat = "jsonl" | "txt"`
-// canonical union, the `ExportedText { text; filename }` result, and the `ExportChatMeta`/`ExportMessage`/
-// `ExportVariant` builder-input shapes (export.md §"exportChat" + §8-slot `contract/params.ts` +
-// `substrate/chat-jsonl.ts`) all require the chat domain (messages / variants / participant active-persona
-// resolution), which is built WHOLE in P5 (D16). Gated `requireHost` (D29). NOT built in this W3 slice.

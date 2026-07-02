@@ -3,14 +3,16 @@
 // V3 card PNG. The `ExportContext` (db + the infra `cas` / `imageTransform` handles) is assembled at the
 // entry root and passed in; export sideways-imports none of those (domain-no-cross-feature).
 //
-// FLAG[PD-42]: `exportChat` (transcript → ST JSONL / TXT) joins this spread when the chat domain lands
-// in P5 (D16) — see contract/service.ts. Until then the service has the single character verb.
+// `exportChat` (PD-42): the chat transcript OUT (ST JSONL / TXT) — HOST-gated (D29) via export's own
+// sanctioned roster read; the pure builders live in `substrate/chat-jsonl.ts`.
 
 import type { ExportContext, ExportService } from "./contract/service";
 import { createExportCharacter } from "./verbs/export-character";
+import { createExportChat } from "./verbs/export-chat";
 
 export function createExportService(ctx: ExportContext): ExportService {
   return {
     exportCharacter: createExportCharacter(ctx),
+    exportChat: createExportChat(ctx),
   };
 }
