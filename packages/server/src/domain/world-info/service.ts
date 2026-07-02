@@ -1,28 +1,24 @@
 // domain/world-info — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The world-info
-// store: world books + their keyword-triggered lore entries, attached at three scopes (character / global /
-// persona) for the per-turn chat pool to union. `WorldInfoContext` is assembled at the entry root (db +
-// injected clock/id + db-bound `audit`) and passed in; world-info injects NO guard + NO cross-feature op —
-// every surface is ownership-scoped off `principal.userId` (a book via `worldBooks.ownerId`, an entry via
-// its book, an attachment target via its own owner column).
-//
-// FLAG[PD-30] — the CHAT attachment scope (`attachToChat`/`detachFromChat`/`listForChat` + the `WiBusEvent`
-// emit). NOT wired here: chats are membership-scoped (D18 — no `chats.ownerId`), so the authority is the
-// host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1 done); the block is the
-// chat roster/membership data world-info doesn't own. The emit rides the chat bus (`ChatBusEvent`), a
-// Phase-5 chat concern.
-// Wiring either now would collapse the chat tier into world-info. Mirrors persona's `setActivePersona`
-// deferral. FLAG[PD-30]: chat-scope attach/detach/list + WiBusEvent emit → here when the
-// `can({kind:'chat',roster})` resource arm + the chat bus exist (Phase 5 chat build). See contract/service.ts.
+// store: world books + their keyword-triggered lore entries, attached at FOUR scopes (character / global /
+// persona / chat) for the per-turn chat pool to union. `WorldInfoContext` is assembled at the entry root
+// (db + injected clock/id + db-bound `audit` + the PD-30 chat seams: the `requireChatHost`/
+// `requireChatMember` guards wired from chat's own guard module and `emitWiEvent` wired to the chat bus's
+// durable-first emit) and passed in. Every non-chat surface is ownership-scoped off `principal.userId`
+// (a book via `worldBooks.ownerId`, an entry via its book, an attachment target via its own owner column);
+// the chat scope is MEMBERSHIP-scoped (D18) through the injected guards (contract/service.ts header).
 
 import type { WorldInfoContext, WorldInfoService } from "./contract/service";
 import {
   createAttachGlobal,
   createAttachToCharacter,
+  createAttachToChat,
   createAttachToPersona,
   createDetachFromCharacter,
+  createDetachFromChat,
   createDetachFromPersona,
   createDetachGlobal,
   createListForCharacter,
+  createListForChat,
   createListForPersona,
   createListGlobal,
 } from "./verbs/attachments";
@@ -73,5 +69,9 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     attachToPersona: createAttachToPersona(ctx),
     detachFromPersona: createDetachFromPersona(ctx),
     listForPersona: createListForPersona(ctx),
+    // Attachments — chat (PD-30 — membership-scoped via the injected chat guards; emits WiBusEvent)
+    attachToChat: createAttachToChat(ctx),
+    detachFromChat: createDetachFromChat(ctx),
+    listForChat: createListForChat(ctx),
   };
 }

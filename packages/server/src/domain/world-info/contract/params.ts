@@ -11,11 +11,10 @@
 // book/entry is owned via `worldBooks.ownerId`; an attachment target (character/persona) is gated by its
 // own owner column (a sanctioned schema read).
 //
-// FLAG[PD-30] — the chat scope. The three chat-attachment verbs (`attachToChat`/`detachFromChat`/
-// `listForChat`) and their params are NOT here: chats are membership-scoped (D18 — NO `chats.ownerId`), so
-// their authority is the host participant via the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1
-// done); the block is the chat roster/membership data world-info doesn't own (Phase-5).
-// Building them now would collapse the chat tier into world-info. See service.ts for the full DEFER note.
+// The CHAT scope (PD-30 cleared): chats are MEMBERSHIP-scoped (D18 — NO `chats.ownerId`), so the chat
+// verbs' authority is the injected chat-guard ops on `WorldInfoContext` (`requireChatHost` for the
+// attach/detach room-config writes, `requireChatMember` for the list read) — world-info never reads the
+// roster itself (domain-no-cross-feature; the ops are wired from chat's guards at the composition root).
 
 import type { Principal } from "@orb/contracts/identity";
 import type {
@@ -25,7 +24,7 @@ import type {
   UpdateEntryInput,
   WorldBookRole,
 } from "@orb/contracts/world-info";
-import type { CharacterId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
 export type {
   CreateBookInput,
@@ -138,4 +137,22 @@ export interface DetachFromPersonaParams extends WorldInfoActorParams {
 
 export interface ListForPersonaParams extends WorldInfoActorParams {
   readonly personaId: PersonaId;
+}
+
+// ── Attachments — chat (membership-scoped, D18; gates via the injected chat-guard ops — PD-30) ──
+/** Attach a caller-OWNED book to a chat room (host authority — room-wide prompt content). */
+export interface AttachToChatParams extends WorldInfoActorParams {
+  readonly chatId: ChatId;
+  readonly bookId: WorldBookId;
+}
+
+/** Detach a book from a chat room (host authority; idempotent). */
+export interface DetachFromChatParams extends WorldInfoActorParams {
+  readonly chatId: ChatId;
+  readonly bookId: WorldBookId;
+}
+
+/** The books attached to a chat the caller is a PRESENT member of (room-public prompt content). */
+export interface ListForChatParams extends WorldInfoActorParams {
+  readonly chatId: ChatId;
 }

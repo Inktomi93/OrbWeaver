@@ -12,35 +12,33 @@
 // owner column (a sanctioned `@orb/db` schema read, NOT a cross-feature domain import).
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// FLAG[PD-30] — the CHAT scope (3 verbs) + the WI bus. world-info.md lists `attachToChat`/`detachFromChat`/
-// `listForChat` (emitting `WiBusEvent`) as the fourth attachment scope, but they are NOT built here:
-//   • chats are MEMBERSHIP-scoped (D18 — there is NO `chats.ownerId`); the authority to attach a book to a
-//     chat is the host participant, gated by the `can({ kind: 'chat', roster })` arm (now BUILT — PD-1
-//     done). The block is no longer `can()`: it's the chat roster/membership + bus this gates on (a
-//     chat-domain concern, Phase-5) — building it here would collapse the chat tier into world-info.
-//   • the chat-scoped attach emits `WiBusEvent` onto the chat bus (`ChatBusEvent`) — a chat-domain concern
-//     not built until Phase 5.
-// Building either now would collapse the chat tier into world-info (the precise neo-pattern failure mode the
-// orbweaver rigor exists to prevent). This mirrors persona's `setActivePersona` deferral (persona
-// service.ts FLAG[PD-20], same root cause). The `WiBusEvent` type + the `chatBooks` table already exist
-// (declared in contracts/db); only the verbs + the bus wiring wait. The injected bundle below therefore
-// carries NO `emitWiEvent`/`ensureChatOwned` — those arrive type-only on the context when the chat scope
-// lands. FLAG[PD-30]: chat-scope attach/detach/list + WiBusEvent emit → domain/world-info when the
-// `can({kind:'chat',roster})` resource arm + the chat bus exist (Phase 5 chat build).
+// The CHAT scope (PD-30 cleared) — the fourth attachment surface (`attachToChat`/`detachFromChat`/
+// `listForChat`), built WITHOUT collapsing the chat tier into world-info:
+//   • chats are MEMBERSHIP-scoped (D18 — NO `chats.ownerId`); the authority is the host participant.
+//     World-info NEVER reads the roster — the gates arrive as INJECTED ops on the context
+//     (`requireChatHost` for the room-config writes, `requireChatMember` for the list read), wired from
+//     chat's own guards at the composition root (the persona/tag PD-19/PD-20 precedent).
+//   • the chat-scoped attach/detach emits `WiBusEvent` (a `ChatBusEvent` member — the contract embeds it
+//     so this domain emits WITHOUT importing chat) via the injected `emitWiEvent`, wired to the chat bus's
+//     durable-first `emit` at the root. Only a REAL change emits (an idempotent no-op is silent).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
+import type { Principal } from "@orb/contracts/identity";
+import type { WiBusEvent } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   ApplyEntryOrderParams,
   AttachGlobalParams,
   AttachToCharacterParams,
+  AttachToChatParams,
   AttachToPersonaParams,
   BackfillTitlesParams,
   CreateBookParams,
   CreateEntryParams,
   DetachFromCharacterParams,
+  DetachFromChatParams,
   DetachFromPersonaParams,
   DetachGlobalParams,
   DuplicateBookParams,
@@ -49,6 +47,7 @@ import type {
   ListBooksParams,
   ListEntriesParams,
   ListForCharacterParams,
+  ListForChatParams,
   ListForPersonaParams,
   ListGlobalParams,
   RemoveBookParams,
@@ -70,8 +69,12 @@ import type { BookAttachmentView, BookView, EntryView } from "./views";
  *   - `audit` — `foundation/observability`'s `logAudit`, pre-bound to `db` at the root (best-effort; the
  *     verb supplies the timestamp from `now`).
  *
- * No guard + no cross-feature op: world info is user-owned (ownership IS the gate). The deferred chat scope
- * would extend this with `emitWiEvent` + `ensureChatOwned` (type-only) — see the file header.
+ * The book/entry/character/persona/global surfaces are user-owned (ownership IS the gate). The CHAT scope
+ * (PD-30) carries three INJECTED cross-feature ops (file header):
+ *   - `requireChatHost` / `requireChatMember` — chat's own membership guards (a non-member gets chat's
+ *     leak-free not-found; a non-host write gets its `not_host`), wired at the root. World-info never
+ *     reads the roster.
+ *   - `emitWiEvent` — the chat bus's durable-first emit (`WiBusEvent` is embedded in `ChatBusEvent`).
  */
 export interface WorldInfoContext {
   readonly db: Db;
@@ -79,6 +82,9 @@ export interface WorldInfoContext {
   readonly newBookId: () => WorldBookId;
   readonly newEntryId: () => WorldEntryId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;
 }
 
 export interface WorldInfoService {
@@ -140,4 +146,16 @@ export interface WorldInfoService {
   readonly detachFromPersona: (params: DetachFromPersonaParams) => Promise<DetachResult>;
   /** The books attached to an owned persona, newest first. `role` is null. */
   readonly listForPersona: (params: ListForPersonaParams) => Promise<BookAttachmentView[]>;
+
+  // ── Attachments — chat (membership-scoped, D18; the injected chat-guard ops gate — PD-30) ──────
+  /** Attach a caller-OWNED book to a chat room (HOST authority — room-wide prompt content is a one-shot
+   *  jailbreak surface, the chat-injection precedent). Idempotent on the composite key; only a REAL insert
+   *  emits `wiBookAttached` + audits. */
+  readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
+  /** Detach a book from a chat room (HOST authority; idempotent — `detached:false` when already absent).
+   *  Only a real removal emits `wiBookDetached` + audits. */
+  readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
+  /** The books attached to a chat the caller is a PRESENT member of, newest first. `role` is null.
+   *  Room-public (NOT owner-filtered — the room's pool is what every member's turns assemble against). */
+  readonly listForChat: (params: ListForChatParams) => Promise<BookAttachmentView[]>;
 }

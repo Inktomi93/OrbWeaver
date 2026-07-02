@@ -24,7 +24,7 @@ export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract
 export { getGroupConfig, getRoomOverrides, parseChatMetadata } from "./contract/metadata";
 export type { TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
-export { requireAuthorOrHost, requireParticipant } from "./guard";
+export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
 // The `@public` composition-root helpers (workload runners + bootstrap — chat.md §"Public surface"):
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";

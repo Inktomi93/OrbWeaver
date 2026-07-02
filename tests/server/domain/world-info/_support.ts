@@ -8,9 +8,10 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { characters, personas, users } from "@orb/db";
+import { characters, chats, personas, users } from "@orb/db";
 import type {
   CharacterId,
+  ChatId,
   ExternalId,
   Handle,
   PersonaId,
@@ -33,15 +34,28 @@ interface AuditCall {
 export interface WorldInfoHarness {
   readonly ctx: WorldInfoContext;
   readonly audits: AuditCall[];
+  /** The recorded `emitWiEvent` calls (the chat-scope verbs' bus emissions — PD-30). */
+  readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
 
+/** Overridable injected chat-guard ops (PD-30). Defaults THROW (the "not stubbed" doctrine) so a non-chat
+ *  test that accidentally reaches the chat scope fails loudly; chat-scope tests inject their own fakes. */
+interface HarnessOverrides {
+  readonly requireChatHost?: WorldInfoContext["requireChatHost"];
+  readonly requireChatMember?: WorldInfoContext["requireChatMember"];
+}
+
 /** Build the WorldInfoContext over a real db with deterministic + recording fakes. */
-export function makeHarness(db: Db): WorldInfoHarness {
+export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfoHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
+  const wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][] = [];
+  const notStubbed = (): never => {
+    throw new Error("WorldInfoContext chat-guard op not stubbed in this test");
+  };
   const ctx: WorldInfoContext = {
     db,
     now: (): number => clock.now(),
@@ -51,8 +65,14 @@ export function makeHarness(db: Db): WorldInfoHarness {
       audits.push({ entry, at });
       return Promise.resolve();
     },
+    requireChatHost: overrides.requireChatHost ?? notStubbed,
+    requireChatMember: overrides.requireChatMember ?? notStubbed,
+    emitWiEvent: (event): Promise<void> => {
+      wiEvents.push(event);
+      return Promise.resolve();
+    },
   };
-  return { ctx, audits, advance: (ms: number): void => clock.advance(ms) };
+  return { ctx, audits, wiEvents, advance: (ms: number): void => clock.advance(ms) };
 }
 
 interface SeedUserOverrides {
@@ -99,6 +119,14 @@ export async function seedCharacter(
     contentHash: "content_hash_c",
     createdAt: FROZEN_AT,
   });
+  return id;
+}
+
+/** Insert a bare `chats` row (membership-scoped, D18 — no owner column; the chat-scope tests gate via the
+ *  injected fake guards, so no roster rows are needed). Returns its branded id. */
+export async function seedChat(db: Db, key = "c"): Promise<ChatId> {
+  const id = castId<ChatId>(`chat_${key}`);
+  await db.insert(chats).values({ id, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
   return id;
 }
 
