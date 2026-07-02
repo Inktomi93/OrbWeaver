@@ -28,3 +28,30 @@ describe("pruneUnusedTags", () => {
     expect(surviving).toEqual([used]);
   });
 });
+
+describe("pruneUnusedTags — audit", () => {
+  test("a pruning pass writes ONE tag.prune row with the count; a zero-work pass writes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    await seedTag(db, owner, { id: "tag_a", name: "alpha" });
+    await seedTag(db, owner, { id: "tag_b", name: "beta" });
+
+    const first = await svc.pruneUnusedTags({ principal: principal(owner) });
+    expect(first.removed).toBe(2);
+    expect(h.audits).toEqual([
+      {
+        actorUserId: owner,
+        action: "tag.prune",
+        entityType: "tag",
+        entityId: null,
+        metadata: { removed: 2 },
+      },
+    ]);
+
+    // Nothing left to prune — the idempotent zero-work rerun writes no row.
+    await svc.pruneUnusedTags({ principal: principal(owner) });
+    expect(h.audits).toHaveLength(1);
+  });
+});

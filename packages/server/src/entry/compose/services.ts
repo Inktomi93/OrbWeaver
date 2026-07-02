@@ -234,6 +234,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // RESOLVED (PD-19): the chat membership gate is wired via the domain/chat/guard.
     requireParticipant: (principal, chatId) =>
       requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    // Tag is CLOCKLESS (rows born-stamp via SQL default), so the audit timestamp is pre-bound HERE from
+    // the root's injected clock — the verbs hand only the entry.
+    audit: (entry): Promise<void> => audit(entry, now()),
   });
 
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──

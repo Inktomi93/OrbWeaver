@@ -81,3 +81,29 @@ describe("createTag", () => {
     ).rejects.toThrow(DomainConflictError);
   });
 });
+
+describe("createTag — audit", () => {
+  test("a successful create writes tag.create; a refused one writes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+
+    const view = await svc.createTag({ principal: principal(owner), input: { name: "fantasy" } });
+    expect(h.audits).toEqual([
+      {
+        actorUserId: owner,
+        action: "tag.create",
+        entityType: "tag",
+        entityId: view.id,
+        metadata: { name: "fantasy" },
+      },
+    ]);
+
+    // A duplicate-name conflict writes NO second row (existence-before-audit posture).
+    await svc
+      .createTag({ principal: principal(owner), input: { name: "fantasy" } })
+      .catch((e: unknown) => e);
+    expect(h.audits).toHaveLength(1);
+  });
+});

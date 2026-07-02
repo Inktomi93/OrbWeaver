@@ -170,3 +170,74 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     ).rejects.toThrow(TagNotFoundError);
   });
 });
+
+describe("junction trio — audit", () => {
+  test("attach/detach/bulkAttach each write their row; a denied/not-found op writes nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const h = makeTagHarness(db);
+    const svc = createTagService(h.ctx);
+    const characterId = await seedCharacter(db, owner);
+    const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
+    const tagB = await seedTag(db, owner, { id: "tag_b", name: "beta" });
+
+    await svc.attachTag({
+      principal: principal(owner),
+      tagId,
+      targetType: "character",
+      targetId: characterId,
+    });
+    await svc.detachTag({
+      principal: principal(owner),
+      tagId,
+      targetType: "character",
+      targetId: characterId,
+    });
+    await svc.bulkAttachTag({
+      principal: principal(owner),
+      tagIds: [tagId, tagB],
+      targetType: "character",
+      targetId: characterId,
+    });
+
+    expect(h.audits).toEqual([
+      {
+        actorUserId: owner,
+        action: "tag.attach",
+        entityType: "tag",
+        entityId: tagId,
+        metadata: { targetType: "character", targetId: characterId, status: "accepted" },
+      },
+      {
+        actorUserId: owner,
+        action: "tag.detach",
+        entityType: "tag",
+        entityId: tagId,
+        metadata: { targetType: "character", targetId: characterId },
+      },
+      {
+        actorUserId: owner,
+        action: "tag.bulkAttach",
+        entityType: "tag",
+        entityId: null,
+        metadata: {
+          targetType: "character",
+          targetId: characterId,
+          tagIds: [tagId, tagB],
+          status: "accepted",
+        },
+      },
+    ]);
+
+    // A foreign/missing tag throws BEFORE any junction write — no phantom audit row.
+    await svc
+      .attachTag({
+        principal: principal(owner),
+        tagId: castId<TagId>("tag_ghost"),
+        targetType: "character",
+        targetId: characterId,
+      })
+      .catch((e: unknown) => e);
+    expect(h.audits).toHaveLength(3);
+  });
+});

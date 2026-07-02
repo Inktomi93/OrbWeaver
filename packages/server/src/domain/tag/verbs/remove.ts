@@ -12,5 +12,12 @@ export function createRemove(ctx: TagContext): TagService["removeTag"] {
     if (removed === 0) {
       throw new TagNotFoundError(params.tagId);
     }
+    // Best-effort audit AFTER the delete landed (a missing/foreign tag threw above — no phantom row).
+    await ctx.audit({
+      actorUserId: params.principal.userId,
+      action: "tag.remove",
+      entityType: "tag",
+      entityId: params.tagId,
+    });
   };
 }
