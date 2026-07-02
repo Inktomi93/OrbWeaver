@@ -1,6 +1,6 @@
 // verb: createTag — mints an owner-scoped tag (defaults applied) and TOCTOU-rejects a duplicate name.
 
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { createTagService } from "@orb/server/domain/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -57,6 +57,17 @@ describe("createTag", () => {
       input: { name: "  Female   Knight  " },
     });
     expect(view.name).toBe("Female Knight");
+  });
+
+  test("a whitespace-only name is refused (normalizes to empty — no empty-name row)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const err = await svc
+      .createTag({ principal: principal(owner), input: { name: "   " } })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("tag_name_empty");
   });
 
   test("a case-variant duplicate is a conflict (the case-insensitive functional unique)", async () => {
