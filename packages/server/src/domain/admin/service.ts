@@ -1,9 +1,10 @@
-// domain/admin — COMPOSITION ROOT. Wires the 10 verbs over the injected `AdminContext`. ZERO logic: it
+// domain/admin — COMPOSITION ROOT. Wires the 11 verbs over the injected `AdminContext`. ZERO logic: it
 // only calls the verb factories and assembles the `AdminService` (the grouped `sessions`/`vllm` factories
 // each return their slice). The `AdminContext` is built at the entry composition root and passed in.
 
 import type { AdminContext, AdminService } from "./contract/service";
 import { createCreateUser } from "./verbs/create-user";
+import { createEmbed } from "./verbs/embed";
 import { createListUsers } from "./verbs/list-users";
 import { createResetPassword } from "./verbs/reset-password";
 import { createSessions } from "./verbs/sessions";
@@ -25,5 +26,6 @@ export function createAdminService(ctx: AdminContext): AdminService {
     revokeUserSessions: sessions.revokeUserSessions,
     vllmEngines: vllm.vllmEngines,
     restartVllmEngine: vllm.restartVllmEngine,
+    ...createEmbed(ctx),
   };
 }

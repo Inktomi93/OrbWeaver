@@ -5,9 +5,9 @@
 // `@orb/contracts`), hence the one sanctioned `no-inline-types` exception below.
 //
 // FLAG[PD-46]: the `chat` router (`send`/`swipe`/`start`/`streamMessages` + the chat SSE subscription) lands
-// when the chat + memory domains are built WHOLE at Phase 5 (ledger D16). The `embeddings` inline `embed`
-// (admin) router is FLAG[PD-90] — the producer-ownership check crosses embeddings+character (composition →
-// `entry/`, not a thin driver); the bulk embed path is the admin `embed-corpus` workload.
+// when the chat + memory domains are built WHOLE at Phase 5 (ledger D16). The inline single-card embed
+// (PD-90) is `admin.embedCharacterCard` — the cross-domain producer-ownership check is composed at
+// `entry/` into admin's `EmbedProducerPort`; the bulk embed path is the admin `embed-corpus` workload.
 
 import { z } from "zod";
 import { adminRouter } from "./routers/admin";

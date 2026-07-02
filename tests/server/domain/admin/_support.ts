@@ -7,7 +7,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/contract/service.ts";
 import type {
@@ -31,6 +31,10 @@ export interface AdminHarness {
   readonly restarted: string[];
   /** Make the fake vllm `restartEngine` reject (to exercise the error-translation path). */
   readonly setRestartError: (err: unknown) => void;
+  /** The recorded inline-embed port calls (PD-90); embeds resolve `true` unless `setEmbedOwned(false)`. */
+  readonly embedded: { principal: Principal; characterId: CharacterId }[];
+  /** Flip the fake embed port's ownership answer (false = not-owned/missing → the verb's not-found). */
+  readonly setEmbedOwned: (owned: boolean) => void;
 }
 
 const FROZEN_AT = 1_750_000_000_000;
@@ -78,6 +82,8 @@ export function makeHarness(db: Db): AdminHarness {
   const revokedSessions: string[] = [];
   const restarted: string[] = [];
   let restartError: unknown;
+  const embedded: { principal: Principal; characterId: CharacterId }[] = [];
+  let embedOwned = true;
   const sessionList: SessionAdminView[] = [];
   const engineStatuses: Record<string, AdminEngineStatus> = {
     chat: { status: "owned", detail: "ok", updatedAt: FROZEN_AT },
@@ -114,6 +120,15 @@ export function makeHarness(db: Db): AdminHarness {
         return Promise.resolve(`restarting ${engine}`);
       },
     },
+    embed: {
+      embedCharacterCard: (caller: Principal, characterId: CharacterId): Promise<boolean> => {
+        if (!embedOwned) {
+          return Promise.resolve(false);
+        }
+        embedded.push({ principal: caller, characterId });
+        return Promise.resolve(true);
+      },
+    },
   };
 
   return {
@@ -124,6 +139,10 @@ export function makeHarness(db: Db): AdminHarness {
     restarted,
     setRestartError: (err: unknown): void => {
       restartError = err;
+    },
+    embedded,
+    setEmbedOwned: (owned: boolean): void => {
+      embedOwned = owned;
     },
   };
 }
