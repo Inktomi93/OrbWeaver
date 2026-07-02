@@ -102,19 +102,15 @@ export function fakeEnv(): WorkloadRunnerEnv {
       refreshCatalogSnapshot: vi.fn(async (_args: { signal: AbortSignal }) => ({ models: 99 })),
     },
     memory: {
-      generateDigests: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        scanned: 0,
-        changed: 0,
-      })),
-      generateSegments: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        scanned: 0,
-        changed: 0,
+      backfill: vi.fn(async (_args: { signal: AbortSignal }) => ({
+        segments: { scanned: 4, changed: 2 },
+        digests: { scanned: 6, changed: 3 },
       })),
     },
     character: {
-      mintSyntheticGroupCharacter: vi.fn(async (_args: { signal: AbortSignal }) => ({
-        scanned: 0,
-        changed: 0,
+      backfillGroupCharacters: vi.fn(async (_args: { signal: AbortSignal }) => ({
+        scanned: 5,
+        changed: 1,
       })),
     },
     cas: {} as Cas,

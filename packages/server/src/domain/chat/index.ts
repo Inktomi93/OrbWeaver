@@ -31,3 +31,5 @@ export { generateSegments } from "./memory/build/segments";
 export { loadChatMeta } from "./memory/persistence/queries";
 export { reclaimChatLocksOnBoot } from "./persistence/lock";
 export { createChatService } from "./service";
+// The PD-41 corpus sweeps (the workloads runner-env's memory/group-character backfill ops).
+export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill";

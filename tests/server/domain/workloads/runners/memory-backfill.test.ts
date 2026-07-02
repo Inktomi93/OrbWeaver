@@ -1,13 +1,13 @@
-// Runner test: memory-backfill — the INERT P5 stub. Returns a DeferredResult and does NOT touch the
-// (declared-but-deferred) memory env op.
+// Runner test: memory-backfill (PD-41) — wraps ctx.env.memory.backfill (chat's corpus sweep), threads the
+// signal, and returns the folded segment/digest counts.
 
 import { describe, vi } from "vitest";
 import { memoryBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/memory-backfill.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
-describe("memory-backfill runner (P5 stub)", () => {
-  test("is inert — returns deferred and calls no memory op", async () => {
+describe("memory-backfill runner", () => {
+  test("runs the corpus sweep and returns its counts", async () => {
     const env = fakeEnv();
     const result = await memoryBackfillRunner(
       makeRunnerContext(env),
@@ -15,8 +15,10 @@ describe("memory-backfill runner (P5 stub)", () => {
       vi.fn(),
       new AbortController().signal,
     );
-    expect(result).toEqual({ deferred: true });
-    expect(env.memory.generateDigests).not.toHaveBeenCalled();
-    expect(env.memory.generateSegments).not.toHaveBeenCalled();
+    expect(env.memory.backfill).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
+    expect(result).toEqual({
+      segments: { scanned: 4, changed: 2 },
+      digests: { scanned: 6, changed: 3 },
+    });
   });
 });

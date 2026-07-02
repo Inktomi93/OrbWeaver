@@ -498,14 +498,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
 
-  // ── The cross-feature workload hub (the effective-config surface is built up-front for PD-14) ──────────
-  const runnerEnv = buildWorkloadRunnerEnv({ db, now, cas, discovery, connection });
-
   // ── chat (built LAST — it injects character/persona/connection/credentials/stats/embeddings/search/
   //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
   //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
   //    lock tag the boot reclaim must match (defaulted for non-turn tests). ───────────────────────────────
-  const { service: chat, emitBusEvent: emitChatBusEvent } = buildChatService({
+  const chatCompose = buildChatService({
     db,
     now,
     holder: deps.holder ?? "replica-default",
@@ -526,6 +523,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     embeddings,
     runChatTurn: executor.runChatTurn,
+  });
+  const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
+
+  // ── The cross-feature workload hub (built AFTER chat — the PD-41 memory/group-character sweeps are
+  //    chat-ctx-bound ops off the chat compose product). ─────────────────────────────────────────────────
+  const runnerEnv = buildWorkloadRunnerEnv({
+    db,
+    now,
+    cas,
+    discovery,
+    connection,
+    memoryBackfill: chatCompose.backfill.memory,
+    groupCharacterBackfill: chatCompose.backfill.groupCharacters,
   });
 
   // ── world-info (built AFTER chat — its PD-30 chat scope injects chat's membership guards + the chat

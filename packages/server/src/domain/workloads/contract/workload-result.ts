@@ -48,6 +48,20 @@ export interface DeferredResult {
   readonly deferred: true;
 }
 
+/** One backfill pass's fold (PD-41 sweeps): entities visited × rows actually written/minted. Declared
+ *  workload-owned (structurally identical to chat's counts — the adapter discipline; no chat import). */
+export interface BackfillPassResult {
+  readonly scanned: number;
+  readonly changed: number;
+}
+
+/** The memory-backfill sweep result: the segment pass (scanned = chats) + the digest pass (scanned =
+ *  scope buckets). */
+export interface MemoryBackfillResult {
+  readonly segments: BackfillPassResult;
+  readonly digests: BackfillPassResult;
+}
+
 /**
  * The per-kind result map — the §7.5 exhaustiveness pin. `satisfies { [K in WorkloadKind]: unknown }` would
  * be redundant with the `Runner<K>` return constraint, so this explicit map IS the home each runner projects
@@ -58,8 +72,8 @@ export interface ResultByKind {
   "embed-assets": EmbedPassResult;
   "distill-characters": AnalyticsResult;
   "compute-themes": AnalyticsResult;
-  "memory-backfill": DeferredResult;
-  "group-character-backfill": DeferredResult;
+  "memory-backfill": MemoryBackfillResult;
+  "group-character-backfill": BackfillPassResult;
   "compute-cooccurrence": AnalyticsResult;
   "find-duplicates": AnalyticsResult;
   csls: AnalyticsResult;
