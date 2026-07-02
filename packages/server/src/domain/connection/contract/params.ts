@@ -58,3 +58,16 @@ export interface RefreshCatalogParams {
 export interface TestClaudeAuthParams {
   readonly principal: Principal;
 }
+
+/** `getOrCredits` input — the acting principal (the key is the caller's own `openrouter` credential). */
+export interface GetOrCreditsParams {
+  readonly principal: Principal;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** `getGenerationCost` input — the principal + the upstream generation id to settle. */
+export interface GetGenerationCostParams {
+  readonly principal: Principal;
+  readonly generationId: string;
+  readonly signal?: AbortSignal | undefined;
+}

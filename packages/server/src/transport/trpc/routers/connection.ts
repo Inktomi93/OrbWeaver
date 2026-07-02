@@ -30,4 +30,22 @@ export const connectionRouter = t.router({
   testClaudeAuth: authedProcedure.mutation(({ ctx }) =>
     ctx.services.connection.testClaudeAuth({ principal: ctx.auth }),
   ),
+
+  // The OpenRouter account reads (neo `orCredits` / the generation-cost settle) — queries against the
+  // CALLER's own key (abuse spends OpenRouter's account-API quota upstream, not a $-generation; the neo
+  // rate-limit note). A missing/revoked key is the domain's DomainNoCredentialError (the client banner).
+  orCredits: authedProcedure.query(({ ctx, signal }) =>
+    ctx.services.connection.getOrCredits({ principal: ctx.auth, signal }),
+  ),
+
+  orGenerationCost: authedProcedure
+    // biome-ignore lint/plugin/no-raw-id: generationId is OpenRouter's UPSTREAM generation handle (their id namespace), not a branded orbweaver entity id.
+    .input(z.object({ generationId: z.string().min(1) }))
+    .query(({ ctx, input, signal }) =>
+      ctx.services.connection.getGenerationCost({
+        principal: ctx.auth,
+        generationId: input.generationId,
+        signal,
+      }),
+    ),
 });

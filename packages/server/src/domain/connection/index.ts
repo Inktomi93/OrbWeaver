@@ -14,7 +14,9 @@ export { CatalogUnavailableError, ConnectionRoutingError } from "./contract/erro
 export type {
   AgentOverride,
   GetCatalogParams,
+  GetGenerationCostParams,
   GetModelCapabilityParams,
+  GetOrCreditsParams,
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,

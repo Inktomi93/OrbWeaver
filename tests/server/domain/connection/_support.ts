@@ -113,6 +113,14 @@ export function makeConnHarness(db: Db): ConnHarness {
         costUsd: 0.0001,
       });
     },
+    // The OpenRouter account-read fakes (getOrCredits / getGenerationCost): fixed healthy answers.
+    accountCredits: () => Promise.resolve({ total: 25, used: 7.5 }),
+    generationCost: ({ generationId }) =>
+      Promise.resolve({
+        totalCost: 0.0123,
+        tokensPrompt: generationId.length,
+        tokensCompletion: 42,
+      }),
     // The resolver reads this lazily per call, so a `setVllmAvailable(false)` before `resolveRole` lands.
     get vllmAvailable(): boolean {
       return vllmAvailable;
