@@ -37,6 +37,7 @@
     "check": "pnpm lint && pnpm lint:eslint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
+    "@base-ui/react": "catalog:",
     "@biomejs/biome": "catalog:",
     "@orb/client": "workspace:*",
     "@orb/contracts": "workspace:*",
