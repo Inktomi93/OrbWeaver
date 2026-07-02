@@ -7,32 +7,47 @@
 // generic/blank embedding that would otherwise win every query). The adjusted score is a distance-like
 // signal — LOWER is closer/better:
 //
-//     csls = cosineDistance − 1 + hubScore
+//     csls = max(0, cosineDistance − 1 + hubScore)
 //
 // `hubScore` (the mean cosine of a row to its neighbours, written by `discovery`, read here) shifts a
-// generic hub's score UP (worse). `NULL_HUB_FALLBACK` keeps freshly-embedded rows (no hub score computed
-// yet) on the SAME scale as scored rows instead of treating them as zero-hub (which would make every new
-// row artificially win).
+// generic hub's score UP (worse). The CLAMP at 0 is load-bearing (the neo invariant the first port
+// dropped): CSLS only DEMOTES — without it an anti-hub row (low hubScore) would go NEGATIVE and beat a
+// genuinely closer match (hubness would PROMOTE, not just demote). The clamp collapses every candidate
+// with `cos ≥ hub` to a flat 0, so the COMPARATOR must break ties on the raw distance — otherwise ties
+// defer to array-concat order (entity type, not similarity), burying closer matches. `NULL_HUB_FALLBACK`
+// keeps freshly-embedded rows (no hub score computed yet) on the SAME scale as scored rows instead of
+// treating them as zero-hub (which would make every new row artificially win).
 
 /** The hub-score stand-in for a row whose `hub_score` has not been computed yet (NULL in the table). 0.5
  *  keeps unscored rows mid-scale alongside scored rows — search.md §"CSLS hub-adjust ranking". */
 export const NULL_HUB_FALLBACK = 0.5;
 
-/** The CSLS-adjusted retrieval score: `distance − 1 + hubScore` (LOWER = closer). `hubScore` null ⇒
- *  {@link NULL_HUB_FALLBACK}. */
+/** The CSLS-adjusted retrieval score: `max(0, distance − 1 + hubScore)` (LOWER = closer; the clamp is
+ *  demote-only — see the file header). `hubScore` null ⇒ {@link NULL_HUB_FALLBACK}. */
 export function cslsAdjust(distance: number, hubScore: number | null): number {
-  return distance - 1 + (hubScore ?? NULL_HUB_FALLBACK);
+  return Math.max(0, distance - 1 + (hubScore ?? NULL_HUB_FALLBACK));
 }
 
-/** Ascending comparator over a raw CSLS score (LOWER first = closer first). */
-export function compareCsls(a: number, b: number): number {
-  return a - b;
+/** Ascending comparator over CSLS candidates: primary = the CLAMPED adjusted score, SECONDARY = the raw
+ *  cosine distance. The tie-break matters because the clamp collapses every `cos ≥ hub` candidate to a
+ *  flat 0 (see the file header). Both keys sit on the cosine scale, so null-hub and scored rows compare
+ *  correctly. */
+export function compareCsls(
+  a: { readonly dist: number; readonly hub: number | null },
+  b: { readonly dist: number; readonly hub: number | null },
+): number {
+  const adj = cslsAdjust(a.dist, a.hub) - cslsAdjust(b.dist, b.hub);
+  return adj !== 0 ? adj : a.dist - b.dist;
 }
 
-/** Comparator factory: order a list of `T` ascending by its extracted CSLS score (LOWER first). Keeps the
- *  ranking direction in ONE place so no call site re-spells the sort sign. */
-export function compareCslsBy<T>(score: (item: T) => number): (a: T, b: T) => number {
-  return (a, b) => compareCsls(score(a), score(b));
+/** {@link compareCsls} lifted over arbitrary row shapes via `dist`/`hub` accessors. Keeps the ranking
+ *  direction + the tie-break in ONE place so no call site re-spells the sort. */
+export function compareCslsBy<T>(
+  distOf: (item: T) => number,
+  hubOf: (item: T) => number | null,
+): (a: T, b: T) => number {
+  return (a, b) =>
+    compareCsls({ dist: distOf(a), hub: hubOf(a) }, { dist: distOf(b), hub: hubOf(b) });
 }
 
 /** The rerank budget cap: take the top `cap` CSLS-ranked candidates to hand the (expensive) cross-encoder.

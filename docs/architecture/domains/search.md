@@ -20,9 +20,12 @@
 - **Scope × lens dispatch** — one chat · a character across all chats · all the user's chats;
   lens = raw segment (verbatim) · semantic digest · a specific tier · `image-raw` (pure visual)
   · `image-captioned` (joint vision+text). The lens controls text-influence on the result.
-- **CSLS hub-adjust ranking** — `dist − 1 + hub_score`, penalizing generic hub vectors that are
-  close to everything. `hub_score` is computed by `discovery`, stored by `embeddings`, read here.
-  `NULL_HUB_FALLBACK = 0.5` keeps freshly-embedded rows on the same scale as scored rows.
+- **CSLS hub-adjust ranking** — `max(0, dist − 1 + hub_score)`, penalizing generic hub vectors that
+  are close to everything. The clamp at 0 is the neo invariant: CSLS only DEMOTES (an anti-hub row must
+  never go negative and out-rank a closer match), and because the clamp flattens every `cos ≥ hub`
+  candidate to 0, the comparator breaks ties on the RAW distance (never concat order). `hub_score` is
+  computed by `discovery`, stored by `embeddings`, read here. `NULL_HUB_FALLBACK = 0.5` keeps
+  freshly-embedded rows on the same scale as scored rows.
 - **Cross-encoder rerank orchestration** — calls the `rerank` inference role (via injected
   `RoleClients.rerank`); applies `rerankPoolByScores` budget-cap; skips unscorable candidates
   (no `sourceText`) and places them AFTER ranked ones (preserving recall).
