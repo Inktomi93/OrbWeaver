@@ -2,6 +2,7 @@
 // checked state lands as the primary token track. (Base UI renders the styled span + a hidden
 // form input as siblings, so the role locator is the element under test, not the mount handle.)
 import { Switch } from "@orb/ui/switch";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("click toggles aria-checked", async ({ mount, page }) => {
@@ -17,8 +18,7 @@ test("click toggles aria-checked", async ({ mount, page }) => {
 test("keyboard toggles too, and checked wears the primary token", async ({ mount, page }) => {
   await mount(<Switch aria-label="Streaming" defaultChecked={true} />);
   const control = page.getByRole("switch");
-  const background = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.76 0.145 66)");
+  await expect(control).toHaveCSS("background-color", TOKENS["color.primary"].value);
   await control.press("Space");
   await expect(control).toHaveAttribute("aria-checked", "false");
 });

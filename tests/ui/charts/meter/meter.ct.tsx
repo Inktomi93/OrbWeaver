@@ -2,10 +2,11 @@
 // contracts import — the fixtures are RpgHudView-SHAPED literals), ARIA meter values, bipolar
 // milestone ticks, and the dangerBelow token swap asserted against the destructive oklch value.
 import { Meter } from "@orb/ui/meter";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
-// --color-destructive — the danger INTENT token (theme.css; a token swap, never a color calc).
-const DESTRUCTIVE_OKLCH = "oklch(0.62 0.19 25)";
+// --color-destructive — the danger INTENT token (a token swap, never a color calc).
+const DESTRUCTIVE = TOKENS["color.destructive"].value;
 
 test("linear renders from plain props with correct ARIA meter values", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" />);
@@ -51,20 +52,17 @@ test("dangerBelow swaps the linear fill to the destructive token", async ({ moun
   const component = await mount(
     <Meter kind="linear" value={10} max={100} dangerBelow={25} label="HP" />,
   );
-  const color = await component
-    .locator('[data-slot="fill"]')
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(color).toContain(DESTRUCTIVE_OKLCH);
+  await expect(component.locator('[data-slot="fill"]')).toHaveCSS("background-color", DESTRUCTIVE);
 });
 
 test("at or above dangerBelow the fill stays on the primary token", async ({ mount }) => {
   const component = await mount(
     <Meter kind="linear" value={25} max={100} dangerBelow={25} label="HP" />,
   );
-  const color = await component
-    .locator('[data-slot="fill"]')
-    .evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(color).not.toContain(DESTRUCTIVE_OKLCH);
+  await expect(component.locator('[data-slot="fill"]')).not.toHaveCSS(
+    "background-color",
+    DESTRUCTIVE,
+  );
 });
 
 test("dangerBelow swaps the arc stroke color too (one mechanism across kinds)", async ({
@@ -73,10 +71,7 @@ test("dangerBelow swaps the arc stroke color too (one mechanism across kinds)", 
   const component = await mount(
     <Meter kind="arc" value={5} max={100} dangerBelow={25} label="Pool" />,
   );
-  const color = await component
-    .locator('[data-slot="fill"]')
-    .evaluate((el) => getComputedStyle(el).stroke);
-  expect(color).toContain(DESTRUCTIVE_OKLCH);
+  await expect(component.locator('[data-slot="fill"]')).toHaveCSS("stroke", DESTRUCTIVE);
 });
 
 test("value is clamped into the min/max domain for ARIA", async ({ mount }) => {

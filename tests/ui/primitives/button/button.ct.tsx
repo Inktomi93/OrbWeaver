@@ -2,20 +2,19 @@
 // loading is a real disabled+aria-busy state (ui-package-design §6.1).
 
 import { Button } from "@orb/ui/button";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const TOUCH_FLOOR_PX = 44;
 
 test("primary intent lands as the primary token background", async ({ mount }) => {
   const button = await mount(<Button>Save</Button>);
-  const background = await button.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.76 0.145 66)");
+  await expect(button).toHaveCSS("background-color", TOKENS["color.primary"].value);
 });
 
 test("destructive intent swaps to the destructive token", async ({ mount }) => {
   const button = await mount(<Button intent="destructive">Delete</Button>);
-  const background = await button.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.62 0.19 25)");
+  await expect(button).toHaveCSS("background-color", TOKENS["color.destructive"].value);
 });
 
 test("every size meets the 44px touch floor; lg is taller than sm", async ({ mount }) => {

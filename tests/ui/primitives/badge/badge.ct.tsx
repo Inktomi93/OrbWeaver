@@ -2,24 +2,22 @@
 // carry real padding (ui-package-design §6.1).
 
 import { Badge } from "@orb/ui/badge";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("default intent is the neutral (muted) token background", async ({ mount }) => {
   const badge = await mount(<Badge>Draft</Badge>);
-  const background = await badge.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.255 0.012 65)");
+  await expect(badge).toHaveCSS("background-color", TOKENS["color.muted"].value);
 });
 
 test("success intent lands as the success token background", async ({ mount }) => {
   const badge = await mount(<Badge intent="success">Active</Badge>);
-  const background = await badge.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.72 0.13 150)");
+  await expect(badge).toHaveCSS("background-color", TOKENS["color.success"].value);
 });
 
 test("danger intent swaps to the destructive token", async ({ mount }) => {
   const badge = await mount(<Badge intent="danger">Failed</Badge>);
-  const background = await badge.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.62 0.19 25)");
+  await expect(badge).toHaveCSS("background-color", TOKENS["color.destructive"].value);
 });
 
 test("md size carries more horizontal padding than sm", async ({ mount }) => {

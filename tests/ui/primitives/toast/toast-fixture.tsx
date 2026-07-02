@@ -1,6 +1,6 @@
 // CT fixture — Playwright CT cannot mount components defined inside .ct.tsx files, and the
 // imperative toast API is a hook, so the harness component lives here.
-import { Toaster, ToastProvider, useToastManager } from "@orb/ui/toast";
+import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 
 const QUICK_TIMEOUT_MS = 500;
@@ -45,11 +45,8 @@ function ToastButtons(): ReactElement {
   );
 }
 
+// No ToastProvider/Toaster here — the CT harness (CtProviders via beforeMount) supplies both
+// globally, so the imperative useToastManager() below binds to the ambient app-wide manager.
 export function ToastPlayground(): ReactElement {
-  return (
-    <ToastProvider>
-      <ToastButtons />
-      <Toaster />
-    </ToastProvider>
-  );
+  return <ToastButtons />;
 }

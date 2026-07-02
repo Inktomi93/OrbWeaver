@@ -3,13 +3,7 @@
 // trigger carries the payload, and `handle.open(triggerId)` opens the tooltip imperatively so the
 // payload reaches the Root render-function children. API DELTA: tooltip handles have no
 // openWithPayload — payload rides the trigger (see tooltip/handle.ts).
-import {
-  createTooltipHandle,
-  Tooltip,
-  TooltipPopup,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@orb/ui/tooltip";
+import { createTooltipHandle, Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
 
@@ -17,7 +11,7 @@ export function TooltipHandleHarness(): ReactElement {
   const [handle] = useState(() => createTooltipHandle<string>());
   const triggerId = useId();
   return (
-    <TooltipProvider closeDelay={0} delay={0}>
+    <>
       <button
         onClick={(): void => {
           handle.open(triggerId);
@@ -32,6 +26,6 @@ export function TooltipHandleHarness(): ReactElement {
       <Tooltip handle={handle}>
         {({ payload }): ReactElement => <TooltipPopup>{payload ?? "no payload"}</TooltipPopup>}
       </Tooltip>
-    </TooltipProvider>
+    </>
   );
 }
