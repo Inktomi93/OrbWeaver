@@ -26,7 +26,24 @@ describe("update (owned)", () => {
     expect(detail.id).toBe(id);
     expect(detail.name).toBe("Renamed");
     expect(detail.kind).toBe("assistant");
-    expect(h.audits.map((a) => a.entry.action)).toContain("preset.update");
+    const update = h.audits.find((a) => a.entry.action === "preset.update");
+    // metadata records the scalar EDITS + the config-replace flag (not the config blob itself).
+    expect(update?.entry.metadata).toEqual({
+      edits: { name: "Renamed", kind: "assistant" },
+      configUpdated: false,
+    });
+  });
+
+  test("a config-only update records configUpdated:true with an empty edits set", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
+    const owner = await seedUser(db);
+    const id = await seedPreset(db, { id: castId<PresetId>("preset_cfg"), ownerId: owner });
+
+    await svc.update({ userId: owner, id, config: DEFAULT_PROMPT_CONFIG });
+    const update = h.audits.find((a) => a.entry.action === "preset.update");
+    expect(update?.entry.metadata).toEqual({ edits: {}, configUpdated: true });
   });
 
   test("throws PresetNotFoundError for another owner's row (no cross-owner write)", async () => {
@@ -42,7 +59,7 @@ describe("update (owned)", () => {
 });
 
 describe("update (copy-on-write of the system default)", () => {
-  test("editing the system default forks a NEW owned preset (different id); audits preset.create", async () => {
+  test("editing the system default forks a NEW owned preset (different id); audits the distinct preset.fork", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPresetService(h.ctx);
@@ -60,7 +77,10 @@ describe("update (copy-on-write of the system default)", () => {
     expect(forked.id).not.toBe(SYSTEM_DEFAULT_PRESET_ID);
     expect(forked.isSystemDefault).toBe(false);
     expect(forked.name).toBe("My fork");
-    expect(h.audits.map((a) => a.entry.action)).toContain("preset.create");
+    // A DISTINCT fork action carrying the provenance (never a plain preset.create).
+    const fork = h.audits.find((a) => a.entry.action === "preset.fork");
+    expect(fork?.entry.metadata).toEqual({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    expect(h.audits.map((a) => a.entry.action)).not.toContain("preset.create");
 
     // The system default row is untouched (still present, still the default).
     const original = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
@@ -77,5 +97,16 @@ describe("update (copy-on-write of the system default)", () => {
 
     const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Copy" });
     expect(forked.config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
+  });
+
+  test("a COW with NO submitted name gets the `(edited)` suffix off the base name", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+
+    const forked = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    expect(forked.name).toBe(`${base.name} (edited)`);
   });
 });

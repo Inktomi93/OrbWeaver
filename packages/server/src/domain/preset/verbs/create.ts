@@ -36,6 +36,7 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
         action: PRESET_CREATE,
         entityType: PRESET_ENTITY,
         entityId: id,
+        metadata: { name: params.name, kind: params.kind },
       },
       now,
     );
