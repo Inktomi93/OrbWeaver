@@ -14,9 +14,15 @@ export const switchVariants = tv({
       "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
     ],
     thumb: [
-      "aspect-square h-full rounded-full bg-foreground",
+      "group relative flex aspect-square h-full items-center justify-center rounded-full bg-foreground",
       "transition-transform duration-(--motion-fast) ease-out-expo",
       "data-checked:translate-x-[calc(var(--spacing-touch-target)-var(--spacing-section))] data-checked:bg-primary-foreground",
     ],
+    // Read-only signal (A3): hidden by default, shown only when Base UI sets data-readonly on the
+    // thumb. Color inverts against whichever thumb bg is live so it stays legible on/off
+    // (text-background reads on the dark bg-foreground thumb; text-primary reads on the light
+    // bg-primary-foreground thumb) — never the disabled opacity treatment.
+    readOnlyIcon:
+      "hidden text-background group-data-[readonly]:block group-data-[checked]:text-primary",
   },
 });

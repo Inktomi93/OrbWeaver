@@ -1,9 +1,28 @@
+import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ControlledEditor, ReadOnlyEditor } from "./code-editor.fixtures";
+import { ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
 // The resolved --color-background token (Hearth) — the theme test pins the ONE mapping site.
 const BACKGROUND_OKLCH = /oklch\(0\.175 0\.012 65\)/u;
+
+// Multi-line so the error and warning diagnostics land on DIFFERENT lines — the lint gutter
+// groups markers per line (worst severity wins), so same-line diagnostics would collapse to one
+// marker and hide the shape-difference assertions below.
+const DIAGNOSTICS_CSS = "body {\n  color: red;\n}\n.a { color: blue; }\n";
+const ERROR_DIAGNOSTIC: CodeEditorDiagnostic = {
+  severity: "error",
+  from: DIAGNOSTICS_CSS.indexOf("red"),
+  to: DIAGNOSTICS_CSS.indexOf("red") + "red".length,
+  message: "Unknown color keyword",
+};
+const WARNING_DIAGNOSTIC: CodeEditorDiagnostic = {
+  severity: "warning",
+  from: DIAGNOSTICS_CSS.indexOf("blue"),
+  to: DIAGNOSTICS_CSS.indexOf("blue") + "blue".length,
+  message: "Prefer a hex value over a named color",
+};
 
 test("mounts with the controlled value", async ({ mount }) => {
   const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
@@ -31,4 +50,103 @@ test("readOnly blocks edits", async ({ mount }) => {
 test("the token theme is applied (background resolves the design token)", async ({ mount }) => {
   const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
   await expect(component.locator(".cm-editor")).toHaveCSS("background-color", BACKGROUND_OKLCH);
+});
+
+test("no `diagnostics` prop means no lint gutter at all", async ({ mount }) => {
+  const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
+  await expect(component.locator(".cm-gutter-lint")).toHaveCount(0);
+});
+
+test("diagnostics render as an inline mark under the span AND a gutter marker per line", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <DiagnosticsEditor
+      initialValue={DIAGNOSTICS_CSS}
+      initialDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+      nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+    />,
+  );
+  await expect(component.locator(".cm-lintRange-error")).toHaveText("red");
+  await expect(component.locator(".cm-lintRange-warning")).toHaveText("blue");
+  // One gutter marker per flagged LINE (the error and warning diagnostics sit on different lines).
+  await expect(component.locator(".cm-lint-marker")).toHaveCount(2);
+  await expect(component.locator(".cm-lint-marker-error")).toHaveCount(1);
+  await expect(component.locator(".cm-lint-marker-warning")).toHaveCount(1);
+});
+
+test("diagnostics re-render on prop change without remounting or losing the cursor", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <DiagnosticsEditor
+      initialValue={DIAGNOSTICS_CSS}
+      initialDiagnostics={[ERROR_DIAGNOSTIC]}
+      nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+    />,
+  );
+  const content = component.locator(".cm-content");
+  await expect(component.locator(".cm-lint-marker")).toHaveCount(1);
+
+  // Move to a known, deterministic caret position (document end) and type — a remount would
+  // reset the fresh view's cursor to position 0, so the NEXT keystroke would land at the start
+  // instead of continuing the doc, which the final `output` text below would catch.
+  await content.click();
+  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
+  await content.press("ControlOrMeta+End");
+  await content.pressSequentially("A");
+
+  // A freshly-derived array (not the same reference) — the real "parent re-renders with a
+  // filtered/mapped array" consumer shape.
+  await component.getByRole("button", { name: "Update diagnostics" }).click();
+  await expect(component.locator(".cm-lint-marker")).toHaveCount(2);
+
+  await content.pressSequentially("B");
+  await expect(component.getByRole("status")).toHaveText(`${DIAGNOSTICS_CSS}AB`);
+});
+
+test("diagnostics are exposed via aria-describedby + an aria-live region, not just visually", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <DiagnosticsEditor
+      initialValue={DIAGNOSTICS_CSS}
+      initialDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+      nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+    />,
+  );
+  const content = component.locator(".cm-content");
+  const describedBy = await content.getAttribute("aria-describedby");
+  expect(describedBy).not.toBeNull();
+  const liveRegion = component.locator(`#${describedBy}`);
+  await expect(liveRegion).toHaveAttribute("aria-live", "polite");
+  await expect(liveRegion).toContainText("Error: Unknown color keyword");
+  await expect(liveRegion).toContainText("Warning: Prefer a hex value over a named color");
+});
+
+test("severity is signaled beyond color — underline style + gutter marker shape differ", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <DiagnosticsEditor
+      initialValue={DIAGNOSTICS_CSS}
+      initialDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+      nextDiagnostics={[ERROR_DIAGNOSTIC, WARNING_DIAGNOSTIC]}
+    />,
+  );
+  const errorMark = component.locator(".cm-lintRange-error");
+  const warningMark = component.locator(".cm-lintRange-warning");
+  // Non-color signal #1: the underline STYLE differs (wavy vs dotted), not just its color.
+  await expect(errorMark).toHaveCSS("text-decoration-style", "wavy");
+  await expect(warningMark).toHaveCSS("text-decoration-style", "dotted");
+  await expect(errorMark).toHaveCSS("text-decoration-color", TOKENS["color.destructive"].value);
+  await expect(warningMark).toHaveCSS("text-decoration-color", TOKENS["color.warning"].value);
+
+  const errorMarker = component.locator(".cm-lint-marker-error");
+  const warningMarker = component.locator(".cm-lint-marker-warning");
+  // Non-color signal #2: the gutter marker SHAPE differs (circle vs triangle), not just its color.
+  await expect(errorMarker).toHaveCSS("border-radius", "9999px");
+  await expect(warningMarker).toHaveCSS("border-radius", "0px");
+  await expect(errorMarker).toHaveCSS("background-color", TOKENS["color.destructive"].value);
+  await expect(warningMarker).toHaveCSS("background-color", TOKENS["color.warning"].value);
 });

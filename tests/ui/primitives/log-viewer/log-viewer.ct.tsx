@@ -100,6 +100,22 @@ test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({
   expect(behavior).toBe("auto");
 });
 
+test("a long log windows its DOM via the virtual-list seal instead of rendering every line", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div style={{ height: 200 }}>
+      <LogViewer lines={makeLines(500)} className="h-full" />
+    </div>,
+  );
+  const rendered = await component.locator("[data-log-line]").count();
+  expect(rendered).toBeGreaterThan(0);
+  expect(rendered).toBeLessThan(500);
+  await expect(component.getByRole("log")).toHaveAttribute("aria-live", "polite");
+  await expect(component.getByText("line 499", { exact: true })).toBeVisible();
+  await expect(component.getByText("line 0", { exact: true })).toHaveCount(0);
+});
+
 test("the copy affordance writes the visible lines to the clipboard", async ({ mount, page }) => {
   await page.evaluate(() => {
     (globalThis as unknown as { __copied: string | null }).__copied = null;

@@ -69,6 +69,7 @@ export const segmentedClockVariants = tv({
     root: "text-primary",
     segment: "text-primary",
     completedDot: "text-primary",
+    hiddenIcon: "text-primary",
   },
   variants: {
     size: {
@@ -77,6 +78,10 @@ export const segmentedClockVariants = tv({
       lg: { root: "size-control-lg" },
     },
     filled: { false: { segment: "text-muted" } },
+    // GM-eyes redaction (A4): dims the whole glyph — never the sole signal, paired with the lock
+    // glyph that takes the center-emphasis slot (segmented-clock.tsx) so colorblind viewers still
+    // get a non-color "this clock is hidden from players" tell.
+    hidden: { true: { root: "opacity-50" } },
   },
   defaultVariants: { size: "md" },
 });

@@ -39,7 +39,15 @@ const INJECTION = /[;{}<>()\\]|url|expression|javascript:|@import|\/\*/iu;
 // A legit color value (oklch(...), #rrggbbaa, rgba(...)) is well under this; longer = a payload attempt.
 const MAX_COLOR_LEN = 64;
 
-function isSafeColor(raw: string): boolean {
+/**
+ * The D44 §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
+ * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare named color) and never carry an
+ * injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). Exported
+ * so OTHER ui primitives that accept a raw color value (e.g. `color-field`) can reuse the exact
+ * same clamp instead of re-deriving their own regex set — see ui-primitive-carve-out-work-order.md
+ * item 13 ("mirror the ThemeScope clamp, don't reinvent it").
+ */
+export function isSafeColor(raw: string): boolean {
   const value = raw.trim();
   if (value.length === 0 || value.length > MAX_COLOR_LEN) {
     return false;

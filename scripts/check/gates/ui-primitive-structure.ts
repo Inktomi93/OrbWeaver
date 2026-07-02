@@ -11,9 +11,11 @@ import type { Check, CheckContext, Violation } from "../harness.ts";
 const UI_SRC = "/packages/ui/src/";
 const PRIMITIVES = "packages/ui/src/primitives";
 
-// §2.4 variants-exempt satellites UNDER primitives/ (icons = the lucide barrel; virtual-list = a
-// sealed lib wrapper). code-editor/content/markdown/lib/layout live outside primitives/.
-const VARIANTS_EXEMPT = new Set(["icons", "virtual-list"]);
+// §2.4 variants-exempt satellites UNDER primitives/ (icons = the lucide barrel; virtual-list AND
+// message-list = sealed TanStack Virtual wrappers — row styling is 100% owned by the caller's
+// renderItem, so there's no skin for a tv() to own). code-editor/content/markdown/lib/layout/stream
+// live outside primitives/.
+const VARIANTS_EXEMPT = new Set(["icons", "virtual-list", "message-list"]);
 // §4.1 the ONLY test-exempt primitive (a trivial re-export).
 const TEST_EXEMPT = new Set(["icons"]);
 // §4.3 clause 6 — drawer-local providers are the sole inline-provider allowlist (fail-closed: every
@@ -156,7 +158,14 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
   return out;
 }
 
-/** Clause 5 — no token-color literals in any .ct.tsx (§4.2); theme-scope tests the mechanism. */
+// Files legitimately testing arbitrary/hostile COLOR VALUES as data (the D44 clamp mechanism, or a
+// primitive whose entire job is accepting a caller-supplied color) — never a design-token color, so
+// the "assert via TOKENS" rule doesn't apply. theme-scope originated this exemption; color-field is
+// the same shape (its clamp-rejection tests need literal url()/expression() attempts and its
+// commit tests need literal hex — see ui-primitive-carve-out-work-order.md item 13).
+const COLOR_LITERAL_TEST_EXEMPT = new Set(["theme-scope.ct.tsx", "color-field.ct.tsx"]);
+
+/** Clause 5 — no token-color literals in any .ct.tsx (§4.2); the exempt set tests the mechanism. */
 function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
   const out: Violation[] = [];
   for (const sf of ctx.project.getSourceFiles()) {
@@ -164,7 +173,7 @@ function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
     if (!CT_TEST_RE.test(path)) {
       continue;
     }
-    if (path.endsWith("/theme-scope.ct.tsx")) {
+    if ([...COLOR_LITERAL_TEST_EXEMPT].some((name) => path.endsWith(`/${name}`))) {
       continue;
     }
     sf.getFullText()

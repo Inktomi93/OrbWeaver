@@ -11,12 +11,14 @@ export {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   ChevronUp,
   CircleAlert,
   Copy,
   ExternalLink,
   Eye,
   EyeOff,
+  GripVertical,
   Info,
   Loader2,
   Lock,
@@ -34,6 +36,7 @@ export {
   Square,
   Trash2,
   Unlock,
+  Upload,
   X,
 } from "lucide-react";
 export type { IconProps } from "./icon";

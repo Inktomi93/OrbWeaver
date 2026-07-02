@@ -1,0 +1,8 @@
+import { tv } from "tailwind-variants";
+
+/** The `<Chart>` wrapper skin — a plain sized box; ECharts owns everything painted inside it. */
+export const chartVariants = tv({
+  slots: {
+    root: "relative w-full",
+  },
+});
