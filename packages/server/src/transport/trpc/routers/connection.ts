@@ -22,4 +22,12 @@ export const connectionRouter = t.router({
   refreshCatalog: adminProcedure.mutation(({ ctx, signal }) =>
     ctx.services.connection.refreshCatalog({ signal }),
   ),
+
+  // The max-pro-sub host-Claude health check (neo `testClaudeAuth` — Tier-4 maps it here). A MUTATION
+  // despite being read-shaped: it spends a (tiny) generation, so it keeps tRPC's CSRF gate (the
+  // credentials-router esoteric-#9 posture). authed at the transport; the D17 OWNER gate runs inside
+  // credentials' max-pro-sub mint (the domain seam) — a non-owner rejects there, leak-free.
+  testClaudeAuth: authedProcedure.mutation(({ ctx }) =>
+    ctx.services.connection.testClaudeAuth({ principal: ctx.auth }),
+  ),
 });

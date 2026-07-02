@@ -11,7 +11,12 @@
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
-import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
+import type {
+  AccountCredits,
+  EndpointInspection,
+  GenerationCost,
+  VerifyAuthResult,
+} from "@orb/contracts/providers";
 
 /** FLAG[PD-16]: Fields the credential-shaped diagnostic requests share. `signal` is the cross-surface cancellation
  *  hook (carried for parity with the role requests; the OpenRouter SDK diagnostic ports + the BYO inspector
@@ -40,6 +45,13 @@ export interface InspectRequest extends DiagnosticRequestCommon {
   readonly model: string;
 }
 
+/** `verifyAuth(req)` — the host-Claude auth verify (a tiny SDK turn reporting which credential the
+ *  spawned runtime used). The credential is the owner-gated `max-pro-sub` mint (credentials enforces
+ *  D17); `model` is the probe model the caller picked (the cheapest curated tier). */
+export interface VerifyAuthRequest extends DiagnosticRequestCommon {
+  readonly model: string;
+}
+
 /** `fetchOrCatalog(req)` — the live OpenRouter `/models` fetch. NO credential: the `/models` endpoint is
  *  public (the backend uses a keyless client); connection owns the snapshot + TTL cache above. */
 export interface FetchCatalogRequest {
@@ -57,5 +69,6 @@ export interface ProviderDiagnostics {
   readonly accountCredits: (req: AccountCreditsRequest) => Promise<AccountCredits>;
   readonly generationCost: (req: GenerationCostRequest) => Promise<GenerationCost>;
   readonly inspect: (req: InspectRequest) => Promise<EndpointInspection>;
+  readonly verifyAuth: (req: VerifyAuthRequest) => Promise<VerifyAuthResult>;
   readonly fetchOrCatalog: (req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>;
 }

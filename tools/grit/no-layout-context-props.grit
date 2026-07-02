@@ -1,0 +1,36 @@
+// Plugin: no-layout-context-props
+// Severity: error
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Layout-context boolean/enum props on JSX — `compact`, `inDrawer`,
+//             `isSheet`, `density` — the exact prop-threading the container
+//             model exists to remove (UI-Gates §8 / D42 §4 / D43 §11.2).
+//
+// Rationale:  A surface adapts to ITS CONTAINER (`@container` + the --cq-*
+//             scale), never to a prop describing where it was mounted. Density
+//             is a separate ATTRIBUTE axis (`data-density`), read from CSS —
+//             never a component prop. neo threaded these through everything;
+//             orbweaver freezes the property at zero sites (D43 §11.2 measured
+//             the unwind cost at ~6 sites — pin NOW, before features regrow it).
+//
+//               ❌ <CharacterGrid compact />
+//               ❌ <EntityCard inDrawer={true} density="compact">
+//               ✅ <Container name="pane" size>…  (the anchor declares containment;
+//                  the surface queries @container)
+//               ✅ data-density="compact"          (an attribute, not a prop)
+//
+// Scope:      packages/{client,ui}/src — same substrate scope as the token
+//             gates; no allowlist (no primitive legitimately takes these).
+//
+// Suppress:   // biome-ignore lint/plugin/no-layout-context-props: <reason>
+//
+// Refs:       core/UI-Architecture-and-Layout.md §4/§4b (the container model)
+//             core/UI-Gates-and-Lessons.md §8 (the gate registry)
+// ──────────────────────────────────────────────────────────────────────────────
+
+language js
+
+JsxAttribute() as $attr where {
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
+  $attr <: r"^(?:compact|inDrawer|isSheet|density)(?:=.*)?$",
+  register_diagnostic(span=$attr, message="layout-context prop (compact/inDrawer/isSheet/density) — the container model replaces these: the surface queries @container (axis 1), density is the data-density attribute axis. See core/UI-Architecture-and-Layout.md §4/§4b.", severity="error")
+}

@@ -149,3 +149,21 @@ export const endpointInspectionSchema = z.object({
   error: z.string().optional(),
 });
 export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
+
+/** The host-Claude auth verify's result — the `verifyAuth` surface returns it (a tiny SDK turn against
+ *  the host login; `connection.testClaudeAuth` is the caller). Discriminated on the USER-vocab `source`
+ *  (never a backend/runner name — the seal) so future per-source verify arms narrow instead of squishing
+ *  into `{ ok, details?: unknown }`. */
+export const verifyAuthResultSchema = z.object({
+  source: z.literal("max-pro-sub"),
+  ok: z.boolean(),
+  /** Which credential the spawned runtime used (`"none"` = the host login was active — the healthy
+   *  Max-sub answer; an unexpected key name means an env leak reached the spawn). */
+  apiKeySource: z.string(),
+  model: z.string(),
+  /** The trimmed probe reply (expected `"ok"`). */
+  reply: z.string(),
+  /** Metered-equivalent cost; on a flat-rate Max sub this is allowance, not dollars. */
+  costUsd: z.number(),
+});
+export type VerifyAuthResult = z.infer<typeof verifyAuthResultSchema>;

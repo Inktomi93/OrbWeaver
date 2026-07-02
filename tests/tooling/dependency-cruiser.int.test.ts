@@ -143,6 +143,18 @@ function writeAllFixtures(): void {
     "packages/db/src/__dc/devdep.ts",
     `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`,
   );
+
+  // ── @orb/ui (the frontend cake leaf — ui-package-design.md §8) ──
+  // ui-cake: a deep relative escape into contracts (the resolver can't see relative paths).
+  fx("packages/contracts/src/__dc/target.ts", VAL);
+  fx("packages/ui/src/__dc/up.ts", `import "../../../contracts/src/__dc/target.ts";\n`);
+  // ui-no-node-builtins: browser package importing node:*.
+  fx("packages/ui/src/__dc/node.ts", `import "node:fs";\n`);
+  // ui-satellite-seals: a sealed lib imported OUTSIDE its one seal dir (diff belongs to src/diff/ only).
+  fx(
+    "packages/ui/src/__dc/sealbreach.ts",
+    `import { diffChars } from "diff";\nexport const d = diffChars;\n`,
+  );
 }
 
 interface Violation {

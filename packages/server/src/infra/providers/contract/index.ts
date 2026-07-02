@@ -64,6 +64,7 @@ export type {
   InspectRequest,
   ProbeRequest,
   ProviderDiagnostics,
+  VerifyAuthRequest,
 } from "./diagnostics";
 export type { ProviderErrorInit, ProviderErrorKind } from "./errors";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────

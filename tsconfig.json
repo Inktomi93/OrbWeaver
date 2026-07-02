@@ -12,6 +12,8 @@
   "extends": "./tsconfig.base.json",
   // `allowImportingTsExtensions` (safe under the base's `noEmit`): the `scripts/` tooling imports
   // siblings with explicit `.ts` extensions (tsx-run); this aggregator must permit that to typecheck them.
-  "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true },
-  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"]
+  // `jsx`: the aggregator sweeps tests/**/*.ct.tsx + playwright/index.tsx (the CT harness) — both
+  // JSX in node-checked space; per-package jsx stays in each package's own tsconfig.
+  "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true, "jsx": "react-jsx" },
+  "include": ["packages/*/src", "scripts", "tests", "playwright", "reset.d.ts"]
 }

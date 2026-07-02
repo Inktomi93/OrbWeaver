@@ -52,3 +52,9 @@ export interface GetCatalogParams {
 export interface RefreshCatalogParams {
   readonly signal?: AbortSignal | undefined;
 }
+
+/** `testClaudeAuth` input — the acting principal (the owner gate runs inside `credentials.resolve`
+ *  for the `max-pro-sub` source, D17; connection never re-checks it). */
+export interface TestClaudeAuthParams {
+  readonly principal: Principal;
+}

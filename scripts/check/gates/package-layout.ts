@@ -7,7 +7,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Check, Violation } from "../harness.ts";
 
-const PACKAGES = ["kit", "contracts", "client", "db"];
+const PACKAGES = ["kit", "contracts", "client", "db", "ui"];
 
 export const packageLayout: Check = {
   name: "package-layout",

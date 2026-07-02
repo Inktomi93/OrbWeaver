@@ -20,7 +20,8 @@
     "./tools/grit/no-chat-trpc-in-surface.grit",
     "./tools/grit/no-direct-useform.grit",
     "./tools/grit/no-form-state-in-useeffect.grit",
-    "./tools/grit/no-inline-optimistic-in-surface.grit"
+    "./tools/grit/no-inline-optimistic-in-surface.grit",
+    "./tools/grit/no-layout-context-props.grit"
   ],
   "vcs": {
     "enabled": true,
@@ -30,7 +31,14 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/*.grit", "!.claude", "!**/routeTree.gen.ts"]
+    "includes": [
+      "**",
+      "!**/*.grit",
+      "!.claude",
+      "!**/routeTree.gen.ts",
+      "!packages/ui/src/tokens/index.ts",
+      "!packages/ui/src/styles/theme.css"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -63,7 +71,12 @@
       "preset": "recommended",
       "correctness": {
         "noUnusedImports": "error",
-        "noUnusedVariables": { "level": "error", "options": { "ignoreRestSiblings": false } },
+        "noUnusedVariables": {
+          "level": "error",
+          "options": {
+            "ignoreRestSiblings": false
+          }
+        },
         "noUnusedFunctionParameters": "error",
         "noUndeclaredDependencies": "error",
         "noUnresolvedImports": "error",
@@ -90,19 +103,36 @@
         "noExcessiveNestedTestSuites": "error",
         "useArrayFind": "error",
         "useWhile": "error",
-        "noImplicitCoercions": { "level": "error", "options": { "allowDoubleNegation": true } },
+        "noImplicitCoercions": {
+          "level": "error",
+          "options": {
+            "allowDoubleNegation": true
+          }
+        },
         "noExcessiveCognitiveComplexity": {
           "level": "error",
-          "options": { "maxAllowedComplexity": 15 }
+          "options": {
+            "maxAllowedComplexity": 15
+          }
         },
-        "useMaxParams": { "level": "error", "options": { "max": 4 } },
+        "useMaxParams": {
+          "level": "error",
+          "options": {
+            "max": 4
+          }
+        },
         "noForEach": "error",
         "useSimplifiedLogicExpression": "error",
         "noVoid": "off",
         "useLiteralKeys": "off"
       },
       "style": {
-        "useImportType": { "level": "error", "options": { "style": "separatedType" } },
+        "useImportType": {
+          "level": "error",
+          "options": {
+            "style": "separatedType"
+          }
+        },
         "useExportType": "error",
         "useNodejsImportProtocol": "error",
         "useConsistentArrowReturn": "error",
@@ -148,21 +178,41 @@
         "useTrimStartEnd": "error",
         "useComponentExportOnlyModules": {
           "level": "error",
-          "options": { "allowConstantExport": true }
+          "options": {
+            "allowConstantExport": true
+          }
         },
-        "useConsistentArrayType": { "level": "error", "options": { "syntax": "shorthand" } },
+        "useConsistentArrayType": {
+          "level": "error",
+          "options": {
+            "syntax": "shorthand"
+          }
+        },
         "useConsistentObjectDefinitions": {
           "level": "error",
-          "options": { "syntax": "shorthand" }
+          "options": {
+            "syntax": "shorthand"
+          }
         },
-        "useConsistentTypeDefinitions": { "level": "error", "options": { "style": "interface" } },
+        "useConsistentTypeDefinitions": {
+          "level": "error",
+          "options": {
+            "style": "interface"
+          }
+        },
         "useNamingConvention": {
           "level": "error",
-          "options": { "strictCase": false, "requireAscii": true }
+          "options": {
+            "strictCase": false,
+            "requireAscii": true
+          }
         },
         "useFilenamingConvention": {
           "level": "error",
-          "options": { "requireAscii": true, "filenameCases": ["kebab-case"] }
+          "options": {
+            "requireAscii": true,
+            "filenameCases": ["kebab-case"]
+          }
         },
         "noRestrictedTypes": {
           "level": "error",
@@ -183,7 +233,12 @@
         "useVueMultiWordComponentNames": "off"
       },
       "suspicious": {
-        "noConsole": { "level": "error", "options": { "allow": [] } },
+        "noConsole": {
+          "level": "error",
+          "options": {
+            "allow": []
+          }
+        },
         "noTsIgnore": "error",
         "noEvolvingTypes": "error",
         "noImportCycles": "error",
@@ -211,8 +266,18 @@
         "useArraySortCompare": "error",
         "useNumberToFixedDigitsArgument": "error",
         "useStaticResponseMethods": "error",
-        "noShadow": { "level": "error", "options": { "ignoreTypeValueShadow": true } },
-        "noDoubleEquals": { "level": "error", "options": { "ignoreNull": false } },
+        "noShadow": {
+          "level": "error",
+          "options": {
+            "ignoreTypeValueShadow": true
+          }
+        },
+        "noDoubleEquals": {
+          "level": "error",
+          "options": {
+            "ignoreNull": false
+          }
+        },
         "noUnnecessaryConditions": "error",
         "noEmptySource": "off"
       },
@@ -330,7 +395,12 @@
     {
       "includes": ["packages/*/src/**/index.ts"],
       "linter": {
-        "rules": { "performance": { "noBarrelFile": "off", "noReExportAll": "off" } }
+        "rules": {
+          "performance": {
+            "noBarrelFile": "off",
+            "noReExportAll": "off"
+          }
+        }
       }
     },
     {
@@ -346,26 +416,51 @@
     },
     {
       "includes": ["packages/server/src/domain/sessions/substrate/role-policy.ts"],
-      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["scripts/codemods/codemod-kit.ts"],
-      "linter": { "rules": { "style": { "noProcessEnv": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["packages/client/**"],
       "linter": {
         "rules": {
-          "correctness": { "noNodejsModules": "error" },
+          "correctness": {
+            "noNodejsModules": "error"
+          },
           "suspicious": {
-            "noConsole": { "level": "error", "options": { "allow": ["info", "warn", "error"] } }
+            "noConsole": {
+              "level": "error",
+              "options": {
+                "allow": ["info", "warn", "error"]
+              }
+            }
           }
         }
       }
     },
     {
       "includes": ["packages/db/src/schema/**"],
-      "linter": { "rules": { "performance": { "noNamespaceImport": "off" } } }
+      "linter": {
+        "rules": {
+          "performance": {
+            "noNamespaceImport": "off"
+          }
+        }
+      }
     },
     {
       "includes": [
@@ -377,7 +472,13 @@
         "packages/contracts/src/connection/**",
         "tests/contracts/connection/**"
       ],
-      "linter": { "rules": { "style": { "useNamingConvention": "off" } } }
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
     },
     {
       "includes": ["**/*.config.ts", "**/*.config.js", "playwright*.config.ts"],
@@ -389,7 +490,9 @@
             "noProcessEnv": "off",
             "noMagicNumbers": "off"
           },
-          "correctness": { "noProcessGlobal": "off" }
+          "correctness": {
+            "noProcessGlobal": "off"
+          }
         }
       }
     },
@@ -397,7 +500,9 @@
       "includes": ["scripts/**"],
       "linter": {
         "rules": {
-          "suspicious": { "noConsole": "off" },
+          "suspicious": {
+            "noConsole": "off"
+          },
           "style": {
             "noDefaultExport": "off",
             "useNamingConvention": "off",
@@ -410,18 +515,34 @@
       "includes": ["tests/**"],
       "linter": {
         "rules": {
-          "suspicious": { "noConsole": "off" },
-          "style": { "noMagicNumbers": "off" },
-          "performance": { "noBarrelFile": "off" },
-          "correctness": { "noEmptyPattern": "off" },
+          "suspicious": {
+            "noConsole": "off"
+          },
+          "style": {
+            "noMagicNumbers": "off"
+          },
+          "performance": {
+            "noBarrelFile": "off"
+          },
+          "correctness": {
+            "noEmptyPattern": "off"
+          },
           "nursery": {
             "useConsistentTestIt": {
               "level": "error",
-              "options": { "function": "test", "withinDescribe": "test" }
+              "options": {
+                "function": "test",
+                "withinDescribe": "test"
+              }
             }
           }
         }
       }
     }
-  ]
+  ],
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  }
 }

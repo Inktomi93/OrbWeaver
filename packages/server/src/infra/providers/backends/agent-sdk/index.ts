@@ -9,6 +9,7 @@
 // upward (the contract is SDK-free; `AgentToolServer` is opaque `unknown`, narrowed inside this family).
 
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
+import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { ZodRawShape } from "zod";
 import type {
   AgentToolServer,
@@ -16,12 +17,14 @@ import type {
   ChatRequest,
   ChatResult,
   ProviderBackend,
+  VerifyAuthRequest,
 } from "../../contract";
 import { ProviderError } from "../../contract";
 import { runAgentTurn } from "./agent-runner";
 import { runChatTurn } from "./runner";
 import { SessionCache } from "./session";
 import type { AgentSdkDeps } from "./types";
+import { verifyAuth } from "./verify-auth";
 
 // ── Family-internal surface (entry wiring + the family's OWN tests). NOT a domain-reachable surface —
 //    `providers-public-surface-only` keeps domains on the providers root barrel; this family barrel is
@@ -80,6 +83,9 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): ProviderBacken
       return runChatTurn(req, resolved, sessions);
     },
     runAgentTurn: (req: AgentTurnRequest): Promise<ChatResult> => runAgentTurn(req, resolved),
+    // The host-Claude auth verify (connection.testClaudeAuth) — a tiny turn through the SAME firewall a
+    // real turn uses; no session resume (a health probe never touches the prompt-cache lineage).
+    verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved),
   };
 }
 

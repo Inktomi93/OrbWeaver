@@ -18,6 +18,7 @@ export type {
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,
+  TestClaudeAuthParams,
 } from "./contract/params";
 export type { CatalogSnapshot } from "./contract/results";
 export type {

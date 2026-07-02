@@ -1,0 +1,31 @@
+/* @orb/ui — the one CSS entry a consumer imports (the client's single stylesheet import; the CT
+ * harness imports it too). Composition:
+ *   1. Tailwind v4 (utilities are generated FROM the @theme block — nothing hand-authored).
+ *   2. theme.css — the GENERATED @theme block derived from src/tokens/tokens.json (UI-Arch §3).
+ *   3. The unlayered floors below (D43 §11.4e — deliberately OUTSIDE @layer so no later layer can
+ *      accidentally out-specificity them).
+ *
+ * Consumers must also set `isolation: isolate` on the app root (Base UI stacking-context guidance)
+ * and `position: relative` on <body> (iOS 26 Safari backdrop coverage) — the client shell owns both.
+ */
+@import "tailwindcss";
+@import "./theme.css";
+
+/* The reduced-motion floor — UNLAYERED on purpose (D43 §11.4e: one of the three "one edit silently
+ * breaks it" globals footguns; a capability @media, legal at the token layer — §4b axis 3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Per-theme color-scheme (the third D43 §11.4e footgun) — Hearth is dark. A future palette
+ * value-set overrides both the token values and this declaration together. */
+:root {
+  color-scheme: dark;
+}

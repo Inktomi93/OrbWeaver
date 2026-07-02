@@ -9,14 +9,20 @@
 // `openrouter` backend directly rather than through source dispatch.
 //
 // FLAG (which source × verb pairs are WIRED vs fail-closed): only `openrouter` ships probe/accountCredits/
-// generationCost/fetchCatalog today, and only `custom-byo` ships `inspect`. Every other (source × verb)
-// fail-closes with a typed `ProviderError` — there is NO probe for max-pro-sub / vllm / local-light /
-// custom_openai (and no accountCredits/generationCost off OpenRouter). Those are genuine not-yet-built
-// surfaces, surfaced as a typed not-supported throw — never faked.
+// generationCost/fetchCatalog today, only `custom-byo` ships `inspect`, and only `agent-sdk` ships
+// `verifyAuth` (the max-pro-sub host-login health check `connection.testClaudeAuth` drives). Every other
+// (source × verb) fail-closes with a typed `ProviderError` — there is NO probe for max-pro-sub / vllm /
+// local-light / custom_openai (and no accountCredits/generationCost off OpenRouter). Those are genuine
+// not-yet-built surfaces, surfaced as a typed not-supported throw — never faked.
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import type { CredentialHealth } from "@orb/contracts/credentials";
-import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/contracts/providers";
+import type {
+  AccountCredits,
+  EndpointInspection,
+  GenerationCost,
+  VerifyAuthResult,
+} from "@orb/contracts/providers";
 import type {
   AccountCreditsRequest,
   BackendKey,
@@ -26,6 +32,7 @@ import type {
   ProbeRequest,
   ProviderDeps,
   ProviderDiagnostics,
+  VerifyAuthRequest,
 } from "./contract";
 import { backendForSource, requireBackend, requireRoleImpl } from "./roles/dispatch";
 
@@ -70,6 +77,14 @@ export function createProviderDiagnostics(deps: ProviderDeps): ProviderDiagnosti
         "inspect",
       );
       return await requireRoleImpl(backend, backend.inspect, "inspect")(req);
+    },
+    verifyAuth: async (req: VerifyAuthRequest): Promise<VerifyAuthResult> => {
+      const backend = requireBackend(
+        deps.backends,
+        backendForSource(req.credential.source),
+        "verifyAuth",
+      );
+      return await requireRoleImpl(backend, backend.verifyAuth, "verifyAuth")(req);
     },
     fetchOrCatalog: async (req: FetchCatalogRequest): Promise<ModelCatalogEntry[]> => {
       const backend = requireBackend(deps.backends, OPENROUTER_KEY, "fetchCatalog");
