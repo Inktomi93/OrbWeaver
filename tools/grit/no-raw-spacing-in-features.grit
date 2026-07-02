@@ -17,15 +17,15 @@
 //                  RESET, not a magic scale number — and has no intent token, so
 //                  it's allowed. `-0.5`/`-3`/`-[12px]` still fire.)
 //
-//             Intent tokens (defined in globals.css):
+//             Intent tokens (defined in theme.css):
 //               gap-field · gap-row · gap-block · gap-section · gap-gutter
 //               p[xy]-row · p[xy]-block · p[xy]-section · p[xy]-gutter
 //
-//             Layout primitives (features/_shared/layout/):
+//             Layout primitives (packages/ui/src/layout/):
 //               <Stack> · <Row> · <Section> · <Toolbar>
 //
 // Scope:      Fires ONLY inside the substrate-gated client paths
-//             (src/client/{features,components,routes}) and SKIPS the allowlist —
+//             (packages/{client,ui}/src) and SKIPS the allowlist —
 //             via the in-rule `$filename` guard below, NOT per-line suppressions.
 //             This mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES
 //             exactly, so biome's plugin output == the substrate gate's scope.
@@ -40,9 +40,9 @@
 //             Default-param values like `bodyClassName = "space-y-3"` still aren't
 //             matched (would need an object-destructure-default arm — see spike RESULTS).
 //
-// Refs:       src/client/AGENTS.md §Spacing-and-layout
-//             src/client/features/_shared/layout/ (primitives)
-//             src/client/styles/globals.css (intent token definitions)
+// Refs:       docs/architecture/core/UI-Architecture-and-Layout.md
+//             packages/ui/src/layout/ (primitives)
+//             packages/ui/src/styles/theme.css (intent token definitions)
 // ──────────────────────────────────────────────────────────────────────────────
 //
 // GritQL note: identical shape to no-raw-z-index and no-color-literals — the
@@ -75,34 +75,34 @@ or {
   JsxAttribute() as $attr where {
     in_substrate_scope(),
     $attr <: r"^className=\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
-    register_diagnostic(span=$attr, message="raw spacing utility in className — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+    register_diagnostic(span=$attr, message="raw spacing utility in className — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
   },
   `cn($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw spacing utility in cn() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw spacing utility in cn() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `clsx($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw spacing utility in clsx() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw spacing utility in clsx() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `cva($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw spacing utility in cva() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw spacing utility in cva() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `tv($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw spacing utility in tv() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw spacing utility in tv() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   }
 }

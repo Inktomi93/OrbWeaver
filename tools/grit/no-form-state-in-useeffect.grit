@@ -22,7 +22,7 @@
 //             (rare — one-time seed effects with a documented `form.state.isDirty`
 //             guard are the only expected case)
 //
-// Refs:       src/client/AGENTS.md §5.2 (listeners), §5.5 (Subscribe)
+// Refs:       docs/architecture/core/UI-Lib-TanStack-Form.md (listeners, Subscribe)
 //             features/characters/components/character-form-context.tsx
 //             — the canonical listener-driven mirror
 // ──────────────────────────────────────────────────────────────────────────────
@@ -42,5 +42,5 @@ language js
     `$_.state.values`,
     `$_.store`
   },
-  register_diagnostic(span=$effect, message="`useEffect` reading `form.state.values` / `form.store` in its dep array is the pre-listener anti-pattern: re-renders the whole component on every keystroke and can clobber unsaved typing on a refetch. Use form-level `listeners.onChange` with `onChangeDebounceMs` (AGENTS.md §5.2) — it knows which field changed and runs in the form lifecycle, not the render cycle. For UI-only reactivity, use `form.Subscribe` (AGENTS.md §5.5).", severity="error")
+  register_diagnostic(span=$effect, message="`useEffect` reading `form.state.values` / `form.store` in its dep array is the pre-listener anti-pattern: re-renders the whole component on every keystroke and can clobber unsaved typing on a refetch. Use form-level `listeners.onChange` with `onChangeDebounceMs` (see docs/architecture/core/UI-Lib-TanStack-Form.md, listeners) — it knows which field changed and runs in the form lifecycle, not the render cycle. For UI-only reactivity, use `form.Subscribe` (same doc, Subscribe).", severity="error")
 }

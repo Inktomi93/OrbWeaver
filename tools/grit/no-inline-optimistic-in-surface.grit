@@ -28,7 +28,7 @@
 //             (pair with a `hooks/` extraction TODO if the suppression is for
 //             a surface site)
 //
-// Refs:       src/client/AGENTS.md §6
+// Refs:       docs/architecture/core/UI-Lib-TanStack-Query.md
 //             features/_shared/use-optimistic-mutation.ts (the helper)
 //             features/characters/hooks/use-star-toggle.ts (the wide-TInput exception)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -47,5 +47,5 @@ or {
   // is the smell; in a hook it's exactly where it belongs (AGENTS.md §6). Fire only
   // on surface files (biome-2.4 $filename guard) so hooks aren't false-flagged.
   $filename <: r".*/features/[^/]+/surfaces/.*",
-  register_diagnostic(span=$call, message="Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (AGENTS.md §6), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).", severity="error")
+  register_diagnostic(span=$call, message="Optimistic-mutation plumbing (`cancelQueries` / `setQueryData`) belongs in `features/<x>/hooks/`, not a surface. Surfaces compose JSX; data plumbing drifts when it lives at the call site. Use `optimisticOptions({queryClient, queryKey, merge, invalidateOnSettled})` from `features/_shared` (see docs/architecture/core/UI-Lib-TanStack-Query.md), OR extract a hook that wraps the inline pattern (the wide-TInput tRPC exception — see `use-star-toggle.ts`).", severity="error")
 }

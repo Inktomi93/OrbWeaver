@@ -7,7 +7,7 @@
 //               • JSX `className="..."` attributes
 //               • `cn(...)` / `clsx(...)` / `cva(...)` call args (any nesting)
 //
-// Rationale:  Typography intent tokens live in globals.css under utility-generating
+// Rationale:  Typography intent tokens live in theme.css under utility-generating
 //             prefixes (--text-micro, --text-label, --text-body, --text-hint,
 //             --text-mono-tag). Feature surfaces reach for these names, NOT the
 //             raw Tailwind scale.
@@ -28,15 +28,15 @@
 //             and any token name (text-micro / text-label / text-body / text-hint
 //             / text-mono-tag) — the regex only matches the raw font-size scale.
 //
-// Scope:      Fires ONLY inside src/client/{features,components,routes} and SKIPS
+// Scope:      Fires ONLY inside packages/{client,ui}/src and SKIPS
 //             the allowlist (features/_shared/layout/, _shared/form/contexts.ts,
 //             components/ui/, components/markdown.tsx) — via the in-rule `$filename`
 //             guard, NOT per-line suppressions. Mirrors substrate-clean.ts exactly.
 //             (See no-raw-spacing-in-features.grit for the guard rationale + the
 //             retired biome #6851 note.)
 //
-// Refs:       src/client/AGENTS.md §Spacing-and-layout (typography intent tokens)
-//             src/client/styles/globals.css (--text-* definitions)
+// Refs:       docs/architecture/core/UI-Architecture-and-Layout.md (typography intent tokens)
+//             packages/ui/src/styles/theme.css (--text-* definitions)
 // ──────────────────────────────────────────────────────────────────────────────
 
 language js
@@ -60,34 +60,34 @@ or {
   JsxAttribute() as $attr where {
     in_substrate_scope(),
     $attr <: r"^className=\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-    register_diagnostic(span=$attr, message="raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+    register_diagnostic(span=$attr, message="raw font-size utility in className — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
   },
   `cn($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in cn() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw font-size utility in cn() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `clsx($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in clsx() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw font-size utility in clsx() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `cva($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   },
   `tv($args)` where {
     in_substrate_scope(),
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
-      register_diagnostic(span=$lit, message="raw font-size utility in tv() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+      register_diagnostic(span=$lit, message="raw font-size utility in tv() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.", severity="error")
     }
   }
 }
