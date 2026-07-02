@@ -13,16 +13,17 @@
 //             read from chat.list / chat.get / chat.messages caches.
 //
 // Sanctioned homes (per-line suppression):
-//   • src/client/features/chat/hooks/use-chat-verbs.ts           (bound verbs)
-//   • src/client/features/chat/hooks/use-chat-injection-verbs.ts (injections)
-//   • src/client/features/chat/hooks/use-draft-chat-actions.ts   (chat.start)
-//   • src/client/features/chat/hooks/use-recent-chats-actions.ts (list verbs)
+//   • packages/client/src/features/chat/hooks/use-chat-verbs.ts           (bound verbs)
+//   • packages/client/src/features/chat/hooks/use-chat-injection-verbs.ts (injections)
+//   • packages/client/src/features/chat/hooks/use-draft-chat-actions.ts   (chat.start)
+//   • packages/client/src/features/chat/hooks/use-recent-chats-actions.ts (list verbs)
 //
 //             Each of those files carries the chat.<verb>.mutationOptions
 //             call(s) it owns. Every OTHER file mentioning the pattern is a
 //             regression — push the verb into a hook or use an existing one.
 //
-// Rationale:  AGENTS.md §11: "The chat surface NEVER calls trpc.chat.<verb>.
+// Rationale:  docs/architecture/domains/chat.md (chat verb dispatch): "The chat
+//             surface NEVER calls trpc.chat.<verb>.
 //             mutate directly. … Adding a verb = one function in the bundle
 //             hook + one entry in the returned object." Without the lint, a
 //             new feature's "let me just inline this one mutation" decision
@@ -32,7 +33,7 @@
 //             (Used in the sanctioned verb-hook homes listed above; per-line
 //             with a path/justification comment.)
 //
-// Refs:       src/client/AGENTS.md §11 (chat verb dispatch).
+// Refs:       docs/architecture/domains/chat.md (chat verb dispatch).
 // ──────────────────────────────────────────────────────────────────────────────
 //
 // GritQL note: matches the member-access path `trpc.chat.<verb>.mutationOptions`
@@ -47,5 +48,5 @@ language js
   // exactly where it belongs. Fire only on surface files (biome-2.4 $filename guard)
   // so the verb-hook homes aren't false-flagged.
   $filename <: r".*/features/[^/]+/surfaces/.*",
-  register_diagnostic(span=$node, message="trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See AGENTS.md §11.")
+  register_diagnostic(span=$node, message="trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See docs/architecture/domains/chat.md (chat verb dispatch).")
 }

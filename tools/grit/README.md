@@ -23,7 +23,7 @@ fire as `error`** — turned on greenfield, before the code exists, so the code 
 | `no-inline-types` | exported `type`/`z.object/enum/discriminatedUnion` outside a type home | types-in-contract (§7.4) |
 | `persistence-no-in-memory-state` | `Map`/`Set` in `persistence/` | persistence = queries-only (§7) |
 
-## Client conventions enforced (inherited from neo-tavern, committed now)
+## Client conventions enforced (orbweaver client, committed now)
 
 Activated before the client is built — they commit orbweaver's client to: a Tailwind **intent-token**
 system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`hooks/` split.
@@ -39,9 +39,9 @@ system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`
 | `no-form-state-in-useeffect` | `useEffect` dep-array reading `form.state.values`/`store` |
 | `no-inline-optimistic-in-surface` | `cancelQueries`/`setQueryData` in a `surfaces/` file |
 
-These fire zero times today (no client code) but are armed. Their diagnostic *messages* still point at
-neo-style token/doc names (`globals.css`, the design-token vocabulary) — finalize those references when
-the client scaffold defines the actual token system + its conventions doc; the **detection** is correct.
+These fire zero times today (no client code) but are armed. Their diagnostic *messages* and `Refs:` now
+point at the real orbweaver homes — the token set in `packages/ui/src/styles/theme.css` and the
+`docs/architecture/core/UI-*.md` convention docs — not the retired neo `src/client/AGENTS.md` paths.
 
 ## Intentionally NOT a gate
 
