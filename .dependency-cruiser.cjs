@@ -113,6 +113,29 @@ module.exports = {
       from: { path: CLIENT },
       to: { path: ["^packages/server/", DB], dependencyTypesNot: ["type-only"] },
     },
+    {
+      name: "client-feature-front-door",
+      comment:
+        "Enter a client feature through its PUBLIC API (features/<name>/index.ts), not its internals — so a feature can refactor freely (UI-Arch §2.1). Callers outside features/ (routes/data/forms/lib/main) import the index only; the front-door mirror of the server's domain-feature-front-door.",
+      severity: "error",
+      from: { path: CLIENT, pathNot: `${CLIENT}features/` },
+      to: {
+        path: `${CLIENT}features/[^/]+/.+`,
+        pathNot: `${CLIENT}features/[^/]+/index\\.ts$`,
+      },
+    },
+    {
+      name: "client-features-no-cross",
+      comment:
+        "Client features stay independent: a module in features/<a>/ must not import another feature's internals at RUNTIME. Cross-feature reads go through trpc.* (the server is the only cross-feature channel — UI-Arch §11.0/§5.1); there is NO features/_shared drawer (dissolved — generics → @orb/ui, the form toolkit → forms/). TYPE-ONLY imports across features ARE allowed (a shape wired at the composition root).",
+      severity: "error",
+      from: { path: `${CLIENT}features/([^/]+)/` },
+      to: {
+        path: `${CLIENT}features/([^/]+)/`,
+        pathNot: `${CLIENT}features/$1/`,
+        dependencyTypesNot: ["type-only"],
+      },
+    },
 
     // ════════════════════ @orb/ui — the frontend cake leaf (D42; ui-package-design.md §8) ═══════════
     {

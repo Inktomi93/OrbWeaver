@@ -90,6 +90,18 @@ function writeAllFixtures(): void {
     `import type { Ty } from "../../../server/src/foundation/__dc/ty.ts";\nexport const a: Ty = 1;\n`,
   );
 
+  // ── client feature isolation (UI-Arch §2.1/§11.0; mirrors domain isolation below) ──
+  fx("packages/client/src/features/__dc_cfeat/index.ts", VAL);
+  fx("packages/client/src/features/__dc_cfeat/internal.ts", VAL);
+  fx("packages/client/src/features/__dc_cfeat2/index.ts", VAL);
+  // client-features-no-cross: feature A imports feature B's internals at RUNTIME.
+  fx("packages/client/src/features/__dc_cfeat/cross.ts", `import "../__dc_cfeat2/index.ts";\n`);
+  // client-feature-front-door: a non-feature caller (routes/) imports a feature INTERNAL, not its index.
+  fx(
+    "packages/client/src/routes/__dc_frontdoor.ts",
+    `import "../features/__dc_cfeat/internal.ts";\n`,
+  );
+
   // ── server tiers ──
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
