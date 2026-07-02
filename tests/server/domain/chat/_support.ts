@@ -76,8 +76,10 @@ export async function seedChat(
   overrides: {
     readonly title?: string | null;
     readonly archived?: boolean;
+    readonly temporary?: boolean;
     readonly parentChatId?: ChatId | null;
     readonly metadata?: Record<string, unknown> | null;
+    readonly createdAt?: number;
     readonly updatedAt?: number;
   } = {},
 ): Promise<ChatId> {
@@ -86,10 +88,11 @@ export async function seedChat(
     id,
     title: overrides.title ?? null,
     archived: overrides.archived ?? false,
+    temporary: overrides.temporary ?? false,
     parentChatId: overrides.parentChatId ?? null,
     // The JSON column is `$type<ChatMetadata>()`; tests inject raw blobs (incl. malformed) — cast at the seam.
     metadata: (overrides.metadata ?? null) as never,
-    createdAt: FROZEN_AT,
+    createdAt: overrides.createdAt ?? FROZEN_AT,
     updatedAt: overrides.updatedAt ?? FROZEN_AT,
   });
   return id;

@@ -196,7 +196,9 @@ export async function loadMemberChat(
 
 /** The membership-scoped library list (listChats) — every chat the user is a PRESENT member of (host or
  *  member; pure membership, no `ownerId OR member` branch — D18), newest-updated first. Archived excluded
- *  unless `includeArchived`. Name/preview resolution (`participantNames`) is the verb's (no `users` join). */
+ *  unless `includeArchived`; TEMPORARY chats are ALWAYS hidden (ST "Temporary Chat", PD-65 — they persist
+ *  so turns can run, but never surface in the library; `reapTemporaryChats` sweeps them once expired).
+ *  Name/preview resolution (`participantNames`) is the verb's (no `users` join). */
 export async function listMemberChats(
   db: Db,
   userId: UserId,
@@ -214,7 +216,9 @@ export async function listMemberChats(
       ),
     )
     .$dynamic();
-  const scoped = includeArchived ? base : base.where(eq(chats.archived, false));
+  const scoped = includeArchived
+    ? base.where(eq(chats.temporary, false))
+    : base.where(and(eq(chats.archived, false), eq(chats.temporary, false)));
   const rows = await scoped.orderBy(desc(chats.updatedAt));
   return rows.map(toChatRow);
 }

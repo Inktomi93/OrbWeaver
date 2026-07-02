@@ -103,6 +103,7 @@ test("chats insert→select round-trips (defaults; NO ownerId — D18)", async (
   expect(row?.id).toBe(chatId);
   expect(row?.star).toBe(false);
   expect(row?.archived).toBe(false);
+  expect(row?.temporary).toBe(false);
   expect(row?.anchorPersonaId).toBeNull();
   expect(row?.parentChatId).toBeNull();
   expect(row?.compactSummary).toBeNull();

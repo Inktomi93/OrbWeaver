@@ -246,6 +246,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     anchorPersonaId,
     title,
     opening,
+    temporary,
   }: StartChatParams): Promise<StartChatResult> => {
     const now = ctx.now();
     const chatId = ctx.newChatId();
@@ -277,6 +278,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           id: chatId,
           title: title ?? null,
           anchorPersonaId: anchor,
+          // ST "Temporary Chat" (PD-65): born ephemeral — hidden from listChats, reap-eligible past the TTL.
+          temporary: temporary === true,
           // Persist the opening policy ONLY when the caller set it explicitly (the default stays derived from
           // roster size — the room already opened; a persisted policy is the re-open directive).
           metadata: opening !== undefined ? { opening } : null,

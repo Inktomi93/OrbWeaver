@@ -224,6 +224,7 @@ CREATE TABLE `chats` (
 	`title` text,
 	`star` integer DEFAULT false NOT NULL,
 	`archived` integer DEFAULT false NOT NULL,
+	`temporary` integer DEFAULT false NOT NULL,
 	`pending_host_user_id` text,
 	`anchor_persona_id` text,
 	`parent_chat_id` text,

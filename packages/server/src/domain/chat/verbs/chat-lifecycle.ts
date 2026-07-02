@@ -12,19 +12,20 @@
 // star/archive/title/variables/injections/compact" — the contract's own comment) — there is no dedicated
 // `titleUpdated`/`starred`/`injectionChanged` member, so a client refetches the chat detail. A dedicated event
 // would need a new `ChatBusEvent` member (chunk 1's allowlist — out of scope).
-// FLAG[PD-65]: `reapTemporaryChats` has NO schema backing — `chats` carries no `temporary`/`expiresAt`
-// column (db/schema/chat.ts), so there are ZERO temporary chats to reap and the verb is an honest `{reaped:0}`
-// no-op. It is NOT stubbed-away logic: with no temporary-chat concept in the schema there is nothing to sweep.
-// A real reap needs a `chats.temporary` flag + a TTL/`expiresAt` column (a db-schema decision, out of this
-// chunk) — STOP-and-flagged rather than inventing a column.
+// `reapTemporaryChats` (PD-65 cleared): sweeps the CALLER's expired temporary chats — `chats.temporary`
+// rows (ST "Temporary Chat": born at `startChat`, hidden from `listMemberChats`) older than the reap TTL,
+// scoped to chats the caller HOSTS (D18: no ownerId — the host participant is the room's authority; a mere
+// member must not delete a shared room). Bulk DELETE rides the same FK CASCADE as `delete`; deliberately NO
+// bus event (neo parity — expired ephemera nobody is watching; a durable `chat_events` emit would also FK
+// against the just-dropped chat row).
 // FLAG[effective-variables]: `getVariables` (the EFFECTIVE next-turn variables) returns the config-plane stored
 // values only. D46's runtime plane (per-variant `setvar`/`incvar` deltas folded over the selected chain) has
 // NO schema home yet (`message_variants` carries no variable-delta column) and the preset ChoiceBlock defaults
 // are not an injected op on `ChatContext` — so the effective fold collapses to the stored config plane for now.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatInjections, chats } from "@orb/db";
-import { and, eq } from "drizzle-orm";
+import { chatInjections, chatParticipants, chats } from "@orb/db";
+import { and, eq, exists, isNull, lt } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type {
@@ -134,10 +135,40 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delet
   };
 }
 
-// ── reapTemporaryChats (non-chat-scoped — see FLAG[PD-65]) ──────────────────────────────────────────
-/** `reapTemporaryChats` — an honest no-op until the schema models temporary chats (file header FLAG). */
-function createReapTemporaryChats(): ChatService["reapTemporaryChats"] {
-  return (_params: ReapTemporaryChatsParams): Promise<ReapResult> => Promise.resolve({ reaped: 0 });
+// ── reapTemporaryChats (non-chat-scoped — per-user maintenance; see the file header) ─────────────────
+// How long a temporary chat lives before it is reap-eligible — 24h (neo parity: "hidden from the recent
+// list and swept once a day old"). A domain constant, not a schema column (the lock.ts LOCK_TTL_MS posture).
+const TEMPORARY_CHAT_REAP_TTL_MS = 86_400_000;
+
+/** `reapTemporaryChats` — bulk-DELETE the caller's expired temporary chats (temporary + past the TTL +
+ *  caller is the PRESENT host). Children CASCADE (FK); no bus event (file header). Returns the count. */
+function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryChats"] {
+  return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
+    const cutoff = ctx.now() - TEMPORARY_CHAT_REAP_TTL_MS;
+    const removed = await ctx.db
+      .delete(chats)
+      .where(
+        and(
+          eq(chats.temporary, true),
+          lt(chats.createdAt, cutoff),
+          exists(
+            ctx.db
+              .select({ id: chatParticipants.id })
+              .from(chatParticipants)
+              .where(
+                and(
+                  eq(chatParticipants.chatId, chats.id),
+                  eq(chatParticipants.userId, principal.userId),
+                  eq(chatParticipants.role, "host"),
+                  isNull(chatParticipants.leftSeq),
+                ),
+              ),
+          ),
+        ),
+      )
+      .returning({ id: chats.id });
+    return { reaped: removed.length };
+  };
 }
 
 // ── variables (the D46 two-plane config writes — member) ─────────────────────────────────────────────────────
@@ -276,7 +307,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     star: createStar(ctx, emit),
     archive: createArchive(ctx, emit),
     delete: createDelete(ctx, emit),
-    reapTemporaryChats: createReapTemporaryChats(),
+    reapTemporaryChats: createReapTemporaryChats(ctx),
     getVariables: createGetVariables(ctx),
     getStoredVariables: createGetStoredVariables(ctx),
     setVariables: createSetVariables(ctx, emit),

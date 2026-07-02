@@ -12,7 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants, messages } from "@orb/db";
+import { chatParticipants, chats, messages } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
@@ -295,5 +295,24 @@ describe("startChat — lazy room creation + opening", () => {
     expect(roster).toHaveLength(2);
     expect(roster.filter((r) => r.role === "host")).toHaveLength(1);
     expect(roster.every((r) => r.joinSeq === 0)).toBe(true);
+  });
+
+  test("temporary: the flag lands on the row (ST Temporary Chat, PD-65); absent ⇒ persistent", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    const temp = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      temporary: true,
+    });
+    const persistent = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const [tempRow] = await db.select().from(chats).where(eq(chats.id, temp.chat.id));
+    const [persistentRow] = await db.select().from(chats).where(eq(chats.id, persistent.chat.id));
+    expect(tempRow?.temporary).toBe(true);
+    expect(persistentRow?.temporary).toBe(false);
   });
 });

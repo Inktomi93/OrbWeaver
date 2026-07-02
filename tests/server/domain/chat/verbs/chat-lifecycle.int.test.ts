@@ -14,7 +14,7 @@ import { ChatOperationError } from "../../../../../packages/server/src/domain/ch
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
+import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -156,10 +156,37 @@ describe("injections — CRUD (write host, list member)", () => {
   });
 });
 
-describe("reapTemporaryChats — honest no-op (FLAG[reap-no-schema])", () => {
-  test("returns { reaped: 0 } (no temporary-chat concept in the schema)", async () => {
-    const { host } = await seedRoom();
+describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () => {
+  // The verb's 24h TTL against the frozen clock: a chat born just past the horizon is reap-eligible.
+  const ttlMs = 86_400_000;
+  const expiredAt = FROZEN_AT - ttlMs - 1;
+
+  test("reaps only expired+temporary+caller-hosted; fresh / non-temp / foreign-hosted survive", async () => {
+    const host = await seedUser(db, "host");
+    const other = await seedUser(db, "other");
+    // 1. expired temporary hosted by the caller → REAPED.
+    const reapable = await seedChat(db, "reapable", { temporary: true, createdAt: expiredAt });
+    await seedParticipant(db, { chatId: reapable, key: "r_h", userId: host, role: "host" });
+    // 2. FRESH temporary hosted by the caller → survives (inside the TTL).
+    const fresh = await seedChat(db, "fresh", { temporary: true });
+    await seedParticipant(db, { chatId: fresh, key: "f_h", userId: host, role: "host" });
+    // 3. expired NON-temporary hosted by the caller → survives (never reap a real chat).
+    const persistent = await seedChat(db, "persistent", { createdAt: expiredAt });
+    await seedParticipant(db, { chatId: persistent, key: "p_h", userId: host, role: "host" });
+    // 4. expired temporary hosted by SOMEONE ELSE (caller is a mere member) → survives (host-only sweep).
+    const foreign = await seedChat(db, "foreign", { temporary: true, createdAt: expiredAt });
+    await seedParticipant(db, { chatId: foreign, key: "x_h", userId: other, role: "host" });
+    await seedParticipant(db, { chatId: foreign, key: "x_m", userId: host, role: "member" });
+
     const life = createChatLifecycle(makeChatContext(db), { emit });
+    expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 1 });
+
+    const surviving = (await db.select({ id: chats.id }).from(chats)).map((r) => r.id);
+    expect(surviving).not.toContain(reapable);
+    expect(surviving).toEqual(expect.arrayContaining([fresh, persistent, foreign]));
+    // No bus event for reaped ephemera (neo parity — see the verb header).
+    expect(emitted).toEqual([]);
+    // Idempotent: a second sweep finds nothing.
     expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
   });
 });

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "07e77db3-ee16-4892-a315-b35b2a281836",
+  "id": "66eb2cc2-2d29-4434-ad28-5b6ca60457ad",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1448,6 +1448,14 @@
         },
         "archived": {
           "name": "archived",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "temporary": {
+          "name": "temporary",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
