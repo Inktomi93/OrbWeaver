@@ -15,8 +15,8 @@
   // `jsx`: the aggregator sweeps some JSX (tests/**/*.test-d.tsx if any); per-package jsx stays local.
   // NOTE — the aggregator stays DOM-LESS on purpose: it is a NODE program (server code relies on
   // node's looser `BodyInit`/`BlobPart`, which lib.dom would override and reject `Uint8Array` — the
-  // 2026-06-28 incident). So the browser files are EXCLUDED: `packages/ui/src` (typechecked with
-  // `dom` by @orb/ui's own tsconfig via `pnpm typecheck`), the `.ct.tsx` mirror + the CT harness
+  // 2026-06-28 incident). So the browser packages are EXCLUDED: `packages/ui/src` + `packages/client/src`
+  // (each typechecked with `dom` by its OWN tsconfig via per-package `pnpm typecheck`), the `.ct.tsx` mirror + the CT harness
   // (browser tests — playwright/vite compiles them, never in `pnpm check`; the doctrine). The
   // NODE-side `tests/ui/tokens/*.test.ts` (which imports the node `tokens.build.ts`) stays in here.
   "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true, "jsx": "react-jsx" },
@@ -26,6 +26,7 @@
   // every browser tsx; the node `tests/ui/tokens/*.test.ts` (a plain `.test.ts`) is kept.
   "exclude": [
     "packages/ui/src",
+    "packages/client/src",
     "tests/**/*.ct.tsx",
     "tests/**/*.fixtures.tsx",
     "tests/support/ct",
