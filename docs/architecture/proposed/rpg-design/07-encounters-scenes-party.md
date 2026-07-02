@@ -4,8 +4,8 @@
 > marinara's ONE well-engineered subsystem — the turn-game framework (pure engine, engine-authored
 > legality, seeded RNG, snapshot-anchored rewind, tool-call moves with deterministic fallback) —
 > applied to combat; its two badly-engineered ones (the no-authority LLM combat sidecar; the
-> metadata-blob scene machine) are replaced. Marinara evidence: [`../rpg/06-subengines.md`](../rpg/06-subengines.md)
-> + the verified deep-dive (cited `(marinara: …)`).
+> metadata-blob scene machine) are replaced. Marinara evidence: the archived research corpus (git history; tombstone at
+> [`../rpg/`](../rpg/README.md)) + the verified deep-dive (cited `(marinara: …)`).
 
 ---
 

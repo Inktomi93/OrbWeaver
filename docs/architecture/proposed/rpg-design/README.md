@@ -2,8 +2,8 @@
 
 > **Status: COMMITTED (D58, 2026-07-01).** RPG mode IS a product goal — the Feature-Slot-Map §2
 > gate question is CLOSED (Nate). This doc set is the authoritative design (`Core-Laws-and-Precedents.md`
-> D58 is the decision record and wins on any conflict); the [`../rpg/`](../rpg/README.md) research
-> corpus is the evidence base (what marinara DOES). Everything here is prescriptive and
+> D58 is the decision record and wins on any conflict); the marinara research
+> corpus is the evidence base (what marinara DOES — archived to git history; [`../rpg/`](../rpg/README.md) is the tombstone). Everything here is prescriptive and
 > self-contained: a builder with ONLY this doc set + the orbweaver law docs (AGENTS-1/2/3, the
 > domain docs it cites) can build the whole system — no marinara reading required. Every decision
 > carries its WHY + the rejected alternative.

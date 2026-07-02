@@ -3,8 +3,9 @@
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** This doc defines the GAME — the player experience the
 > `domain/rpg` build must deliver — before any code shape. Every mechanic in the rest of the doc set
 > traces back to a loop stage here; a mechanic that serves no loop stage does not get built.
-> Marinara facts appear only as one-line rationale citations (the research corpus in
-> [`../rpg/`](../rpg/README.md) is the evidence base — you never need to read marinara source).
+> Marinara facts appear only as one-line rationale citations (the research corpus — archived to git
+> history, tombstone at [`../rpg/`](../rpg/README.md) — is the evidence base; you never need to read
+> marinara source).
 
 ---
 
@@ -22,7 +23,7 @@ orchestration, ever.
 | # | Pillar | Meaning | Enforced by |
 |---|--------|---------|-------------|
 | P1 | **Server rolls, model narrates** | No die is ever rolled by the model; no rule is arbitrated by prose. The model REQUESTS a mechanic (tool call), the server resolves it deterministically, the model narrates the resolved numbers. | Tools return server-computed results (05); golden tests pin every formula (04); the model's tool schemas have NO "result" input fields. |
-| P2 | **One turn, one path** | A game turn IS a chat turn. RPG context enters in GATHER, side-effects leave as D48 tool calls inside the same recurse loop. No second pipeline, no out-of-band blocking LLM calls, no client sequencing. (Marinara's 3-call client-orchestrated turn is the rejected alternative — [`../rpg/README.md`](../rpg/README.md) verdict.) | buddy.md invariant #3; the rpg domain exposes NO endpoint that runs a completion; async work = Workloads. |
+| P2 | **One turn, one path** | A game turn IS a chat turn. RPG context enters in GATHER, side-effects leave as D48 tool calls inside the same recurse loop. No second pipeline, no out-of-band blocking LLM calls, no client sequencing. (Marinara's 3-call client-orchestrated turn is the rejected alternative — the archived corpus verdict.) | buddy.md invariant #3; the rpg domain exposes NO endpoint that runs a completion; async work = Workloads. |
 | P3 | **Visible stakes, hidden hands** | Players always see what's at risk (HUD, clocks, tracker, party sheet); they never see the GM's hidden hand (story secrets, plot twists, danger tables, unrevealed map). The information asymmetry is server-enforced, not prompt-enforced. | Hidden state lives in columns the client read-verbs never project (03 §hidden); the GM-only context enters the prompt in the system half only. |
 | P4 | **Game-ness is data, not a branch** | A chat becomes a game by having an `rpg_games` row — same turn engine, same roster, same arbitration. Solo play = a party of one human, byte-identical path (the `no-if(isGroup)` discipline extended: **`no-if(isGame)` in chat code** — chat consults injected rpg ops that no-op when absent). | The chat domain gains ZERO rpg imports; all coupling is injected ops wired at `entry/` (02 §injection). |
 

@@ -3,8 +3,8 @@
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete persistence design for `domain/rpg`.
 > Everything here is buildable from this doc alone: full DDL intent per table (columns/FKs/CHECKs),
 > the zod contract schema for every JSON column, and the behavioral semantics (swipe keying, commit,
-> locks, clone-forward) with their rationale. Marinara evidence: [`../rpg/01-state-model.md`](../rpg/01-state-model.md)
-> + the deep-dive findings cited inline as `(marinara: …)` one-liners.
+> locks, clone-forward) with their rationale. Marinara evidence: the archived research corpus (git history; tombstone at
+> [`../rpg/`](../rpg/README.md)) + the deep-dive findings cited inline as `(marinara: …)` one-liners.
 
 **The governing split (kept from marinara, typed in orbweaver):**
 
