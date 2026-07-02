@@ -126,12 +126,23 @@ function createArchive(ctx: ChatContext, emit: EmitChatEvent): ChatService["arch
 }
 
 // ── delete (host-only — cascades messages/roster/invites/injections/events) ──────────────────────────────────
-/** `delete` — host-only. Drop the chat row; every child CASCADEs (FK). Emits `chatDeleted`. */
+/** `delete` — host-only. Drop the chat row; every child CASCADEs (FK). Emits `chatDeleted` + writes the
+ *  best-effort audit row AFTER the delete lands (admin.md order — a refused delete writes no phantom row;
+ *  `audit_logs.entity_id` is the D24-sanctioned soft ref, so the row outlives the dropped chat). */
 function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delete"] {
   return async ({ principal, chatId }: DeleteChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     await ctx.db.delete(chats).where(eq(chats.id, chatId));
     await emit({ type: "chatDeleted", chatId });
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.delete",
+        entityType: "chat",
+        entityId: chatId,
+      },
+      ctx.now(),
+    );
   };
 }
 

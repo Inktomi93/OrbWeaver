@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { AuditEntry } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -248,6 +249,38 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
+  });
+
+  test("a successful delete writes the chat.deleteMessages audit row; a refused one writes none", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    const audits: AuditEntry[] = [];
+    const edit = createEdit(
+      makeChatContext(db, {
+        audit: (entry): Promise<void> => {
+          audits.push(entry);
+          return Promise.resolve();
+        },
+      }),
+      { emit },
+    );
+
+    // Refused first (member ≠ author) — existence-before-audit: NO phantom row for a delete that never ran.
+    await edit
+      .deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] })
+      .catch((e: unknown) => e);
+    expect(audits).toEqual([]);
+
+    await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [a.messageId] });
+    expect(audits).toEqual([
+      {
+        actorUserId: host,
+        action: "chat.deleteMessages",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { messageIds: [a.messageId] },
+      },
+    ]);
   });
 });
 

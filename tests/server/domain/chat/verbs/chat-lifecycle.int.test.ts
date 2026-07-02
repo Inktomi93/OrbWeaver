@@ -8,6 +8,7 @@ import type { Db } from "@orb/db";
 import { chatInjections, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { AuditEntry } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
@@ -75,14 +76,44 @@ describe("chat-row flags (host-only)", () => {
     expect(row?.star).toBe(true);
   });
 
-  test("delete drops the chat + emits chatDeleted", async () => {
+  test("delete drops the chat + emits chatDeleted + writes the chat.delete audit row", async () => {
     const { host, chatId } = await seedRoom();
-    const life = createChatLifecycle(makeChatContext(db), { emit });
+    const audits: AuditEntry[] = [];
+    const life = createChatLifecycle(
+      makeChatContext(db, {
+        audit: (entry): Promise<void> => {
+          audits.push(entry);
+          return Promise.resolve();
+        },
+      }),
+      { emit },
+    );
 
     await life.delete({ principal: principal(host), chatId });
     const rows = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(rows).toHaveLength(0);
     expect(emitted).toEqual([{ type: "chatDeleted", chatId }]);
+    // The best-effort forensic row (entity_id is the D24-sanctioned soft ref — it outlives the chat).
+    expect(audits).toEqual([
+      { actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId },
+    ]);
+  });
+
+  test("a member's refused delete writes NO audit row (existence-before-audit order)", async () => {
+    const { member, chatId } = await seedRoom();
+    const audits: AuditEntry[] = [];
+    const life = createChatLifecycle(
+      makeChatContext(db, {
+        audit: (entry): Promise<void> => {
+          audits.push(entry);
+          return Promise.resolve();
+        },
+      }),
+      { emit },
+    );
+
+    await life.delete({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    expect(audits).toEqual([]);
   });
 });
 
