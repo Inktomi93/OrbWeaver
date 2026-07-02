@@ -9,6 +9,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
@@ -29,6 +31,19 @@ beforeEach(async () => {
   db = await freshDb();
   emitted = [];
 });
+
+/** A recording emit-op fake that HONORS the PD-24 contract: it records the event AND commits the producer's
+ *  unexecuted co-statements (the op owns the commit — without this the membership transition never lands). */
+function recordingEmit(
+  notes: NotificationEvent[],
+): (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void> {
+  return async (event, coStatements) => {
+    notes.push(event);
+    if (coStatements !== undefined && coStatements.length > 0) {
+      await db.batch(batchMany(coStatements as BatchStmt[]));
+    }
+  };
+}
 
 const emit = (event: ChatBusEvent): Promise<void> => {
   emitted.push(event);
@@ -220,10 +235,7 @@ describe("kick — host removes a member", () => {
     const notes: NotificationEvent[] = [];
     const roster = createRoster(
       makeChatContext(db, {
-        emitNotification: (e) => {
-          notes.push(e);
-          return Promise.resolve();
-        },
+        emitNotification: recordingEmit(notes),
       }),
       { emit },
     );
@@ -266,10 +278,7 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
     const notes: NotificationEvent[] = [];
     const roster = createRoster(
       makeChatContext(db, {
-        emitNotification: (e) => {
-          notes.push(e);
-          return Promise.resolve();
-        },
+        emitNotification: recordingEmit(notes),
       }),
       { emit },
     );
@@ -329,10 +338,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     const notes: NotificationEvent[] = [];
     const roster = createRoster(
       makeChatContext(db, {
-        emitNotification: (e) => {
-          notes.push(e);
-          return Promise.resolve();
-        },
+        emitNotification: recordingEmit(notes),
       }),
       { emit },
     );

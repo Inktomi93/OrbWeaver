@@ -46,6 +46,7 @@ import {
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { chatParticipants, chats } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
@@ -66,11 +67,12 @@ import type {
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
 import {
-  acceptHostHandoffSwap,
+  acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
   insertParticipants,
   markUserLeft,
-  setPendingHost,
+  markUserLeftStatement,
+  setPendingHostStatement,
 } from "../persistence/participant";
 import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
@@ -338,20 +340,24 @@ function createSetParticipantTalkativeness(
 
 // ── membership lifecycle (kick host-only; self-leave self) ─────────────────────
 
-/** `kick` — host-only. Stamp `leftSeq` on the target's PRESENT row (atomic), emit `chatUpdated`, and deliver
- *  the durable `kicked` notification (the per-chat bus can't reach the now-removed member — Part III §3). The
- *  SSE stream teardown rides the kick tx in transport (PD-23). A no-present-row target is an idempotent no-op. */
+/** `kick` — host-only. Stamp `leftSeq` on the target's PRESENT row + deliver the durable `kicked`
+ *  notification in ONE batch (PD-24 tx-atomicity: the UNEXECUTED transition statement rides the emit op,
+ *  which owns the commit — a crash can't remove the member without the notification, or vice versa; the
+ *  per-chat bus can't reach the now-removed member — Part III §3). A non-present target is an idempotent
+ *  no-op (the PRESENT pre-check; single-replica serialized writes keep the check→batch window benign). */
 function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] {
   return async ({ principal, chatId, userId }: KickParticipantParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
-    const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
-    const left = await markUserLeft(ctx.db, chatId, userId, leftSeq);
-    if (left === undefined) {
+    const present = (await loadRoster(ctx.db, chatId)).some((p) => p.userId === userId);
+    if (!present) {
       // Already gone / never a member — idempotent; nothing to emit or notify.
       return;
     }
+    const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
+    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [
+      markUserLeftStatement(ctx.db, chatId, userId, leftSeq),
+    ]);
     await emit({ type: "chatUpdated", chatId });
-    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId });
   };
 }
 
@@ -390,9 +396,12 @@ function createNominateHostHandoff(
       // Not a present non-host member (a host self-nominating lands here — their row is role 'host').
       throw new ChatNotFoundError(chatId);
     }
-    await setPendingHost(ctx.db, chatId, userId, ctx.now());
+    // PD-24: the nomination write + the `handoff-nominated` INSERT commit in ONE batch (the emit op owns
+    // the commit of the unexecuted statement).
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [
+      setPendingHostStatement(ctx.db, chatId, userId, ctx.now()),
+    ]);
     await emit({ type: "chatUpdated", chatId });
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId });
   };
 }
 
@@ -417,23 +426,31 @@ function createAcceptHostHandoff(
     // The previous host (for the post-swap notification) — may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
     const oldHost = roster.find((p) => p.role === "host" && p.userId !== null);
-    await acceptHostHandoffSwap(ctx.db, {
+    const swap = acceptHostHandoffSwapStatements(ctx.db, {
       chatId,
       nomineeUserId: principal.userId,
       now: ctx.now(),
     });
-    await emit({ type: "chatUpdated", chatId });
     if (
       oldHost?.userId !== undefined &&
       oldHost.userId !== null &&
       oldHost.userId !== principal.userId
     ) {
-      await ctx.emitNotification({
-        type: "handoff-accepted",
-        recipientUserId: oldHost.userId,
-        chatId,
-        newHostHandle: principal.handle,
-      });
+      // PD-24: the role swap + the `handoff-accepted` INSERT commit in ONE batch (the emit op owns the
+      // commit of the unexecuted swap statements).
+      await ctx.emitNotification(
+        {
+          type: "handoff-accepted",
+          recipientUserId: oldHost.userId,
+          chatId,
+          newHostHandle: principal.handle,
+        },
+        swap,
+      );
+    } else {
+      // No prior host to notify (they left after nominating) — the swap alone is the atomic unit.
+      await ctx.db.batch(batchMany(swap));
     }
+    await emit({ type: "chatUpdated", chatId });
   };
 }

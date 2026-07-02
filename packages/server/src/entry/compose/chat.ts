@@ -379,8 +379,13 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // emit = durable-FIRST then fan-out (PD-23): `record` INSERTs the row (assigning `seq`), THEN the
     // persisted view is published onto transport's per-user live bus — a dead bus path never loses an
     // event (the subscription replays from the table by `seq`; the row is on `list` regardless).
-    emitNotification: async (event) => {
-      const view = await input.notifications.record({ event });
+    // `coStatements` (PD-24): the producer's membership-transition statements commit in ONE batch WITH the
+    // INSERT (record owns the commit); the publish still runs strictly AFTER that commit.
+    emitNotification: async (event, coStatements) => {
+      const view = await input.notifications.record({
+        event,
+        ...(coStatements !== undefined ? { coStatements } : {}),
+      });
       publishNotification(view);
     },
     // FLAG[PD-70]: presence is not built (the transport SSE ref-count is its source). Report

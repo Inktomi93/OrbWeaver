@@ -16,6 +16,8 @@
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { NotificationId } from "@orb/kit/ids";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
 
@@ -50,15 +52,11 @@ const ROW_COLS = {
   createdAt: notifications.createdAt,
 } as const;
 
-/**
- * Durable-first INSERT: persist the closed event for its recipient with a db-driven monotonic `seq`
- * (`MAX(seq)+1` scoped to the recipient, atomic in the one statement). RETURNS the stored row.
- */
-export async function insertNotification(
-  db: Db,
-  row: NotificationInsert,
-): Promise<NotificationRow> {
-  const inserted = await db
+// Build the durable-first INSERT…RETURNING (unexecuted). `seq` is the per-recipient `MAX(seq)+1` scalar
+// subquery, evaluated against the pre-insert table state (db-driven; no JS clock). File-local — the two
+// executors below own the run.
+function buildInsertNotification(db: Db, row: NotificationInsert): BatchStmt {
+  return db
     .insert(notifications)
     .values({
       id: row.id,
@@ -70,7 +68,36 @@ export async function insertNotification(
       seq: sql<number>`(select coalesce(max(${notifications.seq}), 0) + 1 from ${notifications} where ${notifications.recipientUserId} = ${row.recipientUserId})`,
     })
     .returning(ROW_COLS);
+}
+
+/**
+ * Durable-first INSERT: persist the closed event for its recipient with a db-driven monotonic `seq`
+ * (`MAX(seq)+1` scoped to the recipient, atomic in the one statement). RETURNS the stored row.
+ */
+export async function insertNotification(
+  db: Db,
+  row: NotificationInsert,
+): Promise<NotificationRow> {
+  // BatchStmt erases the builder's row typing; the executed RETURNING rows are re-typed at this read seam.
+  const inserted = (await buildInsertNotification(db, row)) as unknown as NotificationRow[];
   // The INSERT always yields exactly one row.
+  return inserted[0] as NotificationRow;
+}
+
+/**
+ * The PD-24 TX-ATOMIC INSERT: run the producer's membership-transition statements + the notification
+ * INSERT in ONE `db.batch` (libSQL batch = one implicit transaction), so a crash can never leave the
+ * transition committed with no durable notification (or vice versa). The INSERT rides LAST; its RETURNING
+ * rows are read from the batch result (the db read seam). The after-commit fan-out is the caller's.
+ */
+export async function insertNotificationWith(
+  db: Db,
+  row: NotificationInsert,
+  coStatements: readonly BatchStmt[],
+): Promise<NotificationRow> {
+  const results = await db.batch(batchMany([...coStatements, buildInsertNotification(db, row)]));
+  // The INSERT is the last statement; it always yields exactly one RETURNING row.
+  const inserted = results.at(-1) as NotificationRow[];
   return inserted[0] as NotificationRow;
 }
 

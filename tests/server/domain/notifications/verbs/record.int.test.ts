@@ -2,8 +2,12 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
+import { chatParticipants, users } from "@orb/db";
+import type { ChatId, ChatParticipantId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { createNotificationsService } from "@orb/server/domain/notifications";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
@@ -41,6 +45,49 @@ describe("record — durable-first", () => {
     const b1 = await svc.record({ event: inviteEvent(BOB) });
     expect([a1.seq, a2.seq]).toEqual([1, 2]);
     expect(b1.seq).toBe(1);
+  });
+});
+
+describe("record — coStatements ride the SAME batch (PD-24 tx-atomicity)", () => {
+  test("the producer's transition statement + the INSERT commit together; the view carries the db seq", async () => {
+    // Stand in for a membership transition: a users-row touch that must commit WITH the notification.
+    const transition = db
+      .update(users)
+      .set({ handle: castId("alice2") })
+      .where(eq(users.id, ALICE));
+    const view = await svc.record({ event: inviteEvent(ALICE), coStatements: [transition] });
+
+    expect(view.type).toBe("invite");
+    expect(view.seq).toBe(1);
+    const [row] = await db.select().from(users).where(eq(users.id, ALICE));
+    expect(row?.handle).toBe("alice2");
+    const page = await svc.list({ principal: principal(ALICE) });
+    expect(page.items.map((i) => i.id)).toEqual([view.id]);
+  });
+
+  test("a failing co-statement aborts BOTH halves (no transition, no notification row)", async () => {
+    // An FK-violating INSERT: chat_participants referencing a chat that does not exist.
+    const bad = db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_x"),
+      chatId: castId<ChatId>("chat_missing"),
+      kind: "human",
+      userId: ALICE,
+      role: "member",
+      joinSeq: 0,
+      joinedAt: clock.frozenAt,
+    });
+    const good = db
+      .update(users)
+      .set({ handle: castId("alice3") })
+      .where(eq(users.id, ALICE));
+
+    await expect(
+      svc.record({ event: inviteEvent(ALICE), coStatements: [good, bad] }),
+    ).rejects.toThrow();
+    // NOTHING committed — not the transition, not the notification (one implicit transaction).
+    const [row] = await db.select().from(users).where(eq(users.id, ALICE));
+    expect(row?.handle).toBe("alice");
+    expect((await svc.list({ principal: principal(ALICE) })).items).toHaveLength(0);
   });
 });
 
