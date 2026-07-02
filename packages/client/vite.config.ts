@@ -101,10 +101,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-    // Pre-transform the shell entry on server boot so the first paint isn't cold. The router-root file
-    // path is added here once the hand-written routes land (both are pending the app entry).
+    // Pre-transform the shell entry + the route tree on server boot so the first paint isn't cold.
     warmup: {
-      clientFiles: ["./src/main.tsx"],
+      clientFiles: ["./src/main.tsx", "./src/routes/router.tsx"],
     },
     // Monorepo file access — let Vite serve @orb/* source from outside packages/client (the workspace
     // root, discovered by walking up from this config).

@@ -410,7 +410,10 @@ module.exports = {
       comment:
         "Production code (packages/*/src) must not import a devDependency — devDeps are build/test-only and won't ship, so a runtime import of one is a prod crash waiting to happen. depcruise resolves per-package: a module that is a package's real `dependency` (e.g. drizzle-orm in @orb/db) is `npm`, not `npm-dev`, and stays allowed — only PURE devDeps (drizzle-kit, vitest, …) fire. Type-only imports + @types are exempt. (recommended-strict OMITS this rule — it lives only in dep-cruiser's --init template; neo-tavern had it — restored 2026-06-27.)",
       severity: "error",
-      from: { path: "^packages/[^/]+/src/", pathNot: TEST_FILES },
+      // `.d.ts` exempt: an ambient declaration file emits no runtime JS, so a devDep TYPE reference
+      // from one (e.g. `vite-env.d.ts` → `vite/client`) can never be a prod crash. dep-cruiser doesn't
+      // classify a triple-slash type-reference as `type-only`, so the exemption above misses it.
+      from: { path: "^packages/[^/]+/src/", pathNot: [TEST_FILES, "\\.d\\.ts$"] },
       to: {
         dependencyTypes: ["npm-dev"],
         // npm-peer exempt: a dep declared peer+dev (react in @orb/ui — the consumer provides the
