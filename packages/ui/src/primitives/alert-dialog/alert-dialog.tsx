@@ -19,16 +19,19 @@ const slots = alertDialogVariants();
  * `<AlertDialog><AlertDialogTrigger>Delete</AlertDialogTrigger><AlertDialogPopup>…</AlertDialogPopup></AlertDialog>`
  * Spec: ui-package-design §6.1 — the confirm/destructive dialog (delete character, reset refinery).
  */
-export function AlertDialog(props: BaseRootProps): ReactElement {
+export function AlertDialog<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BaseAlertDialog.Root {...props} />;
 }
 
 /**
  * Opens the alert dialog. Unstyled passthrough — compose your own control via `render`.
+ * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog.
  * `<AlertDialogTrigger render={<Button variant="destructive">Delete</Button>} />`
- * Spec: ui-package-design §6.1.
+ * Spec: ui-package-design §6.1 / §13 R2.
  */
-export function AlertDialogTrigger(props: BaseTriggerProps): ReactElement {
+export function AlertDialogTrigger<Payload = unknown>(
+  props: BaseTriggerProps<Payload>,
+): ReactElement {
   return <BaseAlertDialog.Trigger {...props} />;
 }
 

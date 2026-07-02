@@ -43,13 +43,13 @@ import { renderMacros } from "./macros";
 // A macro whose value changes per render busts the cached static prefix. Derived from the kit registry's
 // `volatile: true` flag (set at registration) so a new volatile handler extends this set automatically.
 // `/a^/` is unsatisfiable (top-level so it isn't re-compiled per call).
-const NO_VOLATILE_RE = /a^/;
+const NO_VOLATILE_RE = /a^/u;
 let volatileMacroReCache: RegExp | undefined;
 function volatileMacroRe(): RegExp {
   if (volatileMacroReCache === undefined) {
     const names = globalMacroRegistry.volatileNames();
     volatileMacroReCache =
-      names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "gi");
+      names.length === 0 ? NO_VOLATILE_RE : new RegExp(`\\{\\{#?(${names.join("|")})\\b`, "giu");
   }
   return volatileMacroReCache;
 }

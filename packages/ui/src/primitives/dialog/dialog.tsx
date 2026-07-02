@@ -14,20 +14,23 @@ const slots = dialogVariants();
 
 /**
  * Modal dialog root — seals Base UI Dialog (focus trap, Esc-to-close, and scroll lock come free;
- * do not reimplement). State-only: renders no element.
+ * do not reimplement). State-only: renders no element. Generic over the detached-handle `Payload`:
+ * pass a `handle` (see `createDialogHandle`) plus render-function children to open imperatively with
+ * a payload — `<Dialog handle={h}>{({ payload }) => …}</Dialog>`.
  * `<Dialog><DialogTrigger>Open</DialogTrigger><DialogPopup>…</DialogPopup></Dialog>`
- * Spec: ui-package-design §6.1 / UI-Arch §2 (Base UI is THE headless primitive, D42).
+ * Spec: ui-package-design §6.1 / §13 R2 / UI-Arch §2 (Base UI is THE headless primitive, D42).
  */
-export function Dialog(props: BaseRootProps): ReactElement {
+export function Dialog<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BaseDialog.Root {...props} />;
 }
 
 /**
  * Opens the dialog. Unstyled passthrough — compose your own control via `render` (never asChild).
+ * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven dialog.
  * `<DialogTrigger render={<Button>Open</Button>} />`
- * Spec: ui-package-design §6.1; UI-Arch §2 (`render` prop replaces the asChild footgun).
+ * Spec: ui-package-design §6.1 / §13 R2; UI-Arch §2 (`render` prop replaces the asChild footgun).
  */
-export function DialogTrigger(props: BaseTriggerProps): ReactElement {
+export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseDialog.Trigger {...props} />;
 }
 

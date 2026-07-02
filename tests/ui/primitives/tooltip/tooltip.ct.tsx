@@ -1,5 +1,6 @@
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { TooltipHandleHarness } from "./tooltip-handle.fixtures";
 
 test("shows on hover and hides when the pointer leaves", async ({ mount, page }) => {
   await mount(
@@ -37,4 +38,20 @@ test("shows on keyboard focus", async ({ mount, page }) => {
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Regenerate" })).toBeFocused();
   await expect(page.getByText("Regenerate the last reply")).toBeVisible();
+});
+
+// createHandle: opening the tooltip imperatively via the detached handle routes the trigger payload
+// to the Root render-function children (harness in ./tooltip-handle.harness).
+test("opens imperatively via a detached handle and routes the trigger payload to content", async ({
+  mount,
+  page,
+}) => {
+  await mount(<TooltipHandleHarness />);
+
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toBeHidden();
+
+  await page.getByRole("button", { name: "Open remotely" }).click();
+  await expect(popup).toBeVisible();
+  await expect(popup).toContainText("Reached content");
 });

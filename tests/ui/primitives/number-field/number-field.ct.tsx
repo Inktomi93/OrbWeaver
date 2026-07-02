@@ -44,3 +44,18 @@ test("onValueChange reports the parsed number", async ({ mount, page }) => {
   await page.getByLabel("Increase").click();
   await expect.poll(() => seen.at(-1)).toBe(2);
 });
+
+test("scrub area is present and labeled; steppers still clamp to min/max", async ({
+  mount,
+  page,
+}) => {
+  await mount(<NumberField defaultValue={0} max={10} min={0} scrubLabel="Weight" />);
+  // The drag-to-scrub label renders (Base UI ScrubArea).
+  await expect(page.getByText("Weight")).toBeVisible();
+  // Steppers keep their clamp: decrement disabled at the floor, increment steps within range.
+  const decrement = page.getByLabel("Decrease");
+  await expect(decrement).toBeDisabled();
+  await page.getByLabel("Increase").click();
+  await expect(page.getByRole("textbox")).toHaveValue("1");
+  await expect(decrement).toBeEnabled();
+});

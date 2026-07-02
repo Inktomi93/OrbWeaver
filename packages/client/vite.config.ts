@@ -21,13 +21,17 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   plugins: [
-    // React Compiler (stable 1.0) as a Rolldown-Babel preset — plugin-react v6 dropped internal Babel
-    // for oxc, so `babel()` MUST precede `react()` for the compiler to see UNMODIFIED source. The
-    // preset's filter is code-content-based + client-env-scoped + path-agnostic (verified in
-    // @vitejs/plugin-react@6.0.3), so it compiles @orb/ui components too — provided @orb/ui is consumed
-    // as SOURCE (see optimizeDeps.exclude below), which is the one real correctness guarantee here.
-    babel({ presets: [reactCompilerPreset()] }),
+    // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
+    // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
+    // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:
+    // the compiler plugin is `enforce:"pre"`, plugin-react's `viteBabel` has NO transform hook (it only
+    // configures oxc), and oxc lowers JSX in Rolldown CORE after all pre-plugins — so the compiler sees
+    // UNMODIFIED source regardless of array position (verified in installed source 2026-07-02). The
+    // preset's filter is code-content + client-env-scoped + path-agnostic (@vitejs/plugin-react@6.0.3
+    // reactCompilerPreset), so it compiles @orb/ui components too — provided @orb/ui is consumed as
+    // SOURCE (see optimizeDeps.exclude below), the one real correctness guarantee here.
     react(),
+    babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
     // Dev-only overlay: tsc + this eslint config (react-hooks/Compiler/TanStack) in-browser.
     // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.

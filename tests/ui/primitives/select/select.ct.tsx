@@ -51,3 +51,95 @@ test("keyboard: opens with ArrowDown, arrows to an option, Enter selects", async
   await expect(page.getByRole("listbox")).toBeHidden();
   await expect(trigger).toContainText("Beta");
 });
+
+test("multiple: accumulates values and keeps the popup open", async ({ mount, page }) => {
+  await mount(<Select items={ITEMS} multiple={true} placeholder="Pick some" />);
+  const trigger = page.getByRole("combobox");
+  await trigger.click();
+  await page.getByRole("option", { name: "Alpha" }).click();
+  // Multiple mode does not close on select — the list stays open to accumulate.
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.getByRole("option", { name: "Gamma" }).click();
+  await expect(page.getByRole("option", { name: "Alpha" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByRole("option", { name: "Gamma" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByRole("option", { name: "Beta" })).toHaveAttribute(
+    "aria-selected",
+    "false",
+  );
+  // Value comma-joins the selected labels.
+  await trigger.click();
+  await expect(page.getByRole("listbox")).toBeHidden();
+  await expect(trigger).toContainText("Alpha");
+  await expect(trigger).toContainText("Gamma");
+});
+
+test("multiple: reports the selected values as an array through onValueChange", async ({
+  mount,
+  page,
+}) => {
+  const seen: string[][] = [];
+  await mount(
+    <Select
+      items={ITEMS}
+      multiple={true}
+      onValueChange={(value): void => {
+        seen.push(value);
+      }}
+      placeholder="Pick some"
+    />,
+  );
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: "Alpha" }).click();
+  await page.getByRole("option", { name: "Beta" }).click();
+  await expect.poll(() => seen.at(-1)).toEqual(["alpha", "beta"]);
+});
+
+const GROUPED = [
+  {
+    label: "Warm",
+    items: [
+      { label: "Ember", value: "ember" },
+      { label: "Amber", value: "amber" },
+    ],
+  },
+  {
+    label: "Cool",
+    items: [{ label: "Slate", value: "slate" }],
+  },
+];
+
+test("grouped: renders group labels and selects a grouped option", async ({ mount, page }) => {
+  await mount(<Select items={GROUPED} placeholder="Pick a shade" />);
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  // Both group labels render, associated with their groups.
+  await expect(page.getByRole("group").filter({ hasText: "Warm" })).toBeVisible();
+  await expect(page.getByRole("group").filter({ hasText: "Cool" })).toBeVisible();
+  await page.getByRole("option", { name: "Slate" }).click();
+  await expect(page.getByRole("combobox")).toContainText("Slate");
+});
+
+const LONG = Array.from({ length: 40 }, (_unused, i) => ({
+  label: `Option ${i + 1}`,
+  value: `opt-${i + 1}`,
+}));
+
+test("scrollArrows: the down arrow mounts on an overflowing list", async ({ mount, page }) => {
+  // A spacer keeps the trigger away from the viewport edge so Base UI stays in align-item mode
+  // (the mode the scroll arrows drive off); at the edge it falls back to a plain dropdown.
+  await mount(
+    <div style={{ paddingTop: 240 }}>
+      <Select items={LONG} placeholder="Pick one" scrollArrows={true} />
+    </div>,
+  );
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  // The popup overflows 40 items → the hover-to-scroll down arrow is mounted (mouse input).
+  await expect(page.locator('[data-slot="select-scroll-down-arrow"]')).toBeVisible();
+});

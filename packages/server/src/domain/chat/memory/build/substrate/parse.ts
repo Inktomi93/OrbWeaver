@@ -5,7 +5,7 @@
 
 import type { ParsedDigest } from "../../types";
 
-const KEYWORDS_LINE = /^\s*keywords\s*:/i;
+const KEYWORDS_LINE = /^\s*keywords\s*:/iu;
 
 /** Parse a summarizer digest into `{topicAnchor, facts, keywords}`. The first non-empty line is the anchor;
  *  the `keywords:` line (anywhere) yields the comma-split keyword list (trimmed, de-duped, empties dropped);

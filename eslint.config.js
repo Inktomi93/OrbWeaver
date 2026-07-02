@@ -108,6 +108,13 @@ export default tseslint.config(
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we
     // want — every rule is a correctness check, not a style pick. `recommended-latest` is v7's
     // flat-config bundle. Gated on @orb/ui NOW: a rules-of-hooks/Compiler flag here is a real fix.
+    // TRIPWIRE — why we SPREAD here despite our "list every rule by name" doctrine: `recommended-latest`
+    // includes `void-use-memo` (a RecommendedLatest-ONLY rule) that the plugin's OWN README manual-config
+    // example omits (that example is the plain `recommended` set). Hand-listing to satisfy the doctrine
+    // would silently drop it — if you ever de-bundle this, enumerate from the SHIPPED SOURCE, not the
+    // README. (Each rule also accepts the babel compiler options as `options[0]`; we pass none — the
+    // build compiler runs all-defaults too, so mirror them here ONLY if the babel preset ever gets a
+    // non-default option, else lint drifts from the build.)
     files: REACT_SURFACE,
     plugins: { "react-hooks": reactHooks },
     rules: {

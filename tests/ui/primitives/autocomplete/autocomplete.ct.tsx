@@ -7,6 +7,11 @@ import { DerivedItemsStory } from "./autocomplete.fixtures";
 
 const TAGS = ["adventure", "mystery", "romance"];
 
+const GROUPS = [
+  { label: "Genres", items: ["adventure", "mystery"] },
+  { label: "Moods", items: ["happy", "tense"] },
+];
+
 test("typing filters the popup list", async ({ mount, page }) => {
   await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
@@ -63,4 +68,44 @@ test("keyboard: arrow highlights an item, Enter selects it into the input", asyn
   await input.press("ArrowDown");
   await input.press("Enter");
   await expect(input).toHaveValue("adventure");
+});
+
+test("the Status live region announces the filtered result count", async ({ mount, page }) => {
+  await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("mys");
+  await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
+  // Base UI Status renders a polite role="status" region; the seal feeds it the live count. (The
+  // Empty part also carries role="status", so target the seal's Status by its data-slot.)
+  const status = page.locator('[data-slot="autocomplete-status"]');
+  await expect(status).toHaveRole("status");
+  await expect(status).toHaveText("1 result");
+});
+
+test("the native Clear button empties the input", async ({ mount, page }) => {
+  await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("adv");
+  await expect(input).toHaveValue("adv");
+  // Clear is Base UI's native button (unmounted while empty, shown once there's a value) — not a
+  // hand-rolled control. Base UI marks it aria-hidden by default (decorative; the input stays
+  // clearable via keyboard), so it's addressed by data-slot rather than role. Clicking empties it.
+  const clear = page.locator('[data-slot="autocomplete-clear"]');
+  await expect(clear).toBeVisible();
+  await clear.click();
+  await expect(input).toHaveValue("");
+});
+
+test("a grouped items set renders GroupLabel category headers", async ({ mount, page }) => {
+  await mount(<Autocomplete aria-label="Tag" groups={GROUPS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  // "a" matches adventure (Genres) and happy (Moods), so both category headers should render.
+  await input.pressSequentially("a");
+  await expect(page.getByRole("option", { name: "adventure" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "happy" })).toBeVisible();
+  await expect(page.getByText("Genres")).toBeVisible();
+  await expect(page.getByText("Moods")).toBeVisible();
 });

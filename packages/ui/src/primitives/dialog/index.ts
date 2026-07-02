@@ -7,4 +7,6 @@ export {
   DialogTitle,
   DialogTrigger,
 } from "./dialog";
+export type { DialogHandle } from "./handle";
+export { createDialogHandle } from "./handle";
 export { dialogVariants } from "./variants";

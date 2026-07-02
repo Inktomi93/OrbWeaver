@@ -21,7 +21,13 @@ export interface CollapsibleProps extends Omit<BaseRootProps, "className"> {
  * Spec: ui-package-design §6.1 — the "advanced" expandable line in the crew/rpg panels.
  */
 export function Collapsible({ className, ...rest }: CollapsibleProps): ReactElement {
-  return <BaseCollapsible.Root className={slots.root({ className })} {...rest} />;
+  return (
+    <BaseCollapsible.Root
+      className={slots.root({ className })}
+      data-slot="collapsible-root"
+      {...rest}
+    />
+  );
 }
 
 export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "className"> {
@@ -34,7 +40,13 @@ export interface CollapsibleTriggerProps extends Omit<BaseTriggerProps, "classNa
  * Spec: ui-package-design §6.1.
  */
 export function CollapsibleTrigger({ className, ...rest }: CollapsibleTriggerProps): ReactElement {
-  return <BaseCollapsible.Trigger className={slots.trigger({ className })} {...rest} />;
+  return (
+    <BaseCollapsible.Trigger
+      className={slots.trigger({ className })}
+      data-slot="collapsible-trigger"
+      {...rest}
+    />
+  );
 }
 
 export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className"> {
@@ -43,10 +55,21 @@ export interface CollapsiblePanelProps extends Omit<BasePanelProps, "className">
 
 /**
  * The revealed content — animates height from Base UI's `--collapsible-panel-height` var
- * (variants §5). Kept out of the DOM while closed by default (`keepMounted` overridable).
- * `<CollapsiblePanel>…</CollapsiblePanel>`
- * Spec: ui-package-design §6.1.
+ * (variants §5). Removed from the DOM while closed by default. Two Base UI passthrough props (extended
+ * from the Base panel type, §13 R2/R5):
+ * - `keepMounted` — keep the panel mounted (but hidden) while closed, so its content stays in the DOM
+ *   (form state / measurement survive a collapse).
+ * - `hiddenUntilFound` — render closed with `hidden="until-found"` so the browser's find-in-page can
+ *   locate the text and auto-expand the panel. Overrides `keepMounted` (implies mounted).
+ * `<CollapsiblePanel hiddenUntilFound>…</CollapsiblePanel>`
+ * Spec: ui-package-design §6.1 / §13 R2.
  */
 export function CollapsiblePanel({ className, ...rest }: CollapsiblePanelProps): ReactElement {
-  return <BaseCollapsible.Panel className={slots.panel({ className })} {...rest} />;
+  return (
+    <BaseCollapsible.Panel
+      className={slots.panel({ className })}
+      data-slot="collapsible-panel"
+      {...rest}
+    />
+  );
 }

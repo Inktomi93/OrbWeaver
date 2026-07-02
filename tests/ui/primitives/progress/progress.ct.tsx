@@ -16,3 +16,15 @@ test("indeterminate progress has no value", async ({ mount, page }) => {
   expect(await bar.getAttribute("aria-valuenow")).toBeNull();
   await expect(bar).toHaveAttribute("data-indeterminate", "");
 });
+
+test("showValue renders the percentage readout and the label", async ({ mount, page }) => {
+  await mount(<Progress label="Uploading" showValue={true} value={72} />);
+  await expect(page.locator('[data-slot="progress-value"]')).toHaveText("72%");
+  await expect(page.locator('[data-slot="progress-label"]')).toHaveText("Uploading");
+});
+
+test("indeterminate hides the value readout", async ({ mount, page }) => {
+  await mount(<Progress aria-label="Working" showValue={true} value={null} />);
+  // The Value element mounts but renders nothing while indeterminate (formatter returns null).
+  await expect(page.locator('[data-slot="progress-value"]')).toBeEmpty();
+});
