@@ -60,10 +60,17 @@ export function createSegments(ctx: SearchContext): SearchService["segments"] {
           id: blockKeyStr(blockKey),
           blockKey,
           sourceText: r.text,
+          distance: r.distance,
+          hubScore: r.hubScore,
           score: cslsAdjust(r.distance, r.hubScore),
         };
       })
-      .sort(compareCslsBy((c) => c.score));
+      .sort(
+        compareCslsBy(
+          (c) => c.distance,
+          (c) => c.hubScore,
+        ),
+      );
 
     const ordered =
       params.mode === "mixC"

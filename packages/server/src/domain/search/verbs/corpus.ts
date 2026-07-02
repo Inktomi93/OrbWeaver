@@ -32,6 +32,9 @@ interface CorpusCandidate {
   readonly blockKey: BlockKey;
   readonly sourceText: string;
   readonly contentHash: string;
+  /** The raw cosine distance (the compareCsls tie-break key — the clamp flattens `cos ≥ hub` to 0). */
+  readonly distance: number;
+  readonly hubScore: number | null;
   readonly score: number;
 }
 
@@ -86,6 +89,8 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
         blockKey,
         sourceText: d.text,
         contentHash: d.contentHash,
+        distance: d.distance,
+        hubScore: d.hubScore,
         score: cslsAdjust(d.distance, d.hubScore),
       };
     });
@@ -108,6 +113,8 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
         blockKey,
         sourceText: s.text,
         contentHash: s.contentHash,
+        distance: s.distance,
+        hubScore: s.hubScore,
         score,
       }));
     });
@@ -116,7 +123,12 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
     const ranked =
       params.mode === "mixC"
         ? await applyRerank(text, candidates, ctx.roleClients.rerank, candidates.length)
-        : [...candidates].sort(compareCslsBy((c) => c.score));
+        : [...candidates].sort(
+            compareCslsBy(
+              (c) => c.distance,
+              (c) => c.hubScore,
+            ),
+          );
 
     // Collapse AFTER ranking (inv 6): block-level (digest+segment of one block) then content-hash (copies).
     const collapsed = collapseByContentHash(dedupeRankedBlocks(ranked));

@@ -45,9 +45,16 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
         id: c.characterId,
         characterId: c.characterId,
         sourceText: c.sourceText,
+        distance: c.distance,
+        hubScore: c.hubScore,
         score: cslsAdjust(c.distance, c.hubScore),
       }))
-      .sort(compareCslsBy((c) => c.score));
+      .sort(
+        compareCslsBy(
+          (c) => c.distance,
+          (c) => c.hubScore,
+        ),
+      );
 
     const ordered =
       params.rerank === true
