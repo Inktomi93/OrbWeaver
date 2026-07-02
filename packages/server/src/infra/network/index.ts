@@ -3,9 +3,9 @@
 // `/models` probe. Reads foundation/env DOWN for the firewall config. NEVER imports @orb/db or any
 // domain (the sealed-executor invariant).
 //
-// NOTE FLAG[PD-91]: the ingress IP-allowlist belt (ipAllowlistMiddleware/clientIp) is deferred — it depends on
-// `@hono/node-server/conninfo`, a catalog dep added at the entry tier (4e). It lands here once that dep
-// is available (it is a network edge belt; clientIp is reused by the transport seam).
+// The ingress IP-allowlist belt (`ingress.ts` — PD-91): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
+// trust precedence, PD-52 anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
+// the transport seam.
 
 export {
   installEgressFirewall,
@@ -15,6 +15,13 @@ export {
   safeFetch,
   shouldBlockEgress,
 } from "./egress";
+export {
+  clientIp,
+  ipAllowlistMiddleware,
+  isIngressAllowed,
+  parseAllowlist,
+  resolveClientIp,
+} from "./ingress";
 export {
   DEFAULT_TRUSTED_RANGES,
   isInRanges,
