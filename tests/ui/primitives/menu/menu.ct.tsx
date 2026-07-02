@@ -1,5 +1,6 @@
 import {
   Menu,
+  MenuArrow,
   MenuBackdrop,
   MenuCheckboxItem,
   MenuItem,
@@ -31,6 +32,21 @@ test("opens on trigger click and lists items", async ({ mount, page }) => {
   await page.getByRole("button", { name: "Actions" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(page.getByRole("menuitem")).toHaveCount(3);
+});
+
+test("MenuArrow renders inside the popup when the menu opens", async ({ mount, page }) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        <MenuArrow />
+        <MenuItem>Rename</MenuItem>
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.locator('[data-slot="menu-arrow"]')).toBeVisible();
 });
 
 test("arrow keys move the highlight and Enter selects (closing the menu)", async ({

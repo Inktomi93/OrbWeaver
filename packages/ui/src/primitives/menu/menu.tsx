@@ -1,4 +1,5 @@
 import type {
+  MenuArrowProps as BaseArrowProps,
   MenuBackdropProps as BaseBackdropProps,
   MenuCheckboxItemProps as BaseCheckboxItemProps,
   MenuGroupLabelProps as BaseGroupLabelProps,
@@ -84,6 +85,22 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
       </BaseMenu.Positioner>
     </BaseMenu.Portal>
   );
+}
+
+export interface MenuArrowProps extends Omit<BaseArrowProps, "className"> {
+  className?: string;
+}
+
+/**
+ * An arrow that points at the anchor — place inside `<MenuPopup>`. Base UI positions it and sets
+ * `data-side`/`data-align`; skinned as a `bg-popover` diamond that continues the popup edge (mirrors
+ * `PopoverArrow`).
+ * `<MenuPopup><MenuArrow /><MenuItem>…</MenuItem></MenuPopup>`
+ * Spec: ui-package-design §13 R2 (full native part surface).
+ */
+export function MenuArrow(props: MenuArrowProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BaseMenu.Arrow className={slots.arrow({ className })} data-slot="menu-arrow" {...rest} />;
 }
 
 export interface MenuItemProps extends Omit<BaseItemProps, "className"> {

@@ -1,4 +1,5 @@
 export type {
+  MenuArrowProps,
   MenuBackdropProps,
   MenuCheckboxItemProps,
   MenuGroupLabelProps,
@@ -12,6 +13,7 @@ export type {
 } from "./menu";
 export {
   Menu,
+  MenuArrow,
   MenuBackdrop,
   MenuCheckboxItem,
   MenuGroup,

@@ -4,6 +4,7 @@ import type {
   DrawerIndentBackgroundProps as BaseIndentBackgroundProps,
   DrawerIndentProps as BaseIndentProps,
   DrawerPopupProps as BasePopupProps,
+  DrawerPortalProps as BasePortalProps,
   DrawerProviderProps as BaseProviderProps,
   DrawerRootProps as BaseRootProps,
   DrawerSwipeAreaProps as BaseSwipeAreaProps,
@@ -54,6 +55,12 @@ export interface DrawerPopupProps
   extends Omit<BasePopupProps, "className">,
     VariantProps<typeof drawerVariants> {
   className?: string;
+  /** Portal target — render the drawer into a specific container (default: document.body). */
+  container?: BasePortalProps["container"];
+  /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @default false */
+  keepMounted?: BasePortalProps["keepMounted"];
+  /** Force-render the backdrop even when Base UI would suppress it (nested drawers). @default false */
+  forceRender?: boolean;
 }
 
 /**
@@ -64,11 +71,15 @@ export interface DrawerPopupProps
  * Spec: ui-package-design §6.1 dictate — content panel bg-card; side variants left/right/bottom.
  */
 export function DrawerPopup(props: DrawerPopupProps): ReactElement {
-  const { className, children, side, ...rest } = props;
+  const { className, children, side, container, keepMounted, forceRender, ...rest } = props;
   const slots = drawerVariants({ side });
   return (
-    <BaseDrawer.Portal>
-      <BaseDrawer.Backdrop className={slots.backdrop()} data-slot="drawer-backdrop" />
+    <BaseDrawer.Portal container={container} keepMounted={keepMounted}>
+      <BaseDrawer.Backdrop
+        className={slots.backdrop()}
+        data-slot="drawer-backdrop"
+        forceRender={forceRender}
+      />
       <BaseDrawer.Viewport className={slots.viewport()} data-slot="drawer-viewport">
         <BaseDrawer.Popup className={slots.popup({ className })} data-slot="drawer-popup" {...rest}>
           <BaseDrawer.Content className={slots.content()} data-slot="drawer-content">

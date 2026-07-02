@@ -2,6 +2,7 @@
 // (border-border oklch) plus native field-sizing autosize.
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const NON_EMPTY = /.+/u;
@@ -30,6 +31,21 @@ test("accepts multi-line input", async ({ mount, page }) => {
   const control = page.getByRole("textbox");
   await control.fill("A tavern at dusk.\nRain on the shutters.");
   await expect(control).toHaveValue("A tavern at dusk.\nRain on the shutters.");
+});
+
+test("inside an invalid <Field>, data-invalid lands and the border swaps to destructive", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field error="Required" label="Bio">
+      <Textarea />
+    </Field>,
+  );
+  const control = page.getByRole("textbox");
+  // Base UI Field.Control marks the control invalid — the seal keys its skin off data-invalid.
+  await expect(control).toHaveAttribute("data-invalid", "");
+  await expect(control).toHaveCSS("border-top-color", TOKENS["color.destructive"].value);
 });
 
 test("wears the token skin and autosizes to content", async ({ mount, page }) => {

@@ -36,6 +36,9 @@ export const menuVariants = tv(
       linkItem: `${itemBase} cursor-pointer no-underline`,
       submenuTrigger: `${itemBase} justify-between data-popup-open:bg-accent data-popup-open:text-accent-foreground`,
       itemIndicator: "inline-flex shrink-0 items-center justify-center text-foreground",
+      // Base UI positions the arrow against the anchor and sets data-side; skinned as a rotated
+      // popover-colored diamond that continues the popup edge (mirrors PopoverArrow).
+      arrow: "size-row rotate-45 border border-border bg-popover",
       backdrop:
         "fixed inset-0 z-(--z-overlay) bg-scrim transition-opacity duration-(--motion-fast) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
       separator: "my-field border-t border-border",

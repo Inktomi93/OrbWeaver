@@ -57,14 +57,31 @@ function renderOption<Value>(option: SelectOption<Value>): ReactElement {
   );
 }
 
+function renderGroup<Value>(group: SelectOptionGroup<Value>): ReactElement {
+  return (
+    <BaseSelect.Group className={slots.group()} key={group.label}>
+      <BaseSelect.GroupLabel className={slots.groupLabel()}>{group.label}</BaseSelect.GroupLabel>
+      {group.items.map(renderOption)}
+    </BaseSelect.Group>
+  );
+}
+
 function renderItems<Value>(items: SelectItems<Value>): ReactNode {
   if (isGrouped(items)) {
-    return items.map((group) => (
-      <BaseSelect.Group className={slots.group()} key={group.label}>
-        <BaseSelect.GroupLabel className={slots.groupLabel()}>{group.label}</BaseSelect.GroupLabel>
-        {group.items.map(renderOption)}
-      </BaseSelect.Group>
-    ));
+    // A Separator BETWEEN adjacent groups (not before the first) — Base UI Select.Separator, a
+    // sibling of the groups it divides.
+    return items.flatMap((group, index) =>
+      index > 0
+        ? [
+            <BaseSelect.Separator
+              className={slots.separator()}
+              data-slot="select-separator"
+              key={`separator-${group.label}`}
+            />,
+            renderGroup(group),
+          ]
+        : [renderGroup(group)],
+    );
   }
   return items.map(renderOption);
 }
@@ -81,6 +98,8 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
   className?: string;
   /** Render sticky hover-to-scroll arrows in the popup (long lists). @default false */
   scrollArrows?: boolean;
+  /** Render a dimming `bg-scrim` backdrop behind the (modal-by-default) popup. @default false */
+  backdrop?: boolean;
   /**
    * Accessible name for the trigger (the combobox). `Select.Root` renders no element, so these ride
    * the Trigger — a labelless Select gets its name here (or via `aria-labelledby`/`Field`).
@@ -111,6 +130,7 @@ export function Select<Value = string, Multiple extends boolean = false>(
     placeholder,
     className,
     scrollArrows = false,
+    backdrop = false,
     id,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledby,
@@ -133,6 +153,9 @@ export function Select<Value = string, Multiple extends boolean = false>(
         <BaseSelect.Icon className={slots.icon()}>{CHEVRON_ICON}</BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
+        {backdrop ? (
+          <BaseSelect.Backdrop className={slots.backdrop()} data-slot="select-backdrop" />
+        ) : null}
         <BaseSelect.Positioner
           // The default plain-dropdown popup; scroll arrows only function in Base UI's
           // align-item-with-trigger mode, so `scrollArrows` opts into it (that mode drives the

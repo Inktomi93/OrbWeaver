@@ -2,6 +2,7 @@ import type {
   AlertDialogCloseProps as BaseCloseProps,
   AlertDialogDescriptionProps as BaseDescriptionProps,
   AlertDialogPopupProps as BasePopupProps,
+  AlertDialogPortalProps as BasePortalProps,
   AlertDialogRootProps as BaseRootProps,
   AlertDialogTitleProps as BaseTitleProps,
   AlertDialogTriggerProps as BaseTriggerProps,
@@ -37,19 +38,33 @@ export function AlertDialogTrigger<Payload = unknown>(
 
 export interface AlertDialogPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
+  /** Portal target — render the overlay into a specific container (default: document.body). */
+  container?: BasePortalProps["container"];
+  /** Keep the portal mounted while closed (preserve DOM/animations). @default false */
+  keepMounted?: BasePortalProps["keepMounted"];
+  /**
+   * Force-render the backdrop even when Base UI would suppress it — required for the backdrop of an
+   * alert dialog nested inside another dialog (suppressed by default). @default false
+   */
+  forceRender?: boolean;
 }
 
 /**
  * The alert surface — bundles Portal → Backdrop (`bg-scrim`) → Viewport → Popup so the anatomy
- * cannot be mis-assembled. Sits at `--z-modal`.
+ * cannot be mis-assembled. Sits at `--z-modal`. `container`/`keepMounted` reach the Portal;
+ * `forceRender` reaches the Backdrop (for nested-dialog backdrops).
  * `<AlertDialogPopup><AlertDialogTitle>Delete character?</AlertDialogTitle>…</AlertDialogPopup>`
  * Spec: ui-package-design §6.1 dictate — Root/Trigger/Portal/Backdrop/Popup/Title/Description/Close.
  */
 export function AlertDialogPopup(props: AlertDialogPopupProps): ReactElement {
-  const { className, children, ...rest } = props;
+  const { className, children, container, keepMounted, forceRender, ...rest } = props;
   return (
-    <BaseAlertDialog.Portal>
-      <BaseAlertDialog.Backdrop className={slots.backdrop()} data-slot="alert-dialog-backdrop" />
+    <BaseAlertDialog.Portal container={container} keepMounted={keepMounted}>
+      <BaseAlertDialog.Backdrop
+        className={slots.backdrop()}
+        data-slot="alert-dialog-backdrop"
+        forceRender={forceRender}
+      />
       <BaseAlertDialog.Viewport className={slots.viewport()} data-slot="alert-dialog-viewport">
         <BaseAlertDialog.Popup
           className={slots.popup({ className })}

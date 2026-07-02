@@ -14,14 +14,25 @@ const twMergeConfig = {
 /**
  * Slot classes for the toast system (ui-package-design §5). Viewport is fixed at `--z-toast`;
  * roots animate on `data-starting-style`/`data-ending-style`, track Base UI's swipe CSS vars, and
- * tint the border by `data-type` (error/success intent tokens — never a color calc).
+ * tint the border by `data-type` (error/success/loading intent tokens — never a color calc). The
+ * `loading` type (the `promise()` 3-state) gets the primary accent so it reads as in-progress.
  */
 export const toastVariants = tv(
   {
     slots: {
       viewport:
         "fixed right-0 bottom-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col-reverse gap-row p-section outline-none",
-      root: "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))] data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0 data-[type=error]:border-destructive data-[type=success]:border-success",
+      root: [
+        "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg",
+        "transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",
+        "data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0",
+        // Border tint by data-type (Base UI sets it) — error/success/loading intent tokens. Written
+        // as the `[&[data-type=…]]:` arbitrary-selector form (equivalent to the `data-[type=…]:`
+        // shorthand) because biome's noSecrets heuristic false-positives on the `loading` shorthand.
+        "[&[data-type=error]]:border-destructive",
+        "[&[data-type=success]]:border-success",
+        "[&[data-type=loading]]:border-primary",
+      ],
       content: "flex flex-col gap-field",
       title: "text-label leading-label font-semibold",
       description: "text-label leading-label text-muted-foreground",

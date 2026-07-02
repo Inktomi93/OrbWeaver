@@ -1,4 +1,7 @@
-import type { ToastProviderProps as BaseProviderProps } from "@base-ui/react/toast";
+import type {
+  ToastPortalProps as BasePortalProps,
+  ToastProviderProps as BaseProviderProps,
+} from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { toastVariants } from "./variants";
@@ -46,19 +49,22 @@ function ToastItems(): ReactElement {
 
 export interface ToasterProps {
   className?: string;
+  /** Portal target — render the toast viewport into a specific container (default: document.body). */
+  container?: BasePortalProps["container"];
 }
 
 /**
  * The toast outlet — bundles Portal → Viewport (`--z-toast`, bottom-right stack) and renders every
- * managed toast with title/description/close. Mount ONCE inside `<ToastProvider>`.
+ * managed toast with title/description/close. Mount ONCE inside `<ToastProvider>`. `container` targets
+ * the Portal (e.g. a fullscreen element that must own its own stacking context).
  * `<Toaster />`
  * Spec: ui-package-design §6.1 dictate — the Provider/Viewport wrap (UI-Gates §8 meta-toast
  * consumers arrive Phase 6).
  */
 export function Toaster(props: ToasterProps): ReactElement {
-  const { className } = props;
+  const { className, container } = props;
   return (
-    <BaseToast.Portal>
+    <BaseToast.Portal container={container}>
       <BaseToast.Viewport className={slots.viewport({ className })} data-slot="toast-viewport">
         <ToastItems />
       </BaseToast.Viewport>
