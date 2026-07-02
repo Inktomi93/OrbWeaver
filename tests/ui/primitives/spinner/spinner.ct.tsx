@@ -20,14 +20,15 @@ test("the glyph spins", async ({ mount, page }) => {
   await expect(page.locator("svg")).toHaveClass(SPIN_CLASS);
 });
 
+// Assert the glyph's computed CSS width (transform-independent) rather than boundingBox(): the
+// glyph spins (animate-spin), and boundingBox returns the AXIS-ALIGNED box of a rotating square,
+// which grows to ~size·√2 mid-rotation — an exact === size assertion is flaky by construction.
 test("size scales the glyph on the ICON_* table (lg > sm)", async ({ mount, page }) => {
   await mount(<Spinner label="Loading" size="sm" />);
-  const smallBox = await page.locator("svg").boundingBox();
-  expect(Math.round(smallBox?.width ?? 0)).toBe(ICON_SM_PX);
+  await expect(page.locator("svg")).toHaveCSS("width", `${ICON_SM_PX}px`);
 });
 
 test("large size renders the 24px glyph", async ({ mount, page }) => {
   await mount(<Spinner label="Loading" size="lg" />);
-  const largeBox = await page.locator("svg").boundingBox();
-  expect(Math.round(largeBox?.width ?? 0)).toBe(ICON_LG_PX);
+  await expect(page.locator("svg")).toHaveCSS("width", `${ICON_LG_PX}px`);
 });
