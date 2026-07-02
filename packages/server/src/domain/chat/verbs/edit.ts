@@ -333,6 +333,18 @@ function createDeleteMessages(
     }
     await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
+    // Best-effort audit AFTER the destructive write lands (admin.md order: no phantom row for a refused
+    // delete; a failed audit never breaks the primary channel — foundation logAudit contract).
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.deleteMessages",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { messageIds: [...messageIds] },
+      },
+      now,
+    );
   };
 }
 

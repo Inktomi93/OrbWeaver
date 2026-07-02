@@ -168,6 +168,17 @@ function createSetGroupConfig(
       .set({ metadata: { ...chat.metadata, group: parsed }, updatedAt: ctx.now() })
       .where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
+    // Best-effort audit (host reconfigured the shared room). Output/policy only — the small forensic hint.
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.setGroupConfig",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { output: parsed.output, policy: parsed.policy },
+      },
+      ctx.now(),
+    );
     return parsed;
   };
 }
@@ -192,6 +203,18 @@ function createSetRoomOverrides(
       .set({ metadata: { ...chat.metadata, roomOverrides: parsed.data }, updatedAt: ctx.now() })
       .where(eq(chats.id, chatId));
     await emit({ type: "chatUpdated", chatId });
+    // Best-effort audit — FIELD LABELS only, never the override bodies (Part III §9: the trace/labels rule —
+    // an override value is card-body-like text and must not leak into a log row).
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.setRoomOverrides",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { fields: Object.keys(parsed.data) },
+      },
+      ctx.now(),
+    );
     return parsed.data;
   };
 }
@@ -365,6 +388,19 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
       markUserLeftStatement(ctx.db, chatId, userId, leftSeq),
     ]);
     await emit({ type: "chatUpdated", chatId });
+    // Best-effort audit AFTER the transition committed (the emit op owns the batch). NOT a co-statement:
+    // `ctx.audit` is the foundation logAudit contract — suppress-and-drop, never the primary channel; an
+    // in-tx ride would promote it to a channel that can abort the kick.
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.kick",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { targetUserId: userId },
+      },
+      ctx.now(),
+    );
   };
 }
 
@@ -409,6 +445,17 @@ function createNominateHostHandoff(
       setPendingHostStatement(ctx.db, chatId, userId, ctx.now()),
     ]);
     await emit({ type: "chatUpdated", chatId });
+    // Best-effort audit after the commit (see the kick note — never a co-statement).
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.nominateHostHandoff",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { nomineeUserId: userId },
+      },
+      ctx.now(),
+    );
   };
 }
 
@@ -459,5 +506,16 @@ function createAcceptHostHandoff(
       await ctx.db.batch(batchMany(swap));
     }
     await emit({ type: "chatUpdated", chatId });
+    // Best-effort audit after the swap committed (see the kick note — never a co-statement).
+    await ctx.audit(
+      {
+        actorUserId: principal.userId,
+        action: "chat.acceptHostHandoff",
+        entityType: "chat",
+        entityId: chatId,
+        metadata: { previousHostUserId: oldHost?.userId ?? null },
+      },
+      ctx.now(),
+    );
   };
 }

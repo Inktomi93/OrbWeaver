@@ -14,6 +14,7 @@ import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -435,5 +436,128 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
+  });
+});
+
+describe("audit wiring — the membership/config mutations write best-effort audit rows", () => {
+  interface RecordedAudit {
+    readonly entry: AuditEntry;
+    readonly at: number;
+  }
+
+  function auditRecorder(rows: RecordedAudit[]): (entry: AuditEntry, at: number) => Promise<void> {
+    return (entry, at) => {
+      rows.push({ entry, at });
+      return Promise.resolve();
+    };
+  }
+
+  test("kick writes chat.kick with the target AFTER the transition committed", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const rows: RecordedAudit[] = [];
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }),
+      { emit },
+    );
+
+    await roster.kick({ principal: principal(host), chatId, userId: member });
+
+    expect(rows).toEqual([
+      {
+        entry: {
+          actorUserId: host,
+          action: "chat.kick",
+          entityType: "chat",
+          entityId: chatId,
+          metadata: { targetUserId: member },
+        },
+        at: expect.any(Number),
+      },
+    ]);
+  });
+
+  test("an idempotent no-op kick (target not present) writes NO audit row", async () => {
+    const host = await seedUser(db, "host");
+    const ghost = await seedUser(db, "ghost");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const rows: RecordedAudit[] = [];
+    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit });
+
+    await roster.kick({ principal: principal(host), chatId, userId: ghost });
+
+    expect(rows).toEqual([]);
+  });
+
+  test("nominate + accept write the two handoff rows (nominee / previous host)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const rows: RecordedAudit[] = [];
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(
+      makeChatContext(db, { emitNotification: recordingEmit(notes), audit: auditRecorder(rows) }),
+      { emit },
+    );
+
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    expect(rows.map((r) => r.entry.action)).toEqual([
+      "chat.nominateHostHandoff",
+      "chat.acceptHostHandoff",
+    ]);
+    expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member });
+    expect(rows.at(1)?.entry.metadata).toEqual({ previousHostUserId: host });
+    expect(rows.at(1)?.entry.actorUserId).toBe(member);
+  });
+
+  test("setGroupConfig logs output/policy; setRoomOverrides logs FIELD LABELS only (never bodies)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const rows: RecordedAudit[] = [];
+    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit });
+
+    await roster.setGroupConfig({
+      principal: principal(host),
+      chatId,
+      config: { output: "per-speaker", policy: "natural" },
+    });
+    await roster.setRoomOverrides({
+      principal: principal(host),
+      chatId,
+      overrides: { scenario: "a SECRET scenario body" },
+    });
+
+    expect(rows.at(0)?.entry.action).toBe("chat.setGroupConfig");
+    expect(rows.at(0)?.entry.metadata).toEqual({ output: "per-speaker", policy: "natural" });
+    expect(rows.at(1)?.entry.action).toBe("chat.setRoomOverrides");
+    // The override BODY must never reach the log row — labels only (Part III §9).
+    expect(rows.at(1)?.entry.metadata).toEqual({ fields: ["scenario"] });
+    expect(JSON.stringify(rows.at(1)?.entry)).not.toContain("SECRET");
+  });
+
+  test("a refused write (member calling a host verb) writes NO audit row", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const rows: RecordedAudit[] = [];
+    const roster = createRoster(makeChatContext(db, { audit: auditRecorder(rows) }), { emit });
+
+    await roster
+      .kick({ principal: principal(member), chatId, userId: host })
+      .catch((e: unknown) => e);
+
+    expect(rows).toEqual([]);
   });
 });
