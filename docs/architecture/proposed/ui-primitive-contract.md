@@ -156,12 +156,21 @@ precedent; the one already there is simpler, auto-waiting, and used by 5 files. 
 ### 4.3 Providers — LOCK: `CtProviders` via `beforeMount`
 
 `playwright/index.tsx` wires `beforeMount(({ App, hooksConfig }) => <CtProviders {...hooksConfig}><App/></CtProviders>).`
-`tests/support/ct/ct-providers.tsx` stacks the **globally-needed** providers: `Toast.Provider`+`Toaster`,
-`Tooltip.Provider`, `DirectionProvider`, `ThemeScope` (fed per-case via `mount(<C/>, { hooksConfig })`).
+`tests/support/ct/ct-providers.tsx` stacks the pure-context global providers **always-on**:
+`Toast.Provider`+`Toaster`, `Tooltip.Provider`. Plus **`ThemeScope` applied per-case ONLY when a theme
+override is supplied** (`hooksConfig.theme` non-empty) — because ThemeScope renders a real wrapping
+`<div>` (not pure context), so always-on it shifts the mount root and breaks the ~42 tests that read the
+mounted element directly (`mount().evaluate(el => getComputedStyle(el))`); with empty tokens it is a
+no-op anyway (base tokens resolve at `:root`).
 
-- **Bans:** inline `<TooltipProvider>` / `<ToastProvider>` wraps in `.ct.tsx` (6 today).
+- **Bans:** inline provider wraps in `.ct.tsx` — see gate clause 6 (fail-closed: any `<*Provider>`).
 - **Local exception:** `drawer`'s own `DrawerProvider` / `DrawerVirtualKeyboardProvider` are
-  drawer-scoped context, not global chrome — they stay in the drawer fixture, NOT in `CtProviders`.
+  drawer-scoped context, not global chrome — they stay in the drawer fixture, NOT in `CtProviders`
+  (allowlisted in clause 6).
+- **Direction/RTL seam: DEFERRED.** No test exercises RTL yet (Base UI defaults to `ltr`), and pulling
+  raw `@base-ui/react` into `tests/` for a `DirectionProvider` would crack the Base-UI seal (D42) this
+  pass is hardening. When an RTL test appears, expose direction THROUGH `@orb/ui`, not a direct Base UI
+  import in tests.
 - This is the `@orb/ui`-scoped sibling of Spine-Testing §7's client provider harness (minus
   QueryClient/tRPC — `@orb/ui` is domain-agnostic).
 
