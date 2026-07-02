@@ -288,6 +288,13 @@ leaf (`domain/media-import` or similar) — two verbs don't earn a domain; if B5
 ever greenlit, THAT is the moment a real remote-browse leaf exists and gif search migrates into it
 (the resolution criterion, recorded here so nobody half-builds the leaf for gifs alone).
 
+> **D61 delta (2026-07-01): the criterion FIRED.** B5 is committed (`hub-browse-design/`), so the
+> remote-browse leaf exists at design time and the gif verbs land DIRECTLY in `domain/hub`
+> (`verbs/gifs.ts`) — no build-then-migrate. Everything else in this section carries verbatim
+> (wire contracts, allowlist, one-call store+curate, the credential label, the CSP note); the only
+> mechanical change is that `assets.store` + the `gallery_items` insert are reached via injected
+> ops. See `hub-browse-design/02` §5.
+
 ```ts
 // @orb/contracts/assets — the wire shapes
 export const gifSearchParamsSchema = z.object({
@@ -378,6 +385,12 @@ CAS — it rides this same guard). The guard's actual design (allowlist config s
 `isAllowedImageBuffer`'s format table) is an **`infra/network` work item, not this doc's** — this
 doc only names it as the prerequisite and refuses to ship §5 without it.
 
+> **D61 delta (2026-07-01): the work item is DESIGNED** —
+> **[`hub-browse-design/01-network-guard.md`](hub-browse-design/01-network-guard.md)** is its
+> authoritative spec (self-enforcing SSRF posture, required host allowlist, dimension caps, the
+> `@orb/kit/image-sniff` home — which also resolves §10 review flag 2). G6 below ≡ that set's H1
+> (one work item, one build).
+
 ---
 
 ## 7. Decisions and leans (formerly "open questions")
@@ -408,8 +421,8 @@ doc only names it as the prerequisite and refuses to ship §5 without it.
 | G3 | gallery v2 schema + verbs | `"gallery"` kind + `gallery_items` + the three §1.3 verbs; checkpoint: §1.3 test plan green | **M** | **PD-55 greenlight**; the db-baseline gate (§1.3) |
 | G4 | gallery grid UI | `@orb/ui` virtualized grid over `listOwned` + `blobUrl` (+ curation controls when G3 exists) | **M** | Phase 6 client; G1 (v1 mode), G3 (curation mode) |
 | G5 | token-counter panel | the §4 component | **S** | Phase 6 client; nothing else |
-| G6 | hardened-fetch prerequisite | wire `safeFetch` + build `isAllowedImageBuffer` (an `infra/network` work item — designed and sized THERE, not here) | — | none (unblocks G7, databank scrapers, B5) |
-| G7 | gif search + import | `infra/network/gif-search.ts` adapter + the two §5 verbs + the credential label + picker UI; checkpoint: §5 test plan green | **M** | G6 (hard), G3 (the `"gallery"` kind + row), credentials label seed, G4 (the picker lives in the gallery surface) |
+| G6 | hardened-fetch prerequisite | wire `safeFetch` + build `isAllowedImageBuffer` — **≡ `hub-browse-design` H1 (D61), designed at `hub-browse-design/01`; ONE work item, ONE build** | **M** | none (unblocks G7, databank scrapers, B5) |
+| G7 | gif search + import | `infra/network/gif-search.ts` adapter + the two §5 verbs + the credential label + picker UI — **home is `domain/hub` per the §5 D61 delta (≡ `hub-browse-design` H7)**; checkpoint: §5 test plan green | **M** | G6 (hard), G3 (the `"gallery"` kind + row), the hub leaf (`hub-browse-design` H2), credentials label seed, G4 (the picker lives in the gallery surface) |
 
 G1+G2 are the "assets wave" pair from the committed sequencing — additive server work shippable any
 time. G3 is the only schema-bearing chunk and the only one behind a flag. G7 is the only chunk with
@@ -441,13 +454,14 @@ an infra prerequisite; it must not ship with a raw `fetch()` as a stopgap.
    association/curation rows anchored by a REQUIRED FK to owned canon DERIVE their owner through
    that FK; only true producers — rows that ARE the user's authored artifact with no owned anchor
    (characters, personas, presets, documents, themes) — stamp `ownerId` + `fetchOwned`.
-2. **The sniff promotion criterion is about to be falsified from an unnamed direction.** The
-   committed criterion promotes `sniffMime`/`isAnimated` to `@orb/kit` only "iff the client needs
-   pre-detection" — but §6's `isAllowedImageBuffer` (infra) needs the same magic-signature tables,
-   and infra cannot import a domain. When the G6 work item is designed, either the signature tables
-   promote to `@orb/kit/assets` (infra may import kit) or infra grows a duplicate signature table —
-   the first is obviously right, but it extends a committed criterion, so it's the guard designer's
-   call to record, not this doc's.
+2. **RESOLVED (D61, 2026-07-01) — the signature tables promote to `@orb/kit/image-sniff`.** The
+   original flag: the committed criterion promotes `sniffMime`/`isAnimated` to `@orb/kit` only
+   "iff the client needs pre-detection" — but §6's `isAllowedImageBuffer` (infra) needs the same
+   magic-signature tables, and infra cannot import a domain. The guard designer's call is now
+   recorded (`hub-browse-design/01` §1/§3): the pure byte-facts (signatures + dimension parsing +
+   the animated sniff) live in `@orb/kit/image-sniff`; `assets/substrate/mime.ts` becomes a thin
+   composition over it when G2 lands; the caps/allow-set POLICY stays in
+   `infra/network/image-guard.ts` (policy doesn't live in kit).
 3. **`AssetsService` verb growth.** v1+v2+B4 take the assets contract from 7 verbs to 13. Still
    one owner and one template, but if a later wave adds more media verbs, a named `gallery/`
    subsystem folder inside `domain/assets` (8-slot-legal) is the pressure valve — flagging so
