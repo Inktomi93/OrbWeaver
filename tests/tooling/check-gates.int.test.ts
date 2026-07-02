@@ -135,6 +135,8 @@ function writeFixtures(): void {
   fx("packages/kit/src/__g_rogue.ts", "export const x = 1;\n");
   // ui-primitive-structure: a primitive dir missing its trio (no <name>.tsx/variants.ts) + no test.
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
+  // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
+  fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
 }
 
 let registry = new Set<string>();

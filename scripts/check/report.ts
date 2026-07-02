@@ -4,6 +4,7 @@
 // backlog lives in docs/architecture/core/Core-Laws-and-Precedents.md.
 
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
+import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
@@ -52,4 +53,5 @@ runChecks([
   serverLayout,
   packageLayout,
   uiPrimitiveStructure,
+  clientStructure,
 ]);
