@@ -7,8 +7,8 @@
 // message's latency is its SELECTED variant's (`messages.selectedVariantId` — the kept take), mirroring
 // neo's "economics on the active message". Owner-scoping is `messages.characterId → characters.ownerId`
 // (the AI character's owner — D28 keys per-character on `characters.id`; D23 derives owner through it).
-// See FLAG[PD-21] in rebuild-from-canon.ts: the canon owner-attribution is confirmed against chat's
-// StatsDelta builders + the drift gate when chat lands.
+// See the owner-attribution note in rebuild-from-canon.ts (PD-21 confirmed): under v1's enforced
+// host-owned-roster invariant this equals the live StatsDelta builders' D19 host attribution.
 
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";

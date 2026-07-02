@@ -13,7 +13,8 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages } from "@orb/db";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -227,7 +228,9 @@ describe("startChat — lazy room creation + opening", () => {
   test("none: seeds nothing; opening is null; only chatCreated fires; metadata records the policy", async () => {
     const host = await seedUser(db, "host");
     const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, { getCard: notReached });
+    // getCard IS reached on every path now (the PD-21 founding-cast ownership validation) — but the `none`
+    // policy still seeds nothing from it.
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat, opening } = await startChat({
@@ -298,6 +301,23 @@ describe("startChat — lazy room creation + opening", () => {
     expect(roster).toHaveLength(2);
     expect(roster.filter((r) => r.role === "host")).toHaveLength(1);
     expect(roster.every((r) => r.joinSeq === 0)).toBe(true);
+  });
+
+  test("a foreign/unknown founding character is refused NOT_FOUND — no ghost roster row (PD-21)", async () => {
+    const host = await seedUser(db, "host");
+    // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(null) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    await expect(
+      startChat({
+        principal: principal(host),
+        characterIds: [castId<CharacterId>("character_foreign")],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    // NOTHING was minted — no chat row, no roster ghost seat.
+    expect(await db.select().from(chats)).toHaveLength(0);
+    expect(await db.select().from(chatParticipants)).toHaveLength(0);
   });
 
   test("temporary: the flag lands on the row (ST Temporary Chat, PD-65); absent ⇒ persistent", async () => {

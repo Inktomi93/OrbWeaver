@@ -148,7 +148,8 @@ async function purifyEditedContent(
 }
 
 /** The stats OWNER for a canon mutation — the room HOST (D19: the host's box funds/owns the canon; the
- *  rebuild attributes by the host-owned characters' chats — FLAG[PD-21] documents the group edge). A
+ *  rebuild attributes by the host-owned characters' chats — PD-21 confirmed: the two agree under the
+ *  enforced host-owned-roster invariant). A
  *  hostless room (archived orphan) degrades to the acting caller so the delta is never dropped. */
 async function resolveStatsOwner(
   ctx: ChatContext,

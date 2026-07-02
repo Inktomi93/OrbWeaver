@@ -355,10 +355,11 @@ export function swipeVariantDelta(params: {
 /**
  * The chat-CREATED contribution (`start-chat` / `fork`): +1 chats (per-char [the primary] + per-owner),
  * +1 daily chatsCreated, the fork lineage counter, and the firstAt/lastAt extrema candidates. GROUP edge
- * (FLAG[PD-21], deliberately open): a multi-character room bumps only the PRIMARY character's per-char
- * `chats` here — the rebuild counts every participant character's chats, so a reconcile settles the extra
- * per-char rows; the owner/day grains are exact either way (one delta cannot bump per-char chats for N
- * characters without over-bumping the owner's — the same field drives both grains).
+ * (PD-21, decided): a multi-character room bumps only the PRIMARY character's per-char `chats` here — the
+ * rebuild counts every participant character's chats, so a reconcile settles the extra per-char rows; the
+ * owner/day grains are exact either way (one delta cannot bump per-char chats for N characters without
+ * over-bumping the owner's — the same field drives both grains). Owner-attribution itself is exact: v1
+ * enforces single-owner-per-chat (roster characters are host-owned — see rebuild-from-canon.ts header).
  */
 export function chatCreatedDelta(params: {
   readonly ownerId: UserId;

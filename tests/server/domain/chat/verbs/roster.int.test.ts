@@ -11,7 +11,8 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { Handle, UserId } from "@orb/kit/ids";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -178,6 +179,31 @@ describe("add character to chat — the participant-insert chokepoint", () => {
       );
     expect(rows).toHaveLength(1);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("a foreign/unknown character is refused NOT_FOUND — no ghost seat (PD-21)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
+    const roster = createRoster(makeChatContext(db, { getCard: () => Promise.resolve(null) }), {
+      emit,
+    });
+
+    await expect(
+      roster.addCharacterToChat({
+        principal: principal(host),
+        chatId,
+        characterId: castId<CharacterId>("character_foreign"),
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    // No ghost roster seat; no bus event.
+    const rows = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.kind, "character"));
+    expect(rows).toHaveLength(0);
+    expect(emitted).toEqual([]);
   });
 });
 

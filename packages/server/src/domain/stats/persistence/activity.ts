@@ -9,7 +9,7 @@
 // ORBWEAVER (D18/D28): the heatmap counts user+assistant messages in the owner's CHATS — and under D18 a
 // chat has no ownerId, so "the owner's chats" is membership-derived: chats with a character PARTICIPANT the
 // owner owns (`chat_participants → characters.ownerId`). Momentum counts assistant turns per character
-// (`messages.characterId → characters.ownerId`, D28). See FLAG[PD-21] in rebuild-from-canon.ts.
+// (`messages.characterId → characters.ownerId`, D28). See the owner-attribution note in rebuild-from-canon.ts (PD-21 confirmed).
 
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";

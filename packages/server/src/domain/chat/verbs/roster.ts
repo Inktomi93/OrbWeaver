@@ -47,6 +47,7 @@ import {
 } from "@orb/contracts/chat";
 import { chatParticipants, chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
@@ -223,6 +224,13 @@ function createAddCharacterToChat(
 ): ChatService["addCharacterToChat"] {
   return async ({ principal, chatId, characterId }: AddCharacterToChatParams) => {
     await requireHost(ctx, principal, chatId);
+    // PD-21 single-owner invariant: the character must be the HOST's (owner-scoped read — foreign ==
+    // missing, leak-free). No foreign ghost seats: a roster character is always host-owned, which keeps
+    // the stats rebuild's `characters.ownerId` attribution ≡ the live deltas' D19 host.
+    const card = await ctx.getCard({ ownerId: principal.userId, characterId });
+    if (card === null) {
+      throw new DomainNotFoundError("character", characterId);
+    }
     const at = ctx.now();
     const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const participantId = ctx.newParticipantId();
@@ -239,7 +247,6 @@ function createAddCharacterToChat(
       },
     ]);
     await emit({ type: "chatUpdated", chatId });
-    const card = await ctx.getCard({ ownerId: principal.userId, characterId });
     return characterParticipantView(
       {
         id: participantId,
