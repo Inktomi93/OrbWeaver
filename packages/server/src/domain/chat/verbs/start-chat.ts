@@ -282,7 +282,10 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const now = ctx.now();
     const chatId = ctx.newChatId();
     const hostUserId = principal.userId;
-    const anchor = anchorPersonaId ?? null;
+    // The anchor default-seed (persona.md, decided): no explicit anchor => the STARTER's user-level
+    // active persona (`seeds.defaultPersonaId`, root-validated -- stale/unowned collapses to null). The
+    // card {{user}} POV is the starter's from message one; an explicit anchor always wins.
+    const anchor = anchorPersonaId ?? (await ctx.resolveDefaultPersona(hostUserId));
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
     // PD-21: every founding character must be the HOST's (owner-scoped read) — no foreign ghost seats.

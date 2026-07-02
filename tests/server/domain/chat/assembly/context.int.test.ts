@@ -391,3 +391,51 @@ describe("buildAssembleContext — immutable/pure (§5)", () => {
     expect(a.character.name).toBe("Aria");
   });
 });
+
+describe("buildAssembleContext — the null-anchor fallback (persona.md dual-persona rule)", () => {
+  const alice = { name: "Alice", description: "a bold captain" };
+  const bob = { name: "Bob", description: "a quiet scholar" };
+
+  test("no anchor: the ACTIVE persona anchors card-derived {{user}} (never the literal 'User')", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active: alice },
+    });
+
+    // The pinned (card-POV) slot fell back to the active persona — {{user}} in card text is Alice.
+    expect(out.pinnedPersona).toEqual(alice);
+    expect(out.activePersona).toEqual(alice);
+  });
+
+  test("a SET anchor holds (no fallback): card POV stays the anchor while active differs", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: bob, active: alice },
+    });
+
+    expect(out.pinnedPersona).toEqual(bob);
+    expect(out.activePersona).toEqual(alice);
+  });
+
+  test("no personas at all: both slots stay null (the macro layer's 'User' floor is the last resort)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    expect(out.pinnedPersona).toBeNull();
+    expect(out.activePersona).toBeNull();
+  });
+});
