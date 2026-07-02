@@ -16,8 +16,10 @@
 // D53 step 2: SEND USER_INPUT regex runs in the producer (the
 // post-regex row is persisted via the `SendRegexSink`); the host-tier scripts are the union the GATHER computes
 // (`gatherAssembleContext` → `resolveHostTierRegexScripts`) onto the assemble ctx (RECEIVE applies AI_OUTPUT/
-// REASONING in the pipeline). FLAG[PD-63]: the `guided` steer stays a seam for a later chunk (the
-// `guided` param is accepted, not yet routed).
+// REASONING in the pipeline). GUIDED (chat.md §6, PD-63 routed): every generating verb threads its `guided`
+// steer into the GATHER; the BUILD resolves the action template ONCE (macro-neutralized `{{input}}`) and
+// delivers it via EXACTLY ONE placement — the `{{guided_instruction}}` system-marker (the per-action config
+// default) or a depth-0 in_chat injection (role per the config/steer — the message-role axis, never pinned).
 //
 // DEPS NOT ON `ChatContext` (the second factory arg — the `invites.ts`/`roster.ts` precedent; FLAG
 // [turn-deps-not-on-ctx], all SHOULD be wired at the composition root):
@@ -52,6 +54,7 @@ import type {
   ContinueTurnParams,
   ForceCharacterTurnParams,
   GenerateParams,
+  GuidedSteer,
   ImpersonateParams,
   RevertContinueParams,
   SendParams,
@@ -131,8 +134,9 @@ type TurnVerbs = Pick<
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
 
-/** The synthetic trailing-user nudges (chat.md §6 — turn instructions; FLAG[PD-63]: the guided-
- *  steering chunk refines WHERE these land — for now they ride `appendUserTurn`). No magic strings (one home). */
+/** The synthetic trailing-user nudges (chat.md §6 — turn instructions): the UNSTEERED continue/impersonate
+ *  baseline, riding `appendUserTurn`. A `guided` steer COMPOSES with these (the nudge says WHAT the turn is;
+ *  the steer adds the user's one-turn guidance via its placement). No magic strings (one home). */
 const CONTINUE_NUDGE =
   "[Continue the previous message from exactly where it left off, without repeating it.]";
 const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
@@ -214,6 +218,7 @@ async function buildTurnContext(
     readonly personaIds: readonly PersonaId[];
     readonly anchorPersonaId: PersonaId | null;
     readonly pendingUserText?: string | undefined;
+    readonly guided?: GuidedSteer | undefined;
   },
   /** SEND sink — when present + the round resolves host-tier scripts, the gather's `buildAssembleContext` writes
    *  the post-USER_INPUT-regex user text here for the verb to PERSIST (chat.md §2/§7). */
@@ -235,6 +240,7 @@ async function buildTurnContext(
       castCharacterIds: args.castCharacterIds,
       personaIds: args.personaIds,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
+      ...(args.guided !== undefined ? { guided: args.guided } : {}),
     },
     foreign,
     out,
@@ -406,6 +412,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
     content,
     personaId,
     intent,
+    guided,
   }: SendParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const room = await loadRoom(ctx, chatId);
@@ -434,6 +441,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
         personaIds: room.personaIds,
         anchorPersonaId: membership.chat.anchorPersonaId,
         pendingUserText: content,
+        guided,
       },
       sendOut,
     );
@@ -589,6 +597,7 @@ function createForceCharacterTurn(
     chatId,
     characterId,
     intent,
+    guided,
   }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
     const membership = await requireHost(ctx, principal, chatId);
     const room = await loadRoom(ctx, chatId);
@@ -612,6 +621,7 @@ function createForceCharacterTurn(
       castCharacterIds: room.castCharacterIds,
       personaIds: room.personaIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      guided,
     });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
@@ -683,6 +693,8 @@ async function resolveTurnBase(
     readonly principal: SendParams["principal"];
     readonly chatId: ChatId;
     readonly anchorPersonaId: PersonaId | null;
+    /** The one-turn typed steer (chat.md §6, PD-63) — threaded into the assemble ctx (GATHER → BUILD). */
+    readonly guided?: GuidedSteer | undefined;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
@@ -699,6 +711,7 @@ async function resolveTurnBase(
     castCharacterIds: room.castCharacterIds,
     personaIds: room.personaIds,
     anchorPersonaId: args.anchorPersonaId,
+    guided: args.guided,
   });
   return { room, identity, connection, assembleContext };
 }
@@ -735,7 +748,13 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
  *  new variant (selected). Slot attribution is unchanged (D26). `regenerate` is `swipe` on the last assistant
  *  message — the same mode, the client passes that messageId. A non-assistant / missing target is NOT_FOUND. */
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
-  return async ({ principal, chatId, messageId, intent }: SwipeParams): Promise<TurnOutcome> => {
+  return async ({
+    principal,
+    chatId,
+    messageId,
+    intent,
+    guided,
+  }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const target = await loadSlotTarget(ctx.db, messageId);
     if (target === undefined || target.role !== "assistant") {
@@ -745,6 +764,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       principal,
       chatId,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      guided,
     });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -772,6 +792,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
     chatId,
     messageId,
     intent,
+    guided,
   }: ContinueTurnParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const target = await loadSlotTarget(ctx.db, messageId);
@@ -782,6 +803,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       principal,
       chatId,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      guided,
     });
     const shape = speakerShapeFor(room, target.characterId);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
@@ -810,12 +832,14 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
     chatId,
     personaId,
     intent,
+    guided,
   }: ImpersonateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const { identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      guided,
     });
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
@@ -847,12 +871,14 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
     chatId,
     speakerCharacterId,
     intent,
+    guided,
   }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const { room, identity, connection, assembleContext } = await resolveTurnBase(ctx, deps, {
       principal,
       chatId,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      guided,
     });
     const speaker = speakerCharacterId ?? room.castNames[0]?.characterId ?? null;
     const shape = speakerShapeFor(room, speaker);
@@ -940,8 +966,9 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *
  * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
  * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
- * `appendUserTurn`. FLAG[PD-63]: the swipe/continue/impersonate `guided` steer is left a seam for the
- * guided-steering chunk (the `guided` param is accepted, not yet routed). The SEND/RECEIVE regex pass is wired
+ * `appendUserTurn`. The `guided` steer is ROUTED (chat.md §6, PD-63): every generating verb threads it into
+ * the GATHER→BUILD, which resolves the action template once and delivers it via its one placement (the file
+ * header). The SEND/RECEIVE regex pass is wired
  * (D53 step 2): aux turns (swipe/continue/generate/force) carry the host-tier scripts onto the assemble ctx, so
  * their generated output runs the RECEIVE AI_OUTPUT/REASONING regex + post-process in the pipeline.
  */

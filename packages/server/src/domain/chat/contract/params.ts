@@ -177,6 +177,7 @@ export interface GenerateParams extends ChatScopedParams {
 /** `continueTurn` — extend the tail assistant message in place (continue snapshot per-variant, D26). */
 export interface ContinueTurnParams extends MessageScopedParams {
   readonly intent?: UserIntent | undefined;
+  readonly guided?: GuidedSteer | undefined;
 }
 
 /** `undoContinue` — revert the last continuation on a variant (restores `preContinue*`). */

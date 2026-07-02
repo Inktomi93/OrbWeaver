@@ -12,7 +12,10 @@
 import { assemblePrompt, previewSection as previewSectionImpl } from "../assembly/assemble";
 import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/context";
 import { fitHistoryToWindow } from "../assembly/history-budget";
-import { buildTurnMacroContext as buildTurnMacroContextImpl } from "../assembly/macros";
+import {
+  buildTurnMacroContext as buildTurnMacroContextImpl,
+  resolveGuidedActionText as resolveGuidedActionTextImpl,
+} from "../assembly/macros";
 import { shape } from "../assembly/shape";
 
 /** RESOLVE→GATHER→BUILD: produce the IMMUTABLE per-turn `AssembleContext` (the turn ctx the SHAPE phase + the
@@ -44,6 +47,15 @@ export function buildTurnMacroContext(
   ...args: Parameters<typeof buildTurnMacroContextImpl>
 ): ReturnType<typeof buildTurnMacroContextImpl> {
   return buildTurnMacroContextImpl(...args);
+}
+
+/** Resolve a guided-action TEMPLATE against the turn ctx (chat.md §6 — the guided steering resolver; PD-63).
+ *  The legal `verbs/ → assembly/` bridge for the `opening` action, whose resolved template IS the turn prompt
+ *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
+export function resolveGuidedActionText(
+  ...args: Parameters<typeof resolveGuidedActionTextImpl>
+): ReturnType<typeof resolveGuidedActionTextImpl> {
+  return resolveGuidedActionTextImpl(...args);
 }
 
 /** BUILD (one section): render ONE preset section against an immutable assemble ctx → its `SectionPreview`

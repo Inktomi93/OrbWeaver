@@ -231,6 +231,26 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(rows).toHaveLength(1);
   });
 
+  test("previewAssembly routes a guided steer through the SAME assembly a real turn gets (PD-63)", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+
+    const { previewAssembly } = createRead(makeChatContext(db), makeDeps());
+    const steered = await previewAssembly({
+      principal: principal(me),
+      chatId,
+      guided: { action: "response", input: "be dramatic" },
+    });
+    // The default `response` template (system-marker placement) renders in the dynamic half; the trace
+    // records the inclusion.
+    expect(steered.trace.guidedInstructionIncluded).toBe(true);
+    expect(steered.prompt.dynamic).toContain("be dramatic");
+
+    const plain = await previewAssembly({ principal: principal(me), chatId });
+    expect(plain.trace.guidedInstructionIncluded).toBe(false);
+    expect(plain.prompt.dynamic).not.toContain("be dramatic");
+  });
+
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {
     const me = await seedUser(db, "me");
     const chatId = await seedRoom("room", me);

@@ -4,11 +4,12 @@
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatInjection } from "@orb/contracts/chat";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
+import { ZWSP } from "@orb/kit/guided";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -305,6 +306,74 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
       promptConfig: config,
     });
     expect(out.worldInfoBefore).toContain("GOLD hoard");
+  });
+});
+
+describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => {
+  test("system placement (the default): the action template resolves to ctx.guidedInstruction — template macros live, untrusted {{input}} neutralized", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      guidedActions: {
+        ...DEFAULT_GUIDED_ACTIONS,
+        response: { prompt: "[Steer for {{char}}: {{input}}]", role: "system" as const },
+      },
+    };
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      guided: { action: "response", input: "watch the {{tone}} closely" },
+    });
+    // Template macros resolve ({{char}} → the cast primary); the user's steering text is spliced in with
+    // its braces ZWSP-neutralized (a typed {{tone}} can NEVER re-trigger macro evaluation).
+    expect(out.guidedInstruction).toBe(
+      `[Steer for Aria: watch the {${ZWSP}{tone}${ZWSP}} closely]`,
+    );
+    // System placement adds NO injection.
+    expect(out.chatInjections?.some((i) => i.content.includes("watch the"))).toBe(false);
+  });
+
+  test("inject placement: a depth-0 in_chat injection with the CHOSEN role (never pinned); no marker text", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: {
+        action: "response",
+        input: "be brief",
+        placement: { kind: "inject", role: "assistant" },
+      },
+    });
+    const guided = out.chatInjections?.find((i) => i.content.includes("be brief"));
+    expect(guided).toMatchObject({ position: "in_chat", depth: 0, role: "assistant" });
+    expect(out.guidedInstruction).toBeUndefined();
+  });
+
+  test("the per-action config role decides the DEFAULT placement (role:user → a depth-0 user injection)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const config = {
+      ...DEFAULT_PROMPT_CONFIG,
+      guidedActions: {
+        ...DEFAULT_GUIDED_ACTIONS,
+        impersonate: { prompt: "[As {{user}}: {{input}}]", role: "user" as const },
+      },
+    };
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      guided: { action: "impersonate", input: "storm out" },
+    });
+    const guided = out.chatInjections?.find((i) => i.content.includes("storm out"));
+    expect(guided).toMatchObject({ position: "in_chat", depth: 0, role: "user" });
+    expect(out.guidedInstruction).toBeUndefined();
   });
 });
 

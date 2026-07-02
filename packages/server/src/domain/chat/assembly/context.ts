@@ -43,7 +43,7 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroContext } from "@orb/kit/macro";
@@ -53,8 +53,9 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import type { ApplyRegexReplaceOp, ChatContext } from "../contract/context";
 import type { ResolvedPersonas } from "../contract/foreign";
+import type { GuidedSteer } from "../contract/params";
 import { renderInjection } from "./injections";
-import { buildTurnMacroContext, renderMacros } from "./macros";
+import { buildTurnMacroContext, renderMacros, resolveGuidedActionText } from "./macros";
 import { loadWorldInfoPool } from "./world-info/pool";
 
 interface MatchedKey {
@@ -305,6 +306,10 @@ interface BuildAssembleContextInput {
   readonly memory?: string | null | undefined;
   readonly compactSummary?: string | null | undefined;
   readonly guidedInstruction?: string | null | undefined;
+  /** The one-turn typed steer (chat.md §6, PD-63 routed): resolved ONCE in BUILD — template + neutralized
+   *  `{{input}}` → the `{{guided_instruction}}` marker (system placement, the default) or a depth-0
+   *  `in_chat` injection (the `inject` arm). Never persisted; never re-routed at splice time. */
+  readonly guided?: GuidedSteer | undefined;
   readonly variableValues: Record<string, string>;
   readonly generationType?: GenerationType | undefined;
   /** The caller's PER-REQUEST browser IANA zone for `{{time}}`/`{{date}}` (client.md epoch-UTC pipeline) — NOT
@@ -412,6 +417,50 @@ function routeKept(kept: readonly InjectionCandidate[]): {
   return { chatInjections, beforeParts, afterParts };
 }
 
+/** Resolve the one-turn guided steer (chat.md §6, PD-63) against the built base ctx. Placement is decided
+ *  ONCE: the explicit `steer.placement`, else the action config's `role` (`system` → the marker; `user`/
+ *  `assistant` → a depth-0 injection). The system arm MUTATES `base.guidedInstruction` (base is the local
+ *  under construction — the ctx is frozen after BUILD); the inject arm returns the candidate for the ONE
+ *  injection list. No steer ⇒ no-op. */
+function resolveGuidedSteer(
+  base: AssembleContext,
+  input: BuildAssembleContextInput,
+): { candidates: InjectionCandidate[] } {
+  const steer = input.guided;
+  if (steer === undefined) {
+    return { candidates: [] };
+  }
+  const config =
+    input.promptConfig.guidedActions?.[steer.action] ?? DEFAULT_GUIDED_ACTIONS[steer.action];
+  const resolved = resolveGuidedActionText(base, {
+    action: steer.action,
+    input: steer.input ?? "",
+    model: input.model,
+    chatId: input.chatId,
+  });
+  const placement =
+    steer.placement ??
+    (config.role === "system"
+      ? ({ kind: "system" } as const)
+      : ({ kind: "inject", role: config.role } as const));
+  if (placement.kind === "system") {
+    base.guidedInstruction = resolved;
+    return { candidates: [] };
+  }
+  return {
+    candidates: [
+      {
+        injection: { position: "in_chat", depth: 0, role: placement.role, content: resolved },
+        tokens: estimateTokens(resolved),
+        ignoreBudget: true,
+        priority: OPERATOR_PRIORITY,
+        entryId: "guided",
+        bucket: null,
+      },
+    ],
+  };
+}
+
 /**
  * RESOLVE → GATHER → BUILD: produce the IMMUTABLE per-turn `AssembleContext` (chat.md §2/§5). Reads the
  * chat-owned roster cast (via `ctx.getCard`) + the WI pool; everything cross-domain is in `input` (see the
@@ -497,7 +546,15 @@ export async function buildAssembleContext(
     buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId }),
   );
 
-  // The ONE injection list (chat.md §4): WI + the user `chat_injections` (operator intent — never dropped).
+  // ── GUIDED (chat.md §6, PD-63): resolve the one-turn steer ONCE — the action template + the neutralized
+  //    `{{input}}` against the turn macro ctx — and deliver it via EXACTLY ONE placement: the
+  //    `{{guided_instruction}}` system-marker (the default) or a depth-0 `in_chat` injection (author intent —
+  //    it joins the ONE injection list, `ignoreBudget`). Never re-routed at splice time (§6 — the old
+  //    `role:system`-at-depth auto-convert is dropped); never persisted. ──
+  const guided = resolveGuidedSteer(base, input);
+
+  // The ONE injection list (chat.md §4): WI + the user `chat_injections` + a guided depth-0 injection
+  // (operator/author intent — never dropped).
   const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => ({
     injection,
     tokens: estimateTokens(injection.content),
@@ -507,7 +564,7 @@ export async function buildAssembleContext(
     bucket: null,
   }));
   const { kept, dropped } = budgetInjections(
-    [...wi.candidates, ...userCandidates],
+    [...wi.candidates, ...userCandidates, ...guided.candidates],
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);

@@ -12,9 +12,9 @@
 // (`AssembledPrompt`/`AssemblyPreview`/`SectionPreview`) are the BUILD halves (static/dynamic/afterHistory +
 // the host/admin trace); the SHAPE wire-history is a turn-only product (not in these read-models).
 //
-// FLAG[PD-63]: `previewAssembly` accepts a `guided` steer but does NOT route it yet — the guided
-// template resolution is the guided-steering chunk's seam (the SAME state `verbs/turn.ts` flagged: the param is
-// accepted, not applied).
+// GUIDED (chat.md §6, PD-63 routed): `previewAssembly` threads its `guided` steer into the GATHER→BUILD —
+// the SAME resolution a real turn gets (template + neutralized `{{input}}` → the `{{guided_instruction}}`
+// marker or a depth-0 injection), so the preview mirrors the steered prompt exactly.
 //
 // D22 NOTE: the member-card visibility CLAMP is for a roster character's CARD read (`MemberCardView`) — NOT in
 // this verb set. `listParticipants` returns `ParticipantView` (the roster identity row — no card content to
@@ -43,6 +43,7 @@ import type {
   GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
+  GuidedSteer,
   ListChatsParams,
   ListForksParams,
   ListMessagesParams,
@@ -237,11 +238,13 @@ async function resolvePreviewInputs(
 }
 
 /** Build the ONE immutable assemble ctx for a preview (RESOLVE→GATHER→BUILD via the gather) from the resolved
- *  {@link PreviewInputs}. No persist, no turn (no SEND sink — previews take no composer input). */
+ *  {@link PreviewInputs}. No persist, no turn (no SEND sink — previews take no composer input). An optional
+ *  `guided` steer mirrors a real turn's steered assembly (PD-63 — file header). */
 async function buildPreviewContext(
   ctx: ChatContext,
   inputs: PreviewInputs,
   chatId: ChatId,
+  guided?: GuidedSteer,
 ): ReturnType<typeof gatherAssembleContext> {
   return await gatherAssembleContext(
     ctx,
@@ -251,6 +254,7 @@ async function buildPreviewContext(
       model: inputs.model,
       castCharacterIds: inputs.castCharacterIds,
       personaIds: inputs.personaIds,
+      ...(guided !== undefined ? { guided } : {}),
     },
     inputs.foreign,
   );
@@ -350,19 +354,20 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
 // ── dry-run prompt previews (NO turn, NO persist) ─────────────────────────────────
 
 /** `previewAssembly` — the BUILD product + the debug trace for a hypothetical turn (host/admin debug surface).
- *  FLAG[PD-63]: `guided` is accepted but not yet routed (the guided chunk's seam). */
+ *  A `guided` steer is routed through the SAME GATHER→BUILD a real turn uses (file header — PD-63). */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
   return async ({
     principal,
     chatId,
     speakerCharacterId,
+    guided,
   }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
     });
-    const assembleContext = await buildPreviewContext(ctx, inputs, chatId);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, guided);
     const prompt = buildPrompt(inputs.foreign.promptConfig, assembleContext);
     return { prompt, trace: prompt.trace };
   };

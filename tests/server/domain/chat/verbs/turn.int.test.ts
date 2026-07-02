@@ -102,12 +102,17 @@ function harness(
     content?: string;
     groupCharacterId?: CharacterId;
     hostTierRegexScripts?: RegexScript[];
+    /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
+    onChatRequest?: (request: unknown) => void;
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
   const ctx = makeChatContext(database, {
-    runChatTurn: scripted(over.content ?? "Hi there"),
+    runChatTurn: (request) => {
+      over.onChatRequest?.(request);
+      return scripted(over.content ?? "Hi there")(request);
+    },
     applyStatsDelta: (_b: unknown, _d: Db, delta: StatsDelta): void => {
       deltas.push(delta);
     },
@@ -392,6 +397,37 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
     await expect(h.turn.abort({ principal: principal(host), chatId })).resolves.toBeUndefined();
+  });
+});
+
+describe("guided steer routing (chat.md §6, PD-63)", () => {
+  test("send threads the guided steer into the assembled prompt (system-marker default; {{input}} spliced)", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
+
+    await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "hi",
+      guided: { action: "response", input: "be dramatic" },
+    });
+
+    // The DEFAULT `response` template wraps the user's steering text; system placement renders it at the
+    // {{guided_instruction}} marker — it must reach the wire request the engine dispatched.
+    const wire = JSON.stringify(requests);
+    expect(wire).toContain("special consideration");
+    expect(wire).toContain("be dramatic");
+  });
+
+  test("an unsteered send carries NO guided template text", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+
+    expect(JSON.stringify(requests)).not.toContain("special consideration");
   });
 });
 
