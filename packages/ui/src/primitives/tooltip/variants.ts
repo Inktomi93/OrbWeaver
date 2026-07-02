@@ -20,7 +20,7 @@ export const tooltipVariants = tv(
     slots: {
       positioner: "z-(--z-tooltip)",
       popup:
-        "rounded-control border border-border bg-popover px-row py-field text-label leading-label text-popover-foreground shadow-md transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+        "rounded-control border border-border bg-popover px-row py-field text-label leading-label text-popover-foreground shadow-md origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     },
   },
   { twMergeConfig },

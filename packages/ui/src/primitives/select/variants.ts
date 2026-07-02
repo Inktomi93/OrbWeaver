@@ -15,6 +15,10 @@ export const selectVariants = tv({
     positioner: "z-(--z-overlay) outline-none",
     popup: [
       "z-(--z-overlay) max-h-(--available-height) min-w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
+      // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip (the shared overlay
+      // animation contract). `--transform-origin` is Base UI Positioner-provided (scale grows from
+      // the trigger edge, not center).
+      "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     ],
     // A grouped section — Base UI Select.Group; the label sits above its items.
     group: "flex flex-col",
