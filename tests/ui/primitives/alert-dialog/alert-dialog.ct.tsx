@@ -11,6 +11,7 @@ import {
 } from "@orb/ui/alert-dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { AlertDialogHandleHarness } from "./alert-dialog-handle.fixtures";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(
@@ -50,4 +51,21 @@ test("backdrop renders with the scrim token color", async ({ mount, page }) => {
   const backdrop = page.locator('[data-slot="alert-dialog-backdrop"]');
   await expect(backdrop).toBeVisible();
   await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
+});
+
+// createHandle: open the alert dialog imperatively (no trigger) with a payload via
+// handle.openWithPayload; the payload reaches the Root render-function children (harness in
+// ./alert-dialog-handle.harness).
+test("opens imperatively via a handle and routes the payload to content", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AlertDialogHandleHarness />);
+
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+
+  await page.getByRole("button", { name: "Delete remotely" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Reached content");
 });

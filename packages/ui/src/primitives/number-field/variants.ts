@@ -2,10 +2,14 @@ import { tv } from "tailwind-variants";
 
 // The number-field skin. Steppers are full size-touch-target squares (the ≥44px law — the brief's
 // touch floor applies to the increment/decrement buttons, §4b axis 3); rings go inset because the
-// group clips overflow for the rounded border.
+// group clips overflow for the rounded border. The scrub area is a drag-to-scrub label (Base UI
+// ScrubArea) with a directional resize cursor; the ScrubAreaCursor is the custom pointer-lock glyph.
 export const numberField = tv({
   slots: {
     root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
+    scrubArea:
+      "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
+    scrubCursor: "flex text-foreground",
     group:
       "flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input",
     decrement: [

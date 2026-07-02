@@ -29,6 +29,12 @@ the browser component tests (`tests/ui/**/*.{ct,fixtures}.tsx`). We spread
 exhaustive-deps + the full Rules-of-React set — purity, immutability, refs, set-state-in-{effect,
 render}, static-components, use-memo, void-use-memo, preserve-manual-memoization, globals,
 error-boundaries, gating, config). This IS a correctness bundle, not style — so spreading is correct.
+**We spread rather than list-by-name (the usual doctrine) DELIBERATELY:** `recommended-latest` includes
+`void-use-memo`, a RecommendedLatest-only rule the plugin's own README manual-config example omits (that
+example is the plain `recommended` set) — hand-listing would silently drop it. If ever de-bundled,
+enumerate from the shipped package source, not the README. (Verified 2026-07-02 against the
+`eslint-plugin-react-hooks@7.1.1` tarball: 2 classic + 14 `Recommended` + `void-use-memo`, all `error`
+except the three `warn` below.)
 
 **Severity overrides** (the recommended set ships three rules at `warn`):
 
@@ -43,6 +49,18 @@ error-boundaries, gating, config). This IS a correctness bundle, not style — s
   `--max-warnings=0` (which would hard-fail every legitimate library seal): we hard-block real bugs
   (everything else is `error`) and let expected seal-skip notices through. Flip to `error` only if a
   gate on NEW incompatible libraries is wanted (then each seal needs an inline ack).
+
+**Compiler-config + defaults (verified 2026-07-02; set nothing).** Each `react-hooks/*` rule
+independently accepts the babel React-Compiler options (`compilationMode`/`target`/`panicThreshold`/
+`sources`/…) as `context.options[0]` — undocumented on react.dev, confirmed in the shipped source. We
+pass NONE, and the babel preset also runs all-defaults, so lint and build agree by construction. Mirror
+an option into these rule entries ONLY if the babel preset ever takes a non-default one (else lint
+silently drifts from the build); passing defaults into all 17 entries just invites per-rule typo drift.
+The defaults, all correct for us as-is: `target:'19'` (right for React 19.2 — never pin a patch),
+`compilationMode:'infer'` (already full-compiles every eligible component per D54; `'all'` is explicitly
+not recommended), `sources` = "not under `node_modules`" (so @orb/ui compiles as source, kit/contracts
+no-op for lack of JSX). `react-compiler-healthcheck` is intentionally NOT adopted — its checks are
+redundant with these rules and it's dropped from the current official onboarding flow.
 
 **Parser note.** Shipped src parses type-aware (`projectService`, for `no-deprecated`). The browser
 tests parse WITHOUT `projectService`: they live under `tests/` (owned by @orb/ui's tsconfig via a
@@ -121,12 +139,16 @@ before that). Every option below was verified against the installed Vite 8.1.2 `
 asked me to flag any that differ — none did; all names/shapes match at the pinned version). It builds
 once the app entry (`index.html` + `src/main.tsx`) + the hand-written `src/routes/` tree land.
 
-### 7.1 Plugins (order is load-bearing)
+### 7.1 Plugins (canonical order; react/babel pair is order-independent)
 
-- **`babel({ presets: [reactCompilerPreset()] })` BEFORE `react()`** — plugin-react v6 dropped internal
-  Babel for oxc, so the React Compiler runs as a `@rolldown/plugin-babel` preset and MUST see
-  unmodified source. FULL-compile from day one (D54). Then `tailwindcss()`, then `vite-plugin-checker`
-  (dev overlay: tsc + this eslint config; `enableBuild:false` — `pnpm check` owns gate-time).
+- **`react()` then `babel({ presets: [reactCompilerPreset()] })`** — matches the canonical react.dev /
+  plugin-react snippet. plugin-react v6 dropped internal Babel, so the React Compiler runs as its own
+  `@rolldown/plugin-babel` preset (FULL-compile from day one, D54). **The order is cosmetic** (NOT
+  load-bearing, despite an earlier note): verified in installed source (2026-07-02) that the compiler
+  plugin is `enforce:"pre"`, plugin-react's `viteBabel` has NO `transform` hook (it only configures
+  oxc), and oxc lowers JSX in Rolldown **core** after all pre-plugins — so the compiler sees unmodified
+  source regardless of array position. Then `tailwindcss()`, then `vite-plugin-checker` (dev overlay:
+  tsc + this eslint config; `enableBuild:false` — `pnpm check` owns gate-time).
 - **NO `tanstackRouter()`** (§4 — file-based codegen dropped). **NO `@`/tsconfig-paths alias** —
   intra-package imports use the package.json `#*` field (Vite resolves it natively). NO `base`, NO
   version `define`s (foundation/env owns runtime config), NO hand-written `manualChunks`.
@@ -177,6 +199,42 @@ would be esbuild-optimized and BYPASS the babel/compiler pass, silently shipping
   dev-vs-prod-HMR nuance rather than an invented string.
 - `worker.format: 'es'` — reserve-flagged in a comment only (D46 Tier-2 workers are server-side today).
 
+### 7.5 The reference CSP — neo's verified policy + the orbweaver deltas
+
+The canonical orbweaver app-document CSP is still unauthored (§9 — it lands with the `packages/server`
+HTTP transport). Until then, this is the **verified** starting point. Source: neo `src/server/app.ts`
+(Hono `secureHeaders`, checked 2026-07-02 at `/home/inktomi/inktomi-stack/development/neo-tavern`).
+Neo is a **shape reference, not copy-paste** — two directives change for D44 (marked ⚠️).
+
+**PROD** (what the Hono transport should emit; the dev `server.headers` mirrors it, loosened):
+
+| directive | neo prod | orbweaver | why the delta |
+| --- | --- | --- | --- |
+| `default-src` | `'self'` | `'self'` | — |
+| `script-src` | `'self'` + sha256 of the anti-FOUC inline script | `'self'` + hashes | **steal the hash trick** (below); NO `'unsafe-inline'`/`'unsafe-eval'` in prod |
+| `style-src` | `'self' 'unsafe-inline'` | `'self' 'unsafe-inline'` | Tailwind needs inline styles |
+| `img-src` | `'self' data: blob:` | ⚠️ `'self' blob:` | **drop `data:`** — D44 `allowDataImages:false` + `assetsInlineLimit:0` means the build emits no `data:` URIs and untrusted content can't use them; keep `blob:` for legit client-generated media object-URLs |
+| `connect-src` | `'self'` | `'self'` | SSE rides plain HTTP; **no ws/wss in prod** (verified: neo has zero WebSocket server — all streaming is tRPC `httpSubscriptionLink`/SSE) |
+| `font-src` | `'self'` | `'self'` | — |
+| `object-src` | `'none'` | `'none'` | — |
+| `base-uri` | `'self'` | `'self'` | — |
+| `form-action` | `'self'` | `'self'` | — |
+| `frame-ancestors` | `'none'` | `'none'` | — |
+
+**DEV** = prod LOOSENED for Vite HMR (the ONLY place ws/wss belongs):
+- `script-src`: add `'unsafe-inline' 'unsafe-eval'` (HMR runtime).
+- `connect-src`: add `ws: wss:` (Vite HMR socket — **the sole reason ws ever appears in a CSP**).
+- everything else = prod.
+
+**The two patterns worth porting verbatim:**
+- **Inline-script hash-allowlist (not `'unsafe-inline'`).** neo carries exactly ONE intentional inline
+  script (the anti-FOUC theme initializer — must run pre-first-paint, can't be external) and
+  **computes its sha256 from the built `index.html` at boot** (`inlineScriptHashes('./dist/client/index.html')`),
+  so editing the script can never silently break prod CSP and a build with no inline scripts adds nothing.
+- **Sibling security headers** (same `secureHeaders` call, port as-is): `strictTransportSecurity` gated
+  OFF for single-user (plain-http LAN self-host), `xFrameOptions:'DENY'`, `xContentTypeOptions:'nosniff'`,
+  `referrerPolicy:'strict-origin-when-cross-origin'`, `crossOriginOpenerPolicy:'same-origin'`.
+
 ## 8. Versions + release-age step-downs (`minimumReleaseAge: 1440`)
 
 All in the `pnpm-workspace.yaml` catalog, referenced via `catalog:`. Root devDeps: the ESLint gate
@@ -207,16 +265,27 @@ tools. `@orb/client` devDeps: the Vite build tools. `@orb/client` dep: `@tanstac
   pins 4.7.0 (the config comment warns against a second plugin-react double-transforming). Left as-is;
   it's a one-line `overrides` if we accept the CT-harness risk (validate against `pnpm test:ct` first).
 - **CSP-string gap (dev `server.headers`).** The coordinator wanted dev to set the SAME CSP the prod
-  Hono will set, so D44 violations surface in dev. But NO canonical app-document CSP is defined
-  anywhere yet — `packages/server` has no HTTP transport, and the only CSP in-tree is the per-frame
-  sandbox CSP (`ui/src/content/sandbox-frame/srcdoc.ts`, D44 §12.2). Per the coordinator's own
-  fallback, `server.headers` is a TODO carrying the known D44 directive list (img-src NO `data:`;
-  object-src/frame-ancestors `'none'`; base-uri/form-action `'self'`) + the note that the DEV CSP must
-  be the prod one LOOSENED for Vite HMR (script `'unsafe-inline'`/`'unsafe-eval'`, connect `ws:`/`wss:`).
-  Reference shape: neo-tavern `src/server/app.ts` `secureHeaders({ contentSecurityPolicy: isProd ? … })`
-  — but neo allows `img-src … data:`, which orbweaver D44 forbids, so it is NOT copy-pasteable. FILL IN
-  once the server document CSP is authored.
+  Hono will set, so D44 violations surface in dev. But NO canonical app-document CSP is authored yet —
+  `packages/server` has no HTTP transport, and the only CSP in-tree is the per-frame sandbox CSP
+  (`ui/src/content/sandbox-frame/srcdoc.ts`, D44 §12.2). **§7.5 now carries the full verified reference
+  policy** (neo's real prod/dev CSP diffed against the two D44 deltas — drop `img-src data:`, no ws in
+  prod). `server.headers` stays a TODO until the server document CSP is authored from §7.5; then dev =
+  that policy loosened for HMR. The whole thing lands with the `entry/http` transport wave (Phase 6).
 - **Dormant-until-consumer:** all query rules, the router `create-route-property-order` rule, and the
   zustand guard no-op on the empty client today — live the moment client code lands.
 - **@orb/ui gated NOW:** the one `incompatible-library` warning (virtual-list) is expected seal
   behavior, not a defect (§2).
+- **`vite:preloadError` recovery — DO WHEN `main.tsx` HAS CONTENT.** Long-lived SSE sessions + hashed
+  chunks + a deploy = an open page requests a chunk hash that no longer exists → `Failed to fetch
+  dynamically imported module` → white screen, no recovery. Add a `window.addEventListener(
+  'vite:preloadError', …)` in the client entry that triggers ONE soft reload (guard with a
+  sessionStorage flag so a genuinely-missing chunk can't reload-loop). Committed client-foundation item;
+  not buildable until the entry has real dynamic imports. (Vite guide: Build / Troubleshooting.)
+- **`server.fs.deny` — REVISIT WHEN `packages/server` LANDS.** Dev `fs.allow` currently opens the whole
+  workspace root over `/@fs/`. Vite's default deny already covers `.env*`, `*.{pem,crt}`, `.git` (our
+  secrets are env-based, so we're covered TODAY), but when the server package adds any non-`.env`-named
+  secret config, either narrow `fs.allow` to the packages the client actually needs or add explicit
+  `fs.deny` globs. D21 no-leak alignment. (`allowedHosts`/DNS-rebinding is moot — dev binds 127.0.0.1.)
+- **`html.cspNonce` — wire WITH the §7.5 CSP work.** Built-in hook that stamps a nonce on Vite's
+  injected `<script>`/`<style>`/`<link>` tags; the clean path for a nonce-based `script-src` when the
+  server document CSP is authored. Don't add before the CSP lands.

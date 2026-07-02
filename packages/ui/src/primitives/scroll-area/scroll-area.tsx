@@ -10,20 +10,24 @@ const slots = scrollAreaVariants();
 
 export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   className?: string;
-  /** Class for the inner scrollable viewport (where `children` live). */
+  /** Class for the inner scrollable viewport. */
   viewportClassName?: string;
+  /** Class for the sized `Content` wrapper (where `children` live). */
+  contentClassName?: string;
 }
 
 /**
  * A scroll region with custom, token-skinned scrollbars — seals Base UI ScrollArea (native scroll
  * physics preserved; the scrollbar/thumb overlay only appears where content overflows). Bundles
- * Root → Viewport(children) → Scrollbar(vertical + horizontal) → Thumb so the anatomy cannot be
- * mis-assembled. Set a bounded height/width on the root (`className`) to make it scroll.
+ * Root → Viewport → Content(children) → Scrollbar(vertical + horizontal) → Thumb → Corner so the
+ * anatomy cannot be mis-assembled. `Content` is the sized content wrapper that carries the overflow
+ * state; `Corner` fills the square where both scrollbars meet (visible only on BOTH-axis overflow).
+ * Set a bounded height/width on the root (`className`) to make it scroll.
  * `<ScrollArea className="h-[...]"><LongList/></ScrollArea>`
- * Spec: ui-package-design §6.1 — styled scrollbars for scroll REGIONS.
+ * Spec: ui-package-design §6.1 / §13 R2 — styled scrollbars + Content/Corner surface.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, viewportClassName, children, ...rest } = props;
+  const { className, viewportClassName, contentClassName, children, ...rest } = props;
   return (
     <BaseScrollArea.Root
       className={slots.root({ className })}
@@ -34,7 +38,12 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
         className={slots.viewport({ className: viewportClassName })}
         data-slot="scroll-area-viewport"
       >
-        {children}
+        <BaseScrollArea.Content
+          className={slots.content({ className: contentClassName })}
+          data-slot="scroll-area-content"
+        >
+          {children}
+        </BaseScrollArea.Content>
       </BaseScrollArea.Viewport>
       <BaseScrollArea.Scrollbar
         className={slots.scrollbar()}
@@ -50,6 +59,7 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
       >
         <BaseScrollArea.Thumb className={slots.thumb()} data-slot="scroll-area-thumb" />
       </BaseScrollArea.Scrollbar>
+      <BaseScrollArea.Corner className={slots.corner()} data-slot="scroll-area-corner" />
     </BaseScrollArea.Root>
   );
 }

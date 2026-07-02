@@ -25,6 +25,22 @@ function ToastButtons(): ReactElement {
       >
         add quick toast
       </button>
+      <button
+        onClick={(): void => {
+          toastManager.add({
+            title: "Character created",
+            actionProps: {
+              children: "Open character",
+              onClick: (): void => {
+                toastManager.add({ title: "Opened" });
+              },
+            },
+          });
+        }}
+        type="button"
+      >
+        add toast with action
+      </button>
     </div>
   );
 }

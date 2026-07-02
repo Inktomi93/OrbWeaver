@@ -1,4 +1,5 @@
 import type {
+  TabsIndicatorProps as BaseTabsIndicatorProps,
   TabsListProps as BaseTabsListProps,
   TabsPanelProps as BaseTabsPanelProps,
   TabsRootProps as BaseTabsRootProps,
@@ -18,6 +19,10 @@ export interface TabsListProps extends BaseTabsListProps {
 }
 
 export interface TabsTabProps extends BaseTabsTabProps {
+  className?: string;
+}
+
+export interface TabsIndicatorProps extends BaseTabsIndicatorProps {
   className?: string;
 }
 
@@ -51,6 +56,15 @@ export function TabsList({ className, ...rest }: TabsListProps): ReactElement {
 /** One tab button. `<TabsTab value="sampling">Sampling</TabsTab>` */
 export function TabsTab({ className, ...rest }: TabsTabProps): ReactElement {
   return <BaseTabs.Tab className={cn(tabs().tab(), className)} {...rest} />;
+}
+
+/**
+ * The sliding active-tab marker — Base UI Tabs.Indicator. Renders a `<span>` inside `TabsList`
+ * (place it after the `TabsTab`s) and tracks the active tab via the runtime `--active-tab-*` vars;
+ * `transition-all` animates the slide. `<TabsList><TabsTab .../><TabsIndicator /></TabsList>`
+ */
+export function TabsIndicator({ className, ...rest }: TabsIndicatorProps): ReactElement {
+  return <BaseTabs.Indicator className={cn(tabs().indicator(), className)} {...rest} />;
 }
 
 /** The content pane paired to a tab by `value`. `<TabsPanel value="sampling">…</TabsPanel>` */

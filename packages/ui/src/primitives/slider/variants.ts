@@ -2,9 +2,13 @@ import { tv } from "tailwind-variants";
 
 // The slider skin. The control row is h-control-sm so the drag surface meets the ≥44px touch
 // floor (§4b axis 3); the visible track stays h-field. Base UI positions Indicator/Thumb inline.
+// The header row carries the optional Label + Value readout above the control.
 export const slider = tv({
   slots: {
-    root: "w-full data-disabled:pointer-events-none data-disabled:opacity-50",
+    root: "flex w-full flex-col gap-field data-disabled:pointer-events-none data-disabled:opacity-50",
+    header: "flex w-full items-baseline justify-between gap-row",
+    label: "text-label font-medium leading-label text-foreground",
+    value: "text-label leading-label text-muted-foreground tabular-nums",
     control: "flex h-control-sm w-full touch-none select-none items-center",
     track: "relative h-field w-full grow overflow-hidden rounded-full bg-input",
     indicator: "rounded-full bg-primary",

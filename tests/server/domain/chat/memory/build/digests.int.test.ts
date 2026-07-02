@@ -21,7 +21,7 @@ import { expect, test } from "../../../../../support/fixtures";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, seedDigest } from "../_support";
 
-const ENTITIES_ANCHOR_RE = /^\[entities/;
+const ENTITIES_ANCHOR_RE = /^\[entities/u;
 const aria = castId<CharacterId>("character_aria");
 const bram = castId<CharacterId>("character_bram");
 

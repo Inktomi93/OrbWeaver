@@ -27,6 +27,14 @@ export const drawerVariants = tv(
       popup:
         "fixed bg-card text-card-foreground shadow-lg transition-transform duration-(--motion-layout) ease-out-expo data-swiping:transition-none",
       content: "flex h-full w-full flex-col overflow-y-auto overscroll-contain p-section",
+      // An invisible fixed strip pinned to the matching screen edge (side variant); Base UI owns the
+      // gesture, we only place + size the hit target. Sits below the modal layer so an open drawer wins.
+      swipeArea: "fixed z-(--z-overlay) touch-none",
+      // The app wrapper scales back behind an open drawer (data-active) — the stacked-sheet depth cue.
+      indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
+      // The layer that peeks from behind the scaled app when a drawer opens (data-active).
+      indentBackground:
+        "pointer-events-none fixed inset-0 bg-scrim opacity-0 transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100",
       title: "text-title leading-title font-semibold",
       description: "mt-field text-body leading-body text-muted-foreground",
     },
@@ -35,14 +43,17 @@ export const drawerVariants = tv(
         bottom: {
           popup:
             "inset-x-0 bottom-0 max-h-full rounded-t-card [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] data-starting-style:translate-y-full data-ending-style:translate-y-full",
+          swipeArea: "inset-x-0 bottom-0 h-row",
         },
         left: {
           popup:
             "inset-y-0 left-0 w-full max-w-cq-sm rounded-r-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:-translate-x-full data-ending-style:-translate-x-full",
+          swipeArea: "inset-y-0 left-0 w-row",
         },
         right: {
           popup:
             "inset-y-0 right-0 w-full max-w-cq-sm rounded-l-card [transform:translateX(var(--drawer-swipe-movement-x))] data-starting-style:translate-x-full data-ending-style:translate-x-full",
+          swipeArea: "inset-y-0 right-0 w-row",
         },
       },
     },

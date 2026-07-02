@@ -30,6 +30,25 @@ test("toasts stack and can be dismissed via the close button", async ({ mount, p
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(1);
 });
 
+test("a toast carries a native action button that is clickable", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  await page.getByRole("button", { name: "add toast with action", exact: true }).click();
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast).toHaveCount(1);
+
+  // The native Toast.Action renders the label from actionProps.children (not a hand-rolled button).
+  const action = toast.locator('[data-slot="toast-action"]');
+  await expect(action).toHaveText("Open character");
+
+  // Clicking the action fires its onClick — here it enqueues a second toast, proving the handler ran.
+  await action.click();
+  await expect(page.locator('[data-slot="toast-root"]')).toContainText([
+    "Opened",
+    "Character created",
+  ]);
+});
+
 test("a toast auto-dismisses after its timeout", async ({ mount, page }) => {
   await mount(<ToastPlayground />);
 

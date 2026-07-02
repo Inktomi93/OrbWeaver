@@ -29,6 +29,11 @@ function ToastItems(): ReactElement {
           <BaseToast.Content className={slots.content()}>
             <BaseToast.Title className={slots.title()} />
             <BaseToast.Description className={slots.description()} />
+            {/* Native action part: renders null unless the toast carries `actionProps` (label +
+                onClick supplied at `manager.add({ actionProps })`), so it is always mounted here and
+                self-hides when absent — the "Open character"/"Undo" affordance (hub-browse-design/03
+                §6). Base UI reads `actionProps.children` for the label; do NOT hand-roll a <button>. */}
+            <BaseToast.Action className={slots.action()} data-slot="toast-action" />
           </BaseToast.Content>
           <BaseToast.Close aria-label="Close notification" className={slots.close()}>
             ×

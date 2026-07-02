@@ -29,16 +29,17 @@ export function TooltipProvider(props: BaseProviderProps): ReactElement {
  * `<Tooltip><TooltipTrigger>?</TooltipTrigger><TooltipPopup>Help</TooltipPopup></Tooltip>`
  * Spec: ui-package-design §6.1 / UI-Arch §4b (tooltip-on-touch correctness is Base UI's).
  */
-export function Tooltip(props: BaseRootProps): ReactElement {
+export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BaseTooltip.Root {...props} />;
 }
 
 /**
  * The hoverable/focusable anchor. Unstyled passthrough — compose your own control via `render`.
+ * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip.
  * `<TooltipTrigger render={<Button size="icon" aria-label="Help">?</Button>} />`
- * Spec: ui-package-design §6.1.
+ * Spec: ui-package-design §6.1 / §13 R2.
  */
-export function TooltipTrigger(props: BaseTriggerProps): ReactElement {
+export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseTooltip.Trigger {...props} />;
 }
 

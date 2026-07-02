@@ -25,3 +25,38 @@ test("renders content in a scrollable viewport", async ({ mount, page }) => {
   });
   await expect.poll(() => viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
+
+test("renders the corner square only on both-axis overflow", async ({ mount, page }) => {
+  await mount(
+    <ScrollArea style={{ height: 120, width: 200 }}>
+      <div style={{ height: 1200, width: 1200 }}>
+        <p>Corner check</p>
+      </div>
+    </ScrollArea>,
+  );
+
+  const viewport = page.locator('[data-slot="scroll-area-viewport"]');
+  await expect(viewport).toBeVisible();
+
+  const bothAxes = await viewport.evaluate(
+    (el) => el.scrollHeight > el.clientHeight && el.scrollWidth > el.clientWidth,
+  );
+  expect(bothAxes).toBe(true);
+
+  // Base UI renders the Corner (self-sized from the scrollbar thickness) only when both axes overflow.
+  await expect(page.locator('[data-slot="scroll-area-corner"]')).toBeVisible();
+});
+
+test("no corner when only one axis overflows", async ({ mount, page }) => {
+  await mount(
+    <ScrollArea style={{ height: 120 }}>
+      <div style={{ height: 1200 }}>
+        <p>Vertical only</p>
+      </div>
+    </ScrollArea>,
+  );
+
+  await expect(page.locator('[data-slot="scroll-area-viewport"]')).toBeVisible();
+  // Base UI returns null for the Corner unless BOTH axes overflow.
+  await expect(page.locator('[data-slot="scroll-area-corner"]')).toHaveCount(0);
+});
