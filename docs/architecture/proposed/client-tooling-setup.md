@@ -212,7 +212,7 @@ Neo is a **shape reference, not copy-paste** — two directives change for D44 (
 | --- | --- | --- | --- |
 | `default-src` | `'self'` | `'self'` | — |
 | `script-src` | `'self'` + sha256 of the anti-FOUC inline script | `'self'` + hashes | **steal the hash trick** (below); NO `'unsafe-inline'`/`'unsafe-eval'` in prod |
-| `style-src` | `'self' 'unsafe-inline'` | `'self' 'unsafe-inline'` | Tailwind needs inline styles |
+| `style-src` | `'self' 'unsafe-inline'` | `'self' 'unsafe-inline'` | **Tailwind AND Base UI** both inject inline `<style>` — Base UI's `ScrollArea.Viewport` + `Select.Popup/List` emit scrollbar-removal styles (used by scroll-area/select/dialog/drawer/toast) |
 | `img-src` | `'self' data: blob:` | ⚠️ `'self' blob:` | **drop `data:`** — D44 `allowDataImages:false` + `assetsInlineLimit:0` means the build emits no `data:` URIs and untrusted content can't use them; keep `blob:` for legit client-generated media object-URLs |
 | `connect-src` | `'self'` | `'self'` | SSE rides plain HTTP; **no ws/wss in prod** (verified: neo has zero WebSocket server — all streaming is tRPC `httpSubscriptionLink`/SSE) |
 | `font-src` | `'self'` | `'self'` | — |
@@ -225,6 +225,17 @@ Neo is a **shape reference, not copy-paste** — two directives change for D44 (
 - `script-src`: add `'unsafe-inline' 'unsafe-eval'` (HMR runtime).
 - `connect-src`: add `ws: wss:` (Vite HMR socket — **the sole reason ws ever appears in a CSP**).
 - everything else = prod.
+
+**`style-src 'unsafe-inline'` is a DELIBERATE, reasoned choice — do NOT "harden" it to a nonce.** Both
+Tailwind and Base UI (ScrollArea/Select scrollbar-removal) inject *first-party* inline `<style>`. Going
+nonce-based would need per-request server HTML templating + Vite `html.cspNonce` + Base UI's `CSPProvider`
+— real infra to defend a WEAK threat class (injected `<style>` can't execute code; worst case is CSS
+exfiltration / UI-redressing) on a single-operator self-hosted app. The real guard is the **strict
+`script-src`** (hash-allowlisted, no `'unsafe-inline'`) — that stays locked, and that's where code-exec
+injection is actually stopped. Untrusted content (message media, HTML cards) is isolated by the per-frame
+**sandbox** CSP + iframe (D44 §12.2), NOT this app-document `style-src`. Revisit only if orbweaver ever
+goes public/multi-tenant — and even then, `script-src` is the lever, not `style-src`. A future agent that
+tries to nonce this to "harden" it will only break Base UI's scroll primitives for no real security gain.
 
 **The two patterns worth porting verbatim:**
 - **Inline-script hash-allowlist (not `'unsafe-inline'`).** neo carries exactly ONE intentional inline
@@ -288,4 +299,8 @@ tools. `@orb/client` devDeps: the Vite build tools. `@orb/client` dep: `@tanstac
   `fs.deny` globs. D21 no-leak alignment. (`allowedHosts`/DNS-rebinding is moot — dev binds 127.0.0.1.)
 - **`html.cspNonce` — wire WITH the §7.5 CSP work.** Built-in hook that stamps a nonce on Vite's
   injected `<script>`/`<style>`/`<link>` tags; the clean path for a nonce-based `script-src` when the
-  server document CSP is authored. Don't add before the CSP lands.
+  server document CSP is authored. Don't add before the CSP lands. **Caveat:** Vite's nonce covers only
+  Vite's OWN injected tags. Base UI ALSO injects inline `<style>` at runtime (ScrollArea/Select
+  scrollbar-removal) — if `style-src` ever drops `'unsafe-inline'` for a nonce-based policy, Base UI needs
+  its own `CSPProvider` (`nonce` or `disableStyleElements`) too, or those primitives break under CSP.
+  Both are covered by the current `'unsafe-inline'` policy, so neither is needed until/unless we tighten.
