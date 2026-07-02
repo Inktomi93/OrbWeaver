@@ -12,9 +12,9 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, messages } from "@orb/db";
+import { chatParticipants, chats, messages, personas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -337,5 +337,67 @@ describe("startChat — lazy room creation + opening", () => {
     const [persistentRow] = await db.select().from(chats).where(eq(chats.id, persistent.chat.id));
     expect(tempRow?.temporary).toBe(true);
     expect(persistentRow?.temporary).toBe(false);
+  });
+});
+
+describe("startChat — anchor default-seed (persona.md: the starter's active persona)", () => {
+  /** Insert a personas row (the chats.anchorPersonaId FK target). */
+  async function seedPersona(ownerId: UserId, id: string): Promise<PersonaId> {
+    const personaId = castId<PersonaId>(id);
+    await db.insert(personas).values({ id: personaId, ownerId, name: id, description: "d" });
+    return personaId;
+  }
+
+  test("no explicit anchor: the starter's user-level active persona seeds anchor + host activePersonaId", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const mine = await seedPersona(host, "persona_mine");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveDefaultPersona: (userId) => Promise.resolve(userId === host ? mine : null),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBe(mine);
+    const hostRow = chat.participants.find((p) => p.role === "host");
+    expect(hostRow?.activePersonaId).toBe(mine);
+  });
+
+  test("an explicit anchor always wins over the default seed", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const explicit = await seedPersona(host, "persona_explicit");
+    const fallback = await seedPersona(host, "persona_fallback");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveDefaultPersona: () => Promise.resolve(fallback),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      anchorPersonaId: explicit,
+    });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBe(explicit);
+  });
+
+  test("no explicit anchor + no user-level persona: the anchor stays unset (null, never a broken FK)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBeNull();
   });
 });

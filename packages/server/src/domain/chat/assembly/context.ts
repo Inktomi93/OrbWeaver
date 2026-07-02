@@ -375,7 +375,11 @@ function buildBaseContext(
     promptConfig: input.promptConfig,
     cast,
     castCharacterIds: [...input.castCharacterIds],
-    pinnedPersona: input.personas.anchor,
+    // The NULL-ANCHOR FALLBACK (persona.md dual-persona rule, decided): an unset/dead anchor resolves to
+    // the ACTIVE persona, so card-derived {{user}}/{{persona}} + source==='character' WI never collapse
+    // to the literal "User" while the speaker HAS a persona. A SET anchor still never follows a mid-chat
+    // switch (the stable card POV); the fallback fires only when there is no anchor to hold.
+    pinnedPersona: input.personas.anchor ?? input.personas.active,
     activePersona: input.personas.active,
     speaker: { kind: "single", character },
     recentMessages: [...input.recentMessages],

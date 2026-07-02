@@ -164,6 +164,12 @@ export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
  *  presence is a prompt-composition attack). Read once per round for cast-gating (a flip takes next round). */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
+/** `settings`+`persona` — the starter's USER-LEVEL active persona (`seeds.defaultPersonaId`, validated
+ *  owned/alive at the root — stale/unowned collapses to null so a dead id never lands in the
+ *  `chats.anchorPersonaId` FK). The `startChat` default-seed source (persona.md: no explicit anchor ⇒ the
+ *  starter's active persona anchors the room; the card {{user}} POV is theirs from message one). */
+export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
+
 // ── Memory substrate (injected here, consumed by `memory/` — see FLAG[memory-substrate]) ──
 // REFINED by the memory chunk (the FLAG[memory-substrate] grant): the minimal `{lens,text,blockKey}` store
 // op could not carry the `chat_digests`/`chat_segments` row facets memory produces (topicAnchor/keywords/
@@ -279,6 +285,8 @@ export interface ChatContext {
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   readonly readPresence: PresenceReadOp;
+  /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
+  readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
   // ── memory substrate (consumed by memory/) ──
   readonly embeddingsStore: EmbeddingsStoreOp;
   readonly searchDigests: SearchDigestsOp;
