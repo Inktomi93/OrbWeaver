@@ -24,18 +24,19 @@ const SWIPE_BY_SIDE: Record<DrawerSide, "down" | "left" | "right"> = {
   right: "right",
 };
 
-export interface DrawerProps
-  extends Omit<BaseRootProps, "swipeDirection">,
+export interface DrawerProps<Payload = unknown>
+  extends Omit<BaseRootProps<Payload>, "swipeDirection">,
     VariantProps<typeof drawerVariants> {}
 
 /**
  * Drawer root — seals Base UI Drawer (swipe-to-dismiss with velocity, focus trap, Esc, and scroll
  * lock come free; do not reimplement). State-only. `side` sets the swipe-dismiss direction and
- * must match the `side` on DrawerPopup (both default to "bottom").
+ * must match the `side` on DrawerPopup (both default to "bottom"). Generic over the detached-handle
+ * `Payload` (see `createDrawerHandle`) — a render-function child receives `{ payload }`.
  * `<Drawer side="right"><DrawerTrigger>Open</DrawerTrigger><DrawerPopup side="right">…</DrawerPopup></Drawer>`
  * Spec: ui-package-design §6.1 dictate — Base UI NATIVE drawer (D54 dropped vaul).
  */
-export function Drawer(props: DrawerProps): ReactElement {
+export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactElement {
   const { side = "bottom", ...rest } = props;
   return <BaseDrawer.Root swipeDirection={SWIPE_BY_SIDE[side]} {...rest} />;
 }

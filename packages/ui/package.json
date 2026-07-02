@@ -20,6 +20,7 @@
     "./drawer": "./src/primitives/drawer/index.ts",
     "./empty-state": "./src/primitives/empty-state/index.ts",
     "./field": "./src/primitives/field/index.ts",
+    "./fieldset": "./src/primitives/fieldset/index.ts",
     "./icons": "./src/primitives/icons/index.ts",
     "./input": "./src/primitives/input/index.ts",
     "./layout": "./src/layout/index.ts",

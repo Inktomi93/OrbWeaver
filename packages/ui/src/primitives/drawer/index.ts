@@ -20,3 +20,5 @@ export {
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,
 } from "./drawer";
+export type { DrawerHandle } from "./handle";
+export { createDrawerHandle } from "./handle";

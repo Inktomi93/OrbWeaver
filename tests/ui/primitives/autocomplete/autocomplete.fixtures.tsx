@@ -26,3 +26,15 @@ export function DerivedItemsStory(): ReactElement {
     </div>
   );
 }
+
+/**
+ * A custom `filter` override that matches EVERYTHING regardless of the query (the default substring
+ * filter would hide non-matches). Defined in this browser-bundled fixture — a `filter` must return
+ * synchronously, which a Node-side test closure proxied across the CT boundary cannot do. Proves the
+ * async/fuzzy seam (`filter`) forwards through the wrapper to Base UI Root.
+ */
+export function CustomFilterStory(): ReactElement {
+  return (
+    <Autocomplete aria-label="Tag" filter={(): boolean => true} items={["adventure", "mystery"]} />
+  );
+}

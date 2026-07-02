@@ -13,6 +13,7 @@ import {
 } from "@orb/ui/drawer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { DrawerHandleHarness } from "./drawer-handle.fixtures";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(
@@ -160,4 +161,19 @@ test("virtual-keyboard provider mounts inside the drawer and it still opens", as
 
   await page.getByRole("button", { name: "Open filters" }).click();
   await expect(page.locator('[data-slot="drawer-popup"]')).toBeVisible();
+});
+
+// createHandle: open the drawer imperatively (no trigger) with a payload via handle.openWithPayload;
+// the payload reaches the Root render-function children (harness in ./drawer-handle.fixtures). Base
+// UI drawer re-exports the dialog createHandle mechanism.
+test("opens imperatively via a detached handle and routes the payload to content", async ({
+  mount,
+  page,
+}) => {
+  await mount(<DrawerHandleHarness />);
+  await expect(page.locator('[data-slot="drawer-popup"]')).toBeHidden();
+  await page.getByRole("button", { name: "Open remotely" }).click();
+  const popup = page.locator('[data-slot="drawer-popup"]');
+  await expect(popup).toBeVisible();
+  await expect(popup).toContainText("Reached content");
 });
