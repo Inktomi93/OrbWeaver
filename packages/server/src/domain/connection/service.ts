@@ -5,7 +5,9 @@
 
 import type { ConnectionContext, ConnectionService } from "./contract/service";
 import { createGetCatalog } from "./verbs/get-catalog";
+import { createGetGenerationCost } from "./verbs/get-generation-cost";
 import { createGetModelCapability } from "./verbs/get-model-capability";
+import { createGetOrCredits } from "./verbs/get-or-credits";
 import { createRefreshCatalog } from "./verbs/refresh-catalog";
 import { createResolveChat } from "./verbs/resolve-chat";
 import { createResolveRole } from "./verbs/resolve-role";
@@ -20,5 +22,7 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     getCatalog: createGetCatalog(ctx),
     refreshCatalog: createRefreshCatalog(ctx),
     testClaudeAuth: createTestClaudeAuth(ctx),
+    getOrCredits: createGetOrCredits(ctx),
+    getGenerationCost: createGetGenerationCost(ctx),
   };
 }

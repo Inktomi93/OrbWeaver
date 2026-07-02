@@ -21,13 +21,15 @@ import type {
 } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
-import type { VerifyAuthResult } from "@orb/contracts/providers";
+import type { AccountCredits, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type {
   GetCatalogParams,
+  GetGenerationCostParams,
   GetModelCapabilityParams,
+  GetOrCreditsParams,
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,
@@ -61,6 +63,22 @@ export type VerifyClaudeAuthOp = (req: {
   readonly model: string;
 }) => Promise<VerifyAuthResult>;
 
+/** infra/providers.accountCredits — the OpenRouter credit-balance read (works on any inference key).
+ *  The credential is the caller's resolved `openrouter` key (a missing/revoked key rejects in
+ *  `credentials.resolve` with `DomainNoCredentialError` BEFORE this op is reached). */
+export type AccountCreditsOp = (req: {
+  readonly credential: ResolvedCredential;
+  readonly signal?: AbortSignal | undefined;
+}) => Promise<AccountCredits>;
+
+/** infra/providers.generationCost — the settled upstream cost of ONE generation (must be read with the
+ *  key that billed it; lands a few seconds after the turn). Same no-key rejection path as credits. */
+export type GenerationCostOp = (req: {
+  readonly credential: ResolvedCredential;
+  readonly generationId: string;
+  readonly signal?: AbortSignal | undefined;
+}) => Promise<GenerationCost>;
+
 /**
  * The DI bundle the connection verbs close over (wired at the entry composition root; surfaced through
  * `context.ts`). `db` routes the catalog-snapshot KV through `persistence/`; the three ops are the injected
@@ -73,6 +91,8 @@ export interface ConnectionContext {
   readonly fetchOrCatalog: FetchOrCatalogOp;
   readonly loadUserSettings: LoadUserSettingsOp;
   readonly verifyClaudeAuth: VerifyClaudeAuthOp;
+  readonly accountCredits: AccountCreditsOp;
+  readonly generationCost: GenerationCostOp;
   /** The boot GPU/vLLM-availability fact (`!VLLM_DISABLED && gpuPresent`), threaded from `entry/lifecycle`
    *  via compose. When `false`, `resolveRole` reroutes the DERIVE roles (embed/rerank/imageEmbed) that
    *  resolved to `vllm` onto the in-process `local-light` tier (the generation roles never fall back —
@@ -101,4 +121,11 @@ export interface ConnectionService {
    *  owner-gated `max-pro-sub` credential (credentials enforces D17 — a non-owner rejects there), then run
    *  the tiny SDK verify turn on the cheapest curated tier. `apiKeySource === "none"` = host login active. */
   readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<VerifyAuthResult>;
+  /** The caller's OpenRouter credit balance (neo `models.credits` — the account panel read). Resolves
+   *  the caller's `openrouter` key first: no/revoked key → `DomainNoCredentialError` (the client banner
+   *  floor), never a fabricated zero balance. */
+  readonly getOrCredits: (params: GetOrCreditsParams) => Promise<AccountCredits>;
+  /** The settled cost of one OpenRouter generation (read with the caller's key — the one that billed
+   *  it). Same `DomainNoCredentialError` floor as {@link getOrCredits}. */
+  readonly getGenerationCost: (params: GetGenerationCostParams) => Promise<GenerationCost>;
 }
