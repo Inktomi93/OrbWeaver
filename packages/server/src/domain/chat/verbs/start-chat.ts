@@ -52,6 +52,7 @@ import {
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { resolveGuidedActionText } from "../substrate/assembly-access";
 import { canonMessageDelta, chatCreatedDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent). `emit`
@@ -79,10 +80,10 @@ type MessageViewSeed = ReturnType<typeof buildCommittedMessageView>;
 /** A loaded chat row (the inferred `loadChatRow` return) — named locally (the `fork.ts` precedent). */
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-/** The neutral opening instruction the `generate` path rides on `appendUserTurn` (chat.md §6 — `opening` is
- *  the action whose resolved template IS the turn prompt). FLAG[PD-63]: the rich guided `opening`
- *  template is the guided-steering chunk's seam — a neutral nudge stands in (mirrors `turn.ts`'s nudges). */
-const OPENING_NUDGE = "[Open the scene: write the first message to begin the conversation.]";
+// The `generate` opening's turn prompt is the RESOLVED guided `opening` action template (chat.md §6 —
+// `opening` is the action whose resolved template IS the turn prompt, riding `appendUserTurn`; PD-63 routed).
+// The per-action config comes from the preset (`promptConfig.guidedActions.opening`, contract default
+// fallback); `{{input}}` is empty — startChat carries no composer steer (a steer param can ride later).
 
 /** Map a loaded chat row + its resolved roster → `ChatDetail` (metadata sub-blobs applied to defaults). The
  *  same projection `fork.ts` uses (one shape, no drift). */
@@ -222,6 +223,14 @@ async function runGeneratedOpening(
     },
     foreign,
   );
+  // The opening action's resolved template IS the turn prompt (chat.md §6) — resolved against the built
+  // assemble ctx ({{char}}/{{user}}/… live), delivered on `appendUserTurn` (never a placement).
+  const openingPrompt = resolveGuidedActionText(assembleContext, {
+    action: "opening",
+    input: "",
+    model: connection.model,
+    chatId,
+  });
   return await deps.engine.runTurn({
     chatId,
     assembleContext,
@@ -231,7 +240,7 @@ async function runGeneratedOpening(
     kind: "opening",
     intent: {},
     speakerCharacterId: args.characterIds[0] ?? null,
-    appendUserTurn: OPENING_NUDGE,
+    appendUserTurn: openingPrompt,
   });
 }
 

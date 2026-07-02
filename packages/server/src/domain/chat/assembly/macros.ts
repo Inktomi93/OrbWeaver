@@ -22,6 +22,9 @@
 // both via the immutable turn ctx so a re-render is byte-identical.
 
 import type { AssembleContext, AssemblePersona } from "@orb/contracts/chat";
+import type { GuidedActionKind } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
+import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, ProcessMacroOptions } from "@orb/kit/macro";
 import { createMacroContext, processMacros } from "@orb/kit/macro";
@@ -134,6 +137,33 @@ export function renderMacros(
   original?: string,
 ): string {
   return processMacros(text, macroOptionsFor(ctx, persona, { original }));
+}
+
+/**
+ * Resolve a guided-action TEMPLATE against the turn ctx (chat.md §6 — guided steering, PD-63 routed):
+ * the per-action config comes from the preset (`promptConfig.guidedActions`, falling back to the contract
+ * defaults); the untrusted steering `input` is macro-NEUTRALIZED by the kit resolver (ZWSP between braces)
+ * before it is spliced into `{{input}}`; the rest of the macro context ({{char}}/{{user}}/{{persona}}/…)
+ * resolves against the ACTIVE persona (a steer is user-authored — the dual-persona rule). Resolved ONCE;
+ * the caller delivers the result via EXACTLY ONE placement (system-marker / depth-0 injection / the
+ * `opening` turn prompt) — never re-routed at splice time.
+ */
+export function resolveGuidedActionText(
+  ctx: AssembleContext,
+  args: {
+    readonly action: GuidedActionKind;
+    readonly input: string;
+    readonly model?: string | undefined;
+    readonly chatId?: ChatId | undefined;
+  },
+): string {
+  const config =
+    ctx.promptConfig.guidedActions?.[args.action] ?? DEFAULT_GUIDED_ACTIONS[args.action];
+  return resolveGuidedInstruction(
+    config.prompt,
+    args.input,
+    macroOptionsFor(ctx, ctx.activePersona, { model: args.model, chatId: args.chatId }),
+  );
 }
 
 /**

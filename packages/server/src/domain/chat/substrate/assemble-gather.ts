@@ -28,6 +28,7 @@ import { buildAssembleContext } from "../assembly/context";
 import type { ChatContext } from "../contract/context";
 import type { ForeignInputs } from "../contract/foreign";
 import type { MsgRow } from "../contract/memory";
+import type { GuidedSteer } from "../contract/params";
 import { recallMemory } from "../memory/recall/recall";
 import {
   loadCanonHistory,
@@ -148,6 +149,9 @@ export async function gatherAssembleContext(
     readonly castCharacterIds: readonly CharacterId[];
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
+    /** The one-turn typed steer (chat.md §6, PD-63) — threaded to the BUILD, which resolves the action
+     *  template ONCE and delivers it via its placement (system-marker / depth-0 injection). */
+    readonly guided?: GuidedSteer | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
@@ -232,6 +236,7 @@ export async function gatherAssembleContext(
       ...(args.pendingUserText !== undefined
         ? { pendingUserText: args.pendingUserText, currentInput: args.pendingUserText }
         : {}),
+      ...(args.guided !== undefined ? { guided: args.guided } : {}),
     },
     out,
   );

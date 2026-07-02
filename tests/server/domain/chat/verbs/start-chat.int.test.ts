@@ -274,6 +274,9 @@ describe("startChat — lazy room creation + opening", () => {
     // The creator IS the host of a brand-new room (the D19 triple collapses to the caller).
     expect(prep?.runAsUserId).toBe(host);
     expect(prep?.triggeredBy).toBe(host);
+    // PD-63: the opening turn prompt is the RESOLVED guided `opening` template ({{char}} live), not a
+    // neutral nudge (chat.md §6 — the action whose resolved template IS the turn prompt).
+    expect(prep?.appendUserTurn).toContain("greet me as Aria would");
     // No verbatim greeting was seeded on the generate path.
     const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
     expect(rows).toHaveLength(0);
