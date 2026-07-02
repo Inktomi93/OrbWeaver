@@ -45,3 +45,30 @@ test("role=meter with the filled/segments value semantics", async ({ mount }) =>
   await expect(component).toHaveAttribute("aria-valuenow", "5");
   await expect(component).toHaveAttribute("aria-label", "Ritual");
 });
+
+// A4 — GM-eyes redaction: dimmed + a non-color lock signal, never color alone.
+test("hidden: dims the clock and swaps the center slot for a lock glyph", async ({ mount }) => {
+  const component = await mount(
+    <SegmentedClock filled={2} hidden={true} label="Twist clock" segments={6} />,
+  );
+  await expect(component).toHaveAttribute("data-hidden", "true");
+  await expect(component).toHaveCSS("opacity", "0.5");
+  // The real fill count still renders — this is a GM-eyes viewer who IS allowed to see it.
+  await expect(component.locator('[data-filled="true"]')).toHaveCount(2);
+  await expect(component.locator('[data-slot="hidden-icon"]')).toBeVisible();
+});
+
+test("hidden wins the center-emphasis slot over completed", async ({ mount }) => {
+  const component = await mount(
+    <SegmentedClock completed={true} filled={6} hidden={true} label="Twist clock" segments={6} />,
+  );
+  await expect(component.locator('[data-slot="hidden-icon"]')).toBeVisible();
+  await expect(component.locator('[data-slot="completed-dot"]')).toHaveCount(0);
+});
+
+test("not hidden by default: no lock glyph, full opacity", async ({ mount }) => {
+  const component = await mount(<SegmentedClock filled={2} label="Twist clock" segments={6} />);
+  await expect(component).toHaveAttribute("data-hidden", "false");
+  await expect(component).toHaveCSS("opacity", "1");
+  await expect(component.locator('[data-slot="hidden-icon"]')).toHaveCount(0);
+});
