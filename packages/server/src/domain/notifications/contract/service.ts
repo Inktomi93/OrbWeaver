@@ -35,10 +35,11 @@ export interface NotificationsContext {
  * `recipientUserId`; credentials/secrets are type-level unrepresentable in the union it carries (invariant
  * #2). The op is COMPOSED at `entry/` from this domain's `record` + transport's bus — it is not minted here.
  *
- * FLAG[PD-23]: this domain owns ONLY the durable `record` half. The after-commit per-user bus FAN-OUT and
- * the resumable `authedProcedure.subscription` (the `chat.streamMessages` resume shape — `tracked()` +
- * `lastEventId` replay over this table) are TRANSPORT's (notifications.md §"does NOT own"); `emit` is
- * stitched together at the entry root. notifications never imports transport — the edge is one-directional.
+ * This domain owns ONLY the durable `record` half. The after-commit per-user bus FAN-OUT and the resumable
+ * `authedProcedure.subscription` (`tracked()` + `lastEventId` replay over this table) are TRANSPORT's
+ * (notifications.md §"does NOT own"); `emit` IS stitched together at the entry root (PD-23 cleared —
+ * `entry/compose/chat.ts`: `record` → `publishNotification`, durable-first). notifications never imports
+ * transport — the edge is one-directional.
  */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 

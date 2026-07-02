@@ -9,7 +9,8 @@
 // INSERT, which assigns `seq`) ALWAYS runs before `publishNotification`, so a dead bus path never loses an
 // event: the subscription replays it from the table by `seq`. The bus carries the persisted `InboxView`
 // (with its `seq`) so the live yield is `tracked(view.seq, view)` — uniform with the durable replay.
-// FLAG(entry): wire `EmitNotification` to call `record` then `publishNotification` in that order.
+// WIRED (PD-23): `entry/compose/chat.ts`'s `emitNotification` calls `record` then `publishNotification`,
+// in that order.
 
 import { EventEmitter, on } from "node:events";
 import type { UserId } from "@orb/kit/ids";
