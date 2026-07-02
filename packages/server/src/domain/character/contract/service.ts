@@ -145,6 +145,11 @@ export interface CharacterService {
    *  wired only into the embeddings indexer at the composition root. */
   readonly loadCardText: (characterId: CharacterId) => Promise<string | null>;
 
+  /** Every NON-synthetic character id, ALL owners (the embeddings BULK embed pass's enumeration — PD-53).
+   *  UN-PRINCIPAL like `loadCardText` (D20): a trusted SYSTEM sweep, never a user-facing surface; wired only
+   *  into the embeddings service at the composition root. A read — never throws. */
+  readonly listEmbeddableCharacterIds: () => Promise<readonly CharacterId[]>;
+
   // ── Re-import dedup (import-injected, internal) ─────────────────────────────
   /** The owner's existing character that already carries `importHash` (the re-import dedup oracle), or
    *  `null`. Owner-scoped: a different owner's same-hash card is never returned. A read — never throws. */

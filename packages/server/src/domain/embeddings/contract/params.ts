@@ -71,6 +71,9 @@ export interface CardTextStoreParams {
   readonly content: string;
   readonly model: string;
   readonly dim: number;
+  /** Re-embed even when the stored `content_hash` matches (the PD-53 bulk re-index escape hatch — the
+   *  ONE write path stays the only inserter; force just bypasses the staleness short-circuit). */
+  readonly force?: boolean | undefined;
 }
 
 /** Embed an avatar image's pure visual signal (no caption influence). Unique key: `(assetId, model, lens)`. */
@@ -81,6 +84,8 @@ export interface ImageRawStoreParams {
   readonly content: Uint8Array;
   readonly model: string;
   readonly dim: number;
+  /** Re-embed even on a matched `content_hash` (PD-53 bulk re-index; see {@link CardTextStoreParams}). */
+  readonly force?: boolean | undefined;
 }
 
 /** Embed an avatar image jointly with its generated caption (image bytes + caption → one VL vector). The
@@ -96,6 +101,8 @@ export interface ImageCaptionedStoreParams {
   readonly captionMeta?: Record<string, unknown> | undefined;
   readonly model: string;
   readonly dim: number;
+  /** Re-embed even on a matched `content_hash` (PD-53 bulk re-index; see {@link CardTextStoreParams}). */
+  readonly force?: boolean | undefined;
 }
 
 /** Embed an aged-out chat block's VERBATIM transcript (the §2a segment lens — the ground truth a digest hit
@@ -161,6 +168,16 @@ export type StoreParams =
   | ImageCaptionedStoreParams
   | SegmentStoreParams
   | DigestStoreParams;
+
+// ── bulk embed-pass params (the PD-53 catch-up sweep verbs) ───────────────────
+/** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep over the whole
+ *  corpus/asset store. `force` re-embeds matched rows (else the hash gate skips them — a rerun after an
+ *  abort/failure resumes the remainder for free). `signal` is the cooperative abort, checked BETWEEN items
+ *  (every completed item is durable + idempotent — the `backfillMemory` precedent). */
+export interface EmbedPassParams {
+  readonly force: boolean;
+  readonly signal: AbortSignal;
+}
 
 // ── writeHubScores params (the discovery → embeddings hub-score write seam) ────
 /** One pre-computed hub-score update — keyed `(id, model)` so it lands on the right row in the right space.

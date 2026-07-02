@@ -75,10 +75,11 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
   }
 }
 
-/** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed). */
+/** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
+ *  unless `force`, the PD-53 bulk re-index escape hatch that bypasses ONLY the short-circuit). */
 async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Promise<StoreResult> {
   const hash = contentHash(p.content);
-  if ((await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
+  if (p.force !== true && (await existingCharacterHash(ctx.db, p.characterId, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
   const vector = firstVector((await ctx.roleClients.embed(p.content)).vectors, p.lens, p.model);
@@ -95,13 +96,14 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
   return { outcome: "written", contentHash: hash };
 }
 
-/** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`). */
+/** image-raw / image-captioned → `image_embeddings` (both lenses coexist per `(asset, model, lens)`;
+ *  `force` bypasses the staleness short-circuit — PD-53 bulk re-index). */
 async function storeImage(
   ctx: EmbeddingsContext,
   p: ImageRawStoreParams | ImageCaptionedStoreParams,
 ): Promise<StoreResult> {
   const hash = contentHash(p.content);
-  if ((await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
+  if (p.force !== true && (await existingImageHash(ctx.db, p.assetId, p.lens, p.model)) === hash) {
     return { outcome: "noop", contentHash: hash };
   }
   const req =
