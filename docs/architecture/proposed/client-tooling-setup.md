@@ -115,23 +115,67 @@ on `projectService` (one TS program per package, ~small build cost); accepted as
 
 ## 7. The Vite + Babel + React-Compiler build (`packages/client/vite.config.ts`)
 
-Config-only today — it LOADS cleanly (vite 8.1.2 initializes, all plugins resolve; verified via
-`vite build` failing only at the expected `Cannot resolve entry module index.html`). It builds once
-the app entry (`index.html` + `src/main.tsx`) and the hand-written `src/routes/` tree land — that's
-the client-app's first task, not this tooling pass.
+Fully optimized, fully es2025. Config-only today — it LOADS cleanly and `vite build` fails ONLY at
+the expected `Cannot resolve entry module index.html` (verified — no option/config error surfaces
+before that). Every option below was verified against the installed Vite 8.1.2 `.d.ts` (the coordinator
+asked me to flag any that differ — none did; all names/shapes match at the pinned version). It builds
+once the app entry (`index.html` + `src/main.tsx`) + the hand-written `src/routes/` tree land.
 
-Load-bearing wiring:
+### 7.1 Plugins (order is load-bearing)
 
 - **`babel({ presets: [reactCompilerPreset()] })` BEFORE `react()`** — plugin-react v6 dropped internal
   Babel for oxc, so the React Compiler runs as a `@rolldown/plugin-babel` preset and MUST see
-  unmodified source. FULL-compile from day one (D54).
-- **`tailwindcss()`** then **`vite-plugin-checker`** (dev overlay: tsc + this eslint config;
-  `enableBuild: false` — `pnpm check` owns gate-time).
-- **`resolve.dedupe: ["react", "react-dom"]`** — the two-Reacts / invalid-hook-call fix.
-- **NO `tanstackRouter()`** (§4). **NO `@`/tsconfig-paths alias** — intra-package imports use the
-  package.json `#*` subpath field, resolved natively by Vite (orbweaver principle #2).
-- The dev `/api` proxy + `build.outDir` are PROVISIONAL placeholders — the server HTTP transport isn't
-  wired yet; reconciled when the server entry lands.
+  unmodified source. FULL-compile from day one (D54). Then `tailwindcss()`, then `vite-plugin-checker`
+  (dev overlay: tsc + this eslint config; `enableBuild:false` — `pnpm check` owns gate-time).
+- **NO `tanstackRouter()`** (§4 — file-based codegen dropped). **NO `@`/tsconfig-paths alias** —
+  intra-package imports use the package.json `#*` field (Vite resolves it natively). NO `base`, NO
+  version `define`s (foundation/env owns runtime config), NO hand-written `manualChunks`.
+
+### 7.2 The React-Compiler-sees-@orb/ui correctness guarantee (the one real risk)
+
+`reactCompilerPreset()` (verified in @vitejs/plugin-react@6.0.3) filters by **code content**
+(`rolldown.filter.code` = a React-component regex), **client-env-scoped**
+(`applyToEnvironmentHook: env.consumer === "client"`), and **path-agnostic** — so it compiles any file
+whose source looks like React, INCLUDING @orb/ui components, *as long as @orb/ui is consumed as
+SOURCE*. We make that explicit with **`optimizeDeps.exclude: ["@orb/ui"]`**: a pre-bundled @orb/ui
+would be esbuild-optimized and BYPASS the babel/compiler pass, silently shipping un-memoized ui.
+@orb/ui's own node_modules deps stay pre-bundled (we don't recompile third-party libs); @orb/kit +
+@orb/contracts are source-consumed by default (no React components → compiler no-ops).
+
+### 7.3 `build` — every non-default option + why
+
+- `target: 'es2025'` + `cssTarget: 'es2025'` — fully es2025 (rides esbuild 0.28.1; the workspace
+  esbuild override exists precisely because 0.25.x rejects es2025). CSS-target runtime validation
+  happens once there's CSS to transform (build short-circuits at the missing entry today).
+- `modulePreload: { polyfill: false }` — es2025 browsers ship native modulepreload.
+- `assetsInlineLimit: 0` — **CRITICAL D44 interaction**: no `data:` URIs → the app CSP `img-src` stays
+  tight (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box.
+- `sourcemap: 'hidden'` — maps for our debugging, NOT referenced from the shipped bundle (**D21**
+  privacy).
+- `license: true` — emit the dep-license file (AGPL hygiene).
+- `reportCompressedSize: false` — skip the per-build gzip-size calc (build speed).
+- `manifest: false` — Vite generates `index.html`, Hono serves it as-is. **REVISIT** if Hono ever
+  injects hashed asset tags server-side.
+- `chunkSizeWarningLimit: 1500` — provisional; the lazy-imported seals (echarts/codemirror class) are
+  large-but-legit. Retune against real bundle sizes. Any manual output config goes in
+  **`build.rolldownOptions`** — NEVER the deprecated `rollupOptions` (both exist in Vite 8; we use
+  neither today — Rolldown auto-chunks).
+- `outDir: 'dist'` + `emptyOutDir: true` — provisional; reconciled with the server static-serve path.
+
+### 7.4 `server` (dev) — every non-default option + why
+
+- `strictPort: true` — fail loudly rather than hop ports (stable dev origin for proxy/CSP/auth).
+- `proxy: { '/api': → 127.0.0.1:8788 }` — Vite is the dev front door (neo's shape). **PROVISIONAL** —
+  the server HTTP transport isn't wired; target/prefix reconciled when the server entry lands.
+- `warmup: { clientFiles: ['./src/main.tsx'] }` — pre-transform the shell entry on boot. The
+  router-root path is added when the routes land.
+- `fs: { allow: [searchForWorkspaceRoot(import.meta.dirname)] }` — monorepo access so Vite can serve
+  @orb/* source from the workspace root.
+- `forwardConsole: true` — browser console → terminal (dev half of **PD-58** client observability).
+- `headers` (CSP) — **NOT SET; a TODO + flag** (see §9). The canonical app-document CSP is not defined
+  anywhere yet, so per the full-treatment doctrine the config carries the D44 directive list + the
+  dev-vs-prod-HMR nuance rather than an invented string.
+- `worker.format: 'es'` — reserve-flagged in a comment only (D46 Tier-2 workers are server-side today).
 
 ## 8. Versions + release-age step-downs (`minimumReleaseAge: 1440`)
 
@@ -162,6 +206,16 @@ tools. `@orb/client` devDeps: the Vite build tools. `@orb/client` dep: `@tanstac
   would silence it but is a MAJOR bump on a working, actively-churned test harness that deliberately
   pins 4.7.0 (the config comment warns against a second plugin-react double-transforming). Left as-is;
   it's a one-line `overrides` if we accept the CT-harness risk (validate against `pnpm test:ct` first).
+- **CSP-string gap (dev `server.headers`).** The coordinator wanted dev to set the SAME CSP the prod
+  Hono will set, so D44 violations surface in dev. But NO canonical app-document CSP is defined
+  anywhere yet — `packages/server` has no HTTP transport, and the only CSP in-tree is the per-frame
+  sandbox CSP (`ui/src/content/sandbox-frame/srcdoc.ts`, D44 §12.2). Per the coordinator's own
+  fallback, `server.headers` is a TODO carrying the known D44 directive list (img-src NO `data:`;
+  object-src/frame-ancestors `'none'`; base-uri/form-action `'self'`) + the note that the DEV CSP must
+  be the prod one LOOSENED for Vite HMR (script `'unsafe-inline'`/`'unsafe-eval'`, connect `ws:`/`wss:`).
+  Reference shape: neo-tavern `src/server/app.ts` `secureHeaders({ contentSecurityPolicy: isProd ? … })`
+  — but neo allows `img-src … data:`, which orbweaver D44 forbids, so it is NOT copy-pasteable. FILL IN
+  once the server document CSP is authored.
 - **Dormant-until-consumer:** all query rules, the router `create-route-property-order` rule, and the
   zustand guard no-op on the empty client today — live the moment client code lands.
 - **@orb/ui gated NOW:** the one `incompatible-library` warning (virtual-list) is expected seal
