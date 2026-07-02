@@ -1,12 +1,20 @@
-// runner: memory-backfill — INERT P5 stub. FLAG[PD-41]: the memory digest/segment backfill body →
-// domain/memory when the chat/memory build lands (D38 P5 seam; built WHOLE, D16). The kind, its schema, this
-// runner, and the RUNNERS entry all exist so `exhaustive-dispatch` stays green — but NO work runs yet; it
-// returns a `DeferredResult` (`{ deferred: true }`) so a consumer can tell an inert run from a real
-// zero-work pass. The `ctx.env.memory` seam is declared (contract/runner-env); it is wired + called in P5.
+// runner: memory-backfill (PD-41) — the corpus-wide memory sweep. Wraps `ctx.env.memory.backfill`
+// (chat's `backfillMemory`: enumerate every chat × scope bucket, run the SAME idempotent segment/digest
+// builds the engine's post-turn trigger uses, fold the counts). Resumable by nature (hash-diff self-heal);
+// the signal aborts cooperatively between chats.
 
 import type { Runner } from "../contract/runner";
 
-export const memoryBackfillRunner: Runner<"memory-backfill"> = (_ctx, _params, report, _signal) => {
-  report({ message: "memory backfill deferred to P5 (no-op)" });
-  return Promise.resolve({ deferred: true });
+export const memoryBackfillRunner: Runner<"memory-backfill"> = async (
+  ctx,
+  _params,
+  report,
+  signal,
+) => {
+  report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
+  const counts = await ctx.env.memory.backfill({ signal });
+  report({
+    message: `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)`,
+  });
+  return counts;
 };

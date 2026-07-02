@@ -1,13 +1,13 @@
-// Runner test: group-character-backfill — the INERT P5 stub. Returns a DeferredResult and does NOT touch
-// the (declared-but-deferred) character env op.
+// Runner test: group-character-backfill (PD-41/D38) — wraps ctx.env.character.backfillGroupCharacters,
+// threads the signal, and returns the scanned/minted counts.
 
 import { describe, vi } from "vitest";
 import { groupCharacterBackfillRunner } from "../../../../../packages/server/src/domain/workloads/runners/group-character-backfill.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { fakeEnv, makeRunnerContext } from "../_support.ts";
 
-describe("group-character-backfill runner (P5 stub)", () => {
-  test("is inert — returns deferred and mints no group character", async () => {
+describe("group-character-backfill runner", () => {
+  test("runs the group-room sweep and returns its counts", async () => {
     const env = fakeEnv();
     const result = await groupCharacterBackfillRunner(
       makeRunnerContext(env),
@@ -15,7 +15,9 @@ describe("group-character-backfill runner (P5 stub)", () => {
       vi.fn(),
       new AbortController().signal,
     );
-    expect(result).toEqual({ deferred: true });
-    expect(env.character.mintSyntheticGroupCharacter).not.toHaveBeenCalled();
+    expect(env.character.backfillGroupCharacters).toHaveBeenCalledWith({
+      signal: expect.any(AbortSignal),
+    });
+    expect(result).toEqual({ scanned: 5, changed: 1 });
   });
 });

@@ -20,8 +20,10 @@
 import type { Cas } from "#infra/storage";
 import type {
   AnalyticsResult,
+  BackfillPassResult,
   CatalogRefreshResult,
   EmbedPassResult,
+  MemoryBackfillResult,
   ReconcileStatsWorkloadResult,
 } from "./workload-result";
 
@@ -88,27 +90,22 @@ export interface WorkloadConnectionEnv {
 }
 
 /**
- * memory.* — FLAG[PD-41]: the digest/segment generation passes → `domain/memory` when the chat/memory
- * build lands (D38 P5 seam; built WHOLE, D16). Declared as the TYPED seam now so `WorkloadRunnerEnv` is
- * shape-complete and `entry/` has a target to wire in P5; the `memory-backfill` runner is INERT until then
- * (it does not call these — it returns a `DeferredResult`). The precise op result shapes are finalized with
- * the memory domain in P5; the count pair is a placeholder the P5 build refines.
+ * memory.* (PD-41 cleared): the corpus-wide memory backfill — chat's `backfillMemory` sweep (enumerate
+ * every chat × scope bucket; run the SAME idempotent segment/digest builds the engine's post-turn trigger
+ * uses; fold the counts). Wired at the root from the chat compose product (the sweep needs the full
+ * `ChatContext` — summarizer/embeddings/regex ops — so the env is built AFTER chat).
  */
 export interface WorkloadMemoryEnv {
-  readonly generateDigests: (args: { signal: AbortSignal }) => Promise<MaintenancePassCounts>;
-  readonly generateSegments: (args: { signal: AbortSignal }) => Promise<MaintenancePassCounts>;
+  readonly backfill: (args: { signal: AbortSignal }) => Promise<MemoryBackfillResult>;
 }
 
 /**
- * character.* — FLAG[PD-41]: the synthetic group-character mint → `domain/character` when the group
- * chat / memory build lands (D38 P5 seam). Declared as the TYPED seam now; the `group-character-backfill`
- * runner is INERT until then (returns a `DeferredResult`, does not call this). The op shape is finalized
- * with the group-chat build in P5.
+ * character.* (PD-41 cleared): the synthetic group-character backfill — chat's `backfillGroupCharacters`
+ * sweep (every >1-character room lacking its shared group character gets one minted under the room HOST;
+ * idempotent via the find-first short-circuit).
  */
 export interface WorkloadCharacterEnv {
-  readonly mintSyntheticGroupCharacter: (args: {
-    signal: AbortSignal;
-  }) => Promise<MaintenancePassCounts>;
+  readonly backfillGroupCharacters: (args: { signal: AbortSignal }) => Promise<BackfillPassResult>;
 }
 
 /**

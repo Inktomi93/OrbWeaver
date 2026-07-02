@@ -1,17 +1,19 @@
-// runner: group-character-backfill — INERT P5 stub. FLAG[PD-41]: the synthetic group-character mint
-// body → domain/character when the group chat / memory build lands (D38 P5 seam). Exists so
-// `exhaustive-dispatch` stays green; returns a `DeferredResult`. The `ctx.env.character` seam is declared
-// (contract/runner-env); it is wired + called in P5 (the real runner short-circuits on a stored
-// groupCharacterId — idempotent — when its body lands).
+// runner: group-character-backfill (PD-41/D38) — mint the synthetic group character for every
+// >1-character room that lacks one. Wraps `ctx.env.character.backfillGroupCharacters` (chat's sweep —
+// idempotent via the find-first short-circuit; owner = the room HOST, D19).
 
 import type { Runner } from "../contract/runner";
 
-export const groupCharacterBackfillRunner: Runner<"group-character-backfill"> = (
-  _ctx,
+export const groupCharacterBackfillRunner: Runner<"group-character-backfill"> = async (
+  ctx,
   _params,
   report,
-  _signal,
+  signal,
 ) => {
-  report({ message: "group-character backfill deferred to P5 (no-op)" });
-  return Promise.resolve({ deferred: true });
+  report({ message: "group-character backfill: sweeping group rooms" });
+  const counts = await ctx.env.character.backfillGroupCharacters({ signal });
+  report({
+    message: `group-character backfill: ${counts.scanned} group rooms scanned, ${counts.changed} minted`,
+  });
+  return counts;
 };

@@ -35,6 +35,8 @@ import type {
   TurnStreamChunk,
 } from "#domain/chat";
 import {
+  backfillGroupCharacters,
+  backfillMemory,
   createActiveTurns,
   createChatBus,
   createChatService,
@@ -108,6 +110,14 @@ export interface ChatComposeInput {
 export interface ChatComposeResult {
   readonly service: ChatService;
   readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
+  /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx — the workloads runner-env's memory/character
+   *  backfill ops (the env is built AFTER chat at the root so these can be handed straight in). */
+  readonly backfill: {
+    readonly memory: (args: { signal: AbortSignal }) => ReturnType<typeof backfillMemory>;
+    readonly groupCharacters: (args: {
+      signal: AbortSignal;
+    }) => ReturnType<typeof backfillGroupCharacters>;
+  };
 }
 
 /**
@@ -535,5 +545,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     lockTtlMs: CHAT_LOCK_TTL_MS,
   };
 
-  return { service: createChatService(chatCtx, chatDeps), emitBusEvent: bus.emit };
+  return {
+    service: createChatService(chatCtx, chatDeps),
+    emitBusEvent: bus.emit,
+    backfill: {
+      memory: (args) => backfillMemory(chatCtx, args),
+      groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
+    },
+  };
 }

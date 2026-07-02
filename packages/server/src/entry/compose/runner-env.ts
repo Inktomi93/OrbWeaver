@@ -18,15 +18,19 @@
 //   • discovery.distillCharacters / computeCooccurrence — PD-40 (deferred discovery corpus surface).
 //   • import.importAll — built by the `entry/import/run-profile-import` driver (a later entry slice).
 //   • assets.* (backfillAvatars / collectGarbage / fsck) — PD-26 (the assets GC/backfill wave).
-//   • memory.* (generateDigests / generateSegments) + character.mintSyntheticGroupCharacter — PD-41 (P5).
+// WIRED (PD-41 cleared): memory.backfill + character.backfillGroupCharacters — chat's corpus sweeps,
+//   handed in as BOUND ops from the chat compose product (the sweeps need the full ChatContext, so the
+//   env is built AFTER chat at the root).
 
 import type { Db } from "@orb/db";
 import type { ConnectionService } from "#domain/connection";
 import type { DiscoveryService } from "#domain/discovery";
 import { reconcileStats } from "#domain/stats";
 import type {
+  WorkloadCharacterEnv,
   WorkloadConnectionEnv,
   WorkloadDiscoveryEnv,
+  WorkloadMemoryEnv,
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
 } from "#domain/workloads";
@@ -49,6 +53,9 @@ export interface RunnerEnvDeps {
     "computeThemes" | "computeDuplicatePairs" | "computeCharacterHubScores"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog">;
+  /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx at the root (built after chat). */
+  readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
+  readonly groupCharacterBackfill: WorkloadCharacterEnv["backfillGroupCharacters"];
 }
 
 /** A typed inert seam for a DEFERRED op — rejects loudly (never fakes a success). The arg is ignored; the
@@ -111,25 +118,9 @@ export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
         return { models: snap.models.length };
       },
     },
-    // FLAG[PD-41-memory-sweep]: the chat front doors `generateDigests`/`generateSegments` ARE built now, but
-    // they are PER-CHAT-PER-SCOPE (`(ChatContext, {scope, witnessing, …})`) — they CANNOT satisfy this env op's
-    // corpus-wide `({signal}) => MaintenancePassCounts` shape. The missing piece is a `memory-backfill` runner
-    // that ENUMERATES every chat × scope (deriving each witnessing horizon) and folds the per-chat counts — real
-    // memory logic that does NOT belong at entry. Left INERT (loud) until that backfill verb lands; the on-turn
-    // build fires via the chat engine's own ctx, not this sweep.
-    memory: {
-      generateDigests: notBuilt(
-        "memory.generateDigests corpus sweep not built (FLAG[PD-41-memory-sweep]) — front door is per-chat-per-scope",
-      ),
-      generateSegments: notBuilt(
-        "memory.generateSegments corpus sweep not built (FLAG[PD-41-memory-sweep]) — front door is per-chat-per-scope",
-      ),
-    },
-    character: {
-      mintSyntheticGroupCharacter: notBuilt(
-        "character.mintSyntheticGroupCharacter backfill not built (PD-41) — P5 group-chat build",
-      ),
-    },
+    // PD-41 cleared: chat's corpus sweeps (substrate/backfill.ts), bound over the chat ctx at the root.
+    memory: { backfill: deps.memoryBackfill },
+    character: { backfillGroupCharacters: deps.groupCharacterBackfill },
     cas: deps.cas,
   };
 }

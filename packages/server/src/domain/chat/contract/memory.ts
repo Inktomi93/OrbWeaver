@@ -167,3 +167,19 @@ export interface ParsedDigest {
   readonly facts: string;
   readonly keywords: string[];
 }
+
+// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts` — the workloads runner-env adapts these; the
+//    workload contract declares its own structurally-identical shapes, never imports chat's). ──
+
+/** One sweep pass's fold: entities visited × rows actually written. */
+export interface BackfillPassCounts {
+  readonly scanned: number;
+  readonly changed: number;
+}
+
+/** The memory-backfill sweep result: the segment pass (scanned = chats) + the digest pass (scanned =
+ *  scope buckets). */
+export interface MemoryBackfillCounts {
+  readonly segments: BackfillPassCounts;
+  readonly digests: BackfillPassCounts;
+}
