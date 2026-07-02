@@ -7,6 +7,7 @@
 // NOTHING from `tokens/`. No shared read primitive lives here — each verb routes through `persistence/`.
 
 import type { Db } from "@orb/db";
+import { createPasswordHasher } from "#infra/auth";
 import type { SessionsContext } from "./contract/service";
 import { createTokenHasher, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "./tokens/tokens";
 
@@ -19,6 +20,10 @@ export function createSessionsContext(
     db,
     now,
     hashToken: createTokenHasher(sessionSecret),
+    // The password VERIFY half (PD-83) — bound from the SAME pepper as the token hasher (infra/auth's
+    // sealed adapter, imported DOWN; the hash MINT half stays admin's injected op). Unset pepper ⇒ a
+    // disabled hasher that throws at call time (AUTH_MODE=local env-requires SESSION_SECRET).
+    verifyPassword: createPasswordHasher(sessionSecret).verify,
     ttlMs: SESSION_TTL_MS,
     slideThrottleMs: SLIDE_THROTTLE_MS,
   };

@@ -3,11 +3,12 @@
 // (movement table: the inferred `ReturnType<>` is invisible at a glance, so the bundle is a hand-written
 // interface here — `no-context-returntype` forbids reflecting it off the builder).
 //
-// 9 verbs across the BFF session lifecycle + identity resolution (sessions.md §"What this domain owns"):
+// 10 verbs across the BFF session lifecycle + identity resolution (sessions.md §"What this domain owns"):
 //   create · validate · revokeByToken · revoke · revokeAllForUser · listForUser · ensureUser ·
-//   provisionIdentity · loadUserById. The seam (`entry/auth/seam.ts`) consumes validate/provisionIdentity/
-//   ensureUser to mint the one `Principal` (+ loadUserById for the frozen-host bridge, PD-73); `admin`
-//   consumes listForUser/revoke/revokeAllForUser via an injected port.
+//   provisionIdentity · loadUserById · authenticate. The seam (`entry/auth/seam.ts`) consumes validate/
+//   provisionIdentity/ensureUser to mint the one `Principal` (+ loadUserById for the frozen-host bridge,
+//   PD-73); `admin` consumes listForUser/revoke/revokeAllForUser via an injected port; the `entry/http`
+//   local-login route consumes authenticate (PD-83).
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
@@ -39,6 +40,10 @@ export interface SessionsContext {
    *  (`domain-substrate-mediates-subsystems`: only the composition surfaces touch `tokens/`). */
   ttlMs: number;
   slideThrottleMs: number;
+  /** The infra/auth password VERIFY (PD-83) — bound in `context.ts` from the same `SESSION_SECRET` pepper
+   *  as `hashToken` (the token-hasher precedent). Constant-time against a stored `scrypt$…` hash; a null/
+   *  malformed stored value is a fast `false` (the VERB supplies the dummy-hash burn — see authenticate). */
+  verifyPassword: (plain: string, stored: string | null | undefined) => Promise<boolean>;
 }
 
 export interface SessionsService {
@@ -77,4 +82,10 @@ export interface SessionsService {
    *  REAL role — sessions is the sanctioned `users` reader, so the read homes here. @internal — only the
    *  `entry/auth` seam's `createHostPrincipalResolver` calls it. */
   loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
+  /** LOCAL password login (PD-83): resolve `(handle, password)` → the row's `UserId`, or `null` for an
+   *  unknown handle / SSO-only (null-hash) row / wrong password / DISABLED row — all four collapse into
+   *  one leak-free null, and every path burns the same KDF time (the dummy-hash constant-time floor —
+   *  no user-enumeration timing oracle). The route mints the session from the returned id
+   *  (`sessions.create`); this verb only RESOLVES. @internal — only the `entry/http` login route calls it. */
+  authenticate: (handle: string, password: string) => Promise<UserId | null>;
 }

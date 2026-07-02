@@ -1,4 +1,4 @@
-// domain/sessions — COMPOSITION ROOT: wires the 9 verbs over the DI bundle (zero logic). The revocable
+// domain/sessions — COMPOSITION ROOT: wires the 10 verbs over the DI bundle (zero logic). The revocable
 // BFF session lifecycle + identity resolution. Pure DB + crypto — NO cookie I/O (the route sets the
 // cookie) and NO `Principal` mint (the `entry/auth/seam` does that from validate/provisionIdentity/
 // ensureUser). The `SESSION_SECRET` pepper is injected here and bound into the token hasher (D38); the
@@ -7,6 +7,7 @@
 import type { Db } from "@orb/db";
 import { createSessionsContext } from "./context";
 import type { SessionsService } from "./contract/service";
+import { createAuthenticate } from "./verbs/authenticate";
 import { createCreate } from "./verbs/create";
 import { createEnsureUser } from "./verbs/ensure-user";
 import { createList } from "./verbs/list";
@@ -33,5 +34,6 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createEnsureUser(ctx),
     ...createProvisionIdentity(ctx),
     ...createLoadUserById(ctx),
+    ...createAuthenticate(ctx),
   };
 }
