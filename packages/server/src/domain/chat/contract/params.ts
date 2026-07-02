@@ -132,6 +132,16 @@ export interface ReplayStreamEventsParams extends ChatScopedParams {
 
 export interface StreamEventBoundsParams extends ChatScopedParams {}
 
+/** `replayChatEvents` — resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE
+ *  reconnect replay; chat_events is append-only, so a replay is never truncated). */
+export interface ReplayChatEventsParams extends ChatScopedParams {
+  /** Replay strictly after this `seq`; absent ⇒ the whole log (callers pass the resume cursor). */
+  readonly afterSeq?: number | undefined;
+}
+
+/** `chatEventBounds` — the durable chat-bus log's cursor bounds (+ the SSE per-yield membership gate). */
+export interface ChatEventBoundsParams extends ChatScopedParams {}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // turn-running
 // ─────────────────────────────────────────────────────────────────────────────

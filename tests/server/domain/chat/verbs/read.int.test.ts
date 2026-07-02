@@ -15,6 +15,7 @@ import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
 import { freshDb } from "../../../../support/db";
@@ -316,5 +317,36 @@ describe("read — default-deny (membership chokepoint)", () => {
     await expect(read.listForks({ principal: p, chatId })).rejects.toBeInstanceOf(
       ChatNotFoundError,
     );
+  });
+});
+
+describe("read — durable chat-bus log (the streamMessages SSE resume)", () => {
+  test("replayChatEvents resumes after a cursor; chatEventBounds reports min/max; both member-gated", async () => {
+    const me = await seedUser(db, "me");
+    const stranger = await seedUser(db, "stranger");
+    const chatId = await seedRoom("room", me);
+    // Emit through the REAL domain bus (durable-first) — the replay reads what emit wrote.
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    await bus.emit({ type: "chatUpdated", chatId });
+    await bus.emit({ type: "chatDeleted", chatId });
+    await bus.emit({ type: "chatUpdated", chatId });
+
+    const { replayChatEvents, chatEventBounds } = createRead(ctx, makeDeps());
+
+    const tail = await replayChatEvents({ principal: principal(me), chatId, afterSeq: 1 });
+    expect(tail.map((e) => e.seq)).toEqual([2, 3]);
+    expect(tail.map((e) => e.event.type)).toEqual(["chatDeleted", "chatUpdated"]);
+
+    const bounds = await chatEventBounds({ principal: principal(me), chatId });
+    expect(bounds).toEqual({ minSeq: 1, maxSeq: 3 });
+
+    // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
+    await expect(
+      replayChatEvents({ principal: principal(stranger), chatId }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(
+      chatEventBounds({ principal: principal(stranger), chatId }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });

@@ -40,6 +40,7 @@ import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
 import type {
+  ChatEventBoundsParams,
   GetActivePresetConfigParams,
   GetChatLineageParams,
   GetChatParams,
@@ -51,6 +52,7 @@ import type {
   PeekPromptParams,
   PreviewAssemblyParams,
   PreviewSectionParams,
+  ReplayChatEventsParams,
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
 } from "../contract/params";
@@ -70,6 +72,8 @@ import { gateLineagePerAncestor, requireParticipant } from "../guard";
 import {
   listMemberChats,
   loadAncestorChain,
+  chatEventBounds as loadChatEventBounds,
+  replayChatEvents as loadChatEventReplay,
   loadChatMessageStats,
   loadForkChildren,
   loadMessagesPage,
@@ -106,6 +110,8 @@ type ReadVerbs = Pick<
   | "listMessages"
   | "listParticipants"
   | "replayStreamEvents"
+  | "replayChatEvents"
+  | "chatEventBounds"
   | "streamEventBounds"
 >;
 
@@ -450,6 +456,29 @@ function createStreamEventBounds(ctx: ChatContext): ChatService["streamEventBoun
   };
 }
 
+// ── durable chat-bus reads (the `streamMessages` SSE resume; PD-46's stream half) ───────────────
+
+/** `replayChatEvents` — resume the durable chat-bus log from a cursor (the SSE reconnect replay; the log is
+ *  append-only, so a resume is never truncated). Member-gated; the events are room-public by the bus
+ *  payload allowlist (inv #11). */
+function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents"] {
+  return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
+    await requireParticipant(ctx, principal, chatId);
+    const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
+    return rows.map(({ seq, payload }) => ({ seq, event: payload }));
+  };
+}
+
+/** `chatEventBounds` — the durable bus-log cursor bounds. ALSO the SSE per-yield membership gate: the
+ *  `streamMessages` generator calls this before each live yield so a kicked member's stream stops within
+ *  the kick tx (Tier-4 "the membership chokepoint must cover the SSE subscribe path"). */
+function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"] {
+  return async ({ principal, chatId }: ChatEventBoundsParams): Promise<StreamEventBounds> => {
+    await requireParticipant(ctx, principal, chatId);
+    return await loadChatEventBounds(ctx.db, chatId);
+  };
+}
+
 /**
  * The read-surface verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root
  * spreads it into the full service. PURE reads (membership-gated; no mutation, no bus emit). `deps` carries the
@@ -469,5 +498,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     listParticipants: createListParticipants(ctx, deps),
     replayStreamEvents: createReplayStreamEvents(ctx),
     streamEventBounds: createStreamEventBounds(ctx),
+    replayChatEvents: createReplayChatEvents(ctx),
+    chatEventBounds: createChatEventBounds(ctx),
   };
 }

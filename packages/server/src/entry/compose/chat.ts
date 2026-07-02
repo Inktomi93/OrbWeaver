@@ -22,7 +22,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
 import { chats, personas, users } from "@orb/db";
-import type { Handle, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
@@ -60,7 +60,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
-import { publishNotification } from "../../transport/trpc";
+import { publishChatEvent, publishNotification } from "../../transport/trpc";
 
 /** Per-chat turn-lock TTL (ms), sized for one turn — the lock auto-expires so a crashed holder's lock is
  *  takeover-eligible (the steady-state recovery; boot reclaim handles this replica's own orphans). */
@@ -394,6 +394,26 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // `coStatements` (PD-24): the producer's membership-transition statements commit in ONE batch WITH the
     // INSERT (record owns the commit); the publish still runs strictly AFTER that commit.
     resolveHandle: (handle) => input.resolveHandle(handle),
+    // The startChat anchor default-seed: the starter's user-level active persona (settings
+    // `seeds.defaultPersonaId`), VALIDATED as an owned live persona (persona.get under the synthetic
+    // host principal) -- a stale/unowned id collapses to null so a dead id never lands in the
+    // `chats.anchorPersonaId` FK.
+    resolveDefaultPersona: async (userId) => {
+      const us = await input.settings.loadUserSettings(userId);
+      const raw = us.seeds.defaultPersonaId;
+      if (raw === null) {
+        return null;
+      }
+      try {
+        const persona = await input.persona.get({
+          principal: hostPrincipal(userId),
+          personaId: castId<PersonaId>(raw),
+        });
+        return persona.id;
+      } catch {
+        return null; // stale/unowned default -> no seed (the anchor stays unset).
+      }
+    },
     emitNotification: async (event, coStatements) => {
       const view = await input.notifications.record({
         event,
@@ -455,10 +475,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   };
 
   const bus = createChatBus({ db, now, newEventId: chatCtx.newEventId });
+  // DURABLE-FIRST live fan-out (the streamMessages SSE half): the domain bus assigns the per-chat `seq`
+  // (the `chat_events` INSERT commits first), THEN the same cursor-stamped event goes to the transport
+  // per-chat live channel — a dead live path never loses an event (the subscription replays by `seq`).
+  // ONE wrapper for every emitter (verbs + the world-info ride-along), so WI events stream too.
+  const emitAndPublish = async (event: ChatBusEvent): Promise<void> => {
+    const seq = await bus.emit(event);
+    publishChatEvent({ seq, event });
+  };
   const memberBudget = createMemberBudget(db, { windowMs: MEMBER_BUDGET_WINDOW_MS, now });
 
   const chatDeps: ChatServiceDeps = {
-    emit: bus.emit,
+    emit: emitAndPublish,
     activeTurns: createActiveTurns(),
     // The PROD seed (D46): the eval path injects a seeded PRNG; at the entry root the real entropy source is
     // sanctioned (this is the composition root, not determinism-gated domain code).
@@ -550,7 +578,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   return {
     service: createChatService(chatCtx, chatDeps),
-    emitBusEvent: bus.emit,
+    emitBusEvent: emitAndPublish,
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),

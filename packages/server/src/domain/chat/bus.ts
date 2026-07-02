@@ -29,9 +29,10 @@ import type { ChatContext } from "./contract/context";
 import { appendChatEvent } from "./persistence/events";
 
 /** The bus emit op the verbs/engine close over — durable-first (the `chat_events` row commits before the
- *  in-process ring push). NON-exported (the `types-in-contract` gate); the verb factories inline the same
- *  function shape for their `emit` param. */
-type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
+ *  in-process ring push). Returns the durable per-chat `seq` so the composition root can fan the SAME
+ *  cursor-stamped event onto the transport live bus (the `streamMessages` SSE half — the verbs' inlined
+ *  `Promise<void>` emit shape stays assignable). NON-exported (the `types-in-contract` gate). */
+type EmitChatEvent = (event: ChatBusEvent) => Promise<number>;
 
 /** One replay-ring entry — the per-chat replay cursor + the room-public event (the late-subscriber ramp-up
  *  the transport reads before it tails live). */
@@ -84,6 +85,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
       ring.splice(0, ring.length - RING_CAPACITY);
     }
     rings.set(chatId, ring);
+    return seq;
   };
 
   const readRing = (chatId: ChatId, afterSeq?: number): ChatRingEntry[] => {

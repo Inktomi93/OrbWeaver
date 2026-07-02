@@ -12,6 +12,7 @@
 import type {
   AssembledPrompt,
   AssembleTrace,
+  ChatBusEvent,
   ChatInjection,
   GroupConfig,
   MessageView,
@@ -107,8 +108,17 @@ export interface ChatStreamReplayEvent {
   readonly delta: string;
 }
 
-/** The replay cursor bounds (streamEventBounds) — the min/max `seq` of the chat's stream log (null/null when
- *  empty). The late-subscriber ramp-up reads these to size the replay window. */
+/** A durable chat-bus log row (replayChatEvents) — one room-public `ChatBusEvent` with its per-chat replay
+ *  cursor (the `chat_events` row projected). The `chat.streamMessages` SSE resume replays these; the live
+ *  half rides the transport fan-out with the SAME `{seq, event}` shape (uniform `tracked()` envelopes). */
+export interface ChatBusReplayEvent {
+  readonly seq: number;
+  readonly event: ChatBusEvent;
+}
+
+/** The replay cursor bounds (streamEventBounds / chatEventBounds) — the min/max `seq` of the chat's stream
+ *  log / durable bus log (null/null when empty). The late-subscriber ramp-up reads these to size the replay
+ *  window; `chatEventBounds` doubles as the cheap membership gate the SSE per-yield check calls. */
 export interface StreamEventBounds {
   readonly minSeq: number | null;
   readonly maxSeq: number | null;
