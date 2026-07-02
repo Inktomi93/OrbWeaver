@@ -24,7 +24,8 @@ describe("create", () => {
     expect(detail.name).toBe("My RP");
     expect(detail.isSystemDefault).toBe(false);
     expect(detail.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
-    expect(h.audits.map((a) => a.entry.action)).toContain("preset.create");
+    const create = h.audits.find((a) => a.entry.action === "preset.create");
+    expect(create?.entry.metadata).toEqual({ name: "My RP", kind: "roleplay" });
 
     const fetched = await svc.get({ userId: owner, id: detail.id });
     expect(fetched.id).toBe(detail.id);

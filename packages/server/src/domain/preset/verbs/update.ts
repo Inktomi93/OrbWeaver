@@ -18,7 +18,7 @@ import { toPresetDetail } from "../substrate/views";
 // never matches that scope, so the COW branch is the ONLY way it is touched through the verb API.
 
 const PRESET_UPDATE = "preset.update";
-const PRESET_CREATE = "preset.create";
+const PRESET_FORK = "preset.fork";
 const PRESET_ENTITY = "preset";
 
 /** Build the partial SET — only the present keys are written; a config edit also re-stamps schemaVersion. */
@@ -58,7 +58,9 @@ async function cowFork(
   const row = {
     id: forkId,
     ownerId: params.userId,
-    name: params.name ?? base.name,
+    // The `(edited)` suffix (neo parity) distinguishes the fork from the pristine system default in the
+    // picker — applied only when the caller didn't name it explicitly.
+    name: params.name ?? `${base.name} (edited)`,
     kind: params.kind ?? base.kind,
     config,
     schemaVersion: config.schemaVersion,
@@ -70,12 +72,15 @@ async function cowFork(
     { userId: params.userId, presetId: forkId },
     "preset: copy-on-write fork of system default",
   );
+  // A DISTINCT fork action (not preset.create) carrying the provenance — the fork is a create-shaped
+  // write but forensically it's "the user edited the shared default", which `forkedFrom` records.
   await ctx.audit(
     {
       actorUserId: params.userId,
-      action: PRESET_CREATE,
+      action: PRESET_FORK,
       entityType: PRESET_ENTITY,
       entityId: forkId,
+      metadata: { forkedFrom: SYSTEM_DEFAULT_PRESET_ID },
     },
     now,
   );
@@ -92,12 +97,20 @@ export function createUpdate(ctx: PresetContext): Pick<PresetService, "update"> 
     if (row === undefined) {
       throw new PresetNotFoundError(params.id);
     }
+    // `edits` = the scalar fields the caller actually changed (name/kind — omitted keys contribute
+    // nothing, exactOptionalPropertyTypes-clean); `configUpdated` flags the heavy config replace
+    // separately (the config blob itself is too large + noisy to log).
+    const edits = {
+      ...(params.name === undefined ? {} : { name: params.name }),
+      ...(params.kind === undefined ? {} : { kind: params.kind }),
+    };
     await ctx.audit(
       {
         actorUserId: params.userId,
         action: PRESET_UPDATE,
         entityType: PRESET_ENTITY,
         entityId: params.id,
+        metadata: { edits, configUpdated: params.config !== undefined },
       },
       now,
     );
