@@ -138,11 +138,11 @@ canon, column-for-column. Agent-authored rows need BOTH arms, decided together:
   ownership. **This answers PD-21's re-open note** ("the multi-owner question re-opens with v2's
   first-class-agent roster — re-decide there"): re-decided — host-attribution, both paths, one
   more int-test row in the PD-21 suite.
-- **Per-agent cost visibility — DEFERRED with criterion:** "what does my buddy cost" is
-  answerable on-read (`GROUP BY authorUserId` over agent-authored variants) without a fifth
-  rollup table. Build a rollup only when a real UI surface asks for it at a scale where the scan
-  hurts. *(Rejected for now: an `agent_stats` rollup — a new always-written table for a question
-  nobody has asked on a single-operator scan-friendly dataset.)*
+- **Per-agent cost visibility — DEFERRED, RATIFIED (Nate, 2026-07-01: "idgaf"):** "what does my
+  buddy cost" is answerable on-read (`GROUP BY authorUserId` over agent-authored variants)
+  without a fifth rollup table. Build a rollup only when a real UI surface asks for it at a
+  scale where the scan hurts. *(Rejected: an `agent_stats` rollup — a new always-written table
+  for a question nobody has asked on a single-operator scan-friendly dataset.)*
 
 ## 5. Memory witnessing — agents witness like humans; no new bucket kind
 

@@ -63,9 +63,12 @@ narration in rpg games stays authored by the synthetic group character even unde
 holder, because memory keying (`scopedCharacterId`, D55) and inv-9 ("narrator authored by the
 group character, never NULL") hang off it; the agent holds the AUTHORITY axis, the group
 character keeps the AUTHORSHIP-bucketing axis. One seat, two axes, no rework of the memory
-substrate.) *(Lean on timing: build AFTER buddy-in-room proves the seat machinery (AP4);
-criterion: the first user ask for "my buddy runs our campaign," which is the feature's actual
-name.)*
+substrate.) **Timing — DECIDED (Nate, 2026-07-01): agent-GM is WANTED and is a HEADLINE
+deliverable, pulled forward.** The GM-seat re-keys are a first-class goal of the seat work, not a
+trailing option: AP4a lands WITH AP3 as one wave, and the wave's demo checkpoint is "the buddy
+holds the GM seat and runs a session" (doc 07 §2). The buddy-in-room machinery is still built
+first WITHIN the wave (the re-keys depend on the speaker plumbing), but the wave does not ship
+without the agent GM. *(Supersedes the earlier build-after-and-wait-for-an-ask lean.)*
 
 ## 3. Crew / workload attribution — the bright line (lean: NEVER a principal, with the criterion)
 

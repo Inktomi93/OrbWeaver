@@ -54,32 +54,48 @@ render-chrome arm · the D22 `AgentCardView` · export provenance + import degra
 room's digest build includes the agent's lines in the shared bucket; export→import round-trip
 degrades per doc 06 §6. (AP2 tests may seat via test fixture — `seatAgent` itself is AP3.)
 
-### AP3 — buddy adoption (L)
+### AP3 + AP4a — THE SEAT WAVE (L; one wave, two committable chunks; agent-GM is a HEADLINE deliverable — Nate, 2026-07-01: "agent running GM is wanted")
 
+The GM seat is PULLED FORWARD (superseding the earlier build-after-and-wait lean): AP4a ships in
+the same wave as AP3, and the wave is not done until the buddy runs a session from the GM seat.
+Internal order (a dependency, not a demotion — the re-keys need the speaker plumbing):
+
+**AP3 (buddy adoption — the wave's first chunk, L):**
 `chat.seatAgent` (+ the owner-request notification member + the two-party flow) ·
 `buddy.resolveSpeakerIdentity` (front-door op) · the `AGENT_SPEAKER_SOURCES` registry +
 `ChatContext.resolveAgentSpeaker` wiring at compose · the room turn end-to-end (RESOLVE via the
 registry, `resolveRole('agent')`, host funding, self-attributed persist) · the observer
 self-event drop (doc 04 §6, if PD-45 has landed) · client: seat flow + agent badge + admin tab.
-**Checkpoint:** the demo: hatch → solo chat (byte-identical to pre-AP0) → seat buddy in a group
-room → it is arbiter-selected, speaks in-soul, self-attributed, host-funded → kick it → disable
-its principal → re-run the containment suite against the LIVE seated topology (not just the
-unseated one) → re-enable → it speaks again. Solo-byte-identity re-pinned LAST.
 
-### AP4 — seats (S–M, two independent sub-chunks)
+**AP4a (the rpg seats — the wave's second chunk, S–M):** the agent party seat (`joinParty` agent
+arm + auto-resolve checks) · the three GM-seat re-keys (`requireGmSeat` widened sentinel,
+gather-by-holder, director/GM-eyes by holder kind) · the game-turn tool attachment for an
+agent-GM speaker (the rpg registry on the recurse loop, exactly the seat-NULL narrator path) ·
+the spoiler tests extended (doc 05 inv 2).
 
-**AP4a (rpg):** the agent party seat (`joinParty` agent arm + auto-resolve checks) · the three
-GM-seat re-keys (`requireGmSeat` widened sentinel, gather-by-holder, director/GM-eyes by holder
-kind) · the spoiler tests extended (doc 05 inv 2). **AP4b (crew):** NO CODE — the bright-line
-criterion is recorded (doc 05 §3) and the compose-table review confirms no runner holds a
-canon-write op. **Checkpoint (AP4a):** an agent-held campaign plays a session end-to-end; the
-rpg-12 §9 seat-movement tests pass with the third holder state in the matrix.
+**The WAVE checkpoint (one demo, both chunks green):** hatch → solo chat (byte-identical to
+pre-AP0) → seat buddy in a group room → it is arbiter-selected, speaks in-soul, self-attributed,
+host-funded → **assign it the GM seat of a game chat → it runs a session** (gathers the full GM
+ring, fires rpg tools under `requireGmSeat`, the director stays armed, GM narration stays
+group-character-authored, the host keeps GM-eyes) → kick it → disable its principal → re-run the
+containment suite against the LIVE seated topology (roster seat AND GM seat) → re-enable → it
+speaks and GMs again. Solo-byte-identity re-pinned LAST. The rpg-12 §9 seat-movement tests pass
+with the third holder state in the matrix.
+
+### AP4b — crew (NO CODE)
+
+The bright-line criterion is recorded (doc 05 §3) and the compose-table review confirms no
+runner holds a canon-write op.
 
 **Dependency notes:** AP0 must land inside the pre-launch baseline window (it is the only
-calendar-coupled chunk). AP1→AP2→AP3 are strictly ordered. AP4a needs AP3 (the speaker machinery)
-+ the rpg R-chunks it amends (R1/R3/R4 shipped). Nothing here blocks, or is blocked by, the crew
-CW-chunks. PD-17's registry row re-points at this set and flips `blocked:v2 → blocked:AP1` once
-AP0 lands (the burn agent owns the registry file — see the D60 entry).
+calendar-coupled chunk). AP1→AP2→the seat wave are strictly ordered; within the wave AP3
+precedes AP4a (speaker plumbing), but the wave ships as one deliverable — agent-GM is not
+optional and not trailing. AP4a additionally needs the rpg R-chunks it amends (R1/R3/R4
+shipped); if the rpg chunks are not yet landed when the wave arrives, AP3 ships alone and the
+wave stays OPEN until AP4a closes it (the headline is not waived, only sequenced behind its rpg
+dependency). Nothing here blocks, or is blocked by, the crew CW-chunks. PD-17's registry row
+re-points at this set and flips `blocked:v2 → blocked:AP1` once AP0 lands (the burn agent owns
+the registry file — see the D60 entry).
 
 ## 3. Sizes and the hard parts (honest)
 
@@ -88,13 +104,14 @@ AP0 lands (the burn agent owns the registry file — see the D60 entry).
 | AP0 | S | none — schema + belts + tests; the discipline is not skipping the belts |
 | AP1 | M | the refusal matrices are wide (every surface × every mode); resist collapsing them into "one representative test" |
 | AP2 | M/L | the attribution/stats twin-path equality — the drift suite must gain the agent row on BOTH writers in the same commit, or the gate lies |
-| AP3 | L | the two-party seating UX + keeping the room turn on the ONE path while injecting a speaker source chat can't name; the solo-byte-identity re-pin catches the likeliest regression |
-| AP4a | S–M | the GM-eyes/director re-keys touch spoiler surfaces — the canary tests are the safety net, run per holder state |
+| AP3 (seat wave, chunk 1) | L | the two-party seating UX + keeping the room turn on the ONE path while injecting a speaker source chat can't name; the solo-byte-identity re-pin catches the likeliest regression |
+| AP4a (seat wave, chunk 2 — HEADLINE) | S–M | the GM-eyes/director re-keys touch spoiler surfaces — the canary tests are the safety net, run per holder state; the wave does not close without it |
 
 ## 4. The containment suite (the named deliverable: a disabled agent principal can do NOTHING)
 
-One test module, run at AP1 (unseated) and re-run at AP3 (live seated topology), parameterized
-over `enabled: false` (and, where marked ⊘, over the agent's mere existence):
+One test module, run at AP1 (unseated) and re-run at the seat wave's close (live seated topology
+— roster seat AND GM seat), parameterized over `enabled: false` (and, where marked ⊘, over the
+agent's mere existence):
 
 1. **Auth:** every auth mode × the agent row → no session, no Principal, 401-shaped refusal. ⊘
    (holds regardless of enabled — wall one is unconditional.)

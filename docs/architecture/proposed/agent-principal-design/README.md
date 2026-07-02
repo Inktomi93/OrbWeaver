@@ -60,6 +60,23 @@ minimum contract deltas. One model, one auth spine, no second agent system.
 | How is a runaway contained? | **`users.enabled = false` (one flip) + kick** | disable removes the agent from every cast/arbitration and refuses its turns everywhere; kick contains one room |
 | Does solo buddy change? | **NO — byte-identical** | `buddy_turns` stays the solo transcript; the firewall inverts only for rooms, where the speech is chat's canon, not buddy's |
 | Does crew become a principal? | **No (lean), with a bright line** | proposers never need authorship; the criterion: any crew capability that AUTHORS canon messages must come through an agent seat |
+| Is the agent-held GM seat a someday? | **NO — a HEADLINE deliverable** | Nate: "agent running GM is wanted" — the GM-seat re-keys ship in the AP3 seat wave; the wave's demo checkpoint is the buddy holding the seat and running a session (doc 05 §2, doc 07 §2) |
+
+## Product ratifications (Nate, 2026-07-01 — settled, do not re-open)
+
+The five product questions this set surfaced, all answered:
+
+1. **Cross-member seating — RATIFIED as designed** (doc 04 §3): owner requests → host approves;
+   owner==host collapses to one call. No unilateral host seating, no standing consent flag.
+2. **Solo-chat-on-disable — RATIFIED as designed** (doc 03 §5): solo buddy rides
+   `agencyEnabled`; the principal `enabled` flip governs rooms/seats only.
+3. **Admin view — RATIFIED as designed** (doc 06 §1): ONE `listUsers` table, kind badge +
+   filter axis; no separate Agents surface.
+4. **Per-agent cost rollup — RATIFIED deferred** (doc 02 §4; Nate: "idgaf"): derive-on-read
+   stands; no rollup until a real UI asks.
+5. **Agent-held GM seat — WANTED, PULLED FORWARD** (doc 05 §2, doc 07 §2): promoted from a
+   trailing AP4 option to a first-class goal of the seat wave — AP4a lands WITH AP3 as one wave,
+   and the combined checkpoint demo includes an agent-GM'd session.
 
 ## Standing decisions a cold agent must not re-litigate
 
@@ -73,5 +90,6 @@ host) — an agent NEVER funds anything and is NEVER `triggeredBy` · the mint i
 seat-join), idempotent, and lives in `domain/sessions` · the solo `buddy_turns` transcript
 survives (buddy.md's resolved buddy-local decision — carried, not re-opened) · schema
 (columns/CHECKs/tuples) rides the `0000_baseline` squash; behavior lands in chunks AP1–AP4
-(doc 07) · the borrowed-owner posture stays the SHIPPING posture until AP3 lands — nothing in
-this set weakens it in the interim.
+(doc 07) · the agent-held GM seat is a HEADLINE deliverable of the AP3 seat wave, not a trailing
+option (Nate, 2026-07-01) · the borrowed-owner posture stays the SHIPPING posture until AP3
+lands — nothing in this set weakens it in the interim.

@@ -49,11 +49,11 @@ export interface SeatAgentParams {
 // bus event. Unseating = the normal kick path (leftSeq) — no new verb.
 ```
 
-**The consent model (two authorities, both required):**
+**The consent model (two authorities, both required) — RATIFIED as designed (Nate, 2026-07-01):**
 - the **HOST** consents to the seat (room authority — an agent in the cast affects everyone's
   prompt + the host's spend, since the host funds its turns);
 - the **OWNER** consents to their agent being used (it is their companion + their solo context's
-  persona) — expressed by the owner being the one who ASKS. v1 flow: the owner (a present member)
+  persona) — expressed by the owner being the one who ASKS. The flow: the owner (a present member)
   requests via the client; when owner==host that collapses to one `seatAgent` call (the
   overwhelming v1 case). When owner≠host, the request rides a `notifications.emit`
   (`agent-seat-requested`, additive member) → the host calls `seatAgent` — the host-handoff
@@ -61,9 +61,8 @@ export interface SeatAgentParams {
   everything). *(Rejected: host may seat ANY member's buddy unilaterally — uses someone's
   companion without their act; rejected: owner may self-seat into any room — bypasses host cast
   authority (member-contributed cast is rejected in D22's model for cards; same logic for
-  agents). Rejected-for-v1: a standing `buddies.allowRoomInvites` consent flag — machinery for a
-  consent the two-party flow already expresses; criterion: build it if the ask/approve round-trip
-  proves annoying in real multi-human use.)*
+  agents); rejected: a standing `buddies.allowRoomInvites` consent flag — machinery for a
+  consent the two-party flow already expresses.)*
 
 **The seat-join is the mint moment** (doc 01 §4): first `seatAgent` for an owner mints the
 principal; every later one finds it (`created:false`).
@@ -126,9 +125,12 @@ the lossy `createFromCharacter` mistake in a new hat.)*
 - **Credential/funding:** the host's, via `runAsUserId` (doc 02 §3). The owner-delegation arm
   (doc 01 §6) is NOT on this path.
 - **Mode:** default = a plain stateless roleplay turn (no tools — the firewall's non-agent-mode
-  posture). Tool-mode room turns (the buddy bringing its hands to a room) are **AP4-deferred**
-  with the ceiling already specced (`'tool-propose'`, doc 03) — *criterion: a concrete room use
-  case for buddy tools; the solo hands are not blocked on it.*
+  posture). **BUDDY's OWN tool set in rooms** (the propose_* hands brought to a social room) is
+  **deferred past the seat wave** with the ceiling already specced (`'tool-propose'`, doc 03) —
+  *criterion: a concrete room use case for buddy's hands; the solo hands are not blocked on it.*
+  Distinct and NOT deferred: an agent-GM turn in a GAME chat attaches the rpg tool registry
+  exactly as the seat-NULL narrator turn does today (the game chat's D48 recurse loop — the
+  seat's machinery, doc 05 §2; those are rpg's tools gated by `requireGmSeat`, not buddy's hands).
 - **Persist:** self-attributed (doc 02 §2); stats host-attributed (doc 02 §4); memory witnesses
   it via the shared bucket (doc 02 §5).
 

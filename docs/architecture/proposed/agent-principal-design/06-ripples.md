@@ -9,8 +9,9 @@
 
 ## 1. Admin surfaces
 
-- **`listUsers` shows agents — DECISION: default ALL, with the kind as a first-class column/filter
-  axis.** `ListUsersParams` gains `kind?: UserKind` (absent = all); `AdminUserView` gains
+- **`listUsers` shows agents — DECISION (RATIFIED, Nate 2026-07-01): default ALL, with the kind
+  as a first-class column/filter axis — one table, kind badge, no separate Agents surface.**
+  `ListUsersParams` gains `kind?: UserKind` (absent = all); `AdminUserView` gains
   `kind` + `ownerHandle` (join via `users.ownerUserId` — NULL for humans). WHY default-all:
   an invisible principal is the one thing an admin containment surface must never have — the
   §8.6 fear is a runaway you can't see; the client renders a Humans/Agents tab off the same

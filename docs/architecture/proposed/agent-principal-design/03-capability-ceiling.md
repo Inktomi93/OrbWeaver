@@ -113,9 +113,9 @@ A runaway agent principal is contained by, in escalation order:
    ONE row flip. Everything downstream reads it: the present-predicate (doc 02 §1.1) drops the
    agent from every cast; `canAgent` throws on any in-flight turn's gate; solo-buddy agent-mode
    asks keep their own switch (`agencyEnabled`) — the principal flip governs the PRINCIPAL's
-   actions (rooms, seats), not the owner-scoped solo toy. *(Lean, criterion: if operators expect
-   "disable = buddy fully dead," wire the solo `ask` to also check the principal row when one
-   exists — a one-line read; decide at AP3 UX review.)*
+   actions (rooms, seats), not the owner-scoped solo toy. *(DECIDED — RATIFIED as designed,
+   Nate 2026-07-01: solo rides `agencyEnabled`; the principal flip governs rooms/seats only.
+   Do not wire solo `ask` to the principal row.)*
 4. **Delete the owner** — cascades the agent away entirely (doc 01 §1, referential physics).
 
 The **containment suite** (doc 07 §4) pins: a disabled agent principal can do NOTHING — no turn
