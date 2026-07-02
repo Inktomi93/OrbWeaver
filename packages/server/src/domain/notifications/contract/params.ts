@@ -15,9 +15,14 @@ export interface NotificationActorParams {
   readonly principal: Principal;
 }
 
-/** The producer write — the closed event names its own recipient (`event.recipientUserId`, mandatory). */
+/** The producer write — the closed event names its own recipient (`event.recipientUserId`, mandatory).
+ *  `coStatements` is the PD-24 tx seam: the producer's membership-transition statements (`BatchStmt`s,
+ *  erased generic like `ApplyStatsDelta`'s Batch — the producer side keeps no `@orb/db` builder coupling),
+ *  committed in ONE `db.batch` WITH the notification INSERT — the record op OWNS the commit; the producer
+ *  must NOT pre-execute them. Absent ⇒ the plain durable INSERT. */
 export interface RecordParams {
   readonly event: NotificationEvent;
+  readonly coStatements?: readonly unknown[] | undefined;
 }
 
 export interface MarkReadParams extends NotificationActorParams {

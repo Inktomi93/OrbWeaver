@@ -144,9 +144,15 @@ export type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
 export type SummarizeOp = RoleClients["summarize"];
 
 // ── Notifications + presence (the non-member reach + cast-gating; Part III §3/§4) ──
-/** `notifications.emit` — deliver an invite/kick/handoff to a NON-member the per-chat bus can't reach
- *  (durable-first: the row is inserted in the membership-transition tx; this fan-out runs after commit). */
-export type NotificationsEmitOp = (event: NotificationEvent) => Promise<void>;
+/** `notifications.emit` — deliver an invite/kick/handoff to a NON-member the per-chat bus can't reach.
+ *  Durable-first: the row INSERTs before the after-commit fan-out. `coStatements` (PD-24) carries the
+ *  producer's membership-transition statements — the op COMMITS them in ONE `db.batch` WITH the INSERT
+ *  (the producer must NOT pre-execute them), so the transition + the notification are crash-atomic. The
+ *  statements ride erased (`unknown` — the `ApplyStatsDelta` generic-batch precedent). */
+export type NotificationsEmitOp = (
+  event: NotificationEvent,
+  coStatements?: readonly unknown[],
+) => Promise<void>;
 
 /** `presence.read` — the server-derived SSE liveness for a `userId` (NEVER client-asserted — a spoofable
  *  presence is a prompt-composition attack). Read once per round for cast-gating (a flip takes next round). */

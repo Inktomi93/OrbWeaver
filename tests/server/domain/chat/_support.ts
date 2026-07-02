@@ -18,6 +18,8 @@ import {
   pendingTurns,
   users,
 } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type {
   CharacterId,
   ChatEventId,
@@ -286,7 +288,14 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyStatsDelta: () => undefined,
     summarize: notStubbed,
     summarizerContextTokens: 32_000,
-    emitNotification: () => Promise.resolve(),
+    // The emit-op CONTRACT (PD-24): the op OWNS the commit of the producer's co-statements (the verb hands
+    // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership
+    // transition still lands; a test that asserts events overrides with a recorder that does the same.
+    emitNotification: async (_event, coStatements) => {
+      if (coStatements !== undefined && coStatements.length > 0) {
+        await db.batch(batchMany(coStatements as BatchStmt[]));
+      }
+    },
     readPresence: notStubbed,
     embeddingsStore: notStubbed,
     searchDigests: notStubbed,

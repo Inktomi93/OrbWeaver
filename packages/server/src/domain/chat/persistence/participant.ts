@@ -15,6 +15,7 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
@@ -154,7 +155,24 @@ export async function markUserLeft(
   userId: UserId,
   leftSeq: number,
 ): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = await db
+  const rows = (await markUserLeftStatement(
+    db,
+    chatId,
+    userId,
+    leftSeq,
+  )) as unknown as (typeof chatParticipants.$inferSelect)[];
+  return rows.at(0);
+}
+
+/** The {@link markUserLeft} UPDATE, UNEXECUTED (PD-24: `kick` hands it to the notifications emit op so the
+ *  membership transition + the `kicked` INSERT commit in ONE batch). Atomic on the still-present row. */
+export function markUserLeftStatement(
+  db: Db,
+  chatId: ChatId,
+  userId: UserId,
+  leftSeq: number,
+): BatchStmt {
+  return db
     .update(chatParticipants)
     .set({ leftSeq })
     .where(
@@ -165,7 +183,6 @@ export async function markUserLeft(
       ),
     )
     .returning();
-  return rows.at(0);
 }
 
 /** Kick ANY participant by id (host action — works for a character too, which has no `userId`). Atomic on the
@@ -208,7 +225,18 @@ export async function setPendingHost(
   nomineeUserId: UserId,
   now: number,
 ): Promise<void> {
-  await db
+  await setPendingHostStatement(db, chatId, nomineeUserId, now);
+}
+
+/** The {@link setPendingHost} UPDATE, UNEXECUTED (PD-24: `nominateHostHandoff` hands it to the notifications
+ *  emit op so the nomination + the `handoff-nominated` INSERT commit in ONE batch). */
+export function setPendingHostStatement(
+  db: Db,
+  chatId: ChatId,
+  nomineeUserId: UserId,
+  now: number,
+): BatchStmt {
+  return db
     .update(chats)
     .set({ pendingHostUserId: nomineeUserId, updatedAt: now })
     .where(eq(chats.id, chatId));
@@ -225,32 +253,40 @@ export async function acceptHostHandoffSwap(
   db: Db,
   params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
 ): Promise<void> {
-  await db.batch(
-    batchMany([
-      db
-        .update(chatParticipants)
-        .set({ role: "member" })
-        .where(
-          and(
-            eq(chatParticipants.chatId, params.chatId),
-            eq(chatParticipants.role, "host"),
-            isNull(chatParticipants.leftSeq),
-          ),
+  await db.batch(batchMany(acceptHostHandoffSwapStatements(db, params)));
+}
+
+/** The {@link acceptHostHandoffSwap} statements, UNEXECUTED (PD-24: `acceptHostHandoff` hands them to the
+ *  notifications emit op so the role swap + the `handoff-accepted` INSERT commit in ONE batch). Order is
+ *  load-bearing: demote → promote → clear. */
+export function acceptHostHandoffSwapStatements(
+  db: Db,
+  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
+): BatchStmt[] {
+  return [
+    db
+      .update(chatParticipants)
+      .set({ role: "member" })
+      .where(
+        and(
+          eq(chatParticipants.chatId, params.chatId),
+          eq(chatParticipants.role, "host"),
+          isNull(chatParticipants.leftSeq),
         ),
-      db
-        .update(chatParticipants)
-        .set({ role: "host" })
-        .where(
-          and(
-            eq(chatParticipants.chatId, params.chatId),
-            eq(chatParticipants.userId, params.nomineeUserId),
-            isNull(chatParticipants.leftSeq),
-          ),
+      ),
+    db
+      .update(chatParticipants)
+      .set({ role: "host" })
+      .where(
+        and(
+          eq(chatParticipants.chatId, params.chatId),
+          eq(chatParticipants.userId, params.nomineeUserId),
+          isNull(chatParticipants.leftSeq),
         ),
-      db
-        .update(chats)
-        .set({ pendingHostUserId: null, updatedAt: params.now })
-        .where(eq(chats.id, params.chatId)),
-    ]),
-  );
+      ),
+    db
+      .update(chats)
+      .set({ pendingHostUserId: null, updatedAt: params.now })
+      .where(eq(chats.id, params.chatId)),
+  ];
 }
