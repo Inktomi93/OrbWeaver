@@ -81,6 +81,13 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
   className?: string;
   /** Render sticky hover-to-scroll arrows in the popup (long lists). @default false */
   scrollArrows?: boolean;
+  /**
+   * Accessible name for the trigger (the combobox). `Select.Root` renders no element, so these ride
+   * the Trigger — a labelless Select gets its name here (or via `aria-labelledby`/`Field`).
+   */
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 }
 
 /**
@@ -99,13 +106,29 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
 export function Select<Value = string, Multiple extends boolean = false>(
   props: SelectProps<Value, Multiple>,
 ): ReactElement {
-  const { items, placeholder, className, scrollArrows = false, id, ...rootProps } = props;
+  const {
+    items,
+    placeholder,
+    className,
+    scrollArrows = false,
+    id,
+    "aria-label": ariaLabel,
+    "aria-labelledby": ariaLabelledby,
+    "aria-describedby": ariaDescribedby,
+    ...rootProps
+  } = props;
   // The grouped shape ({ label, items }) is a Base UI `Group` structurally; the union widening to
   // Root's `items` type needs a nudge the compiler won't infer through our stricter option union.
   const rootItems = items as SelectRootProps<Value, Multiple>["items"];
   return (
     <BaseSelect.Root items={rootItems} {...rootProps}>
-      <BaseSelect.Trigger className={cn(slots.trigger(), className)} id={id}>
+      <BaseSelect.Trigger
+        aria-describedby={ariaDescribedby}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
+        className={cn(slots.trigger(), className)}
+        id={id}
+      >
         <BaseSelect.Value placeholder={placeholder} />
         <BaseSelect.Icon className={slots.icon()}>{CHEVRON_ICON}</BaseSelect.Icon>
       </BaseSelect.Trigger>

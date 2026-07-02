@@ -31,3 +31,36 @@ test("interactive adds the pointer affordance", async ({ mount }) => {
   const cursor = await card.evaluate((el) => getComputedStyle(el).cursor);
   expect(cursor).toBe("pointer");
 });
+
+test("interactive is keyboard-operable: role/tabIndex + Enter/Space fire onClick", async ({
+  mount,
+  page,
+}) => {
+  const clicks: string[] = [];
+  const card = await mount(
+    <Card
+      interactive={true}
+      onClick={(): void => {
+        clicks.push("hit");
+      }}
+    >
+      Panel
+    </Card>,
+  );
+  await expect(card).toHaveAttribute("role", "button");
+  await expect(card).toHaveAttribute("tabindex", "0");
+  await card.focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press(" ");
+  await expect.poll(() => clicks.length).toBe(2);
+});
+
+test("caller-supplied role/tabIndex/onKeyDown are not overridden", async ({ mount }) => {
+  const card = await mount(
+    <Card interactive={true} role="link" tabIndex={-1}>
+      Panel
+    </Card>,
+  );
+  await expect(card).toHaveAttribute("role", "link");
+  await expect(card).toHaveAttribute("tabindex", "-1");
+});

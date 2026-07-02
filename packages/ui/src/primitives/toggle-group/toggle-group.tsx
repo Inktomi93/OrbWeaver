@@ -4,7 +4,10 @@ import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { toggleGroupVariants } from "./variants";
 
-export interface ToggleGroupProps extends BaseToggleGroupProps<string> {
+// `orientation` is narrowed OUT: Base UI accepts "vertical" but the variants ship no vertical CSS
+// branch, so exposing it would promise a silently-broken layout. Vertical support (type + CSS +
+// test, together) lands when a real consumer needs it — see ui-primitive-contract BATCH 1.
+export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "orientation"> {
   className?: string;
 }
 
