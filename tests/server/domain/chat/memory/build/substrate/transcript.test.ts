@@ -69,6 +69,19 @@ describe("memory/build/substrate/transcript", () => {
     expect(blockHash(":0:0", rows)).not.toBe(blockHash(`${aria}:0:0`, rows));
   });
 
+  test("blockHash folds an AGENT's authorUserId as its stable speaker id (D60, doc 02 §5)", () => {
+    const buddy = castId<UserId>("user_buddy");
+    const other = castId<UserId>("user_other");
+    const agentRow = row(1, { characterId: null, authorUserId: buddy });
+    const h = blockHash("0:0", [agentRow]);
+    // Same agent + same content → stable hash (the userId is the folded stable id).
+    expect(blockHash("0:0", [row(1, { characterId: null, authorUserId: buddy })])).toBe(h);
+    // A DIFFERENT agent authoring the same text busts the hash (re-attribution across agents is real).
+    expect(blockHash("0:0", [row(1, { characterId: null, authorUserId: other })])).not.toBe(h);
+    // An agent's line hashes differently from a character speaking the identical text (distinct stable ids).
+    expect(blockHash("0:0", [row(1, { characterId: aria, authorUserId: null })])).not.toBe(h);
+  });
+
   test("blockSpeakerIds returns distinct character ids in first-seen order", () => {
     const rows = [
       row(1, { characterId: aria }),
@@ -76,5 +89,14 @@ describe("memory/build/substrate/transcript", () => {
       row(3, { characterId: aria }),
     ];
     expect(blockSpeakerIds(rows)).toEqual([aria, cole]);
+  });
+
+  test("blockSpeakerIds excludes agent-authored rows (character-only index — doc 02 §5 recorded limit)", () => {
+    const buddy = castId<UserId>("user_buddy");
+    const rows = [
+      row(1, { characterId: aria }),
+      row(2, { characterId: null, authorUserId: buddy }),
+    ];
+    expect(blockSpeakerIds(rows)).toEqual([aria]); // the agent line is not speaker-indexed (by design, v1)
   });
 });

@@ -4,7 +4,8 @@
 
 import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { utcDay } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -125,6 +126,48 @@ describe("reconcileStats", () => {
     expect(model?.generations).toBe(2); // selected + swipe
     expect(model?.tokensIn).toBe(12);
     expect(model?.cacheReadTokens).toBe(5); // message-stream only
+  });
+
+  test("an AGENT-authored assistant row folds to the HOST owner + skips character_stats (D60, doc 02 §4)", async () => {
+    // The AP2 stats twin-path: a seated agent's turn (characterId null) in a host-owned-character room is
+    // scanned via ownerChatIds (the chat is in scope through its character participant), credits the HOST's
+    // owner/day/model grains, and NEVER creates a character_stats row (foldMessage guards `cid !== null`).
+    // This matches the LIVE `assistantTurnDelta({characterId:null})` twin — no drift.
+    const chatId = castId<ChatId>("chat_a"); // the beforeEach room (host owns `characterId`)
+    await seedMessage(db, {
+      chatId,
+      seq: 3,
+      role: "assistant",
+      characterId: null, // agent-authored: no character
+      createdAt: T0,
+      variants: [
+        {
+          content: "buddy speaks",
+          model: "gpt",
+          provider: "openrouter",
+          tokensIn: 7,
+          tokensOut: 11,
+        },
+      ],
+    });
+
+    const clock = createFrozenClock(T0 + 999);
+    await reconcileStats(db, { ownerId, now: clock.now });
+
+    const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
+    // The host now counts BOTH assistant turns (the character's + the agent's).
+    expect(owner?.assistantTurns).toBe(2);
+    expect(owner?.tokensIn).toBe(19); // 12 (character msg+swipe) + 7 (agent)
+    expect(owner?.tokensOut).toBe(35); // 24 + 11
+
+    // character_stats is UNCHANGED — the agent row carries no characterId, so it never folds to a char row.
+    const char = (
+      await db.select().from(characterStats).where(eq(characterStats.characterId, characterId))
+    )[0];
+    expect(char?.assistantTurns).toBe(1); // still just the character's own turn
+    expect(char?.tokensIn).toBe(12);
+    // No stray character_stats row was minted for the agent (there is exactly one char row — the character's).
+    expect(await db.select().from(characterStats)).toHaveLength(1);
   });
 
   test("re-running is idempotent — the atomic per-owner replace doesn't double-count", async () => {

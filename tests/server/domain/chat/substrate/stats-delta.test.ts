@@ -55,6 +55,31 @@ describe("assistantTurnDelta", () => {
     expect(d.modelTokensIn).toBeUndefined();
   });
 
+  test("an AGENT turn (characterId null) attributes to the HOST owner + skips character_stats (D60, doc 02 §4)", () => {
+    // An agent-authored assistant row is host-funded (ownerId = runAsUserId, unchanged) but carries NO
+    // characterId — so the owner/day/model grains credit the host while character_stats is skipped (apply
+    // no-ops the char row on a null characterId). This is the LIVE twin of reconcile's `foldMessage` null-cid
+    // skip — the drift-gate mirror.
+    const d = assistantTurnDelta({
+      ownerId: OWNER,
+      characterId: null,
+      economics: {
+        content: "on my own",
+        model: "opus",
+        provider: "anthropic",
+        tokensIn: 5,
+        tokensOut: 9,
+      },
+      now: NOW,
+    });
+    expect(d.ownerId).toBe(OWNER); // the HOST funds it (D19)
+    expect(d.characterId).toBeNull(); // no character_stats row
+    expect(d.assistantTurns).toBe(1); // the owner still counts the turn
+    expect(d.assistantWords).toBe(wordCount("on my own"));
+    expect(d.model).toBe("opus"); // the host's box ran the model → model_stats still credited
+    expect(d.modelGenerations).toBe(1);
+  });
+
   test("reasoning present → reasoningGenerations counted", () => {
     const d = assistantTurnDelta({
       ownerId: OWNER,
