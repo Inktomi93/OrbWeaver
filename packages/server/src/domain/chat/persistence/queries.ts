@@ -46,6 +46,7 @@ import {
   lte,
   max,
   min,
+  ne,
   sql,
 } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
@@ -316,6 +317,118 @@ export async function loadMessageView(
     .where(eq(messages.id, messageId))
     .limit(LIMIT_ONE);
   return rows.at(0);
+}
+
+// ── The stats-delta canon reads (the delete-messages arm — stats.md canon-mutator mandate). Full rows so
+// the signed deltas mirror the rebuild's streams column-for-column (drift gate). File-local shapes. ──
+
+/** One canon stat row (the inferred selection, named for the explicit return type). */
+interface CanonStatRow {
+  messageId: MessageId;
+  characterId: CharacterId | null;
+  role: MessageRole;
+  createdAt: number;
+  content: string;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  contextWindow: number | null;
+  genStartedAt: number | null;
+  genFinishedAt: number | null;
+  model: string | null;
+  provider: string | null;
+  reasoning: string | null;
+  metadata: Record<string, unknown> | null;
+  selectedIdx: number;
+  variantCount: number;
+}
+
+/** One swipe stat row (the NON-selected-variant stream shape). */
+interface SwipeStatRow {
+  messageId: MessageId;
+  characterId: CharacterId | null;
+  msgCreatedAt: number;
+  content: string;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  genStartedAt: number | null;
+  genFinishedAt: number | null;
+  model: string | null;
+  provider: string | null;
+  reasoning: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+const canonStatSelection = {
+  messageId: messages.id,
+  characterId: messages.characterId,
+  role: messages.role,
+  createdAt: messages.createdAt,
+  content: messageVariants.content,
+  tokensIn: messageVariants.tokensIn,
+  tokensOut: messageVariants.tokensOut,
+  costUsd: messageVariants.costUsd,
+  cacheReadTokens: messageVariants.cacheReadTokens,
+  cacheWriteTokens: messageVariants.cacheWriteTokens,
+  contextWindow: messageVariants.contextWindow,
+  genStartedAt: messageVariants.genStartedAt,
+  genFinishedAt: messageVariants.genFinishedAt,
+  model: messageVariants.model,
+  provider: messageVariants.provider,
+  reasoning: messageVariants.reasoning,
+  metadata: messageVariants.metadata,
+  selectedIdx: messageVariants.idx,
+  variantCount: sql<number>`(select count(*) from ${messageVariants} where ${messageVariants.messageId} = ${messages.id})`,
+} as const;
+
+/** The stats-contribution rows (slot ⋈ SELECTED variant, the rebuild's message-stream fields) for a set of
+ *  slots in one chat — the delete-messages delta input. Chat-scoped (defense-in-depth: a foreign id from
+ *  another chat matches nothing). Callers read the inferred return (file-local shape). */
+export async function loadCanonStatRows(
+  db: Db,
+  chatId: ChatId,
+  messageIds: readonly MessageId[],
+): Promise<CanonStatRow[]> {
+  return await db
+    .select(canonStatSelection)
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), inArray(messages.id, [...messageIds])));
+}
+
+/** The NON-selected variants (swipes) of a slot set, joined to the slot's attribution — the rebuild's
+ *  swipe-stream fields (the delete-messages swipe-delta input). Inferred return (file-local shape). */
+export async function loadSwipeStatRows(
+  db: Db,
+  chatId: ChatId,
+  messageIds: readonly MessageId[],
+): Promise<SwipeStatRow[]> {
+  return await db
+    .select({
+      messageId: messageVariants.messageId,
+      characterId: messages.characterId,
+      msgCreatedAt: messages.createdAt,
+      content: messageVariants.content,
+      tokensIn: messageVariants.tokensIn,
+      tokensOut: messageVariants.tokensOut,
+      genStartedAt: messageVariants.genStartedAt,
+      genFinishedAt: messageVariants.genFinishedAt,
+      model: messageVariants.model,
+      provider: messageVariants.provider,
+      reasoning: messageVariants.reasoning,
+      metadata: messageVariants.metadata,
+    })
+    .from(messageVariants)
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        inArray(messageVariants.messageId, [...messageIds]),
+        ne(messageVariants.id, messages.selectedVariantId),
+      ),
+    );
 }
 
 // The append-variant / continue write TARGET — the slot's attribution + seq (for canon truncation) joined to

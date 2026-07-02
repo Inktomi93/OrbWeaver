@@ -52,6 +52,7 @@ import {
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { canonMessageDelta, chatCreatedDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent). `emit`
  *  is the chat bus; `loadParticipantViews` resolves the returned `ChatDetail` roster (the root resolves `users`
@@ -286,6 +287,50 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       batchStmt(ctx.db.insert(chatParticipants).values(rosterRows)),
       ...seed.stmts,
     ];
+    // The canon-mutator stats push (stats.md): the chat-created counters + each verbatim greeting's
+    // contribution ride the SAME creation batch (a `generate` opening's delta is the engine's — its turn
+    // pushes per its own persist arm). Owner = the creator (the room host, D19).
+    ctx.applyStatsDelta(
+      stmts,
+      ctx.db,
+      chatCreatedDelta({
+        ownerId: hostUserId,
+        characterId: characterIds[0] ?? null,
+        forked: false,
+        now,
+      }),
+    );
+    for (const g of seed.views) {
+      ctx.applyStatsDelta(
+        stmts,
+        ctx.db,
+        canonMessageDelta({
+          ownerId: hostUserId,
+          row: {
+            characterId: g.characterId,
+            role: "assistant",
+            createdAt: now,
+            content: g.content,
+            tokensIn: null,
+            tokensOut: null,
+            costUsd: null,
+            cacheReadTokens: null,
+            cacheWriteTokens: null,
+            contextWindow: null,
+            genStartedAt: null,
+            genFinishedAt: null,
+            model: null,
+            provider: null,
+            reasoning: null,
+            metadata: null,
+            selectedIdx: 0,
+            variantCount: 1,
+          },
+          sign: 1,
+          now,
+        }),
+      );
+    }
     await ctx.db.batch(batchMany(stmts));
 
     await deps.emit({ type: "chatCreated", chatId });

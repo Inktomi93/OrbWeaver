@@ -7,7 +7,7 @@ import { describe } from "vitest";
 import {
   assistantTurnDelta,
   userMessageDelta,
-} from "../../../../../packages/server/src/domain/chat/engine/stats-delta";
+} from "../../../../../packages/server/src/domain/chat/substrate/stats-delta";
 import { expect, test } from "../../../../support/fixtures";
 
 const OWNER = castId<UserId>("user_host");

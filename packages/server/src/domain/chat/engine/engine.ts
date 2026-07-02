@@ -52,10 +52,10 @@ import {
   loadSlotTarget,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { assistantTurnDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
-import { assistantTurnDelta } from "./stats-delta";
 import { assertMaxProSubConsent } from "./turn-identity";
 
 /** The non-ctx engine deps wired at the composition root (FLAG[bus/budget-not-on-ctx] — see header). */

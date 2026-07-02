@@ -23,7 +23,7 @@ import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
-import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
@@ -40,6 +40,7 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the invites.ts precedent). `emit` is the
  *  chat bus; `loadParticipantViews` resolves the roster read-model for the returned `ChatDetail` (the root
@@ -134,6 +135,68 @@ function buildCanonCopy(
   return [...slotInserts, ...variantInserts, ...pointerFlips];
 }
 
+/** The fork's stats push (see the call-site note): chat-created/fork-lineage + every copied slot's
+ *  SELECTED contribution + every copied swipe, each mirrored from the rebuild's folds. */
+function pushForkStatsDeltas(
+  ctx: ChatContext,
+  stmts: BatchStmt[],
+  args: {
+    readonly ownerId: UserId;
+    readonly primaryCharacterId: CharacterId | null;
+    readonly slots: readonly (typeof messages.$inferSelect)[];
+    readonly variants: readonly (typeof messageVariants.$inferSelect)[];
+    readonly now: number;
+  },
+): void {
+  const { ownerId, now } = args;
+  ctx.applyStatsDelta(
+    stmts,
+    ctx.db,
+    chatCreatedDelta({ ownerId, characterId: args.primaryCharacterId, forked: true, now }),
+  );
+  const variantsByMessage = new Map<string, (typeof messageVariants.$inferSelect)[]>();
+  for (const v of args.variants) {
+    variantsByMessage.set(v.messageId, [...(variantsByMessage.get(v.messageId) ?? []), v]);
+  }
+  for (const slot of args.slots) {
+    const own = variantsByMessage.get(slot.id) ?? [];
+    const selected = own.find((v) => v.id === slot.selectedVariantId);
+    if (selected !== undefined) {
+      ctx.applyStatsDelta(
+        stmts,
+        ctx.db,
+        canonMessageDelta({
+          ownerId,
+          row: {
+            ...selected,
+            characterId: slot.characterId,
+            role: slot.role,
+            createdAt: slot.createdAt,
+            selectedIdx: selected.idx,
+            variantCount: own.length,
+          },
+          sign: 1,
+          now,
+        }),
+      );
+    }
+    for (const v of own) {
+      if (v.id !== slot.selectedVariantId) {
+        ctx.applyStatsDelta(
+          stmts,
+          ctx.db,
+          swipeVariantDelta({
+            ownerId,
+            row: { ...v, characterId: slot.characterId, msgCreatedAt: slot.createdAt },
+            sign: 1,
+            now,
+          }),
+        );
+      }
+    }
+  }
+}
+
 /** `forkChat` — D27 deep copy. Gate membership (a member may fork), copy the chat + cast + canon + injections
  *  with fresh ids into a NEW chat where the forker is host, in ONE atomic batch. Emits `chatCreated`. */
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
@@ -216,6 +279,19 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         ),
       ),
     ];
+
+    // The canon-mutator stats push (stats.md): a fork is a COPY — the rebuild counts the copied canon under
+    // the new room, so the live path must too (chat-created + fork lineage + every copied slot's SELECTED
+    // contribution + every copied swipe), all in the SAME creation batch. Owner = the fork's host (the
+    // forker — D19; the group multi-owner edge is FLAG[PD-21]'s open attribution question).
+    pushForkStatsDeltas(ctx, stmts, {
+      ownerId: principal.userId,
+      primaryCharacterId:
+        roster.find((r) => r.kind === "character" && r.characterId !== null)?.characterId ?? null,
+      slots,
+      variants,
+      now,
+    });
 
     await ctx.db.batch(batchMany(stmts));
     await deps.emit({ type: "chatCreated", chatId: newChatId });

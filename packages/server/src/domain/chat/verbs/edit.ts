@@ -52,13 +52,16 @@ import {
   shiftSeqRangeStatement,
 } from "../persistence/canon-write";
 import {
+  loadCanonStatRows,
   loadMaxMessageSeq,
   loadMessageSeqs,
   loadMessageView,
+  loadSwipeStatRows,
   loadVariantMessageId,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { assertAuthorOrHost } from "../substrate/auth";
+import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
 /** The emit op the edit verbs close over (inlined — the file header `types-in-contract` note). */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
@@ -144,6 +147,18 @@ async function purifyEditedContent(
   return stripSelfSpeakerLabel(content, name);
 }
 
+/** The stats OWNER for a canon mutation — the room HOST (D19: the host's box funds/owns the canon; the
+ *  rebuild attributes by the host-owned characters' chats — FLAG[PD-21] documents the group edge). A
+ *  hostless room (archived orphan) degrades to the acting caller so the delta is never dropped. */
+async function resolveStatsOwner(
+  ctx: ChatContext,
+  chatId: ChatId,
+  fallback: MessageView["authorUserId"] & {},
+): Promise<NonNullable<MessageView["authorUserId"]>> {
+  const roster = await loadRoster(ctx.db, chatId);
+  return roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? fallback;
+}
+
 // ── selectVariant (D26 — flip the slot's selected-variant pointer to a SIBLING swipe; zero copy) ─────────────
 /** `selectVariant` — author-or-host. Flip `messages.selectedVariantId` to a sibling swipe (a pointer move,
  *  never a content copy — D26). The variant MUST belong to the slot (the ownership belt) else a leak-free
@@ -171,16 +186,29 @@ function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const clean = await purifyEditedContent(ctx, chatId, slot, content);
-    await ctx.db.batch(
-      batchMany(
-        editMessageContentStatements(ctx.db, {
-          messageId,
-          variantId: slot.selectedVariantId,
-          content: clean,
-          editedAt: ctx.now(),
-        }),
-      ),
+    const now = ctx.now();
+    const statements = editMessageContentStatements(ctx.db, {
+      messageId,
+      variantId: slot.selectedVariantId,
+      content: clean,
+      editedAt: now,
+    });
+    // The canon-mutator stats push (stats.md): the NET word/byte change rides the SAME batch as the edit
+    // (bucketed on the slot's ORIGINAL day — the rebuild folds by createdAt). Owner = the room host (D19).
+    ctx.applyStatsDelta(
+      statements,
+      ctx.db,
+      editMessageDelta({
+        ownerId: await resolveStatsOwner(ctx, chatId, principal.userId),
+        characterId: slot.characterId,
+        role: slot.role,
+        createdAt: slot.createdAt,
+        oldContent: slot.content,
+        newContent: clean,
+        now,
+      }),
     );
+    await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "messageEdited", chatId, messageId, view });
     return view;
@@ -288,7 +316,21 @@ function createDeleteMessages(
         chatId,
       );
     }
-    await ctx.db.batch(batchMany([deleteMessagesStatement(ctx.db, chatId, messageIds)]));
+    // The canon-mutator stats push (stats.md; the neo delete precedent): each removed slot's SELECTED-
+    // variant contribution + each of its NON-selected swipes are subtracted (sign −1 — the exact negative
+    // of the rebuild's fold) in the SAME batch as the delete. Rows are read BEFORE the delete lands.
+    const now = ctx.now();
+    const ownerId = await resolveStatsOwner(ctx, chatId, principal.userId);
+    const statRows = await loadCanonStatRows(ctx.db, chatId, messageIds);
+    const swipeRows = await loadSwipeStatRows(ctx.db, chatId, messageIds);
+    const statements = [deleteMessagesStatement(ctx.db, chatId, messageIds)];
+    for (const row of statRows) {
+      ctx.applyStatsDelta(statements, ctx.db, canonMessageDelta({ ownerId, row, sign: -1, now }));
+    }
+    for (const row of swipeRows) {
+      ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
+    }
+    await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
   };
 }
