@@ -1,5 +1,16 @@
 # Adversarial Design Review — `docs/architecture/proposed/` (2026-07-01)
 
+> **RESOLUTION RECORD (2026-07-02, commit `0d0a7fe` — Nate-authorized apply pass):** every finding
+> below (3 MAJOR, 11 MINOR, all NITs) has been APPLIED to the design docs + the ledger. The
+> per-finding text is preserved as the review record; §1's table and §3's cross-set table carry the
+> post-fix state. One finding was resolved by a NEW Nate ruling rather than the review's suggested
+> fix: **RPG-1** — *"presets should be their own presets and we don't bind shit to chats — that was
+> neo-tavern's sin"* — so there is NO per-chat preset binding anywhere; the GM voice is
+> `rpg_games.gmPresetId`, consumed per turn via `RpgGatherResult.presetOverride`
+> (rpg-design/02 §1.1 #1; D58 amended). The ledger batch patch (D58 · D59 · D21 · D23 · D48)
+> landed in the same commit. **§7 below is the consolidated chat-side obligations handoff** for
+> whoever builds the Phase-5 chat tail.
+
 > **Scope:** every doc of every set under `proposed/` (79 files, ~15k lines), read in full and
 > audited against the ACTUAL codebase (`packages/**`, read-only snapshot — a burn agent is live)
 > and the house law (AGENTS-1/2/3, `Core-Laws-and-Precedents.md` D1–D61, the user doctrine).
@@ -14,26 +25,31 @@
 
 ## 1. Verdict table
 
-| Set | Verdict | Safe to implement? |
+All findings applied 2026-07-02 (`0d0a7fe`); the middle column preserves the as-reviewed state.
+
+| Set | As reviewed (2026-07-01) | Post-fix verdict → safe to implement? |
 |---|---|---|
-| `tool-use-design/` | **CLEAN** (2 NITs) | **YES** |
-| `rpg-design/` | 2 MAJOR · 5 MINOR · 4 NIT | **YES, after the two chat-seam MAJORs are resolved** (both are pre-R3/R6 decisions, not redesigns) |
-| `chat-crew-design/` | 3 MINOR · 3 NIT | **YES** (fix the injection-id convention in CW6's spec first) |
-| `agent-principal-design/` | **CLEAN** (1 NIT) | **YES** |
-| `hub-browse-design/` | **CLEAN** | **YES** |
-| `imagery-design/` | 1 MAJOR · 1 NIT | **YES, after the D51 persist-path wording is corrected** (one-paragraph fix) |
-| `databank-design/` | **CLEAN** (2 NITs) | **YES** |
-| `expressions-design/` | 2 MINOR · 1 NIT | **YES** (mechanical cross-set sync with imagery-design) |
-| `automation-design/` | **CLEAN** | **YES** |
-| `plugin-design/` | 1 MINOR | **YES** (reconcile the tool-name charset with tool-use first) |
-| `gallery-design.md` | **CLEAN** | **YES** |
-| `themes-design.md` | **CLEAN** | **YES** |
-| `saved-rosters-design.md` | **CLEAN** | **YES** |
-| `Marinara-Residue-Non-RPG.md` | **CLEAN** (closed record; all pointers resolve) | n/a |
+| `tool-use-design/` | CLEAN (2 NITs) | **CLEAN — YES** |
+| `rpg-design/` | 2 MAJOR · 5 MINOR · 4 NIT | **RESOLVED (RPG-1 via the 2026-07-02 Nate preset ruling; RPG-2..11 applied) — YES** |
+| `chat-crew-design/` | 3 MINOR · 3 NIT | **RESOLVED — YES** |
+| `agent-principal-design/` | CLEAN (1 NIT) | **CLEAN — YES** |
+| `hub-browse-design/` | CLEAN | **CLEAN — YES** |
+| `imagery-design/` | 1 MAJOR · 1 NIT | **RESOLVED (IMG-1 D51 wording corrected; IMG-2 stale flag closed) — YES** |
+| `databank-design/` | CLEAN (2 NITs) | **CLEAN — YES** |
+| `expressions-design/` | 2 MINOR · 1 NIT | **RESOLVED — YES** |
+| `automation-design/` | CLEAN | **CLEAN — YES** |
+| `plugin-design/` | 1 MINOR | **RESOLVED (PLG-1 `plugin_<slug'>_<name>` namespacing) — YES** |
+| `gallery-design.md` | CLEAN | **CLEAN — YES** |
+| `themes-design.md` | CLEAN | **CLEAN — YES** |
+| `saved-rosters-design.md` | CLEAN | **CLEAN — YES** |
+| `Marinara-Residue-Non-RPG.md` | CLEAN (closed record) | n/a |
 
 ---
 
 ## 2. Per-set findings
+
+> All findings in this section were APPLIED in `0d0a7fe` (2026-07-02). The three MAJORs carry
+> individual resolution notes; the MINOR/NIT fixes are as suggested unless noted.
 
 ### 2.1 tool-use-design — CLEAN
 
@@ -76,6 +92,13 @@ in-tree). The findings cluster on the **chat-side seam inventory**, which is und
   host-gated `chat.setActivePreset` verb to chat's satellite list (one small spec section), or
   (b) re-scope the GM preset onto an existing mechanism — and delete the "chat gains NOTHING" line
   either way.
+  **→ RESOLVED (`0d0a7fe`, 2026-07-02) — by a NEW Nate ruling, NOT the suggested fix (a):**
+  *"presets should be their own presets and we don't bind shit to chats — that was neo-tavern's
+  sin."* NO chats-side preset binding exists, ever. The GM voice is **`rpg_games.gmPresetId`**
+  (rpg canon — rpg-design/03 §1) consumed per turn via **`RpgGatherResult.presetOverride`**
+  (rpg-design/05 §1 — a generic optional field on the injected gather result; byte-identical when
+  absent). rpg-design/02 §1.1 #1 is the spec; D58 carries the ledger amendment; the "chat gains
+  NOTHING" claim is reconciled to "nothing rpg-specific + the declared generic surface".
 - **MAJOR — RPG-2 (02 §3, 06 §3, 07 §2, 12 §3): the `RpgContext.chat` op bundle names verbs chat
   does not have and the set does not mark as new.** `postNarratorMessage` (consumed by recaps,
   scene-merge summaries, illustration posts) does not exist — chat's service surface has no
@@ -88,6 +111,11 @@ in-tree). The findings cluster on the **chat-side seam inventory**, which is und
   **Fix:** one honest "NEW chat verbs/ops this set requires" subsection (narrator-post, membership
   loader op, optionally post-as-member), replacing the "chat gains NOTHING" claim with "chat gains
   N small verbs + three injected ops".
+  **→ RESOLVED (`0d0a7fe`):** rpg-design/02 §1.1 is that subsection — `postNarratorMessage`
+  (specced NEW: synthetic-group-character-authored, string body with embedded refs per D51),
+  `chat.getMembership` (the `can()` roster feed), `kick` naming corrected, and the pending-check
+  result re-specced as a NARRATOR post naming the player (never a forged user-authored row —
+  rpg-design/12 §3 amended). No post-as-member verb exists or is needed.
 - **MINOR — RPG-3 (07 §3): the literal `GroupConfig{output:'narrator', cardScope:'merged'}` is
   unrepresentable.** The landed schema (`contracts/chat/index.ts:576`) makes the narrator arm
   `.strict()` and OMITS `cardScope` (the `narrator ⇒ merged` constraint is enforced by shape) — the
@@ -209,6 +237,9 @@ mark-sweep) is load-bearing and correct. The review-flag section is exemplary.
   `![…](asset:<id>)` refs (D51); blocks derive at render. Same correction applies to 04 §2.3's
   "the loop's persist path lands them on the variant" for the D48 tool path (tool results persist
   as `ToolCallRecord[]`; any posted image is an embedded-ref body).
+  **→ RESOLVED (`0d0a7fe`):** imagery-design/04 §2.1 + §2.3 corrected exactly as above;
+  `GeneratedPictureImage.block` re-documented as a render-ready convenience for DIRECT consumers,
+  never a persistence payload (README flag 10 records the delta).
 - **NIT — IMG-2 (README flag 9): the flagged vocabulary divergence with automation-design is
   STALE.** automation-design/03 §1.7 as written today IMPORTS `generateImageActionArgsSchema` from
   `@orb/contracts/imagery` verbatim (and rejects an inline schema by name) — the "narrower
@@ -332,8 +363,8 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
 |---|---|---|
 | `ASSET_KINDS` roster | gallery §0 (consolidated) vs imagery(`generated`) · gallery(`gallery`) · databank(`document`) · expressions(`sprite`) · plugin(`plugin`) | **MATCH** — gallery §0 is the declared one home; every sibling shows only its own append and says so |
 | `generate_image` action args | imagery 01 §6 (schema home) · automation 03 §1.7 (imports it) · plugin 01 §2 (`GenerateImageActionArgs`) · tool-use (same-name tool, minus `quiet`) | **MATCH** — one schema, one home. imagery README flag 9 is STALE (IMG-2) |
-| Tool NAME charset | tool-use 01 §1 regex vs plugin 03 §5 `plugin:<slug>:<name>` | **MISMATCH** (PLG-1) — colons unregisterable |
-| `imagery.generatePicture` param/result shape | imagery 01 §3 (caller/plural/no-quiet) vs expressions 03 §3.1 (userId/quiet/singular) vs rpg 08 §2 (vocabulary-level only — OK) | **MISMATCH** (EXP-1) — expressions cites the pre-flag-2 committed shape |
+| Tool NAME charset | tool-use 01 §1 regex vs plugin 03 §5 | **RESOLVED (`0d0a7fe`)** — plugin names are `plugin_<slug'>_<name>` (`-`→`_` injective, combined ≤64, activation-fatal overflow); the colon form is recorded as the rejected shape |
+| `imagery.generatePicture` param/result shape | imagery 01 §3 (caller/plural/no-quiet) vs expressions 03 §3.1 vs rpg 08 §2 (vocabulary-level only — OK) | **RESOLVED (`0d0a7fe`)** — expressions synced to the current contract (`caller: Principal`, no `quiet`, plural `images[]`); the dead size ternary fixed alongside (EXP-2) |
 | `runStructuredAgentTurn` (`@orb/server/kit/agent-payload.ts`, one bounded retry) | tool-use 04 §4 · crew 02 §2/03 §0 · rpg (via crew 05 §e convergence note) | **MATCH** |
 | The injected-GATHER-op / null=byte-identical pattern | databank 07 (the declared precedent) · rpg 05 §0 · crew 04 §1 · expressions 02 §0 (post-turn variant) | **MATCH** — one vocabulary, each cites the precedent chain correctly |
 | `ChatInjection.audience: "all"\|"host"` | crew 04 §2 (defines) · guides `"all"` · rpg (silent — pre-dates it; crew notes rpg may adopt) | **MATCH** (additive, one definer) |
@@ -341,10 +372,12 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
 | `WORKLOAD_KINDS` widenings + stub-runner ritual | rpg (10 kinds — internally miscounted as 8, RPG-7) · crew (4) · databank (2) · expressions (1) — all cite D34 tuple+CHECK regen + the D58 stub precedent | **MATCH** in mechanism; rpg count NIT |
 | `worldInfo.upsertEntries` bulk op | rpg 02 §1 (introduces) · crew 03 §1 (reuses; hand-edit guard) · automation 03 §1.3 (same op + same guard semantics) | **MATCH** — one op, three consumers, crew 08 handles the who-builds-first race explicitly |
 | ChatBusEvent posture | rpg (own bus — frozen CHECK) · crew (own bus) · automation (own bus) · expressions (widens by 1, argued + baseline regen) | **COHERENT** — each justifies; expressions' widening is the one union edit and is argued against D50's own precedent. rpg 11 §12.2's `kind:"expression"` spelling is stale (RPG-11) |
-| `rpg.checkRequested` | rpg 12 §3 + 11 §16 (consume) vs rpg 05 §5 union (absent) | **MISMATCH** (RPG-4, intra-set) |
-| SSRF guard home | hub-browse 01 (authoritative per D61) · gallery §6 (delta-bannered ✓) · databank (stale gallery cite, DB-2) · imagery 04 §7 (cites the staged seam — ✓) · plugin `net.fetch` (cites the posture — ✓) | **MATCH** after DB-2's one-line fix |
-| rpg tool count | D58 "22" · rpg README/tool-use "23" · actual roster 26 defs | **DRIFT** (RPG-8/tool-use NIT) — pick one number, patch the ledger |
-| Agent seats | agent-principal 05 §2 (three GM-seat re-keys) vs rpg 12 (no back-pointer) · crew bright line (crew 05 / AP 05 §3 — identical wording) | **MATCH** in substance; add the rpg-12 pointer note (AP §2.4 note) |
+| `rpg.checkRequested` | rpg 12 §3 + 11 §16 (consume) vs rpg 05 §5 union | **RESOLVED (`0d0a7fe`)** — the member is in the 05 §5 union |
+| SSRF guard home | hub-browse 01 (authoritative per D61) · gallery §6 (delta-bannered ✓) · databank · imagery 04 §7 ✓ · plugin `net.fetch` ✓ | **RESOLVED (`0d0a7fe`)** — databank's README flag 3 + 06 §5 now cite hub-browse/01 |
+| rpg tool count | D58 · rpg README/tool-use · actual roster | **RESOLVED (`0d0a7fe`)** — ONE number everywhere: 26 registered defs (23 overworld + 3 encounter); D58 patched |
+| Agent seats | agent-principal 05 §2 (three GM-seat re-keys) vs rpg 12 · crew bright line (identical wording) | **RESOLVED (`0d0a7fe`)** — rpg-12 §"frame" carries the D60 third-seat pointer note |
+| GM-voice preset binding (NEW row, post-ruling) | rpg 02 §1.1 #1 / 03 §1 / 05 §1 / 06 §1 / 09 §a / 10 · D58 amendment | **MATCH** — `rpg_games.gmPresetId` → `RpgGatherResult.presetOverride`, one vocabulary across the set + ledger; NO chats-side binding anywhere |
+| Guide content linkage | crew 02 §4 / 06 §1-§2 / 08 §10 · D59 amendment | **MATCH (post-fix)** — the stored `crew_guides.injectionId` FK replaces the magic-id format in every mention |
 | Build-order DAG | tool-use T1→T4(=PD-54, chat P5) → rpg R4 · crew CW2→(D48 structured + `runStructuredAgentTurn`, T6 "lands with first consumer") · automation A1–A3 kit-early, A5–A7→chat P5 · plugin P4→automation A5–A7 + tool-use · hub H1(≡G6)→G7/DB7 · expressions E4→imagery I1 · AP3/AP4a→rpg R1/R3/R4 | **ACYCLIC + COHERENT** — no circular ships-with claims; the two shared-op races (upsertEntries, T6) are explicitly arbitrated |
 
 ## 4. Cold-read survivability spot-check (3 random sections per large set)
@@ -370,6 +403,7 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
    agent is building it RIGHT NOW: a single consolidated "chat-side obligations from the proposed
    library" list (verbs, ops, contract fields, redaction points, `variantSelected` ordering) handed
    to the P5 builder would convert every one of these from mid-build surprise to known work.
+   **→ DONE (2026-07-02): §7 is that list.**
 2. **Design-set concurrency is the main drift vector — and the sets that version-stamped their
    reads didn't drift.** Every real cross-set mismatch (EXP-1's stale singular result, IMG-2's
    stale flag 9, DB-2's stale guard cite) is one concurrent set citing another's COMMITTED
@@ -389,6 +423,9 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
    producer-rule generalization (currently recorded only in gallery §10). The designs are ahead of
    the ledger. Worth one batch ledger-patch pass — the D-entries win on conflict, so stale
    D-entries are actively dangerous to cold agents.
+   **→ DONE (2026-07-02, `0d0a7fe`): D58 (26 tools + the preset ruling) · D59 (CW1–CW7, doc 08,
+   `crew_guides`, the `injectionId` linkage) · D21 (avatar+sprite exception) · D23 (the
+   producer-vs-derive generalization promoted) · D48 (`CHAT_WARNING_CODES` home per D51).**
 5. **Right-sizing is healthy — the "suspended KISS" regime has not produced shoehorning.** The
    library repeatedly chooses the smaller thing with the criterion recorded: themes inside
    settings, gallery "none of these is a new domain", tool-use's no-speculative-seams (§8 Q2,
@@ -400,7 +437,64 @@ match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanenc
 
 ## 6. Disposition
 
-No BLOCKERs. Two MAJORs (RPG-1/2) are pre-build spec work on the chat seam, one MAJOR (IMG-1) is a
-one-paragraph D51 correction. Everything else is MINOR/NIT-grade doc hygiene. **The library is safe
-to implement in its stated order once the three MAJORs are patched** — none of them invalidates a
-schema, a domain shape, or a committed decision.
+No BLOCKERs. Two MAJORs (RPG-1/2) were pre-build spec work on the chat seam, one MAJOR (IMG-1) a
+one-paragraph D51 correction; everything else MINOR/NIT-grade doc hygiene.
+**ALL FINDINGS APPLIED 2026-07-02 in `0d0a7fe`** (RPG-1 via the Nate preset ruling — see the
+header resolution record), including the ledger batch patch (D58 tool count + preset ruling ·
+D59 chunk range/doc pointer/table list/guide linkage · D21 sprite-exception amendment · D23
+producer-vs-derive generalization · D48 `CHAT_WARNING_CODES` home). **The library is safe to
+implement in its stated order as it now stands.** §7 is the chat-tail handoff sheet.
+
+## 7. Consolidated chat-side obligations from the proposed library (the handoff sheet)
+
+Every NEW chat-side verb, contract field, injected-op seam, or behavior the design library
+requires — the list observation §5.1 called for, deduplicated across all 14 sets. "Chat-side"
+means: `domain/chat` code, `@orb/contracts/chat` shapes, `chats`-family schema, or chat's client
+registries. Verified against the tree 2026-07-02 (nothing below is landed unless marked).
+Sorted by phase; each row names its consuming set(s) and the spec home.
+
+### 7.1 Phase 5 (the live chat build / its immediate tail) — build WITH chat
+
+| # | Obligation | Kind | Spec home | Consumers |
+|---|---|---|---|---|
+| 1 | `ChatToolOps` injection seam (`resolveTools`/`toWireTools`/`executeToolCalls` on `ChatContext.tools`) + the recurse loop (PD-54) + `toolRecurseLimit` per-chat setting (seed 5, host-editable) + `appendToolExchange` + flush-per-depth persistence | ops + engine + setting | tool-use-design/03 | tool-use (T4), rpg (R4), buddy |
+| 2 | `CHAT_WARNING_CODES` += `tools_unsupported`, `structured_output_unsupported` — WITH their domain-gate emit sites (D48 as amended 2026-07-02) | contract tuple + emit sites | tool-use-design/02 §5 | tool-use, crew, rpg |
+| 3 | Turn-record `initiator` (`TurnInitiator` incl. `"automation"`/`"plugin"`) + `automationDepth` fields + the `chat.requestTurn` non-human-initiator seam + the `chat.getTurnOrigin` narrow read (D46 prereq #3, made readable) | engine fields + verb + op | automation-design/03 §4, 05 flag 1 | automation (A5/A6), plugin (P4) |
+| 4 | `variantSelected` bus event fires AFTER the variable re-fold (ordering pin on the swipe path) | ordering invariant | automation-design/05 flag 4 | automation predicates over `vars` |
+| 5 | `PromptTransform` pipeline points (`user_input` after macro pass / `assembled_dynamic` end-of-BUILD; 250 ms skip-and-warn; interface in `@orb/contracts/chat`) — D50's seam, built WITH chat | contract + 2 pipeline hooks | automation-design/04 §6 | automation (A7), plugin (P4) |
+| 6 | `chat.applyVariableOps(chatId, ops, origin)` — the variable seam accepting an origin tag (delta-to-in-flight-variant else standalone) | verb/op surface | automation-design/03 §1.1 | automation, plugin, crew (via chat) |
+| 7 | `ChatBusEvent` += `{type:"expression"}` (ephemeral, never logged) + replay-guard/`chat_events_type_check` regen — **BASELINE-WINDOW-COUPLED** (the squash must still be open, expressions E1) | bus union + CHECK regen | expressions-design/02 §4 | expressions |
+| 8 | `expressions.onTurnCompleted(chatId, messageId, variantId)` optional injected op + the `readTurn` narrow read op chat provides (id-only, re-read canon) + the `emitChatEvent` injected emit | ops | expressions-design/02 §0/§3.1 | expressions (E3) |
+| 9 | `{{databank}}` reserved dynamic/cache-safe macro slot (resolves empty until the graft) — the ONE cheap pre-P5-freeze reservation databank names | macro slot | databank-design/01 §5, 07 §3 | databank (DB6), rpg preset |
+
+### 7.2 Phase 7+ (the feature waves) — small chat PRs landed with/before their consuming chunk
+
+| # | Obligation | Kind | Spec home | Consumers |
+|---|---|---|---|---|
+| 10 | `RpgGatherResult.presetOverride?: PresetId` consumption: when the injected gather op returns one, assembly resolves THAT preset for the turn (owned-or-system under the host, else degrade); byte-identical when absent. **NO chats-side preset binding — ruled** | gather-result consumption point | rpg-design/02 §1.1 #1, 05 §1; D58 amendment | rpg (R3/R4) |
+| 11 | `chat.postNarratorMessage(chatId, content, media?)` — NEW verb: synthetic-group-character-authored assistant message, STRING body (embedded `![…](asset:<id>)` refs per D51), normal canon-write + bus | verb | rpg-design/02 §1.1 #2 | rpg (recaps/scene-merge/illustrations, R6/R9/R10), pending-check posts (rpg-12 §3) |
+| 12 | `chat.getMembership(chatId, userId) → {role} \| null` — NEW narrow read op (the `can()` roster feed for sibling domains) | op | rpg-design/02 §1.1 #3 | rpg (R3); any future chatId-scoped leaf |
+| 13 | `ChatContext.rpg?: { gatherTurnContext, onUserCommit, onTurnCompleted }` optional injected ops + the no-game byte-identity pin | ops | rpg-design/05 §0 | rpg (R4) |
+| 14 | `chat.generateImage` — NEW thin verb (`requireParticipant` → injected `imagery.generatePicture` → unless quiet, persist ONE message: string body, n embedded refs (D51) → warnings onto the `warning` event) + the `extractQuiet` summarize-role shaper (chat owns history windowing + macro resolution) | verb + shaper | imagery-design/04 §2, 02 §2 | imagery (I4), automation `generate_image` arm, /imagine |
+| 15 | `ChatInjection.audience?: "all" \| "host"` (additive, default `"all"`; NOT landed — verified 2026-07-02) + redaction in `previewAssembly`/`peekPrompt`/every `promptSnapshot`-serving projection (one helper) | contract field + projection redaction | chat-crew-design/04 §2 | crew (CW4); rpg/future host-ring injections |
+| 16 | `ChatContext.crew?: { gatherTurnContext }` optional injected op + the crew-off byte-identity pin | op | chat-crew-design/04 §1 | crew (CW4) |
+| 17 | Guide-content linkage: chat's existing injection CRUD serves it, but `setChatInjection` must RETURN the minted `ChatInjectionId` (crew stores it on `crew_guides.injectionId`) — verify the return shape when CW6 wires | verb return shape | chat-crew-design/06 §1 (as fixed, CREW-1) | crew (CW6) |
+| 18 | `chat.seatAgent` — NEW verb (the ONE agent-seat chokepoint: `requireHost` → owner-present check → injected `sessions.provisionAgentPrincipal` → kind-verify → roster INSERT `kind:'agent'`) + `ChatContext.resolveAgentSpeaker` (the `AGENT_SPEAKER_SOURCES` dispatch) + the speaker→attribution map arm (`authorUserId`=agent, `characterId` NULL) + `canAgent('speak')` engine gate | verb + ops + engine arms | agent-principal-design/01 §4, 02 §2, 04 §3/§5 | agent-principal (AP2/AP3) |
+| 19 | `chat_participants` kind-shape CHECK replacing the actor XOR + `PARTICIPANT_KINDS` += `'agent'` + the derived kind-sets — **BASELINE-WINDOW-COUPLED** (AP0: "the retrofit-hostile item") | schema CHECK swap + tuples | agent-principal-design/02 §1, 07 §1 | agent-principal (AP0) |
+| 20 | `databank.gatherRetrieval` optional injected GATHER op (query text = pending + last-2, chat-built; pre-pass `tokenBudget`; null = byte-identical) | op + budget line | databank-design/07 | databank (DB6) |
+| 21 | `hasActiveGame(chatId)` predicate wiring (rpg provides; no-op `false` without rpg) — consumed via `CrewContext.chat`, plus rpg-side `createGame` crew-disabled guard | compose wiring | chat-crew-design/02 §7, 05 §h | crew ↔ rpg mutual exclusion |
+| 22 | `worldInfo.upsertEntries` bulk op (world-info-side, chat-adjacent; committed by D58, NOT in the tree — first builder of crew CW2 / rpg R7 lands it; hand-edit guard semantics shared with automation's arm) | sibling-domain op | rpg-design/02 §1, chat-crew-design/03 §1, automation-design/03 §1.3 | rpg, crew, automation |
+
+### 7.3 Phase 6 (client — chat's registries)
+
+| # | Obligation | Kind | Spec home | Consumers |
+|---|---|---|---|---|
+| 23 | `CHAT_SURFACE_SLOTS` (regions: thread-flanks ×2, above-composer, composer-leading, header-actions, thread-actions-menu) + `CHAT_CONTEXT_SLOTS` + `TOOL_RENDERERS` — the three chat-owned client registries wired at `main.tsx` | client registries | rpg-design/11 §1 | rpg (C1+), crew, tool-use (T7) |
+| 24 | `CHAT_SURFACE_SLOTS` += the **`message-footer`** region (receives `{chatId, messageId, variantId}`) — crew's ONE client-side chat touch | registry region | chat-crew-design/07 §1 | crew (U5) |
+| 25 | The generic `<details>` tool-invocation block (the `TOOL_RENDERERS` fallback) + the ToolCallRecord client contract (03 §4's MAY/MAY-NOT list) | component + contract | tool-use-design/03 §4, 05 T7 | tool-use, rpg chips |
+
+**Not chat-side (listed to kill false positives):** `HISTORY_ROLES`/`WireTool`/`ToolChoice`/
+`ResponseFormat` live in `infra/providers/contract/chat.ts` (T1); `runStructuredAgentTurn` is
+`@orb/server/kit`; the rpg/crew/automation buses are their own domains' SSE surfaces; the hub/
+gallery/themes/saved-rosters sets touch chat not at all (saved-rosters drives EXISTING roster
+verbs by injection).
