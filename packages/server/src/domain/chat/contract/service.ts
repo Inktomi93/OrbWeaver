@@ -27,6 +27,7 @@ import type {
   AcceptHostHandoffParams,
   AddCharacterToChatParams,
   ArchiveChatParams,
+  ChatEventBoundsParams,
   ClearReasoningParams,
   ClearVariablesParams,
   CompactParams,
@@ -65,6 +66,7 @@ import type {
   ReapTemporaryChatsParams,
   ReattributeMessagesParams,
   RedeemInviteParams,
+  ReplayChatEventsParams,
   ReplayStreamEventsParams,
   RevertContinueParams,
   RevokeInviteParams,
@@ -99,6 +101,7 @@ import type {
 import type {
   AssembledPrompt,
   AssemblyPreview,
+  ChatBusReplayEvent,
   ChatDetail,
   ChatInjectionView,
   ChatLineageView,
@@ -143,6 +146,10 @@ export interface ChatService {
   ) => Promise<ChatStreamReplayEvent[]>;
   /** The retained stream-log replay-cursor bounds (min/max seq). */
   readonly streamEventBounds: (params: StreamEventBoundsParams) => Promise<StreamEventBounds>;
+  /** Resume the durable chat-bus log from a cursor (the `chat.streamMessages` SSE reconnect replay). */
+  readonly replayChatEvents: (params: ReplayChatEventsParams) => Promise<ChatBusReplayEvent[]>;
+  /** The durable bus-log cursor bounds — also the SSE per-yield membership gate (member-scoped read). */
+  readonly chatEventBounds: (params: ChatEventBoundsParams) => Promise<StreamEventBounds>;
 
   // ── turn-running ──────────────────────────────────────────────────────────────
   /** Persist a user message (SEND-regex applied) then run the AI turn (arbitration → per-speaker/narrator). */

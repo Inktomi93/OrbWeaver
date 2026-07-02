@@ -156,11 +156,13 @@ with `domains/memory.md §3/§8`). Memory is reached ONLY through `chat/context.
 
 ---
 
-## Public surface — the `ChatService` (54 verbs)
+## Public surface — the `ChatService` (56 verbs)
 
 `contract/service.ts` is the read-this-to-know-everything interface. Groups: **reads/lifecycle**
 (startChat, listChats, listForks, getChatLineage, getChat, previewAssembly, getActivePresetConfig,
-previewSection, peekPrompt, listMessages, listParticipants, replayStreamEvents, streamEventBounds);
+previewSection, peekPrompt, listMessages, listParticipants, replayStreamEvents, streamEventBounds,
+replayChatEvents, chatEventBounds — the last two are the durable chat-bus resume the `streamMessages`
+SSE subscription replays/gates through);
 **turn-running** (send, swipe, impersonate, generate, simpleSend, continueTurn, undoContinue,
 revertContinue, forceCharacterTurn, compact, abort); **canon edits** (selectVariant, editMessage,
 setMessageHidden, deleteMessages, editReasoning, clearReasoning, moveMessage, duplicateMessage,

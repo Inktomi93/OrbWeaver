@@ -2,6 +2,9 @@
 // (it constructs the `Services`/`RateLimitGate` and mounts the fetch handler); `@orb/client` type-imports
 // `AppRouter`. The procedure ladder (`trpc.ts`) is internal — routers import it relatively, never the barrel.
 
+// The per-chat live fan-out (`bus.emit (durable, returns seq) → publishChatEvent (live)`; PD-46 stream half).
+export type { ChatLiveEvent } from "./chat-events-bus";
+export { publishChatEvent, subscribeChatEvents } from "./chat-events-bus";
 export type { Context, RateLimitDecision, RateLimitGate, Services } from "./context";
 export { createContext } from "./context";
 // The pure `DomainError → tRPC code` classifier — exported for its isolation test (Invariant #5) + any

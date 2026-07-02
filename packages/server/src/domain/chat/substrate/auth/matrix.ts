@@ -62,6 +62,8 @@ export const CHAT_VERB_AUTHORITY = {
   listParticipants: "member",
   replayStreamEvents: "member", // the SSE replay/subscribe surface (inv §12)
   streamEventBounds: "member",
+  replayChatEvents: "member", // the durable bus-log resume (the streamMessages SSE reconnect)
+  chatEventBounds: "member", // + the SSE per-yield membership gate (a kicked member stops receiving)
   // ── turn-running (run the turn = member; the turn RUNS AS the host via the runAsUserId triple) ──
   send: "member",
   swipe: "member",
