@@ -29,11 +29,9 @@ import type {
   ParticipantView,
 } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import { chatInvites } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type {
@@ -49,6 +47,7 @@ import { requireHost } from "../guard";
 import {
   countPresentMembers,
   createInvite as createInvitePersist,
+  declineInviteById,
   findInviteByTokenHash,
   redeemInviteAtomic,
   revokeInvite as revokeInvitePersist,
@@ -252,19 +251,10 @@ function createRevokeInvite(ctx: ChatContext): ChatService["revokeInvite"] {
 
 /** `declineInvite` — the invited user declines a TARGETED invite they were notified about (keyed by
  *  `inviteId`, not the raw token — Part III §2). Atomic + scoped to the caller as the target (a foreign /
- *  non-targeted invite never matches — leak-free, idempotent). FLAG[PD-67]: persistence
- *  `declineInvite` keys on `tokenHash`; the by-inviteId decline is an inline write (no by-id persistence writer). */
+ *  non-targeted invite never matches — leak-free, idempotent) via `persistence/invites.declineInviteById`
+ *  (PD-67 — the inline write extracted to the persistence layer). */
 function createDeclineInvite(ctx: ChatContext): ChatService["declineInvite"] {
   return async ({ principal, inviteId }: DeclineInviteParams): Promise<void> => {
-    await ctx.db
-      .update(chatInvites)
-      .set({ status: "declined" })
-      .where(
-        and(
-          eq(chatInvites.id, inviteId),
-          eq(chatInvites.status, "pending"),
-          eq(chatInvites.invitedUserId, principal.userId),
-        ),
-      );
+    await declineInviteById(ctx.db, inviteId, principal.userId);
   };
 }

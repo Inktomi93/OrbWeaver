@@ -146,6 +146,29 @@ export async function declineInvite(db: Db, tokenHash: string): Promise<boolean>
   return rows.length > 0;
 }
 
+/** Invitee-decline a still-pending TARGETED invite by its id (PD-67 — the notification-driven decline path;
+ *  the token-hash twin above serves the link path). Atomic + scoped to the caller as the target
+ *  (`invitedUserId` must match) — a foreign / non-targeted / already-settled invite never matches
+ *  (leak-free, idempotent). Returns true iff it flipped. */
+export async function declineInviteById(
+  db: Db,
+  inviteId: ChatInviteId,
+  invitedUserId: UserId,
+): Promise<boolean> {
+  const rows = await db
+    .update(chatInvites)
+    .set({ status: "declined" })
+    .where(
+      and(
+        eq(chatInvites.id, inviteId),
+        eq(chatInvites.status, "pending"),
+        eq(chatInvites.invitedUserId, invitedUserId),
+      ),
+    )
+    .returning({ id: chatInvites.id });
+  return rows.length > 0;
+}
+
 // ── pending_turns — the host-offline DEFERRED turn (Part III §5; NOT lock-held, boot-reclaimed) ──
 
 /** Record a deferred AI turn (host offline). Carries the D19 identity split: `triggeredBy` (the responsible

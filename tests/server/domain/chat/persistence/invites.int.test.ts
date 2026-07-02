@@ -1,11 +1,14 @@
 import type { Db } from "@orb/db";
+import { chatInvites } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   countPresentMembers,
   createInvite,
   declineInvite,
+  declineInviteById,
   deletePendingTurn,
   findInviteByTokenHash,
   listInvitesForChat,
@@ -89,6 +92,21 @@ describe("persistence/invites — reads + lifecycle", () => {
     const hash = await seedInvite(db, chatId, "i");
     expect(await declineInvite(db, hash)).toBe(true);
     expect(await declineInvite(db, hash)).toBe(false);
+  });
+
+  test("declineInviteById flips ONLY the caller's own pending targeted invite (PD-67)", async () => {
+    const chatId = await seedChat(db, "a");
+    const target = await seedUser(db, "target");
+    const other = await seedUser(db, "other");
+    await seedInvite(db, chatId, "t");
+    const inviteId = castId<ChatInviteId>("chat_invite_t");
+    await db.update(chatInvites).set({ invitedUserId: target }).where(eq(chatInvites.id, inviteId));
+
+    // A foreign caller never matches (leak-free no-op); the target flips it exactly once.
+    expect(await declineInviteById(db, inviteId, other)).toBe(false);
+    expect(await declineInviteById(db, inviteId, target)).toBe(true);
+    expect(await declineInviteById(db, inviteId, target)).toBe(false); // idempotent — already declined
+    expect((await findInviteByTokenHash(db, "hash_t"))?.status).toBe("declined");
   });
 });
 
