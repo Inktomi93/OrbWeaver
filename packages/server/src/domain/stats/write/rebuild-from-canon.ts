@@ -303,6 +303,16 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
 
 // The owner's chats (membership — D18): chats with a character participant the owner owns. The single
 // owner-scoping subquery reused by every per-owner scan below.
+//
+// AGENT ROWS (D60): an agent-authored assistant row (characterId NULL) in one of these chats folds to the
+// HOST owner + skips character_stats (foldMessage guards `cid !== null`) — byte-equal with the live
+// `assistantTurnDelta({characterId:null})` twin. That is EXACT for the common case (a mixed room with a
+// host-owned character). FLAG[PD-17]: a character-LESS agent-only room (host + agent, zero characters) is NOT
+// in this scope — its agent turns would never reconcile → drift. Such a room is UN-CONSTRUCTABLE in v1 (the
+// only agent-seat path, `chat.seatAgent`, is AP3 and seats INTO an existing room, and a room is born with a
+// character), so this is deferred, not built (no phantom edge). Criterion to widen: a character-less agent
+// room becomes reachable — then also scope by host membership (`cp.role='host'`) and attribute agent rows to
+// the host participant (doc 02 §4). Building it now is speculative reconcile surface for an unreachable state.
 function ownerChatIds(ownerId: string): SQL {
   return sql`
     SELECT DISTINCT cp.chat_id FROM chat_participants cp
