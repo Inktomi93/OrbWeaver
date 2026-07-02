@@ -114,6 +114,10 @@ export const chats = sqliteTable(
     // D18: NO `ownerId`. Membership (`chat_participants`) is the scope; the host is the authority.
     star: integer("star", { mode: "boolean" }).notNull().default(false),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    // ST "Temporary Chat" (PD-65): an ephemeral room — persisted so turns can run, but HIDDEN from the
+    // recent list (`listMemberChats` excludes it) and swept by `reapTemporaryChats` once expired. Set only
+    // at `startChat` (a fork is born non-temporary). Expiry is a domain TTL over `createdAt`, not a column.
+    temporary: integer("temporary", { mode: "boolean" }).notNull().default(false),
     // Two-party host handoff (Part III §2): the PENDING nominee, carried between `nominateHostHandoff` (the
     // host sets it) and `acceptHostHandoff` (the nominee — and ONLY the nominee — clears it on the atomic
     // role swap). One pending nomination per chat (a re-nominate overwrites). Null = no pending handoff.

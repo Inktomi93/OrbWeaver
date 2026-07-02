@@ -122,6 +122,20 @@ describe("read — listings (membership-scoped, D18)", () => {
     const all = await listChats({ principal: principal(me), includeArchived: true });
     expect(all.map((c) => c.id).sort()).toEqual([archived, live].sort());
   });
+
+  test("listChats ALWAYS hides temporary chats (ST Temporary Chat, PD-65)", async () => {
+    const me = await seedUser(db, "me");
+    const normal = await seedChat(db, "normal");
+    const temp = await seedChat(db, "temp", { temporary: true });
+    await seedParticipant(db, { chatId: normal, key: "n", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: temp, key: "t", userId: me, role: "host" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    expect((await listChats({ principal: principal(me) })).map((c) => c.id)).toEqual([normal]);
+    // includeArchived widens the archive filter only — a temporary chat never surfaces in the library.
+    const all = await listChats({ principal: principal(me), includeArchived: true });
+    expect(all.map((c) => c.id)).toEqual([normal]);
+  });
 });
 
 describe("read — fork lineage (D27, membership-gated per ancestor)", () => {

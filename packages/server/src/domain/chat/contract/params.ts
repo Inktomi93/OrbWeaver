@@ -77,6 +77,9 @@ export interface StartChatParams extends ChatActorParams {
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
   readonly opening?: OpeningPolicy | undefined;
+  /** ST "Temporary Chat" (PD-65): born ephemeral — hidden from `listChats`, swept by
+   *  `reapTemporaryChats` once expired. Absent ⇒ a normal persistent chat. */
+  readonly temporary?: boolean | undefined;
 }
 
 export interface ListChatsParams extends ChatActorParams {
