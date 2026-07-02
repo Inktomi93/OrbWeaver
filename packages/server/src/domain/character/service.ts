@@ -21,6 +21,7 @@ import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
 import { createGetRosterCardView } from "./verbs/get-roster-card-view";
 import { createList } from "./verbs/list";
+import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids";
 import { createListSnapshots } from "./verbs/list-snapshots";
 import { createLoadCardText } from "./verbs/load-card-text";
 import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character";
@@ -47,6 +48,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     restore: createRestore(ctx),
     getCard: createGetCard(ctx),
     loadCardText: createLoadCardText(ctx),
+    listEmbeddableCharacterIds: createListEmbeddableCharacterIds(ctx),
     findByImportHash: createFindByImportHash(ctx),
     mintSyntheticGroupCharacter: createMintSyntheticGroupCharacter(ctx),
     findSyntheticGroupCharacter: createFindSyntheticGroupCharacter(ctx),

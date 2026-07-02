@@ -226,18 +226,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bindRoleClientsForUser({ connection, executor }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
-  // ── The vector substrate (embeddings). Its event indexer is built AFTER the asset/character cluster below
-  //    (it injects their un-principal canon re-readers) and then subscribed to the bus. ─────────────────────
-  const embeddings = createEmbeddingsService({
-    db,
-    roleClients,
-    now,
-    newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
-    newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
-    newChatDigestId: minter(ID_PREFIX.chatDigest),
-    newChatSegmentId: minter(ID_PREFIX.chatSegment),
-  });
-
   // ── Tag (built BEFORE character so character's by-name card-tag attach port wires to the real tag verb —
   //    PD-49 paid down; tag has no upward deps, so the hoist is safe) ─────────────────────────────────────
   const tag = createTagService({
@@ -338,6 +326,28 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         }
       }
     },
+  });
+
+  // ── The vector substrate (embeddings) — built AFTER the asset/character cluster: the PD-53 bulk embed
+  //    passes inject their UN-PRINCIPAL enumeration + canon re-reads (D20 — the vector substrate carries no
+  //    ownerId; the sweeps are trusted SYSTEM consumers). `?? undefined` bridges the domains' `| null`
+  //    "absent" convention to the ops' `| undefined` (a deleted source is a silent skip either way). ───────
+  const embeddings = createEmbeddingsService({
+    db,
+    roleClients,
+    now,
+    newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
+    newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
+    newChatDigestId: minter(ID_PREFIX.chatDigest),
+    newChatSegmentId: minter(ID_PREFIX.chatSegment),
+    listCharacterIds: character.listEmbeddableCharacterIds,
+    loadCardText: async (characterId): Promise<string | undefined> =>
+      (await character.loadCardText(characterId)) ?? undefined,
+    listImageAssetIds: assets.listImageAssetIds,
+    loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> =>
+      (await assets.loadAssetBytes(assetId)) ?? undefined,
+    embedDim: env.VLLM_EMBED_DIM,
+    imageEmbedDim: env.VLLM_EMBED_DIM,
   });
 
   // ── The embeddings indexer (the event SUBSCRIBER) + its bus subscription (PD-48 paid down) ─────────────
@@ -536,6 +546,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     cas,
     discovery,
     connection,
+    embeddings,
     memoryBackfill: chatCompose.backfill.memory,
     groupCharacterBackfill: chatCompose.backfill.groupCharacters,
   });

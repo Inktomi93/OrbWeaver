@@ -17,6 +17,8 @@ export type {
   EmbeddingsIndexerContext,
   EmbeddingsService,
   EmbeddingsServiceDeps,
+  ListCharacterIds,
+  ListImageAssetIds,
   LoadAssetBytes,
   LoadCardText,
 } from "./contract/service";

@@ -15,7 +15,7 @@ import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { sniffMime } from "../substrate/mime";
 
@@ -64,6 +64,16 @@ export async function loadAssetCasRefById(
     .where(eq(assets.id, assetId))
     .limit(LIMIT_ONE);
   return rows[0];
+}
+
+/** Every IMAGE asset id (`mime LIKE 'image/%'`), ALL owners — NO owner scope (D20). The embeddings BULK
+ *  embed pass (PD-53) is a trusted SYSTEM sweep over the whole store: vectors carry no `ownerId`, so the
+ *  enumeration happens un-principal, exactly like `loadAssetCasRefById` above. The mime filter is the
+ *  "can the imageEmbed role handle it" gate — non-image assets (export zips) are never embedded. NOT a
+ *  user-facing surface; the only caller is `listImageAssetIds` (the bulk pass's enumeration read). */
+export async function listImageAssetIdRows(db: Db): Promise<AssetId[]> {
+  const rows = await db.select({ id: assets.id }).from(assets).where(like(assets.mime, "image/%"));
+  return rows.map((r) => r.id);
 }
 
 /** The id of the caller's asset with this hash, or undefined when they have none. Owner-scoped. */

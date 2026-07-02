@@ -102,13 +102,38 @@ export interface StoreHarness {
   readonly ctx: EmbeddingsContext;
   readonly roleClients: FakeRoleClients;
   readonly advance: (ms: number) => void;
+  readonly listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]>;
+  readonly loadCardText: Mock<EmbeddingsContext["loadCardText"]>;
+  readonly listImageAssetIds: Mock<EmbeddingsContext["listImageAssetIds"]>;
+  readonly loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]>;
 }
 
-/** Build an `EmbeddingsContext` over a real db with deterministic clock/ids + a recording fake bundle. */
-export function makeStoreHarness(db: Db): StoreHarness {
+/** The PD-53 bulk-pass sweep universe the harness fakes serve (all default empty/absent). */
+export interface StoreHarnessSources {
+  readonly characterIds?: readonly CharacterId[];
+  readonly cardTexts?: ReadonlyMap<CharacterId, string>;
+  readonly imageAssetIds?: readonly AssetId[];
+  readonly assetBytes?: ReadonlyMap<AssetId, Uint8Array>;
+}
+
+/** Build an `EmbeddingsContext` over a real db with deterministic clock/ids + a recording fake bundle.
+ *  `sources` feeds the bulk-pass enumeration/canon-read fakes (recording `vi.fn`s, overridable per test). */
+export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}): StoreHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const roleClients = makeRoleClients();
+  const listCharacterIds: Mock<EmbeddingsContext["listCharacterIds"]> = vi.fn<
+    EmbeddingsContext["listCharacterIds"]
+  >(() => Promise.resolve(sources.characterIds ?? []));
+  const loadCardText: Mock<EmbeddingsContext["loadCardText"]> = vi.fn<
+    EmbeddingsContext["loadCardText"]
+  >((characterId) => Promise.resolve(sources.cardTexts?.get(characterId)));
+  const listImageAssetIds: Mock<EmbeddingsContext["listImageAssetIds"]> = vi.fn<
+    EmbeddingsContext["listImageAssetIds"]
+  >(() => Promise.resolve(sources.imageAssetIds ?? []));
+  const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<
+    EmbeddingsContext["loadAssetBytes"]
+  >((assetId) => Promise.resolve(sources.assetBytes?.get(assetId)));
   const ctx: EmbeddingsContext = {
     db,
     roleClients,
@@ -119,8 +144,22 @@ export function makeStoreHarness(db: Db): StoreHarness {
       castId<ImageEmbeddingId>(ids.next("image_embedding")),
     newChatDigestId: (): ChatDigestId => castId<ChatDigestId>(ids.next("chat_digest")),
     newChatSegmentId: (): ChatSegmentId => castId<ChatSegmentId>(ids.next("chat_segment")),
+    listCharacterIds,
+    loadCardText,
+    listImageAssetIds,
+    loadAssetBytes,
+    embedDim: EMBED_DIM,
+    imageEmbedDim: EMBED_DIM,
   };
-  return { ctx, roleClients, advance: (ms: number): void => clock.advance(ms) };
+  return {
+    ctx,
+    roleClients,
+    advance: (ms: number): void => clock.advance(ms),
+    listCharacterIds,
+    loadCardText,
+    listImageAssetIds,
+    loadAssetBytes,
+  };
 }
 
 export interface IndexerHarness {

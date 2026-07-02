@@ -6,6 +6,8 @@
 // reject with a clear "not built (PD-xx)" message — never a fake success (the prompt's inert-stub pattern).
 //
 // WIRED (real backing verbs):
+//   • embeddings.embedCorpus / embedAssets → the PD-53 bulk catch-up sweeps on EmbeddingsService (resumable,
+//     content_hash-gated; result reshaped into the workload-owned EmbedPassResult — the adapter discipline).
 //   • discovery.computeThemes / findDuplicates / computeHubScores → DiscoveryService verbs (result reshaped
 //     into the workload-owned AnalyticsResult — the adapter discipline; the workload contract never imports
 //     a sibling's result type).
@@ -13,8 +15,6 @@
 //   • connection.refreshCatalogSnapshot → `connection.refreshCatalog` (counts only — no provider shapes leak).
 //   • cas → the injected infra/storage blob store (the image-embed pass reads originals through it).
 // INERT (DEFERRED — no backing verb in the current slices; named precisely so a run fails loud, not silent):
-//   • embeddings.embedCorpus / embedAssets — no bulk corpus/asset sweep verb on EmbeddingsService (only the
-//     single-row `store`); the resumable bulk passes are a later embeddings wave.
 //   • discovery.distillCharacters / computeCooccurrence — PD-40 (deferred discovery corpus surface).
 //   • import.importAll — built by the `entry/import/run-profile-import` driver (a later entry slice).
 //   • assets.* (backfillAvatars / collectGarbage / fsck) — PD-26 (the assets GC/backfill wave).
@@ -25,11 +25,13 @@
 import type { Db } from "@orb/db";
 import type { ConnectionService } from "#domain/connection";
 import type { DiscoveryService } from "#domain/discovery";
+import type { EmbeddingsService } from "#domain/embeddings";
 import { reconcileStats } from "#domain/stats";
 import type {
   WorkloadCharacterEnv,
   WorkloadConnectionEnv,
   WorkloadDiscoveryEnv,
+  WorkloadEmbeddingsEnv,
   WorkloadMemoryEnv,
   WorkloadRunnerEnv,
   WorkloadStatsEnv,
@@ -41,6 +43,7 @@ import type { Cas } from "#infra/storage";
 type DiscoveryOut = Awaited<ReturnType<WorkloadDiscoveryEnv["computeThemes"]>>;
 type StatsOut = Awaited<ReturnType<WorkloadStatsEnv["reconcileStats"]>>;
 type CatalogOut = Awaited<ReturnType<WorkloadConnectionEnv["refreshCatalogSnapshot"]>>;
+type EmbedOut = Awaited<ReturnType<WorkloadEmbeddingsEnv["embedCorpus"]>>;
 
 /** What the runner-env builder needs from the composition root — the db + clock + the cas handle + the
  *  slices of the real services whose verbs back a wired op. */
@@ -53,6 +56,8 @@ export interface RunnerEnvDeps {
     "computeThemes" | "computeDuplicatePairs" | "computeCharacterHubScores"
   >;
   readonly connection: Pick<ConnectionService, "refreshCatalog">;
+  /** The PD-53 bulk embed passes (resumable, content_hash-gated catch-up sweeps). */
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
   /** Chat's PD-41 corpus sweeps, BOUND over the chat ctx at the root (built after chat). */
   readonly memoryBackfill: WorkloadMemoryEnv["backfill"];
   readonly groupCharacterBackfill: WorkloadCharacterEnv["backfillGroupCharacters"];
@@ -67,16 +72,18 @@ function notBuilt(label: string): () => Promise<never> {
 /** Assemble the cross-feature `WorkloadRunnerEnv` ONCE at boot (the worker threads it into every dispatch). */
 export function buildWorkloadRunnerEnv(deps: RunnerEnvDeps): WorkloadRunnerEnv {
   return {
-    // FLAG[PD-53]: no backing bulk embed-pass verb on EmbeddingsService (only the single-row `store`). The
-    // on-write indexer subscription (PD-48) is now wired in services.ts; this is the SEPARATE bulk catch-up
-    // sweep workload (the content_hash re-index pass) — a larger piece, deliberately still inert.
+    // PD-53 cleared: the bulk catch-up sweeps (resumable, content_hash-gated) back the embed workloads.
+    // The domain's BulkEmbedResult is projected field-for-field into the workload-owned EmbedPassResult
+    // (the adapter discipline — structurally identical today, decoupled by design).
     embeddings: {
-      embedCorpus: notBuilt(
-        "embeddings.embedCorpus not built (FLAG[PD-53]) — bulk corpus embed pass",
-      ),
-      embedAssets: notBuilt(
-        "embeddings.embedAssets not built (FLAG[PD-53]) — bulk asset embed pass",
-      ),
+      embedCorpus: async ({ force, signal }): Promise<EmbedOut> => {
+        const r = await deps.embeddings.embedCorpus({ force, signal });
+        return { embedded: r.embedded, skipped: r.skipped };
+      },
+      embedAssets: async ({ force, signal }): Promise<EmbedOut> => {
+        const r = await deps.embeddings.embedAssets({ force, signal });
+        return { embedded: r.embedded, skipped: r.skipped };
+      },
     },
     discovery: {
       computeThemes: async ({ k }): Promise<DiscoveryOut> => {

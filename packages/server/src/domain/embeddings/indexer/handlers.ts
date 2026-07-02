@@ -11,22 +11,7 @@
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { EmbeddingsIndexerContext } from "../contract/service";
-
-// The avatar caption prompt (image-captioned lens): the joint VL embed combines the image bytes with this
-// generated caption. A constant (no magic strings) — the caption model is `roleClients.summarizerModel`.
-const CAPTION_SYSTEM_PROMPT =
-  "You are an image captioner. Describe the visible subject, style, and notable details in one concise sentence. No preamble.";
-const CAPTION_USER_PROMPT = "Describe this image.";
-
-/** Generate the avatar caption inline via the injected `summarize` op (embeddings.md open decision: inline,
- *  not a chained `caption.created` event). Returns the summary text (empty string when the family returned
- *  no item — the joint embed still runs on the image bytes). */
-async function generateCaption(ctx: EmbeddingsIndexerContext, bytes: Uint8Array): Promise<string> {
-  const result = await ctx.roleClients.summarize([
-    { systemPrompt: CAPTION_SYSTEM_PROMPT, userPrompt: CAPTION_USER_PROMPT, images: [bytes] },
-  ]);
-  return result.items[0]?.text ?? "";
-}
+import { generateAvatarCaption } from "./caption";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
  *  store verb hash-gates, so a no-op edit is a cheap noop (no re-embed). */
@@ -70,7 +55,7 @@ export async function onAssetCreated(
     model,
     dim: ctx.imageEmbedDim,
   });
-  const caption = await generateCaption(ctx, bytes);
+  const caption = await generateAvatarCaption(ctx.roleClients, bytes);
   await ctx.store({
     kind: "avatar",
     lens: "image-captioned",
