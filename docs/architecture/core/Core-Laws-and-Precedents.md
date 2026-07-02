@@ -455,3 +455,4 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | ------------------ | ---------------------------------------------------------------------------------------------- |
 | `clean-break`      | retrofit-diff rule (delete-home-as-you-add-replacement); orbweaver is greenfield, no retrofits |
 | `shared-structure` | governs neo's `src/shared/`; orbweaver has no `_shared` (kit/contracts replace it)             |
+| `import-alias`     | forced cross-LAYER imports through aliases because neo was ONE package (`src/{shared,server,db,client}`) the resolver couldn't police. Orbweaver made those layers PHYSICAL packages — the rule is now cross-PACKAGE `@orb/*` physics (dep-cruiser + not-in-package.json) + `client-feature-front-door`/`no-cross` for cross-feature. Residual (intra-package deep-relative vs `#lib`) is cosmetic, not a boundary — YAGNI to gate. |
