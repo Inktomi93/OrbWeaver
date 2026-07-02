@@ -11,8 +11,11 @@ function thumbCount(value: number | readonly number[] | null | undefined): numbe
   return Array.isArray(value) ? value.length : 1;
 }
 
+// `orientation` is narrowed OUT: Base UI accepts "vertical" but the variants ship no vertical CSS
+// branch, so exposing it would promise a silently-broken layout. Vertical support (type + CSS +
+// test, together) lands when a real consumer needs it — see ui-primitive-contract BATCH 1.
 export interface SliderProps<Value extends number | readonly number[] = number>
-  extends SliderRootProps<Value> {
+  extends Omit<SliderRootProps<Value>, "orientation"> {
   className?: string;
   /**
    * Visible, auto-associated label — renders `Slider.Label` (aria-labelledby on every thumb).

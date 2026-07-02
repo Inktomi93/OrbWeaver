@@ -10,7 +10,10 @@ import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { tabsVariants } from "./variants";
 
-export interface TabsProps extends BaseTabsRootProps {
+// `orientation` is narrowed OUT: Base UI accepts "vertical" but the variants ship no vertical CSS
+// branch, so exposing it would promise a silently-broken layout. Vertical support (type + CSS +
+// test, together) lands when a real consumer needs it — see ui-primitive-contract BATCH 1.
+export interface TabsProps extends Omit<BaseTabsRootProps, "orientation"> {
   className?: string;
 }
 

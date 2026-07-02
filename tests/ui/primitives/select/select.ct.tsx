@@ -10,6 +10,12 @@ const ITEMS = [
   { label: "Gamma", value: "gamma" },
 ];
 
+test("aria-label names the combobox trigger", async ({ mount, page }) => {
+  // Root renders no element; a labelless Select must be nameable via the trigger.
+  await mount(<Select aria-label="Model picker" items={ITEMS} placeholder="Pick one" />);
+  await expect(page.getByRole("combobox", { name: "Model picker" })).toBeVisible();
+});
+
 test("opens on click, selects an option, and closes", async ({ mount, page }) => {
   await mount(<Select items={ITEMS} placeholder="Pick one" />);
   const trigger = page.getByRole("combobox");

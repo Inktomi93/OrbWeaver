@@ -4,9 +4,14 @@ import type {
 } from "@base-ui/react/scroll-area";
 import { ScrollArea as BaseScrollArea } from "@base-ui/react/scroll-area";
 import type { ReactElement } from "react";
+import { cn } from "#lib";
 import { scrollAreaVariants } from "./variants";
 
 const slots = scrollAreaVariants();
+
+export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "className"> {
+  className?: string;
+}
 
 export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   className?: string;
@@ -14,6 +19,12 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   viewportClassName?: string;
   /** Class for the sized `Content` wrapper (where `children` live). */
   contentClassName?: string;
+  /**
+   * Props forwarded to the scrolling Viewport — the element that actually scrolls, NOT the Root.
+   * This is where `onScroll` and a `ref` belong for chat autoscroll / scroll-position tracking
+   * (spread onto Root they'd be dead-on-arrival). `viewportClassName` still merges the class.
+   */
+  viewportProps?: ScrollAreaViewportProps;
 }
 
 /**
@@ -24,10 +35,14 @@ export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
  * state; `Corner` fills the square where both scrollbars meet (visible only on BOTH-axis overflow).
  * Set a bounded height/width on the root (`className`) to make it scroll.
  * `<ScrollArea className="h-[...]"><LongList/></ScrollArea>`
+ *
+ * Scroll tracking (chat autoscroll): `<ScrollArea viewportProps={{ ref, onScroll }}>` — the ref/
+ * handler reach the Viewport (the scrolling element), not the non-scrolling Root.
  * Spec: ui-package-design §6.1 / §13 R2 — styled scrollbars + Content/Corner surface.
  */
 export function ScrollArea(props: ScrollAreaProps): ReactElement {
-  const { className, viewportClassName, contentClassName, children, ...rest } = props;
+  const { className, viewportClassName, contentClassName, viewportProps, children, ...rest } =
+    props;
   return (
     <BaseScrollArea.Root
       className={slots.root({ className })}
@@ -35,7 +50,10 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
       {...rest}
     >
       <BaseScrollArea.Viewport
-        className={slots.viewport({ className: viewportClassName })}
+        {...viewportProps}
+        className={slots.viewport({
+          className: cn(viewportClassName, viewportProps?.className),
+        })}
         data-slot="scroll-area-viewport"
       >
         <BaseScrollArea.Content
@@ -62,8 +80,4 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
       <BaseScrollArea.Corner className={slots.corner()} data-slot="scroll-area-corner" />
     </BaseScrollArea.Root>
   );
-}
-
-export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "className"> {
-  className?: string;
 }

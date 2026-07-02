@@ -26,6 +26,35 @@ test("renders content in a scrollable viewport", async ({ mount, page }) => {
   await expect.poll(() => viewport.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
 
+test("onScroll forwards to the scrolling viewport (chat autoscroll seam)", async ({
+  mount,
+  page,
+}) => {
+  // The handler receives a React SyntheticEvent (non-serializable across CT's function-prop
+  // boundary), so it just counts invocations — proving onScroll reached the scrolling Viewport
+  // rather than dying on the non-scrolling Root.
+  let scrolled = 0;
+  await mount(
+    <ScrollArea
+      style={{ height: 120 }}
+      viewportProps={{
+        onScroll: (): void => {
+          scrolled += 1;
+        },
+      }}
+    >
+      <div style={{ height: 1200 }}>
+        <p>Scrollable</p>
+      </div>
+    </ScrollArea>,
+  );
+  const viewport = page.locator('[data-slot="scroll-area-viewport"]');
+  await viewport.evaluate((el) => {
+    el.scrollTop = 400;
+  });
+  await expect.poll(() => scrolled).toBeGreaterThan(0);
+});
+
 test("renders the corner square only on both-axis overflow", async ({ mount, page }) => {
   await mount(
     <ScrollArea style={{ height: 120, width: 200 }}>
