@@ -5,7 +5,8 @@
 
 import type { UpdateTagInput } from "@orb/contracts/tag";
 import { isConstraintViolation } from "@orb/db";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
+import { normalizeTagName } from "@orb/kit/tag";
 import { TagNotFoundError } from "../contract/errors";
 import type { UpdateTagParams } from "../contract/params";
 import type { TagContext, TagService } from "../contract/service";
@@ -19,7 +20,17 @@ type TagPatch = Parameters<typeof updateOwnedTag>[3];
 function buildPatch(input: UpdateTagInput): TagPatch {
   const patch: TagPatch = {};
   if (input.name !== undefined) {
-    patch.name = input.name;
+    // Canonicalize through the ONE normalizer (the create/attach-by-name path) — a rename must land in the
+    // same canonical space or the (ownerId, name) uniqueness silently forks ("a b" vs "a  b"). A
+    // whitespace-only rename normalizes to "" (the wire min(1) passes it) — refuse, never an empty-name row.
+    const name = normalizeTagName(input.name);
+    if (name.length === 0) {
+      throw new DomainOperationError(
+        "tag_name_empty",
+        "a tag name cannot be empty/whitespace-only",
+      );
+    }
+    patch.name = name;
   }
   if (input.color !== undefined) {
     patch.color = input.color;

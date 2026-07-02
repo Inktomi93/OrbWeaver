@@ -1,6 +1,6 @@
 // verb: updateTag — partial patch, `null` clears color to theme default, rename conflict, missing → 404.
 
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTagService, TagNotFoundError } from "@orb/server/domain/tag";
@@ -49,6 +49,28 @@ describe("updateTag", () => {
     await expect(
       svc.updateTag({ principal: principal(owner), tagId: beta, patch: { name: "alpha" } }),
     ).rejects.toThrow(DomainConflictError);
+  });
+
+  test("a rename normalizes (trim + whitespace-collapse); whitespace-only is refused, no empty-name row", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db);
+    const svc = createTagService(makeTagHarness(db).ctx);
+    const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
+
+    const renamed = await svc.updateTag({
+      principal: principal(owner),
+      tagId,
+      patch: { name: "  neo   noir  " },
+    });
+    expect(renamed.name).toBe("neo noir");
+
+    // Whitespace-only passes the wire min(1) but normalizes to "" — refused, the row keeps its name.
+    const err = await svc
+      .updateTag({ principal: principal(owner), tagId, patch: { name: "   " } })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("tag_name_empty");
+    expect((await svc.getTag({ principal: principal(owner), tagId })).name).toBe("neo noir");
   });
 
   test("updating a missing tag is not-found", async () => {

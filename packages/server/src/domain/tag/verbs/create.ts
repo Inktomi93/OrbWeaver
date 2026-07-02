@@ -17,6 +17,13 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
     const ownerId = params.principal.userId;
     const { input } = params;
     const name = normalizeTagName(input.name);
+    if (name.length === 0) {
+      // The wire min(1) passes a whitespace-only name; normalized it would be an empty-name row — refuse.
+      throw new DomainOperationError(
+        "tag_name_empty",
+        "a tag name cannot be empty/whitespace-only",
+      );
+    }
     try {
       const inserted = await ctx.db
         .insert(tags)
