@@ -15,6 +15,7 @@
     "engines": "bash scripts/dev/engines.sh",
     "typecheck": "pnpm -r exec tsc --noEmit --pretty false",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",
+    "lint:eslint": "eslint packages/ui packages/client tests/ui",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "depcruise": "depcruise packages --config .dependency-cruiser.cjs --output-type err-long",
@@ -33,7 +34,7 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "bash scripts/dev/mutation.sh stryker.config.json",
     "test:mutation:gate": "bash scripts/dev/mutation.sh stryker.gate.config.json",
-    "check": "pnpm lint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
+    "check": "pnpm lint && pnpm lint:eslint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
@@ -49,6 +50,8 @@
     "@stryker-mutator/typescript-checker": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/vite": "catalog:",
+    "@tanstack/eslint-plugin-query": "catalog:",
+    "@tanstack/eslint-plugin-router": "catalog:",
     "@total-typescript/ts-reset": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
@@ -57,6 +60,9 @@
     "dependency-cruiser": "catalog:",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
+    "eslint": "catalog:",
+    "eslint-plugin-better-tailwindcss": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
     "jscpd": "catalog:",
     "lefthook": "catalog:",
     "markdownlint-cli": "^0.49.0",
@@ -69,6 +75,7 @@
     "ts-morph": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"
   }
