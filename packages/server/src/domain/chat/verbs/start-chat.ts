@@ -37,6 +37,7 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
@@ -137,8 +138,29 @@ function greetTargets(
   return [];
 }
 
+/** Validate EVERY founding character is a host-readable (owner-scoped) card BEFORE any roster row exists
+ *  (D28 live read; the PD-21 single-owner invariant — a roster character is always the HOST's, which is
+ *  what keeps the stats rebuild's `characters.ownerId` attribution ≡ the live deltas' D19 host). A
+ *  foreign/unknown id is a not-found (the owner-scoped read makes foreign == missing — leak-free). */
+async function requireFoundingCast(
+  ctx: ChatContext,
+  hostUserId: UserId,
+  characterIds: readonly CharacterId[],
+): Promise<void> {
+  const cards = await Promise.all(
+    characterIds.map(async (characterId) => ({
+      characterId,
+      card: await ctx.getCard({ ownerId: hostUserId, characterId }),
+    })),
+  );
+  const missing = cards.find((c) => c.card === null);
+  if (missing !== undefined) {
+    throw new DomainNotFoundError("character", missing.characterId);
+  }
+}
+
 /** Resolve the founding cards' greetings (`greetings[0]`) under the host's ownership (D28 live read).
- *  Characters whose card is gone / has no greeting carry an empty string (skipped at seed time). */
+ *  Characters whose card has no greeting carry an empty string (skipped at seed time). */
 async function loadGreetings(
   ctx: ChatContext,
   hostUserId: UserId,
@@ -262,6 +284,9 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const hostUserId = principal.userId;
     const anchor = anchorPersonaId ?? null;
     const policy = resolveOpeningPolicy(opening, characterIds.length);
+
+    // PD-21: every founding character must be the HOST's (owner-scoped read) — no foreign ghost seats.
+    await requireFoundingCast(ctx, hostUserId, characterIds);
 
     // The roster (D28 live identity): the caller as host, the founding characters as server-forced members.
     const rosterRows = buildInitialRosterRows({

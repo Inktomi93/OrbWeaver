@@ -10,7 +10,7 @@
 // comes off the FLAT `characters.name` (D28 — no character_versions). The gen-time column is `genTimeMs`
 // (projected to the view's `totalGenTimeMs`). personaUsage is the live D18 definition (anchor persona OR a
 // participant's active persona). The canon reach/latency scans owner-scope via `characters.ownerId`
-// (FLAG[PD-21] in rebuild-from-canon.ts).
+// (the owner-attribution note in rebuild-from-canon.ts — PD-21 confirmed).
 
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";

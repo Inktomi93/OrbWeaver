@@ -283,7 +283,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // The canon-mutator stats push (stats.md): a fork is a COPY — the rebuild counts the copied canon under
     // the new room, so the live path must too (chat-created + fork lineage + every copied slot's SELECTED
     // contribution + every copied swipe), all in the SAME creation batch. Owner = the fork's host (the
-    // forker — D19; the group multi-owner edge is FLAG[PD-21]'s open attribution question).
+    // forker — D19; PD-21 confirmed: roster characters are host-owned, so this IS the character owner).
     pushForkStatsDeltas(ctx, stmts, {
       ownerId: principal.userId,
       primaryCharacterId:

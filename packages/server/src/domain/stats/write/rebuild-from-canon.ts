@@ -18,13 +18,14 @@
 // Per-character grain keys on `messages.characterId` directly (D28). Owner-scoping is membership-derived
 // (D18 — no chats.ownerId): the owner's chats are those with a character participant the owner owns.
 //
-// FLAG[PD-21] (judged, not silently chosen): the canon OWNER-ATTRIBUTION here (owner = characters.ownerId
-// for assistant economics; the owner's chats by membership for user turns / chat counts) is the
-// design-implied mapping (D23: character_stats has no ownerId precisely because owner derives via
-// characterId→characters.ownerId). It is CORRECT for the dominant single-owner-per-chat case. The
-// multi-owner GROUP-chat edge (user turns + a co-participant character of another owner) is NOT settled —
-// it belongs to chat's D18 membership model + the StatsDelta builders this rebuild must match under the
-// drift gate. CONFIRM both against chat when chat lands; the drift test is the enforcer. Not final.
+// OWNER-ATTRIBUTION (PD-21 CONFIRMED against chat's D18 membership model, 2026-07-01): owner =
+// characters.ownerId for assistant economics; the owner's chats by character-participant membership for
+// user turns / chat counts (D23: character_stats has no ownerId precisely because owner derives via
+// characterId→characters.ownerId). This is EXACT under v1's enforced single-owner-per-chat invariant:
+// every roster character is HOST-owned — `startChat`/`addCharacterToChat` gate each characterId through
+// the host's owner-scoped card read (foreign == missing), so characters.ownerId ≡ the D19 host the live
+// StatsDelta builders attribute to. The multi-owner attribution question re-opens ONLY with the v2
+// first-class-agent / member-owned-character roster work (PD-17) — re-decide it there, not here.
 
 import type { BatchStmt, Db } from "@orb/db";
 import {
@@ -271,7 +272,7 @@ interface ReconcileOpts {
 }
 
 /** Full rebuild of the stats rollups from canon. `ownerId` scopes to one user; omit to rebuild every owner
- *  that owns a character. Aborts cooperatively between owners via `signal`. See FLAG[PD-21] (header). */
+ *  that owns a character. Aborts cooperatively between owners via `signal`. See the owner-attribution note (header). */
 export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<ReconcileStatsResult> {
   const owners = opts.ownerId
     ? [opts.ownerId]
