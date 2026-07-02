@@ -1,3 +1,5 @@
+import { isReservedAgentHandle } from "@orb/contracts/identity";
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -14,6 +16,14 @@ import { determineRole } from "../substrate/role-policy";
 export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "ensureUser"> {
   async function ensureUser(rawHandle: string): Promise<UserId> {
     const handle = castId<Handle>(rawHandle.trim());
+    // FLAG[PD-17] / agent-principal-design/01 §3.2: refuse the reserved `__agent__` namespace. A forward-header
+    // deployment forwarding `X-User: __agent__buddy__<id>` must get a HARD refusal — never a JIT-create, never a
+    // match against an agent's row. The impersonation hole the `kind` column would otherwise open.
+    if (isReservedAgentHandle(handle)) {
+      throw new DomainForbiddenError(
+        "the __agent__ handle namespace is reserved for agent principals",
+      );
+    }
     const existing = await selectIdByHandle(ctx.db, handle);
     if (existing !== undefined) {
       return existing;

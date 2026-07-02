@@ -1,4 +1,6 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { isReservedAgentHandle } from "@orb/contracts/identity";
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
@@ -105,6 +107,15 @@ export function createProvisionIdentity(
   ctx: SessionsContext,
 ): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
+    // FLAG[PD-17] / agent-principal-design/01 §3.2: refuse the reserved `__agent__` namespace (the SSO twin of
+    // the ensureUser belt). An agent has no `externalId` (DDL CHECK) so it can never match the externalId key;
+    // its handle is always `__agent__…`, so this closes the by-handle match/update path outright — no agent
+    // row is ever matched, updated, or shadow-created via the SSO seam.
+    if (isReservedAgentHandle(identity.handle)) {
+      throw new DomainForbiddenError(
+        "the __agent__ handle namespace is reserved for agent principals",
+      );
+    }
     const derivedRole = determineRole(identity.handle, identity.groups);
     const existing = await findExisting(ctx, identity);
     return existing !== undefined

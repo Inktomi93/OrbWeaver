@@ -31,6 +31,7 @@ import type {
   ParticipantView,
 } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import { isReservedAgentHandle } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -128,6 +129,16 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
     // PD-66: resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {
+      // D60 (agent-principal-design/06 §4): invites are the HUMAN membership chokepoint — an agent enters a
+      // room only via `seatAgent` (AP3), NEVER an invite. Refuse the reserved `__agent__` namespace at the
+      // boundary (the one-homed predicate, reused), leak-free as "no invitable user" (never confirm the
+      // namespace exists). FLAG[PD-17].
+      if (isReservedAgentHandle(input.invitedHandle)) {
+        throw new DomainOperationError(
+          "invite_target_unknown",
+          "no invitable user with that exact handle",
+        );
+      }
       invitedUserId = await ctx.resolveHandle(input.invitedHandle);
       if (invitedUserId === null) {
         throw new DomainOperationError(

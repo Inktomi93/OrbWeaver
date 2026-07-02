@@ -16,6 +16,7 @@ import { requireOwner } from "../guard";
 import { loadUser, userCols } from "../persistence/queries";
 
 const OWNER_ROLE = "owner";
+const AGENT_KIND = "agent";
 
 export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
   return async (params: SetRoleParams) => {
@@ -30,7 +31,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       );
     }
 
-    // Friendly pre-check (existence-before-write + the fast-path owner error).
+    // Friendly pre-check (existence-before-write + the fast-path owner/agent errors).
     const target = await loadUser(ctx.db, userId);
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
@@ -41,14 +42,22 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
         "the owner cannot be demoted",
       );
     }
+    // An agent principal's authority is the doc-03 ceiling, never the role axis (D60). The `users_agent_shape`
+    // CHECK (`role='user'`) is the DDL floor; this gives the honest error first.
+    if (target.kind === AGENT_KIND) {
+      throw new DomainOperationError(
+        ADMIN_OP_CODES.cannotModifyAgent,
+        "an agent principal's role cannot be changed — its authority is the capability ceiling",
+      );
+    }
 
     const at = ctx.now();
-    // Atomic backstop: `role <> 'owner'` means an owner row matches 0 rows even if it became owner between
-    // the pre-check and here — the real defense under a race; the pre-check is only the friendly error.
+    // Atomic backstops: `role <> 'owner'` AND `kind <> 'agent'` — the row matches 0 rows if it became an
+    // owner/agent between the pre-check and here (the real race defense; the pre-checks are the friendly errors).
     const updated = await ctx.db
       .update(users)
       .set({ role, updatedAt: at })
-      .where(and(eq(users.id, userId), ne(users.role, OWNER_ROLE)))
+      .where(and(eq(users.id, userId), ne(users.role, OWNER_ROLE), ne(users.kind, AGENT_KIND)))
       .returning(userCols);
     const row = updated[0];
     if (row === undefined) {
@@ -68,6 +77,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       },
       at,
     );
-    return row;
+    // `ownerHandle` is unchanged by a role write — carry it from the pre-loaded view (no re-read).
+    return { ...row, ownerHandle: target.ownerHandle };
   };
 }

@@ -19,6 +19,42 @@ export type UserRole = (typeof USER_ROLES)[number];
 /** The wire schema for the role axis — `z.enum` over the canonical tuple (consumed by tRPC + forms). */
 export const userRoleSchema = z.enum(USER_ROLES);
 
+// The ONE principal-KIND axis (D60; agent-principal-design/01 §1) — `human | agent`. Orthogonal to `role`
+// (the human privilege axis): an agent is ALWAYS `role='user'` (a DDL CHECK, agent-principal-design/01 §1).
+// A tuple, never an `isAgent` boolean — a boolean can't grow to a third flavor and forces `if`-branching
+// instead of exhaustive dispatch (§7.5). The one home: `@orb/db`'s `users.kind` enum + a CHECK derive from
+// it (the `USER_ROLES` precedent; a db↔contracts mirror test pins them equal).
+// FLAG[PD-17]: the KIND axis is born at AP0 (schema + this tuple). The behavior it unlocks lands in waves:
+// AP1 (HERE NOW) = the mint (`provisionAgentPrincipal`) + `canAgent`/`AGENT_ACTIONS` + `AgentActor` (below) +
+// the admin/notifications/invite refusals; AP2 = attribution + the `AI_DRIVEN_KINDS`/`USER_BACKED_KINDS`
+// kind-sets (deferred — their arbitration/predicate consumers flip there); AP3 = `chat.seatAgent` + the
+// speaker-source registry + `AgentSpeakerIdentity` (deferred). Each wave adds vocab WITH its consumer, never
+// as a dead branch (Orbweaver credo).
+export const USER_KINDS = ["human", "agent"] as const;
+export type UserKind = (typeof USER_KINDS)[number];
+/** The wire schema for the principal-kind axis — `z.enum` over the canonical tuple (the `userRoleSchema` twin). */
+export const userKindSchema = z.enum(USER_KINDS);
+
+// WHAT kind of agent a principal is — the `agent_principals.sourceKind` dispatch axis (agent-principal-design/01
+// §2). `buddy` only in v1; a future standalone-agent flavor is a tuple member + a speaker-registry arm (AP3).
+// FLAG[PD-17]: born as the satellite's enum at AP0; the speaker-source registry that dispatches on it is AP3.
+export const AGENT_SOURCE_KINDS = ["buddy"] as const;
+export type AgentSourceKind = (typeof AGENT_SOURCE_KINDS)[number];
+/** The wire schema for the agent-source axis — `z.enum` over the canonical tuple. */
+export const agentSourceKindSchema = z.enum(AGENT_SOURCE_KINDS);
+
+/** The reserved handle namespace for agent principals (agent-principal-design/01 §3/§4). An agent's handle is
+ *  the deterministic `__agent__${sourceKind}__${ownerUserId}` — the idempotency key AND the namespace the
+ *  auth belts REFUSE (a forward-header `X-User: __agent__…` must never JIT-create or match an agent row). The
+ *  `__group__` synthetic-character precedent reserves a namespace the same way, but characters never reached
+ *  auth — THIS refusal is new and load-bearing (agent-principal-design/01 §3.2). */
+export const RESERVED_AGENT_HANDLE_PREFIX = "__agent__";
+/** True when a handle falls in the reserved agent namespace — the auth belts (`sessions.ensureUser`/
+ *  `provisionIdentity`) refuse these loudly, never JIT-create or match against them. */
+export function isReservedAgentHandle(handle: string): boolean {
+  return handle.startsWith(RESERVED_AGENT_HANDLE_PREFIX);
+}
+
 // The ONE auth-mode axis — the SSO mechanism selector. The single tuple is the one home (§7.5,
 // Spine-TypeScript-and-Patterns.md §125 names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
 // `AUTH_MODE` var + its superRefine, and `infra/auth`'s `AuthConfig.mode` + the `MODE_RESOLVERS` dispatch
@@ -117,4 +153,30 @@ export type ResourceRef = GlobalResource | ChatResource;
 export interface Can {
   (principal: Principal, action: GlobalAction, resource: GlobalResource): void;
   (principal: Principal, action: ChatAction, resource: ChatResource): void;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE AGENT-PRINCIPAL CEILING (D60; agent-principal-design/03). An agent is NEVER a `Principal` (wall one —
+// no request path yields one; `Principal` has no `kind` field). The ONE runtime gate is `canAgent` on the
+// same `domain/admin/guard.ts` seam, over the closed `AGENT_ACTIONS` union — an action not listed here is
+// UNSPELLABLE (the ceiling IS the union; growing it is a tuple member + a ledger call). Landed at AP1 with
+// its `canAgent` consumer (deferred from AP0 per no-dead-branches). `AgentSpeakerIdentity` stays AP3.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The closed allow-union that IS the agent capability ceiling (agent-principal-design/03 §2). `speak` = may
+ *  author a turn in a room it is seated in; `tool-propose` = may STASH a proposal during an agent-mode turn
+ *  (never execute — `confirm` is a human `Principal` verb, structurally out of reach). No `z.enum` companion:
+ *  this is a runtime-only ceiling (no db/wire consumer derives it — unlike `USER_ROLES`/`USER_KINDS`). */
+export const AGENT_ACTIONS = ["speak", "tool-propose"] as const;
+export type AgentAction = (typeof AGENT_ACTIONS)[number];
+
+/** The actor type for the ONE agent runtime gate (`canAgent`) — NOT a `Principal`, and nothing interconverts
+ *  them (no constructor, no cast site — compile-level separation; agent-principal-design/03 §1). The engine
+ *  builds it from the roster row + the joined `users` row (`ownerUserId`/`enabled`) when it runs an agent
+ *  speaker's turn. `enabled` is the kill switch — a disabled agent fails every `canAgent`. */
+export interface AgentActor {
+  readonly kind: "agent";
+  readonly userId: UserId;
+  readonly ownerUserId: UserId;
+  readonly enabled: boolean;
 }

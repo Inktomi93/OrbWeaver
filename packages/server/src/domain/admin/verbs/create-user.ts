@@ -58,7 +58,8 @@ interface LocalUserInsert {
 }
 
 async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise<AdminUserView> {
-  let inserted: AdminUserView[];
+  // `.returning(userCols)` omits the joined `ownerHandle` (D60) — a fresh human's owner is null, added at return.
+  let inserted: Omit<AdminUserView, "ownerHandle">[];
   try {
     inserted = await ctx.db
       .insert(users)
@@ -66,6 +67,9 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise
         id: ctx.newUserId(),
         handle: castId<Handle>(row.handle),
         role: row.role,
+        // D60: `createUser` mints HUMANS only — agent rows come exclusively from provisionAgentPrincipal
+        // (doc 01 inv 3). Hardcoded (not the schema default) so a future default change can't leak agents here.
+        kind: "human",
         passwordHash: row.passwordHash,
         createdAt: row.at,
         updatedAt: row.at,
@@ -86,7 +90,9 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert): Promise
       "user row was not returned after insert",
     );
   }
-  return created;
+  // A freshly-minted human never owns anything — `ownerHandle` is null (D60). `.returning(userCols)` omits
+  // the joined column, so it is set explicitly here.
+  return { ...created, ownerHandle: null };
 }
 
 export function createCreateUser(ctx: AdminContext): AdminService["createUser"] {

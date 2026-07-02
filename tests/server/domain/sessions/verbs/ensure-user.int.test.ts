@@ -60,4 +60,16 @@ describe("sessions.ensureUser", () => {
     expect(owner?.role).toBe("owner");
     expect(normal?.role).toBe("user");
   });
+
+  test("REFUSES the reserved __agent__ handle namespace — no JIT-create (FLAG[PD-17])", async () => {
+    // The impersonation belt: a forward-header deployment forwarding `X-User: __agent__…` must get a hard
+    // refusal, never a JIT-created row (agent-principal-design/01 §3.2).
+    const handle = "__agent__buddy__deadbeef";
+    await expect(svc.ensureUser(handle)).rejects.toThrow();
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.handle, castId<Handle>(handle)));
+    expect(rows).toHaveLength(0);
+  });
 });

@@ -4,7 +4,7 @@
 // role) — the verb gates on the principal it is handed (spine §1). The handle/password STRINGS are raw
 // here (validated at the verb/transport boundary); `role`/ids are branded.
 
-import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { Principal, UserKind, UserRole } from "@orb/contracts/identity";
 import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
 
 /** Common to every admin verb: the acting principal the guard reads. */
@@ -12,7 +12,11 @@ export interface AdminActorParams {
   readonly principal: Principal;
 }
 
-export interface ListUsersParams extends AdminActorParams {}
+export interface ListUsersParams extends AdminActorParams {
+  /** Filter by principal kind (D60 — the Humans/Agents tab off one procedure). Absent = ALL (default): an
+   *  invisible principal is the one thing the containment surface must never have. */
+  readonly kind?: UserKind;
+}
 
 export interface SetRoleParams extends AdminActorParams {
   readonly userId: UserId;

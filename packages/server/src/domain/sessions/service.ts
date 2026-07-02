@@ -12,6 +12,7 @@ import { createCreate } from "./verbs/create";
 import { createEnsureUser } from "./verbs/ensure-user";
 import { createList } from "./verbs/list";
 import { createLoadUserById } from "./verbs/load-user-by-id";
+import { createProvisionAgent } from "./verbs/provision-agent";
 import { createProvisionIdentity } from "./verbs/provision-identity";
 import { createResolveHandle } from "./verbs/resolve-handle";
 import { createRevoke } from "./verbs/revoke";
@@ -37,5 +38,6 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createLoadUserById(ctx),
     ...createResolveHandle(ctx),
     ...createAuthenticate(ctx),
+    ...createProvisionAgent(ctx),
   };
 }

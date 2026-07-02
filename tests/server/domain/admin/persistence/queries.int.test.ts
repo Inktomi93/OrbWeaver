@@ -1,11 +1,11 @@
-// persistence: loadUser / listAllUsers / userCols — the secret-free admin read surface. The load-bearing
+// persistence: loadUser / listUsers / userCols — the secret-free admin read surface. The load-bearing
 // assertion: the projection NEVER includes passwordHash (invariant #5), against a real db.
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
-  listAllUsers,
+  listUsers,
   loadUser,
 } from "../../../../../packages/server/src/domain/admin/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -28,11 +28,11 @@ describe("admin persistence queries", () => {
     expect(await loadUser(db, castId<UserId>("user_ghost"))).toBeUndefined();
   });
 
-  test("listAllUsers returns every user, secret-free", async () => {
+  test("listUsers returns every user, secret-free", async () => {
     const db = await freshDb();
     await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
     await seedUser(db, { id: "user_b", role: "user", handle: "b", passwordHash: "scrypt$p$q" });
-    const all = await listAllUsers(db);
+    const all = await listUsers(db);
     expect(all).toHaveLength(2);
     for (const row of all) {
       expect(Object.keys(row)).not.toContain("passwordHash");

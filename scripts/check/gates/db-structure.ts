@@ -32,6 +32,10 @@ const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
   "rate-limit": "packages/server/src/transport/rate-limit.ts",
   // session_entries — producer = the sealed agent-sdk backend session store (D8/D25), not a domain.
   "sdk-session": "packages/server/src/infra/providers/backends/agent-sdk/session",
+  // agent_principals — producer = domain/sessions (provisionAgentPrincipal mints the users + satellite rows
+  // in one batch, D60/agent-principal-design/01 §4); the satellite is a sessions-produced registry, not its
+  // own domain. Born at AP0; the mint verb lands AP1 (FLAG[PD-17]).
+  "agent-principals": "packages/server/src/domain/sessions",
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {

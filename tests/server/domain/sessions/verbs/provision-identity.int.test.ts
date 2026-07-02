@@ -46,6 +46,16 @@ describe("sessions.provisionIdentity — INSERT (first SSO login)", () => {
     expect(row?.handle).toBe("alice");
   });
 
+  test("REFUSES the reserved __agent__ handle namespace — no SSO match/create (FLAG[PD-17])", async () => {
+    const before = await rowCount();
+    await expect(
+      svc.provisionIdentity(
+        identity({ handle: castId<Handle>("__agent__buddy__x"), externalId: null }),
+      ),
+    ).rejects.toThrow();
+    expect(await rowCount()).toBe(before);
+  });
+
   test("seeds owner from OWNER_GROUP membership on insert", async () => {
     vi.stubEnv("OWNER_GROUP", "owners");
     const result = await svc.provisionIdentity(identity({ groups: ["owners"] }));

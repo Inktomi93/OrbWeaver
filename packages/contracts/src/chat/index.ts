@@ -51,9 +51,15 @@ import type { RegexScript } from "#regex";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
 // ── The roster participant kind (the chat-roster discriminator) ───────────────
-// Reserved NOW with the `observer` seam (the per-chat Narrative Director — watches + proposes, never acts).
-// `human`/`character` are the v1 kinds; `agent` (first-class agent principal) joins when that build lands.
-export const PARTICIPANT_KINDS = ["human", "character", "observer"] as const;
+// `human`/`character` are the v1 kinds. `agent` (first-class agent principal — userId-backed AND AI-driven)
+// is born at AP0 (D60; agent-principal-design/02 §1): the `chat_participants` XOR CHECK becomes a per-kind
+// SHAPE CHECK to represent it. `observer` stays the reserved seam (the per-chat Narrative Director — watches
+// + proposes, never acts; still un-seatable, no insert path).
+// FLAG[PD-17]: the `agent` MEMBER + its DDL shape are born at AP0; a seat is UN-fillable until `chat.seatAgent`
+// (AP3). The AI-driven/user-backed derived kind-sets (`AI_DRIVEN_KINDS`/`USER_BACKED_KINDS` + `isAiDriven`) land
+// at AP2 WITH their sole consumer — the arbitration speaker-identity generalization (`select-speakers`/`round`
+// are `CharacterId`-keyed; an agent needs a speaker-ref). Deferred here per no-dead-branches until that lands.
+export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 
@@ -309,6 +315,29 @@ export interface MessageVariant {
   promptSnapshot: AssembledPrompt | null;
   createdAt: number;
 }
+
+/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48; tool-use-design/03 §3).
+ *  The client's ONLY tool read surface (chips render from this — never body-parse). Schema-first so the DB
+ *  read seam parses with `toolCallRecordSchema` (never a cast — the `parseProviderMetadata` pattern). `result`
+ *  is ALWAYS a JSON document when non-null (execute's one stringify site) so chips `JSON.parse` unconditionally;
+ *  `result: null` ⇔ recorded-but-unexecuted (recurse-limit hit); `isError` is authoritative for error styling.
+ *  FLAG[PD-54]: this DTO + the `message_variants.toolCalls` retype are the schema-leaf slice of T1 — landed so
+ *  the born-compliant column is typed while the baseline window is open. The rest of T1 (the `HISTORY_ROLES`
+ *  `tool` role, tool-call/tool-result `ChatContentPart` members, `tools`/`toolChoice`/`responseFormat` request
+ *  fields, the `CHAT_WARNING_CODES` tool codes) + the domain-owned recurse loop remain (registry: PD-54 ready). */
+export const toolCallRecordSchema = z.object({
+  // biome-ignore lint/plugin/no-raw-id: PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
+  toolCallId: z.string(),
+  name: z.string(),
+  /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
+  arguments: z.string(),
+  /** JSON document serialized by execute; `null` = not executed (recurse-limit — tool-use-design/03 §2.2). */
+  result: z.string().nullable(),
+  isError: z.boolean(),
+  /** `null` when unexecuted; else the execute duration (injected clock). */
+  durationMs: z.number().nullable(),
+});
+export type ToolCallRecord = z.infer<typeof toolCallRecordSchema>;
 
 /** The client read-model: the SLOT joined with its SELECTED variant (D26). The slot owns attribution + the
  *  `selectedVariantId` pointer; the joined variant supplies the displayed content + the per-turn economics

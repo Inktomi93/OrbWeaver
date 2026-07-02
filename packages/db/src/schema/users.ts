@@ -7,12 +7,16 @@
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`
 // brand (the schema-branding gate + type-safety), the brand is just not a `prefix_…` TypeID.
 //
-// DEFERRED (§8.6, NOT this pass): `users.isAgent` / `users.kind` (the agent-as-first-class-principal
-// columns) — anticipated here only; do not add them until the agent-principal mint feature lands.
+// AGENT PRINCIPALS (D60; agent-principal-design/01 §1): `kind` (`human|agent`) + `ownerUserId` (self-FK
+// CASCADE) are born at AP0 with three CHECKs. `kind` defaults `'human'` — every existing row is a valid human,
+// so there is no backfill; the CHECKs are free at creation and impossible to retrofit cheaply on a populated
+// identity root. The agent flavor is loginless / unprivileged / owned BY DDL. The BEHAVIOR the columns unlock
+// — the `provisionAgentPrincipal` mint, the seating chokepoint, `canAgent` — is AP1+ (FLAG[PD-17]).
 
-import { USER_ROLES } from "@orb/contracts/identity";
+import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
@@ -20,6 +24,8 @@ const DEFAULT_ROLE = "user";
 // CHECK list derived from the canonical tuple (NOT re-spelled): `role in ('owner', 'admin', 'user')`.
 // Built as a raw fragment because a CHECK is static DDL and cannot carry bound parameters.
 const ROLE_CHECK_LIST = USER_ROLES.map((role) => `'${role}'`).join(", ");
+// CHECK list derived from the canonical KIND tuple (D60, NOT re-spelled): `kind in ('human', 'agent')`.
+const KIND_CHECK_LIST = USER_KINDS.map((kind) => `'${kind}'`).join(", ");
 
 export const users = sqliteTable(
   "users",
@@ -34,6 +40,17 @@ export const users = sqliteTable(
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
     // Local-auth path only; null for SSO-only users.
     passwordHash: text("password_hash"),
+    // The principal-kind axis (D60). Defaults 'human' — every existing row is a valid human, no backfill. The
+    // `users_agent_shape` CHECK (below) makes the agent flavor loginless/unprivileged/owned by DDL.
+    // FLAG[PD-17]: born at AP0; the ONLY writer of a non-'human' row is `provisionAgentPrincipal` (AP1).
+    kind: text("kind", { enum: USER_KINDS }).notNull().default("human"),
+    // The human responsible for an agent principal (D60). NULL for humans (CHECK-tied to `kind`). Self-FK
+    // CASCADE: owner hard-delete → agent row deleted → (existing FKs) roster CASCADE + `messages.authorUserId`
+    // SET NULL, with NO reaper (referential physics — agent-principal-design/01 §1). The explicit
+    // `AnySQLiteColumn` return type is required for a self-reference (drizzle can't infer mid-definition).
+    ownerUserId: text("owner_user_id")
+      .$type<UserId>()
+      .references((): AnySQLiteColumn => users.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
@@ -44,5 +61,17 @@ export const users = sqliteTable(
       .on(table.externalId)
       .where(sql`${table.externalId} is not null`),
     check("users_role_check", sql.raw(`role in (${ROLE_CHECK_LIST})`)),
+    check("users_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
+    // The structural no-login core (agent-principal-design/01 §1/§3.1): an agent is loginless (no
+    // `password_hash` to verify), unlinkable-by-SSO (no `external_id` can ever match), unprivileged
+    // (`role='user'` — never satisfies requireAdmin/requireOwner), and owned. Unrepresentable, not just refused.
+    check(
+      "users_agent_shape",
+      sql.raw(
+        "kind <> 'agent' OR (role = 'user' AND password_hash IS NULL AND external_id IS NULL AND owner_user_id IS NOT NULL)",
+      ),
+    ),
+    // A human never carries an owner link — the kind axis is coherent both ways.
+    check("users_human_shape", sql.raw("kind <> 'human' OR owner_user_id IS NULL")),
   ],
 );

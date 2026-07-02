@@ -14,9 +14,10 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
-import type { CreateSessionParams } from "./params";
+import type { CreateSessionParams, ProvisionAgentParams } from "./params";
 import type {
   CreateSessionResult,
+  ProvisionAgentResult,
   ProvisionResult,
   UserPrincipalFields,
   ValidatedSession,
@@ -91,4 +92,10 @@ export interface SessionsService {
    *  no user-enumeration timing oracle). The route mints the session from the returned id
    *  (`sessions.create`); this verb only RESOLVES. @internal — only the `entry/http` login route calls it. */
   authenticate: (handle: string, password: string) => Promise<UserId | null>;
+  /** Mint (or idempotently adopt) an agent principal for `(ownerUserId, sourceKind)` (D60 — the ONLY site
+   *  that writes a `kind:'agent'` row). Gates the owner (`kind='human'`, enabled), inserts the agent `users`
+   *  row + `agent_principals` satellite atomically, audits `AGENT_PRINCIPAL_MINTED`. `created:false` = the
+   *  idempotent re-call / race loser. LAZY: called by `chat.seatAgent` (AP3) via an injected op — never at
+   *  hatch. FLAG[PD-17]: no production caller until AP3. */
+  provisionAgentPrincipal: (params: ProvisionAgentParams) => Promise<ProvisionAgentResult>;
 }

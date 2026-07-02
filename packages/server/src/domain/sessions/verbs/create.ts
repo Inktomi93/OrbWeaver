@@ -1,10 +1,12 @@
 import { randomBytes } from "node:crypto";
+import { DomainForbiddenError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { CreateSessionParams } from "../contract/params";
 import type { CreateSessionResult } from "../contract/results";
 import type { SessionsContext, SessionsService } from "../contract/service";
 import { insertSession } from "../persistence/sessions";
+import { selectKindById } from "../persistence/users";
 
 // Mint a revocable BFF session: a 32-byte opaque token (the route sets it as the cookie) whose PEPPERED
 // HASH alone is persisted (invariant #3 — the raw token never touches the db). Every mint IS a login in
@@ -17,6 +19,15 @@ const SESSION_ENTITY = "session";
 
 export function createCreate(ctx: SessionsContext): Pick<SessionsService, "create"> {
   async function create(params: CreateSessionParams): Promise<CreateSessionResult> {
+    // Defense-in-depth belt (agent-principal-design/01 §3.2, FLAG[PD-17]): an agent principal is structurally
+    // sessionless. Every legitimate caller already resolves a human userId (ensureUser/provisionIdentity/
+    // authenticate refuse agents), and `validate` re-blocks the JOIN — this refuses the mint outright so a
+    // future caller bug can never hand an agent a live cookie. "There is no legitimate caller."
+    if ((await selectKindById(ctx.db, params.userId)) === "agent") {
+      throw new DomainForbiddenError(
+        "agent principals are sessionless — no BFF session may be minted",
+      );
+    }
     const token = randomBytes(RANDOM_TOKEN_BYTES).toString("base64url");
     const sessionId = mintTypeId(ID_PREFIX.session);
     const now = ctx.now();

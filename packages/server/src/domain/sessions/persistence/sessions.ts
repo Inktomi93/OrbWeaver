@@ -62,7 +62,10 @@ export async function selectForValidation(
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
-    .where(eq(sessions.tokenHash, tokenHash))
+    // FLAG[PD-17] / agent-principal-design/01 §3.2: `AND users.kind = 'human'` — an agent principal is
+    // STRUCTURALLY sessionless; a session row can never resolve to an agent even if one were somehow minted
+    // for it (wall two behind the create-refusal belt; the containment suite pins it).
+    .where(and(eq(sessions.tokenHash, tokenHash), eq(users.kind, "human")))
     .limit(1);
   return rows.at(0);
 }

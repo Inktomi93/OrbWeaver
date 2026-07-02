@@ -54,6 +54,22 @@ describe("sessions.create", () => {
     expect(rowB?.userAgent).toBeNull();
   });
 
+  test("REFUSES minting a session for an agent principal — structurally sessionless (FLAG[PD-17])", async () => {
+    const ownerId = castId<UserId>("user_owner_c");
+    await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner_c") });
+    const agentId = castId<UserId>("user_agent_c");
+    await db.insert(users).values({
+      id: agentId,
+      handle: castId<Handle>("__agent__buddy__user_owner_c"),
+      role: "user",
+      kind: "agent",
+      ownerUserId: ownerId,
+    });
+    await expect(svc.create({ userId: agentId })).rejects.toThrow();
+    const rows = await db.select().from(sessions).where(eq(sessions.userId, agentId));
+    expect(rows).toHaveLength(0);
+  });
+
   test("audits AUTH_LOGIN attributed to the session owner", async () => {
     const { sessionId } = await svc.create({ userId: USER_ID });
     const audits = await db.select().from(auditLogs).where(eq(auditLogs.action, "AUTH_LOGIN"));
