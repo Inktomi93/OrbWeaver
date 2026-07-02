@@ -59,6 +59,33 @@ const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, UI_CT, UI_FIXTURES];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
+// The feature slices — the compose-only surface (UI-Arch §2.1). app-shell is the SHELL-tier layout owner
+// (the one legal @media site, §4.1) and is exempt from the keystone below.
+const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
+
+// Reused restricted-syntax selectors. ESLint flat-config REPLACES `no-restricted-syntax` per matching
+// file (it does NOT merge across config objects), so any block that wins for a file must re-list every
+// selector that should apply there — hence these are shared consts, not inline.
+const NO_STORE_STATICS = {
+  selector:
+    "CallExpression[callee.object.name=/^use.*Store$/][callee.property.name=/^(setState|getState)$/]",
+  message:
+    "Don't reach into a zustand store's static setState/getState from outside state/. Define an action in the store file and call that.",
+};
+// COMPOSE-ONLY KEYSTONE — a feature ASSEMBLES @orb/ui primitives + the layout kit; it never PAINTS.
+// No className/style on a raw intrinsic (lowercase-tag) element. The kit is the only painter (§1.1/§4).
+// biome-ignore lint/security/noSecrets: esquery AST selector fragment, not a secret.
+const INTRINSIC_EL = "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]";
+const NO_CLASSNAME_ON_INTRINSIC = {
+  selector: `${INTRINSIC_EL} > JSXAttribute[name.name='className']`,
+  message:
+    "No className on a raw HTML element in a feature — compose @orb/ui primitives + <Stack>/<Row>/<Section>/<Container>. A styled element belongs in @orb/ui (the kit is the only painter — UI-Arch §1.1/§4).",
+};
+const NO_STYLE_ON_INTRINSIC = {
+  selector: `${INTRINSIC_EL} > JSXAttribute[name.name='style']`,
+  message:
+    "No inline style on a raw HTML element in a feature — styling lives in @orb/ui, tokens only (UI-Arch §1.1).",
+};
 
 export default tseslint.config(
   {
@@ -176,14 +203,24 @@ export default tseslint.config(
     files: [CLIENT_SRC],
     ignores: ["packages/client/src/state/**", "**/*.test.{ts,tsx}"],
     rules: {
+      "no-restricted-syntax": ["error", NO_STORE_STATICS],
+    },
+  },
+  {
+    // COMPOSE-ONLY KEYSTONE — the "features can't invent UI" gate. A feature ASSEMBLES @orb/ui
+    // primitives + the layout kit; it never PAINTS: no className/style on a raw intrinsic element.
+    // Re-lists NO_STORE_STATICS because flat-config REPLACES no-restricted-syntax per file (no merge)
+    // and this block wins over the CLIENT_SRC zustand block for feature files. app-shell (SHELL-tier
+    // layout owner + the one legal @media site, §4.1) is exempt — it paints the frame and keeps the
+    // zustand guard via the CLIENT_SRC block above. Dormant until features/ code lands.
+    files: [CLIENT_FEATURES],
+    ignores: ["packages/client/src/features/app-shell/**", "**/*.test.{ts,tsx}"],
+    rules: {
       "no-restricted-syntax": [
         "error",
-        {
-          selector:
-            "CallExpression[callee.object.name=/^use.*Store$/][callee.property.name=/^(setState|getState)$/]",
-          message:
-            "Don't reach into a zustand store's static setState/getState from outside state/. Define an action in the store file and call that.",
-        },
+        NO_STORE_STATICS,
+        NO_CLASSNAME_ON_INTRINSIC,
+        NO_STYLE_ON_INTRINSIC,
       ],
     },
   },
