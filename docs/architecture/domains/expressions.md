@@ -3,6 +3,7 @@
 > **Status: COMMITTED (D49, full scope). Promoted from `proposed/expression-stage/`. Phase 7.**
 > Authoritative expansion of D49 item (4). The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/expression-stage/expression-stage.md`.
+> **Authoritative build design: [`../proposed/expressions-design/`](../proposed/expressions-design/README.md) — wins on detail; this file remains the committed decision record.**
 
 ---
 

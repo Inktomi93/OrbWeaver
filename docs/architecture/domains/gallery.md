@@ -3,6 +3,7 @@
 > **Status: COMMITTED (D49, full scope). Promoted from `proposed/media-surfaces/`. Phase 7 (server) / Phase 6 (client).**
 > Authoritative expansion of D49 item (2). The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/media-surfaces/media-surfaces.md`.
+> **Authoritative build design: [`../proposed/gallery-design.md`](../proposed/gallery-design.md) — wins on detail; this file remains the committed decision record.**
 
 ---
 

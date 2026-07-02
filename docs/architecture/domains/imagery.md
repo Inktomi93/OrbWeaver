@@ -3,6 +3,7 @@
 > **Status: COMMITTED (D49). Promoted from `proposed/image-studio/`. Phase 7 — additive graft post-chat.**
 > Authoritative expansion of D49 item (1). The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/image-studio/image-studio.md`.
+> **Authoritative build design: [`../proposed/imagery-design/`](../proposed/imagery-design/README.md) — wins on detail; this file remains the committed decision record.**
 
 ---
 

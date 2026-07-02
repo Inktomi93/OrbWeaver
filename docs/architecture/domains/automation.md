@@ -3,6 +3,7 @@
 > **Status: COMMITTED (D46). Promoted from `proposed/scripting-automation-extensibility/`. Phase 8.**
 > Authoritative expansion of D46. The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/scripting-automation-extensibility/scripting-automation-extensibility.md`.
+> **Authoritative build design: [`../proposed/automation-design/`](../proposed/automation-design/README.md) (Tier 1) + [`../proposed/plugin-design/`](../proposed/plugin-design/README.md) (Tier 2) — win on detail; this file remains the committed decision record.**
 
 ---
 

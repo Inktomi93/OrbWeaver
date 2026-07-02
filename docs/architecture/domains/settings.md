@@ -15,6 +15,8 @@
 > depends on `contracts/chat`); `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template) + §6 (partitioning) + §7 (gates);
 > `domains.md` ("settings — keep — app + user setting tiers"). Read those first.
 
+**Themes/appearance entity (D44 §12.1) — authoritative build design: [`../proposed/themes-design.md`](../proposed/themes-design.md)** (the settings-adjacent `themes` table + verbs and the `theme`/`appearance` UserSettings namespaces are specced there, not in this doc).
+
 ---
 
 ## What this domain owns
