@@ -286,9 +286,19 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
 3. **Version majors moved** since the docs: tailwind-variants 1→3, style-dictionary 4→5, diff 8→9,
    echarts 5→6 era, `@dnd-kit/react` still 0.x. APIs verified at build; any behavioral divergence
    from a doc claim gets recorded HERE when hit.
-4. **`Meter` does not wrap Base UI's `meter`** — one hand-rolled ARIA mechanism across
-   linear/arc/bipolar (Base UI's is linear-DOM-shaped; arc/bipolar need SVG). Deliberate,
-   documented in the component.
+4. **`Meter` is a HYBRID over Base UI's `meter`** (revised 2026-07-02, endorsed). Base UI
+   `Meter.Root` supplies the a11y shell — `role="meter"` + `aria-valuemin/max/now` + locale-aware
+   `aria-valuetext` (formatted by `Intl.NumberFormat`, no hand-rolled ARIA) — plus the optional
+   visible label/value readout row (`Meter.Label`/`Meter.Value`, mirroring `Progress`). The custom
+   SVG/div geometry (arc gauge, bipolar center-origin fill, milestone ticks, the `dangerBelow` token
+   swap) rides as the Root's **children** and stays hand-rolled, because Base UI's `MeterIndicator`
+   hardcodes `width:%` (linear-DOM-only — verified) and cannot draw arcs. **Recorded delta:** the
+   geometry is nested as `children`, NOT injected via the `render` prop — `Meter.Root` always appends
+   a visually-hidden `<span>` to its children and defaults to a `<div>`, so replacing the root with
+   the arc's `<svg>` would nest that HTML span inside an `<svg>` (invalid). One Root, geometry as
+   children, keeps every kind valid. The public API (`kind`/`value`/`max`/`min`/`milestones`/
+   `dangerBelow`/`label`) is preserved; `showValue`/`formatValue` + the Base UI value-format
+   passthrough (`format`/`locale`/`getAriaValueText`) are additive.
 5. **`ThemeOverride` one-home tension** (§1): the Zod clamp exists twice by design — the WIRE
    schema in `@orb/contracts/theme` (D44 §12.5) and the ui-local RENDER clamp in `<ThemeScope>`
    (ui cannot import contracts). Pairing is asserted by a client-phase type test. If Nate prefers,

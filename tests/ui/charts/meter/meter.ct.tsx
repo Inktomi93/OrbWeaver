@@ -27,8 +27,11 @@ test("arc renders an SVG gauge with the same ARIA mechanism", async ({ mount }) 
   await expect(component).toHaveAttribute("aria-valuemax", "100");
   await expect(component).toHaveAttribute("aria-valuenow", "75");
   await expect(component.locator('[data-slot="fill"]')).toBeVisible();
-  const tag = await component.evaluate((el) => el.tagName.toLowerCase());
-  expect(tag).toBe("svg");
+  // The a11y shell is now Base UI Meter.Root (a <div role="meter">); the arc geometry is the nested
+  // <svg> gauge (§10.4 hybrid).
+  const rootTag = await component.evaluate((el) => el.tagName.toLowerCase());
+  expect(rootTag).toBe("div");
+  await expect(component.locator("svg")).toHaveCount(1);
 });
 
 test("bipolar takes a −max..max domain by default and renders milestone ticks", async ({
@@ -77,4 +80,26 @@ test("dangerBelow swaps the arc stroke color too (one mechanism across kinds)", 
 test("value is clamped into the min/max domain for ARIA", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={150} max={100} label="HP" />);
   await expect(component).toHaveAttribute("aria-valuenow", "100");
+});
+
+test("aria-valuetext comes from the Base UI shell for free (locale-aware)", async ({ mount }) => {
+  const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" />);
+  // 30/60 → 50% of the range; Base UI Meter.Root formats aria-valuetext — we don't hand-roll it.
+  const valueText = await component.getAttribute("aria-valuetext");
+  expect(valueText).toContain("50");
+});
+
+test("showValue renders the visible label + value readout and names the meter", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <Meter kind="linear" label="HP" max={60} showValue={true} value={30} />,
+  );
+  await expect(component).toHaveRole("meter");
+  // The visible label renders and names the meter via aria-labelledby.
+  await expect(component.locator('[data-slot="meter-label"]')).toHaveText("HP");
+  await expect(page.getByRole("meter", { name: "HP" })).toBeVisible();
+  // The value readout renders Base UI's formatted position (50%).
+  await expect(component.locator('[data-slot="meter-value"]')).toContainText("50");
 });
