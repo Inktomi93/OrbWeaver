@@ -36,3 +36,36 @@ test("onCheckedChange reports the next state", async ({ mount, page }) => {
   await page.getByRole("switch").click();
   await expect.poll(() => seen.at(-1)).toBe(true);
 });
+
+test("read-only: blocks toggling but keeps the checked token + shows the lock glyph", async ({
+  mount,
+  page,
+}) => {
+  await mount(<Switch aria-label="Autopilot" checked={true} readOnly={true} />);
+  const control = page.getByRole("switch");
+  await expect(control).toHaveAttribute("data-readonly", "");
+  // A read-only switch is NOT the disabled grey-out — it still wears the primary "on" token.
+  await expect(control).toHaveCSS("background-color", TOKENS["color.primary"].value);
+  await expect(control).toHaveCSS("opacity", "1");
+  // The non-color signal: a lock glyph rides the thumb, visible only in the read-only state.
+  await expect(control.locator("svg")).toBeVisible();
+  // Clicking (and Space) must not flip the state — Base UI's readOnly behavior.
+  await control.click();
+  await control.press("Space");
+  await expect(control).toHaveAttribute("aria-checked", "true");
+});
+
+test("read-only off state: unchecked token holds and the lock glyph still shows", async ({
+  mount,
+  page,
+}) => {
+  await mount(<Switch aria-label="Autopilot" checked={false} readOnly={true} />);
+  const control = page.getByRole("switch");
+  await expect(control).toHaveAttribute("aria-checked", "false");
+  await expect(control.locator("svg")).toBeVisible();
+});
+
+test("non-read-only switch never shows the lock glyph", async ({ mount, page }) => {
+  await mount(<Switch aria-label="Streaming" />);
+  await expect(page.getByRole("switch").locator("svg")).toBeHidden();
+});

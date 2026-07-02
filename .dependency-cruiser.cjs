@@ -157,23 +157,24 @@ module.exports = {
     {
       name: "ui-satellite-seals",
       comment:
-        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only). Importing a sealed lib from any OTHER ui module is a seal breach.",
+        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only) · minisearch→primitives/macro-textarea/ (carve-out item 18 — the macro-textarea fuzzy-match seal). Importing a sealed lib from any OTHER ui module is a seal breach.",
       severity: "error",
       from: {
         path: UI,
         pathNot: [
           `${UI}charts/`,
-          `${UI}primitives/(virtual-list|message-list)/`,
+          `${UI}primitives/(virtual-list|message-list|media-grid)/`,
           `${UI}code-editor/`,
           `${UI}markdown/`,
           `${UI}primitives/command/`,
           `${UI}primitives/sortable/`,
           `${UI}diff/`,
           `${UI}primitives/icons/`,
+          `${UI}primitives/macro-textarea/`,
         ],
       },
       to: {
-        path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react)/",
+        path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react|minisearch)/",
       },
     },
     // NOTE (deliberate non-rule): "client ⇏ raw satellite libs" is RESOLVER physics (the libs are not

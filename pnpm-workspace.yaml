@@ -114,6 +114,21 @@ catalog:
   "@codemirror/lang-css": ^6.3.1
   # jsdiff (docs said v8+; current major is 9 — same modern TS surface).
   diff: ^9.0.0
+  # @codemirror/lint: A5 diagnostics layer (code-editor seal) — pinned direct (was transitive) so the
+  #   seal imports it without a phantom dependency (biome noUndeclaredDependencies).
+  "@codemirror/lint": ^6.9.7
+  # cmdk: the command-palette seal (primitives/command/). 1.1.1 (2025-03-14, mature).
+  cmdk: ^1.1.1
+  # @dnd-kit/react + helpers: the MODERN rewrite (0.5.0, 2026-06-11) for the sortable seal. NEVER
+  #   @dnd-kit/core|sortable|utilities — the dead legacy stack (biome-banned).
+  "@dnd-kit/react": ^0.5.0
+  "@dnd-kit/helpers": ^0.5.0
+  # echarts + echarts-for-react (D52, nivo replacement): the charts/ analytics seal. Tree-shaken
+  #   imports only (echarts/core + used charts/components/renderers) — never `import "echarts"` whole.
+  echarts: ^6.1.0
+  "echarts-for-react": ^3.0.6
+  # minisearch: the macro-textarea fuzzy-match seal (carve-out item 18).
+  minisearch: ^7.2.0
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
   strip-markdown: ^6.0.0

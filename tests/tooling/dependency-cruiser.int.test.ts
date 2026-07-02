@@ -167,6 +167,17 @@ function writeAllFixtures(): void {
     "packages/ui/src/__dc/sealbreach.ts",
     `import { diffChars } from "diff";\nexport const d = diffChars;\n`,
   );
+  // ui-satellite-seals: the media-grid carve-out's regex is exact-dir-match (`primitives/media-grid/`)
+  // — a look-alike sibling dir name must still fire, proving the added alternative isn't overly broad.
+  fx(
+    "packages/ui/src/primitives/__dc_media_grid_lookalike/x.ts",
+    `import { useVirtualizer } from "@tanstack/react-virtual";\nexport const v = useVirtualizer;\n`,
+  );
+  // ui-satellite-seals (minisearch): minisearch belongs to primitives/macro-textarea/ only.
+  fx(
+    "packages/ui/src/__dc/minisearch-sealbreach.ts",
+    `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
+  );
 }
 
 interface Violation {
