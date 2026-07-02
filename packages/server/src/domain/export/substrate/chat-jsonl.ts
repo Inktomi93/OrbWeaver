@@ -72,7 +72,10 @@ export function buildChatJsonl(meta: ExportChatMeta, messages: readonly ExportMe
   for (const m of messages) {
     const hasVariants = m.variants.length > 1;
     const line = {
-      name: m.role === "user" ? (meta.userName ?? "User") : meta.characterName,
+      // The PER-MESSAGE speaker (Part III group fidelity) — the voicing character / authoring persona of THIS
+      // turn, resolved by the verb; NOT the single header `characterName`. A legacy ST group reader keys on
+      // this `name` field per line.
+      name: m.speakerName,
       is_user: m.role === "user",
       is_system: m.role === "system",
       mes: m.content,
@@ -110,16 +113,10 @@ export function buildChatJsonl(meta: ExportChatMeta, messages: readonly ExportMe
   return `${lines.join("\n")}\n`;
 }
 
-/** Speaker label for the plain-text transcript: the persona/user name for user turns (falling back to
- *  "You"), the character name for assistant turns, "System" for system turns. */
-function txtAuthor(role: ExportMessage["role"], meta: ExportChatMeta): string {
-  if (role === "user") {
-    return meta.userName ?? "You";
-  }
-  if (role === "system") {
-    return "System";
-  }
-  return meta.characterName;
+/** Speaker label for the plain-text transcript: the per-message speaker name (Part III group fidelity — the
+ *  authoring persona / voicing character of THIS turn), with "System" reserved for system turns. */
+function txtAuthor(m: ExportMessage): string {
+  return m.role === "system" ? "System" : m.speakerName;
 }
 
 /**
@@ -127,7 +124,7 @@ function txtAuthor(role: ExportMessage["role"], meta: ExportChatMeta): string {
  * `Author: message` block per turn, blank line between. Only the ACTIVE variant's text is emitted (a
  * transcript shows what was said, not the re-rolls). PURE.
  */
-export function buildChatTxt(meta: ExportChatMeta, messages: readonly ExportMessage[]): string {
-  const blocks = messages.map((m) => `${txtAuthor(m.role, meta)}: ${m.content}`);
+export function buildChatTxt(_meta: ExportChatMeta, messages: readonly ExportMessage[]): string {
+  const blocks = messages.map((m) => `${txtAuthor(m)}: ${m.content}`);
   return `${blocks.join("\n\n")}\n`;
 }

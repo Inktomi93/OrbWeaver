@@ -69,7 +69,8 @@ async function seedMember(
   });
 }
 
-/** A canon slot + its variants; `selectedIdx` picks the pointer (default: the last variant). */
+/** A canon slot + its variants; `selectedIdx` picks the pointer (default: the last variant). The optional
+ *  `characterId`/`personaId` stamp the speaker (Part III group fidelity — each turn resolves to its own name). */
 async function seedSlot(args: {
   chatId: ChatId;
   key: string;
@@ -77,6 +78,8 @@ async function seedSlot(args: {
   role: MessageRole;
   variantContents: string[];
   selectedIdx?: number;
+  characterId?: string;
+  personaId?: PersonaId;
 }): Promise<void> {
   const messageId = castId<MessageId>(`message_${args.key}`);
   await db.insert(messages).values({
@@ -84,6 +87,8 @@ async function seedSlot(args: {
     chatId: args.chatId,
     seq: args.seq,
     role: args.role,
+    characterId: (args.characterId ?? null) as never,
+    personaId: args.personaId ?? null,
     createdAt: FROZEN_AT,
   });
   const ids = args.variantContents.map((_c, i) =>
@@ -208,7 +213,64 @@ describe("exportChat — the D26/D28 assembly", () => {
       format: "txt",
     });
     expect(out?.filename).toBe("Aria-chat.txt");
-    // No anchor persona → the user label falls back to "You"; only the ACTIVE variant appears.
-    expect(out?.text).toBe("You: hi\n\nAria: take two\n");
+    // No anchor persona + no per-row persona → the user label falls back to "User"; ACTIVE variant only.
+    expect(out?.text).toBe("User: hi\n\nAria: take two\n");
+  });
+
+  test("GROUP fidelity: each assistant turn exports under ITS OWN character, not the header primary", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: "host" });
+    // Three characters seated; the header primary is Aria (first join), but Bran and Cara each speak.
+    const aria = await seedCharacter(db, {
+      id: "character_aria",
+      ownerId: host,
+      name: "Aria",
+      handle: "aria",
+    });
+    const bran = await seedCharacter(db, {
+      id: "character_bran",
+      ownerId: host,
+      name: "Bran",
+      handle: "bran",
+    });
+    const cara = await seedCharacter(db, {
+      id: "character_cara",
+      ownerId: host,
+      name: "Cara",
+      handle: "cara",
+    });
+    const chatId = await seedChatRow("grp", { title: "Party" });
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "ca", { characterId: aria });
+    await seedMember(chatId, "cb", { characterId: bran });
+    await seedMember(chatId, "cc", { characterId: cara });
+    await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hey all"] });
+    await seedSlot({
+      chatId,
+      key: "ab",
+      seq: 2,
+      role: "assistant",
+      variantContents: ["Bran speaks"],
+      characterId: bran,
+    });
+    await seedSlot({
+      chatId,
+      key: "ac",
+      seq: 3,
+      role: "assistant",
+      variantContents: ["Cara speaks"],
+      characterId: cara,
+    });
+
+    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const lines = (out?.text ?? "").trim().split("\n");
+    const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
+    expect(header["character_name"]).toBe("Aria"); // header stays the ST primary
+    // …but each message LINE carries its actual speaker — the multi-speaker fix.
+    expect((JSON.parse(lines[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
+    expect((JSON.parse(lines[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
+    // TXT too.
+    const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
+    expect(txt?.text).toBe("User: hey all\n\nBran: Bran speaks\n\nCara: Cara speaks\n");
   });
 });

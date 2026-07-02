@@ -62,6 +62,11 @@ export interface ExportVariant {
  *  a length ≤ 1 set emits no swipe arrays). `role` derives the canonical `MessageRole` union (D32). */
 export interface ExportMessage {
   readonly role: MessageRole;
+  /** The display name of the ACTUAL speaker of THIS turn — the voicing character for an assistant row, the
+   *  authoring persona for a user row (a group room has many of each; D18/Part III). The verb resolves it
+   *  from the canon row's `characterId`/`personaId` against a per-chat name map — NOT the single header
+   *  `characterName` (which stays the ST-header primary). This is what makes a multi-speaker export honest. */
+  readonly speakerName: string;
   readonly content: string;
   readonly sendDate: number | null;
   readonly model: string | null;

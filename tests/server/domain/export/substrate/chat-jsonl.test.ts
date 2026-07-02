@@ -21,6 +21,7 @@ const META: ExportChatMeta = {
 function msg(over: Partial<ExportMessage> = {}): ExportMessage {
   return {
     role: "assistant",
+    speakerName: "Aria",
     content: "hello",
     sendDate: META.createDate,
     model: "m1",
@@ -111,12 +112,26 @@ test("JSONL: >1 variant emits swipes/swipe_id/swipe_info; the branch/note round-
   expect(info[1]?.extra["reasoning"]).toBeUndefined();
 });
 
-test("TXT: Author-labeled blocks, ACTIVE variant only; user falls back to 'You' without a persona", () => {
-  const noPersona: ExportChatMeta = { ...META, userName: null };
-  const out = buildChatTxt(noPersona, [
-    msg({ role: "user", content: "hi there" }),
-    msg({ role: "assistant", content: "greetings" }),
-    msg({ role: "system", content: "scene shift" }),
+test("TXT: Author-labeled blocks per the PER-MESSAGE speaker; ACTIVE variant only; system stays 'System'", () => {
+  const out = buildChatTxt(META, [
+    msg({ role: "user", content: "hi there", speakerName: "Nate" }),
+    msg({ role: "assistant", content: "greetings", speakerName: "Aria" }),
+    msg({ role: "system", content: "scene shift", speakerName: "ignored" }), // system → "System" regardless
   ]);
-  expect(out).toBe("You: hi there\n\nAria: greetings\n\nSystem: scene shift\n");
+  expect(out).toBe("Nate: hi there\n\nAria: greetings\n\nSystem: scene shift\n");
+});
+
+test("group fidelity: each turn serializes under ITS OWN speaker (JSONL name + TXT author), not the header", () => {
+  // A 2-character room: Bran and Cara each speak. The header stays the primary (Aria), but every LINE
+  // carries its own speaker — the multi-speaker gap this fix closes.
+  const rows = [
+    msg({ role: "user", content: "hello all", speakerName: "Nate" }),
+    msg({ role: "assistant", content: "Bran here", speakerName: "Bran" }),
+    msg({ role: "assistant", content: "Cara here", speakerName: "Cara" }),
+  ];
+  const jsonl = buildChatJsonl(META, rows).split("\n");
+  expect((JSON.parse(jsonl[1] ?? "") as Record<string, unknown>)["name"]).toBe("Nate");
+  expect((JSON.parse(jsonl[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
+  expect((JSON.parse(jsonl[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
+  expect(buildChatTxt(META, rows)).toBe("Nate: hello all\n\nBran: Bran here\n\nCara: Cara here\n");
 });
