@@ -2,7 +2,7 @@
 // type-scale px const, decorative by default, accessible when labelled. Mounted via the support
 // story: CT cannot serialize a component-as-prop (`icon={X}`) across the mount boundary.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CloseIconStory } from "../../../support/ct/icon-story";
+import { CloseIconStory } from "./icon.fixtures";
 
 // = ICON_SM / ICON_MD (packages/ui/src/primitives/icons/icon.tsx — the type-scale table).
 const ICON_SM_PX = "16";

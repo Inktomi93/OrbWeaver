@@ -1,15 +1,13 @@
-import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { TooltipHandleHarness } from "./tooltip-handle.fixtures";
 
 test("shows on hover and hides when the pointer leaves", async ({ mount, page }) => {
   await mount(
-    <TooltipProvider delay={0} closeDelay={0}>
-      <Tooltip>
-        <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
-        <TooltipPopup>Regenerate the last reply</TooltipPopup>
-      </Tooltip>
-    </TooltipProvider>,
+    <Tooltip>
+      <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
+      <TooltipPopup>Regenerate the last reply</TooltipPopup>
+    </Tooltip>,
   );
 
   await expect(page.getByText("Regenerate the last reply")).toBeHidden();
@@ -27,12 +25,10 @@ test("shows on hover and hides when the pointer leaves", async ({ mount, page })
 
 test("shows on keyboard focus", async ({ mount, page }) => {
   await mount(
-    <TooltipProvider delay={0} closeDelay={0}>
-      <Tooltip>
-        <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
-        <TooltipPopup>Regenerate the last reply</TooltipPopup>
-      </Tooltip>
-    </TooltipProvider>,
+    <Tooltip>
+      <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
+      <TooltipPopup>Regenerate the last reply</TooltipPopup>
+    </Tooltip>,
   );
 
   await page.keyboard.press("Tab");

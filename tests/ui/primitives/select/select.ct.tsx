@@ -1,6 +1,7 @@
 // CT: the select seal — explicit Positioner/Popup anatomy portals a real popup (popover token,
 // overlay z), pointer + keyboard select, controlled value surfaces in the trigger.
 import { Select } from "@orb/ui/select";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const ITEMS = [
@@ -26,12 +27,9 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   // role="listbox" lands on the List part; the styled Popup is its direct parent in the seal.
   const list = page.getByRole("listbox");
   await expect(list).toBeVisible();
-  const background = await list.evaluate(
-    (el) => getComputedStyle(el.parentElement ?? el).backgroundColor,
-  );
-  expect(background).toContain("oklch(0.235 0.013 65)");
-  const zIndex = await list.evaluate((el) => getComputedStyle(el.parentElement ?? el).zIndex);
-  expect(zIndex).toBe("40");
+  const popup = list.locator("xpath=..");
+  await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
+  await expect(popup).toHaveCSS("z-index", "40");
 });
 
 test("keyboard: opens with ArrowDown, arrows to an option, Enter selects", async ({

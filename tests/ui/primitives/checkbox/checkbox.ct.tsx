@@ -2,6 +2,7 @@
 // hidden input rides beside it). Pointer + keyboard toggle aria-checked; checked wears the primary
 // token; indeterminate reports aria-checked="mixed".
 import { Checkbox } from "@orb/ui/checkbox";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("click toggles aria-checked", async ({ mount, page }) => {
@@ -18,8 +19,7 @@ test("keyboard toggles too, and checked wears the primary token", async ({ mount
   await mount(<Checkbox aria-label="Remember me" defaultChecked={true} />);
   const control = page.getByRole("checkbox");
   await expect(control).toHaveAttribute("aria-checked", "true");
-  const background = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.76 0.145 66)");
+  await expect(control).toHaveCSS("background-color", TOKENS["color.primary"].value);
   await control.press("Space");
   await expect(control).toHaveAttribute("aria-checked", "false");
 });

@@ -2,6 +2,7 @@
 // interactive clickable affordance (ui-package-design §6.1).
 
 import { Card } from "@orb/ui/card";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 // --spacing-section is 1.5rem → 24px; padding="none" resets to 0.
@@ -10,8 +11,7 @@ const NONE_PX = 0;
 
 test("is the card token surface", async ({ mount }) => {
   const card = await mount(<Card>Panel</Card>);
-  const background = await card.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.205 0.012 65)");
+  await expect(card).toHaveCSS("background-color", TOKENS["color.card"].value);
 });
 
 test("padding variants differ (none resets, section pads on the token scale)", async ({

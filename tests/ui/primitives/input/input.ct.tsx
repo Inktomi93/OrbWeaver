@@ -2,6 +2,7 @@
 // value/onValueChange controlled-capable passthrough (ui-package-design §6.1).
 
 import { Input } from "@orb/ui/input";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const TOUCH_FLOOR_PX = 44;
@@ -10,8 +11,7 @@ test("wears the bg-input token and meets the touch floor", async ({ mount }) => 
   const input = await mount(<Input />);
   const box = await input.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-  const background = await input.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.97 0.01 75");
+  await expect(input).toHaveCSS("background-color", TOKENS["color.input"].value);
 });
 
 test("typing updates the value and fires onValueChange", async ({ mount }) => {

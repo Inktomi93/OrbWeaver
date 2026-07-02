@@ -1,6 +1,7 @@
 // CT: the toggle seal — a two-state pressable button; pointer + keyboard flip data-pressed and
 // aria-pressed, pressed wears the accent token.
 import { Toggle } from "@orb/ui/toggle";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("click flips data-pressed / aria-pressed", async ({ mount, page }) => {
@@ -21,8 +22,7 @@ test("pressed wears the accent token", async ({ mount, page }) => {
     </Toggle>,
   );
   const control = page.getByRole("button");
-  const background = await control.evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(background).toContain("oklch(0.285 0.02 65)");
+  await expect(control).toHaveCSS("background-color", TOKENS["color.accent"].value);
 });
 
 test("onPressedChange reports the next state", async ({ mount, page }) => {

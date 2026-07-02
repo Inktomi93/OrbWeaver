@@ -2,6 +2,7 @@
 // highlights an item and Enter selects it (writing it into the input). Typing is driven with
 // pressSequentially (real keystrokes) so Base UI's open-on-type fires; gates use role locators.
 import { Autocomplete } from "@orb/ui/autocomplete";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DerivedItemsStory } from "./autocomplete.fixtures";
 
@@ -28,12 +29,10 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   await input.pressSequentially("r");
   const list = page.getByRole("listbox");
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
-  const background = await list.evaluate(
-    (el) => getComputedStyle(el.parentElement ?? el).backgroundColor,
-  );
-  expect(background).toContain("oklch(0.235 0.013 65)");
-  const zIndex = await list.evaluate((el) => getComputedStyle(el.parentElement ?? el).zIndex);
-  expect(zIndex).toBe("40");
+  // role="listbox" lands on the List part; the styled Popup is its direct parent in the seal.
+  const popup = list.locator("xpath=..");
+  await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
+  await expect(popup).toHaveCSS("z-index", "40");
 });
 
 test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({
