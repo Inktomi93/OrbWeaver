@@ -8,8 +8,8 @@
 // Runs ONCE per round, lock-free, metered (the caller meters the summarizer spend — §6). Solo / single-
 // eligible short-circuits WITHOUT an LLM call (byte-identical, no `if(isGroup)`).
 
-import type { CharacterId } from "@orb/kit/ids";
-import type { ArbiterCandidate, CastName } from "../contract/arbitration";
+import type { ArbiterCandidate, CastName, SpeakerRef } from "../contract/arbitration";
+import { speakerKey } from "../contract/arbitration";
 import type { SummarizeOp } from "../contract/context";
 import { isArbiterEligible } from "../persistence/participant";
 import { selectSpeakers } from "./select-speakers";
@@ -25,7 +25,7 @@ interface SmartArbitrateParams {
   /** Recent transcript text the arbiter reads to decide who speaks next. */
   readonly recentHistory: string;
   /** The previous speaker (ban-last in the fallback; the prompt notes it). */
-  readonly lastSpeakerId: CharacterId | null;
+  readonly lastSpeaker: SpeakerRef | null;
   /** The injected PRNG (D46) — drives the `natural` fallback's weighted pick. */
   readonly rng: () => number;
 }
@@ -45,27 +45,27 @@ const SYSTEM_PROMPT =
  * fallback's pick when the side-LLM reply doesn't validate against the eligible roster. Returns `[]` only
  * when NO character is eligible (the driver maps that to `no-eligible`). Single-eligible short-circuits.
  */
-export async function smartArbitrate(params: SmartArbitrateParams): Promise<CharacterId[]> {
+export async function smartArbitrate(params: SmartArbitrateParams): Promise<SpeakerRef[]> {
   const eligible = params.candidates.filter((c) =>
     isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }),
   );
   if (eligible.length === 0) {
     return [];
   }
-  const nameById = new Map(params.castNames.map((n) => [n.characterId, n.name] as const));
+  const nameByKey = new Map(params.castNames.map((n) => [speakerKey(n.ref), n.name] as const));
   const eligibleNamed = eligible
-    .map((c) => ({ id: c.characterId, name: nameById.get(c.characterId) ?? "" }))
+    .map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" }))
     .filter((c) => c.name.length > 0);
   // Single eligible (or none has a resolvable name) — no LLM call needed (solo byte-identical).
   if (eligibleNamed.length <= 1) {
-    return eligibleNamed.map((c) => c.id);
+    return eligibleNamed.map((c) => c.ref);
   }
 
-  const fallback = (): CharacterId[] =>
+  const fallback = (): SpeakerRef[] =>
     selectSpeakers({
       candidates: params.candidates,
       policy: "natural",
-      lastSpeakerId: params.lastSpeakerId,
+      lastSpeaker: params.lastSpeaker,
       rng: params.rng,
       maxSpeakers: 1,
     });
@@ -100,13 +100,13 @@ function buildUserPrompt(recentHistory: string, names: readonly string[]): strin
  *  name matched (→ the caller falls back). */
 function matchEligible(
   reply: string,
-  eligible: readonly { id: CharacterId; name: string }[],
-): CharacterId | null {
+  eligible: readonly { ref: SpeakerRef; name: string }[],
+): SpeakerRef | null {
   const haystack = reply.toLowerCase();
   const byLongest = [...eligible].sort((a, b) => b.name.length - a.name.length);
   for (const member of byLongest) {
     if (haystack.includes(member.name.toLowerCase())) {
-      return member.id;
+      return member.ref;
     }
   }
   return null;

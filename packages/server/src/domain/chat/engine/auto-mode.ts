@@ -16,8 +16,12 @@
 // live inside the injected `nextSpeaker` (the arbitration seam), so this loop is policy-free orchestration.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
-import type { AutoModeResult, AutoModeStopReason, CastName } from "../contract/arbitration";
+import type {
+  AutoModeResult,
+  AutoModeStopReason,
+  CastName,
+  SpeakerRef,
+} from "../contract/arbitration";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
 import type { TurnOutcome } from "../contract/results";
 
@@ -33,11 +37,11 @@ interface AutoModeParams {
   readonly signal?: AbortSignal | undefined;
   /** Re-arbitrate: resolve the NEXT single speaker given the previous one (ban-last/self-response policy is
    *  the caller's, applied INSIDE here). `null` ⇒ no eligible speaker → stop. */
-  readonly nextSpeaker: (lastSpeakerId: CharacterId | null) => Promise<CastName | null>;
+  readonly nextSpeaker: (lastSpeaker: SpeakerRef | null) => Promise<CastName | null>;
   /** Run ONE turn for the resolved speaker (the round driver / a single-speaker round) → its outcome. */
   readonly runTurn: (speaker: CastName) => Promise<TurnOutcome>;
   /** The speaker immediately before the chain (ban-last seed); null at chain start. */
-  readonly initialLastSpeakerId?: CharacterId | null | undefined;
+  readonly initialLastSpeaker?: SpeakerRef | null | undefined;
 }
 
 /** A per-chat lock refusal (`runTurn` threw `locked`) — a concurrent turn holds the lock (§6). */
@@ -50,16 +54,16 @@ function isLockedRefusal(err: unknown): boolean {
  *  emitted `turnAborted`). */
 type StepResult =
   | { readonly done: AutoModeStopReason }
-  | { readonly committed: readonly MessageView[]; readonly speakerId: CharacterId };
+  | { readonly committed: readonly MessageView[]; readonly speakerRef: SpeakerRef };
 
-async function step(params: AutoModeParams, last: CharacterId | null): Promise<StepResult> {
+async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<StepResult> {
   const speaker = await params.nextSpeaker(last);
   if (speaker === null) {
     return { done: "no-eligible" };
   }
   try {
     const outcome = await params.runTurn(speaker);
-    return { committed: outcome.messages, speakerId: speaker.characterId };
+    return { committed: outcome.messages, speakerRef: speaker.ref };
   } catch (err) {
     if (isLockedRefusal(err)) {
       return { done: "locked" };
@@ -75,7 +79,7 @@ async function step(params: AutoModeParams, last: CharacterId | null): Promise<S
  */
 export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResult> {
   const messages: MessageView[] = [];
-  let last: CharacterId | null = params.initialLastSpeakerId ?? null;
+  let last: SpeakerRef | null = params.initialLastSpeaker ?? null;
   let turns = 0;
   const stop = (stopReason: AutoModeStopReason): AutoModeResult => ({
     turns,
@@ -96,7 +100,7 @@ export async function runAutoMode(params: AutoModeParams): Promise<AutoModeResul
       return stop(r.done);
     }
     messages.push(...r.committed);
-    last = r.speakerId;
+    last = r.speakerRef;
     turns += 1;
     if (turns >= params.maxTurns) {
       break; // cap reached — exit before any trailing delay.

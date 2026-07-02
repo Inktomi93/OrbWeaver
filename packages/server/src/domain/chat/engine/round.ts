@@ -50,10 +50,19 @@ function buildSpeakerPrep(
   speaker: CastName,
   multi: boolean,
 ): TurnPrep {
-  // `cardScope`/`scopedTarget` live only on the `per-speaker` arm (`narrator ⇒ merged`, schema-enforced).
+  const isCharacter = speaker.ref.kind === "character";
+  // The voiced slot's identity (doc 02 §2): a character stamps `characterId`; an agent stamps NOTHING here and
+  // self-attributes via the persist arm below (`characterId` NULL, `authorUserId` = the agent).
+  const speakerCharacterId = speaker.ref.kind === "character" ? speaker.ref.characterId : null;
+  // `cardScope`/`scopedTarget` live only on the `per-speaker` arm (`narrator ⇒ merged`, schema-enforced). Only
+  // a character has a card to scope to (an agent's identity is its soul — no roster card, doc 06 §5).
   const cardScope = group.output === "per-speaker" ? group.cardScope : "merged";
   const scopedTargetId =
-    group.output === "per-speaker" && group.cardScope === "scoped" ? speaker.characterId : null;
+    group.output === "per-speaker" &&
+    group.cardScope === "scoped" &&
+    speaker.ref.kind === "character"
+      ? speaker.ref.characterId
+      : null;
   const shape: TurnSpeakerShape = {
     output: group.output,
     cardScope,
@@ -62,7 +71,24 @@ function buildSpeakerPrep(
   };
   const groupNudge =
     group.groupNudge && multi ? `[Write the next reply only as ${speaker.name}.]` : null;
-  return { ...base, speakerCharacterId: speaker.characterId, groupNudge, shape };
+  // An agent speaker self-attributes (doc 02 §2/§3): a new-slot ASSISTANT row authored by the agent (host still
+  // funds it via `runAsUserId` — D19). A character round leaves `persist` absent (the engine's new-slot default
+  // stamps `characterId`, `authorUserId` NULL) → byte-identical.
+  return {
+    ...base,
+    speakerCharacterId,
+    groupNudge,
+    shape,
+    ...(isCharacter
+      ? {}
+      : {
+          persist: {
+            mode: "new-slot",
+            role: "assistant",
+            authorUserId: speaker.ref.userId,
+          },
+        }),
+  };
 }
 
 /** A per-chat lock refusal (`engine.runTurn` threw `locked`) — a concurrent turn holds the lock. */
@@ -110,7 +136,12 @@ function roundSpeakers(params: DriveRoundParams): readonly CastName[] {
       // mints it before driving the round; a null here is a wiring bug, not a runtime fallback.
       throw new Error("narrator round requires a synthetic group-character id (§10)");
     }
-    return [{ characterId: params.groupCharacterId, name: params.castName }];
+    return [
+      {
+        ref: { kind: "character", characterId: params.groupCharacterId },
+        name: params.castName,
+      },
+    ];
   }
   return params.speakers;
 }

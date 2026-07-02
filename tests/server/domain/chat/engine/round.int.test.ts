@@ -14,7 +14,10 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type {
+  CastName,
+  SpeakerRef,
+} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
   ChatOperationError,
@@ -31,10 +34,11 @@ import { driveRound } from "../../../../../packages/server/src/domain/chat/engin
 import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";
+import { makeChatContext, seedAgent, seedCharacter, seedChat, seedUser } from "../_support";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
+const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
 
 const CAPABILITY = {
   reasoning: { mode: "none", enabled: false },
@@ -139,9 +143,9 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     const requests: TurnRequest[] = [];
     const engine = realEngine(db, requests);
     const speakers: CastName[] = [
-      { characterId: cid("a"), name: "Aria" },
-      { characterId: cid("b"), name: "Bran" },
-      { characterId: cid("c"), name: "Cara" },
+      { ref: charRef("a"), name: "Aria" },
+      { ref: charRef("b"), name: "Bran" },
+      { ref: charRef("c"), name: "Cara" },
     ];
 
     const outcome = await driveRound({
@@ -163,6 +167,30 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     expect(history.every((m) => m.role === "assistant")).toBe(true);
   });
 
+  test("an AGENT speaker self-attributes: characterId NULL, authorUserId = the agent (D60, doc 02 §2)", async () => {
+    // The AP2 headline (doc 07 §2 checkpoint): a hand-seated agent's turn persists self-attributed —
+    // host-funded (runAsUserId = HOST, unchanged) but AUTHORED by the agent. No character card, no
+    // `speakerCharacterId`. Proves `buildSpeakerPrep`'s agent arm end-to-end through the real engine.
+    const agentId = await seedAgent(db, HOST, "buddy");
+    const chatId = await seedChat(db, "agent");
+    const requests: TurnRequest[] = [];
+    const outcome = await driveRound({
+      engine: realEngine(db, requests),
+      base: base(chatId),
+      group: PER_SPEAKER,
+      speakers: [{ ref: { kind: "agent", userId: agentId }, name: "Buddy" }],
+      groupCharacterId: null,
+      castName: "Buddy",
+    });
+
+    expect(outcome.messages).toHaveLength(1);
+    const history = await loadCanonHistory(db, chatId);
+    expect(history).toHaveLength(1);
+    expect(history[0]?.role).toBe("assistant");
+    expect(history[0]?.characterId).toBeNull();
+    expect(history[0]?.authorUserId).toBe(agentId);
+  });
+
   test("ONE immutable ctx: every speaker's request shares the same built system block", async () => {
     const chatId = await seedChat(db, "ctx");
     const requests: TurnRequest[] = [];
@@ -171,8 +199,8 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       base: base(chatId),
       group: PER_SPEAKER,
       speakers: [
-        { characterId: cid("a"), name: "Aria" },
-        { characterId: cid("b"), name: "Bran" },
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
@@ -189,8 +217,8 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       base: base(chatId),
       group: PER_SPEAKER,
       speakers: [
-        { characterId: cid("a"), name: "Aria" },
-        { characterId: cid("b"), name: "Bran" },
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
@@ -207,8 +235,8 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       base: base(chatId),
       group: PER_SPEAKER,
       speakers: [
-        { characterId: cid("a"), name: "Aria" },
-        { characterId: cid("b"), name: "Bran" },
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
@@ -221,7 +249,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     const chatId = await seedChat(db, "rel");
     const requests: TurnRequest[] = [];
     const engine = realEngine(db, requests);
-    const speakers: CastName[] = [{ characterId: cid("a"), name: "Aria" }];
+    const speakers: CastName[] = [{ ref: charRef("a"), name: "Aria" }];
     await driveRound({
       engine,
       base: base(chatId),
@@ -292,8 +320,8 @@ describe("driveRound — locked yields the round (a human send interleaved — �
       base: base(castId<ChatId>("chat_x")),
       group: PER_SPEAKER,
       speakers: [
-        { characterId: cid("a"), name: "Aria" },
-        { characterId: cid("b"), name: "Bran" },
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",

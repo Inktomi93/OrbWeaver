@@ -23,18 +23,20 @@
 import type { GroupConfig } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { escapeRegExp } from "@orb/kit/strings";
-import type { ArbiterCandidate, CastName } from "../contract/arbitration";
+import type { ArbiterCandidate, CastName, SpeakerRef } from "../contract/arbitration";
+import { speakerKey } from "../contract/arbitration";
 import { isArbiterEligible } from "../persistence/participant";
 
 /** The 7a inputs (file-local — callers pass a literal; the shared candidate/cast types live in contract/). */
 interface SelectSpeakersParams {
-  /** The full present roster's CHARACTER candidates, in roster (join) order. */
+  /** The full present roster's AI-driven candidates (character/agent), in roster (join) order. */
   readonly candidates: readonly ArbiterCandidate[];
   /** The room's arbitration policy (`GroupConfig.policy`). */
   readonly policy: GroupConfig["policy"];
   /** The previous speaker (ban-last-speaker, soft); null at round 1 / after a human turn. */
-  readonly lastSpeakerId: CharacterId | null;
-  /** Human-authored forced/@-mention targets — the HARD override (§6); empty ⇒ run the policy. */
+  readonly lastSpeaker: SpeakerRef | null;
+  /** Human-authored forced/@-mention targets — the HARD override (§6); empty ⇒ run the policy. @mention is
+   *  character-only (human text matches cast names to characters; an agent is not @mention-forceable in v1). */
   readonly forcedIds?: readonly CharacterId[] | undefined;
   /** The injected PRNG (D46) — `() => number` in [0,1). Drives `natural`'s weighted sample. */
   readonly rng: () => number;
@@ -64,22 +66,26 @@ function weightedOrder(pool: readonly ArbiterCandidate[], rng: () => number): Ar
  * round (empty for `manual` with no forced target). PURE — the rng is the only entropy source (D46). Solo =
  * a roster-of-1: the soft ban-last yield makes the one eligible character re-speak with NO `if(isGroup)`.
  */
-export function selectSpeakers(params: SelectSpeakersParams): CharacterId[] {
+export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
   const eligible = params.candidates.filter((c) =>
     isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }),
   );
-  const eligibleIds = new Set(eligible.map((c) => c.characterId));
+  const eligibleKeys = new Set(eligible.map((c) => speakerKey(c.ref)));
 
   // 1. @mention / forced HARD-OVERRIDE — before any policy; bypasses ban-last; eligible-intersected, ordered.
-  const forced = (params.forcedIds ?? []).filter((id) => eligibleIds.has(id));
+  // Forced targets are character ids (human @mention is character-only); wrap them as character refs.
+  const forced = (params.forcedIds ?? [])
+    .map((characterId): SpeakerRef => ({ kind: "character", characterId }))
+    .filter((ref) => eligibleKeys.has(speakerKey(ref)));
   if (forced.length > 0) {
     return cap(dedupe(forced), params.maxSpeakers);
   }
 
   // 2/3. BAN-LAST-SPEAKER (soft): drop the last speaker; restore if that empties the pool (yield, never empty).
   let pool = eligible;
-  if (params.lastSpeakerId !== null) {
-    const banned = eligible.filter((c) => c.characterId !== params.lastSpeakerId);
+  if (params.lastSpeaker !== null) {
+    const lastKey = speakerKey(params.lastSpeaker);
+    const banned = eligible.filter((c) => speakerKey(c.ref) !== lastKey);
     if (banned.length > 0) {
       pool = banned;
     }
@@ -88,7 +94,7 @@ export function selectSpeakers(params: SelectSpeakersParams): CharacterId[] {
   // 4. POLICY — order/subset the pool.
   const ordered = applyPolicy(pool, params.policy, params.rng);
   return cap(
-    ordered.map((c) => c.characterId),
+    ordered.map((c) => c.ref),
     params.maxSpeakers,
   );
 }
@@ -120,12 +126,27 @@ function applyPolicy(
   }
 }
 
-function dedupe(ids: readonly CharacterId[]): CharacterId[] {
+/** Dedupe character ids (first-appearance order) — @mention resolution stays character-keyed. */
+function dedupeIds(ids: readonly CharacterId[]): CharacterId[] {
   return [...new Set(ids)];
 }
 
-function cap(ids: CharacterId[], maxSpeakers: number | undefined): CharacterId[] {
-  return maxSpeakers === undefined ? ids : ids.slice(0, Math.max(maxSpeakers, 0));
+/** Dedupe speaker refs by their stable key (first-appearance order). */
+function dedupe(refs: readonly SpeakerRef[]): SpeakerRef[] {
+  const seen = new Set<string>();
+  const out: SpeakerRef[] = [];
+  for (const ref of refs) {
+    const k = speakerKey(ref);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(ref);
+    }
+  }
+  return out;
+}
+
+function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] {
+  return maxSpeakers === undefined ? refs : refs.slice(0, Math.max(maxSpeakers, 0));
 }
 
 /**
@@ -139,7 +160,11 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
   if (triggerText.length === 0 || cast.length === 0) {
     return [];
   }
-  const byLongest = [...cast].sort((a, b) => b.name.length - a.name.length);
+  // @mention is character-only (§6): only character seats resolve to a forced characterId.
+  const characters = cast.flatMap((c) =>
+    c.ref.kind === "character" ? [{ characterId: c.ref.characterId, name: c.name }] : [],
+  );
+  const byLongest = [...characters].sort((a, b) => b.name.length - a.name.length);
   // Longest-first with overlap masking: a longer name that matched first CONSUMES its span, so a shorter
   // name nested inside it (`@Aria` within `@Aria Stormborn`) cannot also fire.
   const found: { id: CharacterId; at: number }[] = [];
@@ -159,5 +184,5 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
     consumed.push({ at, end });
     found.push({ id: member.characterId, at });
   }
-  return dedupe(found.sort((a, b) => a.at - b.at).map((f) => f.id));
+  return dedupeIds(found.sort((a, b) => a.at - b.at).map((f) => f.id));
 }

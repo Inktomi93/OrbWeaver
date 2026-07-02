@@ -7,7 +7,10 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type {
+  CastName,
+  SpeakerRef,
+} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
   ChatOperationError,
@@ -17,7 +20,8 @@ import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engi
 import { expect, test } from "../../../../support/fixtures";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
-const sp = (k: string): CastName => ({ characterId: cid(k), name: k });
+const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
+const sp = (k: string): CastName => ({ ref: charRef(k), name: k });
 
 let mintCounter = 0;
 function committed(): TurnOutcome {
@@ -130,21 +134,21 @@ describe("runAutoMode — locked (a concurrent turn holds the lock)", () => {
 
 describe("runAutoMode — re-arbitration + delay + error propagation", () => {
   test("each turn re-arbitrates off the PRIOR speaker (ban-last seeding)", async () => {
-    const seen: (CharacterId | null)[] = [];
+    const seen: (SpeakerRef | null)[] = [];
     let calls = 0;
     await runAutoMode({
       maxTurns: 3,
       delayMs: 0,
       delay: noDelay,
-      initialLastSpeakerId: cid("seed"),
-      nextSpeaker: (last: CharacterId | null): Promise<CastName | null> => {
+      initialLastSpeaker: charRef("seed"),
+      nextSpeaker: (last: SpeakerRef | null): Promise<CastName | null> => {
         seen.push(last);
         calls += 1;
         return Promise.resolve(sp(`spk${calls}`));
       },
       runTurn: (): Promise<TurnOutcome> => Promise.resolve(committed()),
     });
-    expect(seen).toEqual([cid("seed"), cid("spk1"), cid("spk2")]);
+    expect(seen).toEqual([charRef("seed"), charRef("spk1"), charRef("spk2")]);
   });
 
   test("the injected delay runs BETWEEN turns, not after the last", async () => {
