@@ -372,6 +372,17 @@ module.exports = {
       to: { path: ["^tests/", TEST_FILES] },
     },
     {
+      // Overrides recommended-strict's ERROR-severity rule, per dep-cruiser's own prescription for
+      // intentional cases. WHY: react/react-dom are deliberately peer+dev in @orb/ui (peer = the
+      // consumer provides the runtime copy; dev = local typecheck/CT — ui-package-design.md §1), and
+      // the rule has no peer carve-out knob. Cost accepted: the (non-peer) dep+devDep double-listing
+      // mistake class is no longer machine-caught — biome noUndeclaredDependencies + review carry it.
+      name: "no-duplicate-dep-types",
+      severity: "ignore",
+      from: {},
+      to: { moreThanOneDependencyType: true },
+    },
+    {
       name: "not-to-dev-dep",
       comment:
         "Production code (packages/*/src) must not import a devDependency — devDeps are build/test-only and won't ship, so a runtime import of one is a prod crash waiting to happen. depcruise resolves per-package: a module that is a package's real `dependency` (e.g. drizzle-orm in @orb/db) is `npm`, not `npm-dev`, and stays allowed — only PURE devDeps (drizzle-kit, vitest, …) fire. Type-only imports + @types are exempt. (recommended-strict OMITS this rule — it lives only in dep-cruiser's --init template; neo-tavern had it — restored 2026-06-27.)",
@@ -379,7 +390,10 @@ module.exports = {
       from: { path: "^packages/[^/]+/src/", pathNot: TEST_FILES },
       to: {
         dependencyTypes: ["npm-dev"],
-        dependencyTypesNot: ["type-only"],
+        // npm-peer exempt: a dep declared peer+dev (react in @orb/ui — the consumer provides the
+        // runtime copy, the devDep only feeds local typecheck/CT) is a legit runtime import, not a
+        // prod crash. Without this every hook-using ui component fires. (ui-package-design.md §1.)
+        dependencyTypesNot: ["type-only", "npm-peer"],
         pathNot: ["node_modules/@types/"],
       },
     },

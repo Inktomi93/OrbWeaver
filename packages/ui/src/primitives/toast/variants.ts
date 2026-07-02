@@ -1,0 +1,33 @@
+import { tv } from "tailwind-variants";
+
+// Teach tailwind-merge the type-scale tokens: by default it classifies unknown `text-*` values as
+// COLORS, so `text-label` + `text-muted-foreground` "conflict" and the size token is silently
+// dropped (recorded tailwind-variants-v3 delta — hoist to #lib if a third copy appears).
+const twMergeConfig = {
+  extend: {
+    classGroups: {
+      "font-size": [{ text: ["display", "headline", "title", "body", "label", "code"] }],
+    },
+  },
+};
+
+/**
+ * Slot classes for the toast system (ui-package-design §5). Viewport is fixed at `--z-toast`;
+ * roots animate on `data-starting-style`/`data-ending-style`, track Base UI's swipe CSS vars, and
+ * tint the border by `data-type` (error/success intent tokens — never a color calc).
+ */
+export const toastVariants = tv(
+  {
+    slots: {
+      viewport:
+        "fixed right-0 bottom-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col-reverse gap-row p-section outline-none",
+      root: "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))] data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0 data-[type=error]:border-destructive data-[type=success]:border-success",
+      content: "flex flex-col gap-field",
+      title: "text-label leading-label font-semibold",
+      description: "text-label leading-label text-muted-foreground",
+      close:
+        "absolute top-field right-field flex size-control-sm items-center justify-center rounded-control text-muted-foreground outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
+    },
+  },
+  { twMergeConfig },
+);

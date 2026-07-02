@@ -27,7 +27,9 @@
     "./diff": "./src/diff/index.ts",
     "./tokens": "./src/tokens/index.ts",
     "./lib": "./src/lib/index.ts",
-    "./styles/globals.css": "./src/styles/globals.css"
+    "./styles/globals.css": "./src/styles/globals.css",
+    "./markdown": "./src/markdown/index.ts",
+    "./content": "./src/content/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts"
@@ -37,12 +39,15 @@
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
+    "@codemirror/lang-css": "catalog:",
     "@orb/kit": "workspace:*",
     "@tanstack/react-virtual": "catalog:",
     "codemirror": "catalog:",
-    "@codemirror/lang-css": "catalog:",
     "diff": "catalog:",
     "lucide-react": "catalog:",
+    "remark": "catalog:",
+    "streamdown": "catalog:",
+    "strip-markdown": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwind-variants": "catalog:",
     "zod": "catalog:"
