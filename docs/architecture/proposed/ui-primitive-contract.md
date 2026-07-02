@@ -203,11 +203,15 @@ Before adding anything, note biome + existing gates already cover a naive contra
 - **token drift** → `tests/ui/tokens/freshness.test.ts` (index.ts/theme.css vs tokens.json).
 - **touch floor (partial)** → per-component CT `boundingBox().height >= 44` assertions (§7 gap).
 
-### 5.1 ESLint — block the dead package (do NOW, 3 lines)
+### 5.1 Biome — block the dead package (do NOW)
 
-`no-restricted-imports` → ban **`@base-ui-components/react`** (the rc-era dead package; use
-`@base-ui/react`, D42). Neither installed nor imported today — a pure **preventive** so the recurring
-"is this the rc package?" confusion can never happen again. Zero false-positive risk.
+Biome `noRestrictedImports` (biome is the primary linter) → ban **`@base-ui-components/react`** (the
+rc-era dead package; use `@base-ui/react`, D42) via a `patterns.group` of
+`["@base-ui-components/react", "@base-ui-components/react/**"]` so both the bare import AND every subpath
+(`.../toast`, etc. — the realistic vector) fail with "Dead rc-era package. Use @base-ui/react (D42)."
+Neither installed nor imported today — a pure **preventive** so the recurring "is this the rc package?"
+confusion can never happen again. Zero false-positive risk. *(Biome 2.5's `patterns` supports the
+subpath glob cleanly, so no ESLint fallback is needed.)*
 
 ### 5.2 The structure gate (`scripts/check/gates/ui-primitive-structure.ts`)
 
@@ -220,8 +224,11 @@ offending path. These are the GAPS biome can't see:
 3. **No variants leak** — no `index.ts` re-exports from `./variants`. *(ast-grep)*
 4. **Co-located test** — every styled primitive has `tests/ui/**/<name>.ct.tsx` (except `icons`). *(filesystem)*
 5. **No token color literals** — no `oklch(`/`rgb(`/`#hex` color literal in any `.ct.tsx` (§4.2). *(ast-grep)*
-6. **No inline provider wrap** — no `<{Tooltip,Toast,Direction}Provider>` JSX in `.ct.tsx` (drawer-local
-   providers allowlisted). *(ast-grep)*
+6. **No inline provider wrap** — **fail-closed**: no inline `<*Provider>` JSX (ANY identifier ending in
+   `Provider`) in a `.ct.tsx`/`.fixtures.tsx`, EXCEPT the drawer-local `DrawerProvider` /
+   `DrawerVirtualKeyboardProvider` allowlist. A future primitive that introduces a NEW global provider
+   is thereby forced to add it to `CtProviders` (or justify an exception) rather than silently
+   re-drifting inline — the exact allowlist-maintenance gap that caused the original drift. *(ast-grep)*
 7. **No inline glyph SVG** — no `<svg` in a `primitives/*` component outside the data-viz allowlist
    (`charts/**`). *(ast-grep)*
 8. **Overlay anatomy** — TWO sub-families (verified 2026-07-02; a naive "all overlays need a Positioner"

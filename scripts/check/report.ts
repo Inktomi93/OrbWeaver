@@ -24,6 +24,7 @@ import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
 import { testNoStubs } from "./gates/test-no-stubs.ts";
 import { testPresence } from "./gates/test-presence.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
+import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
 import { runChecks } from "./harness.ts";
 
@@ -50,4 +51,5 @@ runChecks([
   testNoStubs,
   serverLayout,
   packageLayout,
+  uiPrimitiveStructure,
 ]);
