@@ -123,7 +123,7 @@ domain/chat/
 │   ├── roster.ts           loadRoster + buildInitialRosterRows (un-exiled from _shared)
 │   ├── participant.ts      parseParticipant (kind XOR) + membership lifecycle (joinSeq/leftSeq, re-add upsert, present-and-contributing predicate) + assertForcedCharacterMember
 │   ├── invites.ts          chat_invites reads + atomic-redeem; pending_turns (host-offline deferred turn, boot-reclaimed, NOT lock-held)
-│   └── lock.ts             per-chat turn lock (DB-backed; candidate → infra — open)
+│   └── lock.ts             per-chat turn lock (DB-backed; home RESOLVED here — see §open-decisions)
 ├── engine/             NAMED SUBSYSTEM — the per-turn loop + SHAPE:
 │   ├── engine.ts           the lifecycle shell (the persist batch-writers split toward persistence/)
 │   ├── pipeline.ts         SHAPE substrate (splice→squash→name-stamp→fit) + the §8 rolling-pair breakpoint;
