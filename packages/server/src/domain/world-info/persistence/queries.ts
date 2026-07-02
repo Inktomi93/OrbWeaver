@@ -16,8 +16,22 @@
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import { characterBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
-import type { CharacterId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import {
+  characterBooks,
+  chatBooks,
+  globalBooks,
+  personaBooks,
+  worldBooks,
+  worldEntries,
+} from "@orb/db";
+import type {
+  CharacterId,
+  ChatId,
+  PersonaId,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "../contract/views";
 
@@ -144,6 +158,19 @@ export async function listGlobalBooks(db: Db, ownerId: UserId): Promise<BookAtta
     .from(globalBooks)
     .innerJoin(worldBooks, eq(globalBooks.worldBookId, worldBooks.id))
     .where(eq(worldBooks.ownerId, ownerId))
+    .orderBy(desc(worldBooks.createdAt));
+  return rows.map((r) => toAttachmentView(r.book, null));
+}
+
+/** Books attached to a chat room, newest first. Role is null. NOT owner-filtered — a chat's attached books
+ *  are ROOM-PUBLIC prompt content (D18: membership is the caller gate, applied by the verb via the injected
+ *  chat guard; the pool builder reads this junction the same un-owned way). */
+export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachmentView[]> {
+  const rows = await db
+    .select({ book: worldBooks })
+    .from(chatBooks)
+    .innerJoin(worldBooks, eq(chatBooks.worldBookId, worldBooks.id))
+    .where(eq(chatBooks.chatId, chatId))
     .orderBy(desc(worldBooks.createdAt));
   return rows.map((r) => toAttachmentView(r.book, null));
 }

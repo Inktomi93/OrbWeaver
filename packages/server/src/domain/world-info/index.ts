@@ -7,10 +7,11 @@
 //   • WorldInfoNotFoundError (so the transport + tests discriminate it past the base DomainNotFoundError)
 //   • createWorldInfoService (the factory the entry root wires over the assembled WorldInfoContext)
 //
-// FLAG[PD-30] (contract/service.ts): the chat attachment scope (3 verbs) + the WiBusEvent emit wait on the
-// `can({kind:'chat',roster})` resource arm + the chat bus (Phase 5). The per-turn POOL builder (the GATHER
-// that unions all scopes + drives the kit keyword/placement resolvers) is a chat-assembly concern and reads
-// these tables as a db-layer consumer — it does NOT go through this front door (world-info.md invariant #8).
+// The chat attachment scope (PD-30 cleared — contract/service.ts header): attach/detach/list are
+// membership-scoped through the injected chat guards and emit `WiBusEvent` via the injected chat-bus emit.
+// The per-turn POOL builder (the GATHER that unions all scopes + drives the kit keyword/placement
+// resolvers) is a chat-assembly concern and reads these tables as a db-layer consumer — it does NOT go
+// through this front door (world-info.md invariant #8).
 
 export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 export { WorldInfoNotFoundError } from "./contract/errors";

@@ -15,6 +15,7 @@
 //     INJECTED `resolveHostPrincipal` (PD-73 resolved — `entry/auth.createHostPrincipalResolver` over
 //     `sessions.loadUserById`, the sanctioned `users` reader; the seam stays the one Principal mint site).
 
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { Can, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -100,12 +101,20 @@ export interface ChatComposeInput {
   readonly assets: AssetsService;
 }
 
+/** The chat compose product: the service + the bus's durable-first emit, surfaced for the OTHER producers
+ *  that publish onto the chat bus (world-info's `WiBusEvent`, PD-30). The replay-ring read handle stays
+ *  internal until the transport SSE fan-out needs it (B2-1). */
+export interface ChatComposeResult {
+  readonly service: ChatService;
+  readonly emitBusEvent: (event: ChatBusEvent) => Promise<void>;
+}
+
 /**
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
- * collaborator. Returns the service; the bus is held internally (the transport SSE fan-out, PD-46, will need
- * the bus replay-ring handle surfaced — see the integration report's hand-off).
+ * collaborator. Returns the service AND the bus emit (see {@link ChatComposeResult} — world-info publishes
+ * its `WiBusEvent` through the SAME durable-first bus so WI attachment changes land in `chat_events`).
  */
-export function buildChatService(input: ChatComposeInput): ChatService {
+export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now } = input;
 
   // The frozen-host → `Principal` bridge (see the file header). For the ROLE-IRRELEVANT ops (getCard /
@@ -518,5 +527,5 @@ export function buildChatService(input: ChatComposeInput): ChatService {
     lockTtlMs: CHAT_LOCK_TTL_MS,
   };
 
-  return createChatService(chatCtx, chatDeps);
+  return { service: createChatService(chatCtx, chatDeps), emitBusEvent: bus.emit };
 }

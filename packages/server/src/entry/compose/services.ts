@@ -72,7 +72,12 @@ import {
   createProviderExecutor,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
-import { getGroupConfig, requireAuthorOrHost, requireParticipant } from "../../domain/chat";
+import {
+  getGroupConfig,
+  requireAuthorOrHost,
+  requireHost,
+  requireParticipant,
+} from "../../domain/chat";
 import type { Services } from "../../transport/trpc/context";
 import { createHostPrincipalResolver } from "../auth";
 import { buildChatService } from "./chat";
@@ -387,13 +392,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
   const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
-  const worldInfo = createWorldInfoService({
-    db,
-    now,
-    newBookId: minter(ID_PREFIX.worldBook),
-    newEntryId: minter(ID_PREFIX.worldEntry),
-    audit,
-  });
   const stats = createStatsService(db);
   const search = createSearchService({ db, roleClients });
   const discovery = createDiscoveryService({
@@ -507,7 +505,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
   //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
   //    lock tag the boot reclaim must match (defaulted for non-turn tests). ───────────────────────────────
-  const chat = buildChatService({
+  const { service: chat, emitBusEvent: emitChatBusEvent } = buildChatService({
     db,
     now,
     holder: deps.holder ?? "replica-default",
@@ -528,6 +526,23 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     embeddings,
     runChatTurn: executor.runChatTurn,
+  });
+
+  // ── world-info (built AFTER chat — its PD-30 chat scope injects chat's membership guards + the chat
+  //    bus emit; world-info itself never reads the roster nor imports chat). ────────────────────────────
+  const worldInfo = createWorldInfoService({
+    db,
+    now,
+    newBookId: minter(ID_PREFIX.worldBook),
+    newEntryId: minter(ID_PREFIX.worldEntry),
+    audit,
+    // Chat's own guards over the shared {db, can} — host for the room-config writes, member for the list.
+    requireChatHost: (principal, chatId) =>
+      requireHost({ db, can }, principal, chatId).then((): void => undefined),
+    requireChatMember: (principal, chatId) =>
+      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    // WI attachment changes ride the SAME durable-first chat bus (WiBusEvent ⊂ ChatBusEvent).
+    emitWiEvent: emitChatBusEvent,
   });
 
   const services: Services = {
