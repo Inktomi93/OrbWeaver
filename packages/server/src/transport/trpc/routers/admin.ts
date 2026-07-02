@@ -8,7 +8,7 @@
 // `infra/providers`; admin owns the port shape, transport just delegates).
 
 import { userRoleSchema } from "@orb/contracts/identity";
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, t } from "../trpc";
@@ -91,4 +91,17 @@ export const adminRouter = t.router({
     .mutation(({ ctx, input }) =>
       ctx.services.admin.restartVllmEngine({ principal: ctx.auth, engine: input.engine }),
     ),
+
+  // PD-90 — the inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
+  // embed engine inline; the bulk path is the admin-only embed-corpus workload). The producer-ownership
+  // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
+  embedCharacterCard: adminProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.services.admin.embedCharacterCard({
+        principal: ctx.auth,
+        characterId: input.characterId,
+      });
+      return { ok: true } as const;
+    }),
 });

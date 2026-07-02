@@ -2,15 +2,18 @@
 //   • AdminContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • SessionAdminPort   the dependency-inversion port admin needs from `domain/sessions`
 //   • VllmSupervisorPort the port admin needs from `infra/providers` (the vLLM supervisor)
-//   • AdminService       the 10-verb authoritative interface (the front door re-exports the type)
+//   • EmbedProducerPort  the port admin needs for the inline single-card embed (PD-90)
+//   • AdminService       the 11-verb authoritative interface (the front door re-exports the type)
 // Every cross-feature/infra dep arrives as an INJECTED op (admin sideways-imports nothing; it reads the
 // `Principal` it is handed and gates on it — domain-no-cross-feature, spine §1).
 
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   CreateUserParams,
+  EmbedCharacterCardParams,
   ListSessionsParams,
   ListUsersParams,
   ResetPasswordParams,
@@ -55,6 +58,17 @@ export interface VllmSupervisorPort {
 }
 
 /**
+ * The inline-embed slice admin needs (PD-90) — composed at the root from `character` (the OWNER-SCOPED
+ * card read + the card-text projection: the producer-ownership check that made this a composition, not a
+ * thin driver) and `embeddings` (the ONE write path, `store(kind:'card', lens:'card-text')`). Resolves
+ * `false` when the caller does not own the character / it is gone / it has no embeddable text — the verb
+ * maps that to a leak-free not-found. The bulk path stays the admin-only `embed-corpus` workload.
+ */
+export interface EmbedProducerPort {
+  readonly embedCharacterCard: (principal: Principal, characterId: CharacterId) => Promise<boolean>;
+}
+
+/**
  * The DI bundle the admin verbs close over (wired at `service.ts`). `now`/`newUserId` are the injected
  * determinism seam (no ambient clock/id — testing §3); `hashPassword` is `infra/auth`'s sealed adapter;
  * `audit` is `foundation/observability`'s `logAudit` pre-bound to `db`. admin reads `users` directly (the
@@ -68,6 +82,7 @@ export interface AdminContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: SessionAdminPort;
   readonly vllm: VllmSupervisorPort;
+  readonly embed: EmbedProducerPort;
 }
 
 /**
@@ -88,4 +103,5 @@ export interface AdminService {
   ) => Promise<RevokeUserSessionsResult>;
   readonly vllmEngines: (params: VllmEnginesParams) => Promise<VllmEnginesResult>;
   readonly restartVllmEngine: (params: RestartVllmEngineParams) => Promise<RestartVllmEngineResult>;
+  readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;
 }

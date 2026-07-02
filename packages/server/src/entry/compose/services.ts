@@ -433,6 +433,30 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
           ? Promise.resolve("vllm supervisor not running")
           : registry.vllmEngine.restart(name as Parameters<VllmEngineHandle["restart"]>[0]),
     },
+    // The PD-90 inline single-card embed port: the OWNER-SCOPED card read is the producer-ownership check
+    // (a foreign/missing character reads null — leak-free), then the same card-text projection + store the
+    // indexer uses (idempotent — the store verb hash-gates, so re-embedding an unchanged card is a noop).
+    embed: {
+      embedCharacterCard: async (principal, characterId): Promise<boolean> => {
+        const card = await character.getCard({ principal, characterId });
+        if (card === null) {
+          return false;
+        }
+        const text = await character.loadCardText(characterId);
+        if (text === null || text.length === 0) {
+          return false;
+        }
+        await embeddings.store({
+          kind: "card",
+          lens: "card-text",
+          characterId,
+          content: text,
+          model: roleClients.embedModel,
+          dim: env.VLLM_EMBED_DIM,
+        });
+        return true;
+      },
+    },
   });
 
   const buddy = createBuddyService({

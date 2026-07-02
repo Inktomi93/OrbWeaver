@@ -5,7 +5,7 @@
 // here (validated at the verb/transport boundary); `role`/ids are branded.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
 
 /** Common to every admin verb: the acting principal the guard reads. */
 export interface AdminActorParams {
@@ -53,4 +53,10 @@ export interface VllmEnginesParams extends AdminActorParams {}
 
 export interface RestartVllmEngineParams extends AdminActorParams {
   readonly engine: string;
+}
+
+/** `embedCharacterCard` — the inline single-card embed (PD-90). The producer FK is validated against the
+ *  caller (the composed port's owner-scoped card read); the vector row itself carries NO owner (D20). */
+export interface EmbedCharacterCardParams extends AdminActorParams {
+  readonly characterId: CharacterId;
 }

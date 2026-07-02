@@ -35,8 +35,9 @@ import type { WorldInfoService } from "#domain/world-info";
  * FLAG[PD-46]: `chat` — the chat service is now CONSTRUCTED + wired at the composition root (entry/compose/
  * chat.ts) and carried here. Its tRPC ROUTER (`chat.send`/`swipe`/`start`/`streamMessages`) is the remaining
  * PD-46 piece — the SSE `streamMessages` resume needs the chat bus replay-ring handle surfaced from compose
- * (the bus is currently held internally; see the integration report's hand-off). `embeddings` (the admin
- * inline `embed` write) is FLAG[PD-90] — see `routers/` DEFER notes.
+ * (the bus is currently held internally; see the integration report's hand-off). The admin inline embed
+ * (PD-90) rides `admin.embedCharacterCard` (the composed `EmbedProducerPort`) — embeddings itself stays
+ * off this bundle (no direct transport surface).
  */
 export interface Services {
   readonly admin: AdminService;
