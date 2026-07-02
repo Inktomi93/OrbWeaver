@@ -12,7 +12,7 @@ import { CharacterNotFoundError } from "../contract/errors";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
-import { detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
+import { canonicalTagsOf, detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */
@@ -79,6 +79,6 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    return detailOf(row);
+    return detailOf(row, await canonicalTagsOf(ctx.db, characterId));
   };
 }

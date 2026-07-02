@@ -15,10 +15,18 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import type { TagView } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
-import { assets, characterSnapshots, characters, parseStringArray } from "@orb/db";
+import {
+  assets,
+  characterSnapshots,
+  characters,
+  characterTags,
+  parseStringArray,
+  tags,
+} from "@orb/db";
 import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SnapshotSummary } from "../contract/results";
 import type { CharacterDetail, CharacterSummary } from "../contract/views";
@@ -227,8 +235,67 @@ export function cardOf(src: CharacterCard): CharacterCard {
   };
 }
 
-/** Row + joined avatar → the full owner detail view (the live card + identity/provenance + avatar hash). */
-export function detailOf({ character: row, avatar }: CharacterWithAvatar): CharacterDetail {
+// ── canonical tags (the tag.md L56 read path — a deliberate db-layer junction consumer) ────────────────
+// The character views carry the ACCEPTED `character_tags ⋈ tags` labels (the library tag filter + editor
+// chips). This is the sanctioned "pool.ts pattern" (tag.md Movement: "stays as db-layer consumer"): a
+// read-only join over the junction-owner's schema via `@orb/db`, NEVER an import of `domain/tag` (the
+// front door exposes no per-entity read; routing through it would be a sideways runtime dep). Pending
+// (staged-suggestion) rows are excluded — the views show canon, the suggestion UI reads tag's own surface.
+// The row→TagView projection is the same column pick tag's `toTagView` makes (the columns ARE the wire
+// shape); ordering mirrors tag's list contract (sortOrder ASC nulls-last, then name).
+
+/** The accepted canonical tags per character — `Map` keyed by character id (absent = no tags). */
+export async function canonicalTagsFor(
+  db: Db,
+  characterIds: readonly CharacterId[],
+): Promise<Map<CharacterId, TagView[]>> {
+  const map = new Map<CharacterId, TagView[]>();
+  if (characterIds.length === 0) {
+    return map;
+  }
+  const rows = await db
+    .select({ characterId: characterTags.characterId, tag: tags })
+    .from(characterTags)
+    .innerJoin(tags, eq(characterTags.tagId, tags.id))
+    .where(
+      and(inArray(characterTags.characterId, characterIds), eq(characterTags.status, "accepted")),
+    )
+    .orderBy(sql`${tags.sortOrder} is null`, tags.sortOrder, tags.name);
+  for (const { characterId, tag } of rows) {
+    const view: TagView = {
+      id: tag.id,
+      name: tag.name,
+      color: tag.color,
+      color2: tag.color2,
+      source: tag.source,
+      folderType: tag.folderType,
+      sortOrder: tag.sortOrder,
+      isHiddenOnCard: tag.isHiddenOnCard,
+    };
+    const bucket = map.get(characterId);
+    if (bucket === undefined) {
+      map.set(characterId, [view]);
+    } else {
+      bucket.push(view);
+    }
+  }
+  return map;
+}
+
+/** One character's accepted canonical tags (the single-detail convenience over {@link canonicalTagsFor}). */
+export async function canonicalTagsOf(
+  db: Db,
+  characterId: CharacterId,
+): Promise<readonly TagView[]> {
+  return (await canonicalTagsFor(db, [characterId])).get(characterId) ?? [];
+}
+
+/** Row + joined avatar + accepted tags → the full owner detail view (the live card + identity/provenance +
+ *  avatar hash + the canonical tag chips). */
+export function detailOf(
+  { character: row, avatar }: CharacterWithAvatar,
+  canonicalTags: readonly TagView[],
+): CharacterDetail {
   return {
     ...cardOf(row),
     id: row.id,
@@ -242,11 +309,15 @@ export function detailOf({ character: row, avatar }: CharacterWithAvatar): Chara
     contentHash: row.contentHash,
     createdAt: row.createdAt,
     avatarHash: avatar?.hash ?? null,
+    tags: canonicalTags,
   };
 }
 
-/** Row + joined avatar → the light library-list summary (with the advisory token estimate). */
-export function summaryOf({ character: row, avatar }: CharacterWithAvatar): CharacterSummary {
+/** Row + joined avatar + accepted tags → the light library-list summary (with the advisory token estimate). */
+export function summaryOf(
+  { character: row, avatar }: CharacterWithAvatar,
+  canonicalTags: readonly TagView[],
+): CharacterSummary {
   return {
     id: row.id,
     handle: row.handle,
@@ -259,5 +330,6 @@ export function summaryOf({ character: row, avatar }: CharacterWithAvatar): Char
     contentHash: row.contentHash,
     createdAt: row.createdAt,
     tokenSize: cardTokenSize({ ...row, greetings: parseStringArray(row.greetings) }),
+    tags: canonicalTags,
   };
 }

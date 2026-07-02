@@ -10,6 +10,7 @@ import type { RestoreParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { appendSnapshot, writeCardInPlace } from "../persistence/card";
 import {
+  canonicalTagsOf,
   cardOf,
   detailOf,
   loadOwnedCharacterRow,
@@ -65,6 +66,6 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
     if (updated === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    return detailOf(updated);
+    return detailOf(updated, await canonicalTagsOf(ctx.db, characterId));
   };
 }

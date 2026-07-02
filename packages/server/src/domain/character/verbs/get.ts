@@ -6,7 +6,7 @@
 import { CharacterNotFoundError } from "../contract/errors";
 import type { GetCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
-import { detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
+import { canonicalTagsOf, detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
 
 export function createGet(ctx: CharacterContext): CharacterService["get"] {
   return async ({ principal, characterId }: GetCharacterParams) => {
@@ -14,6 +14,6 @@ export function createGet(ctx: CharacterContext): CharacterService["get"] {
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    return detailOf(row);
+    return detailOf(row, await canonicalTagsOf(ctx.db, characterId));
   };
 }

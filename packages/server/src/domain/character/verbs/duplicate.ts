@@ -11,6 +11,7 @@ import type { DuplicateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import {
+  canonicalTagsOf,
   cardOf,
   detailOf,
   listOwnerHandles,
@@ -74,6 +75,6 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
     if (row === undefined) {
       throw new CharacterNotFoundError(newId);
     }
-    return detailOf(row);
+    return detailOf(row, await canonicalTagsOf(ctx.db, newId));
   };
 }
