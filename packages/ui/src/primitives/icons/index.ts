@@ -36,4 +36,4 @@ export {
   X,
 } from "lucide-react";
 export type { IconProps } from "./icon";
-export { ICON_LG, ICON_MD, ICON_SM, Icon } from "./icon";
+export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon";
