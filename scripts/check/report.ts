@@ -6,6 +6,7 @@
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
+import { componentSize } from "./gates/component-size.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
@@ -54,4 +55,5 @@ runChecks([
   packageLayout,
   uiPrimitiveStructure,
   clientStructure,
+  componentSize,
 ]);
