@@ -10,16 +10,14 @@
 // derived `clientIp` are PURE header reads (header-presence + peer/XFF), recomputed at the tRPC mount from
 // the same request — not a second identity resolution (the "resolve once" invariant holds).
 
-import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import type { Context } from "hono";
 import { Hono } from "hono";
 import { env } from "#foundation/env";
 import { registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
-import { isInRanges, isPrivateOrLoopback } from "#infra/network";
+import { clientIp, ipAllowlistMiddleware, parseAllowlist } from "#infra/network";
 import type { RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
@@ -41,10 +39,8 @@ import {
 import type { ImportAssetPort, ImportCharacterPort } from "./import";
 
 const MS_PER_SECOND = 1000;
-const FORBIDDEN = 403;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
-const XFF_HEADER = "x-forwarded-for";
 const SESSION_COOKIE_NAME = "__Host-orb_session";
 
 /** The request-context surface the routes read. Only `principal` is stashed — `csrfHeaderPresent`/`clientIp`
@@ -83,30 +79,6 @@ export interface AppDeps {
   readonly oidc?: OidcRoutesDeps;
 }
 
-const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
-
-/** Derive the caller IP for the per-IP rate-limit key: the leftmost `x-forwarded-for` hop if the connection
- *  peer is a trusted proxy (loopback/private OR explicitly trusted via FORWARD_AUTH_TRUSTED_PROXIES).
- *  Otherwise, returns the connection peer. */
-function deriveClientIp(c: Context<AppEnv>): string | null {
-  const peer = getConnInfo(c).remote.address;
-
-  const forwarded = c.req.header(XFF_HEADER);
-  if (
-    forwarded !== undefined &&
-    forwarded.length > 0 &&
-    peer !== undefined &&
-    (isPrivateOrLoopback(peer) || isInRanges(peer, TRUSTED_PROXIES))
-  ) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first !== undefined && first.length > 0) {
-      return first;
-    }
-  }
-
-  return peer ?? null;
-}
-
 /** Read our opaque session token from the Cookie header (the same minimal base64url parse the seam +
  *  auth-routes use — there is no shared exported reader; a value that can't decode can't be ours). */
 function readSessionToken(headers: Headers): string | null {
@@ -130,32 +102,14 @@ function readSessionToken(headers: Headers): string | null {
   return null;
 }
 
-/** Parse the comma-separated IP_ALLOWLIST env floor into trimmed CIDR/IP entries (empty ⇒ belt off). */
-function parseAllowlist(raw: string | undefined): readonly string[] {
-  if (raw === undefined) {
-    return [];
-  }
-  return raw
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
 /** Build the Hono app: middleware (allowlist belt → auth seam) → tRPC mount → non-tRPC registrars → debug. */
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
-  // ── Ingress IP-allowlist edge belt (orthogonal to AUTH_MODE; off unless IP_ALLOWLIST is set) ───────────
+  // ── Ingress IP-allowlist edge belt (infra/network/ingress — PD-91; off unless IP_ALLOWLIST is set) ────
   const allowlist = parseAllowlist(env.IP_ALLOWLIST);
   if (allowlist.length > 0) {
-    app.use("*", async (c, next) => {
-      const ip = deriveClientIp(c);
-      // Loopback/private is always allowed (the operator's own box); otherwise the caller must be in-list.
-      if (ip !== null && !isPrivateOrLoopback(ip) && !isInRanges(ip, allowlist)) {
-        return c.body(null, FORBIDDEN);
-      }
-      return await next();
-    });
+    app.use("*", ipAllowlistMiddleware(allowlist));
   }
 
   // ── Auth middleware: resolve the ONE Principal per request + refresh a slid cookie session ────────────
@@ -194,7 +148,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           services: deps.services,
           rateLimit: deps.rateLimit,
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
-          clientIp: deriveClientIp(c),
+          clientIp: clientIp(c),
         }),
     }),
   );
