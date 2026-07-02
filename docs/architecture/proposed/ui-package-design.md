@@ -257,6 +257,16 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
 - **Wave 2 — the security primitives** (D44 trio + markdown, sequenced after Wave 1 since
   lightbox/media compose Dialog): ThemeScope · MessageMedia · sandbox-frame · `@orb/ui/markdown`
   two-policy pipeline + `toPlainText`. CT asserts containment (§7).
+- **Wave 3 — the display/form gap** (the neo-parity sweep, §11.1 below): the domain-agnostic
+  primitives every committed feature design needs but waves 1–2 didn't cover, found by (a) grepping
+  the whole `proposed/` tree for `@orb/ui/*` refs + primitive nouns (`card` ×187, `chip`/`badge`
+  ×72, `skeleton` ×9, `radio`/`checkbox`/`textarea`/`autocomplete`/`separator`/`collapsible` …) and
+  (b) inventorying neo's `components/ui/` (the shadcn layer being replaced). Three batches:
+  **form controls** (checkbox · radio-group · toggle/toggle-group · textarea · autocomplete — Base
+  UI wraps) · **structure/disclosure** (separator · collapsible · accordion · scroll-area ·
+  alert-dialog · progress — Base UI wraps) · **hand-authored display** (badge/chip/pill · skeleton ·
+  spinner · empty-state · card — pure `tv()` over semantic HTML, no lib). Same bar: tv unions,
+  tokens-only, `.ct.tsx`, doc-comment, Base UI verified live.
 - **Deferred (named, with reasons):**
   - `message-list` — the chat seal configures against the chat client's ghost-row/stream model;
     built with the chat client chunk (same lib, seal dir reserved).
@@ -315,3 +325,96 @@ client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them wi
 | D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ◐ Wave-2/Phase-6 | the ui half ships as Wave-2 CT containment tests; the lint/route halves need message-render + entry/http code to exist |
 | `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | ⚠ DECISION NEEDED | orbweaver is biome-only — adopting these means adding an eslint lane to `check` (scoped to packages/client) at the client-foundation wave. Biome already carries `useExhaustiveDependencies`/`useHookAtTopLevel` (partial hooks coverage), but the Compiler's Rules-of-React enforcement + `prefer-query-options` have no biome twin. Flagged for Nate. |
 | visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
+
+## 12. The neo-parity primitive sweep (what `@orb/ui` must cover; audited 2026-07-02)
+
+The domain-agnostic primitive set, derived from BOTH (a) neo's `components/ui/` (the shadcn layer
+being replaced) and (b) a grep of the whole `proposed/` tree for `@orb/ui/*` refs + primitive nouns.
+Rule for inclusion: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `CharacterCard`) AND
+referenced by ≥1 committed design (or a neo staple). Domain components live in `client/features`.
+
+| Primitive | neo had | Base UI native | Status | Home / wave |
+| --- | --- | --- | --- | --- |
+| button · field · input · select · switch · slider · number-field · tabs | ✓ | ✓ | ✅ built | W1 |
+| dialog · popover · tooltip · menu(=dropdown-menu) · toast · drawer(+sheet) · avatar | ✓ | ✓ | ✅ built | W1 |
+| layout (Stack/Row/Section/Container/Toolbar) · icons | ✓ (shared) | — | ✅ built | W1 |
+| meter (linear/arc/bipolar) + SegmentedClock | — | ✗ (hand) | ✅ built | W1 |
+| virtual-list · code-editor · diff | ✓ (resizable dropped) | ✗ (seals) | ✅ built | W1 |
+| ThemeScope · MessageMedia · sandbox-frame · lightbox · markdown | — | ✗ (D44 owned) | ✅ built | W2 |
+| checkbox · radio-group · toggle · toggle-group · textarea · autocomplete | ✓ (label/textarea) | ✓ | ▶ Wave 3-A | W3 |
+| separator · collapsible · accordion · scroll-area · alert-dialog · progress | ✓ (accordion/alert-dialog/scroll-area/separator/skeleton) | ✓ | ▶ Wave 3-B | W3 |
+| badge/chip/pill · skeleton · spinner · empty-state · card | ✓ (badge/skeleton/empty-state) | ✗ (hand) | ▶ Wave 3-C | W3 |
+| message-list · stream pacer | ✓ (hand-rolled) | ✗ (seal) | ⏸ chat chunk (needs the chat stream store) | P6 |
+| charts (ECharts) | ✓ (nivo→ECharts) | ✗ (seal) | ⏸ corpus chunk (corpus-only footprint) | P6 |
+| command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ⏸ first-consumer chunk (dep enters then) | P6 |
+| macro-textarea | ✓ (hand-rolled) | ✗ | ⏸ Deferred — D54: stays hand-rolled, sealed in @orb/ui; no 2026 lib fits the mid-text `{{macro}}`+`::`-arg model (Base UI Autocomplete is whole-input-only). Needs its own design pass. |
+| weave-glyph (brand) | ✓ | — | ⏸ brand asset — lands with app-shell (the RAIL brand mark) |
+
+**Deliberately NOT `@orb/ui` (they were neo `components/ui/` but are app-shell/feature concerns):**
+`resizable` (DROPPED — D54 clamp-overlay shell) · `sheet` (folded into `drawer` side variants) ·
+`label` (folded into `field`) · `app-splash`/`route-error-fallback` (app-shell chrome, `client`) ·
+`macro-textarea-logic` (feature logic). The **proposal-diff** pattern (chat-crew 07) is a FEATURE
+component over `@orb/ui/diff`, not a ui primitive (it knows edit-proposal shapes → `client/features`).
+
+## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
+
+Codified after a full 27-seal review found the same class of miss across agents: **thin wraps that
+under-use Base UI, hand-roll what the lib ships, pick the wrong primitive, and theorize instead of
+test.** These rules are law for every primitive build/extension; they are the standing preamble of
+every `@orb/ui` agent brief. **YAGNI is OFF for primitives — a committed primitive gets the FULL
+cold-read treatment; a missing native capability is a DEFECT, not a deferral.**
+
+**R1 — Read the shipped `.d.ts` FIRST, never memory or runtime probing.** Before writing a wrap,
+read `node_modules/@base-ui/react/<component>/**/*.d.ts`: the parts list (`index.parts.d.ts`), the
+Root props, the generics. The wrap is written against THAT surface, not a training-data recollection
+of an older API. (The 5-day autocomplete snipe-hunt was probe-archaeology in place of reading the
+type defs.)
+
+**R2 — Expose the FULL native part + prop surface.** If Base UI ships it, the seal surfaces it:
+`Toast.Action` · `Field.Control` (native-control registration — a plain element does NOT auto-associate)
+· `Autocomplete.Status`/`Clear`/`Group` · `Menu.CheckboxItem`/`RadioItem`/`SubmenuRoot`/`LinkItem` ·
+`Combobox.Chips`/`Chip`/`ChipRemove` · `Select multiple`+`Group`+scroll-arrows · `Slider` range
+(array value, N thumbs)+`Value`/`Label` · `Progress.Value`/`Label` · `Tabs.Indicator` ·
+`NumberField.ScrubArea` · `Popover`/`Dialog` `Arrow`/`Close`/`Backdrop`/`createHandle` ·
+`Collapsible` `keepMounted`/`hiddenUntilFound` · `ScrollArea.Corner`. A seal may omit a part ONLY
+when a design decision makes it meaningless (a cut structural mode), and the omission is documented
+with the reason inline.
+
+**R3 — Native-part-first: never hand-roll what the lib ships.** A hand-rolled checkmark, spinner
+SVG, chip, or dismiss button when Base UI has `Indicator`/`Chip`/`Close` is the seal failing its
+purpose. Grep the parts list before writing any `<svg>`/`<span>`/`<button>` inside a seal. (The
+spinner shipped a hand-rolled SVG when lucide `Loader2` + the icon seal was right there.)
+
+**R4 — Pick the RIGHT primitive; do not bolt features onto the wrong one.** Choose by the VALUE
+TYPE: multi-select / object-items / chips → **Combobox** (never Autocomplete); free-text-input +
+suggestions → **Autocomplete**; single-select from a fixed list → **Select**; confirm/destructive →
+**AlertDialog** (never Dialog); pressable on/off button → **Toggle**; bound on/off state → **Switch**.
+When unsure, read both `.d.ts` and decide by whether the value must be an object or an array. (A2's
+multi-select-with-chips is a Combobox, not an Autocomplete extension.)
+
+**R5 — Extend the Base props type for passthrough.** `interface XProps extends BaseXRootProps` (or
+`Omit<…>` only the props you deliberately re-shape) so every Root-level Base UI feature flows through
+without re-declaration. Never hand-pick a prop subset that silently drops the rest.
+
+**R6 — Empirical over theory: no root-cause claim without a failing test.** A wrap that misbehaves
+gets the minimal reproducing test, then a fix or a VERIFIED cause — never a narrowed API plus an
+inline doc theorizing the reason. A "X breaks under Y" claim not backed by a red test is banned from
+the codebase (the React-Compiler autocomplete story was fiction — the Compiler isn't even in the CT
+pipeline).
+
+**R7 — The mandatory acceptance tests (the shapes that caught real bugs):**
+- a collection-prop primitive → a CT where the PARENT RE-RENDERS passing a freshly-derived (filtered/
+  mapped) array — the real consumer shape (falsified the "pre-render-stable" claim).
+- a Field-composable control → a CT asserting label association + `aria-describedby` INSIDE `<Field>`
+  (caught the plain-`<textarea>` non-registration).
+- every interactive primitive → the 8 states + keyboard operation + the a11y contract (role,
+  `aria-live` where stateful, non-color state signals).
+
+**R8 — Verify LIVE-doc behavior the `.d.ts` can't show** (keyboard, animation data-attrs, interaction):
+WebFetch `https://base-ui.com/react/components/<name>`. Record any API delta in the component
+doc-comment — factually, no theories.
+
+> **Enforcement:** R1/R3/R4/R6 are review-caught (a hand-rolled part or an untested claim is a
+> reject); R2 is the per-seal completion checklist (below); R5 is grep-checkable (`extends Base…`);
+> R7 is CT-enforced. The `no-color-literals`/token gates + `no-inline-union-redecl` already catch the
+> styling/type classes machine-side.

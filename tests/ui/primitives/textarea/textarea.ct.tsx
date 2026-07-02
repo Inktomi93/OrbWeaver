@@ -1,7 +1,29 @@
 // CT: the textarea seal — a multi-line control that accepts input and wears the token skin
 // (border-border oklch) plus native field-sizing autosize.
+import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import { expect, test } from "@playwright/experimental-ct-react";
+
+const NON_EMPTY = /.+/u;
+
+test("inside a <Field>, the label associates with the textarea (Field.Control registration)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field label="Bio" description="A short blurb">
+      <Textarea />
+    </Field>,
+  );
+  // getByLabel resolves only if the label's htmlFor points at the textarea's id — i.e. the control
+  // registered with the Field context (a plain <textarea> would fail this).
+  const control = page.getByLabel("Bio");
+  await expect(control).toBeVisible();
+  await control.fill("hello");
+  await expect(control).toHaveValue("hello");
+  // and the description is wired via aria-describedby
+  await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
 
 test("accepts multi-line input", async ({ mount, page }) => {
   await mount(<Textarea aria-label="Scene" placeholder="Describe the scene…" />);
