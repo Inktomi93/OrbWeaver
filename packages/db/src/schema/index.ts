@@ -8,6 +8,7 @@
 // and MUST stay complete — all 20 schema files + relations. Reserved cross-cutting: users, audit,
 // relations. Wave-1 producers: everything else (currently stubs).
 
+export * from "./agent-principals";
 export * from "./assets";
 export * from "./audit";
 export * from "./buddy";

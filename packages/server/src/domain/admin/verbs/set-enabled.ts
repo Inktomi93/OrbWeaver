@@ -70,6 +70,10 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       },
       at,
     );
-    return row;
+    // `setEnabled` deliberately ACCEPTS agent targets — it IS the containment verb (D60/doc-03 §5): disabling
+    // an agent principal drops it from every cast/arbitration and makes every `canAgent` throw. `ownerHandle`
+    // (the agent's owner, when the target is an agent) is unchanged by an enable flip — carry it from the
+    // pre-loaded view. `cannot_disable_self` can never fire for an agent (an agent is never the actor).
+    return { ...row, ownerHandle: target.ownerHandle };
   };
 }

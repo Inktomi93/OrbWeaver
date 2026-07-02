@@ -1,6 +1,7 @@
-import type { UserRole } from "@orb/contracts/identity";
+import type { AgentSourceKind, UserKind, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
+import { agentPrincipals, users } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 
@@ -81,6 +82,62 @@ export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId |
     .where(eq(users.handle, handle))
     .limit(1);
   return rows.at(0)?.id;
+}
+
+/** The `kind` of a user row — the `sessions.create` agent-refusal belt (agent-principal-design/01 §3.2): an
+ *  agent principal is structurally sessionless, so a session must never be minted for one. FLAG[PD-17]. */
+export async function selectKindById(db: Db, id: UserId): Promise<UserKind | undefined> {
+  const rows = await db.select({ kind: users.kind }).from(users).where(eq(users.id, id)).limit(1);
+  return rows.at(0)?.kind;
+}
+
+/** The `provisionAgentPrincipal` owner-gate read (agent-principal-design/01 §4): the prospective owner's kind
+ *  + enabled state. A HUMAN may own agents; a non-human (no nested agents) or disabled owner is refused. */
+export async function selectMintOwner(
+  db: Db,
+  id: UserId,
+): Promise<{ kind: UserKind; enabled: boolean } | undefined> {
+  const rows = await db
+    .select({ kind: users.kind, enabled: users.enabled })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+  return rows.at(0);
+}
+
+/** The `provisionAgentPrincipal` mint, as TWO unexecuted statements for ONE `db.batch` (agent-principal-design
+ *  /01 §4). Atomic: a crash never leaves an agent `users` row without its satellite. The agent row is
+ *  `kind:'agent'`, owned, loginless (`role:'user'`, no password/externalId — the `users_agent_shape` DDL CHECK
+ *  enforces the shape). NO `onConflictDoNothing` on the users insert: the `users_handle_unique` violation is
+ *  the race arbiter — it THROWS, aborting the whole batch (the satellite never commits), and the verb catches
+ *  it to re-read the winner. */
+export function agentMintStatements(
+  db: Db,
+  row: {
+    agentUserId: UserId;
+    handle: Handle;
+    ownerUserId: UserId;
+    sourceKind: AgentSourceKind;
+    now: number;
+  },
+): BatchStmt[] {
+  return [
+    db.insert(users).values({
+      id: row.agentUserId,
+      handle: row.handle,
+      role: "user",
+      kind: "agent",
+      ownerUserId: row.ownerUserId,
+      enabled: true,
+      createdAt: row.now,
+      updatedAt: row.now,
+    }),
+    db.insert(agentPrincipals).values({
+      userId: row.agentUserId,
+      sourceKind: row.sourceKind,
+      createdAt: row.now,
+    }),
+  ];
 }
 
 /** `provisionIdentity` lookup by the stable SSO subject (the rename-safe key). */

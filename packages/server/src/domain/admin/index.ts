@@ -16,7 +16,9 @@ export type { RequireAdmin, RequireOwner } from "./contract/guard";
 // Service contract (client consumes AdminUserView via tRPC service-method-signature inference).
 export type { AdminService } from "./contract/service";
 export type { AdminUserView } from "./contract/views";
-// The guard seam primitives — injected at the root into the other domains that gate.
-export { can, requireAdmin, requireOwner } from "./guard";
+// The guard seam primitives — injected at the root into the other domains that gate. `canAgent` (D60/PD-17)
+// is the agent arm of the same seam; its injection into chat (the engine's `speak` gate) is AP2 — exported
+// here now for the AP1 unit tests + the AP2 wiring (same posture as `can`).
+export { can, canAgent, requireAdmin, requireOwner } from "./guard";
 // Factory.
 export { createAdminService } from "./service";

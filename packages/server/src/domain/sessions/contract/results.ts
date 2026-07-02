@@ -44,3 +44,10 @@ export interface UserPrincipalFields {
   handle: Handle;
   externalId: ExternalId | null;
 }
+
+/** `provisionAgentPrincipal` output (D60; agent-principal-design/01 §4): the agent's `users` id + whether
+ *  THIS call minted it (`false` = the idempotent re-call, or the race loser, found the existing row). */
+export interface ProvisionAgentResult {
+  agentUserId: UserId;
+  created: boolean;
+}

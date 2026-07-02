@@ -1,5 +1,5 @@
-// domain/chat/persistence/participant — the `chat_participants` actor-XOR parser + the membership-lifecycle
-// writes (chat.md Part III §1). QUERIES ONLY: the XOR/UNIQUE/atomic-upsert are DB-level invariants this layer
+// domain/chat/persistence/participant — the `chat_participants` kind-shape parser + the membership-lifecycle
+// writes (chat.md Part III §1). QUERIES ONLY: the shape-CHECK/UNIQUE/atomic-upsert are DB-level invariants this layer
 // enforces; the POLICY (who may join/kick/hand-off, targeting checks, AUTH_MODE gating) is the verbs'.
 //
 // THE RE-ADD UPSERT (Part III §1): a human (re)joins via the guarded atomic
@@ -20,23 +20,28 @@ import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
-/** The validated participant ACTOR (the kind XOR resolved): exactly one of `userId`/`characterId` per the db
- *  `chat_participants_actor_xor` CHECK. The reserved `observer` kind is NOT wired into the XOR (it carries
- *  neither) — {@link parseParticipant} rejects it. File-local: callers read the inferred discriminant. */
+/** The validated participant ACTOR (the kind SHAPE resolved): the identity columns per the db
+ *  `chat_participants_kind_shape` CHECK — human/agent carry `userId`, character carries `characterId`. The
+ *  reserved `observer` kind carries neither and is un-seatable — {@link parseParticipant} rejects it.
+ *  File-local: callers read the inferred discriminant. */
 type ParticipantActor =
   | { readonly kind: "human"; readonly userId: UserId }
-  | { readonly kind: "character"; readonly characterId: CharacterId };
+  | { readonly kind: "character"; readonly characterId: CharacterId }
+  // Born at AP0 for exhaustiveness (D60; agent-principal-design/02 §1.1). An agent shares the human column
+  // shape (userId, no characterId). No agent rows exist until `chat.seatAgent` (AP3) — the arm is correct and
+  // unreachable until then; it is permanent born-compliant code (NOT temporary debt), so it carries no PD flag.
+  | { readonly kind: "agent"; readonly userId: UserId };
 
 /** A participant insert row (the lifecycle writers' input). Columns with schema defaults (`talkativeness`/
  *  `disabled`/`joinHistoryVisibility`) are omittable; `joinedAt`/`joinSeq` are caller-stamped (determinism). */
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
 /**
- * Validate + discriminate a `chat_participants` row's actor (the kind XOR — Part III §1; the db CHECK guards
- * the table, this is the parse-seam mirror). A `human` carries `userId` XOR a `character` carries
- * `characterId`; `observer` is reserved (not in the XOR) and the `default` is `never`-exhaustive, so a new
- * `PARTICIPANT_KINDS` member fails to compile until handled. Throws on a corrupt row (the CHECK should make
- * that unreachable).
+ * Validate + discriminate a `chat_participants` row's actor (the kind SHAPE — Part III §1; the db CHECK guards
+ * the table, this is the parse-seam mirror). `human`/`agent` carry `userId` (no `characterId`); `character`
+ * carries `characterId` (no `userId`); `observer` is reserved (carries neither, un-seatable) and the `default`
+ * is `never`-exhaustive, so a new `PARTICIPANT_KINDS` member fails to compile until handled. Throws on a
+ * corrupt row (the CHECK should make that unreachable).
  */
 export function parseParticipant(row: {
   readonly kind: ParticipantKind;
@@ -56,8 +61,18 @@ export function parseParticipant(row: {
       }
       return { kind: "character", characterId: row.characterId };
     }
+    case "agent": {
+      // Same shape as human (userId, no characterId). No agent rows exist until seatAgent (AP3), so this arm
+      // is unreachable at AP0 — born for exhaustiveness + the AP2 consumers that will parse agent rows.
+      if (row.userId === null || row.characterId !== null) {
+        throw new Error("corrupt participant: kind 'agent' must carry userId XOR characterId");
+      }
+      return { kind: "agent", userId: row.userId };
+    }
     case "observer": {
-      throw new Error("participant kind 'observer' is reserved and not wired into the actor XOR");
+      throw new Error(
+        "participant kind 'observer' is reserved and un-seatable (no kind-shape arm)",
+      );
     }
     default: {
       const _exhaustive: never = row.kind;

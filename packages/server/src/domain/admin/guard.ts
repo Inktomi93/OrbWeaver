@@ -9,6 +9,8 @@
 // seam and is fresh per request (sessions' job). The decision is never cached back onto the Principal.
 
 import type {
+  AgentAction,
+  AgentActor,
   Can,
   ChatAction,
   ChatRoster,
@@ -76,6 +78,30 @@ export const can: Can = (
     default: {
       const _exhaustive: never = resource;
       throw new DomainForbiddenError(`unsupported resource: ${JSON.stringify(_exhaustive)}`);
+    }
+  }
+};
+
+/** The agent-principal runtime gate (D60; agent-principal-design/03 §2) — wall two of the ceiling. An agent
+ *  is a SPEAKER, never a caller (it has no `Principal`), so this is a NEW EXPORT OF THE SAME SEAM, not a
+ *  second auth model. Pure verdict (no Db): the kill switch (`enabled`) + the closed-union check. The `_room`
+ *  roster is the seam's scope — present-membership was established by the roster load (a kicked/absent agent
+ *  never reaches here), so nothing to re-check here. Exhaustive over `AGENT_ACTIONS`: a new capability fails
+ *  `tsc` at the `never` (the ceiling grows only by a deliberate tuple member + a ledger call).
+ *  FLAG[PD-17]: landed at AP1; its callers (the chat engine gates `speak`, the tool executor gates
+ *  `tool-propose`) inject it via `ChatContext` at AP2 — unit-tested here, wired to production callers there. */
+export const canAgent = (actor: AgentActor, action: AgentAction, _room: ChatRoster): void => {
+  if (!actor.enabled) {
+    throw new DomainForbiddenError("agent principal disabled");
+  }
+  switch (action) {
+    case "speak":
+      return;
+    case "tool-propose":
+      return;
+    default: {
+      const _exhaustive: never = action;
+      throw new DomainForbiddenError(`unsupported agent action: ${String(_exhaustive)}`);
     }
   }
 };

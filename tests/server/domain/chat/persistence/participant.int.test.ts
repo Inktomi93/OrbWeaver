@@ -22,7 +22,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-describe("parseParticipant — the actor XOR", () => {
+describe("parseParticipant — the kind shape", () => {
   test("discriminates a human (userId XOR characterId)", () => {
     const userId = castId<UserId>("user_a");
     expect(parseParticipant({ kind: "human", userId, characterId: null })).toStrictEqual({
@@ -39,17 +39,32 @@ describe("parseParticipant — the actor XOR", () => {
     });
   });
 
-  test("rejects the reserved observer kind (not wired into the XOR)", () => {
+  test("discriminates an agent (userId, no characterId — the human column shape; D60)", () => {
+    const userId = castId<UserId>("user_agent");
+    expect(parseParticipant({ kind: "agent", userId, characterId: null })).toStrictEqual({
+      kind: "agent",
+      userId,
+    });
+  });
+
+  test("rejects the reserved observer kind (un-seatable — carries neither column)", () => {
     expect(() => parseParticipant({ kind: "observer", userId: null, characterId: null })).toThrow(
       "observer",
     );
   });
 
-  test("rejects a corrupt row that breaks the XOR", () => {
+  test("rejects a corrupt row that breaks the human/character shape", () => {
     const userId = castId<UserId>("user_a");
     const characterId = castId<CharacterId>("character_a");
     expect(() => parseParticipant({ kind: "human", userId, characterId })).toThrow();
     expect(() => parseParticipant({ kind: "human", userId: null, characterId: null })).toThrow();
+  });
+
+  test("rejects a corrupt agent row (agent must carry userId, no characterId)", () => {
+    const userId = castId<UserId>("user_agent");
+    const characterId = castId<CharacterId>("character_a");
+    expect(() => parseParticipant({ kind: "agent", userId, characterId })).toThrow();
+    expect(() => parseParticipant({ kind: "agent", userId: null, characterId: null })).toThrow();
   });
 });
 

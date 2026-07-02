@@ -4,17 +4,21 @@
 // FLAG[PD-2]: promote `AdminUserView` to `@orb/contracts/identity` IFF the client ever deep-imports the shape
 // directly (admin.md open decision); inference-only keeps it domain-internal.
 
-import type { UserRole } from "@orb/contracts/identity";
+import type { UserKind, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 
 /** A `users` row as the admin panel sees it — NEVER carries `passwordHash` or any secret column
- *  (invariant #5; `userCols` is the only projection that produces it). */
+ *  (invariant #5; `userCols` is the only projection that produces it). D60: `kind` is the first-class
+ *  containment column/filter axis (a runaway agent is the one thing an admin surface must never hide), and
+ *  `ownerHandle` (joined via `users.ownerUserId`) names an agent's owner — NULL for humans. */
 export interface AdminUserView {
   readonly id: UserId;
   readonly handle: Handle;
   readonly externalId: ExternalId | null;
   readonly role: UserRole;
   readonly enabled: boolean;
+  readonly kind: UserKind;
+  readonly ownerHandle: Handle | null;
   readonly createdAt: number;
   readonly updatedAt: number;
 }

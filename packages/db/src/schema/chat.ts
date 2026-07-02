@@ -20,8 +20,8 @@
 //
 // Enum columns DERIVE their one canonical tuple (never re-spelled): `messages.role` /
 // `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `chat_participants.kind` ←
-// `PARTICIPANT_KINDS` (the 3-member tuple incl. the RESERVED `observer` — but the actor XOR stays 2-way:
-// `observer` is NOT wired into the XOR), `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
+// `PARTICIPANT_KINDS` (the 4-member tuple, D60: human/character/agent each have a kind-shape arm; `observer`
+// stays RESERVED + un-seatable), `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
 // `JOIN_HISTORY_VISIBILITIES`; `chat_invites.status` ← `INVITE_STATUSES` (all @orb/contracts/chat).
 // `chat_events.type` derives the `ChatBusEvent` discriminant set (`CHAT_BUS_EVENT_TYPES` keys); the
 // `chat_injections.position` + `chat_stream_events.kind` tuples are tied to the contract wire types
@@ -41,6 +41,7 @@ import type {
   GroupConfig,
   OpeningPolicy,
   RoomOverrides,
+  ToolCallRecord,
 } from "@orb/contracts/chat";
 import {
   CHAT_BUS_EVENT_TYPES,
@@ -254,9 +255,11 @@ export const messageVariants = sqliteTable(
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
     // terminalReason). Nullable — null on a clean generation.
     apiErrorStatus: integer("api_error_status"),
-    // Reserved for tool-call records; character tools deferred (chat.md Part III). Untyped JSON — no
-    // contract type exists yet — parsed at the read seam when it lands. Nullable.
-    toolCalls: text("tool_calls", { mode: "json" }),
+    // D48 tool-call records — the model-emitted tool exchanges for this variant (tool-use-design/03 §3).
+    // FLAG[PD-54]: this DTO retype is the schema-leaf slice of T1 — born-compliant typing while the baseline
+    // window is open; the wire seams + the domain-owned recurse loop that WRITE it remain (registry: PD-54
+    // ready). Nullable JSON, parsed at the read seam with `toolCallRecordSchema` (never cast).
+    toolCalls: text("tool_calls", { mode: "json" }).$type<readonly ToolCallRecord[]>(),
     // The recorded generation params (D26 `params (UserIntent)`) — typed JSON, parsed at the read seam.
     params: text("params", { mode: "json" }).$type<UserIntent>(),
     // The per-variant assembled-prompt snapshot (D26 — now works per swipe).
@@ -282,9 +285,11 @@ export const messageVariants = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_participants — the unified roster (D16). The XOR CHECK + the (chatId,userId) UNIQUE + the lifecycle
-// columns are all born at table creation. `kind` derives the 3-member PARTICIPANT_KINDS (observer RESERVED
-// — NOT wired into the XOR); the XOR stays 2-way (user XOR character). `characterId` keys on identity (D28).
+// chat_participants — the unified roster (D16). The per-kind SHAPE CHECK + the (chatId,userId) UNIQUE + the
+// lifecycle columns are all born at table creation. `kind` derives the 4-member PARTICIPANT_KINDS. The D60
+// kind-shape CHECK (agent-principal-design/02 §1) REPLACES the 2-way actor XOR so an `agent` (userId-backed AND
+// AI-driven — the thing the XOR could not represent) is expressible: human/agent carry userId, character
+// carries characterId, observer carries neither (reserved, un-seatable). `characterId` keys on identity (D28).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const chatParticipants = sqliteTable(
@@ -297,9 +302,10 @@ export const chatParticipants = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     // human | character | (observer — reserved). Derives PARTICIPANT_KINDS.
     kind: text("kind", { enum: PARTICIPANT_KINDS }).notNull(),
-    // The actor — EXACTLY ONE of userId / characterId is set (the XOR CHECK below). userId CASCADE: a user
-    // hard-delete removes their memberships (D18). characterId CASCADE: a deleted character leaves no
-    // roster ghost. (observer is NOT modeled in the XOR — it would carry neither; deferred.)
+    // The actor — the per-kind SHAPE CHECK below fixes which is set: human/agent → userId, character →
+    // characterId, observer → neither. userId CASCADE: a user hard-delete removes their memberships (D18);
+    // an agent's owner-delete cascades the agent `users` row, which cascades its seats here. characterId
+    // CASCADE: a deleted character leaves no roster ghost.
     userId: text("user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -331,8 +337,17 @@ export const chatParticipants = sqliteTable(
     // nullable, so SQLite's UNIQUE ignores the character rows (multiple null-userId rows coexist).
     uniqueIndex("chat_participants_chat_user_unique").on(t.chatId, t.userId),
     index("chat_participants_chat_idx").on(t.chatId),
-    // The actor XOR — born at creation (Part III §1). 2-way (user XOR character); observer NOT wired.
-    check("chat_participants_actor_xor", sql`(user_id is null) <> (character_id is null)`),
+    // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation, REPLACES the 2-way
+    // actor XOR. Each kind fixes its identity columns; `agent` shares the `human` column shape (userId, no
+    // characterId) — the columns answer "which identity table", `kind` answers "who drives it" (the bit the XOR
+    // could not carry). The DB does NOT cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
+    // cross-table CHECK); the ONE agent-seat chokepoint enforces that (agent-principal-design/02 §1 — FLAG[PD-17], AP3).
+    check(
+      "chat_participants_kind_shape",
+      sql.raw(
+        "(kind = 'human' AND user_id IS NOT NULL AND character_id IS NULL) OR (kind = 'character' AND character_id IS NOT NULL AND user_id IS NULL) OR (kind = 'agent' AND user_id IS NOT NULL AND character_id IS NULL) OR (kind = 'observer' AND user_id IS NULL AND character_id IS NULL)",
+      ),
+    ),
     check("chat_participants_kind_check", sql.raw(`kind in (${checkList(PARTICIPANT_KINDS)})`)),
     check("chat_participants_role_check", sql.raw(`role in (${checkList(PARTICIPANT_ROLES)})`)),
     check(

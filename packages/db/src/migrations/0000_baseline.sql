@@ -1,3 +1,11 @@
+CREATE TABLE `agent_principals` (
+	`user_id` text PRIMARY KEY NOT NULL,
+	`source_kind` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "agent_principals_source_kind_check" CHECK(source_kind in ('buddy'))
+);
+--> statement-breakpoint
 CREATE TABLE `assets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -197,8 +205,8 @@ CREATE TABLE `chat_participants` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`active_persona_id`) REFERENCES `personas`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "chat_participants_actor_xor" CHECK((user_id is null) <> (character_id is null)),
-	CONSTRAINT "chat_participants_kind_check" CHECK(kind in ('human', 'character', 'observer')),
+	CONSTRAINT "chat_participants_kind_shape" CHECK((kind = 'human' AND user_id IS NOT NULL AND character_id IS NULL) OR (kind = 'character' AND character_id IS NOT NULL AND user_id IS NULL) OR (kind = 'agent' AND user_id IS NOT NULL AND character_id IS NULL) OR (kind = 'observer' AND user_id IS NULL AND character_id IS NULL)),
+	CONSTRAINT "chat_participants_kind_check" CHECK(kind in ('human', 'character', 'agent', 'observer')),
 	CONSTRAINT "chat_participants_role_check" CHECK(role in ('host', 'member')),
 	CONSTRAINT "chat_participants_join_visibility_check" CHECK(join_history_visibility in ('from-join', 'full'))
 );
@@ -789,9 +797,15 @@ CREATE TABLE `users` (
 	`role` text DEFAULT 'user' NOT NULL,
 	`enabled` integer DEFAULT true NOT NULL,
 	`password_hash` text,
+	`kind` text DEFAULT 'human' NOT NULL,
+	`owner_user_id` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	CONSTRAINT "users_role_check" CHECK(role in ('owner', 'admin', 'user'))
+	FOREIGN KEY (`owner_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "users_role_check" CHECK(role in ('owner', 'admin', 'user')),
+	CONSTRAINT "users_kind_check" CHECK(kind in ('human', 'agent')),
+	CONSTRAINT "users_agent_shape" CHECK(kind <> 'agent' OR (role = 'user' AND password_hash IS NULL AND external_id IS NULL AND owner_user_id IS NOT NULL)),
+	CONSTRAINT "users_human_shape" CHECK(kind <> 'human' OR owner_user_id IS NULL)
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_handle_unique` ON `users` (`handle`);--> statement-breakpoint

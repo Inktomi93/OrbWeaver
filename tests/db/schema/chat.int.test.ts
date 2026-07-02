@@ -1,13 +1,14 @@
 // .int tests for schema/chat — the chat cluster (D16/D18/D25/D26/D27/D28). Real libSQL :memory: via
 // freshDb (FK PRAGMA ON). Covers: the message SLOT ↔ variant relationship (selectedVariantId pointer, the
-// circular-FK insert dance, swipe repoint — D26); the chat_participants actor XOR CHECK (both/neither
-// rejected) + the (chatId,userId) UNIQUE (humans dedup, characters coexist); the fork self-FK (parentChatId
+// circular-FK insert dance, swipe repoint — D26); the chat_participants kind-shape CHECK (D60 — per-kind
+// shape incl. the agent arm; both/neither/cross-shape rejected) + the (chatId,userId) UNIQUE (humans dedup,
+// characters coexist); the fork self-FK (parentChatId
 // SET NULL on parent delete — D27); invites (status enum + CHECK, token stored HASHED never raw); the
 // chats.metadata JSON round-trip via the @orb/db/kit read seam; every enum test-mirror (db column ===
 // canonical tuple); chat_events type CHECK over the ChatBusEvent discriminant; and the chat-children
 // CASCADE on chat delete (all ten dependents vanish).
 
-import type { OpeningPolicy } from "@orb/contracts/chat";
+import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   INVITE_STATUSES,
@@ -237,15 +238,25 @@ test("message_variants economics + JSON params round-trip (numbers, not Dates)",
   expect(parseRecord(v?.params)).toEqual({ temperature: 0.7 });
 });
 
-test("message_variants toolCalls (untyped json) + apiErrorStatus round-trip (number as number)", async () => {
+test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-trip (number as number)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_genrec");
   const messageId = castId<MessageId>("message_genrec");
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>("message_variant_genrec");
-  // A failed generation: an HTTP status diagnostics signal + a reserved tool-call record blob.
+  // A failed generation: an HTTP status diagnostics signal + the D48 tool-call records (PD-54 retype — the
+  // column is now `.$type<readonly ToolCallRecord[]>()`; the driver round-trips the DTO shape).
   const apiErrorStatus = 429;
-  const toolCalls = [{ name: "search", args: { q: "nope" } }];
+  const toolCalls: readonly ToolCallRecord[] = [
+    {
+      toolCallId: "call_1",
+      name: "search",
+      arguments: '{"q":"nope"}',
+      result: '{"hits":0}',
+      isError: false,
+      durationMs: 12,
+    },
+  ];
   await db.insert(messageVariants).values({
     id: variantId,
     messageId,
@@ -261,7 +272,7 @@ test("message_variants toolCalls (untyped json) + apiErrorStatus round-trip (num
   expect(v?.apiErrorStatus).toBeTypeOf("number");
   expect(v?.apiErrorStatus).toBe(apiErrorStatus);
   expect(v?.terminalReason).toBe("api_error");
-  // The untyped json round-trips through the driver as the stored shape.
+  // The typed json round-trips through the driver as the stored ToolCallRecord[] shape.
   expect(v?.toolCalls).toEqual(toolCalls);
 });
 
@@ -281,7 +292,7 @@ test("deleting a message CASCADEs its variants (D26)", async () => {
   ).toHaveLength(0);
 });
 
-// ── chat_participants: the XOR CHECK + the (chatId,userId) UNIQUE ─────────────
+// ── chat_participants: the kind-shape CHECK + the (chatId,userId) UNIQUE ─────────────
 
 test("a human participant (userId only) and a character participant (characterId only) insert", async () => {
   const db = await freshDb();
@@ -320,7 +331,7 @@ test("a human participant (userId only) and a character participant (characterId
   expect(human?.joinHistoryVisibility).toBe("from-join");
 });
 
-test("the actor XOR CHECK rejects BOTH userId+characterId set", async () => {
+test("the kind-shape CHECK rejects a human with BOTH userId+characterId set", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, "user_xor_both");
   const chatId = await seedChat(db, "chat_xor_both");
@@ -343,7 +354,7 @@ test("the actor XOR CHECK rejects BOTH userId+characterId set", async () => {
   expect(caught).toBeDefined();
 });
 
-test("the actor XOR CHECK rejects NEITHER userId nor characterId set", async () => {
+test("the kind-shape CHECK rejects a human with NEITHER userId nor characterId set", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_xor_neither");
 
@@ -353,6 +364,72 @@ test("the actor XOR CHECK rejects NEITHER userId nor characterId set", async () 
       id: castId<ChatParticipantId>("chat_participant_neither"),
       chatId,
       kind: "human",
+      role: "member",
+      joinSeq: 0,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+// ── the D60 kind-shape CHECK swap (agent-principal-design/02 §1): `agent` shares the `human` column shape ──
+// (userId, no characterId); cross-shape rows are rejected. At AP0 there is NO agent-USERS row (the mint is
+// AP1) and no seatAgent path — these pin the ROSTER shape CHECK in isolation.
+
+test("the kind-shape CHECK accepts an `agent` seat carrying userId (no characterId)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, "user_agent_ok");
+  const chatId = await seedChat(db, "chat_agent_ok");
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>("chat_participant_agent"),
+    chatId,
+    kind: "agent",
+    userId: ownerId,
+    role: "member",
+    joinSeq: 0,
+  });
+  const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.kind).toBe("agent");
+  expect(rows[0]?.userId).toBe(ownerId);
+  expect(rows[0]?.characterId).toBeNull();
+});
+
+test("the kind-shape CHECK rejects an `agent` seat carrying a characterId (cross-shape)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, "user_agent_bad");
+  const chatId = await seedChat(db, "chat_agent_bad");
+  const characterId = await seedCharacter(db, ownerId, "character_agent_bad");
+
+  let caught: unknown;
+  try {
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_agent_bad"),
+      chatId,
+      kind: "agent",
+      characterId,
+      role: "member",
+      joinSeq: 0,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+test("the kind-shape CHECK rejects a `character` seat carrying a userId (cross-shape)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, "user_char_cross");
+  const chatId = await seedChat(db, "chat_char_cross");
+
+  let caught: unknown;
+  try {
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_char_cross"),
+      chatId,
+      kind: "character",
+      userId: ownerId,
       role: "member",
       joinSeq: 0,
     });
@@ -501,10 +578,13 @@ test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...chatStreamEvents.kind.enumValues]).toEqual(["text", "reasoning"]);
 });
 
-test("PARTICIPANT_KINDS reserves `observer` but it is NOT wired into the XOR (3-member tuple, 2-way XOR)", () => {
-  // The kind column knows all three; only human/character are insertable today (the XOR has no observer arm).
+test("PARTICIPANT_KINDS is the 4-member tuple; `observer` stays reserved + un-seatable (no shape arm inserts it)", () => {
+  // human/character/agent each have a kind-shape arm (insertable); `observer` carries neither column and has
+  // no INSERT path (D60 kept it reserved — the un-seatable seam). `agent` is born at AP0 (schema), un-seatable
+  // until seatAgent (AP3, FLAG[PD-17]).
   expect([...chatParticipants.kind.enumValues]).toContain("observer");
-  expect(PARTICIPANT_KINDS).toEqual(["human", "character", "observer"]);
+  expect([...chatParticipants.kind.enumValues]).toContain("agent");
+  expect(PARTICIPANT_KINDS).toEqual(["human", "character", "agent", "observer"]);
 });
 
 // ── chat_events (the ChatBusEvent discriminant CHECK) ────────────────────────

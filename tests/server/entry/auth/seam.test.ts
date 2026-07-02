@@ -48,6 +48,9 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     // biome-ignore lint/security/noSecrets: a verb name literal, not a secret (high-entropy false positive).
     resolveHandle: unused("resolveHandle") as SessionsService["resolveHandle"],
     authenticate: unused("authenticate") as SessionsService["authenticate"],
+    provisionAgentPrincipal: unused(
+      "provisionAgentPrincipal",
+    ) as SessionsService["provisionAgentPrincipal"],
     ...overrides,
   };
 }

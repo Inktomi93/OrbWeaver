@@ -167,6 +167,35 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("invite_target_unknown");
   });
+
+  test("the reserved __agent__ handle is refused leak-free — resolveHandle is never even called (D60)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    let resolveCalled = false;
+    const invites = createInvites(
+      makeChatContext(db, {
+        resolveHandle: () => {
+          resolveCalled = true;
+          return Promise.resolve(null);
+        },
+      }),
+      makeDeps(),
+    );
+
+    const err = await invites
+      .createInvite({
+        principal: principal(host),
+        chatId,
+        input: { invitedHandle: castId<Handle>("__agent__buddy__someone") },
+      })
+      .catch((e: unknown) => e);
+    // Leak-free: the namespace belt refuses BEFORE resolution (never confirms the namespace exists) — agents
+    // enter via seatAgent (AP3), never an invite.
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("invite_target_unknown");
+    expect(resolveCalled).toBe(false);
+  });
 });
 
 describe("redeemInvite — THE participant-insert chokepoint", () => {

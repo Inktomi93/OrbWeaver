@@ -28,7 +28,7 @@ import { asc, count, desc, eq } from "drizzle-orm";
 
 const RECENT_EVENT_LIMIT = 50;
 
-/** One roster member (the actor XOR + the resolved character name when it's a character). */
+/** One roster member (the kind shape + the resolved character name when it's a character). */
 export interface InspectedParticipant {
   id: string;
   kind: ParticipantKind; // the canonical roster-kind union (PD-8 — no stringly-typed dump)

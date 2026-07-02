@@ -7,6 +7,10 @@
 export const ADMIN_OP_CODES = {
   /** The immutable owner row may never be demoted/disabled/removed (D17 owner-immutability guard). */
   cannotModifyOwner: "cannot_modify_owner",
+  /** An agent principal's role/password is not human-mutable (D60 — an agent's authority is the doc-03
+   *  ceiling, not the role axis; `setRole`/`resetPassword` refuse agent targets. `setEnabled` still works —
+   *  it IS the containment verb). The `cannot_modify_owner` pattern, one flavor over. */
+  cannotModifyAgent: "cannot_modify_agent",
   /** An actor may not disable their own account (locks the deployment out of itself). */
   cannotDisableSelf: "cannot_disable_self",
   /** `createUser` handle already taken (the `SELECT` path AND the TOCTOU `INSERT`-conflict path). */
