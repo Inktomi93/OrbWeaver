@@ -133,6 +133,17 @@
             "style": "separatedType"
           }
         },
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "patterns": [
+              {
+                "group": ["@base-ui-components/react", "@base-ui-components/react/**"],
+                "message": "Dead rc-era package. Use @base-ui/react (D42)."
+              }
+            ]
+          }
+        },
         "useExportType": "error",
         "useNodejsImportProtocol": "error",
         "useConsistentArrowReturn": "error",
