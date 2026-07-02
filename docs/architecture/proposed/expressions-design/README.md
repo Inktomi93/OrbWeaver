@@ -18,7 +18,9 @@ A character gets a **sprite set** — N labelled images bound by `character_spri
 (`(characterId, label) → assetId`, bytes in the D21 per-user CAS) — managed by plain CRUD verbs,
 **generated on demand** by an `expressions-sprite-sheet` WorkloadKind (the marinara B1 fold-in: one
 sheet prompt → injected `imagery.generatePicture` → sharp grid-slice via an injected `infra/image`
-op → flood-fill matte → `assets.store` per cell → batch row write), and **driven per turn** by a
+op → matte (the local-light RMBG model op when that backend is configured; deterministic
+corner-flood as the zero-setup fallback — 03 §4) → `assets.store` per cell → batch row write), and
+**driven per turn** by a
 post-turn chat hook (`expressions.onTurnCompleted(chatId, messageId, variantId)` — an optional
 injected op on `ChatContext`, the exact rpg/databank precedent; chat stays expressions-blind). The
 hook classifies the completed assistant variant with a **chat-role shaper** (closed-label prompt;
@@ -35,7 +37,7 @@ this domain (committed; unchanged here).
 |---|---|
 | [`01-domain-shape-and-schema.md`](01-domain-shape-and-schema.md) | the 8-slot layout, all contracts inline (labels tuple, zod, views), the `character_sprites` DDL, the `"sprite"` AssetKind, CRUD verb signatures, the GC/reap seam, group visibility, custom-label validation |
 | [`02-classify-and-the-turn-hook.md`](02-classify-and-the-turn-hook.md) | the classify shaper (prompt skeleton, structured-output usage, the snap-to-label pure-function contract), the injected post-turn op + its byte-identity pin, the bus event shape, cost controls, failure posture |
-| [`03-sprite-sheet-generation.md`](03-sprite-sheet-generation.md) | the B1 headline: the sheet-prompt compiler, the injected imagery/image/assets ops (exact signatures), grid geometry, the background-matte LEAN, idempotency + partial-failure posture, the `expressions-sprite-sheet` WorkloadKind |
+| [`03-sprite-sheet-generation.md`](03-sprite-sheet-generation.md) | the B1 headline: the sheet-prompt compiler, the injected imagery/image/assets ops (exact signatures), grid geometry, the two-arm matte design (local-light RMBG model + flood fallback), idempotency + partial-failure posture, the `expressions-sprite-sheet` WorkloadKind |
 | [`04-client-stage.md`](04-client-stage.md) | the v1 single-sprite holder: event → swap data flow, what the client may/may not compute, the swipe-back cache, crossfade, blob resolution |
 | [`05-build-plan.md`](05-build-plan.md) | E1–E5 chunks with sizes, dependencies (pre-Phase-5 vs Phase-5 vs Phase-6 vs the Phase-7 workload), checkpoints, per-chunk test plans |
 
@@ -73,8 +75,11 @@ or fails a turn (the D53 nothing-async-blocks-a-turn posture).
    `satisfies Record<ChatBusEvent["type"], true>` guard). This set uses `type:"expression"` — a
    mechanical normalization under the doc's own "ledger wins on conflict" header, not a re-decision.
    (02 §4.)
-3. **Background-matte posture is a LEAN**, not settled: v1 ships prompt-discipline + a deterministic
-   corner-flood matte (no ML dependency invented as fact); the criterion for a real ONNX
-   background-remover is stated. (03 §4.)
+3. **RESOLVED (Nate, 2026-07-01) — the matte is DESIGNED, two arms.** The original LEAN rested on
+   a false premise ("no ML dependency"): `@huggingface/transformers`/ONNX is already in the stack
+   (local-light rerank; 02's v2 classify rides the same backend). `matte:"model"` is a v1-OPTIONAL
+   designed arm — `createLocalLightMatte(cache)` on the local-light backend (RMBG-1.4 weights,
+   lazy model-cache download), preferred when local-light is configured; corner-flood remains the
+   zero-setup fallback, prompt discipline serves both. (03 §4.)
 4. **Workloads' single-active-per-kind lock serializes sprite-sheet jobs deployment-wide.**
    Accepted for v1 with a stated criterion to re-scope. (03 §7.)

@@ -106,8 +106,14 @@ shape, committed by D49:
 
 1. A new `ASSET_KINDS` member `"gallery"` (append to the tuple in `@orb/contracts/assets`; the DB
    CHECK derives from it — `no-inline-union-redecl`).
-2. A per-type association: a `gallery_items` table (single-owned: `ownerId` + `fetchOwned`) with a
-   nullable `subjectCharacterId` FK (D24 — no polymorphic `(entityType, entityId)` ref).
+2. A per-type association: a `gallery_items` table with a nullable `subjectCharacterId` FK (D24 —
+   no polymorphic `(entityType, entityId)` ref). **Ownership DERIVES through the required
+   `assetId` FK — no stamped `ownerId` column** (Nate ruling, 2026-07-01, resolving old review
+   flag 1; D23 derive-don't-stamp — the `character_tags`/`duplicate_pairs` precedent, both of
+   which had `ownerId` dropped for the same reason: a required FK to an owned row makes the owner
+   always derivable, and stamping creates a guardable mismatch state). D49's "single-owned
+   `gallery_items`" wording is superseded by this ruling on the stamping mechanics only — the row
+   remains conceptually personal curation; its owner is `assets.ownerId`, one join away.
 
 ```ts
 // @orb/db/schema/gallery.ts
@@ -115,10 +121,7 @@ export const galleryItems = sqliteTable(
   "gallery_items",
   {
     id: text("id").$type<GalleryItemId>().primaryKey(),
-    ownerId: text("owner_id")
-      .$type<UserId>()
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    // NO ownerId — D23: owner derives via assets.ownerId (required FK below)
     assetId: text("asset_id")
       .$type<AssetId>()
       .notNull()
@@ -131,11 +134,15 @@ export const galleryItems = sqliteTable(
       .default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    index("gallery_items_owner_idx").on(t.ownerId),
+    uniqueIndex("gallery_items_asset_subject_unique").on(t.assetId, t.subjectCharacterId),
     index("gallery_items_character_idx").on(t.subjectCharacterId),
   ],
 );
 ```
+
+(SQLite treats NULL `subjectCharacterId` rows as distinct under the unique index, so duplicate
+un-charactered adds remain possible — acceptable: harmless, and `addToGallery` can upsert-guard;
+a `WHERE subject_character_id IS NULL` partial unique index is the tightening if it ever matters.)
 
 `assets` stays the byte index; `gallery_items` owns the user↔image↔character curation. ST's
 "virtual folders" map to a future `tag`-junction, not a new store.
@@ -175,7 +182,9 @@ listGallery(params: GalleryListParams & AssetsActorParams): Promise<GalleryItemV
 
 **`can()` posture: owner-only in v1.** `addToGallery` requires the asset AND the subject character
 (when given) to be `fetchOwned` by the actor — a gallery row must never reference another user's
-asset or character; `removeFromGallery`/`listGallery` are `fetchOwned` on the item/owner scope. WHY:
+asset or character; `removeFromGallery` resolves the item's owner THROUGH the asset join
+(`gallery_items → assets.ownerId`) and rejects a non-owner; `listGallery` ("list my gallery") is
+the same join filtered on `assets.ownerId = actor` — there is no stamped owner column to scope on. WHY:
 assets sit beneath the host/member permission model (D21 — single-owned, one narrow avatar
 exception), and a curated gallery is personal curation, not chat state. *Rejected:* roster-member
 read access to a character's gallery — that would extend the D21 avatar exception to arbitrary
@@ -424,11 +433,14 @@ an infra prerequisite; it must not ship with a raw `fetch()` as a stopgap.
 
 ## 10. Review flags (arguments only — nothing above re-decides these)
 
-1. **`gallery_items` uniqueness.** The committed DDL has no unique constraint, so the same
-   `(ownerId, assetId, subjectCharacterId)` triple can be curated twice. Probably want
-   `unique(ownerId, assetId, subjectCharacterId)` (SQLite treats NULL subject rows as distinct —
-   acceptable: dup un-charactered adds are harmless and the UI can guard). Flagged rather than
-   added because it edits committed DDL.
+1. **RESOLVED (Nate ruling, 2026-07-01) — `gallery_items` derives ownership; uniqueness added.**
+   The original flag (no unique constraint; a stamped-triple unique proposed) was ruled on: the
+   `ownerId` column is DROPPED (D23 derive-don't-stamp; the `character_tags`/`duplicate_pairs`
+   precedent) and the constraint is `unique(assetId, subjectCharacterId)` — §1.3 carries the
+   patched DDL and the superseded-D49-wording note. **The general rule this ruling sets:**
+   association/curation rows anchored by a REQUIRED FK to owned canon DERIVE their owner through
+   that FK; only true producers — rows that ARE the user's authored artifact with no owned anchor
+   (characters, personas, presets, documents, themes) — stamp `ownerId` + `fetchOwned`.
 2. **The sniff promotion criterion is about to be falsified from an unnamed direction.** The
    committed criterion promotes `sniffMime`/`isAnimated` to `@orb/kit` only "iff the client needs
    pre-detection" — but §6's `isAllowedImageBuffer` (infra) needs the same magic-signature tables,

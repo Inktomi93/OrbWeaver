@@ -39,9 +39,11 @@
 - **The buddy-chat transcript (`buddy_turns`)** — the solo user⇄buddy conversation, persisted so it
   survives reloads AND feeds back as the buddy's memory (its egocentric **view**). `ask` (the agent
   turn), `confirm`, `history`, `clearChat`.
-- **Agency — the curated hands (`agent/`)** — the in-process MCP tool server (read-only status/counts +
-  `propose_*` tools), the **propose/confirm gate** (a proposal Map; `buddy.confirm` is the ONLY
-  executor), the **kill switch** (`agencyEnabled`), the **hourly mutation rate-limit**.
+- **Agency — the curated hands (`agent/`)** — buddy's tool DEFINITIONS + handlers (read-only
+  status/counts + `propose_*` tools, closed over `(db, userId)`), registered into the ONE
+  `domain/tool-use` registry at compose (D48; `proposed/tool-use-design/`), the **propose/confirm
+  gate** (a proposal Map; `buddy.confirm` is the ONLY executor), the **kill switch**
+  (`agencyEnabled`), the **hourly mutation rate-limit**.
 - **The quip log (`buddy_quips`)** — the reaction engine's spoken output, swept to ~20/user
   (hover-history; the live bubble is ephemeral SSE).
 - **The live bus (`bus.ts`)** — the per-user `quip`/`moodChanged`/`evolved` SSE channel + late-subscriber
@@ -74,7 +76,7 @@ The four parts, mapped onto today's buddy:
 | **identity**   | the `buddies` soul (`name`/`personality`) + `buildBuddySystemPrompt`                                                   | the same soul — the character-card identity shape **minus the card** (§2). The system-prompt builder stays buddy-local (its persona has no card scaffolding).                                                                                                                                                                                                  |
 | **connection** | `resolveBuddyRouting(role)` — a hand-rolled `admin→max-pro-sub haiku, else vLLM` switch, the `BUDDY_SUB_MODEL` literal | **`resolveRole('agent')`** + a per-agent override (§1, the new per-agent routing axis). Buddy's "always cheap" is just its connection. The owner gate stays in credential resolution (`max-pro-sub` is owner-only, D17). The owner's buddy inherits the owner's box sub via owner-delegated `credentials.resolve`; a non-owner's buddy never resolves the box. |
 | **view**       | the `buddy_turns` transcript + `buildPromptWithMemory` + `fitSeedToBudget` (its own memory)                            | the buddy's egocentric **view of canon** — for the solo buddy chat, the `buddy_turns` transcript IS the view; the budget-trim is the view-builder's window discipline.                                                                                                                                                                                         |
-| **tools**      | the in-process MCP server (`agent/tools.ts`) + the firewall                                                            | unchanged in spirit; the firewall (mcpServers asymmetry) becomes a property of **agent-mode in the sealed runner**, not a buddy-local concern.                                                                                                                                                                                                                 |
+| **tools**      | tool definitions + handlers (`agent/tools.ts`), registered into the ONE D48 tool-use registry                          | unchanged in spirit; the firewall (agent-mode attaches ONLY this agent's registered projection; non-agent turns attach none) becomes a property of **agent-mode in the sealed runner**, not a buddy-local concern.                                                                                                                                             |
 
 What this dissolves (the pain ledger, `AGENTS.md` §4):
 
@@ -167,10 +169,13 @@ participant.**
 ## Esoteric / load-bearing (flag, preserve)
 
 - **The agent firewall (structural).** `buildAgentOptions` starts from the roleplay firewall base
-  (`tools:[]`, cowork denylist, `strictMcpConfig`, credential-scoped env) and ADDS
-  `mcpServers:{neo-tavern}` + `allowedTools:["mcp__neo-tavern__*"]` + `maxTurns`. Roleplay turns get
-  `mcpServers:{}` + `maxTurns:1` — **that asymmetry IS the firewall.** It now lives in `infra/providers`
-  (sealed) as the property of _agent-mode_; never add `mcpServers` to a non-agent turn. The OAuth
+  (`tools:[]`, cowork denylist, strict tool config, credential-scoped env); the agent-mode turn ADDS
+  ONLY the agent's registered projection — the tool-use `project-mcp` output for THIS agent's tool
+  set (`proposed/tool-use-design/02`) — plus `maxTurns`. Non-agent (roleplay) turns attach NO tools
+  and `maxTurns:1` — **that asymmetry IS the firewall.** It now lives in `infra/providers`
+  (sealed) as the property of _agent-mode_; never attach a tool projection to a non-agent turn.
+  *(neo provenance: `mcpServers:{neo-tavern}` + `allowedTools:["mcp__neo-tavern__*"]` vs
+  `mcpServers:{}` — the buddy-local MCP server this registry projection replaces.)* The OAuth
   credential firewall (empty config dir, OAuth sources nulled) is preserved on every routing path —
   **never extract the OAuth token** (ban risk, per project memory).
 - **The propose/confirm gate + kill switch (the capability ceiling).** A confused/runaway model can
@@ -231,7 +236,7 @@ domain/buddy/
 │   ├── roll.ts               deterministic gacha (FNV-1a + mulberry32 + frozen draw order)
 │   └── soul.ts               soul-gen (parse/canned/generate) — pure-ish, calls the injected role client
 ├── agent/                    NAMED subsystem — the curated hands (the tool agent)
-│   ├── tools.ts              the in-process MCP tool server (status/counts + propose_*)
+│   ├── tools.ts              buddy's tool definitions + handlers (status/counts + propose_*); registered into the ONE tool-use registry
 │   └── system-prompt.ts      buildBuddySystemPrompt — the soul prompt (the identity, no card)
 ├── agency/                   NAMED subsystem — in-memory single-replica gate state
 │   ├── proposals.ts          proposal Map (TTL 5min) — ASSUMES(single-replica) annotated
@@ -283,7 +288,8 @@ service verb — it is a supervised loop, not a request path.
 **`ask` is the agent-mode composition:** it resolves the connection (injected
 `resolveRole('agent')` + per-agent override), resolves the credential (injected
 `credentials.resolve` / `mintVllmCredential`), builds the soul system-prompt + the view (recent turns,
-budget-trimmed), builds the MCP tool server, and calls the injected `agentTurn` op (the one turn path /
+budget-trimmed), resolves its registered tool set via the tool-use registry's `project-mcp`
+projection (never a buddy-built server), and calls the injected `agentTurn` op (the one turn path /
 sealed runner). It persists the user line **before** the multi-second turn (crash-safety) and the
 assistant line after.
 
@@ -332,7 +338,7 @@ import the contracts taxonomy type, so they cannot be `kit`.
 | `verbs/ask.ts` + `verbs/hatch.ts` + `context.ts` — `resolveCredential`, `mintVllmCredential` (from `_shared/credentials`)                                          | injected ops                            | `credentials.resolve` + `credentials.mintVllmCredential` on `BuddyContext` (the `buddy.context` injection in `credentials.md`) | `_shared` does not exist; credentials owns resolve+mint and injects them.                                                                                                                                                                                                                                                                                                                                                                                  | resolve-time: `_shared` gone; `domain-no-cross-feature` enforces injection                                                                                    |
 | `verbs/ask.ts` — `buildPromptWithMemory`, `fitSeedToBudget`, `MEMORY_TURNS`, `SEED_TOKEN_BUDGET`, `VLLM_MAX_CONTEXT_TOKENS`                                        | stays domain feature                    | `domain/buddy/substrate/view.ts` (the egocentric view-builder + window discipline)                                             | This is the buddy's **view** of canon (agent part #3). The window cap derives from the connection capability descriptor (`domains/connection.md` §2), not a hardcoded literal.                                                                                                                                                                                                                                                                             | lint-time: `no-inline-types`; the literal → descriptor-sourced                                                                                                |
 | `agent/system-prompt.ts` — `buildBuddySystemPrompt`                                                                                                                | stays domain feature                    | `domain/buddy/agent/system-prompt.ts`                                                                                          | The soul prompt = the agent's **identity** (a card's shape minus the card). Buddy-specific (no roleplay scaffolding).                                                                                                                                                                                                                                                                                                                                      | resolve-time (same package)                                                                                                                                   |
-| `agent/tools.ts` — `createBuddyMcpServer`, `toolText`, `TOOL_PAYLOAD_MAX_CHARS`                                                                                    | stays domain feature                    | `domain/buddy/agent/tools.ts`                                                                                                  | The buddy's curated toolset; handlers close over `(db, userId)` so a tool can't act as another user.                                                                                                                                                                                                                                                                                                                                                       | resolve-time                                                                                                                                                  |
+| `agent/tools.ts` — `createBuddyMcpServer`, `toolText`, `TOOL_PAYLOAD_MAX_CHARS`                                                                                    | stays domain feature                    | `domain/buddy/agent/tools.ts`                                                                                                  | The buddy's curated toolset; handlers close over `(db, userId)` so a tool can't act as another user. **D48 note: these definitions register into the ONE `domain/tool-use` registry at compose and reach the SDK via its `project-mcp` projection (`proposed/tool-use-design/02`) — buddy owns tool DEFINITIONS, never a second registry.**                                                                                                                                                                                                                                                                                                                                                       | resolve-time                                                                                                                                                  |
 | `agent/proposals.ts` — `stashProposal`/`takeProposal`/`peekProposal`/`clearProposal` Map                                                                           | stays domain feature, renamed subsystem | `domain/buddy/agency/proposals.ts`                                                                                             | In-memory single-replica gate state is NOT a DB query and not `persistence/`. Mirrors `credentials.md`'s `health/` rename. Keep `ASSUMES(single-replica)`.                                                                                                                                                                                                                                                                                                 | lint-time: `persistence-no-in-memory-state` (gate candidate) + an `ASSUMES(single-replica)` check gate                                                        |
 | `agent/rate-limit.ts` — `allowMutation` hourly window Map                                                                                                          | stays domain feature, renamed subsystem | `domain/buddy/agency/rate-limit.ts`                                                                                            | Same single-replica in-memory state.                                                                                                                                                                                                                                                                                                                                                                                                                       | lint-time: same two gates                                                                                                                                     |
 | `mood.ts` — `moodForSignal`/`resolveMood`/`decayMood`/`statForSignal`/`bondTierOf`/`stageOf`/`formOf`                                                              | stays domain feature                    | `domain/buddy/substrate/mood.ts`                                                                                               | Pure feature-local logic, unit-pinnable without a db. Belongs in `substrate/`.                                                                                                                                                                                                                                                                                                                                                                             | resolve-time                                                                                                                                                  |
@@ -395,7 +401,8 @@ started at the composition root.
 ### §0 / §2 / §3 the agent model (governing)
 
 Buddy is the proof-of-concept for "agent mode is opt-in on the one chat-turn path." The four agent parts
-(identity=soul, connection=`resolveRole('agent')`, view=the transcript, tools=the MCP server)
+(identity=soul, connection=`resolveRole('agent')`, view=the transcript, tools=the registered
+tool set, projected by the tool-use registry)
 map cleanly. The stateless-first contract holds: buddy's turn is `runAgentTurn(systemPrompt, view,
 connection, tools?)`; the agent-sdk session is a backend-internal cache, never a buddy concept.
 
@@ -452,7 +459,8 @@ the connection capability descriptor (`domains/connection.md` §2).
    _Enforcement: lint-time (`domain-no-cross-feature` — no `infra/providers` import); compile-time (the
    op type is the only entry)._
 
-2. **The firewall: agent-mode adds `mcpServers`; non-agent turns get `{}`** — and the agent turn carries
+2. **The firewall: agent-mode attaches ONLY the agent's registered projection (the tool-use
+   `project-mcp` output for this agent's tool set); non-agent turns attach none** — and the agent turn carries
    no `chatId` (until §8.6 makes buddy a participant). The asymmetry lives in the sealed runner.
    _Enforcement: compile-time (the request shape has no `chatId` on the non-participant path —
    passing chat context is a type error); test-time (the firewall + tool-surface probe)._

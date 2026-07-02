@@ -65,16 +65,19 @@ else silence).
 ## E4 — the sprite-sheet workload (L; Phase-7, after imagery)
 
 **Build:** `infra/image` `sliceGrid` + `matteFlood` (the flood-fill core in `@orb/server/kit`) ·
-`substrate/sheet-prompt.ts` · `verbs/generate-sprite-sheet.ts` (enqueue) +
-`verbs/run-sprite-sheet-job.ts` (the pass, 03 §3.3) · replace the E1 stub runner with the real
-thin runner + `WorkloadRunnerEnv.expressions` sub-env · the injected imagery/assets/getCard ops on
-`ExpressionsContext`.
+`createLocalLightMatte` on the local-light backend (the `MatteModelOp`, RMBG weights via the
+shared model cache — 03 §4.1) · `substrate/sheet-prompt.ts` · `verbs/generate-sprite-sheet.ts`
+(enqueue + matte-arm resolution, 03 §4.3) + `verbs/run-sprite-sheet-job.ts` (the pass, 03 §3.3) ·
+replace the E1 stub runner with the real thin runner + `WorkloadRunnerEnv.expressions` sub-env ·
+the injected imagery/assets/getCard/matteModel ops on `ExpressionsContext`.
 
 **Checkpoint (the integration risk lives here):** against a REAL image provider, one job takes a
-sprite-less character to an 8-sprite set reviewable in the DB; the matte quality review happens at
-this checkpoint (the 03 §4 flip criterion is evaluated HERE, on real outputs, before E5 ships the
-CTA).
-**Tests (03 §8):** compiler + geometry goldens (synthetic marker PNG) · matte tolerance edges ·
+sprite-less character to an 8-sprite set reviewable in the DB; BOTH matte arms are reviewed at
+this checkpoint (model quality + CPU latency per cell; flood halo/fringe — 03 §4's defaults are
+tuned HERE, on real outputs, before E5 ships the CTA).
+**Tests (03 §8):** compiler + geometry goldens (synthetic marker PNG) · matte arm resolution
+(explicit > wired-model > flood; wired-but-failing model op fails the job, no silent mixed-arm
+set) · matte tolerance edges ·
 atomic-last failure injection · upsert-replace · single-active conflict · runner/params/result
 exhaustiveness pins. Provider calls are mocked in CI (the `GeneratedPicture` fixture); the real-
 provider pass is the manual checkpoint.
@@ -97,7 +100,8 @@ client-side schema parity (labels validated before the round-trip).
    WITH the assets owner's test conventions, not around them.
 2. **The byte-identity pin (E3)** — the fixture must cover assembled request AND persisted rows AND
    event stream; a pin that only diffs the prompt misses an accidental row write.
-3. **Matte quality (E4)** — the one genuinely empirical unknown (03 §4). The checkpoint exists to
-   force the flood-vs-ONNX call on evidence, not vibes.
+3. **Matte quality (E4)** — the one genuinely empirical unknown (03 §4). Both arms are DESIGNED;
+   the checkpoint tunes defaults (RMBG latency on CPU, flood tolerance) on evidence, not vibes —
+   it no longer gates a design fork.
 4. **The swipe race (E5b)** — the variant-key drop rule is easy to skip because it "works" without
    it in solo testing; the test is the guard.

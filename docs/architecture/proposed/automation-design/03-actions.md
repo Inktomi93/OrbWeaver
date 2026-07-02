@@ -255,6 +255,6 @@ heavier, later, and still needs a depth bound as its backstop; rejected: tagging
 | `rpg_verb` | `{ type, verb: RpgAutomationVerb /* e.g. "checkpoint" */, args: Record<string,string> }` | rpg-design/09 §b — "a `rpg-verb` action arm (e.g. auto-checkpoint) is reserved-additive" | injected per-verb rpg ops; host + active game required; the verb's own `can()` row applies |
 | `force_activate_entries` | `{ type, entryIds: string[] }` | the ST `WORLDINFO_FORCE_ACTIVATE` analog (Core-Legacy-Migration §3 marks it a D46 action, not an event) | needs a per-turn forced-activation seam on GATHER's WI pool; criterion: the first real rule 1.3's constant-entry insert cannot express |
 
-Naming note: chat-crew-design/05 spells its arm `enqueue-crew-workload` (kebab). This union is
-snake_case by the vocabulary dictation (rpg tool naming); the crew doc's spelling should be
-reconciled to `enqueue_crew_workload` when the arm goes live — flagged in the 05 review flags.
+Naming note: RESOLVED — chat-crew-design/05 §a now spells the arm `enqueue_crew_workload`
+(snake_case, reconciled 2026-07-01; this union is the arm vocabulary's home). Likewise
+rpg-design/09 §b now claims the `rpg_verb` arm by name and owns the `RpgAutomationVerb` vocabulary.

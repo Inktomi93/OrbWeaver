@@ -74,9 +74,9 @@ genuinely small because `kit/macro` and `fetchOwned` already exist.
    fields; the read op can come with A5. Flag: confirm with the live chat implementation.
 2. **`automation-notice` carries a rendered `message` string** (03 §1.5) — a deliberate exception
    to the notifications ids-only habit, argued there. Notifications owner should ratify.
-3. **Naming drift:** chat-crew-design/05 §a spells the reserved arm `enqueue-crew-workload`
-   (kebab); this union is snake_case (`enqueue_crew_workload`) per the rpg-tool vocabulary
-   dictation. One-line fix in the crew doc when the arm goes live.
+3. **Naming drift: RESOLVED (2026-07-01)** — chat-crew-design/05 §a reconciled to
+   `enqueue_crew_workload` (snake_case), and rpg-design/09 §b claims `rpg_verb` +
+   the `RpgAutomationVerb` vocabulary. No open drift.
 4. **`variantSelected` fires AFTER the variable re-fold** — an ordering requirement on chat's
    swipe path (01 §1) so predicates over `vars` see post-swipe truth. Cheap if known now, a
    heisenbug if discovered later. Flag to the chat builder.

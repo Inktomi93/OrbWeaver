@@ -171,11 +171,12 @@ applied anywhere in this set without its argument:
    `{ can, clock }` instead (no tables ⇒ no `db`; executing is the domain's own verb, not an
    injected op; `can` is the injection the gate actually needs). Argued in place; flagged because
    it diverges from the committed sketch's letter while serving its intent.
-5. **buddy.md still narrates a buddy-LOCAL MCP server** (`agent/tools.ts createBuddyMcpServer`
-   "builds the MCP tool server"). Under D48's one-registry rule that becomes
-   `buddyToolDefinitions()` + registry + `project-mcp` (02 §3) — same tools, same closures, same
-   firewall, different plumbing. **Ask: one patch line in buddy.md** at its Phase-7 build so the
-   buddy builder doesn't construct a second registry from its letter.
+5. **RESOLVED (2026-07-01, Nate directive) — buddy.md's buddy-LOCAL MCP framing purged doc-wide.**
+   buddy.md now reads: `agent/tools.ts` = tool DEFINITIONS + handlers (closed over `(db, userId)`)
+   registered into the ONE registry at compose; `ask` resolves its tool set via `project-mcp`
+   (02 §3); the firewall = agent-mode attaches only this agent's registered projection, non-agent
+   turns attach none (the neo `mcpServers` literals survive as a provenance cite only). Same tools,
+   same closures, same firewall — one plumbing.
 6. **Landed-state discrepancy in circulating summaries.** At least one task brief in flight
    claims `HISTORY_ROLES`/`ToolCallRecord`/the warning codes/the `toolCalls` retype "landed in
    `1d18f17`". They did NOT — that commit's own message says only the `ModelCapability` gates

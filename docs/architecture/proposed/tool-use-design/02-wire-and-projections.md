@@ -118,9 +118,11 @@ toAgentToolServer(
   collected records with its turn row. Buddy's tools keep their propose-don't-execute posture at
   the HANDLER level (they return proposals; `buddy.confirm` is the sole executor — buddy.md
   invariant #3); the registry ceiling for them is `null` (owner-scoped by closure, no privileged
-  can() action). Note buddy.md still narrates a buddy-local `createBuddyMcpServer` — under D48's
-  one-registry rule that becomes `buddyToolDefinitions()` + `project-mcp`; flagged for a buddy.md
-  patch line in [`05 §review-flags`](05-build-plan-and-resolutions.md).
+  can() action). RESOLVED (2026-07-01): buddy.md's buddy-local `createBuddyMcpServer` framing has
+  been purged doc-wide — it now describes tool DEFINITIONS + handlers registered into this ONE
+  registry, reached via `project-mcp`. The full source roster (mirrored from 01 §4): **rpg**
+  (23 tools, OpenAI-wire path) · **buddy** (this projection) · **crew** (registers NOTHING —
+  structured-output axis only, D59) · **plugins** (reserved D46 `source`).
 
 *(Rejected: letting buddy keep a private MCP server beside the registry — the committed §9's
 "parallel registry" rejection verbatim. Rejected: tool-use importing the SDK to build the server

@@ -28,8 +28,10 @@ event bus; rpg mirrors its curated event subset onto `@orb/contracts/events` (05
 generation" is a plain D46 rule. CEL predicates read the same MacroEnv — the rpg macros
 (`{{rpgSceneState}}` etc.) resolve there, and D46 runtime variables coexist untouched (03 §2.4).
 Actions: the D46 closed action union gains NO rpg-specific members in v1 — the existing actions
-(notify, set variable, quick-reply, trigger generation) cover the rule library; a `rpg-verb` action
-arm (e.g. auto-checkpoint) is reserved-additive. `/roll`-style commands: the dice button is a plain
+(notify, set variable, quick-reply, trigger generation) cover the rule library; an `rpg_verb` action
+arm (e.g. auto-checkpoint) is reserved-additive — automation-design/03 §1 reserves it as
+`rpg_verb { verb: RpgAutomationVerb, args }`; the `RpgAutomationVerb` vocabulary (which rpg verbs
+are automation-invocable, starting with `checkpoint`) is THIS set's to define when the arm goes live. `/roll`-style commands: the dice button is a plain
 verb call (05 §6); a `/roll` automation action is unnecessary. *(Rejected: rpg-private automation —
 a second rule engine is exactly what D46 forbids.)*
 

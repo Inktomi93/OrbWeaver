@@ -20,7 +20,8 @@ orphaned:
   `crew.editProposalCreated`, `crew.cardProposalCreated`, `crew.directorPassCompleted` — 04 §4)
   become Tier-1 TRIGGERS ("on cardProposalCreated do notify", "on keeperRan where entriesAdded > 0
   do quick-reply"). (2) The D46 closed action union gains ONE reserved-additive member,
-  `enqueue-crew-workload {chatId, member}` — capability-gated, budget-governed — so a power user
+  `enqueue_crew_workload {chatId, member}` (snake_case per the automation action-arm convention;
+  automation-design/03 §1 is the union's home) — capability-gated, budget-governed — so a power user
   can author exotic triggers ("on chatOpened run the keeper"). The built-in per-member toggles
   REMAIN the normal UX.
 

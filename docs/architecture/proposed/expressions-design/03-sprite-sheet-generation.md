@@ -51,7 +51,7 @@ z.object({
   characterId: typeIdSchema(ID_PREFIX.character),
   labels: z.array(expressionLabelSchema).min(1).max(8),
   stylePrompt: z.string().max(600).optional(),
-  matte: z.enum(["flood", "none"]),         // resolved (defaulted) at the verb, explicit in the row
+  matte: z.enum(["model", "flood", "none"]), // resolved (defaulted) at the verb, explicit in the row (§4)
   ownerId: typeIdSchema(ID_PREFIX.user),    // the requesting principal — bills + scopes the imagery call
 })
 
@@ -94,9 +94,16 @@ export interface ImageryOp {
 export interface ImageOps {                  // provided by infra/image (the sharp adapter — D6 precedent)
   /** Slice a grid image into row-major cells. sharp extract() per cell; cell = floor(w/cols) × floor(h/rows). */
   sliceGrid(bytes: Uint8Array, opts: { cols: number; rows: number }): Promise<readonly Uint8Array[]>;
-  /** Corner-sampled flood-fill matte → transparent PNG. Deterministic, no ML (§4). */
+  /** Corner-sampled flood-fill matte → transparent PNG. Deterministic, no ML — the zero-setup fallback (§4). */
   matteFlood(bytes: Uint8Array, opts: { tolerance: number }): Promise<Uint8Array>;
 }
+
+/** OPTIONAL — provided by infra/providers `local-light` when that backend is configured (§4).
+ *  Compose passes it iff local-light is up; absence ⇒ the verb defaults matte to "flood". */
+export type MatteModelOp = (
+  bytes: Uint8Array,
+  opts?: { model?: string; signal?: AbortSignal },
+) => Promise<Uint8Array>; // alpha-matted PNG out
 
 export interface AssetOps {
   store(bytes: Uint8Array, kind: "sprite", mime: "image/png", opts: { ownerId: UserId }): Promise<StoredAsset>;
@@ -110,7 +117,10 @@ export type GetCardOp = (characterId: CharacterId) => Promise<CanonicalCard>; //
 
 All wired at `entry/compose`; expressions sideways-imports nothing. `sliceGrid`/`matteFlood` are
 NEW `infra/image` ops beside the existing resize/thumbnail transform — pure byte-in/byte-out sharp
-work, no db, matching the infra/image charter (assets.md D6).
+work, no db, matching the infra/image charter (assets.md D6). `MatteModelOp` comes from a
+DIFFERENT home: `infra/providers` local-light (`createLocalLightMatte(cache)`, §4.1) — it is an
+inference op over the shared ONNX model cache, not a sharp transform; compose passes it only when
+local-light is configured.
 
 ### 3.2 The sheet-prompt compiler (substrate/sheet-prompt.ts — pure)
 
@@ -163,8 +173,10 @@ have and doesn't want. The card IS the identity source, read directly via `getCa
 4. sheet ← assets.readBytes(pic.assetId)
 5. cells ← image.sliceGrid(sheet, {cols, rows})                  // throws SheetGenerationError on
                                                                  //   cells.length < labels.length
-6. for i in labels: cell ← matte === "flood"
-     ? image.matteFlood(cells[i], { tolerance: 24 }) : cells[i]
+6. for i in labels: cell ← switch (matte)                        // §4: arm resolved at the verb
+     "model" → matteModel(cells[i], { signal })                  // local-light RMBG matte
+     "flood" → image.matteFlood(cells[i], { tolerance: 24 })
+     "none"  → cells[i]
    stored[i] ← assets.store(cell, "sprite", "image/png", { ownerId })      report 50→90%
    (signal checked between cells — cancel-safe)
 7. persistence.batchUpsert(characterId, labels.map((l,i) => ({label:l, assetId:stored[i].id})))
@@ -172,26 +184,59 @@ have and doesn't want. The card IS the identity source, read directly via `getCa
 8. return { written: labels.length, labels, sheetAssetId: pic.assetId, model: pic.model, costUsd: pic.costUsd }
 ```
 
-## 4. Background-removal posture — LEAN (flagged; README flag #3)
+## 4. Background removal — DESIGNED, two arms (model preferred, flood fallback)
 
-**v1 DEFAULT: prompt discipline (the solid `#DDDDDD` background instruction) + `matteFlood`** — a
-deterministic corner-flood matte: sample the four corner pixels of the cell, flood-fill
-contiguous pixels within `tolerance` (per-channel distance) to alpha-0, implemented on sharp's raw
-RGBA buffer + a small pure flood-fill in `@orb/server/kit` (bounded, no ML, no new dependency).
+> **Premise correction (Nate, 2026-07-01, upgrading the original LEAN):** the ONNX runtime is
+> ALREADY in the stack — `@huggingface/transformers` powers `local-light`'s rerank cross-encoder
+> today (`infra/providers/backends/local-light/rerank.ts`), and doc 02's v2 classify plans the
+> GoEmotions ONNX classifier on the same backend. A model matte adds WEIGHTS, not a runtime
+> dependency. So `matte:"model"` is a designed, v1-OPTIONAL arm — not a deferred criterion.
+
+**Prompt discipline applies to BOTH arms:** the compiler's solid `#DDDDDD` background instruction
+stays (it helps the model matte's edge confidence exactly as it helps the flood).
+
+### 4.1 `matte:"model"` — the local-light matte op (preferred when available)
+
+A background-removal op on the **`local-light` backend, beside embed/rerank/imageEmbed** (the D39
+keyless/loopback pattern — in-process, no credential, CPU or CUDA):
+
+- **Binding:** `createLocalLightMatte(cache: LocalLightModelCache): MatteModelOp` — the exact
+  `createLocalLightRerank(cache)` shape: a pure transform bound over the shared lazy model cache.
+- **Model:** `DEFAULT_MATTE_MODEL = "briaai/RMBG-1.4"` (the canonical transformers.js
+  background-removal ONNX model, image-segmentation pipeline; marinara's
+  `tryRemoveBackgroundWithBackgroundRemover` is the evidence for the capability, one-line cite),
+  overridable via `opts.model` — the `DEFAULT_RERANK_MODEL` precedent.
+- **Acquisition/storage:** weights lazy-download through the SAME `LocalLightModelCache`
+  mechanics rerank uses (`cacheDir` honored, offline mode = only-cached-weights load; first job
+  pays the download, subsequent jobs hit the cache). No new storage system.
+- **Shape:** PNG/JPEG bytes in → the pipeline's soft alpha mask is multiplied into the cell →
+  alpha-matted PNG bytes out (`MatteModelOp`, §3.1). `signal`-aware (`throwIfAborted`, the
+  local-light convention).
+- **NOT a `PROVIDER_ROLES` member (LEAN):** v1 binds it at compose as a narrow local-light op
+  (the role-clients binder pattern), passed to expressions iff local-light is configured. Flip
+  criterion: a SECOND matte backend ever matters (e.g. hosted image-edit-based matting) — then
+  the D39 role-add template applies and `matte` becomes a real role. *(Rejected now: minting a
+  role with exactly one backend and one consumer — role machinery without a dispatch choice.)*
+
+### 4.2 `matte:"flood"` — the zero-setup fallback
+
+Deterministic corner-flood matte (unchanged): sample the four corner pixels, flood-fill contiguous
+pixels within `tolerance` (per-channel distance) to alpha-0 — sharp raw RGBA + a small pure
+flood-fill in `@orb/server/kit` (bounded, no weights, works on a deploy with no local-light).
 `matte:"none"` keeps the flat background (some art styles look fine framed).
 
-**WHY not a real ML background remover in v1:** marinara's
-`tryRemoveBackgroundWithBackgroundRemover` leans on an external/ML matte service — a NEW inference
-dependency this design refuses to invent as fact (the No-Slop rule; D39's `local-light` today
-serves embed/rerank/imageEmbed only, and widening it is a deliberate role-add, not a side effect
-of a cosmetics feature). Flood-fill against a prompted solid background is defensible and fully
-deterministic. *(Rejected as v1: an ONNX u2net/rembg matte op — right shape if needed, wrong time.)*
+### 4.3 Arm resolution (at the verb, explicit in the workload row)
 
-**The flip criterion:** if E4 checkpoint testing shows flood mattes producing halo/fringe/holes on
-real provider outputs (anti-aliased edges against `#DDDDDD` are the known risk) at a rate the
-management-UI review can't absorb, add a `matte:"model"` arm backed by an ONNX matte in the
-`local-light` tier — proposed then as its own D39-template amendment, params already carry the
-`matte` enum so the contract is ready.
+`generateSpriteSheet` resolves the default: an explicit caller `matte` wins; otherwise **`"model"`
+iff the `MatteModelOp` is wired** (compose passes it only when local-light is configured);
+otherwise **`"flood"`**. The resolved arm is stamped into the params row (§2) so the job is
+reproducible and the run-log shows which matte produced a set. *(Rejected: silent per-cell
+fallback model→flood inside the pass — a set with mixed matte quality is worse than an honest
+error; a wired-but-crashing matte op fails the job, and the user reruns with `matte:"flood"`.)*
+
+**E4 checkpoint (05 §4):** validates BOTH arms on real provider output — model-matte quality/perf
+(CPU latency per cell is the watch item) and flood halo/fringe on anti-aliased `#DDDDDD` edges.
+The checkpoint tunes defaults (tolerance, model choice); the design fork is already closed.
 
 ## 5. Idempotency + partial failure (the posture)
 

@@ -319,7 +319,8 @@ pending user text` in resolved form (kills the one-turn lag).
 - **auto-chain/abort interplay** — schedule-time generation captured; TOCTOU re-check inside the lock;
   the `cancelledDuringTurn` re-arm guard (abort is lockless); abort is owner-only (rollback-theft
   defense).
-- **the chat bus** — the 21-member `ChatBusEvent` exhaustiveness guard; await-before-deliver durability;
+- **the chat bus** — the 26-member `ChatBusEvent` exhaustiveness guard (`CHAT_BUS_EVENT_TYPES`: 21
+  chat-native + the 5 embedded `WiBusEvent` members); await-before-deliver durability;
   the per-chat replay ring (late-subscriber ramp-up); embeds `WiBusEvent` so WI emits without importing
   back into chat.
 - **active-turns Set-not-slot** — a lock-free `generate` runs concurrent with a locked `send`; abort
