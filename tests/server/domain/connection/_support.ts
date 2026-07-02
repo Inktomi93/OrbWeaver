@@ -78,6 +78,8 @@ export interface ConnHarness {
   readonly setVllmAvailable: (available: boolean) => void;
   /** Every `source` the resolver asked `resolveCredential` for — proves the selection routed to it. */
   readonly credentialCalls: ChatSource[];
+  /** Every request `testClaudeAuth` handed the faked `verifyClaudeAuth` diagnostic. */
+  readonly verifyCalls: { readonly source: ChatSource; readonly model: string }[];
 }
 
 /** Build a ConnectionContext over a real db with the three injected ops faked + a frozen clock. */
@@ -87,6 +89,7 @@ export function makeConnHarness(db: Db): ConnHarness {
   let orCatalog: ModelCatalogEntry[] = [];
   let vllmAvailable = true;
   const credentialCalls: ChatSource[] = [];
+  const verifyCalls: { readonly source: ChatSource; readonly model: string }[] = [];
 
   const ctx: ConnectionContext = {
     db,
@@ -98,6 +101,18 @@ export function makeConnHarness(db: Db): ConnHarness {
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     loadUserSettings: () =>
       Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
+    // The testClaudeAuth diagnostic fake: records the call, answers healthy (host login active).
+    verifyClaudeAuth: ({ credential, model }) => {
+      verifyCalls.push({ source: credential.source, model });
+      return Promise.resolve({
+        source: "max-pro-sub" as const,
+        ok: true,
+        apiKeySource: "none",
+        model,
+        reply: "ok",
+        costUsd: 0.0001,
+      });
+    },
     // The resolver reads this lazily per call, so a `setVllmAvailable(false)` before `resolveRole` lands.
     get vllmAvailable(): boolean {
       return vllmAvailable;
@@ -117,6 +132,7 @@ export function makeConnHarness(db: Db): ConnHarness {
       vllmAvailable = available;
     },
     credentialCalls,
+    verifyCalls,
   };
 }
 

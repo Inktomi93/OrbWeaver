@@ -1,0 +1,11 @@
+{
+  // @orb/ui is browser code (the frontend cake leaf: kit ← ui ← client). DOM libs + JSX on top of
+  // the isomorphic base — mirrors packages/client. NO node types: ui never imports node:* (the
+  // ui-no-node-builtins dep-cruiser rule is the backstop). tokens.build.ts (a codegen SCRIPT, not
+  // package source) is typechecked by the root aggregator, not here.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2025", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
+  }
+}

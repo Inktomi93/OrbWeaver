@@ -1,0 +1,7 @@
+/* The CT harness stylesheet: @orb/ui's globals (tailwind + the generated @theme) + the explicit
+ * source roots tailwind must scan for class usage (v4 auto-detection anchors at the css file's
+ * package — the ui sources + the .ct.tsx specs live elsewhere). The Phase-6 client repeats this
+ * model: import the ui globals, @source its own src. */
+@import "@orb/ui/styles/globals.css";
+@source "../packages/ui/src";
+@source "../tests";

@@ -22,7 +22,7 @@
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { EndpointInspection } from "@orb/contracts/providers";
+import type { EndpointInspection, VerifyAuthResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
@@ -216,6 +216,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveCredential: (params): Promise<ResolvedCredential> => credentials.resolve(params),
     fetchOrCatalog: diagnostics.fetchOrCatalog,
     loadUserSettings: settings.loadUserSettings,
+    // The host-Claude auth verify (testClaudeAuth) — providers' agent-sdk diagnostic through the same
+    // sealed front door as fetchOrCatalog.
+    verifyClaudeAuth: (req): Promise<VerifyAuthResult> => diagnostics.verifyAuth(req),
     vllmAvailable,
   });
 

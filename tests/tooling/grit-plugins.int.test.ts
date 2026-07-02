@@ -87,6 +87,11 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "packages/server/src/domain/foo/verbs/v.ts",
     src: "export interface Leak {\n  a: number;\n}\n",
   },
+  "no-layout-context-props": {
+    // an @orb/ui path — the gate scopes to packages/{client,ui}/src (the container model covers both).
+    path: "packages/ui/src/primitives/card/card.tsx",
+    src: "export const C = () => <div compact />;\n",
+  },
   "no-loose-id-cast": {
     path: "f.ts",
     src: "declare const x: unknown;\nexport const a = x as never;\n",

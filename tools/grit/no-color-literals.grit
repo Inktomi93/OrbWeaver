@@ -35,6 +35,10 @@ language js
 
 or {
   JsxAttribute() as $attr where {
+    $attr <: r"^className=\"[^\"]*\b(?:bg|text|border|ring|fill|stroke)-(?:black|white)(?:/\d+)?\b[^\"]*\"$",
+    register_diagnostic(span=$attr, message="named non-token color in className (bg-black/bg-white/…-black/…-white) — D43 §11.4: use a theme token; for overlays use bg-scrim (a bg-black/50 scrim is invisible on a true-black theme).", severity="error")
+  },
+  JsxAttribute() as $attr where {
     $attr <: r"^className=\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
     register_diagnostic(span=$attr, message="arbitrary hex color in className — use a design token from globals.css (bg-card, text-foreground, text-success, text-destructive, etc.). Theme switching breaks with literal hex. See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
   },
@@ -54,6 +58,12 @@ or {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
       register_diagnostic(span=$lit, message="arbitrary hex color in cva() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[#[0-9a-fA-F]{3,8}\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary hex color in tv() — use a design token (bg-card, text-foreground, text-success, text-destructive). Theme switching breaks with literal hex.", severity="error")
     }
   }
 }

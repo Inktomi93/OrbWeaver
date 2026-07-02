@@ -9,6 +9,7 @@ import { createGetModelCapability } from "./verbs/get-model-capability";
 import { createRefreshCatalog } from "./verbs/refresh-catalog";
 import { createResolveChat } from "./verbs/resolve-chat";
 import { createResolveRole } from "./verbs/resolve-role";
+import { createTestClaudeAuth } from "./verbs/test-claude-auth";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
   const resolveRole = createResolveRole(ctx);
@@ -18,5 +19,6 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     getModelCapability: createGetModelCapability(ctx),
     getCatalog: createGetCatalog(ctx),
     refreshCatalog: createRefreshCatalog(ctx),
+    testClaudeAuth: createTestClaudeAuth(ctx),
   };
 }

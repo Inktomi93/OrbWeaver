@@ -44,11 +44,14 @@ language js
 // Shared guard: substrate-gated client path AND not allowlisted. $filename is
 // auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
 predicate in_substrate_scope() {
-  $filename <: r".*/packages/client/src/.*",
+  // D43 §11.4: the token gates cover ALL feature + ui TSX (no components/ui-style exemption).
+  // @orb/ui is in scope; its layout/ primitives are allowlisted below (they DEFINE the tokens).
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
   $filename <: not or {
     r".*/features/_shared/layout/.*",
     r".*/features/_shared/form/contexts\.ts$",
     r".*/packages/client/src/shared/ui/.*",
+    r".*/packages/ui/src/layout/.*",
     r".*/components/markdown\.tsx$"
   }
 }
@@ -78,6 +81,13 @@ or {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
       register_diagnostic(span=$lit, message="raw font-size utility in cva() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw font-size utility in tv() — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
     }
   }
 }

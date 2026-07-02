@@ -21,6 +21,7 @@ import type {
 } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
+import type { VerifyAuthResult } from "@orb/contracts/providers";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -30,6 +31,7 @@ import type {
   RefreshCatalogParams,
   ResolveChatParams,
   ResolveRoleParams,
+  TestClaudeAuthParams,
 } from "./params";
 import type { CatalogSnapshot } from "./results";
 
@@ -50,6 +52,15 @@ export type FetchOrCatalogOp = (req: {
  *  Connection is a CONSUMER of settings, not an owner (connection.md §7.2). */
 export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
 
+/** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (a tiny SDK turn through the
+ *  credential firewall reporting which credential the spawned runtime used). The credential is the
+ *  owner-gated `max-pro-sub` mint this domain resolves FIRST (D17 lives in credentials — connection
+ *  never re-checks it, §7.1); `model` is the probe model the verb picks (the cheapest curated tier). */
+export type VerifyClaudeAuthOp = (req: {
+  readonly credential: ResolvedCredential;
+  readonly model: string;
+}) => Promise<VerifyAuthResult>;
+
 /**
  * The DI bundle the connection verbs close over (wired at the entry composition root; surfaced through
  * `context.ts`). `db` routes the catalog-snapshot KV through `persistence/`; the three ops are the injected
@@ -61,6 +72,7 @@ export interface ConnectionContext {
   readonly resolveCredential: ResolveCredentialOp;
   readonly fetchOrCatalog: FetchOrCatalogOp;
   readonly loadUserSettings: LoadUserSettingsOp;
+  readonly verifyClaudeAuth: VerifyClaudeAuthOp;
   /** The boot GPU/vLLM-availability fact (`!VLLM_DISABLED && gpuPresent`), threaded from `entry/lifecycle`
    *  via compose. When `false`, `resolveRole` reroutes the DERIVE roles (embed/rerank/imageEmbed) that
    *  resolved to `vllm` onto the in-process `local-light` tier (the generation roles never fall back —
@@ -85,4 +97,8 @@ export interface ConnectionService {
   readonly getModelCapability: (params: GetModelCapabilityParams) => Promise<ModelCapability>;
   readonly getCatalog: (params: GetCatalogParams) => Promise<CatalogSnapshot>;
   readonly refreshCatalog: (params: RefreshCatalogParams) => Promise<CatalogSnapshot>;
+  /** The max-pro-sub HEALTH CHECK (neo `models.testClaudeAuth`, Tier-4-Transport.md): resolve the
+   *  owner-gated `max-pro-sub` credential (credentials enforces D17 — a non-owner rejects there), then run
+   *  the tiny SDK verify turn on the cheapest curated tier. `apiKeySource === "none"` = host login active. */
+  readonly testClaudeAuth: (params: TestClaudeAuthParams) => Promise<VerifyAuthResult>;
 }

@@ -59,11 +59,14 @@ language js
 // Shared guard: the file is a substrate-gated client path AND not allowlisted.
 // Mirrors scripts/check/substrate-clean.ts. $filename is auto-bound by biome.
 predicate in_substrate_scope() {
-  $filename <: r".*/packages/client/src/.*",
+  // D43 §11.4: the token gates cover ALL feature + ui TSX (no components/ui-style exemption).
+  // @orb/ui is in scope; its layout/ primitives are allowlisted below (they DEFINE the tokens).
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
   $filename <: not or {
     r".*/features/_shared/layout/.*",
     r".*/features/_shared/form/contexts\.ts$",
     r".*/packages/client/src/shared/ui/.*",
+    r".*/packages/ui/src/layout/.*",
     r".*/components/markdown\.tsx$"
   }
 }
@@ -93,6 +96,13 @@ or {
     $args <: contains bubble `$str` as $lit where {
       $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
       register_diagnostic(span=$lit, message="raw spacing utility in cva() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])[^\"]*\"$",
+      register_diagnostic(span=$lit, message="raw spacing utility in tv() — use a layout primitive or intent token (gap-section, p-row, py-block, gap-gutter). See src/client/AGENTS.md §Spacing-and-layout.", severity="error")
     }
   }
 }

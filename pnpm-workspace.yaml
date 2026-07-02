@@ -96,6 +96,34 @@ catalog:
   react-dom: ^19.2.7
   "@types/react": ^19.2.17
   "@types/react-dom": ^19.2.3
+  # --- ui (@orb/ui — the sealed satellites; versions verified against the registry 2026-07-02,
+  #     deltas vs the docs recorded in proposed/ui-package-design.md §3) ---
+  # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
+  "@base-ui/react": ^1.6.0
+  # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
+  # externalized tailwind-merge to a PEER (>=3) — it rides inside @orb/ui's seal, never the client.
+  tailwind-variants: ^3.2.2
+  tailwind-merge: ^3.6.0
+  # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
+  lucide-react: ^1.22.0
+  # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).
+  "@tanstack/react-virtual": ^3.14.5
+  # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
+  streamdown: ^2.5.0
+  codemirror: ^6.0.2
+  "@codemirror/lang-css": ^6.3.1
+  # jsdiff (docs said v8+; current major is 9 — same modern TS surface).
+  diff: ^9.0.0
+  # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
+  remark: ^15.0.1
+  strip-markdown: ^6.0.0
+  # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
+  style-dictionary: ^5.5.0
+  # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
+  tailwindcss: ^4.3.2
+  "@tailwindcss/vite": ^4.3.2
+  # CT harness (playwright-ct bundles components via vite+react).
+  "@vitejs/plugin-react": ^6.0.3
 
 # Force vite/vitest's bundled esbuild (0.25.x — rejects the `es2025` target) up to 0.28.1, which
 # supports es2025, so the transform matches tsc's es2025 with no "Unrecognized target" warning. Scoped

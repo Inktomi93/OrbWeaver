@@ -6,6 +6,7 @@ import type {
   ImageEmbedResult,
   RerankResult,
   SummarizeResult,
+  VerifyAuthResult,
 } from "@orb/contracts/providers";
 import {
   accountCreditsSchema,
@@ -15,6 +16,7 @@ import {
   imageEmbedResultSchema,
   rerankResultSchema,
   summarizeResultSchema,
+  verifyAuthResultSchema,
 } from "@orb/contracts/providers";
 import { expect, test } from "../../support/fixtures";
 
@@ -148,4 +150,29 @@ test("endpointInspectionSchema parses a transport-failure result (null response 
 
 test("endpointInspectionSchema rejects a result missing the request envelope", () => {
   expect(endpointInspectionSchema.safeParse({ ok: true, response: null }).success).toBe(false);
+});
+
+test("the verify-auth result schema parses the max-pro-sub verify arm + round-trips", () => {
+  const value: VerifyAuthResult = {
+    source: "max-pro-sub",
+    ok: true,
+    apiKeySource: "none",
+    model: "claude-haiku-4-5-20251001",
+    reply: "ok",
+    costUsd: 0.0004,
+  };
+  expect(verifyAuthResultSchema.parse(value)).toEqual(value);
+});
+
+test("the verify-auth result schema rejects a non-user-vocab source (the seal: no runner names on the wire)", () => {
+  expect(
+    verifyAuthResultSchema.safeParse({
+      source: "agent-sdk",
+      ok: true,
+      apiKeySource: "none",
+      model: "m",
+      reply: "ok",
+      costUsd: 0,
+    }).success,
+  ).toBe(false);
 });

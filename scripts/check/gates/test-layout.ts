@@ -5,7 +5,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Check, Violation } from "../harness.ts";
 
-const PKGS = new Set(["kit", "contracts", "db", "server", "client"]);
+const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
 // Most-specific suffixes first (so `.int.test.ts` isn't mis-stripped as `.test.ts`).
 const KINDS = [
   ".int.test.ts",

@@ -46,6 +46,7 @@ const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
 const DB = "^packages/db/src/";
 const CLIENT = "^packages/client/src/";
+const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
 const TEST_FILES = "\\.(test|int\\.test|contract\\.test|parity\\.test|spec|test-d|ct)\\.[jt]sx?$";
 
@@ -112,6 +113,50 @@ module.exports = {
       from: { path: CLIENT },
       to: { path: ["^packages/server/", DB], dependencyTypesNot: ["type-only"] },
     },
+
+    // ════════════════════ @orb/ui — the frontend cake leaf (D42; ui-package-design.md §8) ═══════════
+    {
+      name: "ui-cake",
+      comment:
+        "@orb/ui is DOMAIN-AGNOSTIC (D42): kit ← ui ← client. It may import @orb/kit + its sealed satellites, NEVER @orb/contracts / @orb/db / @orb/server / @orb/client — a ui component that needs a domain shape takes ui-local STRUCTURAL props instead (ui-package-design.md §1). Primary enforcement is the resolver (those packages are not in ui's package.json); this is the deep-relative-escape backstop.",
+      severity: "error",
+      from: { path: UI },
+      to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT] },
+    },
+    {
+      name: "ui-no-node-builtins",
+      comment:
+        "@orb/ui is browser code — no node:* imports (same posture as kit; the tokens.build.ts codegen script lives at the package ROOT, outside src/, precisely so src/ stays browser-pure).",
+      severity: "error",
+      from: { path: UI },
+      to: { dependencyTypes: ["core"] },
+    },
+    {
+      name: "ui-satellite-seals",
+      comment:
+        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only). Importing a sealed lib from any OTHER ui module is a seal breach.",
+      severity: "error",
+      from: {
+        path: UI,
+        pathNot: [
+          `${UI}charts/`,
+          `${UI}primitives/(virtual-list|message-list)/`,
+          `${UI}code-editor/`,
+          `${UI}markdown/`,
+          `${UI}primitives/command/`,
+          `${UI}primitives/sortable/`,
+          `${UI}diff/`,
+          `${UI}primitives/icons/`,
+        ],
+      },
+      to: {
+        path: "node_modules/(echarts|echarts-for-react|@tanstack/react-virtual|@tanstack/virtual-core|codemirror|@codemirror|streamdown|remark|strip-markdown|cmdk|@dnd-kit|diff|lucide-react)/",
+      },
+    },
+    // NOTE (deliberate non-rule): "client ⇏ raw satellite libs" is RESOLVER physics (the libs are not
+    // in @orb/client's package.json → the import cannot resolve under pnpm isolation) + biome
+    // noUndeclaredDependencies. A dep-cruiser twin here would be unfireable-by-construction (its own
+    // pin test could never make it fire), so it is intentionally absent. (ui-package-design.md §8.)
 
     // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>kit) ═══════
     {

@@ -23,6 +23,7 @@ import type {
   ImageEmbedResult,
   RerankResult,
   SummarizeResult,
+  VerifyAuthResult,
 } from "@orb/contracts/providers";
 import type { AgentTurnRequest } from "./agent";
 import type { ChatRequest, ChatResult } from "./chat";
@@ -32,6 +33,7 @@ import type {
   GenerationCostRequest,
   InspectRequest,
   ProbeRequest,
+  VerifyAuthRequest,
 } from "./diagnostics";
 import type {
   EmbedRequest,
@@ -97,6 +99,7 @@ export interface ProviderBackend {
   readonly accountCredits?: ((req: AccountCreditsRequest) => Promise<AccountCredits>) | undefined;
   readonly generationCost?: ((req: GenerationCostRequest) => Promise<GenerationCost>) | undefined;
   readonly inspect?: ((req: InspectRequest) => Promise<EndpointInspection>) | undefined;
+  readonly verifyAuth?: ((req: VerifyAuthRequest) => Promise<VerifyAuthResult>) | undefined;
   readonly fetchCatalog?: ((req: FetchCatalogRequest) => Promise<ModelCatalogEntry[]>) | undefined;
 }
 
