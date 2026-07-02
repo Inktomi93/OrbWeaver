@@ -133,6 +133,8 @@ function writeFixtures(): void {
   fx("packages/server/src/__g_rogue_drawer/index.ts", "export const x = 1;\n");
   // package-layout: a loose file at the root of kit/src.
   fx("packages/kit/src/__g_rogue.ts", "export const x = 1;\n");
+  // ui-primitive-structure: a primitive dir missing its trio (no <name>.tsx/variants.ts) + no test.
+  fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
 }
 
 let registry = new Set<string>();
