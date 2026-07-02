@@ -137,6 +137,9 @@ function writeFixtures(): void {
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
+  // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
+  // component-size alone). 451 padded lines.
+  fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
 }
 
 let registry = new Set<string>();
