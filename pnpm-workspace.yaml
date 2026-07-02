@@ -122,14 +122,53 @@ catalog:
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.2
   "@tailwindcss/vite": ^4.3.2
-  # CT harness (playwright-ct bundles components via vite+react).
+  # CT harness (playwright-ct bundles components via vite+react). Also the client build's react plugin.
   "@vitejs/plugin-react": ^6.0.3
+
+  # --- client tooling: the ESLint gate + the @orb/client vite build (versions verified vs the live
+  #     registry 2026-07-02; setup + rule enumeration + pin reasons in proposed/client-tooling-setup.md) ---
+  # ESLint 10 is the NARROW supplement to biome (biome owns format + 400+ correctness rules): only the
+  # rules biome can't do — react-hooks + React-Compiler diagnostics, TanStack Query/Router discipline,
+  # tailwind compiled-class validation. Config: eslint.config.js (explicit-rules-only, no `recommended`).
+  # Every plugin below peer-supports eslint ^10 (verified) and TS 6.0.3 (typescript-eslint peer <6.1.0).
+  eslint: ^10.6.0
+  # typescript-eslint: latest major-8 (there is NO v9); peer `typescript >=4.8.4 <6.1.0` → our 6.0.3 in range.
+  # Used as PARSER only (+ the type-aware no-deprecated gate); its recommended RULE set stays OFF (biome+tsc own that).
+  typescript-eslint: ^8.62.1
+  # react-hooks v7 ships the React Compiler diagnostics (the rules-of-react correctness set) alongside rules-of-hooks.
+  eslint-plugin-react-hooks: ^7.1.1
+  "@tanstack/eslint-plugin-query": ^5.101.2
+  "@tanstack/eslint-plugin-router": ^1.162.0
+  # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
+  # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
+  eslint-plugin-better-tailwindcss: ^4.6.0
+  # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
+  # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
+  vite: ^8.1.2
+  vite-plugin-checker: ^0.14.4
+  # React Compiler (stable 1.0) runs FULL-compile from day one (D54). plugin-react v6 dropped internal
+  # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
+  babel-plugin-react-compiler: ^1.0.0
+  "@rolldown/plugin-babel": ^0.2.3
+  # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
+  # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
+  # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
+  # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + routeTree.gen.ts) is
+  # DELIBERATELY DROPPED (UI-Arch §6.1, UI-Lib-TanStack-Router.md B#3/B#4): hand-written code-based
+  # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
+  # NOT wire tanstackRouter(). See proposed/client-tooling-setup.md §4.
+  "@tanstack/react-router": ^1.170.16
 
 # Force vite/vitest's bundled esbuild (0.25.x — rejects the `es2025` target) up to 0.28.1, which
 # supports es2025, so the transform matches tsc's es2025 with no "Unrecognized target" warning. Scoped
 # to the 0.25.x line so the ancient @esbuild-kit 0.18.20 (a tsx transitive) is left untouched.
 overrides:
   "esbuild@^0.25.0": 0.28.1
+  # Force the single @vitejs/plugin-react up to the catalog's v6 (vite-8-compatible). @playwright/
+  # experimental-ct-react pins a transitive v4.7.0 whose vite peer maxes at ^7 → unmet-peer warning
+  # against our vite 8. v6 is the only line that peers vite ^8, so we dedupe both the client build and
+  # the CT harness onto it. (Alex-approved 2026-07-02: accept the CT-harness major-bump to clear the peer.)
+  "@vitejs/plugin-react": "catalog:"
 
 # Supply-chain delay: refuse versions published < 1440 min (24h) ago — a just-published malicious
 # version is usually yanked within that window. (The Exclude was orphaned without this — the guard was
