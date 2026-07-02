@@ -6,9 +6,9 @@
 const MAX_SLUG_LENGTH = 60;
 const FALLBACK = "export";
 // Any run of chars outside the filename-safe set collapses to a single underscore.
-const UNSAFE_RUN = /[^a-z0-9._-]+/gi;
+const UNSAFE_RUN = /[^a-z0-9._-]+/giu;
 // Leading/trailing underscores trimmed (a name like " :Aria: " shouldn't slug to `_Aria_`).
-const EDGE_UNDERSCORES = /^_+|_+$/g;
+const EDGE_UNDERSCORES = /^_+|_+$/gu;
 
 /** A filename-safe download slug (≤60 chars; "export" when the input slugs to empty). */
 export function slug(name: string): string {

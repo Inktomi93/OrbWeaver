@@ -8,7 +8,12 @@
 // home. This file keeps only the verb `*Params`.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
+
+/** The chat transcript formats — ONE canonical union (§7.5; declared here to keep contract/ acyclic,
+ *  re-exported from service.ts + the front door). Dispatched once in `export-chat.ts`. */
+export type ExportChatFormat = "jsonl" | "txt";
 
 /** Common to every export verb: the acting principal whose `userId` scopes ownership. */
 export interface ExportActorParams {
@@ -18,4 +23,53 @@ export interface ExportActorParams {
 export interface ExportCharacterParams extends ExportActorParams {
   /** The owned character to serialize to a V3 card PNG. */
   readonly characterId: CharacterId;
+}
+
+/** `exportChat` — the HOST's chat transcript (D29: chats are membership-scoped (D18), so the gate is the
+ *  roster's host row; a non-host / missing chat returns `null` → 404). `format` defaults to `jsonl`. */
+export interface ExportChatParams extends ExportActorParams {
+  readonly chatId: ChatId;
+  readonly format?: ExportChatFormat | undefined;
+}
+
+// ── The chat-builder input shapes (export.md §8-slot `contract/params.ts` — the `substrate/chat-jsonl.ts`
+//    inputs; the verb maps DB rows to these). ──
+
+/** The chat-level header facts for the JSONL/TXT builders. */
+export interface ExportChatMeta {
+  readonly characterName: string;
+  readonly userName: string | null;
+  readonly createDate: number | null;
+  /** The parent chat's imported source filename (the branch relink key) — null when never imported /
+   *  no parent. */
+  readonly parentRef?: string | null | undefined;
+  /** The ST author's note (`note_prompt`) — orbweaver's home is `roomOverrides.authorsNote`. */
+  readonly notePrompt?: string | null | undefined;
+}
+
+/** One swipe/variant of a message (verbatim, incl. the active one). */
+export interface ExportVariant {
+  readonly content: string;
+  readonly model: string | null;
+  readonly provider: string | null;
+  readonly tokensOut: number | null;
+  readonly reasoning: string | null;
+  readonly genStarted: number | null;
+  readonly genFinished: number | null;
+}
+
+/** One canon message (D26: content/economics from the SELECTED variant; `variants` = the full swipe set —
+ *  a length ≤ 1 set emits no swipe arrays). `role` derives the canonical `MessageRole` union (D32). */
+export interface ExportMessage {
+  readonly role: MessageRole;
+  readonly content: string;
+  readonly sendDate: number | null;
+  readonly model: string | null;
+  readonly provider: string | null;
+  readonly tokensOut: number | null;
+  readonly reasoning: string | null;
+  readonly genStarted: number | null;
+  readonly genFinished: number | null;
+  readonly activeVariantIdx: number | null;
+  readonly variants: readonly ExportVariant[];
 }
