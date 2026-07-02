@@ -19,7 +19,12 @@ export interface AutocompleteGroup {
   items: readonly string[];
 }
 
-export interface AutocompleteProps {
+// The async/fuzzy-search seam — forwarded straight to Base UI Root. `filter` swaps the match
+// predicate (custom fuzzy/async filtering), `autoHighlight` auto-selects the first result, `limit`
+// caps the rendered matches. Picked (not re-declared) so their live Base UI types flow through.
+type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit">;
+
+export interface AutocompleteProps extends AutocompletePassthrough {
   /**
    * The candidate suggestions — the display strings themselves, filtered against the input value
    * automatically (Base UI `mode="list"`). May be a render-derived array (filtered/mapped from
@@ -86,6 +91,8 @@ function AutocompleteResultStatus(): ReactElement {
  * keyword triggers), so the wrapper takes the display strings directly and keeps the surface small.
  * Base UI 1.6 also supports object items with a value/label mapper and multi-select chips; those are
  * the Combobox seal's job (R4 — pick by value type), a deliberate omission here, not a workaround.
+ * The async/fuzzy seam (`filter`/`autoHighlight`/`limit`) plus any other Root prop forward straight
+ * through to Base UI Root (R5 — no hand-picked prop subset that drops the rest).
  * `groups` splits the same string values into labelled sections. The array may be render-derived —
  * the acceptance test drives a parent re-render passing a freshly filtered/mapped array and the
  * filter stays correct.
@@ -112,6 +119,7 @@ export function Autocomplete({
   clearLabel = "Clear",
   className,
   id,
+  ...rest
 }: AutocompleteProps): ReactElement {
   const listChild =
     groups === undefined
@@ -174,6 +182,7 @@ export function Autocomplete({
       mode={mode}
       onValueChange={onValueChangeProp}
       value={value}
+      {...rest}
     >
       {inner}
     </BaseAutocomplete.Root>
@@ -185,6 +194,7 @@ export function Autocomplete({
       mode={mode}
       onValueChange={onValueChangeProp}
       value={value}
+      {...rest}
     >
       {inner}
     </BaseAutocomplete.Root>

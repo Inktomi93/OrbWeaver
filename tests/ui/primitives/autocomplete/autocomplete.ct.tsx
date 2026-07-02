@@ -4,7 +4,7 @@
 import { Autocomplete } from "@orb/ui/autocomplete";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DerivedItemsStory } from "./autocomplete.fixtures";
+import { CustomFilterStory, DerivedItemsStory } from "./autocomplete.fixtures";
 
 const TAGS = ["adventure", "mystery", "romance"];
 
@@ -20,6 +20,19 @@ test("typing filters the popup list", async ({ mount, page }) => {
   await input.pressSequentially("mys");
   await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
   await expect(page.getByRole("option", { name: "adventure" })).toHaveCount(0);
+});
+
+test("a custom filter override reaches Root (the async/fuzzy seam)", async ({ mount, page }) => {
+  // CustomFilterStory passes filter={() => true} (matches everything). The default substring filter
+  // would hide non-matching items; if the override reaches Root, a no-match query still lists both.
+  // (The filter lives in the browser-bundled fixture — it must return synchronously, which a Node
+  // test closure proxied across the CT boundary cannot.)
+  await mount(<CustomFilterStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("zzz");
+  await expect(page.getByRole("option", { name: "adventure" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
 });
 
 test("popup wears the popover token and the overlay z-index", async ({ mount, page }) => {
