@@ -4,12 +4,13 @@
 // hash; cardOf degrades a corrupt JSON column to its safe default. Internal (non-front-door) files are
 // imported by RELATIVE path — the package `./*` map only resolves a directory front door, not a flat file.
 
-import { characters } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
+import { characters, characterTags, tags } from "@orb/db";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
+  canonicalTagsFor,
   cardOf,
   detailOf,
   findByOwnerHandle,
@@ -48,7 +49,7 @@ describe("persistence/queries", () => {
     if (row === undefined) {
       throw new Error("expected the owned row");
     }
-    expect(detailOf(row).avatarHash).toBe("avhash");
+    expect(detailOf(row, []).avatarHash).toBe("avhash");
   });
 
   test("listOwnedCharactersWithAvatar excludes synthetic rows and other owners", async () => {
@@ -65,7 +66,7 @@ describe("persistence/queries", () => {
     await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: "foreign" });
 
     const rows = await listOwnedCharactersWithAvatar(db, owner);
-    expect(rows.map((r) => summaryOf(r).handle)).toEqual(["real"]);
+    expect(rows.map((r) => summaryOf(r, []).handle)).toEqual(["real"]);
   });
 
   test("findByOwnerHandle + listOwnerHandles resolve per-owner", async () => {
@@ -91,5 +92,51 @@ describe("persistence/queries", () => {
       throw new Error("expected the owned row");
     }
     expect(cardOf(row).greetings).toEqual([]);
+  });
+});
+
+describe("canonicalTagsFor — the tag.md L56 accepted-junction read", () => {
+  test("returns ACCEPTED tags per character (pending excluded), ordered sortOrder-then-name", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: "owner" });
+    const a = await seedRawCharacter(db, { id: "character_a", ownerId: owner, handle: "a" });
+    const b = await seedRawCharacter(db, { id: "character_b", ownerId: owner, handle: "b" });
+    const mk = async (
+      id: string,
+      name: string,
+      sortOrder: number | null = null,
+    ): Promise<TagId> => {
+      const tagId = castId<TagId>(id);
+      await db.insert(tags).values({ id: tagId, ownerId: owner, name, sortOrder });
+      return tagId;
+    };
+    const zeta = await mk("tag_z", "zeta", 0); // manually ordered first despite the name
+    const alpha = await mk("tag_a", "alpha");
+    const pending = await mk("tag_p", "staged");
+    await db.insert(characterTags).values([
+      { characterId: a, tagId: alpha, status: "accepted" },
+      { characterId: a, tagId: zeta, status: "accepted" },
+      { characterId: a, tagId: pending, status: "pending" },
+      { characterId: b, tagId: alpha, status: "accepted" },
+    ]);
+
+    const map = await canonicalTagsFor(db, [a, b]);
+
+    // a: ordered (sortOrder 0 first, then name); the pending staged suggestion is NOT canon.
+    expect(map.get(a)?.map((t) => t.name)).toEqual(["zeta", "alpha"]);
+    expect(map.get(b)?.map((t) => t.name)).toEqual(["alpha"]);
+    // The projection is the TagView wire shape.
+    expect(map.get(b)?.at(0)).toEqual({
+      id: alpha,
+      name: "alpha",
+      color: null,
+      color2: null,
+      source: null,
+      folderType: "NONE",
+      sortOrder: null,
+      isHiddenOnCard: false,
+    });
+    // An empty id set is an empty map (no query).
+    expect((await canonicalTagsFor(db, [])).size).toBe(0);
   });
 });

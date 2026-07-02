@@ -9,6 +9,7 @@ import type { UpdateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { writeCardInPlace } from "../persistence/card";
 import {
+  canonicalTagsOf,
   cardOf,
   detailOf,
   loadOwnedCharacterRow,
@@ -53,6 +54,6 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     if (updated === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    return detailOf(updated);
+    return detailOf(updated, await canonicalTagsOf(ctx.db, characterId));
   };
 }
