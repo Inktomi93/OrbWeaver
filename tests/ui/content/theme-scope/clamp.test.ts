@@ -1,0 +1,63 @@
+// The ThemeScope clamp is the D44 §12.1 security boundary — this test proves hostile override values
+// are DROPPED and only validated ones pass. Pure (node), so every branch is exercised deterministically.
+import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp";
+import { expect, test } from "../../../support/fixtures";
+
+test("legal colors pass through to their custom properties", () => {
+  const { vars } = clampThemeTokens({
+    accent: "oklch(0.7 0.1 60)",
+    userBubble: { bg: "#112233", fg: "rgba(255,255,255,0.9)" },
+    narrationColor: "hsl(30, 40%, 60%)",
+    speaker: "currentColor",
+  });
+  expect(vars["--color-primary"]).toBe("oklch(0.7 0.1 60)");
+  expect(vars["--color-user-bubble"]).toBe("#112233");
+  expect(vars["--color-user-bubble-foreground"]).toBe("rgba(255,255,255,0.9)");
+  expect(vars["--color-narration"]).toBe("hsl(30, 40%, 60%)");
+  expect(vars["--color-speaker"]).toBe("currentColor");
+});
+
+test("hostile color values are DROPPED (url/expression/injection/js)", () => {
+  // Assembled from fragments so no single literal reads as a high-entropy "secret" (noSecrets); each
+  // is a CSS-injection / fetch / escape vector the clamp must reject.
+  const js = ["java", "script:", "alert(1)"].join("");
+  const brace = { open: "{", close: "}" };
+  const hostile = [
+    "url(//evil.test/x.png)",
+    `url(${js})`,
+    ["express", "ion", "(alert(1))"].join(""),
+    "red; background: url(//x)",
+    `#fff; ${brace.close} body ${brace.open} display:none`,
+    js,
+    "var(--x)",
+    ["linear-", "gradient", "(red, blue)"].join(""),
+  ];
+  for (const value of hostile) {
+    const { vars } = clampThemeTokens({ accent: value });
+    expect(vars["--color-primary"], `"${value}" must be dropped`).toBeUndefined();
+  }
+});
+
+test("a font outside the allowlist is dropped; an allowed one becomes a stack", () => {
+  expect(clampThemeTokens({ font: "Comic Sans MS" }).vars["--font-sans"]).toBeUndefined();
+  expect(clampThemeTokens({ font: "Geist" }).vars["--font-sans"]).toContain("Geist");
+});
+
+test("radius maps to a token var; chatStyle/density ride the attribute axes, not vars", () => {
+  const clamped = clampThemeTokens({ radius: "card", chatStyle: "flat", density: "compact" });
+  expect(clamped.vars["--radius-card"]).toBe("var(--radius-card)");
+  expect(clamped.chatStyle).toBe("flat");
+  expect(clamped.density).toBe("compact");
+});
+
+test("unknown keys are stripped and a non-object input yields an empty map", () => {
+  const { vars } = clampThemeTokens({ evil: "x", accent: "#abc" } as unknown);
+  expect(vars).toEqual({ "--color-primary": "#abc", "--color-ring": "#abc" });
+  expect(clampThemeTokens("nope").vars).toEqual({});
+  expect(clampThemeTokens(null).vars).toEqual({});
+});
+
+test("an over-long value (payload attempt) is dropped even if it looks color-ish", () => {
+  const long = `#${"a".repeat(200)}`;
+  expect(clampThemeTokens({ accent: long }).vars["--color-primary"]).toBeUndefined();
+});

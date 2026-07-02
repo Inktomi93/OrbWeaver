@@ -33,7 +33,10 @@ or {
     $filename <: not or {
       r".*/contract/.*",
       r".*/contract\.ts$",
-      r".*/packages/(?:kit|contracts|db)/.*",
+      // @orb/ui is a leaf package (peer of kit in the cake): it has no domain/contract split — a
+      // primitive's exported prop types + ui-local zod clamps (ThemeScope) ARE its public API,
+      // homed beside the component. Same exemption class as kit/contracts/db. (ui-package-design §1.)
+      r".*/packages/(?:kit|contracts|db|ui)/.*",
       r".*/server/src/kit/.*",
       r".*\.test\.tsx?$",
       r".*/tests/.*",
