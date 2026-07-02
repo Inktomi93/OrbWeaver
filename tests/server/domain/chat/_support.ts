@@ -278,7 +278,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The assemble gather calls this every round (round-level recall over the shared bucket); default to
     // "not yet minted" so a test that seeds no memory never reaches the recall search.
     findSyntheticGroupCharacter: () => Promise.resolve(null),
-    applyStatsDelta: notStubbed,
+    // The stats push default is a NO-OP (the contract's "default injection is a no-op" — the canon-mutator
+    // verbs push on every write path now; a test that asserts stats overrides with a recorder).
+    applyStatsDelta: () => undefined,
     summarize: notStubbed,
     summarizerContextTokens: 32_000,
     emitNotification: () => Promise.resolve(),

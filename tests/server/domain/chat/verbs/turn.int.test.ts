@@ -286,8 +286,12 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
 
     expect(outcome.messages[0]?.authorUserId).toBe(member); // the user row is the caller's
-    expect(h.deltas).toHaveLength(1);
-    expect(h.deltas[0]?.ownerId).toBe(host); // the AI economics are attributed to the host (runAsUserId)
+    // TWO deltas ride the send (stats.md canon-mutator push): the USER row's (owner-grain only —
+    // characterId null) then the assistant turn's — BOTH attributed to the host (runAsUserId, D19).
+    expect(h.deltas).toHaveLength(2);
+    expect(h.deltas[0]?.userTurns).toBe(1);
+    expect(h.deltas[0]?.characterId).toBeNull();
+    expect(h.deltas.map((d) => d.ownerId)).toEqual([host, host]);
   });
 
   test("a non-member is refused (leak-free NOT_FOUND — can() default-deny)", async () => {

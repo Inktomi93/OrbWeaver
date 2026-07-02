@@ -77,6 +77,7 @@ import {
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { userMessageDelta } from "../substrate/stats-delta";
 import {
   driveRoundVia,
   resolveMentionsVia,
@@ -253,8 +254,11 @@ async function persistUserMessage(
     readonly content: string;
     readonly authorUserId: UserId;
     readonly personaId: PersonaId | null;
+    /** The frozen host (D19) — the stats OWNER (stats.md: the host's box funds/owns the canon). */
+    readonly hostUserId: UserId;
   },
 ): Promise<MessageView> {
+  const now = ctx.now();
   const params = {
     messageId: ctx.newMessageId(),
     variantId: ctx.newMessageVariantId(),
@@ -263,10 +267,18 @@ async function persistUserMessage(
     role: "user" as const,
     authorUserId: args.authorUserId,
     personaId: args.personaId,
-    now: ctx.now(),
+    now,
     variant: { content: args.content },
   };
-  await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
+  const statements = insertCanonMessageStatements(ctx.db, params);
+  // The canon-mutator stats push (stats.md): the user turn's rollup delta rides the SAME batch as its
+  // canon insert. characterId null — the rebuild's per-char grain is assistant-only.
+  ctx.applyStatsDelta(
+    statements,
+    ctx.db,
+    userMessageDelta({ ownerId: args.hostUserId, characterId: null, content: args.content, now }),
+  );
+  await ctx.db.batch(batchMany(statements));
   const view = buildCommittedMessageView(params);
   await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
   return view;
@@ -434,6 +446,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
       personaId: personaId ?? null,
+      hostUserId: room.hostUserId,
     });
 
     const facts = await canonFacts(ctx, chatId);
@@ -538,6 +551,7 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
       content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
       personaId: personaId ?? null,
+      hostUserId: room.hostUserId,
     });
     const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     try {

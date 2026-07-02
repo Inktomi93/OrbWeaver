@@ -10,6 +10,7 @@ import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, messages } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
@@ -118,6 +119,32 @@ function makeDeps(
       }),
   };
 }
+
+describe("startChat — canon-mutator stats push (stats.md)", () => {
+  test("creation pushes the chat-created counters + the seeded greeting contribution", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "Hello there friend.")),
+      applyStatsDelta: (_b, _d, delta) => {
+        deltas.push(delta as StatsDelta);
+      },
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    await startChat({ principal: principal(host), characterIds: [aria] });
+
+    expect(deltas).toHaveLength(2);
+    const created = deltas.find((d) => d.chats === 1);
+    expect(created?.chatsCreated).toBe(1);
+    expect(created?.characterId).toBe(aria);
+    const greeting = deltas.find((d) => d.assistantTurns === 1);
+    expect(greeting?.characterId).toBe(aria);
+    expect(greeting?.assistantWords).toBe(3);
+    expect(new Set(deltas.map((d) => d.ownerId))).toEqual(new Set([host]));
+  });
+});
 
 describe("startChat — lazy room creation + opening", () => {
   test("first-message (solo): seeds the primary greeting VERBATIM; caller is host; D28 live roster", async () => {

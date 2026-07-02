@@ -5,6 +5,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
@@ -247,6 +248,68 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
+  });
+});
+
+describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () => {
+  test("deleteMessages pushes the exact NEGATIVE contribution of each slot + swipe into its batch", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const a = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+      content: "three words here",
+    });
+    await addVariant(db, a.messageId, 1, "a swipe take");
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      applyStatsDelta: (_batch, _db, delta) => {
+        deltas.push(delta as StatsDelta);
+      },
+    });
+    const edit = createEdit(ctx, { emit });
+
+    await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [a.messageId] });
+
+    // One canon (selected-variant) delta + one swipe delta, both signed −1, attributed to the HOST.
+    expect(deltas).toHaveLength(2);
+    const canon = deltas.find((d) => d.assistantTurns !== undefined && d.assistantTurns !== 0);
+    const swipe = deltas.find((d) => d.swipes !== undefined && d.swipes !== 0);
+    expect(canon?.ownerId).toBe(host);
+    expect(canon?.characterId).toBe(charA);
+    expect(canon?.assistantTurns).toBe(-1);
+    expect(canon?.assistantWords).toBe(-3);
+    expect(canon?.contentBytes).toBe(-"three words here".length);
+    expect(swipe?.swipes).toBe(-1);
+    expect(swipe?.swipeWords).toBe(-3);
+  });
+
+  test("editMessage pushes the NET word/byte diff bucketed on the slot's original day", async () => {
+    const { member, chatId } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "user",
+      authorUserId: member,
+      content: "one two",
+    });
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      applyStatsDelta: (_batch, _db, delta) => {
+        deltas.push(delta as StatsDelta);
+      },
+    });
+    const edit = createEdit(ctx, { emit });
+
+    await edit.editMessage({
+      principal: principal(member),
+      chatId,
+      messageId,
+      content: "one two three four",
+    });
+
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]?.userWords).toBe(2); // 4 − 2
+    expect(deltas[0]?.assistantWords).toBe(0);
+    expect(deltas[0]?.contentBytes).toBe("one two three four".length - "one two".length);
+    expect(deltas[0]?.characterId).toBeNull(); // per-char grain is assistant-only
   });
 });
 
