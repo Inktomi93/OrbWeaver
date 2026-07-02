@@ -63,6 +63,17 @@ export const PARTICIPANT_KINDS = ["human", "character", "agent", "observer"] as 
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 
+// ── The AI-driven kind-set (D60; agent-principal-design/02 §1.1) ──────────────────────────────────────────
+// `kind` carries TWO facts the old XOR welded together: the identity table (userId vs characterId) AND who
+// DRIVES the seat. `AI_DRIVEN_KINDS` splits out the DRIVE axis — the seats the engine schedules/voices
+// (arbitration ranks them; a turn is generated for them). An agent is AI-driven AND userId-backed — the exact
+// combination the XOR could not represent. The `satisfies readonly ParticipantKind[]` makes a 5th kind fail
+// `tsc` here until it declares its axis. (`USER_BACKED_KINDS` lands at AP2-2 with the present-predicate that
+// reads it — the human/agent shared column shape; deferred here per no-dead-code until that consumer exists.)
+export const AI_DRIVEN_KINDS = ["character", "agent"] as const satisfies readonly ParticipantKind[];
+export const isAiDriven = (k: ParticipantKind): boolean =>
+  (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
+
 // ── The chat-message role wire schema (D32 — THE canonical home) ──────────────
 // `z.enum(MESSAGE_ROLES)`: the tuple is `@orb/kit/message-role` (a pure isomorphic atom kit resolvers +
 // the ST bimap need); the WIRE schema is HERE (the §5 tuple-in-kit rule). Every role field across this node

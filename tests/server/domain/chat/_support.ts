@@ -57,6 +57,24 @@ export async function seedUser(db: Db, handle: string): Promise<UserId> {
   return id;
 }
 
+/** Insert an AGENT-principal `users` row (D60 — `kind:'agent'`, owned, loginless). Satisfies the
+ *  `users_agent_shape` CHECK (role='user', no password/externalId, owner set). Normally minted by
+ *  `sessions.provisionAgentPrincipal` (AP1); here a direct seed for the roster/attribution tests (AP2). */
+export async function seedAgent(db: Db, ownerId: UserId, handle: string): Promise<UserId> {
+  const id = castId<UserId>(`user_${handle}`);
+  await db.insert(users).values({
+    id,
+    handle: castId<Handle>(handle),
+    role: "user",
+    kind: "agent",
+    ownerUserId: ownerId,
+    enabled: true,
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return id;
+}
+
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
 export async function seedCharacter(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);

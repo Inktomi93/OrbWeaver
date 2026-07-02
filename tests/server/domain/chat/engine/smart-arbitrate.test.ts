@@ -6,17 +6,21 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type {
+  ArbiterCandidate,
+  SpeakerRef,
+} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate";
 import { expect, test } from "../../../../support/fixtures";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
+const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });
 const rng = (): number => 0.5;
 
 function candidate(k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCandidate {
   return {
-    characterId: cid(k),
+    ref: charRef(k),
     talkativeness: over.talkativeness ?? 0.5,
     disabled: over.disabled ?? false,
     leftSeq: over.leftSeq ?? null,
@@ -35,9 +39,9 @@ function summarizeReturning(text: string): SummarizeOp {
 }
 
 const CAST = [
-  { characterId: cid("aria"), name: "Aria" },
-  { characterId: cid("bran"), name: "Bran" },
-  { characterId: cid("cara"), name: "Cara" },
+  { ref: charRef("aria"), name: "Aria" },
+  { ref: charRef("bran"), name: "Bran" },
+  { ref: charRef("cara"), name: "Cara" },
 ];
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
 
@@ -49,10 +53,10 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       candidates: CANDIDATES,
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([cid("bran")]);
+    expect(out).toEqual([charRef("bran")]);
     expect(summarize).toHaveBeenCalledTimes(1);
   });
 
@@ -62,10 +66,10 @@ describe("smartArbitrate — the validated side-LLM pick", () => {
       candidates: CANDIDATES,
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([cid("cara")]);
+    expect(out).toEqual([charRef("cara")]);
   });
 });
 
@@ -76,11 +80,11 @@ describe("smartArbitrate — the deterministic fallback", () => {
       candidates: CANDIDATES,
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
     expect(out).toHaveLength(1);
-    expect([cid("aria"), cid("bran"), cid("cara")]).toContainEqual(out[0]);
+    expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out[0]);
   });
 
   test("an op throw degrades to the fallback, never throws", async () => {
@@ -90,7 +94,7 @@ describe("smartArbitrate — the deterministic fallback", () => {
       candidates: CANDIDATES,
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
     expect(out).toHaveLength(1);
@@ -102,10 +106,10 @@ describe("smartArbitrate — the deterministic fallback", () => {
       candidates: CANDIDATES,
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: cid("aria"),
+      lastSpeaker: charRef("aria"),
       rng,
     });
-    expect(out[0]).not.toBe(cid("aria"));
+    expect(out[0]).not.toEqual(charRef("aria"));
   });
 });
 
@@ -121,10 +125,10 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       ],
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
-    expect(out).toEqual([cid("aria")]);
+    expect(out).toEqual([charRef("aria")]);
     expect(summarize).not.toHaveBeenCalled();
   });
 
@@ -135,7 +139,7 @@ describe("smartArbitrate — short-circuits (no LLM call)", () => {
       candidates: [candidate("aria", { disabled: true })],
       castNames: CAST,
       recentHistory: "...",
-      lastSpeakerId: null,
+      lastSpeaker: null,
       rng,
     });
     expect(out).toEqual([]);

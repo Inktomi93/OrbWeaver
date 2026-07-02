@@ -40,12 +40,18 @@
 //                          reads ITSELF via `ChatContext`; the verb fills cast/persona-ids/pending text.
 
 import type { ChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, isAiDriven } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ActiveTurns } from "../contract/active-turns";
-import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
+import type {
+  ArbiterCandidate,
+  AutoModeResult,
+  CastName,
+  SpeakerRef,
+} from "../contract/arbitration";
+import { speakerKey } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
@@ -159,7 +165,11 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
-  const charRows = roster.flatMap((r) =>
+  // Arbiter candidates = the present AI-driven seats (doc 02 §1.1 — `isAiDriven`). v1 seats only characters;
+  // agent seats (also AI-driven, userId-backed) join at AP3 when `resolveAgentSpeaker` (doc 04 §5) can name
+  // them — the ref plumbing (D60) is already agent-ready here, so this stays byte-identical until then.
+  const aiRows = roster.filter((r) => isAiDriven(r.kind));
+  const charRows = aiRows.flatMap((r) =>
     r.kind === "character" && r.characterId !== null ? [{ ...r, characterId: r.characterId }] : [],
   );
   const cards = await Promise.all(
@@ -168,17 +178,27 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   return {
     hostUserId,
     candidates: charRows.map((r) => ({
-      characterId: r.characterId,
+      ref: { kind: "character", characterId: r.characterId },
       talkativeness: r.talkativeness,
       disabled: r.disabled,
       leftSeq: r.leftSeq,
     })),
-    castNames: charRows.map((r, i) => ({ characterId: r.characterId, name: cards[i]?.name ?? "" })),
+    castNames: charRows.map((r, i) => ({
+      ref: { kind: "character", characterId: r.characterId },
+      name: cards[i]?.name ?? "",
+    })),
     castCharacterIds: charRows.map((r) => r.characterId),
     personaIds: roster.flatMap((r) =>
       r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : [],
     ),
   };
+}
+
+/** The primary character id (the roster's first cast seat) — the solo/single-speaker default speaker. Null when
+ *  the first seat is not a character (v1 cast lists are character-only, so this is null only for an empty cast). */
+function primaryCharacterId(room: Room): CharacterId | null {
+  const first = room.castNames[0]?.ref;
+  return first !== undefined && first.kind === "character" ? first.characterId : null;
 }
 
 /** The joined present-cast name (narrator `{{char}}`-as-cast — collapses to the single name at cast=1). */
@@ -189,19 +209,36 @@ function joinedCastName(castNames: readonly CastName[]): string {
     .join(", ");
 }
 
-/** The last-assistant speaker (ban-last seed) + a recent transcript (the `smart` arbiter reads it). */
+/** The last-assistant speaker (ban-last seed) + a recent transcript (the `smart` arbiter reads it). The seed is
+ *  a speaker ref: a character turn keys on its `characterId`, an agent turn on its `authorUserId` (doc 02 §2). */
 async function canonFacts(
   ctx: ChatContext,
   chatId: ChatId,
-): Promise<{ lastSpeakerId: CharacterId | null; recentHistory: string }> {
+): Promise<{ lastSpeaker: SpeakerRef | null; recentHistory: string }> {
   const canon = await loadCanonHistory(ctx.db, chatId);
   return {
-    lastSpeakerId: canon.findLast((m) => m.role === "assistant")?.characterId ?? null,
+    lastSpeaker: lastSpeakerRef(canon.findLast((m) => m.role === "assistant")),
     recentHistory: canon
       .slice(-RECENT_TRANSCRIPT)
       .map((m) => m.content)
       .join("\n"),
   };
+}
+
+/** The ban-last speaker ref for the last assistant row: its `characterId` (a character/narrator turn) or its
+ *  `authorUserId` (an agent's self-attributed turn — doc 02 §2); null when there is no prior assistant turn. */
+function lastSpeakerRef(
+  row:
+    | { readonly characterId: CharacterId | null; readonly authorUserId: UserId | null }
+    | undefined,
+): SpeakerRef | null {
+  if (row === undefined) {
+    return null;
+  }
+  if (row.characterId !== null) {
+    return { kind: "character", characterId: row.characterId };
+  }
+  return row.authorUserId !== null ? { kind: "agent", userId: row.authorUserId } : null;
 }
 
 /** Build the ONE immutable assemble ctx for the round: resolve the FOREIGN half (preset/persona/settings) from
@@ -301,35 +338,35 @@ async function arbitrate(
     readonly candidates: readonly ArbiterCandidate[];
     readonly castNames: readonly CastName[];
     readonly forcedIds?: readonly CharacterId[] | undefined;
-    readonly lastSpeakerId: CharacterId | null;
+    readonly lastSpeaker: SpeakerRef | null;
     readonly recentHistory: string;
     readonly maxSpeakers?: number | undefined;
   },
 ): Promise<CastName[]> {
   const forced = args.forcedIds ?? [];
-  let ids: readonly CharacterId[];
+  let refs: readonly SpeakerRef[];
   if (args.group.policy === "smart" && forced.length === 0) {
-    ids = await smartArbitrateVia({
+    refs = await smartArbitrateVia({
       summarize: ctx.summarize,
       candidates: args.candidates,
       castNames: args.castNames,
       recentHistory: args.recentHistory,
-      lastSpeakerId: args.lastSpeakerId,
+      lastSpeaker: args.lastSpeaker,
       rng: deps.prng,
     });
   } else {
-    ids = selectSpeakersVia({
+    refs = selectSpeakersVia({
       candidates: args.candidates,
       policy: args.group.policy,
-      lastSpeakerId: args.lastSpeakerId,
+      lastSpeaker: args.lastSpeaker,
       forcedIds: forced,
       rng: deps.prng,
       maxSpeakers: args.maxSpeakers,
     });
   }
-  const byId = new Map(args.castNames.map((c) => [c.characterId, c] as const));
-  return ids.flatMap((id) => {
-    const c = byId.get(id);
+  const byKey = new Map(args.castNames.map((c) => [speakerKey(c.ref), c] as const));
+  return refs.flatMap((ref) => {
+    const c = byKey.get(speakerKey(ref));
     return c !== undefined ? [c] : [];
   });
 }
@@ -369,7 +406,7 @@ async function runChain(
     readonly groupCharacterId: CharacterId | null;
     readonly castName: string;
     readonly signal: AbortSignal;
-    readonly initialLastSpeakerId: CharacterId | null;
+    readonly initialLastSpeaker: SpeakerRef | null;
   },
 ): Promise<AutoModeResult> {
   return await runAutoModeVia({
@@ -377,14 +414,14 @@ async function runChain(
     delayMs: args.group.autoModeDelayMs,
     delay: deps.delay,
     signal: args.signal,
-    initialLastSpeakerId: args.initialLastSpeakerId,
+    initialLastSpeaker: args.initialLastSpeaker,
     nextSpeaker: async (last) => {
       const facts = await canonFacts(ctx, args.base.chatId);
       const speakers = await arbitrate(ctx, deps, {
         group: args.group,
         candidates: args.room.candidates,
         castNames: args.room.castNames,
-        lastSpeakerId: args.group.allowSelfResponses ? null : last,
+        lastSpeaker: args.group.allowSelfResponses ? null : last,
         recentHistory: facts.recentHistory,
         maxSpeakers: 1,
       });
@@ -464,7 +501,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       castNames: room.castNames,
       // Only HUMAN trigger text drives @mention (§12 inv 6) — `content` is the human post.
       forcedIds: resolveMentionsVia(content, room.castNames),
-      lastSpeakerId: facts.lastSpeakerId,
+      lastSpeaker: facts.lastSpeaker,
       recentHistory: facts.recentHistory,
     });
 
@@ -506,8 +543,9 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
           groupCharacterId,
           castName,
           signal: handle.signal,
-          initialLastSpeakerId:
-            round.messages.findLast((m) => m.role === "assistant")?.characterId ?? null,
+          initialLastSpeaker: lastSpeakerRef(
+            round.messages.findLast((m) => m.role === "assistant"),
+          ),
         });
         committed.push(...auto.messages);
       }
@@ -571,7 +609,7 @@ function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simple
         runAsUserId: identity.runAsUserId,
         kind: "simple-send",
         intent: intent ?? {},
-        speakerCharacterId: room.castNames[0]?.characterId ?? null,
+        speakerCharacterId: primaryCharacterId(room),
         signal: handle.signal,
       });
       return {
@@ -605,9 +643,15 @@ function createForceCharacterTurn(
       principalUserId: principal.userId,
       hostUserId: room.hostUserId,
     });
-    const target = room.castNames.find((c) => c.characterId === characterId);
+    const target = room.castNames.find(
+      (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
+    );
     const eligible = room.candidates.some(
-      (c) => c.characterId === characterId && c.leftSeq === null && !c.disabled,
+      (c) =>
+        c.ref.kind === "character" &&
+        c.ref.characterId === characterId &&
+        c.leftSeq === null &&
+        !c.disabled,
     );
     if (target === undefined || !eligible) {
       throw new ChatNotFoundError(chatId);
@@ -736,7 +780,9 @@ async function runRegistered(
  *  slot's speaker — D26 slot attribution unchanged). Returns undefined (⇒ the ctx primary) when the name can't
  *  be resolved (a deleted character — the stamp falls back, never stamps an empty label). */
 function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep["shape"] {
-  const name = room.castNames.find((c) => c.characterId === characterId)?.name;
+  const name = room.castNames.find(
+    (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
+  )?.name;
   if (name === undefined || name.length === 0) {
     return;
   }
@@ -880,7 +926,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       anchorPersonaId: membership.chat.anchorPersonaId,
       guided,
     });
-    const speaker = speakerCharacterId ?? room.castNames[0]?.characterId ?? null;
+    const speaker = speakerCharacterId ?? primaryCharacterId(room);
     const shape = speakerShapeFor(room, speaker);
     return await runRegistered(deps, chatId, identity.triggeredBy, {
       chatId,
