@@ -16,10 +16,8 @@ import { serve } from "@hono/node-server";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
-import { users } from "@orb/db/schema";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
 import { createOidcStore, createSessionsService } from "#domain/sessions";
@@ -32,7 +30,6 @@ import {
 } from "#domain/workloads";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import { createPasswordHasher, DUMMY_PASSWORD_HASH } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
@@ -236,32 +233,13 @@ export function createLifecycle(): Lifecycle {
       );
     });
 
-    // 10. The auth modes (PD-5). Local mode mints the password hasher; OIDC mode mints the discovery fetcher.
+    // 10. The auth modes. Local mode wires the sessions `authenticate` verb (PD-83 — the resolution
+    // moved into `domain/sessions`; the entry no longer reads `users`/runs the KDF itself); OIDC mode
+    // mints the discovery fetcher.
     let authenticate: LocalAuthenticator | undefined;
     if (env.AUTH_MODE === "local") {
-      const hasher = createPasswordHasher(env.SESSION_SECRET);
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: auth
-      authenticate = async (handle: string, password: string): Promise<UserId | null> => {
-        if (db === null) {
-          return null;
-        }
-        const rows = await db
-          .select({ id: users.id, passwordHash: users.passwordHash })
-          .from(users)
-          .where(eq(users.handle, castId<Handle>(handle)))
-          .limit(1);
-        if (rows.length === 0) {
-          // Burn KDF time against the dummy hash to prevent user-enumeration timing leaks.
-          await hasher.verify(password, DUMMY_PASSWORD_HASH);
-          return null;
-        }
-        const user = rows[0];
-        if (user === undefined) {
-          return null;
-        }
-        const ok = await hasher.verify(password, user.passwordHash ?? DUMMY_PASSWORD_HASH);
-        return ok ? user.id : null;
-      };
+      authenticate = (handle: string, password: string): Promise<UserId | null> =>
+        built.sessions.authenticate(handle, password);
     }
 
     let oidc: OidcRoutesDeps | undefined;

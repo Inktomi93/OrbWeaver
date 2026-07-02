@@ -11,11 +11,10 @@
 // from the session expiry minus the INJECTED `now` (determinism — no ambient clock).
 //
 // LOCAL login (`AUTH_MODE=local`): password-form → verify → `sessions.create` → set cookie.
-//   DEFER(promotion) FLAG[PD-83]: the password VERIFY step (handle+password → userId) is an injected `authenticate`
-//   port. No domain verb resolves a local password today (sessions exposes create/validate/provision but
-//   no `authenticate(handle,password)`; admin owns the hash MINT side only). The route logic + cookie I/O
-//   are complete; the composition root cannot supply `authenticate` until a `domain/sessions` password-
-//   resolution verb lands, so the login route is registered ONLY when the op is provided (inert otherwise).
+//   The password VERIFY step is the injected `authenticate` port, supplied from the `domain/sessions`
+//   `authenticate(handle, password)` verb (PD-83 resolved — the dummy-hash constant-time floor + the
+//   disabled gate live in the verb; admin keeps the hash MINT side). The login route is registered ONLY
+//   when the op is provided (non-local modes leave it inert — fail-closed).
 //
 // OIDC login (`AUTH_MODE=oidc`): the `openid-client` v6 client flow — discovery (cached) → PKCE +
 //   state + nonce → buildAuthorizationUrl (redirect) → callback: consume the PKCE txn →
@@ -110,8 +109,8 @@ export interface AuthSessionsPort {
   ) => Promise<{ readonly userId: UserId; readonly enabled: boolean; readonly role: UserRole }>;
 }
 
-/** Local password verification (handle + password → the resolved userId, or `null`). DEFER(promotion) FLAG[PD-83]:
- *  no `domain/sessions` verb provides this yet — see the file header. */
+/** Local password verification (handle + password → the resolved userId, or `null`) — supplied from
+ *  `sessions.authenticate` (PD-83) by the composition root in local mode. */
 export interface LocalAuthenticator {
   // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
   (handle: string, password: string): Promise<UserId | null>;

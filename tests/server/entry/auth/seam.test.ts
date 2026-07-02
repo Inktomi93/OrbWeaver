@@ -45,6 +45,7 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     provisionIdentity: unused("provisionIdentity") as SessionsService["provisionIdentity"],
     // biome-ignore lint/security/noSecrets: a verb name literal, not a secret (high-entropy false positive).
     loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
+    authenticate: unused("authenticate") as SessionsService["authenticate"],
     ...overrides,
   };
 }
