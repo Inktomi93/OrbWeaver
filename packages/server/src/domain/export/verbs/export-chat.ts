@@ -38,10 +38,69 @@ function toExportVariant(v: VariantRow): ExportVariant {
   };
 }
 
+type MessageRow = typeof messages.$inferSelect;
+
+/** The per-chat speaker-name maps (D18/Part III — a room has MANY characters + personas): characterId → card
+ *  name (every voicing character), personaId → persona name (every human author). Built ONCE from the canon's
+ *  distinct ids so each turn resolves to its OWN speaker, not the header primary. */
+async function loadSpeakerNames(
+  ctx: ExportContext,
+  slots: readonly MessageRow[],
+): Promise<{ char: Map<string, string>; persona: Map<string, string> }> {
+  const charIds = [
+    ...new Set(slots.flatMap((m) => (m.characterId !== null ? [m.characterId] : []))),
+  ];
+  const personaIds = [
+    ...new Set(slots.flatMap((m) => (m.personaId !== null ? [m.personaId] : []))),
+  ];
+  const charRows =
+    charIds.length === 0
+      ? []
+      : await ctx.db
+          .select({ id: characters.id, name: characters.name })
+          .from(characters)
+          .where(inArray(characters.id, charIds));
+  const personaRows =
+    personaIds.length === 0
+      ? []
+      : await ctx.db
+          .select({ id: personas.id, name: personas.name })
+          .from(personas)
+          .where(inArray(personas.id, personaIds));
+  return {
+    char: new Map(charRows.map((c) => [c.id, c.name])),
+    persona: new Map(personaRows.map((p) => [p.id, p.name])),
+  };
+}
+
+/** Resolve THIS turn's speaker display name (Part III — the per-message speaker, never the header primary):
+ *  a human turn is its authoring persona; an assistant turn is its voicing character. FLAG[PD-17]: an
+ *  agent-authored assistant row (`characterId` NULL, `authorUserId` set — AP3) has no name source here yet
+ *  (its soul name needs `resolveAgentSpeaker`, doc 04 §5) → it degrades to the header character name; the
+ *  `agent_author` provenance (doc 06 §6) lands with the seat wave. */
+function resolveSpeakerName(
+  m: MessageRow,
+  names: { char: Map<string, string>; persona: Map<string, string> },
+  fallback: { characterName: string; userName: string | null },
+): string {
+  if (m.role === "user") {
+    const persona = m.personaId !== null ? names.persona.get(m.personaId) : undefined;
+    return persona ?? fallback.userName ?? "User";
+  }
+  if (m.characterId !== null) {
+    return names.char.get(m.characterId) ?? fallback.characterName;
+  }
+  return fallback.characterName;
+}
+
 /** Load the canon (slots ⋈ their variant sets, seq order) → the builder inputs. The SELECTED variant is the
  *  message's primary contribution (D26); a slot whose pointer is null degrades to variant 0 (the insert-time
- *  window) — never a throw. */
-async function loadExportMessages(ctx: ExportContext, chatId: ChatId): Promise<ExportMessage[]> {
+ *  window) — never a throw. Each row carries its OWN resolved speaker name (Part III group fidelity). */
+async function loadExportMessages(
+  ctx: ExportContext,
+  chatId: ChatId,
+  fallback: { characterName: string; userName: string | null },
+): Promise<ExportMessage[]> {
   const slots = await ctx.db
     .select()
     .from(messages)
@@ -65,11 +124,13 @@ async function loadExportMessages(ctx: ExportContext, chatId: ChatId): Promise<E
     list.push(v);
     byMessage.set(v.messageId, list);
   }
+  const names = await loadSpeakerNames(ctx, slots);
   return slots.map((m) => {
     const variants = (byMessage.get(m.id) ?? []).sort((a, b) => a.idx - b.idx);
     const selected = variants.find((v) => v.id === m.selectedVariantId) ?? variants[0];
     return {
       role: m.role,
+      speakerName: resolveSpeakerName(m, names, fallback),
       content: selected?.content ?? "",
       sendDate: m.createdAt,
       model: selected?.model ?? null,
@@ -153,7 +214,7 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
     // The ST author's note (`note_prompt`) — orbweaver's home is the room-override blob.
     const rawNote = chat.metadata?.roomOverrides?.authorsNote;
     const notePrompt = typeof rawNote === "string" ? rawNote : null;
-    const exportMessages = await loadExportMessages(ctx, chatId);
+    const exportMessages = await loadExportMessages(ctx, chatId, { characterName, userName });
 
     const meta = { characterName, userName, createDate: chat.createdAt, parentRef, notePrompt };
     const base = `${slug(characterName)}-${slug(chat.title ?? "chat")}`;
