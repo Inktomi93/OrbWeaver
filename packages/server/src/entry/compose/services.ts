@@ -522,6 +522,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     assets,
     embeddings,
+    // PD-66: sessions' exact handle→userId resolver for targeted invites.
+    resolveHandle: (handle) => sessions.resolveHandle(handle),
     runChatTurn: executor.runChatTurn,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;

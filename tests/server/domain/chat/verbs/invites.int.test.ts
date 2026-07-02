@@ -130,19 +130,42 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
-  test("a targeted-by-handle invite is rejected (resolver not wired)", async () => {
+  test("a targeted-by-handle invite resolves the target and stores invitedUserId (PD-66)", async () => {
+    const host = await seedUser(db, "host");
+    const bob = await seedUser(db, "bob");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const invites = createInvites(
+      makeChatContext(db, { resolveHandle: (h) => Promise.resolve(h === "bob" ? bob : null) }),
+      makeDeps(),
+    );
+
+    const { invite } = await invites.createInvite({
+      principal: principal(host),
+      chatId,
+      input: { invitedHandle: castId<Handle>("bob") },
+    });
+    expect(invite.invitedUserId).toBe(bob);
+  });
+
+  test("an unknown/disabled target handle is a coded invite_target_unknown refusal (PD-66)", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const invites = createInvites(makeChatContext(db), makeDeps());
+    const invites = createInvites(
+      makeChatContext(db, { resolveHandle: () => Promise.resolve(null) }),
+      makeDeps(),
+    );
 
-    await expect(
-      invites.createInvite({
+    const err = await invites
+      .createInvite({
         principal: principal(host),
         chatId,
-        input: { invitedHandle: castId<Handle>("bob") },
-      }),
-    ).rejects.toBeInstanceOf(DomainOperationError);
+        input: { invitedHandle: castId<Handle>("ghost") },
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DomainOperationError);
+    expect((err as DomainOperationError).code).toBe("invite_target_unknown");
   });
 });
 
