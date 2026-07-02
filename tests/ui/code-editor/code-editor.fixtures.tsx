@@ -1,5 +1,6 @@
 // CT fixtures for the CodeEditor seal. Playwright CT serializes mount props, so the controlled
 // state loop (value ↔ onChange) lives HERE; the tests pass only strings.
+import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { CodeEditor } from "@orb/ui/code-editor";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -26,5 +27,44 @@ interface ReadOnlyEditorProps {
 export function ReadOnlyEditor({ value }: ReadOnlyEditorProps): ReactElement {
   return (
     <CodeEditor lang="css" value={value} readOnly={true} ariaLabel="fixture readonly editor" />
+  );
+}
+
+interface DiagnosticsEditorProps {
+  readonly initialValue: string;
+  readonly initialDiagnostics: readonly CodeEditorDiagnostic[];
+  /** A distinct (freshly-derived) diagnostics array swapped in on the "update diagnostics" click —
+   * the real consumer shape (ui-primitive-contract §R7): the parent re-renders with a new array. */
+  readonly nextDiagnostics: readonly CodeEditorDiagnostic[];
+}
+
+/**
+ * Controlled editor with controlled diagnostics, so a test can trigger a diagnostics-only prop
+ * change (the button) independently of typing (the editor content) — proving the re-render
+ * never remounts the view (§ correctness contract: no cursor jump).
+ */
+export function DiagnosticsEditor({
+  initialValue,
+  initialDiagnostics,
+  nextDiagnostics,
+}: DiagnosticsEditorProps): ReactElement {
+  const [value, setValue] = useState(initialValue);
+  const [diagnostics, setDiagnostics] =
+    useState<readonly CodeEditorDiagnostic[]>(initialDiagnostics);
+  const handleUpdateDiagnostics = (): void => setDiagnostics(nextDiagnostics);
+  return (
+    <div>
+      <CodeEditor
+        lang="css"
+        value={value}
+        onChange={setValue}
+        ariaLabel="fixture diagnostics editor"
+        diagnostics={diagnostics}
+      />
+      <output>{value}</output>
+      <button type="button" onClick={handleUpdateDiagnostics}>
+        Update diagnostics
+      </button>
+    </div>
   );
 }

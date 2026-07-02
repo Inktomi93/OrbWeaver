@@ -41,6 +41,13 @@ export interface VirtualListProps<T> {
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: VirtualListGapToken;
   readonly renderItem: (item: T, index: number) => ReactNode;
+  /**
+   * When provided, scrolls to this item index (end-aligned) any time the VALUE changes — the
+   * declarative "pin to bottom on append" seam (log-viewer's autoscroll composes this instead of
+   * reaching for the virtualizer directly). Respects `prefers-reduced-motion` itself, so every
+   * composer gets it free rather than each caller re-deriving the check.
+   */
+  readonly scrollToIndex?: number;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
   readonly className?: string;
 }
@@ -74,6 +81,7 @@ export function VirtualList<T>({
   overscan = DEFAULT_OVERSCAN,
   gapToken,
   renderItem,
+  scrollToIndex,
   className,
 }: VirtualListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -120,6 +128,22 @@ export function VirtualList<T>({
       );
     }
   }, []);
+
+  // The declarative "scroll to index" seam — fires only when the VALUE changes (an append that
+  // grows total item count), not on every render. `align: "end"` is the "pin to bottom" shape;
+  // reduced-motion is checked here (not left to the caller) so every composer gets it free.
+  // `virtualizer` (== the `useState`-held instance above) is referentially stable across renders,
+  // so listing it/its methods as a dependency does not cause extra re-fires.
+  useLayoutEffect(() => {
+    if (scrollToIndex === undefined) {
+      return;
+    }
+    const reducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    virtualizer.scrollToIndex(scrollToIndex, {
+      align: "end",
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }, [scrollToIndex, virtualizer, virtualizer.scrollToIndex]);
 
   return (
     <div ref={scrollRef} className={cn("overflow-auto overscroll-contain", className)}>

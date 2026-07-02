@@ -140,6 +140,17 @@
               {
                 "group": ["@base-ui-components/react", "@base-ui-components/react/**"],
                 "message": "Dead rc-era package. Use @base-ui/react (D42)."
+              },
+              {
+                "group": [
+                  "@dnd-kit/core",
+                  "@dnd-kit/core/**",
+                  "@dnd-kit/sortable",
+                  "@dnd-kit/sortable/**",
+                  "@dnd-kit/utilities",
+                  "@dnd-kit/utilities/**"
+                ],
+                "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design §3, work-order item 15)."
               }
             ]
           }

@@ -4,6 +4,7 @@ import { cn } from "#lib";
 import { Button } from "#primitives/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/CircleAlert/Copy/Icon/Info fine (the spinner.tsx precedent).
 import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
+import { VirtualList } from "#primitives/virtual-list";
 import { logViewerVariants } from "./variants";
 
 // Levels declared ONCE as an `as const` tuple, union derived (§7.5 no-inline-union-redecl); both
@@ -39,6 +40,42 @@ function levelOf(line: LogLine): LogLevel | undefined {
   return typeof line === "string" ? undefined : line.level;
 }
 
+// Above this many visible lines, the line region composes the `virtual-list` seal instead of
+// mapping every line to a plain `<div>` (item 12's "virtualize when long"). Picked comfortably
+// below the cited plugin ring buffer (256 lines, plugin-design/03 §3) so that consumer's
+// near-full buffer windows, while a typical short log (a boot sequence, a handful of job lines)
+// stays on the plain path and isn't forced into VirtualList's bounded-height discipline (D43
+// §11.3) just to render a dozen `<div>`s.
+const VIRTUALIZE_THRESHOLD = 200;
+
+// Initial per-row size guess (px) for the virtualizer — rows re-measure themselves after mount
+// (virtual-list's `measureElement` wiring), so this only needs to be roughly right for a
+// single-wrap monospace line at the `text-code` scale.
+const ESTIMATED_LINE_HEIGHT_PX = 24;
+
+interface LogLineRowProps {
+  readonly line: LogLine;
+  readonly slots: ReturnType<typeof logViewerVariants>;
+}
+
+/** One rendered line — shared by the plain and virtualized paths so the markup lives once. */
+function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
+  const level = levelOf(line);
+  return (
+    <div data-log-line="" data-level={level} className={slots.line({ level })}>
+      {level === undefined ? null : (
+        <Icon
+          icon={LEVEL_GLYPH[level]}
+          size="sm"
+          label={LEVEL_LABEL[level]}
+          className={slots.glyph()}
+        />
+      )}
+      <span>{textOf(line)}</span>
+    </div>
+  );
+}
+
 export interface LogViewerProps {
   readonly lines: readonly LogLine[];
   /** Cap the rendered window to the most recent N lines — a display cap; the caller owns the full log. */
@@ -53,7 +90,15 @@ export interface LogViewerProps {
  * alone).
  *
  * The scrollable line region carries `role="log"` + `aria-live="polite"` — the streaming-log
- * accessibility contract (assistive tech announces new lines as they arrive).
+ * accessibility contract (assistive tech announces new lines as they arrive). That role/live-region
+ * pair lives on a STABLE wrapper in both paths below — never on the windowed rows themselves — so
+ * announcements keep working once the panel is virtualized (§ below).
+ *
+ * At/above `VIRTUALIZE_THRESHOLD` visible lines, the line region composes the `virtual-list` seal
+ * instead of mapping every line to a `<div>`. That path inherits virtual-list's own bounded-height
+ * requirement (D43 §11.3 — give the panel a real height via `className`, e.g. `h-64`, or it
+ * throws); below the threshold, lines render plainly and no bounded height is required, matching
+ * today's behavior for the common short-log case.
  *
  * Usage: `<LogViewer lines={logLines} maxLines={256} className="h-64" />`
  */
@@ -61,18 +106,30 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const visible = maxLines === undefined ? lines : lines.slice(-maxLines);
   const slots = logViewerVariants();
+  const shouldVirtualize = visible.length >= VIRTUALIZE_THRESHOLD;
+  // Stable per-line identity across a sliding `maxLines` window: `lines.slice(-maxLines)`
+  // recomputes the visible slice fresh every render, so a plain visible-index key would
+  // misattribute a row's identity to the WRONG line whenever the window slides off older lines —
+  // exactly the "index keys break prepend stability" case virtual-list's own `getItemKey` docs
+  // warn about. Offsetting by how far the window has slid gives each line a key that's stable for
+  // its whole life; with no `maxLines` (or before the buffer fills), offset is 0 and this degrades
+  // to the plain append-only index.
+  const keyOffset = lines.length - visible.length;
+
   // The "did the rendered content actually change" guard — content, not just re-render, drives
   // the scroll (a signature over length + last line beats deep-comparing the whole array).
   const lastLine = visible.at(-1);
   const contentSignature = `${visible.length}:${lastLine === undefined ? "" : textOf(lastLine)}`;
   const previousSignatureRef = useRef<string | null>(null);
 
-  // Pinned-to-bottom autoscroll: every append re-scrolls the line region to its new bottom.
-  // No dependency array (runs every commit) + an internal signature guard, since the effect body
-  // itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps would flag
-  // them as unused deps otherwise). `behavior` passed explicitly to `scrollTo` overrides the
-  // global reduced-motion CSS floor (styles/globals.css forces `scroll-behavior: auto` only for
-  // CSS-triggered scrolls), so the reduced-motion check happens here via `matchMedia` directly.
+  // Pinned-to-bottom autoscroll for the PLAIN path: every append re-scrolls the line region to its
+  // new bottom. No dependency array (runs every commit) + an internal signature guard, since the
+  // effect body itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps
+  // would flag them as unused deps otherwise). `behavior` passed explicitly to `scrollTo` overrides
+  // the global reduced-motion CSS floor (styles/globals.css forces `scroll-behavior: auto` only
+  // for CSS-triggered scrolls), so the reduced-motion check happens here via `matchMedia` directly.
+  // When virtualized, `scrollRef` is never attached to the DOM (below) so this is inert — VirtualList's
+  // own `scrollToIndex` prop drives the equivalent pin-to-bottom behavior instead.
   useLayoutEffect(() => {
     if (previousSignatureRef.current === contentSignature) {
       return;
@@ -97,29 +154,27 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
           <Icon icon={Copy} size="sm" label="Copy log" />
         </Button>
       </div>
-      <div ref={scrollRef} role="log" aria-live="polite" className={slots.scroll()}>
-        {visible.map((line, index) => {
-          const level = levelOf(line);
-          return (
-            <div
-              // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log tail (lines are never reordered/removed from the middle) — position is a stable identity.
-              key={index}
-              data-log-line=""
-              data-level={level}
-              className={slots.line({ level })}
-            >
-              {level === undefined ? null : (
-                <Icon
-                  icon={LEVEL_GLYPH[level]}
-                  size="sm"
-                  label={LEVEL_LABEL[level]}
-                  className={slots.glyph()}
-                />
-              )}
-              <span>{textOf(line)}</span>
-            </div>
-          );
-        })}
+      <div
+        ref={shouldVirtualize ? undefined : scrollRef}
+        role="log"
+        aria-live="polite"
+        className={slots.scroll()}
+      >
+        {shouldVirtualize ? (
+          <VirtualList
+            items={visible}
+            getItemKey={(_line, index): number => keyOffset + index}
+            estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
+            renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
+            scrollToIndex={visible.length - 1}
+            className="h-full"
+          />
+        ) : (
+          visible.map((line, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: an append-only log tail (lines are never reordered/removed from the middle) — position is a stable identity.
+            <LogLineRow key={index} line={line} slots={slots} />
+          ))
+        )}
       </div>
     </div>
   );
