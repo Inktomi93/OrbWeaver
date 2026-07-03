@@ -57,10 +57,13 @@ import {
   loadMessageSeqs,
   loadMessageView,
   loadSwipeStatRows,
+  loadVariableDeltas,
+  loadVariantDelta,
   loadVariantMessageId,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { assertAuthorOrHost } from "../substrate/auth";
+import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
 /** The emit op the edit verbs close over (inlined — the file header `types-in-contract` note). */
@@ -172,7 +175,22 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
     if (owner !== messageId) {
       throw new ChatNotFoundError(chatId);
     }
-    await ctx.db.batch(batchMany([selectActiveVariantStatement(ctx.db, messageId, variantId)]));
+    // D46 THE swipe-clobber fix (ST #3263): re-fold `chats.runtime_variables` for the NEW pointer in the SAME
+    // batch as the flip. The newly-selected variant's delta replaces this slot's contribution; every other slot
+    // keeps its committed selection — so a swipe to a variant that never set X rewinds X (derive-don't-stamp).
+    const [currentDeltas, newDelta] = await Promise.all([
+      loadVariableDeltas(ctx.db, chatId),
+      loadVariantDelta(ctx.db, variantId),
+    ]);
+    const postEntries = currentDeltas.map((e) =>
+      e.messageId === messageId ? { seq: e.seq, delta: newDelta } : e,
+    );
+    await ctx.db.batch(
+      batchMany([
+        selectActiveVariantStatement(ctx.db, messageId, variantId),
+        runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(postEntries)),
+      ]),
+    );
     const view = await reloadSlot(ctx, chatId, messageId);
     await emit({ type: "variantSelected", chatId, messageId, view });
     return view;
@@ -333,6 +351,12 @@ function createDeleteMessages(
     for (const row of swipeRows) {
       ctx.applyStatsDelta(statements, ctx.db, swipeVariantDelta({ ownerId, row, sign: -1, now }));
     }
+    // D46: re-fold `chats.runtime_variables` over the chain MINUS the deleted slots (their deltas no longer
+    // apply), in the SAME batch as the delete.
+    const remainingDeltas = (await loadVariableDeltas(ctx.db, chatId)).filter(
+      (e) => !messageIds.includes(e.messageId),
+    );
+    statements.push(runtimeVariablesUpdateStatement(ctx.db, chatId, foldChain(remainingDeltas)));
     await ctx.db.batch(batchMany(statements));
     await emit({ type: "messagesDeleted", chatId, messageIds: [...messageIds] });
     // Best-effort audit AFTER the destructive write lands (existence-before-audit order: no phantom row for a refused

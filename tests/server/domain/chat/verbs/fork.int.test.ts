@@ -8,9 +8,10 @@ import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, messages, messageVariants } from "@orb/db";
+import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
@@ -209,5 +210,73 @@ describe("forkChat — D27 deep copy", () => {
       .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
       .where(eq(messages.chatId, chat.id));
     expect(forkMsgs.map((r) => r.content)).toEqual(["kept"]);
+  });
+
+  test("D46: a fork carries config picks + REFOLDS the runtime cache from the copied chain", async () => {
+    const host = await seedUser(db, "host");
+    const charA = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "c", characterId: charA });
+    // Config plane: the stored ChoiceBlock picks (carried verbatim on fork).
+    await db
+      .update(chats)
+      .set({ variableValues: { pov: "first" } })
+      .where(eq(chats.id, chatId));
+    // Runtime plane: two committed turns' deltas (X=1 then X=2) — the fork must re-fold, not copy the cache blob.
+    const setX = (v: string): VarOp[] => [{ op: "set", key: "hp", value: v }];
+    const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("1") })
+      .where(eq(messageVariants.id, a.variantId));
+    const b = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("2") })
+      .where(eq(messageVariants.id, b.variantId));
+
+    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+    const [forkRow] = await db
+      .select({ variableValues: chats.variableValues, runtimeVariables: chats.runtimeVariables })
+      .from(chats)
+      .where(eq(chats.id, castId(chat.id)));
+    expect(forkRow?.variableValues).toEqual({ pov: "first" });
+    expect(forkRow?.runtimeVariables).toEqual({ hp: "2" });
+  });
+
+  test("D46: a TRUNCATED fork re-folds only the kept chain (not the source's full cache)", async () => {
+    const host = await seedUser(db, "host");
+    const charA = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "c", characterId: charA });
+    const setX = (v: string): VarOp[] => [{ op: "set", key: "hp", value: v }];
+    const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("1") })
+      .where(eq(messageVariants.id, a.variantId));
+    const b = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("2") })
+      .where(eq(messageVariants.id, b.variantId));
+    await db
+      .update(chats)
+      .set({ runtimeVariables: { hp: "2" } })
+      .where(eq(chats.id, chatId));
+
+    const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId, throughSeq: 1 });
+
+    const [forkRow] = await db
+      .select({ runtimeVariables: chats.runtimeVariables })
+      .from(chats)
+      .where(eq(chats.id, castId(chat.id)));
+    // Only seq 1 was copied → the fork's cache re-folds to X=1, NOT the source's X=2.
+    expect(forkRow?.runtimeVariables).toEqual({ hp: "1" });
   });
 });

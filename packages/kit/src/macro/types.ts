@@ -35,6 +35,18 @@ export interface MacroBlockNode {
  *  schema annotation there; the macro engine narrows when it flushes back. */
 export type MacroEnv = Record<string, unknown>;
 
+/** One recorded runtime variable mutation (D46). `set`/`add` carry `value`; `inc`/`dec`/`delete` don't.
+ *  The macro mutation handlers push these to {@link MacroContext.opLog}; the chat domain persists the
+ *  ordered list per message-variant and REPLAYS it (`foldVarOps`) along the selected-variant chain to
+ *  derive the current runtime state — deriving, not stamping, so a swipe/fork rewinds by re-folding
+ *  (kills ST's swipe-clobber #3263). `applyVarOp` is the one shared mutation-semantics home. */
+export type VarOp =
+  | { readonly op: "set"; readonly key: string; readonly value: string }
+  | { readonly op: "add"; readonly key: string; readonly value: string }
+  | { readonly op: "inc"; readonly key: string }
+  | { readonly op: "dec"; readonly key: string }
+  | { readonly op: "delete"; readonly key: string };
+
 export interface MacroContext {
   char: string;
   user: string;
@@ -101,6 +113,11 @@ export interface MacroContext {
   // Optional warning sink. Server layer injects getLog().warn; tests/client can leave undefined.
   // Kept as a plain callback (not a Logger import) so kit stays isolated from server/.
   onWarn?: (msg: string, err?: unknown) => void;
+  // Optional ordered log of runtime variable mutations (D46). When present, the setvar/addvar/incvar/
+  // decvar/deletevar handlers push each op here (in addition to applying it to `env`). The chat turn
+  // threads a fresh array per turn and persists it as the produced variant's `variable_delta`; absent ⇒
+  // no recording (assembly-only re-renders, config-plane previews, tests).
+  opLog?: VarOp[];
   // Defense-in-depth budget — capped recursion depth + total output size so a malicious card
   // (`{{setvar::a::{{a}}}}` and friends) can't DoS the renderer. Initialized in createMacroContext;
   // exposed here so the evaluator + handler wrappers share one bucket.

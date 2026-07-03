@@ -13,6 +13,7 @@
 // feature type leaks out of `persistence/` (`types-in-contract`). Timestamps/cursors arrive as PARAMS.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import { variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -32,6 +33,7 @@ import type {
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import {
   and,
@@ -642,6 +644,50 @@ export async function loadCanonHistoryAfter(
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(and(eq(messages.chatId, chatId), gt(messages.seq, afterSeq)))
     .orderBy(asc(messages.seq));
+}
+
+/** One entry in the runtime-variable fold source: a message's `seq` + the SELECTED variant's parsed delta
+ *  (D46 runtime plane). File-local (the `types-in-contract` gate); callers read the inferred return. */
+interface VariableDeltaRow {
+  readonly seq: number;
+  readonly messageId: MessageId;
+  readonly delta: readonly VarOp[];
+}
+
+/** The per-variant variable deltas along the SELECTED-variant chain, seq-ordered (mirror `loadCanonHistory`'s
+ *  slot⋈selected-variant join). Each `variable_delta` is parsed at the read seam via `variableDeltaSchema`
+ *  (the `parseChatMetadata` `.safeParse` boundary — a malformed blob degrades to `[]`, never throws). The fold
+ *  (`foldVarOps`) over these IS `chats.runtime_variables` (D46). */
+export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<VariableDeltaRow[]> {
+  const rows = await db
+    .select({
+      seq: messages.seq,
+      messageId: messages.id,
+      variableDelta: messageVariants.variableDelta,
+    })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId))
+    .orderBy(asc(messages.seq));
+  return rows.map((r) => {
+    const parsed = variableDeltaSchema.safeParse(r.variableDelta);
+    return { seq: r.seq, messageId: r.messageId, delta: parsed.success ? parsed.data : [] };
+  });
+}
+
+/** ONE variant's parsed `variable_delta` (the `selectVariant` re-fold — D46). The read-parse boundary
+ *  (`variableDeltaSchema.safeParse`); a malformed/absent blob degrades to `[]`. */
+export async function loadVariantDelta(
+  db: Db,
+  variantId: MessageVariantId,
+): Promise<readonly VarOp[]> {
+  const rows = await db
+    .select({ variableDelta: messageVariants.variableDelta })
+    .from(messageVariants)
+    .where(eq(messageVariants.id, variantId))
+    .limit(LIMIT_ONE);
+  const parsed = variableDeltaSchema.safeParse(rows.at(0)?.variableDelta);
+  return parsed.success ? parsed.data : [];
 }
 
 /** The persisted per-chat ChoiceBlock variable flush (`getStoredVariables` + the fork copy — D46 config

@@ -1565,6 +1565,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "runtime_variables": {
+          "name": "runtime_variables",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "imported_from": {
           "name": "imported_from",
           "type": "text",
@@ -1781,6 +1788,13 @@
         },
         "tool_calls": {
           "name": "tool_calls",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "variable_delta": {
+          "name": "variable_delta",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

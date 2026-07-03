@@ -269,6 +269,8 @@ async function buildTurnContext(
       model: args.model,
       castCharacterIds: args.castCharacterIds,
       personaIds: args.personaIds,
+      // D46: the seeded turn PRNG drives the config-plane `randomPick` draw (deterministic, replayable).
+      prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
     },
