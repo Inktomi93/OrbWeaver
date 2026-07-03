@@ -30,8 +30,14 @@ import type {
 } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
-import type { Db } from "@orb/db";
-import { assets as assetsTable, chatParticipants, chats } from "@orb/db";
+import type { BatchStmt, Db } from "@orb/db";
+import {
+  assets as assetsTable,
+  characters as charactersTable,
+  chatParticipants,
+  chats,
+} from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
@@ -49,6 +55,7 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
+import { createImageryService } from "#domain/imagery";
 import { createNotificationsService } from "#domain/notifications";
 import { createPersonaService } from "#domain/persona";
 import { createPresetService } from "#domain/preset";
@@ -56,7 +63,7 @@ import { createSearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import { createSettingsService } from "#domain/settings";
-import { createStatsService } from "#domain/stats";
+import { applyStatsDelta, createStatsService } from "#domain/stats";
 import { createTagService } from "#domain/tag";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
@@ -268,6 +275,19 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     emit: eventBus.emit,
     now,
     newAssetId: minter(ID_PREFIX.asset),
+    newGalleryItemId: minter(ID_PREFIX.galleryItem),
+    // Gallery owner-only posture (§1.3): does `ownerId` own `characterId`? A direct owner-scoped
+    // `characters` read (assets never sideways-imports the character domain — the check arrives as an
+    // injected op, the same seam as `loadCoParticipantOwner`). `addToGallery` gates the subject character
+    // on this before curating.
+    assertCharacterOwned: async (ownerId, characterId) => {
+      const rows = await db
+        .select({ id: charactersTable.id })
+        .from(charactersTable)
+        .where(and(eq(charactersTable.id, characterId), eq(charactersTable.ownerId, ownerId)))
+        .limit(1);
+      return rows.length > 0;
+    },
     // PD-28: roster-avatar exception — caller may fetch an avatar owned by a chat co-participant.
     // Resolves in two queries: (1) find the candidate owner of the hash, (2) confirm both users share
     // a present-membership (`leftSeq IS NULL`) chat. Returns the co-owning userId or undefined.
@@ -531,6 +551,30 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const exportService = createExportService({ db, cas, imageTransform: imageAdapter.transform });
 
+  // ── imagery (the P5 free-mode leaf — imagery-design). Binds its narrow ops to the built siblings: the
+  //    generateImage role (connection.resolveRole), the sealed executor (executor.generateImage), the CAS
+  //    write (assets.store, kind always "generated"), and a STANDALONE stats apply (applyStatsDelta pushes
+  //    into a fresh batch this op commits — imagery is a sync verb, not a canon-write co-batch). ───────────
+  const imagery = createImageryService({
+    db,
+    now,
+    newGenerationId: minter(ID_PREFIX.imageryGeneration),
+    resolveGenerateImage: async (caller) => {
+      const conn = await connection.resolveRole({ role: "generateImage", principal: caller });
+      return { connection: conn, capability: conn.capability };
+    },
+    generateImage: (req) => executor.generateImage(req),
+    storeAsset: (caller, bytes, kind, mime) =>
+      assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
+    recordStats: async (delta): Promise<void> => {
+      const batch: BatchStmt[] = [];
+      applyStatsDelta(batch, db, delta);
+      if (batch.length > 0) {
+        await db.batch(batchMany(batch));
+      }
+    },
+  });
+
   // ── chat (built LAST — it injects character/persona/connection/credentials/stats/embeddings/search/
   //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
   //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
@@ -563,6 +607,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // PD-70: the read side of the transport presence registry → chat's `presence.read` op (cast-gating drops
     // an offline human's persona from the present cast for the next round).
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
+    // The imagery leaf's orchestrator → chat's `generatePicture` op (mapped to the chat-local structural
+    // result inside `buildChatService`).
+    generatePicture: imagery.generatePicture,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
@@ -598,6 +645,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   const services: Services = {
     admin,
+    assets,
     buddy,
     character,
     chat,

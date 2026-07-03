@@ -13,6 +13,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -74,6 +75,19 @@ export const chatRouter = t.router({
   swipe: authedProcedure
     .input(swipeSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
+  // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
+  // forwarded); mode/prompt/n map onto `chat.generateImage`.
+  generateImage: authedProcedure
+    .input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.generateImage({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        mode: input.mode,
+        prompt: input.prompt,
+        n: input.n,
+      }),
+    ),
 
   // The per-chat room-public event stream (PD-46's stream half — see the file header for the shape).
   streamMessages: authedProcedure.input(streamSchema).subscription(({ ctx, input, signal }) =>

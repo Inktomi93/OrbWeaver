@@ -36,6 +36,9 @@ const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
   // in one batch, D60/agent-principal-design/01 §4); the satellite is a sessions-produced registry, not its
   // own domain. Born at AP0; the mint verb lands AP1 (FLAG[PD-17]).
   "agent-principals": "packages/server/src/domain/sessions",
+  // gallery_items — producer = domain/assets (gallery is NOT a domain, D49 item 2 / gallery-design §0; the
+  // addToGallery/removeFromGallery/listGallery verbs live in domain/assets). Curated per-character media (v2).
+  gallery: "packages/server/src/domain/assets",
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {

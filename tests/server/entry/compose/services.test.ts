@@ -37,6 +37,7 @@ import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts"
 
 const SERVICE_KEYS = [
   "admin",
+  "assets",
   "buddy",
   "character",
   "chat",

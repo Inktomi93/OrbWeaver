@@ -315,6 +315,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       }
     },
     readPresence: notStubbed,
+    // The imagery op (chat.generateImage) — a throwing stub; the generate-image verb test overrides it.
+    generatePicture: notStubbed,
     resolveHandle: notStubbed,
     provisionAgentPrincipal: notStubbed,
     resolveAgentEnabled: notStubbed,

@@ -11,6 +11,7 @@
 
 import { z } from "zod";
 import { adminRouter } from "./routers/admin";
+import { assetsRouter } from "./routers/assets";
 import { buddyRouter } from "./routers/buddy";
 import { characterRouter } from "./routers/character";
 import { chatRouter } from "./routers/chat";
@@ -37,6 +38,7 @@ export const appRouter = t.router({
     .query(({ input }) => ({ message: input.message })),
 
   admin: adminRouter,
+  assets: assetsRouter,
   buddy: buddyRouter,
   character: characterRouter,
   chat: chatRouter,
