@@ -262,7 +262,8 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   `status='accepted'`). (`domains/import.md`, `domains/tag.md`.)
 - **stats/discovery line as a type — RESOLVED:** type-enforced via disjoint `messages` projections
   (a stats-only economics projection vs a discovery semantic projection) + a `stats-no-vector-tables`
-  dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (`domains/stats.md`.)
+  dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (stats BUILT — code is source; the
+  unbuilt discovery-side tiers: [`proposed/stats-discovery-seam.md`](../proposed/stats-discovery-seam.md).)
 - **assets vs infra/storage** — `assets` domain owns the CAS _index_ (table + verbs); `infra/storage`
   owns the byte I/O. Keep split.
 - **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ image-analytics/` + `substrate/` (distill is a VERB, not a subsystem — see `domains/discovery.md`) (kmeans/pca/etc., the pure math), per the template.
@@ -351,7 +352,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [search.md](docs/architecture/domains/search.md)
   - [sessions.md](docs/architecture/domains/sessions.md)
   - [settings.md](docs/architecture/domains/settings.md)
-  - [stats.md](docs/architecture/domains/stats.md)
+  - stats — BUILT; doc gutted 2026-07, code is source (`packages/server/src/domain/stats/`); seam design: [stats-discovery-seam.md](docs/architecture/proposed/stats-discovery-seam.md)
   - [tag.md](docs/architecture/domains/tag.md)
   - [workloads.md](docs/architecture/domains/workloads.md)
   - [world-info.md](docs/architecture/domains/world-info.md)

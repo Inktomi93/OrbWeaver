@@ -291,7 +291,7 @@ async function persistUserMessage(
     readonly content: string;
     readonly authorUserId: UserId;
     readonly personaId: PersonaId | null;
-    /** The frozen host (D19) — the stats OWNER (stats.md: the host's box funds/owns the canon). */
+    /** The frozen host (D19) — the stats OWNER (the host's box funds/owns the canon). */
     readonly hostUserId: UserId;
   },
 ): Promise<MessageView> {
@@ -308,7 +308,7 @@ async function persistUserMessage(
     variant: { content: args.content },
   };
   const statements = insertCanonMessageStatements(ctx.db, params);
-  // The canon-mutator stats push (stats.md): the user turn's rollup delta rides the SAME batch as its
+  // The canon-mutator stats push: the user turn's rollup delta rides the SAME batch as its
   // canon insert. characterId null — the rebuild's per-char grain is assistant-only.
   ctx.applyStatsDelta(
     statements,

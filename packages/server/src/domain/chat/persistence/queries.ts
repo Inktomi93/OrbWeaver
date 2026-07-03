@@ -323,7 +323,7 @@ export async function loadMessageView(
   return rows.at(0);
 }
 
-// ── The stats-delta canon reads (the delete-messages arm — stats.md canon-mutator mandate). Full rows so
+// ── The stats-delta canon reads (the delete-messages arm — the canon-mutator mandate). Full rows so
 // the signed deltas mirror the rebuild's streams column-for-column (drift gate). File-local shapes. ──
 
 /** One canon stat row (the inferred selection, named for the explicit return type). */

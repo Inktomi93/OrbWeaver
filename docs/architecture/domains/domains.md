@@ -20,7 +20,7 @@
 | **search**                           | [search.md](search.md)                                             | 4                                  |
 | **discovery**                        | [discovery.md](discovery.md)                                       | 4 — rename of `corpus`             |
 | **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
-| **stats**                            | [stats.md](stats.md)                                               | 4                                  |
+| **stats**                            | BUILT — code is source: `packages/server/src/domain/stats/`; seam: [stats-discovery-seam.md](../proposed/stats-discovery-seam.md) | 4 — doc gutted 2026-07 (code truth) |
 | **buddy**                            | [buddy.md](buddy.md)                                               | 5                                  |
 | **settings**                         | [settings.md](settings.md)                                         | 3                                  |
 | **sessions**                         | [sessions.md](sessions.md)                                         | 3                                  |

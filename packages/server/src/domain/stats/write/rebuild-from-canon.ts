@@ -594,7 +594,10 @@ interface ChatMeta {
 }
 
 /** The chat-level aggregates: per-character chat counts + first/last, daily chatsCreated, owner library
- *  totals. All membership-scoped to the owner's chats / owned characters (D18/D23). */
+ *  totals. All membership-scoped to the owner's chats / owned characters (D18/D23).
+ *  Forks count INDEPENDENTLY — a fork is a separate playthrough and ST counts each `.jsonl` on its own, so
+ *  reconcile maximizes ST-parity by NOT content-hash-deduping the copied canon (a deliberate choice, not a
+ *  gap to "fix"). */
 async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
   const chatAgg = await db.all<{ cid: string } & CharChatMeta>(sql`
     SELECT cp.character_id AS cid, COUNT(DISTINCT cp.chat_id) AS chats,

@@ -45,6 +45,9 @@ export async function readLatency(
 ): Promise<LatencyStats> {
   // Narrowing predicate per scope (owner = no extra filter). The model provider coalesces to the sentinel
   // so a scope provider of '(unknown)'/null matches a null-provider variant (invariant #5).
+  // FLAG[PD-97]: this chain has NO `assertNever` default — an unhandled scope.kind silently falls through
+  // to owner-scope instead of failing `tsc`. A new LatencyScope member would read as owner-scope. Add the
+  // exhaustive-dispatch guard (§7.5 discipline the union is meant to carry).
   let narrow = sql``;
   if (scope.kind === "character") {
     narrow = sql`AND m.character_id = ${scope.characterId}`;

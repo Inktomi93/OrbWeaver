@@ -18,7 +18,7 @@ import { z } from "zod";
 
 /**
  * The per-canon-write increment payload, applied in the SAME `db.batch()` as the canon write so the
- * rollups stay fresh with no rebuild. THREE DECOUPLED SLICES (stats.md §"esoteric" #1):
+ * rollups stay fresh with no rebuild. THREE DECOUPLED SLICES:
  *   • SCALAR — the monotonic per-character + per-owner totals (all optional, default 0);
  *   • DAILY  — `dailyTokensIn`/`dailyTokensOut`, DECOUPLED from the scalar tokens so a variant (swipe)
  *     can bump `day.swipes`/`day.genTimeMs` while leaving `day.tokens` untouched (daily credits the
