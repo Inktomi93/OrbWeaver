@@ -274,7 +274,10 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
 - **core/**
   - [AGENTS.md](docs/architecture/core/AGENTS.md)
   - [Core-0-Architecture-and-Structure.md](docs/architecture/core/Core-0-Architecture-and-Structure.md)
-  - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md)
+  - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md) _(live debt registry; archeology split into the 3 below)_
+  - [Core-Doc-Review-Punchlist-2026-06-28.md](docs/architecture/core/Core-Doc-Review-Punchlist-2026-06-28.md)
+  - [Core-Debt-Cleared-Ledger.md](docs/architecture/core/Core-Debt-Cleared-Ledger.md)
+  - [Core-Doc-Inconsistency-Audit-2026-06-26.md](docs/architecture/core/Core-Doc-Inconsistency-Audit-2026-06-26.md)
   - [Core-BUILD-PLAN.md](docs/architecture/core/Core-BUILD-PLAN.md)
   - [Core-Laws-and-Precedents.md](docs/architecture/core/Core-Laws-and-Precedents.md)
   - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md) _(split index → the 3 below)_
