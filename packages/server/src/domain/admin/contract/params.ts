@@ -1,4 +1,4 @@
-// domain/admin/contract/params — every verb's *Params, declared ONCE (admin.md §7.4 — neo re-spelled the
+// domain/admin/contract/params — every verb's *Params, declared ONCE (§7.4 — neo re-spelled the
 // `{ actorId; callerRole?; userId; role }` object ~9×). Under the Principal model the loose `actorId` +
 // `callerRole` fields collapse into ONE `principal: Principal` (resolved at the entry seam, carries its
 // role) — the verb gates on the principal it is handed (spine §1). The handle/password STRINGS are raw

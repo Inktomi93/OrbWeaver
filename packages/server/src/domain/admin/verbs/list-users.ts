@@ -1,5 +1,5 @@
 // verb: listUsers — the admin user table. admin-gated (owner ∪ admin); defense-in-depth even though the
-// transport `adminMiddleware` already gated (the verb is safe independent of its caller, admin.md §Esoteric).
+// transport `adminMiddleware` already gated (the verb is safe independent of its caller).
 
 import type { ListUsersParams } from "../contract/params";
 import type { AdminContext, AdminService } from "../contract/service";

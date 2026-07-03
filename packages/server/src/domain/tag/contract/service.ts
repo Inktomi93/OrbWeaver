@@ -9,7 +9,7 @@
 // Tag verbs gate on the `Principal` they are handed — owner-equality scoping (`WHERE ownerId = principal.userId`)
 // for the four target-derived junctions + the tag namespace; the chat-tag junction (D30) additionally routes
 // through the injected `requireParticipant` (its target `chats` has no owner — D18). No admin/owner role gate:
-// tags are personal labels (tag.md §7.1).
+// tags are personal labels (owner-equality is the whole permission model).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagView, TagWithUsage } from "@orb/contracts/tag";
@@ -61,7 +61,8 @@ export interface TagContext {
 }
 
 /**
- * The tag taxonomy surface (tag.md). 11 verbs: 5 CRUD + 3 management + the junction trio. Every verb is
+ * The tag taxonomy surface: 5 CRUD + 3 management + the junction trio (11 principal-gated verbs) + the
+ * internal by-name attach op. Every verb is
  * owner-scoped on `params.principal.userId`; the junction trio additionally gates the TARGET (target-derived
  * ownership for character/worldBook/persona/preset; injected membership for chat — D30).
  */

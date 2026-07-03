@@ -3,12 +3,13 @@
 // (movement table: the inferred `ReturnType<>` is invisible at a glance, so the bundle is a hand-written
 // interface here — `no-context-returntype` forbids reflecting it off the builder).
 //
-// 10 verbs across the BFF session lifecycle + identity resolution (sessions.md §"What this domain owns"):
+// 12 verbs across the BFF session lifecycle + identity resolution:
 //   create · validate · revokeByToken · revoke · revokeAllForUser · listForUser · ensureUser ·
-//   provisionIdentity · loadUserById · authenticate. The seam (`entry/auth/seam.ts`) consumes validate/
-//   provisionIdentity/ensureUser to mint the one `Principal` (+ loadUserById for the frozen-host bridge,
-//   PD-73); `admin` consumes listForUser/revoke/revokeAllForUser via an injected port; the `entry/http`
-//   local-login route consumes authenticate (PD-83).
+//   provisionIdentity · loadUserById · resolveHandle · authenticate · provisionAgentPrincipal. The seam
+//   (`entry/auth/seam.ts`) consumes validate/provisionIdentity/ensureUser to mint the one `Principal`
+//   (+ loadUserById for the frozen-host bridge, PD-73); `admin` consumes listForUser/revoke/
+//   revokeAllForUser via an injected port; the `entry/http` local-login route consumes authenticate
+//   (PD-83); chat consumes resolveHandle (PD-66) + provisionAgentPrincipal (D60, AP3) as injected ops.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
@@ -49,7 +50,7 @@ export interface SessionsContext {
 
 export interface SessionsService {
   /** Mint an opaque 32-byte token (the route sets it as the cookie) + persist only its peppered hash;
-   *  audits `AUTH_LOGIN`. Returns the raw token ONCE (never stored — invariant #3). */
+   *  audits `AUTH_LOGIN`. Returns the raw token ONCE (never stored — only its peppered hash is). */
   create: (params: CreateSessionParams) => Promise<CreateSessionResult>;
   /** Validate a cookie token → the resolved caller's principal-fields (incl. `userId`), or `null` for
    *  missing/revoked/expired/disabled. The Route-A identity-resolution step (ledger D40): the cookie→user

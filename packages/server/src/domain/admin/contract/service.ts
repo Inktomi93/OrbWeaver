@@ -86,7 +86,7 @@ export interface AdminContext {
 }
 
 /**
- * The user-administration + gating surface (admin.md). All verbs are global-role gated in their own body
+ * The user-administration + gating surface. All verbs are global-role gated in their own body
  * (defense-in-depth, independent of the transport `adminMiddleware`): `requireAdmin` (owner ∪ admin)
  * except `setRole`, which is `requireOwner` (owner-only — only the owner grants/revokes `admin`, D17).
  */

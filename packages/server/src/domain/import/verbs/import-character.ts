@@ -7,7 +7,7 @@
 //   4. PNG cards: CAS-store the SAME bytes as the avatar asset (one blob, both roles) → avatarAssetId.
 //   5. flatten + validate → CreateCharacterInput, then create via the injected op WITH the provenance stamp.
 //   6. carry the card's author-shipped tags: attach each parsed tag to the new character as a card/pending
-//      suggestion via the injected tag op (import.md §tag.md intersection — `card.tags` → `character_tags`
+//      suggestion via the injected tag op (`card.tags` → `character_tags`
 //      `status:'pending'`, NOT a JSON column; the user's "Accept" later flips them to accepted).
 //
 // Boundaries-are-physics: the create / lookup / asset-store / tag-attach are INJECTED ops (context.ts) wired

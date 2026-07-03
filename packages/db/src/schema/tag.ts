@@ -1,9 +1,8 @@
 // schema/tag — one user-scoped tag namespace + the five per-type FK junctions (producer: domain/tag).
 // A tag is a named, colored, sortable label owned by exactly one user (`unique(ownerId, name)` — "one tag
-// namespace, one owner", tag.md invariant #1). Five entity types can be tagged; each has its OWN per-type
+// namespace, one owner"). Five entity types can be tagged; each has its OWN per-type
 // FK junction (ledger D24: NO polymorphic `(type, untyped_id)` association table — only the registry-driven
-// DISPATCH is polymorphic, and that lives in the domain, not here). Authoritative spec:
-// `docs/architecture/domains/tag.md` + `core/Tier-1-DB.md`.
+// DISPATCH is polymorphic, and that lives in the domain, not here).
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D23 — the ownership-stamp rule. `tags.ownerId` is KEPT (a tag is top-level single-owned / `fetchOwned`;
@@ -69,7 +68,7 @@ const DEFAULT_TAG_STATUS = "pending";
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // tags — the per-owner label namespace. Single-owned: `ownerId` is KEPT (D23 — the tag references its owner
 // directly; no owning parent to derive through), so a tag joins the `fetchOwned` category. `unique(ownerId,
-// lower(name))` is the one-namespace-per-owner key — CASE-INSENSITIVE (tag.md invariant #1; the functional
+// lower(name))` is the one-namespace-per-owner key — CASE-INSENSITIVE (the functional
 // fold makes "Female"/"female" one tag). `color`/`color2`/`sortOrder` are NULLABLE
 // (null = theme default / unordered name-fallback — mirrors TagView). `source` is a nullable provenance axis.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -103,7 +102,7 @@ export const tags = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One namespace per owner (tag.md invariant #1) — the create-tag conflict target. CASE-INSENSITIVE: a
+    // One namespace per owner — the create-tag conflict target. CASE-INSENSITIVE: a
     // functional unique on `(ownerId, lower(name))`, so "Female" / "female" / "FEMALE" collapse to ONE tag
     // (the first casing is the stored display; dedupe is on the folded key). `domain/tag` normalizes the name
     // (trim + whitespace-collapse, casing kept) via `@orb/kit/tag`'s `normalizeTagName` before insert; THIS

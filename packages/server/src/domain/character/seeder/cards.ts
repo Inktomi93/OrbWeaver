@@ -6,7 +6,7 @@
 // cards' voice is untouched.
 //
 // neo's `proposedTags` rides as a sibling `tags` array on each `SeedCard` (NOT a `CreateCharacterInput` field
-// — orbweaver tags are the `character_tags` junction, D28 / tag.md, not a card blob). The seeder attaches each
+// — orbweaver tags are the `character_tags` junction, D28, not a card blob). The seeder attaches each
 // card's tags as card/pending suggestions after `create` — the SAME card-native carry as an imported card's
 // `card.tags` (one model, no separate flow). The arrays are restored verbatim from neo's seed.
 //

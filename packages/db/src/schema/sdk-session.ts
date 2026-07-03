@@ -2,7 +2,8 @@
 // infra/providers/backends/agent-sdk/session, D8). This is the SDK "chat session" — the backend-internal
 // canon-derived cache that makes a stateful claude-agent-sdk turn cheap (the prompt-cache survival). It is
 // NOT the BFF browser session (`sessions` table, schema/sessions.ts) — they share only the word "session":
-// separate tables, separate homes, separate tiers (sessions.md "BFF session ≠ SDK chat session"). The chat
+// separate tables, separate homes, separate tiers (core/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat
+// session"). The chat
 // domain is stateless-first and does NOT own this; only the TABLE lives here (producer-owned schema).
 //
 // THE LOAD-BEARING DECISIONS encoded here:

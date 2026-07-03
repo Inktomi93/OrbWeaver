@@ -3,8 +3,8 @@ import type { UserRole } from "@orb/contracts/identity";
 import { env } from "#foundation/env";
 
 // domain/sessions/substrate/role-policy — the ONE access-control decision the app owns: who is the
-// `owner` (D17). Pure derivation policy + the SANCTIONED call-time `process.env` trio (sessions.md
-// §Esoteric, invariant #10): `OWNER_HANDLES` / `OWNER_GROUP` / `RE_DERIVE_ROLE_ON_LOGIN` are read at CALL
+// `owner` (D17). Pure derivation policy + the SANCTIONED call-time `process.env` trio:
+// `OWNER_HANDLES` / `OWNER_GROUP` / `RE_DERIVE_ROLE_ON_LOGIN` are read at CALL
 // time — NOT via the frozen parsed `env` — so per-test `vi.stubEnv` drives the role matrix. This is the
 // documented EXCEPTION to "foundation/env is the only process.env reader," isolated to THIS ONE file (the
 // biome `noProcessEnv` override + the `sole-env-reader` gate allowlist scope the exception to exactly
@@ -19,7 +19,7 @@ import { env } from "#foundation/env";
 // `process.env["VITEST"]` literal style `foundation/env` uses.
 const HANDLE_SEPARATOR = ",";
 // Tolerant truthy set for RE_DERIVE_ROLE_ON_LOGIN — the pre-fix exact `=== "true"` silently disabled
-// group-driven revocation on "True"/"1"/"yes" (sessions.md §Esoteric).
+// group-driven revocation on "True"/"1"/"yes".
 const TRUTHY = new Set(["true", "1", "yes"]);
 
 /**

@@ -3,8 +3,8 @@
 // typed key. biome's `noProcessEnv` (scoped-off only for foundation/env) already catches the property form
 // `process.env.X`; this gate is the AST backstop that ALSO catches the bracket trick `process["env"]`
 // (which biome's global rule can miss) and reads only real access nodes — comments naming `process.env`
-// (e.g. the agent-sdk firewall docs) are ignored. When `domain/sessions` lands its sanctioned call-time
-// reads (foundation.md inv #1), allowlist them here.
+// (e.g. the agent-sdk firewall docs) are ignored. `domain/sessions`' sanctioned call-time reads are
+// allowlisted below (foundation.md inv #1).
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
@@ -12,7 +12,7 @@ import type { Check, Violation } from "../harness.ts";
 const SERVER_SRC = "/packages/server/src/";
 const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
 
-// The ONE sanctioned call-time process.env EXCEPTION (sessions.md §Esoteric, invariant #10): the
+// The ONE sanctioned call-time process.env EXCEPTION: the
 // role-derivation policy reads exactly these three vars at CALL time (not via the frozen `env`) so per-test
 // `vi.stubEnv` drives the role matrix. Allowlisted to THIS ONE file + EXACTLY these keys — any other key,
 // or any process.env read elsewhere in the domain, stays RED.

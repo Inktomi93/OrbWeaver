@@ -13,7 +13,7 @@ import type { CharacterService } from "./service";
 
 /** One authored default card: the `create` input PLUS its author-shipped native tags. The tags are attached
  *  as card/pending suggestions after the card is created (the same model as an imported card's `card.tags`)
- *  — `CreateCharacterInput` carries no tags field (tags are the `character_tags` junction, D28 / tag.md),
+ *  — `CreateCharacterInput` carries no tags field (tags are the `character_tags` junction, D28),
  *  so they ride alongside it here. */
 export interface SeedCard {
   readonly input: CreateCharacterInput;

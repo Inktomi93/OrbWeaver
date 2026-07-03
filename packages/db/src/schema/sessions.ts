@@ -1,14 +1,15 @@
 // schema/sessions — the BFF (Backend-For-Frontend) browser session + the OIDC PKCE transaction store
 // (producer: domain/sessions). NOT to be confused with `session_entries` (schema/sdk-session.ts) — the
 // agent-sdk prompt-cache lineage (D8). These share only the word "session": separate tables, separate
-// homes, separate tiers (sessions.md "BFF session ≠ SDK chat session"). This file has zero SDK-frame
-// state.
+// homes, separate tiers (core/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat session"). This file has
+// zero SDK-frame state.
 //
 // The token is NEVER stored — only its peppered hash (`token_hash`); `hashToken` lives in
 // domain/sessions/tokens. The hash is the validate lookup key, so it is UNIQUE. `label` is reserved for
-// the future long-lived API-token surface that reuses this store (sessions.md Open decisions).
+// the future long-lived API-token surface that reuses this store (Core-Laws-and-Precedents.md: "API
+// tokens = a sessions verb").
 //
-// `oidc_transactions` is the db-backed PKCE/state KV (sessions.md / core/Tier-3-Infra.md — db-backed, so it
+// `oidc_transactions` is the db-backed PKCE/state KV (core/Tier-3-Infra.md — db-backed, so it
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth
 // state param), no brand, no FK (it is pre-auth — there is no user row yet). The `oidc-store` LOGIC
 // lives in domain/sessions/persistence/oidc-store.ts; only the TABLE is here.
@@ -30,7 +31,7 @@ export const sessions = sqliteTable(
     // The peppered SHA-256 of the opaque cookie token (HMAC-SESSION_SECRET). The raw token is never
     // persisted; this is the per-request validate lookup key (constant-time compared upstream).
     tokenHash: text("token_hash").notNull(),
-    // Slid forward on a throttle by `validate` (sessions.md — per-request gates take effect next request).
+    // Slid forward on a throttle by `validate` (per-request gates take effect next request).
     expiresAt: integer("expires_at").notNull(),
     // Last activity instant (epoch-ms number); born = mint time (a fresh session was just seen), then
     // bumped on the throttled activity slide alongside expiresAt.

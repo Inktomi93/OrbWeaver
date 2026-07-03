@@ -17,7 +17,7 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
     const now = ctx.now();
     const session = await selectForValidation(ctx.db, ctx.hashToken(token));
     // Per-request gates: missing / revoked / expired / disabled → unauthenticated. Gating `enabled` to
-    // null here IS how disable takes effect next request (invariant #8).
+    // null here IS how disable takes effect next request.
     if (
       session === undefined ||
       session.revokedAt !== null ||

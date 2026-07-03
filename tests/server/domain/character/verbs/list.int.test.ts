@@ -58,7 +58,7 @@ describe("list", () => {
   });
 });
 
-describe("list — canonical tags (tag.md L56: the library tag filter)", () => {
+describe("list — canonical tags (the library tag filter)", () => {
   test("each summary carries its ACCEPTED tags; pending suggestions and other rows' tags don't bleed", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);

@@ -28,8 +28,8 @@ export interface CharacterDetail extends CharacterCard {
   readonly createdAt: number;
   /** sha-256 of the avatar blob (CAS key) — joined from `assets`, null when no avatar attached. */
   readonly avatarHash: string | null;
-  /** The ACCEPTED canonical tags (`character_tags ⋈ tags`, status='accepted' — tag.md L56: the editor
-   *  chips). Pending staged suggestions are NOT here (they read through tag's own surface). */
+  /** The ACCEPTED canonical tags (`character_tags ⋈ tags`, status='accepted' — the editor chips).
+   *  Pending staged suggestions are NOT here (they read through tag's own surface). */
   readonly tags: readonly TagView[];
 }
 
@@ -47,7 +47,7 @@ export interface CharacterSummary {
   readonly createdAt: number;
   /** Advisory card-heft estimate (kit `estimateTokens` over the card definition) — list display only. */
   readonly tokenSize: number;
-  /** The ACCEPTED canonical tags (the library tag filter — tag.md L56); pending suggestions excluded. */
+  /** The ACCEPTED canonical tags (the library tag filter); pending suggestions excluded. */
   readonly tags: readonly TagView[];
 }
 

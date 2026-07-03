@@ -1,4 +1,4 @@
-// domain/admin/persistence/queries — the admin READ surface over `users` (admin.md §persistence). admin
+// domain/admin/persistence/queries — the admin READ surface over `users`. admin
 // is one of the two sanctioned direct `users` readers (the `no-direct-users-read` chokepoint exempts it)
 // because every read is gated first. `userCols` is the ONE projection — it omits `passwordHash` (and any
 // future secret), so a secret column can never leak into `AdminUserView` (invariant #5). The owner-

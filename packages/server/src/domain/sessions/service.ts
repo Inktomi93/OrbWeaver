@@ -1,4 +1,4 @@
-// domain/sessions — COMPOSITION ROOT: wires the 10 verbs over the DI bundle (zero logic). The revocable
+// domain/sessions — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The revocable
 // BFF session lifecycle + identity resolution. Pure DB + crypto — NO cookie I/O (the route sets the
 // cookie) and NO `Principal` mint (the `entry/auth/seam` does that from validate/provisionIdentity/
 // ensureUser). The `SESSION_SECRET` pepper is injected here and bound into the token hasher (D38); the

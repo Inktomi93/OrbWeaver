@@ -54,8 +54,8 @@ export function listOwnedTags(db: Db, ownerId: UserId): Promise<TagRow[]> {
 
 /** Race-safe create: INSERT a tag, NO-OP on the `(ownerId, lower(name))` functional unique conflict, and
  *  RETURN the new id — or `undefined` if the row already existed (a prior/concurrent OR case-variant create
- *  won the unique). The functional unique is the race guard, so no duplicate tag is ever minted (tag.md
- *  invariant #1); the caller falls back to
+ *  won the unique). The functional unique is the race guard, so no duplicate tag is ever minted
+ *  (one namespace, one owner); the caller falls back to
  *  {@link findTagIdByName} for the existing row. `source` is the provenance stamped ONLY on this first create
  *  (a tag's source is set once); an existing row's source is left untouched by the no-op conflict. */
 export async function insertTagIfAbsent(args: {
@@ -124,7 +124,7 @@ export async function updateOwnedTag(
 }
 
 /** Delete an owner-scoped tag; returns the number of rows removed (0 ⇒ no such owned tag — the verb throws,
- *  remove is NOT idempotent per tag.md). Junction rows cascade via the FK `onDelete: cascade`. */
+ *  remove is deliberately NOT idempotent). Junction rows cascade via the FK `onDelete: cascade`. */
 export async function deleteOwnedTag(db: Db, tagId: TagId, ownerId: UserId): Promise<number> {
   const deleted = await db
     .delete(tags)
@@ -150,7 +150,7 @@ export async function setTagOrderBatch(
   await db.batch(batchMany(stmts));
 }
 
-// ── usage rollup (tag.md invariant #7: FIVE independent GROUP BY queries merged in-process, NEVER a 5-way
+// ── usage rollup (FIVE independent GROUP BY queries merged in-process, NEVER a 5-way
 //    LEFT JOIN — that explodes to N×5 NULL rows and defeats the merge at typical tag counts) ───────────────
 
 /** Count junction rows per tag for the given tag ids, on ONE junction's tagId column. Returns a plain object

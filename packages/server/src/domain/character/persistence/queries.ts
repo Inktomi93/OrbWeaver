@@ -235,9 +235,9 @@ export function cardOf(src: CharacterCard): CharacterCard {
   };
 }
 
-// ── canonical tags (the tag.md L56 read path — a deliberate db-layer junction consumer) ────────────────
+// ── canonical tags (a deliberate db-layer junction consumer read) ───────────────────────────────────────
 // The character views carry the ACCEPTED `character_tags ⋈ tags` labels (the library tag filter + editor
-// chips). This is the sanctioned "pool.ts pattern" (tag.md Movement: "stays as db-layer consumer"): a
+// chips). This is the sanctioned "pool.ts pattern" (a db-layer consumer, not a violation to route): a
 // read-only join over the junction-owner's schema via `@orb/db`, NEVER an import of `domain/tag` (the
 // front door exposes no per-entity read; routing through it would be a sideways runtime dep). Pending
 // (staged-suggestion) rows are excluded — the views show canon, the suggestion UI reads tag's own surface.

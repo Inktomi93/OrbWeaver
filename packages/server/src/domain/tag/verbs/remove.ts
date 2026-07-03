@@ -1,4 +1,4 @@
-// verb: removeTag — owner-scoped delete. NOT idempotent (tag.md): removing a missing/foreign tag throws
+// verb: removeTag — owner-scoped delete. NOT idempotent (deliberate): removing a missing/foreign tag throws
 // `TagNotFoundError`. All five junctions cascade via their FK `onDelete: cascade` (no manual junction sweep).
 
 import { TagNotFoundError } from "../contract/errors";

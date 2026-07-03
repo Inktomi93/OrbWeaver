@@ -6,7 +6,7 @@
 // content), the flatten-to-create-input seam that validates the normalized card against the canonical
 // `createCharacterSchema` (serialization-core §7.3 inv 3 — the tolerant IN normalizer's output is gated by the
 // SAME schema the CRUD wire uses), and the card TAG extraction. `cardFromJson` deliberately drops `data.tags`
-// (tags are the `character_tags` junction, not a card column — import.md §tag.md intersection: import writes
+// (tags are the `character_tags` junction, not a card column — import writes
 // `status:'pending'` junction rows from `card.tags`), so the tag NAMES are read straight off the raw card
 // here and carried alongside the canonical card for the verb to attach as card/pending suggestions.
 //

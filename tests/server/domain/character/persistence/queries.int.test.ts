@@ -95,7 +95,7 @@ describe("persistence/queries", () => {
   });
 });
 
-describe("canonicalTagsFor — the tag.md L56 accepted-junction read", () => {
+describe("canonicalTagsFor — the accepted-junction db-layer consumer read", () => {
   test("returns ACCEPTED tags per character (pending excluded), ordered sortOrder-then-name", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: "owner" });

@@ -1,8 +1,8 @@
 // domain/admin/contract/views — the admin read-models (what the client receives via tRPC service-method-
-// signature inference; admin.md §"Public surface"). These are domain-internal: the client gets them by
+// signature inference). These are domain-internal: the client gets them by
 // INFERENCE off the tRPC procedure return, NOT a deep import — so they stay here, not in `@orb/contracts`.
 // FLAG[PD-2]: promote `AdminUserView` to `@orb/contracts/identity` IFF the client ever deep-imports the shape
-// directly (admin.md open decision); inference-only keeps it domain-internal.
+// directly; inference-only keeps it domain-internal.
 
 import type { UserKind, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";

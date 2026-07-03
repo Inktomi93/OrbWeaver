@@ -2,7 +2,7 @@
 // (characters / personas / presets / world_books / tags / user_credentials / workloads / assets — D23)
 // shares this read: load a row by id AND owner in one query, so a non-owner gets `undefined`, never
 // another user's row. `OwnedTable` is `SQLiteTable & { id; ownerId }` — it needs drizzle column types,
-// so it cannot be `@orb/kit`-pure (resolves tag.md's kit-vs-db question). `ownerId` is `principal.userId`
+// so it cannot be `@orb/kit`-pure (which is why it lives in db/kit, not kit). `ownerId` is `principal.userId`
 // (§7.1). NOTE: membership-scoped chats (D18) do NOT use this — they go through `requireParticipant`.
 
 import type { UserId } from "@orb/kit/ids";

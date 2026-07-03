@@ -48,7 +48,7 @@ describe("get", () => {
   });
 });
 
-describe("get — canonical tags (tag.md L56: the editor chips)", () => {
+describe("get — canonical tags (the editor chips)", () => {
   test("the detail carries ACCEPTED junction tags only", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);

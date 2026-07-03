@@ -1,13 +1,13 @@
 import { createHmac } from "node:crypto";
 
 // domain/sessions/tokens — the named token-crypto + timing subsystem (D38: RELOCATED here from
-// `infra/crypto/token-hash.ts`, which `sessions.md` homes in this domain — the orchestrator removes the
+// `infra/crypto/token-hash.ts` — token crypto is this domain's, so the orchestrator removed the
 // `infra/crypto` copy + its barrel export). Pure crypto + constants; NO db.
 //
 // The pepper (`SESSION_SECRET`) is INJECTED, not read here: `entry/` constructs the hasher with
 // `createTokenHasher(env.SESSION_SECRET)` (the value flows DOWN from `foundation/env`) and threads the
 // bound `hashToken` through `SessionsContext`. This mirrors the project's `SecretBox`/key DI idiom — and
-// it is what makes invariant #3's "missing-secret throws" reachable in a test (a frozen-env read could
+// it is what makes the "missing-secret throws" branch reachable in a test (a frozen-env read could
 // never exercise the disabled branch). The token's HASH is stored, never the token: an HMAC-peppered
 // digest means a DB leak ALONE cannot forge a session (the stored hash is useless without the pepper).
 
@@ -29,7 +29,7 @@ export const SLIDE_THROTTLE_MS = SLIDE_THROTTLE_MINUTES * MS_PER_MINUTE;
  * it THROWS (loud misconfiguration beats silent forgery) if the pepper is unset/empty — the earlier
  * `?? ""` floor would HMAC the empty string for a future non-cookie caller. Sessions exist only in
  * `oidc`/`local` modes, both of which env-refine `SESSION_SECRET` as required, so the throw is unreachable
- * in a correct deploy — it guards future call sites (invariant #3).
+ * in a correct deploy — it guards future call sites (the token is never stored, only its peppered hash).
  */
 export function createTokenHasher(pepper: string | null | undefined): (token: string) => string {
   const key = pepper !== null && pepper !== undefined && pepper.length > 0 ? pepper : null;

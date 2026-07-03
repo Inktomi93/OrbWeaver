@@ -9,7 +9,7 @@ import { insertSession } from "../persistence/sessions";
 import { selectKindById } from "../persistence/users";
 
 // Mint a revocable BFF session: a 32-byte opaque token (the route sets it as the cookie) whose PEPPERED
-// HASH alone is persisted (invariant #3 — the raw token never touches the db). Every mint IS a login in
+// HASH alone is persisted (the raw token never touches the db). Every mint IS a login in
 // every mode (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated revokes
 // audit at the admin layer.
 
