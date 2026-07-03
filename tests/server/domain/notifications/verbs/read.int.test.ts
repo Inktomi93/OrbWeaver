@@ -8,7 +8,14 @@ import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support";
+import {
+  ALICE,
+  BOB,
+  inviteEvent,
+  makeNotificationsService,
+  principal,
+  seedUser,
+} from "../_support";
 
 let db: Db;
 let svc: NotificationsService;
