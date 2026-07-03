@@ -15,6 +15,7 @@
 
 import { notificationEventSchema } from "@orb/contracts/notifications";
 import type { BatchStmt } from "@orb/db/kit";
+import { DomainOperationError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params";
 import type { NotificationsContext, NotificationsService } from "../contract/service";
@@ -25,6 +26,19 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
   async function record(params: RecordParams): Promise<InboxView> {
     // Parse = the secret-free belt: the closed union strips any unknown key before it can reach the row.
     const event = notificationEventSchema.parse(params.event);
+    // D60 recipient belt (agent-principal-design/06 §3 + inv 2): an agent principal is structurally
+    // sessionless (no session → no subscription), so a notification addressed to one would only ROT in the
+    // table. Refuse it LOUD at this ONE write chokepoint — covering EVERY producer (chat invite/kick/handoff
+    // today; automation `post_notification`, crew `crew-proposal`, plugin `notify` when they land — all
+    // human-targeted, but their `all_members`/participant fan-outs must exclude agents, and this is the
+    // backstop). Runs BEFORE the INSERT / `coStatements` batch so a refusal never HALF-commits a producer's
+    // membership transition (PD-24 tx-atomicity).
+    if (await ctx.isAgentRecipient(event.recipientUserId)) {
+      throw new DomainOperationError(
+        "agent_recipient",
+        "an agent principal has no inbox — a notification cannot be addressed to one (D60)",
+      );
+    }
     const row = {
       id: mintTypeId(ID_PREFIX.notification),
       recipientUserId: event.recipientUserId,

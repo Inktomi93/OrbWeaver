@@ -31,7 +31,7 @@ import type {
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import { assets as assetsTable, chatParticipants, chats } from "@orb/db";
+import { assets as assetsTable, chatParticipants, chats, users } from "@orb/db";
 import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
@@ -426,7 +426,21 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     summarize: roleClients.summarize,
     writeHubScores: embeddings.writeHubScores,
   });
-  const notifications = createNotificationsService({ db, now });
+  const notifications = createNotificationsService({
+    db,
+    now,
+    // D60 recipient belt (agent-principal-design/06 §3): the entry root is the sanctioned `users` reader
+    // (exempt from `no-direct-users-read`, the `resolveAgentEnabled` precedent) — an agent principal has no
+    // inbox, so `record` refuses it. A missing row ⇒ false (only a real agent row refuses).
+    isAgentRecipient: async (userId) => {
+      const rows = await db
+        .select({ kind: users.kind })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      return rows[0]?.kind === "agent";
+    },
+  });
   const workloads = createWorkloadService({ db, now, newWorkloadId: minter(ID_PREFIX.workload) });
 
   const admin = createAdminService({
