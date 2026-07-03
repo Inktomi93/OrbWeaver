@@ -1,8 +1,13 @@
+---
+kind: history
+status: superseded
+updated: 2026-06-26
+---
+
 # Orbweaver — Architecture-Docs Inconsistency Audit (2026-06-26)
 
 > Split from `Core-Audits-and-Debt.md` (2026-07-02). **Archeology / reference only — REMEDIATED.** A dated audit pass (blockers/majors/minors/questions) whose findings were all remediated. Kept as evidence; not open work.
 
----
 ## ARCHAEOLOGY — architecture-docs inconsistency audit (2026-06-26, REMEDIATED — reference only)
 
 > **STATUS: REMEDIATED (2026-06-26).** All blockers, majors, and minors below were fixed in a two-phase
@@ -20,15 +25,9 @@ The 21 `domains/` docs were sliced one-per-auditor; all 26 non-domain "core" doc
 Severity: **blocker** = a load-bearing contradiction that would mis-build; **major** = a real
 contradiction of a decision/schema; **minor** = drift/stale-ref/mechanical; **question** = needs a call.
 
-Rollup (de-duplicated): **3 blocker · 13 major · ~26 minor · ~9 question.**
-
----
-
-<!-- Source: Core-Audits-and-Debt.md -->
+Rollup (de-duplicated): **3 blocker · 13 major · \~26 minor · \~9 question.**
 
 ## BLOCKERS
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ### B1 — The agent-sdk SESSION home points both ways (D8)
 
@@ -42,8 +41,6 @@ still say it lives in the **chat domain**:
 - `core/Spine-Identity-and-Auth.md:83` — `session_entries` "owned by `domain/chat`".
   Fix: reconcile all three to D8 (substrate → agent-sdk backend; only `session_entries` table → `@orb/db/schema/sdk-session.ts`).
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### B2 — `max-pro-sub` gated on "admin" instead of "owner" (D17) — 3 docs
 
 D17 makes the box credential **owner-only** (`requireOwner`); `providers.md` + `Spine-Identity-and-Auth.md`
@@ -54,69 +51,45 @@ were reconciled, but the credential/connection/buddy docs were not:
 - `buddy.md:75, 369, 488` — "max-pro-sub is admin-only"; buddy is the **owner's** agent inheriting the owner's sub (ledger §3).
   Fix: `requireOwner` / owner-delegated inheritance throughout.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### B3 — `buddy.md` resolves a dropped column (D18)
 
 `buddy.md:343, 381` — `createBuddyObserverReads` does "narrow chats `ownerId` reads" and exposes
 `resolveChatOwner`, but **D18 dropped `chats.ownerId`** (chats are membership-scoped; owner = the
 `chat_participants(role='host')`). Fix: resolve the chat host via the roster, not a dropped column.
 
----
-
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ## MAJORS
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
-### M1 — `db.md:138` lists `duplicate_pairs` in the KEEP-`ownerId` set (D23/D24) — _canonical-doc self-contradiction_ (found by 2 auditors)
+### M1 — `db.md:138` lists `duplicate_pairs` in the KEEP-`ownerId` set (D23/D24) — *canonical-doc self-contradiction* (found by 2 auditors)
 
 Contradicts ledger **D23** ("DERIVE once modernized to per-type FK") + **D24** + `db.md:161`'s own row
 ("`ownerId` dropped per D23 — DERIVE"). Fix the KEEP list in db.md §D23 audit.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### M2 — `core/Core-0-Architecture-and-Structure.md:234` "versions = restorable history" — pre-D28 (found by 3 auditors)
 
-§6 partitioning row still describes the de-pin model. **D28** deleted the version table (flat `characters`
-
-- `character_snapshots`, gating nothing). `Core-0-Architecture-and-Structure.md` is a top authority doc; `domains.md:12` and
-  `core/AGENTS.md:114` were updated, this was not.
-
-<!-- Source: Core-Audits-and-Debt.md -->
+§6 partitioning row still describes the de-pin model. **D28** deleted the version table (flat `characters` + `character_snapshots`, gating nothing). `Core-0-Architecture-and-Structure.md` is a top authority doc; `domains.md:12` and
+`core/AGENTS.md:114` were updated, this was not.
 
 ### M3 — `persona.md:220-221` "`character_books` keys on cv by design" (D28)
 
 "Do not normalize these to the same key" actively mis-states the schema — D28 re-keys `character_books`→
 `characters.id` (db.md:164; participants-agents-identity:124-127). Both junctions key on `characters.id`.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
-### M4 — `search.md:97-98, 107-108` "owner-scoped digest scan" (D18/D20) — _leak-relevant_
+### M4 — `search.md:97-98, 107-108` "owner-scoped digest scan" (D18/D20) — *leak-relevant*
 
 `digests`/`segments` verbs + `scope.ts` framed as "owner-scoped". Under D18 (`chats.ownerId` dropped) +
 D20 (chat digest/segment scope DERIVES from membership, host-only v1), an "owner-scoped digest scan" is
 no longer expressible. Re-frame as membership-derived (the `vector-scope-derived` gate). The D20
 "scope BEFORE cosine rank AND before `content_hash` collapse" rule is also not stated as a search invariant.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### M5 — `settings.md` omits the D17 owner-box AppSettings toggles
 
 `settings.md` (§(b):85-94, "owns":21-47) lacks `allowNonOwnerLocalCompute` (default ON), the per-member
-local-compute COUNT budget, and `allowNonOwnerMaxProSub` (default OFF) — which `settings-and-config.md:104-112`
-
-- D17 mandate. New settings fields with no home in the owning domain doc.
-
-<!-- Source: Core-Audits-and-Debt.md -->
+local-compute COUNT budget, and `allowNonOwnerMaxProSub` (default OFF) — which `settings-and-config.md:104-112` + D17 mandate. New settings fields with no home in the owning domain doc.
 
 ### M6 — `admin.md:20` sweeps `setRole` into `requireAdmin`
 
 "Every one is admin-gated (`requireAdmin`)" captures `setRole`, but `admin.md:35-39` + D17 + identity-spine §3
 say admin grant/revoke is **owner-only** (`requireOwner`). Carve `setRole` out of the blanket.
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ### M7 — `assets.md` `characters.importHash` not in db.md's D28 column list
 
@@ -125,20 +98,14 @@ integrity guard, but db.md's flat-`characters` enumeration names `contentHash` (
 says `cardContentHash` is over semantic fields, not PNG bytes). Two distinct hashes; one isn't in db.md.
 Add `importHash` to db.md's `characters` columns or reconcile the guard.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### M8 — `preset.md:44` puts the UserIntent snapshot on `messages.params` (D26)
 
 D26 makes `messages` a pure SLOT with **no** `params`; the snapshot lives on `message_variants.params`.
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ### M9 — `connection.md` internal + cross-doc home drift (cluster)
 
 - `:141` re-exports `ResolvedConnection` from `./contract/params` while `:156` says it lives in `@orb/contracts/connection` and is "NOT re-exported from this front door" — a symbol can't be both. (`ResolvedConnection` is claimed in **three** homes: `:83 results.ts`, `:141 params`, `:205/322 routing.ts`.)
 - `:240` homes `RoleClients` at `@orb/contracts/connection/roles.ts`, but `buddy.md:354`, `providers.md:210`, `Core-Legacy-Migration-and-Gaps.md:121`, and the boot DAG all use `@orb/contracts/role-clients`.
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ### M10 — provider-result contract home drift
 
@@ -147,36 +114,26 @@ D26 makes `messages` a pure SLOT with **no** `params`; the snapshot lives on `me
 provider-result contracts in `@orb/contracts/providers` (the group `role-clients` depends on first).
 `EmbedResult` double-homed.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### M11 — custom-BYO `modelProfile` two homes
 
 `connection.md:239,518,680` + `providers.md:197,591` put it on `UserSettings.customEndpoint.modelProfile`;
 ledger §2 + `credentials.md:466` home it on `providerMetadataSchema.modelProfile`. Ledger wins.
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ### M12 — §7.5 union name drift (`no-inline-union-redecl` needs one name)
 
 - `preset.md:116,172` `GuidedAction` vs `string-union-dispatch.md:46,122,183` `GuidedActionKind`.
 - `search.md:304` and `embeddings.md:330-332` each claim to be the single home of the lens union (`image-raw|image-captioned|segment|digest|card-text`) — producer (embeddings) should own it.
 
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ### M13 — `stats.md:225` `personaUsage` keys on dropped/renamed columns
 
 "a chat's active OR pinned persona" — `chats.personaId` is **dropped** (D18; active persona is per-participant
 `chat_participants.activePersonaId`) and "pinned" was renamed `anchorPersonaId`.
 
----
-
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ## MINORS (drift / stale-ref / mechanical)
 
 - **Stray markup committed:** `core/Tier-2-Foundation.md:457-458` ends with literal `</content>` / `</invoke>` lines (found by 4 auditors). Delete them.
 - **Gate-count drift (found by 4 auditors):** canonical is **13** gates (`core/Core-0-Architecture-and-Structure.md §7`, `_STATUS:88`, `BUILD-PLAN:20`), but stale counts persist: `string-union-dispatch.md:275-277` ("six … eight"), `core/Core-Core-Planning-and-Checklists.md:13` ("8/11"), ledger §7 R10 ("6→11"), and cross-refs in `db.md:13`, `infra.md:12`, `transport.md:16` ("the six gates").
-- **D28 residue:** `Core-STATUS.md:57` ("versions = restorable history"); `core/Tier-2-Foundation.md:140` ("version-collapsed character"); `assets.md:41-42,139` ("current versions"); ledger §2:63-64 + D23:152 ("current-version card" / "character_summaries via cv").
+- **D28 residue:** `Core-STATUS.md:57` ("versions = restorable history"); `core/Tier-2-Foundation.md:140` ("version-collapsed character"); `assets.md:41-42,139` ("current versions"); ledger §2:63-64 + D23:152 ("current-version card" / "character\_summaries via cv").
 - **D17 "last-admin" residue:** `core/Spine-Testing.md:163`, `Core-Planning-and-Checklists.md:102` (renamed last-owner / owner-immutability guard; PRE-SCAFFOLD is internally inconsistent with its own §C3:120-121).
 - **vector-math path:** `embeddings.md:239,240,429` uses `@orb/kit/math/vector`; everyone else uses `@orb/kit/vector-math` (ledger D10). Also `embeddings.md:429` inv #8 names a kit module as owner of the lens→table map (that's `embeddings/store.ts`, §7.5).
 - **CAS sharding:** `assets.md:85,187` shows `ab/cd/<hash>` (no owner prefix); D21 + `infra.md:86` require `<owner>/ab/cd/<hash>` (assets.md:27,256 correct).
@@ -194,10 +151,6 @@ ledger §2 + `credentials.md:466` home it on `providerMetadataSchema.modelProfil
 - **summarizer:** `domains/memory.md:247` "summarizer (local-first GGUF → hosted fallback)" vs `providers.md §2b:639` ("summarize is NOT a model — a `chat` turn shaped").
 - **embeddings indexer events:** `embeddings.md:140` declares `onDigestCreated`/`onSegmentCreated` handlers but `:273-280` + `domains.md:183-189` disagree on whether digests/segments fire events or are written by direct `store` calls.
 
----
-
-<!-- Source: Core-Audits-and-Debt.md -->
-
 ## QUESTIONS (need a decision/confirmation)
 
 - **Q1 — can()/`requireParticipant`/`requireHost` home.** Ledger §5 + identity §4 say the `can()` wrappers live in `domain/admin/guard.ts`; but identity §2/§2a + admin.md:81-82 + the ENFORCEMENT membership-enforcer frame `requireParticipant`/`requireHost` as **chat's** build (reads `chat_participants`). How does chat reach the one seam without a cross-feature import? Pin one home + document the seam.
@@ -207,20 +160,15 @@ ledger §2 + `credentials.md:466` home it on `providerMetadataSchema.modelProfil
 - **Q5 — `reconcile-world-state`** workload kind is in `WORKLOAD_KINDS` (workloads.md:104) but no stub runner is listed; RUNNERS must be exhaustive — confirm the stub.
 - **Q6 — `search.corpus`** injected op (chat.md:88,195,224) uses the retired `corpus` name — confirm it's the intended search method, not the dissolved corpus domain.
 - **Q7 — `export.md:277-279`** insists a 2-member `ExportChatFormat` union be gated by `no-inline-union-redecl`, but ledger §5 + ENFORCEMENT only fire that gate on ≥3-member unions — overclaim?
-- **Q8 — `tag.md:14,17`** "five polymorphic junction tables" wording reads against D24 ("NO polymorphic association tables") — they're per-type FK; only the _dispatch_ is polymorphic. Reword?
+- **Q8 — `tag.md:14,17`** "five polymorphic junction tables" wording reads against D24 ("NO polymorphic association tables") — they're per-type FK; only the *dispatch* is polymorphic. Reword?
 - **Q9 — `string-union-dispatch.md:64-67`** shows `users.role` as 2-member `admin|user` (legit neo-source "shape of the rot") — confirm a reader won't mistake it for the live `owner|admin|user` axis.
-
----
-
-<!-- Source: Core-Audits-and-Debt.md -->
 
 ## What is clean
 
 The two authorities (ledger §7 D1–D30, db.md) are mutually consistent on every D-decision cross-checked,
 **except M1** (db.md's own `duplicate_pairs` KEEP/DERIVE self-contradiction). The D26/D27/D28/D29/D30
 re-architecture landed consistently in the owned domain slices (`character`/`tag`/`import`/`export` verified);
-the surviving D28 defects are in _summary/authority_ docs (`Core-0-Architecture-and-Structure.md`, `persona.md`, `Core-STATUS.md`,
+the surviving D28 defects are in *summary/authority* docs (`Core-0-Architecture-and-Structure.md`, `persona.md`, `Core-STATUS.md`,
 `foundation.md`, `assets.md`) not updated in the last sweep. `chat.md`, `providers.md`,
 `Spine-Identity-and-Auth.md` are the correctly-reconciled models for the B1/B2 clusters — the lagging docs
 should be aligned **to them**, not vice-versa.
-

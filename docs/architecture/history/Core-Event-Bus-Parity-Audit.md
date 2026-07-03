@@ -1,8 +1,13 @@
-# Orbweaver — Event-Bus Parity Audit (vs SillyTavern `event_types`)
+---
+kind: history
+status: superseded
+updated: 2026-06-28
+---
+
+# Orbweaver — Event-Bus Parity Audit vs SillyTavern `event_types` (2026-06-28)
 
 > Split from `Core-Legacy-Migration-and-Gaps.md` (2026-07-02). **Status: RESOLVED → ledger D50** — a dated, completed research audit; its recommendations were acted on (gaps 1-3 landed, gap 4 rejected). **Archeology / reference only.** The "current event surface" baseline table (§1) predates the D50 additions and is stale as present-day truth — for what `ChatBusEvent` looks like today, read `@orb/contracts/chat`. The one piece of live law here is §6 (pre-send interceptor is NOT an event).
 
----
 ## Event-bus parity audit — orbweaver vs SillyTavern (`event_types`)
 
 > **Status: RESOLVED → ledger D50 (2026-06-28).** Acted on: `chatOpened` + `worldInfoActivated` added to
@@ -20,19 +25,13 @@
 > ledger **D46** (`core/Core-Laws-and-Precedents.md`), `proposals/scripting-automation-extensibility.md` §5.
 >
 > **Why this is born-compliant-before-Phase-5:** these events freeze into the `chat_events` table + the
-> closed `ChatBusEvent`/`DomainEvent` unions. Widening the union _after_ Phase 5 wires triggers to it is the
+> closed `ChatBusEvent`/`DomainEvent` unions. Widening the union *after* Phase 5 wires triggers to it is the
 > exact retrofit D46 calls out ("chat events as a typed id-only closed union" is a pre-Phase-5 deliverable).
 > The point of this audit is to land the union **complete** before chat is built.
 
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
 ## 1. orbweaver's current event surface (the baseline)
 
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
-### `ChatBusEvent` — `packages/contracts/src/chat/index.ts` (~L368), persisted to `chat_events` with a per-chat `seq` replay cursor
+### `ChatBusEvent` — `packages/contracts/src/chat/index.ts` (\~L368), persisted to `chat_events` with a per-chat `seq` replay cursor
 
 Grouped:
 
@@ -52,8 +51,6 @@ no `unknown`/`Record`/index field, so secrets are **unrepresentable** (`.contrac
 carries a caller id (D19 — attribution lives on the turn path). `CHAT_BUS_EVENT_TYPES satisfies
 Record<ChatBusEvent["type"], true>` keeps the replay guard exhaustive.
 
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
 ### `DomainEvent` — `packages/contracts/src/events/index.ts` (in-process bus, D38)
 
 - `character.updated` (CharacterId) — indexer re-embeds card-text.
@@ -61,10 +58,6 @@ Record<ChatBusEvent["type"], true>` keeps the replay guard exhaustive.
 
 Closed, id-only; the subscriber **re-reads canon by id**, never trusting event-carried data. Emitted via an
 injected `EmitDomainEvent` op (composition root), wired at `entry/compose/event-bus.ts`.
-
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
 
 ## 2. Are ST MACROS event-driven? — No (substitution-time, one tiny exception)
 
@@ -80,86 +73,74 @@ DoS bounding per D46) is the right home, and its env-by-reference resolution at 
 equivalent of ST's substitution. The event surface that matters for parity is **STscript / Quick-Reply
 event-triggers + extension `eventSource.on` subscribers** — that is what §3–§5 map.
 
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
 ## 3. The full mapping table (ST `event_types` → orbweaver disposition)
 
-`event_types` has ~85 entries. Disposition: **COVERED** (maps to an existing member), **GAP**
+`event_types` has \~85 entries. Disposition: **COVERED** (maps to an existing member), **GAP**
 (automation-relevant, no equivalent — actionable), **N/A** (client-DOM/UI, credential, or D49-rejected),
-**HOOK** (a _mutating_ pre-send interceptor, NOT a fire-and-forget event — see §6).
+**HOOK** (a *mutating* pre-send interceptor, NOT a fire-and-forget event — see §6).
 
-| ST event                                                                                                                                                                                                                                                              | Category             | Disposition        | Maps to / note                                                                                                                  |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `MESSAGE_SENT`                                                                                                                                                                                                                                                        | chat lifecycle       | **COVERED**        | `messageCommitted` (role=user)                                                                                                  |
-| `MESSAGE_RECEIVED`                                                                                                                                                                                                                                                    | chat lifecycle       | **COVERED**        | `messageCommitted` (role=assistant)                                                                                             |
-| `USER_MESSAGE_RENDERED`                                                                                                                                                                                                                                               | render (DOM)         | **COVERED**        | `messageCommitted`; render≠commit is client-only                                                                                |
-| `CHARACTER_MESSAGE_RENDERED`                                                                                                                                                                                                                                          | render (DOM)         | **COVERED**        | `messageCommitted`; heaviest extension hook (expressions/regex post-process) — server equiv is commit                           |
-| `MESSAGE_EDITED`                                                                                                                                                                                                                                                      | chat lifecycle       | **COVERED**        | `messageEdited`                                                                                                                 |
-| `MESSAGE_UPDATED`                                                                                                                                                                                                                                                     | chat lifecycle       | **COVERED**        | `messageEdited` (post-edit commit)                                                                                              |
-| `MESSAGE_DELETED`                                                                                                                                                                                                                                                     | chat lifecycle       | **COVERED**        | `messagesDeleted`                                                                                                               |
-| `MESSAGE_SWIPED`                                                                                                                                                                                                                                                      | chat lifecycle       | **COVERED**        | `variantSelected` (flip to existing) + `turnStarted{intent:swipe}`/`turnCompleted` (swipe-generate)                             |
-| `MESSAGE_SWIPE_DELETED`                                                                                                                                                                                                                                               | chat lifecycle       | **COVERED**        | `variantSelected` re-emits the surviving view (a variant delete repoints the slot); `messageEdited` view carries `variantCount` |
-| `MESSAGE_REASONING_EDITED`                                                                                                                                                                                                                                            | chat lifecycle       | **COVERED**        | `reasoningEdited`                                                                                                               |
-| `MESSAGE_REASONING_DELETED`                                                                                                                                                                                                                                           | chat lifecycle       | **COVERED**        | `reasoningCleared`                                                                                                              |
-| `STREAM_TOKEN_RECEIVED` (+`SMOOTH_…` alias)                                                                                                                                                                                                                           | generation           | **COVERED**        | `delta{kind:text}`                                                                                                              |
-| `STREAM_REASONING_DONE`                                                                                                                                                                                                                                               | generation           | **COVERED**        | `reasoningStreamDone`                                                                                                           |
-| `GENERATION_STARTED`                                                                                                                                                                                                                                                  | generation           | **COVERED**        | `turnStarted`                                                                                                                   |
-| `GENERATION_ENDED`                                                                                                                                                                                                                                                    | generation           | **COVERED**        | `turnCompleted`                                                                                                                 |
-| `GENERATION_STOPPED`                                                                                                                                                                                                                                                  | generation           | **COVERED**        | `turnAborted{reason:user}`                                                                                                      |
-| `IMPERSONATE_READY`                                                                                                                                                                                                                                                   | generation           | **COVERED**        | `turnCompleted{intent:impersonate}` (impersonate result; orbweaver's `TurnIntent` includes `impersonate`)                       |
-| `CHAT_CREATED` / `GROUP_CHAT_CREATED`                                                                                                                                                                                                                                 | chat existence       | **COVERED**        | `chatCreated` (solo=degenerate group, D16 — one event)                                                                          |
-| `CHAT_DELETED` / `GROUP_CHAT_DELETED`                                                                                                                                                                                                                                 | chat existence       | **COVERED**        | `chatDeleted`                                                                                                                   |
-| `CHAT_RENAMED`                                                                                                                                                                                                                                                        | chat existence       | **COVERED**        | `chatUpdated` (title is a low-payload row change)                                                                               |
-| `PERSONA_CHANGED`                                                                                                                                                                                                                                                     | persona              | **COVERED**        | `personaSwitched` (per-chat active persona)                                                                                     |
-| `WORLDINFO_*` attach/detach (implicit)                                                                                                                                                                                                                                | world-info           | **COVERED**        | `wiBookAttached/Detached`, `wiEntryAttached/Detached`, `wiEntryScopeChanged`                                                    |
-| `CHARACTER_EDITED` / `CHARACTER_RENAMED` / `CHARACTER_DUPLICATED`                                                                                                                                                                                                     | character            | **COVERED**        | `DomainEvent character.updated`                                                                                                 |
-| **`CHAT_CHANGED`**                                                                                                                                                                                                                                                    | chat lifecycle / nav | **GAP**            | proposal's flagship trigger ("on chat open, set POV") has no member — see §5 #1                                                 |
-| **`WORLD_INFO_ACTIVATED`**                                                                                                                                                                                                                                            | generation/WI        | **GAP**            | "which lore entries fired this turn" — QR+expressions hook it; only `AssembleTrace` (debug) exists — see §5 #2                  |
-| **`GROUP_MEMBER_DRAFTED`**                                                                                                                                                                                                                                            | group arbitration    | **GAP**            | speaker chosen before generation; `turnStarted` carries NO speaker id — see §5 #3                                               |
-| **`CHARACTER_DELETED`**                                                                                                                                                                                                                                               | character            | **GAP**            | no `DomainEvent character.deleted` → indexer can't evict embeddings — see §5 #4                                                 |
-| `GENERATION_AFTER_COMMANDS`                                                                                                                                                                                                                                           | generation           | **COVERED**(+HOOK) | fire-and-forget side = `turnStarted`; the "still mutate input before assembly" side = the §6 interceptor seam                   |
-| `GENERATE_BEFORE_COMBINE_PROMPTS`                                                                                                                                                                                                                                     | prompt assembly      | **HOOK**           | mutating pre-send — §6, NOT a bus event                                                                                         |
-| `GENERATE_AFTER_COMBINE_PROMPTS`                                                                                                                                                                                                                                      | prompt assembly      | **HOOK**           | mutating pre-send — §6                                                                                                          |
-| `GENERATE_AFTER_DATA`                                                                                                                                                                                                                                                 | prompt assembly      | **HOOK**           | mutating wire-data — §6                                                                                                         |
-| `CHAT_COMPLETION_PROMPT_READY`                                                                                                                                                                                                                                        | prompt assembly      | **HOOK**           | the big one — extensions rewrite the final prompt array — §6                                                                    |
-| `CHAT_COMPLETION_SETTINGS_READY` / `TEXT_COMPLETION_SETTINGS_READY`                                                                                                                                                                                                   | prompt assembly      | **HOOK**/N-A       | mutate gen params pre-send (text-completion family is D49 by-design-out)                                                        |
-| `WORLDINFO_FORCE_ACTIVATE`                                                                                                                                                                                                                                            | world-info           | N/A (action)       | a script _action_ (force an entry), not a trigger → a D46 Tier-1 action, not an event                                           |
-| `SETTINGS_UPDATED`                                                                                                                                                                                                                                                    | settings             | GAP (LOW)          | no server settings-changed event; low automation demand — see §5 #5                                                             |
-| `GROUP_UPDATED`                                                                                                                                                                                                                                                       | group/roster         | GAP (LOW)/COVERED  | roster/config change ≈ `chatUpdated`; a discrete `rosterChanged` (member joined/left) is reserved-additive — see §5 #5          |
-| `WORLDINFO_UPDATED`                                                                                                                                                                                                                                                   | world-info           | GAP (LOW)          | WI _book content_ edit (vs attach); `DomainEvent worldinfo.updated` if WI ever gets embedded — §5 #5                            |
-| `PRESET_CHANGED/DELETED/RENAMED(_BEFORE)`                                                                                                                                                                                                                             | preset               | N/A (LOW)          | preset CRUD; `DomainEvent preset.updated` only if a subscriber appears — reserved-additive                                      |
-| `PERSONA_CREATED/UPDATED/RENAMED/DELETED`                                                                                                                                                                                                                             | persona              | N/A                | persona CRUD; no indexer/automation subscriber — re-read on demand                                                              |
-| `CONNECTION_PROFILE_LOADED/CREATED/DELETED/UPDATED`                                                                                                                                                                                                                   | connection/settings  | N/A                | client connection-profile UI; server connection domain re-reads                                                                 |
-| `TOOL_CALLS_PERFORMED`                                                                                                                                                                                                                                                | tool use             | GAP (LOW)          | D48 owns the loop; tool calls persist on the variant — an "on tool call" trigger is reserved-additive, not pre-Phase-5          |
-| `TOOL_CALLS_RENDERED`                                                                                                                                                                                                                                                 | render               | N/A                | DOM render of tool cards                                                                                                        |
-| `SD_PROMPT_PROCESSING` / `IMAGE_SWIPED`                                                                                                                                                                                                                               | imagery              | N/A                | D49 `domain/imagery` (mutate-the-SD-prompt hook lives there, not the chat bus)                                                  |
-| `FORCE_SET_BACKGROUND`                                                                                                                                                                                                                                                | theming              | N/A                | D49 — background is a `ThemeOverride` token, not an event                                                                       |
-| `MESSAGE_FILE_EMBEDDED` / `FILE_ATTACHMENT_DELETED` / `MEDIA_ATTACHMENT_DELETED`                                                                                                                                                                                      | databank             | N/A (deferred)     | D49 databank graft; its own events land with that leaf                                                                          |
-| `TTS_JOB_STARTED/AUDIO_READY/JOB_COMPLETE`                                                                                                                                                                                                                            | tts                  | N/A                | D49 by-design-out (no audio transport)                                                                                          |
-| `EXTRAS_CONNECTED` / `ONLINE_STATUS_CHANGED` / `MAIN_API_CHANGED` / `CHATCOMPLETION_SOURCE_CHANGED` / `CHATCOMPLETION_MODEL_CHANGED`                                                                                                                                  | connection/UI        | N/A                | client connection state; no server bus meaning                                                                                  |
-| `SECRET_WRITTEN/DELETED/ROTATED/EDITED`                                                                                                                                                                                                                               | credentials          | N/A (by design)    | the credential firewall — these are precisely what orbweaver's bus-payload allowlist BANS from a bus                            |
-| `APP_INITIALIZED`/`APP_READY`/`EXTENSIONS_FIRST_LOAD`/`EXTENSION_SETTINGS_LOADED`/`SETTINGS_LOADED(_BEFORE/_AFTER)`/`CHAT_LOADED`/`MORE_MESSAGES_LOADED`                                                                                                              | app/UI               | N/A                | client lifecycle/DOM; no server-side meaning                                                                                    |
-| `MOVABLE_PANELS_RESET`/`CHARACTER_EDITOR_OPENED`/`CHARACTER_PAGE_LOADED`/`CHARACTER_GROUP_OVERLAY_STATE_CHANGE_*`/`CHARACTER_FIRST_MESSAGE_SELECTED`/`CHARACTER_MANAGEMENT_DROPDOWN`/`OPEN_CHARACTER_LIBRARY`/`WORLDINFO_SETTINGS_UPDATED`/`WORLDINFO_ENTRIES_LOADED` | UI/DOM               | N/A                | pure client-DOM panel/editor events                                                                                             |
-| `OAI_PRESET_*`/`ITEMIZED_PROMPTS_*`                                                                                                                                                                                                                                   | UI                   | N/A                | preset-export/token-itemizer UI                                                                                                 |
-| `WORLDINFO_SCAN_DONE`                                                                                                                                                                                                                                                 | WI                   | N/A                | covered by `AssembleTrace` (debug surface), not an automation trigger                                                           |
-| `GROUP_WRAPPER_STARTED/FINISHED`                                                                                                                                                                                                                                      | group internal       | N/A                | ST's internal group-turn-loop bracketing; orbweaver's loop is server-internal                                                   |
-| `CHARACTER_RENAMED_IN_PAST_CHAT`                                                                                                                                                                                                                                      | data migration       | N/A                | a one-shot data-fix, not a trigger                                                                                              |
-
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
+| ST event | Category | Disposition | Maps to / note |
+| - | - | - | - |
+| `MESSAGE_SENT` | chat lifecycle | **COVERED** | `messageCommitted` (role=user) |
+| `MESSAGE_RECEIVED` | chat lifecycle | **COVERED** | `messageCommitted` (role=assistant) |
+| `USER_MESSAGE_RENDERED` | render (DOM) | **COVERED** | `messageCommitted`; render≠commit is client-only |
+| `CHARACTER_MESSAGE_RENDERED` | render (DOM) | **COVERED** | `messageCommitted`; heaviest extension hook (expressions/regex post-process) — server equiv is commit |
+| `MESSAGE_EDITED` | chat lifecycle | **COVERED** | `messageEdited` |
+| `MESSAGE_UPDATED` | chat lifecycle | **COVERED** | `messageEdited` (post-edit commit) |
+| `MESSAGE_DELETED` | chat lifecycle | **COVERED** | `messagesDeleted` |
+| `MESSAGE_SWIPED` | chat lifecycle | **COVERED** | `variantSelected` (flip to existing) + `turnStarted{intent:swipe}`/`turnCompleted` (swipe-generate) |
+| `MESSAGE_SWIPE_DELETED` | chat lifecycle | **COVERED** | `variantSelected` re-emits the surviving view (a variant delete repoints the slot); `messageEdited` view carries `variantCount` |
+| `MESSAGE_REASONING_EDITED` | chat lifecycle | **COVERED** | `reasoningEdited` |
+| `MESSAGE_REASONING_DELETED` | chat lifecycle | **COVERED** | `reasoningCleared` |
+| `STREAM_TOKEN_RECEIVED` (+`SMOOTH_…` alias) | generation | **COVERED** | `delta{kind:text}` |
+| `STREAM_REASONING_DONE` | generation | **COVERED** | `reasoningStreamDone` |
+| `GENERATION_STARTED` | generation | **COVERED** | `turnStarted` |
+| `GENERATION_ENDED` | generation | **COVERED** | `turnCompleted` |
+| `GENERATION_STOPPED` | generation | **COVERED** | `turnAborted{reason:user}` |
+| `IMPERSONATE_READY` | generation | **COVERED** | `turnCompleted{intent:impersonate}` (impersonate result; orbweaver's `TurnIntent` includes `impersonate`) |
+| `CHAT_CREATED` / `GROUP_CHAT_CREATED` | chat existence | **COVERED** | `chatCreated` (solo=degenerate group, D16 — one event) |
+| `CHAT_DELETED` / `GROUP_CHAT_DELETED` | chat existence | **COVERED** | `chatDeleted` |
+| `CHAT_RENAMED` | chat existence | **COVERED** | `chatUpdated` (title is a low-payload row change) |
+| `PERSONA_CHANGED` | persona | **COVERED** | `personaSwitched` (per-chat active persona) |
+| `WORLDINFO_*` attach/detach (implicit) | world-info | **COVERED** | `wiBookAttached/Detached`, `wiEntryAttached/Detached`, `wiEntryScopeChanged` |
+| `CHARACTER_EDITED` / `CHARACTER_RENAMED` / `CHARACTER_DUPLICATED` | character | **COVERED** | `DomainEvent character.updated` |
+| **`CHAT_CHANGED`** | chat lifecycle / nav | **GAP** | proposal's flagship trigger ("on chat open, set POV") has no member — see §5 #1 |
+| **`WORLD_INFO_ACTIVATED`** | generation/WI | **GAP** | "which lore entries fired this turn" — QR+expressions hook it; only `AssembleTrace` (debug) exists — see §5 #2 |
+| **`GROUP_MEMBER_DRAFTED`** | group arbitration | **GAP** | speaker chosen before generation; `turnStarted` carries NO speaker id — see §5 #3 |
+| **`CHARACTER_DELETED`** | character | **GAP** | no `DomainEvent character.deleted` → indexer can't evict embeddings — see §5 #4 |
+| `GENERATION_AFTER_COMMANDS` | generation | **COVERED**(+HOOK) | fire-and-forget side = `turnStarted`; the "still mutate input before assembly" side = the §6 interceptor seam |
+| `GENERATE_BEFORE_COMBINE_PROMPTS` | prompt assembly | **HOOK** | mutating pre-send — §6, NOT a bus event |
+| `GENERATE_AFTER_COMBINE_PROMPTS` | prompt assembly | **HOOK** | mutating pre-send — §6 |
+| `GENERATE_AFTER_DATA` | prompt assembly | **HOOK** | mutating wire-data — §6 |
+| `CHAT_COMPLETION_PROMPT_READY` | prompt assembly | **HOOK** | the big one — extensions rewrite the final prompt array — §6 |
+| `CHAT_COMPLETION_SETTINGS_READY` / `TEXT_COMPLETION_SETTINGS_READY` | prompt assembly | **HOOK**/N-A | mutate gen params pre-send (text-completion family is D49 by-design-out) |
+| `WORLDINFO_FORCE_ACTIVATE` | world-info | N/A (action) | a script *action* (force an entry), not a trigger → a D46 Tier-1 action, not an event |
+| `SETTINGS_UPDATED` | settings | GAP (LOW) | no server settings-changed event; low automation demand — see §5 #5 |
+| `GROUP_UPDATED` | group/roster | GAP (LOW)/COVERED | roster/config change ≈ `chatUpdated`; a discrete `rosterChanged` (member joined/left) is reserved-additive — see §5 #5 |
+| `WORLDINFO_UPDATED` | world-info | GAP (LOW) | WI *book content* edit (vs attach); `DomainEvent worldinfo.updated` if WI ever gets embedded — §5 #5 |
+| `PRESET_CHANGED/DELETED/RENAMED(_BEFORE)` | preset | N/A (LOW) | preset CRUD; `DomainEvent preset.updated` only if a subscriber appears — reserved-additive |
+| `PERSONA_CREATED/UPDATED/RENAMED/DELETED` | persona | N/A | persona CRUD; no indexer/automation subscriber — re-read on demand |
+| `CONNECTION_PROFILE_LOADED/CREATED/DELETED/UPDATED` | connection/settings | N/A | client connection-profile UI; server connection domain re-reads |
+| `TOOL_CALLS_PERFORMED` | tool use | GAP (LOW) | D48 owns the loop; tool calls persist on the variant — an "on tool call" trigger is reserved-additive, not pre-Phase-5 |
+| `TOOL_CALLS_RENDERED` | render | N/A | DOM render of tool cards |
+| `SD_PROMPT_PROCESSING` / `IMAGE_SWIPED` | imagery | N/A | D49 `domain/imagery` (mutate-the-SD-prompt hook lives there, not the chat bus) |
+| `FORCE_SET_BACKGROUND` | theming | N/A | D49 — background is a `ThemeOverride` token, not an event |
+| `MESSAGE_FILE_EMBEDDED` / `FILE_ATTACHMENT_DELETED` / `MEDIA_ATTACHMENT_DELETED` | databank | N/A (deferred) | D49 databank graft; its own events land with that leaf |
+| `TTS_JOB_STARTED/AUDIO_READY/JOB_COMPLETE` | tts | N/A | D49 by-design-out (no audio transport) |
+| `EXTRAS_CONNECTED` / `ONLINE_STATUS_CHANGED` / `MAIN_API_CHANGED` / `CHATCOMPLETION_SOURCE_CHANGED` / `CHATCOMPLETION_MODEL_CHANGED` | connection/UI | N/A | client connection state; no server bus meaning |
+| `SECRET_WRITTEN/DELETED/ROTATED/EDITED` | credentials | N/A (by design) | the credential firewall — these are precisely what orbweaver's bus-payload allowlist BANS from a bus |
+| `APP_INITIALIZED`/`APP_READY`/`EXTENSIONS_FIRST_LOAD`/`EXTENSION_SETTINGS_LOADED`/`SETTINGS_LOADED(_BEFORE/_AFTER)`/`CHAT_LOADED`/`MORE_MESSAGES_LOADED` | app/UI | N/A | client lifecycle/DOM; no server-side meaning |
+| `MOVABLE_PANELS_RESET`/`CHARACTER_EDITOR_OPENED`/`CHARACTER_PAGE_LOADED`/`CHARACTER_GROUP_OVERLAY_STATE_CHANGE_*`/`CHARACTER_FIRST_MESSAGE_SELECTED`/`CHARACTER_MANAGEMENT_DROPDOWN`/`OPEN_CHARACTER_LIBRARY`/`WORLDINFO_SETTINGS_UPDATED`/`WORLDINFO_ENTRIES_LOADED` | UI/DOM | N/A | pure client-DOM panel/editor events |
+| `OAI_PRESET_*`/`ITEMIZED_PROMPTS_*` | UI | N/A | preset-export/token-itemizer UI |
+| `WORLDINFO_SCAN_DONE` | WI | N/A | covered by `AssembleTrace` (debug surface), not an automation trigger |
+| `GROUP_WRAPPER_STARTED/FINISHED` | group internal | N/A | ST's internal group-turn-loop bracketing; orbweaver's loop is server-internal |
+| `CHARACTER_RENAMED_IN_PAST_CHAT` | data migration | N/A | a one-shot data-fix, not a trigger |
 
 ## 4. ST MACROS — restated finding
 
 Confirmed in §2: ST macros are **substitution-time**, not event subscribers (one scalar-cache exception).
 **No macro parity work is required on the event bus.** Macro parity is the `kit/macro` engine + DX layer
 (D46), entirely separate from this audit.
-
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
 
 ## 5. The GAP list — actionable born-compliant additions (ranked by real automation dependence)
 
@@ -184,11 +165,11 @@ automation depends on it.
 
 3. **Speaker identity on `turnStarted` (or a `speakerDrafted` event) — MEDIUM — amend `ChatBusEvent`.**
    ST's `GROUP_MEMBER_DRAFTED` (Quick-Reply's `onGroupMemberDraft`) fires when arbitration picks the next
-   speaker, _before_ generation. orbweaver's `turnStarted` carries `intent/api/source/model/targetMessageId`
+   speaker, *before* generation. orbweaver's `turnStarted` carries `intent/api/source/model/targetMessageId`
    but **no speaker character id** — so "when it's X's turn, inject Y" is unwritable. Cheapest fix: add
    `speakerCharacterId: CharacterId | null` to `turnStarted` (null for user/narrator turns). Avoids a new
    member; folds the drafted-speaker signal into the turn it belongs to. (A separate `speakerDrafted` is
-   only warranted if automation must run _between_ draft and assembly — that overlaps the §6 hook seam.)
+   only warranted if automation must run *between* draft and assembly — that overlaps the §6 hook seam.)
 
 4. **`character.deleted` (+ `asset.deleted`) — MEDIUM — add to `DomainEvent`.** Payloads:
    `{ type: "character.deleted"; characterId }`, `{ type: "asset.deleted"; assetId }`. The indexer has
@@ -201,14 +182,10 @@ automation depends on it.
      orbweaver subscriber today, re-read on demand. Add when a real subscriber appears.
    - `rosterChanged` (`ChatBusEvent`) — discrete member joined/left (ST `GROUP_UPDATED`). `chatUpdated`
      covers the coarse case today; promote to a dedicated member if member-presence automation lands.
-   - `worldinfo.updated` (`DomainEvent`) — WI _book content_ edit; only matters if WI entries become an
+   - `worldinfo.updated` (`DomainEvent`) — WI *book content* edit; only matters if WI entries become an
      embedding lens (they aren't currently).
    - `toolCallPerformed` (`ChatBusEvent`) — ST `TOOL_CALLS_PERFORMED`; D48 owns the loop and persists on
      the variant, so an "on tool call" trigger is reserved-additive, not pre-Phase-5.
-
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
 
 ## 6. The pre-send interceptor / prompt-mutation seam — NOT an event (called out separately)
 
@@ -235,23 +212,19 @@ architecture and D46:
 - **The assembly pipeline** (`AssembleContext` → BUILD/SHAPE in `domain/chat`) — the deterministic ordered
   place where overrides/sections/WI resolve = ST's `*_COMBINE_PROMPTS`/`PROMPT_READY`.
 - **D46 Tier-1 actions** ("run a macro template over the draft", "insert a world-info entry") and **Tier-2**
-  (a sandboxed transform under `can()`) — the _governed_ mutation path, capability-checked + budgeted,
+  (a sandboxed transform under `can()`) — the *governed* mutation path, capability-checked + budgeted,
   unlike ST's any-extension-mutates-anything model.
 
 **Recommendation:** keep prompt mutation entirely out of the event union; document that the interceptor seam
-= `kit/injection` + the assembly pipeline + D46 Tier-1/2 actions. If a synchronous "transform the draft
+\= `kit/injection` + the assembly pipeline + D46 Tier-1/2 actions. If a synchronous "transform the draft
 before send" plugin hook is wanted, it is a **registered ordered transform on the turn pipeline** (a
 `PromptTransform` step injected at the composition root), NOT a bus subscription — a distinct mechanism that
 should be named as such so a cold agent never tries to shove mutation through `ChatBusEvent`.
 
----
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
 ## 7. Verdict
 
-**The taxonomy is ~90% complete and structurally sound — the chat/turn/message lifecycle, streaming, swipes,
-reasoning, persona, WI-attachment, and chat existence all map cleanly, and orbweaver is actually _ahead_ of
+**The taxonomy is \~90% complete and structurally sound — the chat/turn/message lifecycle, streaming, swipes,
+reasoning, persona, WI-attachment, and chat existence all map cleanly, and orbweaver is actually *ahead* of
 ST in places (`delta`, `historyTruncated`, `messagesReordered`, the `chatUpdated` catch-all, the exhaustive
 replay guard).** But there are **four real, automation-relevant gaps to land before Phase 5 freezes the
 closed union**: (1) **`chatOpened`** — the single highest-value miss, since the proposal's flagship "on chat
@@ -263,6 +236,3 @@ credential, or D49-rejected). Separately and importantly: ST's prompt-mutation "
 `setExtensionPrompt` / regex / `*_PROMPT_READY`) are **not** events — do not port them into the bus; they
 are the `kit/injection` + assembly-pipeline + D46-action seam. Land the four members, add the speaker field,
 and the union is parity-complete and born-compliant for Phase 5.
-
-<!-- Source: Core-Legacy-Migration-and-Gaps.md -->
-
