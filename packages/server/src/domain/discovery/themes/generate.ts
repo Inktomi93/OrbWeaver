@@ -1,8 +1,7 @@
 // domain/discovery/themes/generate — the emergent-theme pass (the `compute-themes` workload). Per
 // (owner, level, embedding-space) k-means over SOLO digest embeddings (k-means++ seeded, content-collapsed),
 // every digest assigned (full coverage), each name-worthy cluster LLM-named via the injected `summarize`
-// thunk → `theme_clusters` + `digest_theme_assignments`. discovery.md §"Emergent themes" + esoteric
-// #3/#6/#13.
+// thunk → `theme_clusters` + `digest_theme_assignments`.
 //
 // LOAD-BEARING:
 //   • SOLO only (#13): group-room digests (`is_group=1`) belong to the synthetic group character, not the

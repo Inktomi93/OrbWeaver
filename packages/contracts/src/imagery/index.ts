@@ -5,7 +5,7 @@
 
 import { z } from "zod";
 
-/** The committed prompt-template modes (domains/imagery.md §6.1). `free` = the user's prompt verbatim — the
+/** The committed prompt-template modes. `free` = the user's prompt verbatim — the
  *  only mode the Phase-5 chat caller drives; the rest are the Phase-7 extraction/caption modes. A new mode
  *  fails the templates `Record`'s `tsc` (imagery-design/02 §5) — the exhaustiveness lever. */
 export const PROMPT_TEMPLATE_MODES = [
@@ -33,7 +33,7 @@ const MAX_PROMPT_CHARS = 2000;
 const MIN_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 4;
 
-/** The chat-client wire for `chat.generateImage` → `imagery.generatePicture` (domains/imagery.md §6.1).
+/** The chat-client wire for `chat.generateImage` → `imagery.generatePicture`.
  *  Phase-5 drives `mode:"free"` with a required `prompt` (the caller refines it); the Phase-7 fields
  *  (`negative`/`subjectCharacterId`/`useAvatarReference`/`reuse`) are additive optionals. */
 export const generatePictureRequestSchema = z.object({

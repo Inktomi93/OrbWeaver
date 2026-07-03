@@ -2,7 +2,8 @@
 // character-card import (4c W3 slice): parse a card → flatten/validate → dedup → store the avatar → create
 // with import provenance, all via the injected ops on `ImportContext` (assembled at the entry root).
 //
-// SCOPE: `importCharacter` only (the card path). `importChats` / `importPersonas` (import.md §Verbs) are the
+// SCOPE: `importCharacter` only (the card path). `importChats` / `importPersonas`
+// (`proposed/import-st-profile-waves.md`, PD-77) are the
 // chats/personas waves — they need the chat-writer + persona normalizer + the `emit`/`enqueueBackfill` ops,
 // none of which are part of this card slice (they are NOT wired here).
 

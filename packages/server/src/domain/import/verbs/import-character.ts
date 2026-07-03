@@ -3,7 +3,7 @@
 //      (tolerant IN); unreadable bytes throw ImportCardError("card_unreadable").
 //   2. hash the whole FILE bytes → importHash (provenance + the dedup oracle).
 //   3. dedup: if the owner already has a character with this importHash, return it (created:false) — a
-//      byte-identical re-import is safe + a no-op (import.md §Idempotency).
+//      byte-identical re-import is safe + a no-op.
 //   4. PNG cards: CAS-store the SAME bytes as the avatar asset (one blob, both roles) → avatarAssetId.
 //   5. flatten + validate → CreateCharacterInput, then create via the injected op WITH the provenance stamp.
 //   6. carry the card's author-shipped tags: attach each parsed tag to the new character as a card/pending

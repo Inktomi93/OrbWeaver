@@ -1,8 +1,8 @@
-// domain/export/substrate/chat-jsonl — the chat transcript OUT builders (export.md §8-slot; PD-42). PURE,
+// domain/export/substrate/chat-jsonl — the chat transcript OUT builders (PD-42). PURE,
 // server-only, export-local: typed canon in → JSONL / TXT string out; `verbs/export-chat.ts` maps the DB
 // rows to the `ExportChatMeta`/`ExportMessage` inputs (contract/params.ts — the one type home).
 //
-// The ST-compat esoterics (export.md §Esoteric — preserve exactly):
+// The ST-compat esoterics (load-bearing — preserve exactly):
 //   • ST HUMAN DATE (`formatStDate`): dates emit in the legacy human form ("August 27, 2025 6:36pm", UTC)
 //     so a vanilla legacy reader renders a readable date; the importer's parseStDate handles this form, so
 //     our own round-trip is unaffected.

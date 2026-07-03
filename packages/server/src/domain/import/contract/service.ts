@@ -11,7 +11,8 @@
 //       - AttachImportedCardTag      tag.attachCardTagByName (source:'card', status:'pending') for card.tags
 //
 // SCOPE (4c W3 — the SillyTavern character-card path): `importCharacter` (parse → validate/flatten →
-// dedup → store avatar → create with provenance). `importChats` / `importPersonas` (import.md §Verbs) are
+// dedup → store avatar → create with provenance). `importChats` / `importPersonas`
+// (`proposed/import-st-profile-waves.md`, PD-77) are
 // the chats/personas waves — they need the chat-writer + persona normalizer + the `emit`/`enqueueBackfill`
 // ops, which are not part of this card slice.
 //
@@ -79,7 +80,7 @@ export type AttachImportedCardTag = (args: {
 /**
  * The DI bundle every import verb closes over (wired at `service.ts` / the composition root). Explicit
  * interface (not `ReturnType<typeof …>`) per §7.4 + the `no-context-returntype` gate.
- *   - `ownerId` — the resolved principal id (ImportServiceDeps, collapsed; import.md §Verbs — identity is
+ *   - `ownerId` — the resolved principal id (ImportServiceDeps, collapsed — identity is
  *     resolved ONCE at the edge, never re-resolved inside the domain). Import reads no `users` row.
  *   - `createCharacter` / `findByImportHash` / `storeAsset` / `attachCardTag` — the injected cross-feature
  *     ops (type-only; the root binds the character / assets / tag runtimes).

@@ -12,17 +12,17 @@
 // The acting `Principal` is threaded through (the upload route resolved it) and used directly for the
 // character/assets verbs (which owner-scope off `principal.userId`); `ImportContext.ownerId` is its id.
 // Per-card `failures[] isolation`: one unreadable card is recorded and skipped, never aborting the batch
-// (import.md §"The bulk driver" / §Idempotency — re-running is safe + resumable).
+// (re-running is safe + resumable).
 //
 // SCOPE (4c W3 — the SillyTavern character-card path): this drives `importService.importCharacter` over a
-// set of card files. The FULL profile driver (import.md §"bulk-loop unification": personas-first →
+// set of card files. The FULL profile driver (`proposed/import-st-profile-waves.md`: personas-first →
 // collect-from-dir → per-character store→import → reconcileStats → emit) is NOT buildable in this slice and
 // is deliberately NOT faked here:
 //   • FLAG[PD-77]: `collectBundlesFromDir` (the loader subsystem) + `importChats`/`importPersonas`
-//     are the chats/personas/loader waves (import.md §8-slot "loader/", §Verbs) — not built, so a profile
+//     are the chats/personas/loader waves (`proposed/import-st-profile-waves.md`) — not built, so a profile
 //     ZIP/dir is not collected here; callers pass already-extracted card files.
 //   • FLAG[PD-78]: `reconcileStats` (stats rollup) + the `emit`/`enqueueBackfill` ops are wired into
-//     the import CONTEXT only when the chats wave lands (import.md §"Injected into the import context");
+//     the import CONTEXT only when the chats wave lands (`proposed/import-st-profile-waves.md`, PD-78);
 //     this card slice's `ImportContext` carries none, so no post-import reconcile/emit runs here yet.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
@@ -145,7 +145,7 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
   for (const file of files) {
     const filename = file.filename ?? null;
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic db.batch, with resumable per-card failures[] isolation (import.md §"bulk driver" / inv 8).
+      // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic write, with resumable per-card failures[] isolation.
       const result = await service.importCharacter({
         card: {
           bytes: file.bytes,

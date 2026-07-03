@@ -1,8 +1,7 @@
 // @orb/server/kit/serde/card — the ONE home for the character-card serde core: the tolerant IN-adapter
 // (`cardFromJson`), the strict OUT-emitter (`buildCardV3` + the `character_book` entry mapper
 // `exportBookEntry`), and the card content hash (`cardContentHash`). Co-located so the round-trip is a
-// one-file invariant (shared-dissolution §1; import.md Movement "card hash homes in server/kit/serde";
-// export.md "one card serde core"; PD-33 + PD-44). Server-only PURE: no DB, no logger, no fs — it maps an
+// one-file invariant (shared-dissolution §1; PD-33 + PD-44). Server-only PURE: no DB, no logger, no fs — it maps an
 // already-JSON-parsed card object INTO / OUT of the canonical `@orb/contracts/character` shape and hashes a
 // canonical card's semantic fields. The byte surgery (PNG tEXt extraction) is `@orb/kit/png-card-chunk`;
 // the JSON.parse + the null-on-failure contract is the import parser's job (`domain/import/substrate/card`);
@@ -113,7 +112,7 @@ function fromV1(card: RawCard): RawCard {
 
 /** Normalize V1 / Pygmalion-Gradio card JSON to the V2 `{ data: {...} }` shape. Detection ORDER
  *  (spec/data → char_name Pygmalion → name V1) matches the canonical reader; without it ~5–15% of a
- *  real corpus fails to import silently (import.md §Esoteric 1). */
+ *  real corpus fails to import silently. */
 function normalizeCardJson(card: RawCard): RawCard {
   if ("spec" in card || "data" in card) {
     return card; // already V2/V3
@@ -128,7 +127,7 @@ function normalizeCardJson(card: RawCard): RawCard {
 }
 // biome-ignore-end lint/style/useNamingConvention: Character-Card wire field names (snake_case).
 
-// ST default for the Character's Note depth when absent / non-numeric (import.md §Esoteric).
+// ST default for the Character's Note depth when absent / non-numeric.
 const ST_DEFAULT_DEPTH = 4;
 
 // ST `data.extensions.depth_prompt = { prompt, depth, role }`. Empty/whitespace prompt ⇒ null (no note);
@@ -186,7 +185,8 @@ const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
  * `parseCardJson` (import) wrap it with chunk/byte decoding. `avatarAssetId` + `refinery` are not on the
  * card wire (the avatar is stored separately at import; refinery is pipeline-derived), so both are null;
  * tags + the embedded lorebook are external junctions in orbweaver (not card columns) and are NOT carried
- * here (the world-info / tag junction writes are the full importCharacter path — see import.md Movement).
+ * here (the world-info / tag junction writes are the full importCharacter path —
+ * `proposed/import-st-profile-waves.md`, PD-77).
  */
 export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard {
   const cardJson = normalizeCardJson((raw ?? {}) as RawCard);
@@ -272,7 +272,7 @@ export function cardContentHash(card: CharacterCard): string {
 
 /** The live-card columns the card emitter projects to the V3 wire (the OUT-emitter input). `greetings[0]`
  *  is the first message; the rest are alternate greetings. `tags` are the ACCEPTED `character_tags` names
- *  (export.md inv 4 — pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
+ *  (pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
  *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob. */
 export interface ExportCardFields {
   readonly name: string;
@@ -318,7 +318,7 @@ const SPEC_VERSION = "3.0";
  * typed columns own. A depth-injecting entry is re-encoded into ST's `{position:4, depth, role}` (role
  * through the bimap); `constant` derives from the resolved scope (`always` ⇒ `true`, the keyless-always-on
  * heuristic vanilla ST needs to fire a keyless entry). This is the ONE place the at-depth encoding is
- * written (export.md Esoteric — preserve it).
+ * written (load-bearing — preserve it).
  */
 export function exportBookEntry(entry: ExportWorldEntry): Record<string, unknown> {
   const meta = isPlainObject(entry.metadata) ? entry.metadata : {};

@@ -2,13 +2,13 @@
 // emit the ST JSONL interchange or the TXT transcript (the pure `substrate/chat-jsonl.ts` builders).
 //
 // GATE (D29): chats are MEMBERSHIP-scoped (D18 — no `chats.ownerId`); bulk transcript extraction is a HOST
-// action in v1. Export is the sanctioned bulk db-reader (no domain-service injection — export.md inv #6),
+// action in v1. Export is the sanctioned bulk db-reader (no domain-service injection),
 // so the gate is a direct roster read: the caller must BE the present `role='host'` row. A non-host caller
 // and a missing chat COLLAPSE to `null` (no foreign-existence leak; HTTP maps null → 404).
 //
 // D26 mapping: a message's primary contribution is its SELECTED variant (content + economics); the full
 // variant set is the swipe array (the builder's >1 gate). D28: the character name resolves off the flat
-// `characters` row of the FIRST character participant (join order — export.md inv #5). The `{{user}}` name
+// `characters` row of the FIRST character participant (join order — never a version pin). The `{{user}}` name
 // is the chat's ANCHOR persona (`chats.anchorPersonaId` → personas.name). Branch/note round-trip:
 // `parentRef` = the parent chat's `importedFrom`; `notePrompt` = `roomOverrides.authorsNote` (the ST
 // author's-note home in orbweaver's typed metadata).

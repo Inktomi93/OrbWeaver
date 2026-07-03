@@ -1,7 +1,7 @@
 // domain/discovery/substrate/pair-cosine — all-pairs near-duplicate detection (pure; zero I/O). Returns every
 // vector pair whose RAW cosine clears a threshold, each carrying its CSLS-adjusted rank key. Used ONLY by the
 // near-duplicate + similarity-graph features (discovery concerns) — it is all-pairs ANALYTICS, NOT top-k
-// retrieval (that is `search`, via `vector_distance_cos`; discovery.md §"Two cosine access patterns"). Was
+// retrieval (that is `search`, via `vector_distance_cos` — the two-cosine-access-patterns rule). Was
 // neo-tavern `corpus/substrate/pair-cosine.ts`; its `normalizeFlat` is DELETED (→ @orb/kit/vector-math's one
 // `l2Normalize`, used inside `pairwiseCosine`), and the all-pairs scan now reuses `pairwiseCosine`.
 //

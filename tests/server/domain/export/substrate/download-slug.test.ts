@@ -1,4 +1,4 @@
-// Unit: the download-filename slug policy (export.md §8-slot substrate). Asserts the filename-safe
+// Unit: the download-filename slug policy (export-local substrate). Asserts the filename-safe
 // transform: keep `.`/`_`/`-`, collapse unsafe runs to `_`, trim edge underscores, cap at 60, fall back to
 // "export" when the name slugs to empty.
 

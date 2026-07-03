@@ -32,8 +32,8 @@ export interface ExportChatParams extends ExportActorParams {
   readonly format?: ExportChatFormat | undefined;
 }
 
-// ── The chat-builder input shapes (export.md §8-slot `contract/params.ts` — the `substrate/chat-jsonl.ts`
-//    inputs; the verb maps DB rows to these). ──
+// ── The chat-builder input shapes — the `substrate/chat-jsonl.ts` inputs; the verb maps DB rows to
+//    these. ──
 
 /** The chat-level header facts for the JSONL/TXT builders. */
 export interface ExportChatMeta {

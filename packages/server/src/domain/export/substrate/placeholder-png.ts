@@ -1,5 +1,5 @@
 // domain/export/substrate/placeholder-png — the 256×256 base PNG embedded into a card when the character
-// has no avatar (export.md Esoteric — the placeholder half of `basePng`). Pure / zero I/O: a precomputed
+// has no avatar (the placeholder half of `basePng`). Pure / zero I/O: a precomputed
 // solid-color PNG decoded ONCE from a base64 constant at module load. Deterministic (fixed bytes — no
 // clock, no random, no per-call work).
 //

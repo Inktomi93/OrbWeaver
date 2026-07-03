@@ -1,7 +1,7 @@
 // entry/import/run-profile-import — the bulk-import driver. Pins the load-bearing behavior: it builds the
 // per-owner ImportService over the entry-supplied character/assets ops, stamps import provenance on create,
 // dedups a byte-identical re-import, scopes the dedup lookup to the principal's userId, and ISOLATES a bad
-// card (the batch continues; the failure is recorded, never thrown) — import.md §"bulk driver" / inv 8.
+// card (the batch continues; the failure is recorded, never thrown).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
