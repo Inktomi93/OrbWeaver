@@ -59,8 +59,8 @@ export-local):
   `@orb/kit/png-card-chunk` (pure, **string-based so it never imports the card type**).
 - **The canonical card shape** — `CharacterCard` / `characterCardV3Schema` /
   `CHARA_CARD_V3_SPEC` live in `@orb/contracts/character` (the one fully-modeled card; §7.3).
-- **The ST role bimap** — `injectionRoleFromSt` / `injectionRoleToSt` live in
-  `@orb/kit/world-info` (one copy; was written 4×).
+- **The ST role bimap** — `messageRoleFromSt` / `messageRoleToSt` live in
+  `@orb/kit/message-role` (one copy; was written 4×).
 - **The owner-scoped fetch** — `fetchOwned` lives in `@orb/db/kit`; the JSON boundary
   parser `parseRecord` stays in `@orb/db`.
 - **The HTTP download routes** — `registerExportRoutes` is `entry/http`, not the domain (it
@@ -86,7 +86,7 @@ giving each a real layer-cake home and a gate:
 | Card mapper     | `buildCardV3` (export) ≠ `cardFromJson` (import), test-coupled                            | ONE `@orb/server/kit/serde/card` — emit + read adjacent; round-trip test-pinned           |
 | WI-entry mapper | hand-duplicated import vs export                                                          | ONE `@orb/server/kit/serde/world-entry`                                                   |
 | PNG codec       | chunk-walk copied 2× + inline `isPng` 3rd                                                 | ONE `@orb/kit/png-card-chunk` (string-based, pure)                                        |
-| ST role map     | written 4× (`persona.ts`, `lore.ts`, `card-v3.ts`, `card.ts`)                             | ONE bimap in `@orb/kit/world-info`                                                        |
+| ST role map     | written 4× (`persona.ts`, `lore.ts`, `card-v3.ts`, `card.ts`)                             | ONE bimap in `@orb/kit/message-role`                                                      |
 | Canonical card  | 3 shapes; `creator`/`cardVersion`/`regex_scripts`/`extensions` survive **only via `raw`** | ONE fully-modeled card in `@orb/contracts/character`; those promoted to **typed columns** |
 
 The defining fixes export delivers:
@@ -150,7 +150,7 @@ export-owned — see `core/Core-Legacy-Migration-and-Gaps.md` §1–§3):
 @orb/server/kit/serde/world-entry   exportBookEntry (OUT) + loreEntryColumns/Metadata (IN)
 @orb/kit/png-card-chunk             writeCardChunk · readCardChunk · isPng (string-based)
 @orb/contracts/character            CharacterCard · characterCardV3Schema · CHARA_CARD_V3_SPEC
-@orb/kit/world-info                 injectionRoleFromSt · injectionRoleToSt (the ST bimap)
+@orb/kit/message-role               messageRoleFromSt · messageRoleToSt (the ST bimap)
 @orb/db/kit                         fetchOwned (OwnedTable)        @orb/db   parseRecord, schema
 ```
 
@@ -190,7 +190,7 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `_shared/serde/card-serde.ts` — `ExportCardFields` (the `Pick` projection)                                        | → shared serde core (serde-internal input)           | `@orb/server/kit/serde/card`                                                                                                       | The serde's own input shape (live columns → wire); not a wire type itself. Lives with the mapper.                                                                                                                                                                                                                       | lint-time: `no-inline-types` (it's a `contract`-adjacent shape but serde-private)                              |
 | `_shared/serde/world-entry-serde.ts` — `exportBookEntry` (+ `loreEntryColumns`/`loreEntryMetadata` IN)            | **→ shared serde core**                              | `@orb/server/kit/serde/world-entry`                                                                                                | The WI-entry OUT mapper, shared with import. Owns the `constant→scopeMode:"always"` and at-depth `position:4` round-trip in one place (was hand-duplicated).                                                                                                                                                            | resolve-time: one module, `@orb/server/kit` dep                                                                |
 | `_shared/png-card-codec.ts` — `writeCardChunk`, `readCardChunk`, `isPng` (+ `crc32`/`makeChunk`/`PNG_SIGNATURE`)  | **→ `kit`**                                          | `@orb/kit/png-card-chunk`                                                                                                          | Pure byte/string engine; **string-based so it never imports the card type** → stays kit-pure. Collapses the 2 chunk-walks + 3rd inline `isPng`. Drops the steady `node:buffer` import (base64/latin1 over `Uint8Array`).                                                                                                | resolve-time + `kit-purity` gate (no domain/contracts import; **NO `node:*` at all** — `node:buffer` included) |
-| ST role map `{0:system,1:user,2:assistant}` (in `world-entry-serde` via `injectionRole*`)                         | **→ `kit`**                                          | `@orb/kit/world-info` (`injectionRoleFromSt`/`injectionRoleToSt`)                                                                  | The bimap was written 4×; one copy. The serde imports it; export never re-spells it.                                                                                                                                                                                                                                    | resolve-time: one importable bimap; §7.5 `no-inline-union-redecl`                                              |
+| ST role map `{0:system,1:user,2:assistant}` (in `world-entry-serde` via `injectionRole*`)                         | **→ `kit`**                                          | `@orb/kit/message-role` (`messageRoleFromSt`/`messageRoleToSt`)                                                                    | The bimap was written 4×; one copy. The serde imports it; export never re-spells it.                                                                                                                                                                                                                                    | resolve-time: one importable bimap; §7.5 `no-inline-union-redecl`                                              |
 | `export/verbs/export-character.ts` — the assembly (db reads + book walk + buildCardV3 + writeCardChunk + basePng) | **stays domain feature**                             | `domain/export/verbs/export-character.ts`                                                                                          | The OUT assembly + db reads + packaging are export's job; it reads `@orb/db` directly (sanctioned bulk serializer, same as import).                                                                                                                                                                                     | resolve-time: `@orb/db` is a declared dep of `@orb/server`                                                     |
 | `export/verbs/export-chat.ts` — the assembly (db reads + variant fold + builders)                                 | **stays domain feature**                             | `domain/export/verbs/export-chat.ts`                                                                                               | Same: chat interchange assembly + direct db reads.                                                                                                                                                                                                                                                                      | resolve-time                                                                                                   |
 | `export/chat.ts` — `buildChatJsonl`, `buildChatTxt`, `formatStDate`                                               | stays domain feature (relocated)                     | `domain/export/substrate/chat-jsonl.ts`                                                                                            | Pure, **server-only** (no production client consumer — the client uses `/api/export/chat` hrefs, not the builders), single owner → substrate, not `server/kit`.                                                                                                                                                         | lint-time: `feature-structure` (pure helper → `substrate/`)                                                    |
@@ -281,12 +281,13 @@ split, the string-based codec, the round-trip test pins.
   Two members, two sites — below the `no-inline-union-redecl` threshold (the gate fires only on
   ≥3-member unions, ledger §5), so it is exempt; kept as one canonical union by convention, no
   inline re-spelling.
-- **`EntryInjectionRole`** (`system | user | assistant`) — the at-depth role on exported
-  book entries comes through `@orb/kit/world-info`'s bimap; export never re-declares the
+- **`MessageRole`** (`system | user | assistant`) — the at-depth role on exported
+  book entries comes through `@orb/kit/message-role`'s bimap; export never re-declares the
   3-member union (it was part of the 4× role-map antipattern).
 - **`message.role`** (`user | assistant | system`) read in `export-chat.ts` and mapped to
-  ST's `is_user` / `is_system` booleans — the read must use the canonical `messageRole` union
-  from `contracts`, not an inline re-spelling (this axis is the measured 132-touch pain).
+  ST's `is_user` / `is_system` booleans — the read must use the canonical `MessageRole` union
+  from `@orb/kit/message-role` (the type/tuple home; the `z.enum` wire schema `messageRoleSchema`
+  is `@orb/contracts/chat`, §5), not an inline re-spelling (this axis is the measured 132-touch pain).
 
 ### §7.1 identity / auth / permission
 
