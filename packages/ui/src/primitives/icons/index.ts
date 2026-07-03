@@ -19,6 +19,7 @@ export {
   Eye,
   EyeOff,
   GripVertical,
+  ImageOff,
   Info,
   Loader2,
   Lock,

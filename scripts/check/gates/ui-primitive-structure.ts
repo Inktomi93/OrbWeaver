@@ -162,8 +162,14 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
 // primitive whose entire job is accepting a caller-supplied color) — never a design-token color, so
 // the "assert via TOKENS" rule doesn't apply. theme-scope originated this exemption; color-field is
 // the same shape (its clamp-rejection tests need literal url()/expression() attempts and its
-// commit tests need literal hex — see ui-primitive-carve-out-work-order.md item 13).
-const COLOR_LITERAL_TEST_EXEMPT = new Set(["theme-scope.ct.tsx", "color-field.ct.tsx"]);
+// commit tests need literal hex — see ui-primitive-carve-out-work-order.md item 13). sandbox-frame
+// joined 2026-07 — its hostile-themeTokens CT reuses theme-scope's `isSafeColor` clamp and needs the
+// same literal-hex/url() rejection inputs.
+const COLOR_LITERAL_TEST_EXEMPT = new Set([
+  "theme-scope.ct.tsx",
+  "color-field.ct.tsx",
+  "sandbox-frame.ct.tsx",
+]);
 
 /** Clause 5 — no token-color literals in any .ct.tsx (§4.2); the exempt set tests the mechanism. */
 function clauseNoColorLiterals(ctx: CheckContext): Violation[] {

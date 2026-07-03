@@ -11,6 +11,8 @@ export const switchVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "data-checked:bg-primary data-disabled:pointer-events-none data-disabled:opacity-50",
+      // Base UI sets data-invalid on the Root when wrapped in an invalid <Field> (FieldRootState).
+      "data-invalid:border-destructive data-invalid:focus-visible:ring-destructive",
       "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
     ],
     thumb: [

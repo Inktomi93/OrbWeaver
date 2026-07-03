@@ -47,6 +47,39 @@ test("readOnly blocks edits", async ({ mount }) => {
   await expect(content).toHaveText("locked");
 });
 
+// Both directions of the read-only contract (ui-primitive-contract §13 R2): `EditorView.editable`
+// only toggles `contenteditable` (blocks native DOM TYPING, the test above); a REAL OS-clipboard
+// paste (Ctrl/Cmd+V, granted permissions + a seeded clipboard — not a synthetic dispatched event,
+// which Chromium doesn't route through the same paste pipeline) bypasses that entirely — CM6's
+// own paste handler checks `state.readOnly`, a SEPARATE facet. If only `editable` were set (the
+// pre-fix shape), this paste would still land a change.
+test("readOnly ALSO blocks a real clipboard paste (EditorState.readOnly, not just the editable facet)", async ({
+  mount,
+  page,
+}) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => navigator.clipboard.writeText("INJECTED"));
+  const component = await mount(<ReadOnlyEditor value="locked" />);
+  const content = component.locator(".cm-content");
+  await content.click();
+  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
+  await page.keyboard.press("ControlOrMeta+V");
+  await expect(content).toHaveText("locked");
+});
+
+// The positive counterpart — proves the paste mechanism itself actually reaches CM6's change
+// pipeline, so the blocked-paste assertion above is a real gate and not a dead paste path.
+test("a non-readOnly editor accepts the same real clipboard paste", async ({ mount, page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => navigator.clipboard.writeText("PASTED"));
+  const component = await mount(<ControlledEditor initialValue="" />);
+  const content = component.locator(".cm-content");
+  await content.click();
+  // biome-ignore lint/security/noSecrets: a Playwright key-combo string ("Control or Meta" modifier), not a secret.
+  await page.keyboard.press("ControlOrMeta+V");
+  await expect(content).toContainText("PASTED");
+});
+
 test("the token theme is applied (background resolves the design token)", async ({ mount }) => {
   const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
   await expect(component.locator(".cm-editor")).toHaveCSS("background-color", BACKGROUND_OKLCH);

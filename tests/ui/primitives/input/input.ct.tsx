@@ -1,11 +1,14 @@
-// CT: the input seal — token skin as computed style, the touch floor, and the
-// value/onValueChange controlled-capable passthrough (ui-package-design §6.1).
+// CT: the input seal — token skin as computed style, the touch floor, the
+// value/onValueChange controlled-capable passthrough, disabled, and Field composability
+// (ui-package-design §6.1; ui-primitive-contract R7).
 
+import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 const TOUCH_FLOOR_PX = 44;
+const NON_EMPTY = /.+/u;
 
 test("wears the bg-input token and meets the touch floor", async ({ mount }) => {
   const input = await mount(<Input />);
@@ -26,4 +29,24 @@ test("typing updates the value and fires onValueChange", async ({ mount }) => {
   await input.fill("hearth");
   await expect(input).toHaveValue("hearth");
   await expect.poll(() => seen.at(-1)).toBe("hearth");
+});
+
+test("disabled blocks input and drops the interactive skin", async ({ mount }) => {
+  const input = await mount(<Input disabled={true} />);
+  await expect(input).toBeDisabled();
+  await expect(input).toHaveCSS("opacity", "0.5");
+});
+
+test("inside a <Field>, the label associates and aria-describedby wires the description", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field description="Shown to other players" label="Display name">
+      <Input />
+    </Field>,
+  );
+  const control = page.getByLabel("Display name");
+  await expect(control).toBeVisible();
+  await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });

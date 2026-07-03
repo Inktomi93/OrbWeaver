@@ -4,6 +4,8 @@ import { Toggle } from "@orb/ui/toggle";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
+const TOUCH_FLOOR_PX = 44;
+
 test("click flips data-pressed / aria-pressed", async ({ mount, page }) => {
   await mount(<Toggle aria-label="Bold">B</Toggle>);
   const control = page.getByRole("button");
@@ -39,4 +41,64 @@ test("onPressedChange reports the next state", async ({ mount, page }) => {
   );
   await page.getByRole("button").click();
   await expect.poll(() => seen.at(-1)).toBe(true);
+});
+
+test("hover shows the accent token", async ({ mount, page }) => {
+  const toggle = await mount(<Toggle aria-label="Bold">B</Toggle>);
+  await page.getByRole("button").hover();
+  await expect(toggle).toHaveCSS("background-color", TOKENS["color.accent"].value);
+});
+
+test("keyboard focus shows a focus-visible ring", async ({ mount, page }) => {
+  const toggle = await mount(<Toggle aria-label="Bold">B</Toggle>);
+  await expect(toggle).toHaveCSS("box-shadow", "none");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button")).toBeFocused();
+  const shadow = await toggle.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(shadow).not.toBe("none");
+});
+
+test("disabled is inert and removed from the tab order", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <button type="button">Before</button>
+      <Toggle aria-label="Bold" disabled={true}>
+        B
+      </Toggle>
+    </div>,
+  );
+  const toggle = page.getByRole("button", { name: "Bold" });
+  await expect(toggle).toBeDisabled();
+  await page.getByRole("button", { name: "Before" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(toggle).not.toBeFocused();
+});
+
+test("Enter and Space toggle pressed from the keyboard", async ({ mount, page }) => {
+  await mount(<Toggle aria-label="Bold">B</Toggle>);
+  const control = page.getByRole("button");
+  await control.focus();
+  await page.keyboard.press("Enter");
+  await expect(control).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press(" ");
+  await expect(control).toHaveAttribute("aria-pressed", "false");
+});
+
+test("every size meets the 44px touch floor; lg is taller than sm", async ({ mount }) => {
+  const small = await mount(
+    <Toggle aria-label="Bold" size="sm">
+      B
+    </Toggle>,
+  );
+  const smallBox = await small.boundingBox();
+  expect(smallBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+  await small.unmount();
+  const large = await mount(
+    <Toggle aria-label="Bold" size="lg">
+      B
+    </Toggle>,
+  );
+  const largeBox = await large.boundingBox();
+  expect(largeBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+  expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
 });

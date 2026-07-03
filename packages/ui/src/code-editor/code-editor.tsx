@@ -1,6 +1,7 @@
 import { css } from "@codemirror/lang-css";
 import type { Diagnostic } from "@codemirror/lint";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
+import { EditorState } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
@@ -187,10 +188,10 @@ export function CodeEditor({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // (Re)create the view when the non-controlled config changes. basicSetup/editable/attributes
-  // are baked into the initial state — a fresh view is simpler than a Compartment reconfigure
-  // and these props change rarely (KISS; Compartment would need an undeclared @codemirror/state
-  // import anyway). `hasDiagnostics` (opting the lint gutter in/out) is the one diagnostics-
+  // (Re)create the view when the non-controlled config changes. basicSetup/editable/readOnly/
+  // attributes are baked into the initial state — a fresh view is simpler than a Compartment
+  // reconfigure and these props change rarely (KISS). `hasDiagnostics` (opting the lint gutter
+  // in/out) is the one diagnostics-
   // related value that belongs here — it changes the STATIC extension list, unlike diagnostic
   // CONTENT, which is dispatched into the live view below without ever hitting this effect.
   useEffect(() => {
@@ -205,6 +206,12 @@ export function CodeEditor({
         basicSetup,
         TOKEN_THEME,
         EditorView.editable.of(!readOnly),
+        // `EditorView.editable` only toggles `contenteditable` (DOM typing); it does NOT gate
+        // paste/drop/command-triggered inserts — those check `state.readOnly` (verified against
+        // the CodeMirror 6 docs: "Not to be confused with EditorView.editable, which controls
+        // whether the editor's DOM is set to be editable"). Both facets are needed for a real
+        // read-only contract.
+        EditorState.readOnly.of(readOnly),
         EditorView.contentAttributes.of({
           "aria-label": ariaLabel,
           ...(hasDiagnostics ? { "aria-describedby": describedById } : {}),

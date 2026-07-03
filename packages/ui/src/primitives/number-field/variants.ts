@@ -10,24 +10,37 @@ export const numberFieldVariants = tv({
     scrubArea:
       "flex w-fit cursor-ew-resize select-none items-center gap-row text-label font-medium leading-label text-muted-foreground",
     scrubCursor: "flex text-foreground",
-    group:
+    group: [
       "flex w-full items-stretch overflow-hidden rounded-control border border-border bg-input",
+      // Base UI sets data-invalid on every part (Group included) when wrapped in an invalid
+      // <Field> (FieldRootState).
+      "data-invalid:border-destructive",
+    ],
     decrement: [
-      "flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-r border-border text-foreground",
+      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-r border-border text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
       "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
+      // Read-only (A3): NOT the disabled grey-out — colors hold; only the cursor + the Lock glyph
+      // (below, swapped in for the +/− mark) signal the blocked state.
+      "data-readonly:cursor-default",
     ],
     input: [
       "h-touch-target w-full min-w-0 bg-transparent text-center text-body leading-body text-foreground tabular-nums",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
+      "data-invalid:text-destructive",
     ],
     increment: [
-      "flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-l border-border text-foreground",
+      "group flex size-touch-target shrink-0 cursor-pointer select-none items-center justify-center border-l border-border text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
       "disabled:pointer-events-none disabled:opacity-50 data-disabled:pointer-events-none data-disabled:opacity-50",
+      "data-readonly:cursor-default",
     ],
+    // The stepper glyph pair: the +/− mark hides and the Lock glyph (below) takes over the instant
+    // Base UI sets data-readonly on the stepper button itself — mirrors Checkbox/Switch's treatment.
+    stepIcon: "group-data-[readonly]:hidden",
+    stepReadOnlyIcon: "hidden group-data-[readonly]:block",
   },
 });

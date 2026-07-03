@@ -9,8 +9,10 @@ export const textareaVariants = tv({
     "transition-colors duration-(--motion-fast) ease-out-expo",
     "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     "disabled:pointer-events-none disabled:opacity-50",
-    // Aligns with input/number-field/checkbox: Base UI Field.Control sets `data-invalid` on the
-    // control when the field is invalid (it also mirrors `aria-invalid`; we key off data-invalid).
+    // A plain <textarea> needs the explicit Field.Control wrap (above) to register with an
+    // enclosing <Field> at all — unlike Input/Checkbox/Switch/RadioGroup/Slider/NumberField, whose
+    // OWN Roots extend Base UI's FieldRootState and register directly. Once registered, every one
+    // of those controls gets the same `data-invalid` (mirrors `aria-invalid`) — this skin's branch.
     "data-invalid:border-destructive data-invalid:focus-visible:ring-destructive",
   ],
 });

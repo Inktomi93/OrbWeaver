@@ -13,6 +13,7 @@ import {
   MenuSubmenuTrigger,
   MenuTrigger,
 } from "@orb/ui/menu";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 test("opens on trigger click and lists items", async ({ mount, page }) => {
@@ -242,6 +243,8 @@ test("the backdrop appears while the menu is open and hides when it closes", asy
   await page.getByRole("button", { name: "Actions" }).click();
   await expect(page.getByRole("menu")).toBeVisible();
   await expect(backdrop).toBeVisible();
+  // The theme-aware overlay token (D43 §11.4) — never bg-black/50.
+  await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
   await page.keyboard.press("Escape");
   await expect(backdrop).toBeHidden();
 });

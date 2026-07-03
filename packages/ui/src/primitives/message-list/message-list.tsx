@@ -102,6 +102,9 @@ export interface MessageListProps<T> {
  * - Domain-agnostic: takes `items` + `renderItem` + `getItemKey` only. It has no idea what a
  *   "message" or a "chat" is — the chat-client chunk supplies ghost-row and ordinary-row rendering
  *   entirely through `renderItem`.
+ * - **`role="log"` + `aria-live="polite"`** on the stable scroll wrapper (the log-viewer.tsx
+ *   precedent) — assistive tech announces arriving messages without depending on the windowed rows
+ *   themselves, which mount/unmount as the reader scrolls.
  *
  * Usage:
  * ```tsx
@@ -202,9 +205,20 @@ export function MessageList<T>({
           scrollContainerRef.current = node;
         }
       }}
+      // role="log" + aria-live="polite" on this STABLE outer node (never remounted — the same
+      // log-viewer.tsx precedent, MEETS-BAR per the rigor audit): assistive tech announces each
+      // arriving message the way a chat transcript should. Kept off the windowed rows themselves,
+      // which mount/unmount as the reader scrolls.
+      role="log"
+      aria-live="polite"
       className={cn("overflow-auto overscroll-contain", className)}
+      data-slot="message-list-scroll"
     >
-      <div ref={virtualizer.containerRef} className="relative w-full">
+      <div
+        ref={virtualizer.containerRef}
+        className="relative w-full"
+        data-slot="message-list-viewport"
+      >
         {virtualizer.getVirtualItems().map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
@@ -212,6 +226,7 @@ export function MessageList<T>({
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
+            data-slot="message-list-row"
             className="absolute inset-x-0"
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index)}

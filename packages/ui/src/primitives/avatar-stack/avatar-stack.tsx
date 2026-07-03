@@ -77,6 +77,7 @@ export function AvatarStack({
           data-slot="avatar-stack-item"
           // biome-ignore lint/suspicious/noArrayIndexKey: the item shape ({src?, name}) carries no stable id; render order is positional for a given props.items array.
           key={index}
+          role="img"
           size={size}
           style={index === 0 ? undefined : { marginInlineStart: -OVERLAP_PX[size] }}
         >
@@ -88,6 +89,7 @@ export function AvatarStack({
           aria-label={`${overflow} more`}
           className={slots.item()}
           data-slot="avatar-stack-overflow"
+          role="img"
           size={size}
           style={{ marginInlineStart: -OVERLAP_PX[size] }}
         >

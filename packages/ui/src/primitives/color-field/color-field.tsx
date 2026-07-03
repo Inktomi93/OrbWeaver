@@ -3,8 +3,11 @@ import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { cn } from "#lib";
 import { Field } from "#primitives/field";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
+import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
+import { Spinner } from "#primitives/spinner";
 import { isSafeColor } from "../../content/theme-scope/clamp";
 import { colorFieldVariants } from "./variants";
 
@@ -46,11 +49,55 @@ export interface ColorFieldProps {
   value: string;
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  /**
+   * Busy state (the 8-state contract, ui-package-design §5): swaps the swatch for a `<Spinner>`
+   * and inerts the trigger, for a caller committing the value asynchronously (e.g. an accent
+   * saved via a mutation). A state, not a variant — caller-driven, same shape as `Button.loading`.
+   */
+  loading?: boolean;
+  /** Momentary success flash (the 8-state contract): a checkmark over the swatch + the success
+   *  ring token. Caller clears it after its own delay — this primitive holds no timer. */
+  success?: boolean;
   className?: string;
   id?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
+}
+
+interface ColorFieldTriggerGlyphProps {
+  readonly loading: boolean;
+  readonly success: boolean;
+  readonly isValid: boolean;
+  readonly value: string;
+  readonly slots: ReturnType<typeof colorFieldVariants>;
+}
+
+/**
+ * The trigger's swatch/spinner/checkmark dispatch, split out from `ColorField` purely to avoid a
+ * 3-way nested ternary in the render tree (biome `noNestedTernary`) and keep `ColorField` itself
+ * under the cognitive-complexity ceiling — it carries no state of its own.
+ */
+function ColorFieldTriggerGlyph({
+  loading,
+  success,
+  isValid,
+  value,
+  slots,
+}: ColorFieldTriggerGlyphProps): ReactElement {
+  if (loading) {
+    return <Spinner label="Saving color…" size="sm" />;
+  }
+  if (success) {
+    return <Icon icon={Check} label="Saved" size="sm" />;
+  }
+  return (
+    <span
+      className={slots.swatch()}
+      data-slot="color-field-swatch"
+      style={isValid ? { backgroundColor: value } : undefined}
+    />
+  );
 }
 
 const NATIVE_HEX_RE = /^#[0-9a-f]{6}$/iu;
@@ -77,12 +124,18 @@ const FALLBACK_NATIVE_HEX = "#000000";
  * including a `url()`/`expression()` injection attempt — is rejected inline (the popover's hex
  * field shows the error) and never reaches `onValueChange`.
  *
+ * `loading`/`success` (the 8-state contract, ui-package-design §5) swap the swatch for a
+ * `<Spinner>` / a checkmark and inert the trigger — caller-driven states, same shape as
+ * `Button.loading`; this primitive holds no timer for clearing `success`.
+ *
  * Usage: `<Field label="Accent"><ColorField value={theme.accent} onValueChange={setAccent} /></Field>`
  */
 export function ColorField({
   value,
   onValueChange,
   disabled = false,
+  loading = false,
+  success = false,
   className,
   id,
   "aria-label": ariaLabel,
@@ -120,7 +173,11 @@ export function ColorField({
               <button
                 className={cn(slots.swatchTrigger(), className)}
                 data-disabled={disabled ? "" : undefined}
-                disabled={disabled}
+                data-loading={loading ? "" : undefined}
+                data-slot="color-field-trigger"
+                data-success={success ? "" : undefined}
+                // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
+                disabled={disabled || loading}
                 type="button"
                 // Base UI's render-prop chain (Field.Control → PopoverTrigger → this button) merges
                 // props via `mergeProps`, which treats an EXPLICITLY-declared key on the innermost
@@ -135,10 +192,12 @@ export function ColorField({
                 {...(ariaLabelledby === undefined ? {} : { "aria-labelledby": ariaLabelledby })}
                 {...(ariaDescribedby === undefined ? {} : { "aria-describedby": ariaDescribedby })}
               >
-                <span
-                  className={slots.swatch()}
-                  data-slot="color-field-swatch"
-                  style={isValid ? { backgroundColor: value } : undefined}
+                <ColorFieldTriggerGlyph
+                  isValid={isValid}
+                  loading={loading}
+                  slots={slots}
+                  success={success}
+                  value={value}
                 />
               </button>
             }

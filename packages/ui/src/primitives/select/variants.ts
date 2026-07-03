@@ -5,6 +5,9 @@ import { tv } from "tailwind-variants";
 // --available-height/--anchor-width are Base UI Positioner-provided vars, not raw values.
 export const selectVariants = tv({
   slots: {
+    // Base UI Select.Label — an accessible label auto-associated with the trigger (standalone use;
+    // a <Field> wrapping the Select gets the same wiring via FieldRootContext instead).
+    label: "text-label font-medium leading-label text-foreground data-disabled:opacity-50",
     trigger: [
       "flex h-control-sm w-full min-w-0 cursor-pointer select-none items-center justify-between gap-row rounded-control border border-border bg-input px-block text-body leading-body text-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent",
@@ -30,6 +33,9 @@ export const selectVariants = tv({
       "data-disabled:pointer-events-none data-disabled:opacity-50",
     ],
     itemIndicator: "flex shrink-0 text-primary",
+    // Base UI positions the arrow against the anchor and sets data-side; skinned as a `bg-popover`
+    // diamond that continues the popup edge (mirrors PopoverArrow/MenuArrow).
+    arrow: "size-row rotate-45 border border-border bg-popover",
     // Between-group divider — Base UI Select.Separator (role="separator"); bleeds to the popup edge.
     separator: "-mx-field my-field h-px bg-border",
     // Opt-in dimming layer for the modal-by-default select (theme-aware scrim, never black/50).

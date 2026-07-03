@@ -43,3 +43,21 @@ test("done status renders the full text immediately, with no shimmer", async ({ 
   await expect(component).toHaveAttribute("data-slot", "stream-text");
   await expect(component).toHaveText("already complete");
 });
+
+test("hidden-tab flush: a backgrounded tab reveals the full target immediately, not paced", async ({
+  mount,
+  page,
+}) => {
+  // cps=1 would take ~4 minutes to pace 240 chars — without the hidden-tab flush this assertion
+  // would time out. rAF doesn't fire in a real hidden tab, so the pacer flushes on visibilitychange
+  // instead of relying on a frame it will never get.
+  const component = await mount(<StreamText text={LONG_TEXT} status="streaming" cps={1} />);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect(component).toHaveText(LONG_TEXT);
+});

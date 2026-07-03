@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve ImageOff/Icon fine.
+import { Icon, ImageOff } from "#primitives/icons";
 import { crossfadeImageVariants } from "./variants";
 
 export interface CrossfadeImageProps {
@@ -44,6 +46,11 @@ function initialLayers(src: string | null): Layers {
  * JS media-query branching needed. The aspect box is reserved via `aspectRatio` even when `src` is
  * `null` (no layout shift while an image is pending).
  *
+ * A remote `src` can 404 or otherwise fail to decode: the top layer's `onError` swaps it for a
+ * styled broken-image fallback (an `ImageOff` glyph on the same muted box) instead of the browser's
+ * native broken-image icon, and drops the stale previous layer immediately — there is nothing left
+ * to crossfade TO.
+ *
  * Usage: `<CrossfadeImage src={char.portraitUrl} alt={char.name} aspectRatio="3 / 4" />`.
  */
 export function CrossfadeImage({
@@ -57,6 +64,10 @@ export function CrossfadeImage({
   // "adjusting state when a prop changes" pattern) instead of a setState-in-effect cascade.
   const [propSrc, setPropSrc] = useState(src);
   const [layers, setLayers] = useState<Layers>(() => initialLayers(src));
+  // The top layer's `key` once its `<img>` has fired `onError` — rendered as the broken-image
+  // fallback instead of a native broken-`<img>`. A fresh `src` gets a fresh `key` (the generation
+  // counter), so this never needs clearing on success; it just stops matching.
+  const [brokenKey, setBrokenKey] = useState<number | null>(null);
 
   if (src !== propSrc) {
     setPropSrc(src);
@@ -90,9 +101,11 @@ export function CrossfadeImage({
   const overrideStyle =
     durationMs === undefined ? undefined : { transitionDuration: `${durationMs}ms` };
 
+  const topIsBroken = layers.top !== null && layers.top.key === brokenKey;
+
   return (
     <div className={slots.root({ className })} data-slot="crossfade-image" style={{ aspectRatio }}>
-      {layers.previousSrc !== null && (
+      {layers.previousSrc !== null && !topIsBroken && (
         <img
           alt={alt}
           className={slots.image()}
@@ -100,12 +113,25 @@ export function CrossfadeImage({
           src={layers.previousSrc}
         />
       )}
-      {layers.top !== null && (
+      {layers.top !== null && topIsBroken && (
+        <div className={slots.fallback()} data-slot="crossfade-image-fallback">
+          <Icon icon={ImageOff} label={`${alt} failed to load`} size="md" />
+        </div>
+      )}
+      {layers.top !== null && !topIsBroken && (
+        // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError is a load-failure callback, not a user interaction — the standard broken-image-fallback wiring for a non-interactive <img>.
         <img
           alt={alt}
           className={slots.image({ revealed: layers.top.revealed })}
           data-slot="crossfade-image-current"
           key={layers.top.key}
+          onError={(): void => {
+            if (layers.top === null) {
+              return;
+            }
+            setBrokenKey(layers.top.key);
+            setLayers((state) => ({ ...state, previousSrc: null }));
+          }}
           onTransitionEnd={(event): void => {
             if (event.propertyName === "opacity") {
               setLayers((state) => ({ ...state, previousSrc: null }));

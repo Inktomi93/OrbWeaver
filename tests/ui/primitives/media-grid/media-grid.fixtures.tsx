@@ -161,3 +161,31 @@ export function UnboundedGrid({ itemCount }: { readonly itemCount: number }): Re
     </TripwireBoundary>
   );
 }
+
+const DERIVED_SOURCE: readonly MediaGridItem[] = [
+  { alt: "Alpha", id: "a", thumbUrl: "thumb-a.png" },
+  { alt: "Bravo", id: "b", thumbUrl: "thumb-b.png" },
+  { alt: "Charlie", id: "c", thumbUrl: "thumb-c.png" },
+];
+
+/**
+ * R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
+ * re-renders passing a freshly-DERIVED (filter+map) items array — not a stable module-const
+ * reference (the virtual-list/sortable `DerivedItemsList` precedent).
+ */
+export function DerivedItemsGrid(): ReactElement {
+  const [bump, setBump] = useState(0);
+  const items = DERIVED_SOURCE.filter((entry) => entry.alt.length > 0).map((entry) => ({
+    ...entry,
+  }));
+  return (
+    <div>
+      <button data-testid="rerender" onClick={(): void => setBump((n) => n + 1)} type="button">
+        rerender {bump}
+      </button>
+      <div style={{ height: 300, width: 300 }}>
+        <MediaGrid ariaLabel="Derived grid" className="h-full" items={items} minCellWidth={100} />
+      </div>
+    </div>
+  );
+}

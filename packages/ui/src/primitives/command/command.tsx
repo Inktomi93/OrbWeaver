@@ -149,7 +149,11 @@ export interface CommandGroupProps
  */
 export function CommandGroup({ className, heading, ...rest }: CommandGroupProps): ReactElement {
   const styledHeading: ReactNode =
-    heading === undefined ? undefined : <span className={slots.groupHeading()}>{heading}</span>;
+    heading === undefined ? undefined : (
+      <span className={slots.groupHeading()} data-slot="command-group-heading">
+        {heading}
+      </span>
+    );
   return (
     <BaseCommandGroup
       className={cn(slots.group(), className)}

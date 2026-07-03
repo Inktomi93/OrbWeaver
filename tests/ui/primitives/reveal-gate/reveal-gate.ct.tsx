@@ -91,3 +91,65 @@ test("a custom label renders on the reveal trigger", async ({ mount, page }) => 
 
   await expect(page.getByRole("button", { name: "Show API key" })).toBeVisible();
 });
+
+test("the reveal trigger carries aria-expanded=false; the hide trigger aria-expanded=true", async ({
+  mount,
+  page,
+}) => {
+  await mount(<RevealGate>sk-secret-token-12345</RevealGate>);
+
+  await expect(page.getByRole("button", { name: "Reveal" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await page.getByRole("button", { name: "Reveal" }).click();
+  await expect(page.getByRole("button", { name: "Hide" })).toHaveAttribute("aria-expanded", "true");
+});
+
+test("revealing announces via an aria-live region", async ({ mount, page }) => {
+  await mount(<RevealGate label="API key">sk-secret-token-12345</RevealGate>);
+
+  const announcement = page.locator('[data-slot="reveal-gate-announcement"]');
+  await expect(announcement).toHaveAttribute("aria-live", "polite");
+  await expect(announcement).toHaveText("");
+
+  await page.getByRole("button", { name: "API key" }).click();
+  await expect(announcement).toHaveText("API key revealed");
+
+  await page.getByRole("button", { name: "Hide" }).click();
+  await expect(announcement).toHaveText("API key hidden");
+});
+
+test("focus moves to the Hide trigger on reveal", async ({ mount, page }) => {
+  await mount(<RevealGate>sk-secret-token-12345</RevealGate>);
+
+  await page.getByRole("button", { name: "Reveal" }).click();
+  await expect(page.getByRole("button", { name: "Hide" })).toBeFocused();
+});
+
+test("focus moves to the content wrapper on reveal when hideable=false", async ({
+  mount,
+  page,
+}) => {
+  await mount(<RevealGate hideable={false}>sk-secret-token-12345</RevealGate>);
+
+  await page.getByRole("button", { name: "Reveal" }).click();
+  await expect(page.locator('[data-slot="reveal-gate-content"]')).toBeFocused();
+});
+
+test("disabled prevents revealing", async ({ mount, page }) => {
+  await mount(<RevealGate disabled={true}>sk-secret-token-12345</RevealGate>);
+
+  const trigger = page.getByRole("button", { name: "Reveal" });
+  await expect(trigger).toBeDisabled();
+});
+
+test("disabled prevents re-hiding", async ({ mount, page }) => {
+  await mount(
+    <RevealGate defaultRevealed={true} disabled={true}>
+      sk-secret-token-12345
+    </RevealGate>,
+  );
+
+  await expect(page.getByRole("button", { name: "Hide" })).toBeDisabled();
+});

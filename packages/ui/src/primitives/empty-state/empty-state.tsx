@@ -28,11 +28,25 @@ export function EmptyState({
 }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants();
   return (
-    <div className={slots.root({ className })}>
-      {icon === undefined ? null : <div className={slots.icon()}>{icon}</div>}
-      <p className={slots.title()}>{title}</p>
-      {description === undefined ? null : <p className={slots.description()}>{description}</p>}
-      {action === undefined ? null : <div className={slots.action()}>{action}</div>}
+    <div className={slots.root({ className })} data-slot="empty-state-root">
+      {icon === undefined ? null : (
+        <div className={slots.icon()} data-slot="empty-state-icon">
+          {icon}
+        </div>
+      )}
+      <p className={slots.title()} data-slot="empty-state-title">
+        {title}
+      </p>
+      {description === undefined ? null : (
+        <p className={slots.description()} data-slot="empty-state-description">
+          {description}
+        </p>
+      )}
+      {action === undefined ? null : (
+        <div className={slots.action()} data-slot="empty-state-action">
+          {action}
+        </div>
+      )}
     </div>
   );
 }

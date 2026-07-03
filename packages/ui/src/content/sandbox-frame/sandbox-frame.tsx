@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactElement } from "react";
 import { buildSrcDoc, SANDBOX_ATTR } from "./srcdoc";
+import { clampSandboxThemeTokens } from "./theme-tokens";
 
 // The default rendered height for a Tier-B card (px). See the auto-height note on the component: with
 // scripts OFF the frame cannot postMessage its scrollHeight, so height is caller-controlled, not
@@ -11,7 +12,11 @@ export interface SandboxFrameProps {
   readonly html: string;
   /** Optional card CSS (rides the sandboxed document's own `<style>`; cannot touch the app). */
   readonly css?: string;
-  /** Pre-validated `--*` theme custom props so the card's `var(--accent)` tracks the app theme. */
+  /**
+   * `--*` theme custom props so the card's `var(--accent)` tracks the app theme. Re-clamped at THIS
+   * boundary via `isSafeColor` (the same predicate `<ThemeScope>` uses) regardless of the caller —
+   * a caller bypassing ThemeScope cannot smuggle CSS through here (see `theme-tokens.ts`).
+   */
   readonly themeTokens?: Readonly<Record<string, string>>;
   /** Required iframe title (a11y). */
   readonly title: string;
@@ -64,7 +69,7 @@ export function SandboxFrame({
     );
   }
 
-  const srcDoc = buildSrcDoc({ html, css, themeTokens });
+  const srcDoc = buildSrcDoc({ html, css, themeTokens: clampSandboxThemeTokens(themeTokens) });
   return (
     <iframe
       // The load-bearing security attributes (D44 §12.2) — owned here + in srcdoc.ts.
