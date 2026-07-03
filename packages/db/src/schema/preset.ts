@@ -2,7 +2,7 @@
 // `PromptConfig` blobs (the authored, reorderable prompt structure + the provider-agnostic `UserIntent`
 // generation snapshot). NOT the connection (`{api, source, model}` selection is contracts/connection).
 //
-// Two row kinds (preset.md "Two row kinds"):
+// Two row kinds:
 //   • owner-scoped — `owner_id IS NOT NULL`, the user's library, unlimited count.
 //   • system default — exactly ONE row with `owner_id IS NULL`, keyed by the NIL TypeID sentinel
 //     `SYSTEM_DEFAULT_PRESET_ID` (`preset_00000000000000000000000000`). That sentinel is a DOMAIN
@@ -11,7 +11,7 @@
 //     (nullable): a null owner is the system default; a non-null owner can't be deleted out from under
 //     their presets.
 //
-// `schema_version` mirrors `config.schemaVersion` (preset.md esoteric #3 — the boot reseed is
+// `schema_version` mirrors `config.schemaVersion` (the boot reseed is
 // version-gated; the column is the legible compare key, defaulted to the current PromptConfig version).
 // NO FK from chats/messages: past-turn provenance lives on `message_variants.params` (a UserIntent
 // snapshot, D26), never a preset FK.
@@ -33,7 +33,7 @@ export const presets = sqliteTable(
       .$type<UserId>()
       .references(() => users.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
-    // Free-text label (preset.md — `kind` is NOT an enum; e.g. "roleplay", "assistant").
+    // Free-text label (`kind` is NOT an enum; e.g. "roleplay", "assistant").
     kind: text("kind").notNull(),
     // The PromptConfig blob. Parsed at the read seam via `parsePromptConfig` (@orb/contracts/preset);
     // a corrupt blob degrades to DEFAULT_PROMPT_CONFIG there, never here.

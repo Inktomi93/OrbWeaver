@@ -392,7 +392,7 @@ describe("buildAssembleContext — immutable/pure (§5)", () => {
   });
 });
 
-describe("buildAssembleContext — the null-anchor fallback (persona.md dual-persona rule)", () => {
+describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)", () => {
   const alice = { name: "Alice", description: "a bold captain" };
   const bob = { name: "Bob", description: "a quiet scholar" };
 

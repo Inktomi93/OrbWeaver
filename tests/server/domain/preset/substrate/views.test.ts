@@ -1,6 +1,6 @@
 // The row → view mappers (pure). Pins the two load-bearing read-seam behaviors:
 //   1. `isSystemDefault` is derived from `ownerId IS NULL` (the client's un-owned-row signal).
-//   2. the LENIENT config parse (preset.md esoteric #4): a garbage `params` blob is bounded to `{}` WITHOUT
+//   2. the LENIENT config parse: a garbage `params` blob is bounded to `{}` WITHOUT
 //      degrading the whole config — the user's `sections` survive. (If `.catch({})` were dropped, the whole
 //      preset would collapse to DEFAULT_PROMPT_CONFIG and the sections would be lost.)
 
@@ -55,7 +55,7 @@ describe("toPresetDetail (lenient parse seam)", () => {
     expect(d.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
   });
 
-  test("a garbage params blob is bounded to {} while sections survive (esoteric #4)", () => {
+  test("a garbage params blob is bounded to {} while sections survive (the .catch({}) bound)", () => {
     const corruptParams = {
       ...DEFAULT_PROMPT_CONFIG,
       params: { quality: "definitely-not-a-quality" },

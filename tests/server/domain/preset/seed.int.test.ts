@@ -1,6 +1,5 @@
 // seed: ensureSystemDefaultPreset — the boot seeder. Pins: first boot inserts the single null-owner row;
-// the reseed is schemaVersion-GATED (a bump overwrites; an equal/newer stored version is left alone —
-// preset.md esoteric #3); and the seeder is idempotent across boots.
+// the reseed is schemaVersion-GATED (a bump overwrites; an equal/newer stored version is left alone); and the seeder is idempotent across boots.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";

@@ -1,4 +1,4 @@
-// verb: update — owned patch + the copy-on-write of the system default (preset.md esoteric #2).
+// verb: update — owned patch + the copy-on-write of the system default.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";

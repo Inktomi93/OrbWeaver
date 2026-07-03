@@ -196,7 +196,7 @@ export type GeneratePictureOp = (p: {
 
 /** `settings`+`persona` — the starter's USER-LEVEL active persona (`seeds.defaultPersonaId`, validated
  *  owned/alive at the root — stale/unowned collapses to null so a dead id never lands in the
- *  `chats.anchorPersonaId` FK). The `startChat` default-seed source (persona.md: no explicit anchor ⇒ the
+ *  `chats.anchorPersonaId` FK). The `startChat` default-seed source (no explicit anchor ⇒ the
  *  starter's active persona anchors the room; the card {{user}} POV is theirs from message one). */
 export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 

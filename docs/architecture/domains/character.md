@@ -357,7 +357,7 @@ a `chat_participants` row. A character agent has both.
 - **`character_books` FK — RESOLVED: keys on `characters.id`.** `character_books.characterId` references
   `characters.id` (no cv exists); the live card's book set is read at assemble. A freeze-lore-at-a-snapshot
   feature, if ever wanted, would reference a `character_snapshots` id — never a cv.
-  Locked consistently with `world-info.md`, `db.md`, `export.md`.
+  Locked consistently with `domain/world-info`, `db.md`, `export.md`.
 - **`restore` verb — RESOLVED: copy a snapshot blob onto the live row, in place.** `restore` reads a
   `character_snapshots.content` blob and writes it over the `characters` row (an `UPDATE`, not a new row).
   Snapshot-current-first so it's reversible. No partial restores (a partial restore is just an `update`).

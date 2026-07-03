@@ -330,9 +330,9 @@ but the writer must build roster rows against the orbweaver `chat_participants` 
 split, `authorUserId`). Import constructs these directly against `@orb/db` (the `buildInitialRosterRows`
 shape, owned by chat) — the row shape is a contract both sides honor.
 
-### persona.md / domain/tag intersections
+### domain/persona / domain/tag intersections
 
-- **persona.md** (drop `chats.personaId`): the chat writer stamps `chats.personaId` + `pinnedPersonaId`
+- **domain/persona** (drop `chats.personaId`): the chat writer stamps `chats.personaId` + `pinnedPersonaId`
   - per-message `personaId` today. Orbweaver drops `chats.personaId`; the anchor (neo `pinnedPersonaId` →
     renamed `chats.anchorPersonaId`) + per-message attribution stay; active-persona lives on `chat_participants`.
 - **domain/tag** (`proposedTags` → status): import writes `character_tags` rows with `status:'pending'`

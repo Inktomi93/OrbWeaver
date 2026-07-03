@@ -2,7 +2,7 @@
 // character (`ensureCharacterOwned` — a sanctioned `characters` schema read) AND the book (`loadOwnedBook`).
 // D28: `character_books` keys on `characters.id` (live identity — no version table).
 //
-// THE PRIMARY-UNIQUENESS BELT (world-info.md invariant #3): `role:'primary'` MUST run a SINGLE atomic
+// THE PRIMARY-UNIQUENESS BELT (invariant #3): `role:'primary'` MUST run a SINGLE atomic
 // `db.batch([demote, upsert])`. The `demote` flips any OTHER book currently primary on this character to
 // auxiliary; `ne(worldBookId, bookId)` excludes the row the upsert touches, so the two statements hit
 // DISJOINT rows (order is immaterial) — but ATOMICITY is not: split into two sequential awaits, a concurrent

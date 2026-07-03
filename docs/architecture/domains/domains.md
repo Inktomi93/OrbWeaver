@@ -10,9 +10,9 @@
 | ------------------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
 | **chat**                             | [chat.md](chat.md)                                                 | 5 (built whole, last)              |
 | **character**                        | [character.md](character.md)                                       | 4                                  |
-| **persona**                          | [persona.md](persona.md)                                           | 4                                  |
-| **preset**                           | [preset.md](preset.md)                                             | 4                                  |
-| **world-info**                       | [world-info.md](world-info.md)                                     | 4                                  |
+| **persona**                          | `packages/server/src/domain/persona/` (gutted — code is the doc)                                           | 4                                  |
+| **preset**                           | `packages/server/src/domain/preset/` (gutted — code is the doc)                                             | 4                                  |
+| **world-info**                       | `packages/server/src/domain/world-info/` (gutted — code is the doc)                                     | 4                                  |
 | **connection**                       | [connection.md](connection.md)                                     | 4 — NEW; absorbs `models`          |
 | **credentials**                      | [credentials.md](credentials.md)                                   | 4                                  |
 | **tag**                              | `packages/server/src/domain/tag/` (gutted — code is the doc)                                                   | 4                                  |

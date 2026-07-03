@@ -332,8 +332,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [memory.md](docs/architecture/domains/memory.md)
   - [notifications.md](docs/architecture/domains/notifications.md)
   - [participants-agents-identity.md](docs/architecture/domains/participants-agents-identity.md)
-  - [persona.md](docs/architecture/domains/persona.md)
-  - [preset.md](docs/architecture/domains/preset.md)
   - **proposed/**
     - [README.md](docs/architecture/domains/proposed/README.md)
     - **databank/**
@@ -352,4 +350,3 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [settings.md](docs/architecture/domains/settings.md)
   - stats — BUILT; doc gutted 2026-07, code is source (`packages/server/src/domain/stats/`); seam design: [stats-discovery-seam.md](docs/architecture/proposed/stats-discovery-seam.md)
   - [workloads.md](docs/architecture/domains/workloads.md)
-  - [world-info.md](docs/architecture/domains/world-info.md)

@@ -1,4 +1,4 @@
-// domain/preset/contract/views — the read-model shapes the client receives (preset.md 8-slot). These are
+// domain/preset/contract/views — the read-model shapes the client receives. These are
 // domain-local view types (the client receives them via tRPC inference, not a direct import), so they live
 // in the feature's `contract/`, NOT `@orb/contracts` (which homes only the cross-boundary `PromptConfig` /
 // `UserIntent` / guided-action shapes the view CARRIES). `isSystemDefault` is the derived signal that lets
@@ -7,7 +7,7 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 
-/** A list row — id/name/kind/dates + the derived system-default flag (preset.md: `PresetSummary`). */
+/** A list row — id/name/kind/dates + the derived system-default flag. */
 export interface PresetSummary {
   readonly id: PresetId;
   readonly name: string;
@@ -19,7 +19,7 @@ export interface PresetSummary {
 }
 
 /** The full preset — the list row PLUS the `PromptConfig` blob (lifted forward at the read seam) and its
- *  mirrored `schemaVersion` (preset.md: `PresetDetail`). */
+ *  mirrored `schemaVersion`. */
 export interface PresetDetail extends PresetSummary {
   readonly config: PromptConfig;
   readonly schemaVersion: number;

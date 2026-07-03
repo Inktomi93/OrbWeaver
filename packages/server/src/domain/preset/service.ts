@@ -1,7 +1,7 @@
 // domain/preset — COMPOSITION ROOT: wires the 6 verbs over the injected `PresetContext` (ZERO logic). It
 // only calls the verb factories and assembles the `PresetService`. The context (db + the bound `audit`
 // writer + the injected clock/id seam) is built at the entry composition root and passed in — preset
-// injects no cross-feature op and no guard (it gates by `ownerId === userId`, preset.md §7.1).
+// injects no cross-feature op and no guard (it gates by `ownerId === userId`).
 
 import type { PresetContext, PresetService } from "./contract/service";
 import { createCreate } from "./verbs/create";

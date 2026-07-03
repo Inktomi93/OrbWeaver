@@ -1,6 +1,6 @@
-// domain/preset/seed — the boot seeder (preset.md §"Named subsystems: none" — the seeder lives at the
-// domain root, not a subsystem folder). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
-// exist, and is `schemaVersion`-GATED on reseed (esoteric #3): when the stored row's version is BELOW
+// domain/preset/seed — the boot seeder (lives at the domain root, not a subsystem folder — a sanctioned
+// root singleton in the feature-structure gate). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
+// exist, and is `schemaVersion`-GATED on reseed: when the stored row's version is BELOW
 // `DEFAULT_PROMPT_CONFIG.schemaVersion`, the row is overwritten with the current default — a version bump is
 // the ONLY reseed trigger (a direct DB config edit that doesn't bump the version survives; a version bump
 // overwrites it on the next boot). The clock is INJECTED for determinism (entry passes the real clock).

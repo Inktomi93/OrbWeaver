@@ -1,4 +1,4 @@
-// The enforcer for preset.md esoteric #1: SYSTEM_DEFAULT_PRESET_ID is the NIL TypeID, and it MUST satisfy
+// The enforcer: SYSTEM_DEFAULT_PRESET_ID is the NIL TypeID, and it MUST satisfy
 // the branded `typeIdSchema('preset_')` constraint (every request boundary validates the prefix; a human-
 // readable sentinel would be rejected). This test pins that the chosen literal is a valid preset id — if
 // someone "cleans it up" to `'system-default'`, this goes red before it reaches a boundary.
