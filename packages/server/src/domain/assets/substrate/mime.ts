@@ -4,7 +4,7 @@
 // format we serve; anything else is the `application/octet-stream` "unrecognized signature" sentinel
 // (NEVER a valid claimed mime at the upload boundary — esoterica #7). Asset-specific + server-only, so it
 // stays domain substrate; FLAG[PD-29]: → `@orb/kit/assets` iff the client ever needs to pre-sniff an
-// upload before sending (assets.md §"Still open").
+// upload before sending.
 //
 // Signatures are compared as HEX PREFIXES (string constants), not byte-array literals — the bytes carry no
 // arithmetic meaning, and the hex form is both linter-clean (noMagicNumbers) and self-documenting.

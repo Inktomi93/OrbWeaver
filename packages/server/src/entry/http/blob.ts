@@ -1,5 +1,5 @@
-// entry/http/blob — the binary blob-serve registrar (core/Tier-5-Entry.md §layout "blob.ts"; assets.md §"the
-// blob route"). `GET /api/blob/:hash` serves an owned CAS blob; `?w=<px>` (the client always pairs it with
+// entry/http/blob — the binary blob-serve registrar (core/Tier-5-Entry.md §layout "blob.ts").
+// `GET /api/blob/:hash` serves an owned CAS blob; `?w=<px>` (the client always pairs it with
 // `f=webp`) serves a resized-webp variant. It composes the `assets` front door (the owner-gate
 // `getMetadata` + the `resolveVariant` snap→cache→transform pipeline, D6) with the `infra/storage` CAS
 // (the original bytes). Per D21 the route is OWNER-GATED, not unauthenticated — the caller's `Principal`
@@ -7,7 +7,7 @@
 // caller doesn't own is indistinguishable from a missing one (both → 404, no foreign-existence leak).
 //
 // Why both `assets` AND `cas`: the assets front door owns the index + the variant pipeline, but exposes no
-// raw-original read (its surface is store/getMetadata/resolveVariant — assets.md §Verbs). The full-size
+// raw-original read (its user-facing surface is store/getMetadata/resolveVariant). The full-size
 // original is served from the per-user CAS directly (`cas.read(ownerId, hash)`); `getMetadata` is still
 // the gate (it owner-scopes + yields the stored mime) before any byte read. The width-snap policy + `sharp`
 // stay OUT of this tier — `resolveVariant` does both behind the front door (D6).

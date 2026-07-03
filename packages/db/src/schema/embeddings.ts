@@ -1,8 +1,8 @@
 // schema/embeddings — the vector substrate (producer: domain/embeddings; the ONE write path is
 // `embeddings.store`, the inserter is the domain — the SCHEMA is here). Five tables: character_embeddings
 // · image_embeddings · chat_digests · chat_segments · chat_digest_speakers (MOVED out of the neo
-// `search.ts` lie — the producer, not the consumer, names the schema file). Authoritative spec:
-// `docs/architecture/domains/embeddings.md` + `domains/memory.md` + `core/Tier-1-DB.md`.
+// `search.ts` lie — the producer, not the consumer, names the schema file). Authoritative spec: the domain
+// module (`packages/server/src/domain/embeddings/`) + `domains/memory.md` + `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D20 — the vector substrate does NOT denormalize ownership: there is NO `ownerId` / `owner_idx` on

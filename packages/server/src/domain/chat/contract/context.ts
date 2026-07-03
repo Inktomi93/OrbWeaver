@@ -212,9 +212,9 @@ export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | nu
  *  (`contentHash` = the staleness/collapse key, NEVER coerced; `speakerCharacterIds` → the
  *  `chat_digest_speakers` join). `key.scopedCharacterId` is ALWAYS a real `CharacterId` (inv 8 — the synthetic
  *  group-as-character for the shared bucket, a cast char for scoped; no `''` sentinel, no NULL — D20/§4).
- *  FLAG[chat-digest-speakers]: the foundation's embeddings `DigestStoreParams` carries NO `speakerCharacterIds`
- *  (pinned by `params.contract.test`), so the eventual chat→embeddings adapter (PD-41) — not `embeddings.store`
- *  — must persist this join; `embeddings.store` writes `chat_digests` only. */
+ *  RESOLVED[chat-digest-speakers] (PD-41): embeddings' `DigestStoreParams` now carries `speakerCharacterIds`
+ *  and `embeddings.store` persists the `chat_digest_speakers` join itself (against the KEPT row id after the
+ *  upsert); the compose-root chat→embeddings adapter just forwards the set. */
 export interface StoreDigestParams {
   readonly lens: "digest";
   readonly key: BlockKey;

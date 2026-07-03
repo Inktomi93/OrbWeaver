@@ -4,7 +4,7 @@
 //     names the recipient, who is by definition NOT the producer). Wrapped by the injected `emit` op.
 //   • markRead / dismiss / list are CALLER-scoped — they carry the resolved `Principal`; the verb scopes
 //     every read/write to `principal.userId`, so a user can only ever touch their OWN inbox
-//     (notifications.md invariant #3 — no cross-user inbox read). ids/role are branded; the cursor is the seq.
+//     (no cross-user inbox read). ids/role are branded; the cursor is the seq.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";

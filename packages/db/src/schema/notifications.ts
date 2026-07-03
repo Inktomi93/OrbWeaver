@@ -1,9 +1,9 @@
 // schema/notifications — the per-user DURABLE inbox (NEW domain, D16; producer = `domain/notifications`).
-// It exists for ONE reason (notifications.md): the per-chat bus cannot reach a NON-member, so invite /
+// It exists for ONE reason: the per-chat bus cannot reach a NON-member, so invite /
 // kick / host-handoff delivery needs a per-user channel that survives the recipient being offline. The
 // TABLE is the source of truth — DURABLE-FIRST: the row is INSERTed inside the producer's
 // membership-transition tx, and the per-user bus fan-out is the after-commit hook (so `list` returns the
-// event from the table alone even if the emit path is killed; notifications.md invariant #1).
+// event from the table alone even if the emit path is killed).
 //
 // `type` + `payload` store the CLOSED `NotificationEvent` discriminated union (`@orb/contracts/notifications`):
 //   • `type`    — the discriminant column (denormalized `payload.type`), so the inbox can filter/index by
@@ -15,7 +15,7 @@
 //   • `payload` — the full `NotificationEvent` JSON, branded `$type<NotificationEvent>()`. The union is the
 //                 phishing/exfil belt: it is built from `z.object` members that STRIP unknown keys (no
 //                 `.loose()`/`.catchall()`/`z.unknown()`), so credentials / baseUrls are TYPE-LEVEL
-//                 UNREPRESENTABLE and STRIPPED at the read seam (notifications.md invariant #2; a test
+//                 UNREPRESENTABLE and STRIPPED at the read seam (a test
 //                 proves a secret-shaped payload does not survive a parse).
 //
 // `seq` is a MONOTONIC per-recipient integer (the stream's stable cursor / `lastEventId` resume key) —

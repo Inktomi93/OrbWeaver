@@ -9,7 +9,7 @@
 // holds ONLY the cross-boundary RESULT shapes. The REQUEST shapes (EmbedRequest / ChatRequest /
 // AgentTurnRequest) stay infra-internal behind `infra/providers/contract/` — they carry an
 // `AbortSignal` (no DOM/node lib here) and a branded `ResolvedCredential`, which are not wire shapes.
-// `embeddings.md` lists `EmbedRequest` here; that is reconciled OUT (see report FLAG).
+// (`EmbedRequest` was once slated for this node; that was reconciled OUT.)
 //
 // Vectors are `Float32Array` — the same binary format libSQL's `vector_idx` consumes, so the local
 // embedder stores them without a copy; the OpenRouter runner wraps its `number[]` response into a

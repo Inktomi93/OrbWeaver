@@ -86,7 +86,7 @@ test("an unknown discriminant is rejected", () => {
   expect(notificationEventSchema.safeParse(unknownReason).success).toBe(false);
 });
 
-// SECRET-UNREPRESENTABLE (notifications.md invariant 2 / `bus-payload-allowlist`): the members are plain
+// SECRET-UNREPRESENTABLE (`bus-payload-allowlist`): the members are plain
 // `z.object` (NOT `.loose()`), so an injected secret-bearing field is STRIPPED at parse — it can never
 // ride through into the durable row or the stream. If someone loosens the schema, this goes red. The value
 // is an obvious non-secret literal (noSecrets) — the field NAME is what an exfil attempt would use.
@@ -102,7 +102,7 @@ test("an injected secret field is stripped at the schema boundary", () => {
   expect(parsed).toEqual(FIXTURES.kicked);
 });
 
-// Compile-time belt to back invariant 2: a secret-bearing field is not part of ANY variant's declared
+// Compile-time belt backing the secret-unrepresentable rule: a secret-bearing field is not part of ANY variant's declared
 // shape. Narrowing to `invite` then indexing a non-existent `apiKey` would be a `tsc` error — we instead
 // assert the key set is finite/known by exhaustively listing it (an index signature would defeat this).
 test("NotificationEvent variants expose only the allowlisted fields", () => {

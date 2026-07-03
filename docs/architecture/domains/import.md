@@ -11,7 +11,7 @@
 > `@orb/contracts/character` + `@orb/kit/png-card-chunk`) and are consumed by both directions.
 > Authoritative upstream: `AGENTS.md` §4 (import pain ledger) + §7.3 (serialization/serde core,
 > LOCKED) + §7.4/§7.5 (types + dispatch); `core/Core-Legacy-Migration-and-Gaps.md` §1–§5 (the serde homes, the
-> authoritative inventory); `domains.md` + `embeddings.md` §"events" (the indexer subscribers);
+> authoritative inventory); `domains.md` + `domain/embeddings` §"events" (the indexer subscribers);
 > `character.md` §7.3 + the D28 one-row card model; `domain/tag` (`proposedTags` → junction status);
 > `Core-0-Architecture-and-Structure.md` §4 (the 8-slot template).
 
@@ -69,7 +69,7 @@ reached only through the event/indexer path); persona/character business logic b
 | `import-st` calls `reconcileStats` inline at the end (the lone post-import refresh) | stats reconcile stays (economics is not event-driven); the _content_ indexes now run via the event path, not a bespoke inline call |
 
 The event bus SHAPE is an `entry/` decision (in-process `EventEmitter` vs a typed bus — see
-`embeddings.md` §open); the payload shapes live in `@orb/contracts/events`. Import receives an `emit`
+`domain/embeddings` §open); the payload shapes live in `@orb/contracts/events`. Import receives an `emit`
 op + an `enqueueBackfill` op on its context, wired at the composition root — it never reaches into
 `embeddings` or `workloads` sideways.
 
@@ -280,7 +280,7 @@ lens='card-text', key=characterId, …)`. Card text auto-indexes on import — t
 - the card PNG store emits `asset.created` (from the `assets` domain) → `embeddings/indexer:onAssetCreated`
   → image embeddings. Import doesn't emit this; `assets.store` does.
 - the enqueued memory backfill → `memory` generates digests/segments for the imported chats and calls
-  `embeddings.store` itself (memory does NOT go through the indexer — `embeddings.md` §events).
+  `embeddings.store` itself (memory does NOT go through the indexer — `domain/embeddings` §events).
 
 ---
 

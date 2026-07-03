@@ -1,4 +1,4 @@
-// verbs: markRead · dismiss — the CALLER's inbox-state flips (notifications.md §verbs + invariant #3).
+// verbs: markRead · dismiss — the CALLER's inbox-state flips.
 // Both are RECIPIENT-SCOPED to `principal.userId` (the scope lives in the persistence WHERE clause): a
 // notification that isn't the caller's matches NOTHING → `DomainNotFoundError`, so a user can neither read
 // nor probe another's inbox. Both are IDEMPOTENT — the timestamp is set once (`COALESCE` in persistence),

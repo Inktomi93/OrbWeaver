@@ -1,4 +1,4 @@
-// verb: list — the CALLER's OWN active inbox (notifications.md §verbs + invariant #3). Recipient-scoped to
+// verb: list — the CALLER's OWN active inbox. Recipient-scoped to
 // `principal.userId` (the scope is in the persistence WHERE clause — there is no cross-user read), dismissed
 // excluded, newest-first, cursor-paged on the monotonic `seq`. `nextCursor` is the last row's `seq` when a
 // full page came back (more may remain below it), else `null` (inbox exhausted).

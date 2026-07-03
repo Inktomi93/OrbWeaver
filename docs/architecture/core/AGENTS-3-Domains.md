@@ -30,7 +30,7 @@
 | **export**        | keep (rework)                  | TARGET: import + export **share ONE serialization core**. (Today they are two independent mappers coupled only by round-trip tests — role-map triplicated, WI mapping hand-duplicated, `creator`/`regex_scripts` survive only via a `raw` blob. Verified.)                                                                     |
 | **assets**        | keep                           | the CAS index/table (the blob _store_ itself is `infra/storage`).                                                                                                                                                                                                                                                              |
 | **workloads**     | keep                           | the execution engine the indexer + bulk passes enqueue into.                                                                                                                                                                                                                                                                   |
-| **notifications** | **NEW**                        | the per-user durable inbox + delivery stream (invite/kick/host-handoff to non-members the per-chat bus can't reach); part of the unified roster/group/multi-human system (ledger D16). Producers (chat) emit via an injected op; transport streams it on the `chat.streamMessages` resume shape. (`domains/notifications.md`.) |
+| **notifications** | **NEW**                        | the per-user durable inbox + delivery stream (invite/kick/host-handoff to non-members the per-chat bus can't reach); part of the unified roster/group/multi-human system (ledger D16). Producers (chat) emit via an injected op; transport streams it on the `chat.streamMessages` resume shape. (`domain/notifications`.) |
 | ~~models~~        | → **connection**               | merged.                                                                                                                                                                                                                                                                                                                        |
 | ~~debug~~         | → **foundation/observability** | `/api/_debug` is observability, not a domain.                                                                                                                                                                                                                                                                                  |
 | ~~corpus~~        | → **discovery**                | renamed (name required insider knowledge; it does library understanding).                                                                                                                                                                                                                                                      |
@@ -252,7 +252,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   not a move — the chat-scoped semantics (which `search`'s owner-wide scan doesn't model) must survive.
 - **`hub_score` ownership seam — RESOLVED:** column on the embeddings row; **discovery computes** (CSLS),
   **embeddings stores** (via `writeHubScores`), **search reads**, and a vector write **never nulls** it.
-  (`domains/embeddings.md`, `domains/discovery.md`, `domains/memory.md §7`.)
+  (`domain/embeddings`, `domains/discovery.md`, `domains/memory.md §7`.)
 - **serialization core — RESOLVED:** ONE serde core shared by import+export — mappers →
   `@orb/server/kit/serde`, canonical card → `@orb/contracts/character`, PNG codec →
   `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/message-role` (D32).
@@ -318,16 +318,13 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Event-Bus-Parity-Audit.md](docs/architecture/history/Core-Event-Bus-Parity-Audit.md)
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
-  - [assets.md](docs/architecture/domains/assets.md)
   - [character.md](docs/architecture/domains/character.md)
   - [chat.md](docs/architecture/domains/chat.md)
   - [discovery.md](docs/architecture/domains/discovery.md)
   - [domains.md](docs/architecture/domains/domains.md)
-  - [embeddings.md](docs/architecture/domains/embeddings.md)
   - [export.md](docs/architecture/domains/export.md)
   - [import.md](docs/architecture/domains/import.md)
   - [memory.md](docs/architecture/domains/memory.md)
-  - [notifications.md](docs/architecture/domains/notifications.md)
   - [participants-agents-identity.md](docs/architecture/domains/participants-agents-identity.md)
   - **proposed/**
     - [README.md](docs/architecture/domains/proposed/README.md)

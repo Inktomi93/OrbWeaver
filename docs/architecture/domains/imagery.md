@@ -253,7 +253,7 @@ compose-time mode picker, render (reuses `MessageMedia`).
 - **D46** — automation Tier-1: `/imagine` + rule-driven generation are the "trigger a generation" action
 - **D47** — image-gen IN CHAT committed (item 1); standalone caption (item 6) is the multimodal captioner
 - **D49** — adjudication: imagery is a server orchestrator leaf, hosted-only, Phase 7
-- `domains/assets.md` — store/CAS
+- `domain/assets` — store/CAS
 - `domains/character.md` — `getCard` for `{{char}}` in templates
 - `domain/connection` — `resolveRole`
 - `domains/automation.md` — the action surface

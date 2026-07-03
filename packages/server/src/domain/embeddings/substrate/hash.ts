@@ -6,7 +6,7 @@
 // Collapses the scattered inline variants neo-tavern had (db/vector-ops, chat/memory, corpus/service each
 // rolled their own). SHA-256 hex over the raw content: a `string` is UTF-8 encoded, a `Uint8Array` is hashed
 // verbatim. Both image lenses of one asset are hashed from the SAME resized bytes, so they share a
-// content_hash and de-dup on re-index (embeddings.md §"content_hash").
+// content_hash and de-dup on re-index.
 
 import { createHash } from "node:crypto";
 

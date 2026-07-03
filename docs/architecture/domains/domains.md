@@ -16,7 +16,7 @@
 | **connection**                       | `packages/server/src/domain/connection/` (gutted — code is the doc)                                     | 4 — NEW; absorbs `models`          |
 | **credentials**                      | `packages/server/src/domain/credentials/` (gutted — code is the doc)                                   | 4                                  |
 | **tag**                              | `packages/server/src/domain/tag/` (gutted — code is the doc)                                                   | 4                                  |
-| **embeddings**                       | [embeddings.md](embeddings.md)                                     | 4 — NEW; the ONE vector write path |
+| **embeddings**                       | `packages/server/src/domain/embeddings/` (gutted — code is the doc)                                     | 4 — NEW; the ONE vector write path |
 | **search**                           | `packages/server/src/domain/search/` (gutted — code is the doc)                                             | 4                                  |
 | **discovery**                        | [discovery.md](discovery.md)                                       | 4 — rename of `corpus`             |
 | **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
@@ -27,10 +27,10 @@
 | **admin**                            | `packages/server/src/domain/admin/` (gutted — code is the doc)                                               | 3                                  |
 | **import**                           | [import.md](import.md)                                             | 4                                  |
 | **export**                           | [export.md](export.md)                                             | 4                                  |
-| **assets**                           | [assets.md](assets.md)                                             | 4                                  |
+| **assets**                           | `packages/server/src/domain/assets/` (gutted — code is the doc)                                             | 4                                  |
 | **workloads**                        | `packages/server/src/domain/workloads/` (gutted — code is the doc)                                       | 4                                  |
 | **participants / agents / identity** | [participants-agents-identity.md](participants-agents-identity.md) | 5                                  |
-| **notifications**                    | [notifications.md](notifications.md)                               | 5                                  |
+| **notifications**                    | `packages/server/src/domain/notifications/` (gutted — code is the doc)                               | 5                                  |
 
 ## Phase 7 domains (post-chat additive grafts — D47/D48/D49)
 

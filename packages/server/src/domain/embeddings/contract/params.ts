@@ -6,19 +6,11 @@
 //     digest/segment producer (domains/memory.md §1; the memory rework, ledger D16).
 //   • SourceLens — the embedding lens. The IMAGE subset (`image-raw` | `image-captioned`) is NOT re-spelled
 //     here — it DERIVES `IMAGE_LENSES` from `@orb/contracts/embeddings` (D34, the db `image_embeddings.lens`
-//     column derives the SAME tuple). The text lenses are `card-text` (W2) + `segment` / `digest` (memory's
-//     verbatim + distilled chat-block lenses — §2).
+//     column derives the SAME tuple). The text lenses are `card-text` + `segment` / `digest` (memory's
+//     verbatim + distilled chat-block lenses — domains/memory.md §2).
 //
-// The `segment` / `digest` arms + the
-// `chat-block` kind are now DEFINED below (the typed write surface the memory rework + §3 recall read back).
-// The `embeddings.store` IMPL does NOT yet route them — `verbs/store.ts`'s exhaustive `switch (params.lens)`
-// + its pre-switch `contentHash(params.content)` go RED until the next chunk adds the two arms (the
-// `chat_digest_speakers` re-query-after-upsert, the precomputed-`contentHash` path, the `text`-as-embed-input)
-// AND wires `newChatDigestId` / `newChatSegmentId` into `EmbeddingsContext` at the entry root. That red is the
-// intended hand-off signal, NOT drift — do not fudge the switch to clear it (domains/memory.md §1/§2/§4).
-//
-// VECTOR_TABLES is the FULL four-table registry NOW (not phased): `discovery` (writeHubScores) + `search`
-// (reads) + `clearTable` consume all four today, independent of which lenses the store verb routes in W2.
+// VECTOR_TABLES is the FULL four-table registry: `discovery` (writeHubScores) + `search` (reads) +
+// `clearTable` consume all four.
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
@@ -38,7 +30,8 @@ export const TEXT_LENSES = ["card-text", "segment", "digest"] as const;
 /** Every lens the store verb routes — the text lenses + the canonical image subset (DERIVES `IMAGE_LENSES`,
  *  never re-spells it). `as const` over two const tuples yields the precise readonly tuple. */
 export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
-/** The lens union — `card-text | image-raw | image-captioned` (W2). `ImageLens` is the contracts subset. */
+/** The lens union — `card-text | segment | digest | image-raw | image-captioned`. `ImageLens` is the
+ *  contracts subset. */
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
 // ── VectorTable (the primary-vector-table registry) ───────────────────────────
@@ -159,9 +152,8 @@ export interface DigestStoreParams {
   readonly dim: number;
 }
 
-/** The single write path's input — discriminated on `lens`. The `card-text` / `image-raw` / `image-captioned`
- *  arms are routed today; the `segment` / `digest` chat-block arms are DEFINED here but their store-impl
- *  routing is the next chunk (FLAG[PD-34] in the header — `verbs/store.ts` goes red until they are wired). */
+/** The single write path's input — discriminated on `lens`; all five arms are routed by `verbs/store.ts`'s
+ *  exhaustive switch. */
 export type StoreParams =
   | CardTextStoreParams
   | ImageRawStoreParams

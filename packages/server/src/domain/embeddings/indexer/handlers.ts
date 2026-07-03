@@ -2,7 +2,7 @@
 // DIFFERENT feature (`character` / `assets`) emits a domain event; the indexer re-reads CANON by the event's
 // branded id (never trusting event-carried data — @orb/contracts/events) and dispatches to the ONE write
 // path (`store`). (`memory` does NOT go through here — it calls `store` directly post-turn for its
-// digest/segment lenses; embeddings.md §"Named subsystem: indexer".)
+// digest/segment lenses; the indexer is only for writes triggered by a save in a different feature.)
 //
 // Each handler skips silently when the source is gone (deleted between the emit and the handler) — a missing
 // card/asset is not an error, just nothing to embed. The `(model, dim)` space tag comes from the injected
@@ -35,9 +35,9 @@ export async function onCharacterUpdated(
 
 /** `asset.created` → embed BOTH avatar lenses: `image-raw` (pure visual signal) then `image-captioned` (image
  *  bytes + the inline-generated caption, joint VL). Both share the bytes' content_hash, so a re-index dedups.
- *  FLAG(PD-27): at-least-once delivery (in-process fire-and-forget vs an outbox) is the joint
- *  assets↔embeddings decision the orchestrator owns; this handler is delivery-mechanism-agnostic — it is
- *  idempotent (hash-gated store), so a duplicate delivery is a cheap noop. */
+ *  Delivery is in-process fire-and-forget for v1 (RESOLVED PD-27; the PD-53 catch-up sweeps are the
+ *  reliability backstop); this handler stays delivery-mechanism-agnostic — it is idempotent (hash-gated
+ *  store), so a duplicate delivery is a cheap noop. */
 export async function onAssetCreated(
   ctx: EmbeddingsIndexerContext,
   event: AssetCreatedEvent,
