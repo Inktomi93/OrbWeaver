@@ -43,6 +43,7 @@ import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 import reactHooks from "eslint-plugin-react-hooks";
+import tsdoc from "eslint-plugin-tsdoc";
 import tseslint from "typescript-eslint";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -62,6 +63,16 @@ const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // The feature slices — the compose-only surface (UI-Arch §2.1). app-shell is the SHELL-tier layout owner
 // (the one legal @media site, §4.1) and is exempt from the keystone below.
 const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
+
+// The typed exported-API packages governed by the Documentation-Law doc-comment gates
+// (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
+// live; ui/client run their own react-surface gates above. `.ts` only (no `.tsx` in these packages).
+const TSDOC_SURFACE = [
+  "packages/server/src/**/*.ts",
+  "packages/kit/src/**/*.ts",
+  "packages/db/src/**/*.ts",
+  "packages/contracts/src/**/*.ts",
+];
 
 // Reused restricted-syntax selectors. ESLint flat-config REPLACES `no-restricted-syntax` per matching
 // file (it does NOT merge across config objects), so any block that wins for a file must re-list every
@@ -130,6 +141,29 @@ export default tseslint.config(
     files: SHIPPED_SRC,
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: { "@typescript-eslint/no-deprecated": "error" },
+  },
+  {
+    // Type-aware parser for the exported-API packages (server/kit/db/contracts) — projectService builds
+    // one TS program per package so no-deprecated can see types; each file resolves to its own tsconfig.
+    files: TSDOC_SURFACE,
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+  },
+  {
+    // The Documentation-Law doc-comment gates on the typed API surface. `no-deprecated` (type-aware,
+    // rides the parser block above) is a hard gate — 0 violations today, a pure future guardrail so a
+    // `@deprecated` tag can't be silently used. `tsdoc/syntax` (eslint-plugin-tsdoc — the official
+    // parser) is WARN for now: the existing corpus carries ~255 pre-existing violations (mostly `{...}`
+    // prose tokens that want backticks + bare `@orb/...` names that want `{@link}`). A one-time cleanup
+    // is queued; this flips to "error" once clean. See docs/Documentation-Law.md §Enforcement.
+    files: TSDOC_SURFACE,
+    plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
+    rules: {
+      "@typescript-eslint/no-deprecated": "error",
+      "tsdoc/syntax": "warn",
+    },
   },
   {
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we
