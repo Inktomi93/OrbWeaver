@@ -1,7 +1,7 @@
-// domain/credentials/contract/errors — the typed domain errors (credentials.md §"The 8-slot layout").
+// domain/credentials/contract/errors — the typed domain errors.
 // One home for the credential reason strings (no inline re-spell, §7.5).
 //
-// ⚠️ HTTP-400 ASYMMETRY (deliberate — credentials.md movement table + invariant): `CredentialsNotFoundError`
+// ⚠️ HTTP-400 ASYMMETRY (deliberate — a contract invariant): `CredentialsNotFoundError`
 // extends `DomainOperationError`, so the transport maps it to BAD_REQUEST (400) with `code:
 // 'credential_not_found'` — NOT the NOT_FOUND (404) that `DomainNotFoundError` entity verbs produce. The
 // not-owned and not-found cases COLLAPSE on purpose: a 404 would leak that the row exists for someone

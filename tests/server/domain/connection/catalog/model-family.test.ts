@@ -1,4 +1,4 @@
-// detectModelFamily — the load-bearing anchors (connection.md Esoteric §2). The headline assertion: a
+// detectModelFamily — the load-bearing anchors. The headline assertion: a
 // third-party `claude` FORK is rejected to `other` (so an alien backend never receives Anthropic-only
 // cache_control directives), while bare + `anthropic/`-prefixed Claude ids both match.
 

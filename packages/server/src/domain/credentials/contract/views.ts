@@ -1,5 +1,5 @@
-// domain/credentials/contract/views — the credential read-model (credentials.md §"The 8-slot layout";
-// invariant #4). `CredentialView` is what the client receives via tRPC service-method-signature inference
+// domain/credentials/contract/views — the credential read-model (the plaintext-never-leaks belt).
+// `CredentialView` is what the client receives via tRPC service-method-signature inference
 // — it NEVER carries a secret field (`ciphertext`/`iv`/`tag`) or the plaintext key. `toCredentialView`
 // in `persistence/queries.ts` is the only projection that produces it, so a secret column cannot leak
 // into the wire by construction. Domain-internal (client gets it by inference, not a deep import) — it

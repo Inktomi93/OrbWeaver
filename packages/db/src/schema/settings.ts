@@ -8,7 +8,7 @@
 // the table mechanism, not that blob's meaning. The generic setter refuses the reserved `"app"` key.
 //
 // `user_settings` (natural-key PK `user_id`, also the FK): the `schema_version` COLUMN is LOAD-BEARING
-// (settings.md esoteric #1) — it is threaded into `parseUserSettings(raw, storedVersion)` and BEATS the
+// — it is threaded into `parseUserSettings(raw, storedVersion)` and BEATS the
 // in-blob `schemaVersion` probe. The persisted `config` blob does NOT carry `schemaVersion`; the column
 // does. Without it every blob probes as v1 and all lifts re-run on every read (corrupting data the
 // moment a lift is non-idempotent). Defaulted to the current version so a fresh seed is self-consistent.

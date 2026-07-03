@@ -2,8 +2,7 @@
 // maps it to this domain). Two steps, both through injected seams:
 //   1. resolve the `max-pro-sub` credential — THE authorization step: the D17 owner gate lives inside
 //      `credentials.resolve` (its mint site); a non-owner principal rejects THERE with the coded
-//      forbidden error. Connection never re-checks it (connection.md §7.1: "the max-pro-sub owner gate
-//      lives in credentials").
+//      forbidden error. Connection never re-checks it (the max-pro-sub owner gate lives in credentials).
 //   2. run the tiny SDK verify turn via the injected `verifyClaudeAuth` diagnostic (infra/providers'
 //      agent-sdk `verifyAuth` — the SAME credential firewall a real turn uses).
 // The probe model is the CHEAPEST curated tier (neo parity: "defaults to the cheapest tier") — the haiku

@@ -1,5 +1,5 @@
 // verb: updateUserSettings — whole-blob replace of this user's UserSettings (per-user tier). Scoped to
-// `params.principal.userId`. Serialized per user (esoteric #5): two concurrent same-user writes would each
+// `params.principal.userId`. Serialized per user: two concurrent same-user writes would each
 // read the same base and last-write-wins would drop one. The post-write view is read INSIDE the serializer
 // so a concurrent same-user writer can't make the returned view reflect a different write. First-touch
 // seeds the row; `writeUserConfig` stamps the service-owned `schemaVersion`.

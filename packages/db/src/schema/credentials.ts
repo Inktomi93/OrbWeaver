@@ -4,9 +4,9 @@
 // google_vertex|custom_openai`, NOT the narrower dispatch `CRED_SOURCES`); the column never re-spells
 // the union, and a CHECK built from the same tuple enforces it at the SQL level (a test-mirror pins
 // db === contracts). `anthropic`/`openai`/`google_vertex` are storable forward-compat slots with no
-// resolver arm yet (credentials.md §7.5) — a row may persist under them.
+// resolver arm yet — a row may persist under them.
 //
-// AES-256-GCM AAD invariant (credentials.md "AAD invariant", load-bearing): the at-rest ciphertext is
+// AES-256-GCM AAD invariant (load-bearing): the at-rest ciphertext is
 // bound to `${userId}|${provider}`, byte-identical. The AAD itself is a DOMAIN concern (built in
 // `domain/credentials/persistence/aad.ts`, never a column), but the `provider` column is the binding
 // half — which is exactly why it MUST stay the canonical enum (a slot move = a GCM decrypt failure).

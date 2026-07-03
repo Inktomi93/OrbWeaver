@@ -1,11 +1,11 @@
 // domain/connection/catalog/chat-models — the curated Claude shortlist (the catalog `connection` selects
 // FROM for the agent-sdk + Claude-via-OR paths). Migrated from neo-tavern's
 // `providers/_shared/chat-models.ts`; the `ChatModel` precursor is DISSOLVED — each entry now carries its
-// `ModelCapability` directly (the ONE descriptor; connection.md §2), so there is no second capability
+// `ModelCapability` directly (the ONE descriptor), so there is no second capability
 // system. `DEFAULT_CHAT_MODEL_ID`/`ChatModelId` live in `@orb/contracts/connection` (PD-10) and are
 // imported DOWN here; the opus entry's id IS `DEFAULT_CHAT_MODEL_ID` (one home for the literal).
 //
-// LOAD-BEARING — `getChatModel`'s 3-stage prefix-match (connection.md Esoteric §6, providers.md Esoteric
+// LOAD-BEARING — `getChatModel`'s 3-stage prefix-match (providers.md Esoteric
 // §6): OpenRouter uses version-only ids (`claude-haiku-4-5`) while the curated catalog uses the dated form
 // (`claude-haiku-4-5-20251001`). Stage 3 prefix-matches with a boundary check (the next char after the
 // version must be `-`) so `claude-haiku-4-5` resolves to the dated entry, but `claude-haiku-4` does NOT
@@ -18,8 +18,8 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 // Curated numeric facts (named — noMagicNumbers). DEFER(promotion): the exact reasoning effortLevels +
-// max-output numbers are the connection.md "quality → axes mapping — DEFERRED (per-model build tuning)"
-// item — fixed when the shortlist is verified against live model behaviour. The SHAPE (distinct axes,
+// max-output numbers are the "quality → axes mapping" deferred item (proposed/connection-capability-panel.md)
+// — fixed when the shortlist is verified against live model behaviour. The SHAPE (distinct axes,
 // adaptive on opus, no sampling on agent-sdk) is settled; only the numbers are tunable.
 const CLAUDE_CONTEXT_WINDOW = 200_000;
 const CLAUDE_MAX_OUTPUT = 64_000;
@@ -31,8 +31,8 @@ const CLAUDE_DISPLAY_MODES = ["summarized", "omitted"] as const;
 
 /** A curated shortlist entry. File-local (non-exported): the cross-boundary descriptor is
  *  `ModelCapability` (@orb/contracts); the entry just pairs a branded id + tier/label with it. `sampling`
- *  is `{}` for every entry — these run on `agent-sdk`, which honors NO sampling knob (connection.md §3:
- *  "no showing sampling to agent-sdk"); the sampling axes are synthesized for OR/vLLM, not curated here. */
+ *  is `{}` for every entry — these run on `agent-sdk`, which honors NO sampling knob (the panel shows no
+ *  sampling for agent-sdk); the sampling axes are synthesized for OR/vLLM, not curated here. */
 interface CuratedChatModel {
   readonly id: ChatModelId;
   /** Coarse family tier (label/grouping only — not load-bearing for selection). */
@@ -47,7 +47,7 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     tier: "opus",
     label: "Opus 4.8",
     capability: {
-      // Opus 4.8 reasons ADAPTIVELY (connection.md Esoteric §6 / providers.md Esoteric §8): the infra
+      // Opus 4.8 reasons ADAPTIVELY (providers.md Esoteric §8): the infra
       // funnel reads `mode === 'adaptive'` and DROPS budget_tokens (sending type:'enabled' + budget → 400).
       reasoning: {
         mode: "adaptive",
@@ -92,7 +92,7 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
 
 /** Brand guard — is `id` a curated Claude-shortlist id? The discriminator `pickOrModel` guard (1) uses to
  *  reject a shortlist id on the OR path (it is agent-sdk-only) and the agent-sdk heal uses to keep a valid
- *  id (connection.md Esoteric §5). A `true` result narrows to the branded {@link ChatModelId}. */
+ *  id. A `true` result narrows to the branded {@link ChatModelId}. */
 export function isChatModelId(id: string): id is ChatModelId {
   return CHAT_MODELS.some((entry) => entry.id === id);
 }

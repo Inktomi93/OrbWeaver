@@ -1,5 +1,5 @@
-// domain/connection/substrate/heal-model — the agent-sdk model heal (connection.md movement table:
-// routing.ts:136-147, the dual-guard seam). Migrated from neo-tavern's `resolveTurnRouting` agent-sdk arm.
+// domain/connection/substrate/heal-model — the agent-sdk model heal (the dual-guard seam; neo
+// routing.ts:136-147). Migrated from neo-tavern's `resolveTurnRouting` agent-sdk arm.
 // PURE: an agent-sdk (Claude) turn must carry a curated shortlist id; a stale/null/non-shortlist id heals
 // to the system default. The OR path heals differently (`pick-or-model`); this is the agent-sdk twin.
 

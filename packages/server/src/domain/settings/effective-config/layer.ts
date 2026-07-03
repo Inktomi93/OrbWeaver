@@ -1,5 +1,5 @@
-// domain/settings/effective-config/layer — the FLOOR-MERGE resolver (settings-and-config §b). `layer(over
-// rides)` resolves each field "stored override (if present) ?? the floor". Two floor ORIGINS, kept legible
+// domain/settings/effective-config/layer — the FLOOR-MERGE resolver. `layer(overrides)`
+// resolves each field "stored override (if present) ?? the floor". Two floor ORIGINS, kept legible
 // ("env is the floor" is only half-true): env-mirrored fields read `foundation/env` (the operator's boot
 // floor); born-in-DB fields read a code floor only an admin override moves. Reads DOWN into `foundation/env`
 // (legal — domain → foundation) + the contract's `DEFAULT_ALLOW_NON_OWNER_*` governance floors (one-home,
@@ -37,8 +37,8 @@ function splitCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
-/** Rate-limit budgets: env floor KEPT (settings-and-config §b — they stay boot-env; the limiter reads
- *  these), admin override layers on top. */
+/** Rate-limit budgets: env floor KEPT (they stay boot-env; the limiter reads these), admin override
+ *  layers on top. */
 function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits {
   return {
     general: o?.general ?? env.RATE_LIMIT_GENERAL,

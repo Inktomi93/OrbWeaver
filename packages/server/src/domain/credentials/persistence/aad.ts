@@ -1,5 +1,5 @@
 // domain/credentials/persistence/aad — THE one canonical site for the AES-256-GCM additional-authenticated-
-// data string (credentials.md "AES-256-GCM AAD invariant", load-bearing; invariant #3). The AAD binds every
+// data string (the load-bearing AAD invariant). The AAD binds every
 // ciphertext to its `(ownerId, provider)` slot:
 //
 //     aad = `${userId}|${provider}`

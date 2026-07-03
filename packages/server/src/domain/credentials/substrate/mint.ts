@@ -1,5 +1,5 @@
 // domain/credentials/substrate/mint — THE single construction home for the brand-protected
-// `ResolvedCredential` arms (credentials.md "The ResolvedCredential brand" + invariant #1). Each factory
+// `ResolvedCredential` arms (the brand's ONLY legal cast sites). Each factory
 // encapsulates the ONE `as <Brand>` cast for its arm; nothing else in the codebase produces a value
 // satisfying the brand. It lives in `substrate/` (not `verbs/resolve.ts`) for ONE reason that is physics,
 // not preference: `domain-no-cross-verb` forbids a verb importing another verb's value, so `resolve` +
@@ -9,7 +9,7 @@
 //
 // The `max-pro-sub` factory is the load-bearing gate (D17): it is unconstructable except AFTER
 // `requireOwner` passes — the owner's box credential, never an admin's. The guard runs INSIDE the
-// factory (the DECIDED factory signature, credentials.md Open decisions), so the cast can't be reached
+// factory (the DECIDED 2026-06-25 factory signature: it accepts a `Principal`), so the cast can't be reached
 // without the owner check.
 //
 // The casts are object-literal → branded intersection: the branded type is assignable to the plain

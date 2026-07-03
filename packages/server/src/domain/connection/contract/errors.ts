@@ -1,4 +1,4 @@
-// domain/connection/contract/errors — the typed connection errors (connection.md 8-slot layout). One home
+// domain/connection/contract/errors — the typed connection errors. One home
 // for the reason strings (no inline re-spell, §7.5).
 
 import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";

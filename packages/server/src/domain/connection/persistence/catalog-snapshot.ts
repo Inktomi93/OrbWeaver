@@ -4,12 +4,12 @@
 // `domain/models/persistence/snapshot.ts`. NEVER reads `users` (no-direct-users-read); NO HTTP/fetch
 // (persistence-no-io — the live fetch is `infra/providers.fetchOrCatalog`, injected into `refreshCatalog`).
 //
-// LOAD-BEARING — the warm-on-read seam (connection.md Esoteric §3, invariant 8): `readCatalogSnapshot`
+// LOAD-BEARING — the warm-on-read seam: `readCatalogSnapshot`
 // seeds the in-memory TTL cache (`seedOrModelCache`) as a side-effect so the cold-boot `pickOrModel`
 // catalog guard has a hydrated cache after the first read. The seam is co-located with the read that
 // triggers it; do NOT split it out.
 //
-// LOAD-BEARING — the tightened parse (connection.md Esoteric §7): the stored blob is parsed with the EXACT
+// LOAD-BEARING — the tightened parse: the stored blob is parsed with the EXACT
 // `catalogSnapshotSchema` and the inferred result IS used (no neo `value as ModelCatalogSnapshot` blind
 // cast after a `.loose()` parse); a malformed row degrades to `null` (treated as "no snapshot").
 

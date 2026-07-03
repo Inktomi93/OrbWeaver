@@ -1,5 +1,4 @@
-// domain/settings/contract/keys — the reserved global-KV key, single-homed (movement table: "APP_SETTINGS
-// _KEY → effective-config/layer.ts (or contract/)"). Homed in `contract/` (a fixed slot every internal
+// domain/settings/contract/keys — the reserved global-KV key, single-homed. Homed in `contract/` (a fixed slot every internal
 // slot may import) so BOTH the reserved-key guard (verbs/global-settings) and the app-row persistence can
 // import it without crossing the effective-config subsystem boundary (`domain-substrate-mediates-subsystems`
 // would make a runtime verb→subsystem import RED). A domain constant, not cross-boundary.

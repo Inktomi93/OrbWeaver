@@ -1,5 +1,5 @@
-// domain/connection/substrate/pick-or-model — the OpenRouter model-id dual guard (connection.md Esoteric
-// §4/§5, invariant 7). Migrated from neo-tavern's `domain/chat/routing.ts pickOrModel`. PURE: the cached
+// domain/connection/substrate/pick-or-model — the OpenRouter model-id dual guard.
+// Migrated from neo-tavern's `domain/chat/routing.ts pickOrModel`. PURE: the cached
 // catalog is passed IN (the verb reads `getCachedOrModels(ctx.now())` and hands it here) so this stays
 // deterministic + unit-testable — it never reaches the cache or a clock itself.
 //

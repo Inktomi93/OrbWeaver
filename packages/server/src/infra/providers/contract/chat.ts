@@ -6,7 +6,7 @@
 //
 // SELECTION vs EXECUTION: the request carries the user vocab `{api, model, credential, capability}` +
 // the assembled view — NEVER the sealed `runner`/`family` (those are derived inside providers from
-// {api, source} and never leak; connection.md invariants 1 & 6). The discriminator is `api` (the
+// {api, source} and never leak). The discriminator is `api` (the
 // protocol axis), NOT `runner`: `deriveRunner(api, source)` maps to the sealed backend key in
 // `roles/dispatch.ts`. Statelessness: there is NO `sessionStore`/`resume`/`sessionId` here (the
 // agent-sdk session is a backend-internal canon-derived cache, D8/D25).

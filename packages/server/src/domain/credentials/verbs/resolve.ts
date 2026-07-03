@@ -1,4 +1,4 @@
-// verb: resolve — the turn-time credential CHOKEPOINT (credentials.md §"What this domain owns"). Every
+// verb: resolve — the turn-time credential CHOKEPOINT. Every
 // chat/connection/buddy turn calls this before running. It dispatches on the DISPATCH axis
 // `CredentialSource` (5 arms) and returns the brand-protected `ResolvedCredential` the runners consume —
 // constructed ONLY through the `substrate/mint` factories (invariant #1). The switch is `assertNever`-

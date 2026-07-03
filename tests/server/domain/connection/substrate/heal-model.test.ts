@@ -1,4 +1,4 @@
-// healToChatDefault — the agent-sdk model heal (connection.md routing.ts:136-147). A valid shortlist id
+// healToChatDefault — the agent-sdk model heal (neo routing.ts:136-147). A valid shortlist id
 // passes; a null/non-shortlist id heals to the system default.
 
 import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";

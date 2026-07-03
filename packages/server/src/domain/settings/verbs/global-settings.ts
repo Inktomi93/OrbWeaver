@@ -1,5 +1,5 @@
 // verbs: getGlobalSetting / setGlobalSetting — the raw global-KV pair (the `settings` table escape hatch).
-// Admin-gated at the ROUTER, not here (settings.md §7.1). The setter REFUSES the reserved `APP_SETTINGS_KEY`
+// Admin-gated at the ROUTER, not here. The setter REFUSES the reserved `APP_SETTINGS_KEY`
 // (it owns the dedicated `updateAppSettings` surface) — the one invariant this verb enforces. The write is
 // a system-level event (no user context → `actorUserId: null`).
 

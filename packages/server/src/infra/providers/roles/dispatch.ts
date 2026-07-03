@@ -1,7 +1,7 @@
 // infra/providers/roles/dispatch — the SEALED routing derivation. Maps the user vocab {api, source}
 // onto the infra-internal `BackendKey` (the `runner`), and resolves a wired backend + its role impl
-// from the registry. `runner`/`family` are derived HERE and never leave providers (connection.md
-// invariant 1). Every switch is `assertNever`-exhaustive: a new `ChatApi` or `CredentialSource` member
+// from the registry. `runner`/`family` are derived HERE and never leave providers.
+// Every switch is `assertNever`-exhaustive: a new `ChatApi` or `CredentialSource` member
 // without an arm is a `tsc` error (exhaustive-dispatch), and an invalid (api, source) pairing
 // fail-closes with a typed {@link ProviderError} rather than silently falling through.
 

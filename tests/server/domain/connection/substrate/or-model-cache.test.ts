@@ -1,4 +1,4 @@
-// The in-memory TTL OR catalog cache (connection.md Esoteric §3/§4, invariant 8) — the warm-on-read +
+// The in-memory TTL OR catalog cache — the warm-on-read +
 // injected-clock TTL behavior. The clock is INJECTED (passed to getCachedOrModels), never the wall clock;
 // the seed timestamp is the snapshot's own fetchedAt, so expiry is measured against the caller's clock.
 

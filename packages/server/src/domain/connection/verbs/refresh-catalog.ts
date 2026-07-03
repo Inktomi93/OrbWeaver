@@ -1,5 +1,5 @@
-// verb: refreshCatalog — fetch OR `/models`, persist the snapshot, warm the cache (connection.md
-// §"refreshCatalog"; the daily-workload entry point). Calls the injected `providers.fetchOrCatalog` (the
+// verb: refreshCatalog — fetch OR `/models`, persist the snapshot, warm the cache (the daily-workload
+// entry point). Calls the injected `providers.fetchOrCatalog` (the
 // live keyless fetch — connection owns the SNAPSHOT, providers owns the I/O), writes the KV row, and seeds
 // the in-memory TTL cache immediately so the next routing turn reads it without a re-read. On a fetch
 // failure it falls back to the persisted snapshot if one exists (stale-but-serviceable), else throws
