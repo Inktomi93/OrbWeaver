@@ -31,6 +31,7 @@ import type {
   ChatContext,
   ChatService,
   ChatServiceDeps,
+  PresenceReadOp,
   TurnRequest,
   TurnStreamChunk,
 } from "#domain/chat";
@@ -109,6 +110,9 @@ export interface ChatComposeInput {
   readonly embeddings: EmbeddingsService;
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
   readonly assets: AssetsService;
+  /** PD-70: the transport presence registry's read side → chat's `presence.read` op (cast-gating). Built at
+   *  `services.ts` over the injected clock; supersedes the fail-open stub. */
+  readonly readPresence: PresenceReadOp;
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for the OTHER producers
@@ -438,9 +442,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       });
       publishNotification(view);
     },
-    // FLAG[PD-70]: presence is not built (the transport SSE ref-count is its source). Report
-    // everyone present / never-dropped so cast-gating never silently mutes a participant.
-    readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
+    // PD-70: presence is the transport SSE connection ref-count (`presence-registry`, built at `services.ts`
+    // over the injected clock, threaded in here). An offline human's persona drops from the present cast for
+    // the next round; the read is server-derived — never a client-asserted (spoofable) heartbeat.
+    readPresence: input.readPresence,
     // The memory write path: chat's `{lens, key|chatId, …}` → embeddings' flat `chat-block` store params.
     // model/dim are the embed space tag (the indexer uses the same `env.VLLM_EMBED_DIM`); embeddings embeds
     // the `text` and tripwires the produced vector against `dim`.
