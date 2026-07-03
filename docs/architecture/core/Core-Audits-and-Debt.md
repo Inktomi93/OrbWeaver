@@ -204,15 +204,14 @@ Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previo
 - ✓ `participants-agents-identity.md` git rm'd. Persona three-axis residue → `Spine-Identity-and-Auth.md`; agent-principal future owned by `proposed/agent-principal-design/`; everything else already homed (Tier-3b, D28, schema).
 - **REMAINING — mechanical de-dangle (track for the sub; facts already inline, some cites reference dead §numbers → drop those):**
   - ~40 code cites of `memory.md` / `knowledge-cluster` / `participants-agents-identity.md` → repoint to `core/Knowledge-Cluster.md` (cluster) or `Spine-Identity`/`Tier-3b` (identity). Full file list: the concept-consolidation agent report (2026-07-03).
-  - Cross-doc prose: AGENTS-1 L235 (memory) + L250 (participants) authoritative pointers; AGENTS-2 L6-7 + L165 checkable-target list; Tier-3b (6 cites); Core-STATUS.
-  - **Trim** AGENTS-3 §"Memory ↔ search" + §"knowledge/derived-data untangle" → a `Knowledge-Cluster.md` pointer (they now duplicate it AND carry stale `fanOut 8` / "discovery consumes search"; the banner already flags this + points to the authoritative doc).
+  - AGENTS de-dangle/trim: SUBSUMED — AGENTS-1/2/3 merged into `AGENTS.md` (2026-07-03), so the memory/participants authoritative pointers + the §"Memory ↔ search"/untangle prose became `Knowledge-Cluster.md` pointers in `AGENTS.md` §6. Remaining external de-dangle: the Tier-3b code-comment pointers (movement table / `db.md` / §D2), per the Tier report.
   - **Refresh** `Spine-Identity-and-Auth.md` (`Status: planning` → built): Principal mint built (`entry/auth/seam.ts`, the ONE construction site); `chat_participants.role='host'` now GATES (roster authority, host-handoff, membership-derived "my chats" — no `chats.ownerId`); D60 4-kind shape CHECK live (`human|character|agent|observer`, `chat_participants_kind_shape`).
 
 ### Structural / mechanical
 
 - FLAG[PD-98..107] at-seam comments (registry rows exist; add the in-code `FLAG` when each seam is next touched).
 - `Core-Shared-Dissolution.md` — migration doc: kit-purity law stays core, the symbol map → history/.
-- ~~**AGENTS-1/2/3 trim**~~ — DONE 2026-07-03: AGENTS-1 298→115, AGENTS-2 195→58, AGENTS-3 339→117 (each now = brief doctrine + index). Pain Ledger §4 → `history/Pain-Ledger.md`; §6/§8 AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch §7.5 → `Spine-TypeScript-and-Patterns.md`.
+- ~~**AGENTS-1/2/3 trim + merge**~~ — DONE 2026-07-03: trimmed to doctrine+index, then MERGED into ONE `core/AGENTS.md` (§1-8, domains.md folded in). Pain Ledger → `history/Pain-Ledger.md`; AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch → `Spine-TypeScript-and-Patterns.md`. Documentation-Law moved into `core/`.
 - Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
 - ~~`tsdoc/syntax` cleanup → flip warn→error~~ — DONE 2026-07-03: 255 violations across 45 files cleaned, `tsdoc/syntax` is now `error` on server/kit/db/contracts.
 

@@ -6,7 +6,7 @@ updated: 2026-07-03
 
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-Canonical doc for spine §7.1 (`AGENTS-2-Spine.md` §7.1 points here). BUILT — this is current law, not a plan. Agent-principal detail: [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md) + ledger D60 win over this digest on any conflict.
+Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here). BUILT — this is current law, not a plan. Agent-principal detail: [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md) + ledger D60 win over this digest on any conflict.
 
 ## 1. Resolution — one pipeline, one mint
 
@@ -56,7 +56,7 @@ Two unrelated concepts sharing a word: the BFF browser session (`sessions` table
 
 ## Persona — three axes, three homes
 
-The human principal's presentation identity (map: `AGENTS-3-Domains.md` §"Participants, agents & identity"):
+The human principal's presentation identity (map: `AGENTS.md` §6):
 
 | Axis | Home | Meaning |
 | - | - | - |

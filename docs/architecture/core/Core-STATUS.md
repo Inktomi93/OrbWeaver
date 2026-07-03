@@ -9,7 +9,7 @@ updated: 2026-07-03
 > **Session handoff snapshot.** Orbweaver is the ground-up remake of **neo-tavern** (live code:
 > `/home/inktomi/inktomi-stack/development/neo-tavern`; orbweaver:
 > `/home/inktomi/inktomi-stack/development/orbweaver`). The law + doc index live in
-> `AGENTS-1-Architecture.md` §5 — read the AGENTS-1/2/3 set first; this file is only the cursor:
+> `AGENTS.md` §7 — read AGENTS.md first; this file is only the cursor:
 > where the build is and what's next.
 
 ## Where we are (2026-07-03)

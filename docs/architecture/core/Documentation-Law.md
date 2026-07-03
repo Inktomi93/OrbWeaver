@@ -6,7 +6,7 @@ updated: 2026-07-03
 
 # Documentation & Comments Law
 
-> The PRIMARY reader of this repo's docs and comments is an AI coding agent, not a human. This optimizes for machine consumption, token budget, and drift-resistance. Prescriptive; enforced by the gates in §Enforcement; grounded in the 2024–2026 literature and current tool support (§Evidence). Applies to code comments, prose docs, and agent-context files. Markdown *formatting* mechanics live in `architecture/core/Core-Docs-Formatting-Law.md`; this doc governs *content*.
+> The PRIMARY reader of this repo's docs and comments is an AI coding agent, not a human. This optimizes for machine consumption, token budget, and drift-resistance. Prescriptive; enforced by the gates in §Enforcement; grounded in the 2024–2026 literature and current tool support (§Evidence). Applies to code comments, prose docs, and agent-context files. Markdown *formatting* mechanics live in `Core-Docs-Formatting-Law.md`; this doc governs *content*.
 
 ## First principles (load-bearing)
 
@@ -110,7 +110,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ### FLAG convention
 
-- `FLAG[PD-<n>]` — tracked debt/deferral; MUST have a row in the debt registry (`architecture/core/Core-Audits-and-Debt.md`), grep-reconciled by the `pd-citation-integrity` gate.
+- `FLAG[PD-<n>]` — tracked debt/deferral; MUST have a row in the debt registry (`Core-Audits-and-Debt.md`), grep-reconciled by the `pd-citation-integrity` gate.
 - `FLAG[<name>]` — permanent architectural marker (documents why a design is deliberate). DO NOT "resolve" or remove these.
 
 ## Prose / knowledge docs (`docs/`)
@@ -152,14 +152,14 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 - **No hedging filler.** "It's worth noting that," "generally speaking," "as mentioned above" — cut. If a claim is uncertain, say `unverified:` explicitly; don't soften it into mush.
 - **Staleness.** A dated/resolved audit moves to `history/`. A "Status: planning" doc whose thing is built is deleted. A stale pointer ("latest decision D54" while the ledger is at D61) is drift — fix or delete.
 
-## Agent-context files (`AGENTS.md`, `CLAUDE.md`, the AGENTS-1/2/3 set)
+## Agent-context files (`AGENTS.md`, `CLAUDE.md`, `AGENTS.md`, the constitution)
 
 - Keep them **terse and navigational** — a map, not a textbook. Point to the specific home of each rule; do not restate it. The evidence is explicit that comprehensive architecture overviews *hurt* agent task success and inflate cost (generic overviews trigger unbounded exploration). Human-curated + minimal beats generated + exhaustive — the measured gap is direction-changing, not marginal.
 - Never bulk-generate these files from the codebase; that's the configuration measured to lower success while raising cost 20–23%.
 
 ## Enforcement (what makes this law)
 
-- `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `architecture/core/Core-Docs-Formatting-Law.md`).
+- `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `Core-Docs-Formatting-Law.md`).
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.
 - **Doc-comment gates (wired 2026-07-03 on `server`/`kit`/`db`/`contracts` — the typed exported-API surface, both hard `error` gates):** `@typescript-eslint/no-deprecated` (type-aware) rejects any use of a `@deprecated` symbol. `tsdoc/syntax` (`eslint-plugin-tsdoc`, the official parser) rejects malformed doc comments + non-standard tags — a `{…}` prose token wants backticks, a bare `@orb/…` name wants `{@link}`. ESLint also runs on `ui`/`client`/`tests/ui` (the react-surface gates).
