@@ -1,15 +1,14 @@
-// domain/chat/bus — the chat bus emitter + the in-process replay ring (chat.md Part I 8-slot `bus.ts`;
-// §"the chat bus": durable + replay ring; Part III §12 inv #10/#11). A FEATURE-ROOT collaborator (the
+// domain/chat/bus — the chat bus emitter + the in-process replay ring. A FEATURE-ROOT collaborator (the
 // `guard.ts` precedent — a root file may reach `persistence/` + write via `ctx.db`, exempt from the
 // substrate-below-verbs rule): the verbs/engine close over `emit`; the transport SSE fan-out (PD-23) reads
 // the ring + the durable `chat_events` log later.
 //
-// DURABLE-FIRST (chat.md §"the chat bus" — "await-before-deliver durability"; inv #10): `emit` AWAITS the
+// DURABLE-FIRST ("await-before-deliver durability"): `emit` AWAITS the
 // `chat_events` INSERT (the producer's path, the replay source of truth) BEFORE pushing to the in-process
 // ring — so a late subscriber always ramps up from the durable log even if the process dies between the
 // write and the in-memory push. The per-chat `seq` is assigned by a same-statement correlated subquery
 // (`coalesce(max(seq),0)+1`), monotonic under SQLite's serialized writes (the project's single-replica
-// assumption — chat.md §active-turns/auto-mode "ASSUMES single-replica").
+// assumption — "ASSUMES single-replica").
 //
 // BUS PAYLOAD ALLOWLIST (inv #11): the event is a `ChatBusEvent` — a closed union of branded ids / enum
 // literals / `MessageView`, with no `unknown`/`Record` field a secret could ride in (type-enforced by the

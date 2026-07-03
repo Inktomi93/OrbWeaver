@@ -1,5 +1,4 @@
-// domain/chat/verbs/invites — the invite lifecycle + THE one human participant-insert chokepoint (chat.md
-// Part I 8-slot `verbs/invites.ts`; Part III §2 invites & the chokepoint, §11 the auth matrix). The token
+// domain/chat/verbs/invites — the invite lifecycle + THE one human participant-insert chokepoint. The token
 // mirrors the `sessions` discipline: CSPRNG-minted, returned RAW exactly ONCE (the `/join/:token` link),
 // STORED HASHED (the peppered `hashToken`) — lookups key on the hash, the raw token never persists. Redeem is
 // the ONE human-join path (the atomic `redeemInviteAtomic` closes the maxUses/expiry TOCTOU; `role` is
@@ -15,7 +14,7 @@
 //                          so it cannot live on the entry-assembled `ChatContext`).
 //
 // TARGETED invites (PD-66 cleared): `createInvite` resolves `invitedHandle` through the injected
-// `ctx.resolveHandle` (sessions' EXACT handle→userId — chat.md §2: no listing; the probe surface is
+// `ctx.resolveHandle` (sessions' EXACT handle→userId — no listing; the probe surface is
 // transport-rate-limited). An unknown/disabled handle is a coded `invite_target_unknown` refusal (the
 // exact-handle existence answer is inherent to targeting; it is NEVER silently degraded to a share-link).
 // The stored `invitedUserId` scopes preview/redeem/decline to the target (already leak-free downstream).

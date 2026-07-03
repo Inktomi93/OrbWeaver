@@ -129,7 +129,7 @@ time). It must specify:
   `pipeline-breakpoint.test.ts` lives in the orbweaver test tree.
 - **The honest caveat (skeptic):** the oracle byte-validates the PARITY surface (assembled-prompt +
   cache placement + token tallies). **Memory is a rewrite** — it intentionally produces _different_
-  retrieval; it can't be byte-diffed. Memory gets its OWN tests (the 6-semantics map in `domains/chat.md`),
+  retrieval; it can't be byte-diffed. Memory gets its OWN tests (the 6-semantics map),
   not the oracle.
 
 <!-- Source: Core-Planning-and-Checklists.md -->
@@ -145,7 +145,7 @@ single-tenant note, the `deepMergeRequestBody` Layer-2 defense, the `ASSUMES(sin
 
 <!-- Source: Core-Planning-and-Checklists.md -->
 
-### C3. The unified roster / group / multi-human system is built WHOLE (ledger D16; `domains/chat.md` Part III)
+### C3. The unified roster / group / multi-human system is built WHOLE (ledger D16)
 
 **No feature-phasing** — there is no solo-then-multihuman split (neo's Phase A/B is a retrofit artifact, not
 carried). The chat build delivers the entire system cohesively. Build obligations, each → a named test:

@@ -1,5 +1,5 @@
-// domain/chat/substrate/auth/matrix — THE typed per-verb authority matrix (chat.md Part III §11 + §12 inv
-// #12; spine §2a). The matrix is the SOURCE OF TRUTH for "what authority each chatId surface demands", and
+// domain/chat/substrate/auth/matrix — THE typed per-verb authority matrix (spine §2a). The matrix is the
+// SOURCE OF TRUTH for "what authority each chatId surface demands", and
 // it is DEFAULT-DENY: a chatId surface not classified here is denied.
 //
 // BORN-COMPLIANT: `CHAT_VERB_AUTHORITY` is typed `Record<keyof ChatService, …>`, so a NEW verb on the
@@ -15,7 +15,7 @@ import type { ChatService } from "../../contract/service";
 // that needs the union derives it via `(typeof CHAT_VERB_AUTHORITY)[keyof typeof CHAT_VERB_AUTHORITY]`.
 
 /**
- * The authority a chatId surface demands (chat.md §11) — declared ONCE as a tuple, the union derived (§7.5
+ * The authority a chatId surface demands — declared ONCE as a tuple, the union derived (§7.5
  * no-inline-union-redecl):
  *  • `member`               — read / stream / post / run-a-turn (`requireParticipant`).
  *  • `author-or-host`       — edit / delete a slot: the slot's author OR the host (`requireAuthorOrHost`).
@@ -44,7 +44,7 @@ type NonChatScoped = "non-chat-scoped";
 type VerbAuthority = ChatAuthority | NonChatScoped;
 
 /**
- * Every `ChatService` verb → its required authority (derived from chat.md Part III §11, the spine §2a table,
+ * Every `ChatService` verb → its required authority (derived from the spine §2a table,
  * and the per-verb contract notes). `satisfies Record<keyof ChatService, …>` makes this exhaustive.
  */
 export const CHAT_VERB_AUTHORITY = {
@@ -54,7 +54,7 @@ export const CHAT_VERB_AUTHORITY = {
   listForks: "member", // the parent chatId — a member may list its forks (children filtered to the caller's own memberships)
   getChatLineage: "lineage-per-ancestor", // the ancestry chain — each ancestor gated independently (inv §16)
   getChat: "member",
-  previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface (chat.md §9/§11)
+  previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface
   getActivePresetConfig: "member",
   previewSection: "member",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
@@ -73,7 +73,7 @@ export const CHAT_VERB_AUTHORITY = {
   continueTurn: "member",
   undoContinue: "member",
   revertContinue: "member",
-  forceCharacterTurn: "host", // chat.md §11: host-only
+  forceCharacterTurn: "host", // host-only
   compact: "host", // rewrites the canon checkpoint substrate (room-wide) — host
   abort: "turn-owner", // turn-owner only (rollback-theft defense) — member floor + engine active-turns match
   generateImage: "member", // any present member may generate an image (a user post) — the member floor
@@ -97,13 +97,13 @@ export const CHAT_VERB_AUTHORITY = {
   setVariables: "member",
   clearVariables: "member",
   // ── chat-row ──
-  delete: "host", // chat.md §11/contract: host-only
+  delete: "host", // host-only
   reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats
   updateTitle: "host", // shared chats-row config (no per-participant column exists today) — see FLAG
   star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
   archive: "host", // archiving removes the room from every member's active list — host
-  reattributeMessages: "host", // chat.md §11: host-only (self-heal hash-diff re-attribution)
-  // ── group / roster (all host-only per chat.md §11) ──
+  reattributeMessages: "host", // host-only (self-heal hash-diff re-attribution)
+  // ── group / roster (all host-only) ──
   setGroupConfig: "host",
   addCharacterToChat: "host",
   seatAgent: "host",
@@ -119,9 +119,9 @@ export const CHAT_VERB_AUTHORITY = {
   revokeInvite: "host",
   declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
   // ── membership lifecycle ──
-  kick: "host", // chat.md §11: host-only
+  kick: "host", // host-only
   selfLeave: "member", // self: you must be a present member to leave your own membership
-  nominateHostHandoff: "host", // chat.md §11: host-only (step 1)
+  nominateHostHandoff: "host", // host-only (step 1)
   acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination
 } as const satisfies Record<keyof ChatService, VerbAuthority>;
 
@@ -131,12 +131,12 @@ export const CHAT_NONVERB_SURFACES = [
   "bus-delivery", // room-public bus events reach members only
   "lineage-walk", // fork/export/corpus ancestry walkers — gated per-ancestor
   "roster-card-read", // a roster character's card (D22 level-clamped)
-  "anchor-reassignment", // reassign the chat anchor persona — host (chat.md §11)
+  "anchor-reassignment", // reassign the chat anchor persona — host
   "chat-injection-write", // write a positional chat_injection — host (room-wide prompt content)
 ] as const;
 type ChatNonVerbSurface = (typeof CHAT_NONVERB_SURFACES)[number];
 
-/** The non-verb surfaces → authority (chat.md §11/§12). */
+/** The non-verb surfaces → authority. */
 export const CHAT_SURFACE_AUTHORITY = {
   "sse-subscribe": "member",
   "bus-delivery": "member",

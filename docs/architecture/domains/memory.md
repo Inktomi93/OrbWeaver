@@ -34,7 +34,7 @@ consumers**. Nothing re-embeds or re-stores for its own use.
 
 ## 3. `memory` — the builder + the chat-scoped recall
 
-`memory` is a **`chat/` subsystem** (LOCKED — `core/Core-0-Architecture-and-Structure.md §4` + `domains/chat.md`). Substrate-mediated:
+`memory` is a **`chat/` subsystem** (LOCKED — `core/Core-0-Architecture-and-Structure.md §4`). Substrate-mediated:
 only `chat/context.ts` reaches into it. The _shared_ substrate (the vector tables) is owned by
 **`embeddings`**; the _retrieval mechanism_ is `search`'s. Memory owns exactly two things: digest
 GENERATION and the `{{memory}}` recall POLICY.
@@ -306,7 +306,7 @@ consumers**. Nothing re-embeds or re-stores for its own use.
 
 ## 3. `memory` — the builder + the chat-scoped recall
 
-`memory` is a **`chat/` subsystem** (LOCKED — `structure.md §4` + `domains/chat.md`). Substrate-mediated:
+`memory` is a **`chat/` subsystem** (LOCKED — `structure.md §4`). Substrate-mediated:
 only `chat/context.ts` reaches into it. The _shared_ substrate (the vector tables) is owned by
 **`embeddings`**; the _retrieval mechanism_ is `search`'s. Memory owns exactly two things: digest
 GENERATION and the `{{memory}}` recall POLICY.

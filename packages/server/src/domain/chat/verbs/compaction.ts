@@ -1,11 +1,11 @@
-// domain/chat/verbs/compaction — the manual `compact` lever + the lock-free `runCompaction` core (chat.md
-// §Decisions "compaction — RESOLVED: verbs/compaction.ts is the home"; D25). The PORTABLE compaction
+// domain/chat/verbs/compaction — the manual `compact` lever + the lock-free `runCompaction` core
+// ("compaction — RESOLVED: verbs/compaction.ts is the home"; D25). The PORTABLE compaction
 // checkpoint is `chats.compactSummary` + `chats.compactedAtSeq` (chat CANON — NOT agent-sdk session state, so
 // the stateless OpenRouter runner uses it too): compaction summarizes the history AFTER the current checkpoint
 // via the injected `summarize` role and advances the checkpoint; resume reads `seq > compactedAtSeq` + the
-// `{{compact_summary}}` marker (the assembly's job — chat.md §ASSEMBLE).
+// `{{compact_summary}}` marker (the assembly's job).
 //
-// TWO ENTRY POINTS, ONE CORE (chat.md §Decisions): `runCompaction` is the lock-free core the composition root
+// TWO ENTRY POINTS, ONE CORE: `runCompaction` is the lock-free core the composition root
 // injects INTO the engine (mirroring how the steady clone injects `runTurn` into compaction); the manual
 // `compact` verb is the public host-only lever (it gates + emits over the same core). The engine NEVER imports
 // the verb — the root wires `runCompaction` (+ the engine's `runTurn`) together.
@@ -36,7 +36,7 @@ interface RunCompactionArgs {
 }
 
 /** The compaction bundle: the public `compact` verb PLUS the lock-free `runCompaction` core the root injects
- *  into the engine (chat.md §Decisions). A local (non-exported) shape — `types-in-contract` (chunk-1 owns
+ *  into the engine. A local (non-exported) shape — `types-in-contract` (chunk-1 owns
  *  `contract/`); the public verb is the contract-typed `ChatService["compact"]`. */
 interface CompactionBundle extends Pick<ChatService, "compact"> {
   readonly runCompaction: (args: RunCompactionArgs) => Promise<CompactResult>;
@@ -133,7 +133,7 @@ function createCompact(
 
 /**
  * The compaction BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root spreads
- * `compact` into the full service AND injects `runCompaction` into the engine (chat.md §Decisions — the engine
+ * `compact` into the full service AND injects `runCompaction` into the engine (the engine
  * never imports the verb). `deps` carries the chat bus `emit` (chat's own collaborator — see bus.ts).
  */
 export function createCompaction(ctx: ChatContext, deps: CompactionDeps): CompactionBundle {

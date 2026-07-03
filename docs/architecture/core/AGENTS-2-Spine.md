@@ -3,7 +3,7 @@
 Some concerns aren't owned by one domain — they thread through many, and a per-domain reader must check
 its slice against them rather than re-decide them. Each gets a **spine doc** (written before/with the
 fanout); the fanout's readers + adversary treat these as fixed targets. (These join the existing cluster
-docs — `domains/chat.md`, `domain/connection`, `core/Tier-3b-Providers.md`, `participants-agents-identity.md`,
+docs — `domain/connection`, `core/Tier-3b-Providers.md`, `participants-agents-identity.md`,
 `domains/memory.md` — as the checkable target surface.)
 
 > **De-dup (2026-07-03):** §7.1–§7.4 used to carry full copies of the per-thread Spine docs, and the

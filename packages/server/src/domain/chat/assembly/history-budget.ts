@@ -1,4 +1,4 @@
-// domain/chat/assembly/history-budget — the SHAPE fit-pass (chat.md Part II §2 SHAPE / §4 one-budget).
+// domain/chat/assembly/history-budget — the SHAPE fit-pass.
 //
 // Hard-cap safety net for stateless completion runners (vLLM / OpenRouter / custom-openai) where WE
 // build the prompt and the backend won't protect us: vLLM 400s on overflow, OpenRouter silently

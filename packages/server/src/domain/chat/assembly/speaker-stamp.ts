@@ -1,5 +1,4 @@
-// domain/chat/assembly/speaker-stamp — the distinct-speaker gate for the SHAPE name-stamp (chat.md
-// Part II §3 rule 5; Part III §12 inv 1, `no-if(isGroup)`).
+// domain/chat/assembly/speaker-stamp — the distinct-speaker gate for the SHAPE name-stamp (`no-if(isGroup)`).
 //
 // The trusted out-of-band `Name:` prefix that makes a MERGED multi-character transcript legible is
 // applied by `applyNamesBehavior` (names.ts) AFTER squash — at a step no USER_INPUT/AI_OUTPUT regex can
@@ -9,8 +8,8 @@
 //
 // The OTHER half of L10 — `sanitizeSpeakerLookalike` (neutralizing a member-authored leading `Name:` /
 // `<speaker>` on the RAW body so it can't FORGE the trusted prefix) — runs at `loadCanonHistory` (the
-// RECEIVE/load seam), NOT here: it operates on stored canon before SHAPE ever sees it. Per the chat.md
-// movement decision it lives in `@orb/kit/speaker-label`; SHAPE consumes already-sanitized canon.
+// RECEIVE/load seam), NOT here: it operates on stored canon before SHAPE ever sees it. It lives in
+// `@orb/kit/speaker-label`; SHAPE consumes already-sanitized canon.
 
 import type { CharacterId } from "@orb/kit/ids";
 

@@ -1,4 +1,4 @@
-// domain/chat/assembly/names — the SHAPE name-stamp pass (chat.md Part II §3 rule 5).
+// domain/chat/assembly/names — the SHAPE name-stamp pass.
 //
 // Speaker-name pass for the wire history, applied AFTER squash (so the trusted `Name:` label lands at a
 // step no USER_INPUT/AI_OUTPUT regex can reach — un-forgeable). `authorName` is the stored authoring

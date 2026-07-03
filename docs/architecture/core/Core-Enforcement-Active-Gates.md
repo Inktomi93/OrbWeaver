@@ -48,8 +48,7 @@ AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDec
 no-loose-id-cast, no-mint-via-cast, no-await-db-in-loop, no-raw-intl-time, no-raw-clock,
 no-if-is-group, no-context-returntype, no-decorators, no-inline-types,
 persistence-no-in-memory-state. (`no-if-is-group` flags an `if (isGroup)` / group-vs-solo branch — group-ness
-is DATA, not a branch; solo is the roster-of-1 degenerate case, byte-identical — ledger D16, `domains/chat.md`
-Part III §0/§12.) Client (live now, fire when client code lands): no-color-literals,
+is DATA, not a branch; solo is the roster-of-1 degenerate case, byte-identical — ledger D16.) Client (live now, fire when client code lands): no-color-literals,
 no-raw-z-index, no-raw-spacing-in-features, no-raw-typography-in-features, no-chat-trpc-in-surface,
 no-direct-useform, no-form-state-in-useeffect, no-inline-optimistic-in-surface.
 

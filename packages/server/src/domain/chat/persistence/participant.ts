@@ -1,5 +1,5 @@
 // domain/chat/persistence/participant — the `chat_participants` kind-shape parser + the membership-lifecycle
-// writes (chat.md Part III §1). QUERIES ONLY: the shape-CHECK/UNIQUE/atomic-upsert are DB-level invariants this layer
+// writes. QUERIES ONLY: the shape-CHECK/UNIQUE/atomic-upsert are DB-level invariants this layer
 // enforces; the POLICY (who may join/kick/hand-off, targeting checks, AUTH_MODE gating) is the verbs'.
 //
 // THE RE-ADD UPSERT (Part III §1): a human (re)joins via the guarded atomic

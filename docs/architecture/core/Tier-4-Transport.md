@@ -53,7 +53,7 @@ ctx.services.<feature>.<verb> → let the typed domain error map to a wire code`
   (the when-to-enqueue recurring driver). Both call DOWN into the `workloads` front door only and
   cross ZERO feature boundaries.
 - **The per-user notifications subscription + the presence registry** (the unified multi-human system,
-  `domains/chat.md` Part III §3–§4 + ledger D16). (a) The **notifications subscription**
+  ledger D16). (a) The **notifications subscription**
   (`authedProcedure.subscription` filtered to the caller) drives the per-user durable inbox owned by the
   **`notifications` domain** — it adopts the **`chat.streamMessages` resume shape** (every yield `tracked()`,
   `lastEventId` replay; durable-first/fan-out-second), **NOT `buddy.stream`** (in-memory ring, drops offline
@@ -239,8 +239,7 @@ fallback requests and ALL queries/subscriptions (incl. the SSE stream) are exemp
 default and the stream are untouched.
 
 **The multi-human surface (unified roster, ledger D16).** Participant-membership authority
-(`requireParticipant`/`requireHost`) lands in the DOMAIN verbs (chat's build, `domains/chat.md` Part III
-§11) — transport stays a thin gate — BUT the **enforcer's scope reaches into transport**: the membership
+(`requireParticipant`/`requireHost`) lands in the DOMAIN verbs (chat's build) — transport stays a thin gate — BUT the **enforcer's scope reaches into transport**: the membership
 chokepoint must cover the **SSE subscribe path** (a kicked member's `chat.streamMessages` stops yielding
 within the kick tx — the subscription gate can't be connect-once) **and the cross-domain lineage walkers**.
 The **`AUTH_MODE != 'single-user'` capability gate** is a **server-side** guard on every

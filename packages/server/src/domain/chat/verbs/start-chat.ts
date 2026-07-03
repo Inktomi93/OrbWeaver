@@ -1,4 +1,4 @@
-// domain/chat/verbs/start-chat — `startChat` (chat.md Part I 8-slot `verbs/start-chat.ts`; the lazy chat+roster
+// domain/chat/verbs/start-chat — `startChat` (the lazy chat+roster
 // creation + the founding opening). The ONE entry that mints a room: the CALLER becomes the `host` participant
 // (D18 — the host is the ONE authority + funding source; there is no `chats.ownerId`), the founding `characterIds`
 // join the roster as server-forced `member`s, and the room opens per its resolved `OpeningPolicy`. The whole
@@ -8,7 +8,7 @@
 // — NOT copied cards. The greeting text is read from the live card via `ctx.getCard` (the host's ownership) only to
 // SEED the opening assistant message; the roster never snapshots the card.
 //
-// THE OPENING (chat.md §"What this domain owns" line 22 — the `opening` turn kind; the chunk-11 flag homes
+// THE OPENING (the `opening` turn kind; the chunk-11 flag homes
 // `generateOpening` HERE, internal — it is NOT a `ChatService` verb):
 //   • `none`          — seed nothing (`opening: null`).
 //   • `first-message` — the SOLO degenerate: the PRIMARY character's greeting seeded VERBATIM as an assistant
@@ -81,8 +81,8 @@ type MessageViewSeed = ReturnType<typeof buildCommittedMessageView>;
 /** A loaded chat row (the inferred `loadChatRow` return) — named locally (the `fork.ts` precedent). */
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-// The `generate` opening's turn prompt is the RESOLVED guided `opening` action template (chat.md §6 —
-// `opening` is the action whose resolved template IS the turn prompt, riding `appendUserTurn`; PD-63 routed).
+// The `generate` opening's turn prompt is the RESOLVED guided `opening` action template
+// (`opening` is the action whose resolved template IS the turn prompt, riding `appendUserTurn`; PD-63 routed).
 // The per-action config comes from the preset (`promptConfig.guidedActions.opening`, contract default
 // fallback); `{{input}}` is empty — startChat carries no composer steer (a steer param can ride later).
 
@@ -210,8 +210,8 @@ function buildGreetingSeed(
   return { stmts, views };
 }
 
-/** The `generate` opening — delegate a single `kind:"opening"` turn to the engine (chat.md §"the per-turn
- *  driver"). The creator IS the host of a brand-new room, so the D19 triple collapses (`triggeredBy` =
+/** The `generate` opening — delegate a single `kind:"opening"` turn to the engine.
+ *  The creator IS the host of a brand-new room, so the D19 triple collapses (`triggeredBy` =
  *  `runAsUserId` = the caller). Builds the ONE immutable assemble ctx through the substrate bridge, then runs
  *  the primary character's opening turn (no user row; the opening instruction rides `appendUserTurn`). */
 async function runGeneratedOpening(
@@ -245,7 +245,7 @@ async function runGeneratedOpening(
     },
     foreign,
   );
-  // The opening action's resolved template IS the turn prompt (chat.md §6) — resolved against the built
+  // The opening action's resolved template IS the turn prompt — resolved against the built
   // assemble ctx ({{char}}/{{user}}/… live), delivered on `appendUserTurn` (never a placement).
   const openingPrompt = resolveGuidedActionText(assembleContext, {
     action: "opening",

@@ -33,16 +33,16 @@ The four natures confirmed, and the headline: **a fourth nature has NO home toda
 Recon **corrected the first read** — two of the "3 card shapes" are a _justified_ emit/read pair, and the
 PNG codec is _not_ scattered. The real findings:
 
-- **Card shape — LOCKED: unify into ONE fully-modeled canonical card in `contracts`.** (User: "we can
-  support them now in full.") Recon found three shapes — the V3 emit schema (`export/contract/card-v3.ts`),
-  the permissive `ParsedCard`/`RawCard` reader (`import/card.ts`), and the disjoint app-CRUD schema
+- **Card shape — LOCKED: ONE fully-modeled canonical card in `contracts`.** (User: "we can support them
+  now in full.") neo-tavern had three shapes — the V3 emit schema (`export/contract/card-v3.ts`), the
+  permissive `ParsedCard`/`RawCard` reader (`import/card.ts`), and the disjoint app-CRUD schema
   (`shared/character/character-schema.ts`) — with `creator`/`character_version`/`regex_scripts`/
-  `extensions` surviving **only via the `raw` blob** (so app-authored cards drop them). Target: model the
-  **FULL card as typed fields/columns** (promote creator/cardVersion/regex_scripts/extensions/book) so
-  app-authored AND imported cards round-trip identically. The permissive `RawCard` reader stays — but
-  only as a **tolerant input adapter that normalizes INTO the one canonical model**, not a parallel lossy
-  shape; `raw` is reserved for genuinely-unknown vendor extras, not for fields we now model. Kills the §6
-  lossiness + the shape-C disjointness in one move.
+  `extensions` surviving **only via the `raw` blob** (so app-authored cards dropped them). **BUILT:**
+  orbweaver's flat `characters` row (`packages/db/src/schema/character.ts`) promotes `creator`/
+  `cardVersion`/`regexScripts` to typed columns — app-authored AND imported cards round-trip identically;
+  `extensions` stays a JSON column reserved for genuinely-unknown vendor residue. The permissive `RawCard`
+  reader stays — but only as a **tolerant input adapter that normalizes INTO the one canonical model**, not
+  a parallel lossy shape; `raw` is reserved for genuinely-unknown vendor extras, not for fields now modeled.
 - **PNG codec:** only **two sites** (a pure read half in `card.ts`, a pure write half in `export/png.ts`)
   — a read/write pair, not duplication. The chunk-walk loop + `isPng` + `PNG_SIGNATURE` are copied, and
   a 3rd `isPng` is inline in `http/import.ts`. Target: ONE `kit/png-card-chunk` engine
@@ -55,10 +55,10 @@ PNG codec is _not_ scattered. The real findings:
   never columned), despite a real `regexScriptSchema` existing.
 - **Triplication (textbook):** the ST numeric role-map `{0:system,1:user,2:assistant}` is written **4×**
   (`persona.ts`, `lore.ts`, `card-v3.ts` inverse, `card.ts` inline). One bimap in `contracts`/`kit`.
-- **Lossiness to FIX (not just tidy):** `creator`/`character_version`/`regex_scripts` survive only via
-  the `raw` blob → an **app-authored** card (no `raw`) drops them on export. Accepted tags diverge from
-  proposed (`proposedTags` re-exports, accepted `character_tags` junction doesn't). Promote those to
-  typed columns.
+- **Lossiness — FIXED for the card:** `creator`/`cardVersion`/`regexScripts` are now typed columns on
+  `characters` (no more `raw`-blob-only survival), so an app-authored card round-trips them on export.
+  Still open: accepted tags diverge from proposed (`proposedTags` re-exports, accepted `character_tags`
+  junction doesn't) — that promotion is `domain/tag`'s, not the card's.
 - Target: SHAPES → `contracts` (the emit/read pairs + ST preset shape co-located); CODEC → pure `kit`
   (string-based); per-entity MAPPERS consolidated & shared by import+export (role-map, WI-entry mapper,
   card pair); the import↔assets bulk glue (duplicated in `http/import.ts` + `import-st.ts`) → one

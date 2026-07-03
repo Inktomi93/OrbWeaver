@@ -1,6 +1,6 @@
-// domain/chat/assembly/macros — the chat-domain wiring over the pure `@orb/kit/macro` engine (chat.md
-// Part I 8-slot `assembly/macros.ts`; Part II §0 "chat orchestrates the pure kit engines, owns the order,
-// not the engines"). This is the ONE place the macro ATOM gets fed chat context. Two constructions,
+// domain/chat/assembly/macros — the chat-domain wiring over the pure `@orb/kit/macro` engine ("chat
+// orchestrates the pure kit engines, owns the order, not the engines"). This is the ONE place the macro
+// ATOM gets fed chat context. Two constructions,
 // co-located so both the section walk (assemble.ts) AND the WI matcher (world-info consumers in
 // context.ts) import ONE renderer instead of reaching back into assemble.ts (a circular import):
 //
@@ -128,7 +128,7 @@ function macroOptionsFor(
  * Render `{{macros}}` in `text` against the character + the section-appropriate `persona` (pinned for
  * card-derived sections, active for user-authored). `original` is the preset-level Main-Prompt/Jailbreak,
  * threaded only while rendering the two overridable markers (so a card's own system/jailbreak can
- * `{{original}}`-wrap the preset). Pure: one macro pass, no second render (chat.md §3 rule 3 — render once).
+ * `{{original}}`-wrap the preset). Pure: one macro pass, no second render (render once).
  */
 export function renderMacros(
   text: string,
@@ -140,7 +140,7 @@ export function renderMacros(
 }
 
 /**
- * Resolve a guided-action TEMPLATE against the turn ctx (chat.md §6 — guided steering, PD-63 routed):
+ * Resolve a guided-action TEMPLATE against the turn ctx (guided steering, PD-63 routed):
  * the per-action config comes from the preset (`promptConfig.guidedActions`, falling back to the contract
  * defaults); the untrusted steering `input` is macro-NEUTRALIZED by the kit resolver (ZWSP between braces)
  * before it is spliced into `{{input}}`; the rest of the macro context ({{char}}/{{user}}/{{persona}}/…)

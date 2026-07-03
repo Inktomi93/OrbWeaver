@@ -1,4 +1,4 @@
-// domain/chat/engine/budget — the per-member turn-COUNT budget debit (chat.md Part III §5/§9/§12 inv 4).
+// domain/chat/engine/budget — the per-member turn-COUNT budget debit.
 // Debited IN-LOCK, attributed to `triggeredBy`, metering ALL backends (hosted $ AND the owner's shared local
 // compute — local has no dollar cost but finite hardware). This file is the chat-surface WRAPPER: it calls
 // the injected debit op and translates the transport limiter's `DomainRateLimitError` into the chat

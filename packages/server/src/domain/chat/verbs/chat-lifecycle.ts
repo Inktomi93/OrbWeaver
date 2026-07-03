@@ -1,10 +1,10 @@
-// domain/chat/verbs/chat-lifecycle — the chat-ROW lifecycle + variables + persisted injections (chat.md Part I
-// 8-slot `verbs/chat-lifecycle.ts`; Part III §11 the auth matrix). The low-payload, non-canon mutations: the
+// domain/chat/verbs/chat-lifecycle — the chat-ROW lifecycle + variables + persisted injections. The
+// low-payload, non-canon mutations: the
 // chat-row flags (title/star/archive/delete), the two-plane variables (D46 — this verb owns the config-plane
 // chat-row/stored writes), and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all (the bus has
 // no per-field member — FLAG below); `delete` emits `chatDeleted`.
 //
-// AUTHORITY (chat.md §11 / substrate/auth/matrix): title/star/archive/delete + injection WRITE/DELETE → `host`
+// AUTHORITY (substrate/auth/matrix): title/star/archive/delete + injection WRITE/DELETE → `host`
 // (shared room-row config / a room-wide prompt-injection is a one-shot jailbreak surface); variables (shared
 // gameplay state) + injection LIST → `member`; `reapTemporaryChats` is per-user maintenance (non-chat-scoped).
 //

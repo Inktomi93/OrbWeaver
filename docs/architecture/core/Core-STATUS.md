@@ -41,7 +41,7 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
   vLLM / hosted); the space invariant (verified the OpenRouter SDK `dimensions` param).
 - **`domain/connection`** — selection conductor (`resolveRole`) + the ONE capability descriptor
   (distinct reasoning/sampling/verbosity axes) that drives BOTH translation AND the samplers panel.
-- **`domains/chat.md`** — the resolution ORDER as the artifact (one explicit stage list per context); the 8
+- **`domain/chat`** — the resolution ORDER as the artifact (one explicit stage list per context); the 8
   load-bearing rules; one injection list + one budget; two-phase assemble; render-once; guided model;
   ephemeral taxonomy; cache: PRESERVE the live 2B history breakpoint (relocate-the-tag, not drop —
   §8 corrected 2026-06-25 after a code re-check; dropping it = silent ~5300-token/turn regression).

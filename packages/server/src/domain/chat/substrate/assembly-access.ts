@@ -41,7 +41,7 @@ export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof 
   return shape(...args);
 }
 
-/** The per-speaker CARD-SECTION shape (chat.md §5/§7 — the two-axis `shape(ctx, speaker)`): pick the active
+/** The per-speaker CARD-SECTION shape (the two-axis `shape(ctx, speaker)`): pick the active
  *  speaker's card + co-speakers off the immutable ctx (D60). The legal `engine/ → assembly/` bridge. */
 export function shapeContextForSpeaker(
   ...args: Parameters<typeof shapeContextForSpeakerImpl>
@@ -50,7 +50,7 @@ export function shapeContextForSpeaker(
 }
 
 /** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING
- *  author-side macro pass — chat.md §2; macros run on the TEMPLATE, never on the model output). The legal
+ *  author-side macro pass — macros run on the TEMPLATE, never on the model output). The legal
  *  `engine/ → assembly/` bridge (a direct import is `domain-no-cross-subsystem`-illegal). */
 export function buildTurnMacroContext(
   ...args: Parameters<typeof buildTurnMacroContextImpl>
@@ -58,7 +58,7 @@ export function buildTurnMacroContext(
   return buildTurnMacroContextImpl(...args);
 }
 
-/** Resolve a guided-action TEMPLATE against the turn ctx (chat.md §6 — the guided steering resolver; PD-63).
+/** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).
  *  The legal `verbs/ → assembly/` bridge for the `opening` action, whose resolved template IS the turn prompt
  *  (it rides `appendUserTurn`, not a placement — `start-chat.ts`'s generate opening). */
 export function resolveGuidedActionText(

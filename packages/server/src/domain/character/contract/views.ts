@@ -1,4 +1,4 @@
-// domain/character/contract/views — the client read-models (character.md §8-slot contract/views.ts).
+// domain/character/contract/views — the client read-models.
 // One home for the shapes (§7.4 / types-in-contract). The card content is DERIVED, not re-spelled: both
 // views build on `CharacterCard` (the ONE canonical card shape, @orb/contracts/character) so a new card
 // field has a single home (derive-don't-respell, §7.5). `CharacterDetail` is the owner read (the full live

@@ -38,7 +38,7 @@ import {
 } from "../persistence/queries";
 import { resolveHostTierRegexScripts } from "./regex-tier";
 
-/** The SEND USER_INPUT regex out-param sink (chat.md §2/§7) — `buildAssembleContext` writes the post-regex user
+/** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user
  *  text here so the verb persists THAT. Structural + file-local (the `types-in-contract` gate; the verb passes a
  *  `{ sendUserText?: string }`). Threaded straight through to the pure core. */
 interface SendRegexSink {
@@ -138,7 +138,7 @@ async function gatherMemory(
 /**
  * Gather the CHAT-INTERNAL assemble inputs, merge with the FOREIGN DTO, and produce the IMMUTABLE per-turn
  * `AssembleContext` via the PURE `buildAssembleContext`. `out`, when supplied with a SEND turn (`pendingUserText`
- * + host-tier scripts), receives the post-USER_INPUT-regex text for the verb to PERSIST (chat.md §2/§7).
+ * + host-tier scripts), receives the post-USER_INPUT-regex text for the verb to PERSIST.
  */
 export async function gatherAssembleContext(
   ctx: ChatContext,
@@ -149,7 +149,7 @@ export async function gatherAssembleContext(
     readonly castCharacterIds: readonly CharacterId[];
     readonly personaIds: readonly PersonaId[];
     readonly pendingUserText?: string | undefined;
-    /** The one-turn typed steer (chat.md §6, PD-63) — threaded to the BUILD, which resolves the action
+    /** The one-turn typed steer (PD-63) — threaded to the BUILD, which resolves the action
      *  template ONCE and delivers it via its placement (system-marker / depth-0 injection). */
     readonly guided?: GuidedSteer | undefined;
   },

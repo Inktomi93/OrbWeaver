@@ -79,7 +79,7 @@ export async function loadCharacterWithAvatarById(
 }
 
 /** The owner's NON-synthetic characters + avatars, newest first (synthetic group buckets excluded —
- *  character.md invariant 3: every user-facing query filters `synthetic = false`). */
+ *  every user-facing query filters `synthetic = false`). */
 export async function listOwnedCharactersWithAvatar(
   db: Db,
   ownerId: UserId,
@@ -126,7 +126,7 @@ export async function loadCharacterRowById(
 /** Every NON-synthetic character id, ALL owners — NO owner scope (D20). The embeddings BULK embed pass
  *  (PD-53) is a trusted SYSTEM sweep over the whole corpus: vectors carry no `ownerId`, so the enumeration
  *  happens un-principal, exactly like `loadCharacterRowById` above. Synthetic group buckets are excluded at
- *  the source (they have no card text and are never embedded — character.md invariant). NOT a user-facing
+ *  the source (they have no card text and are never embedded). NOT a user-facing
  *  surface; the only caller is `listEmbeddableCharacterIds` (the bulk pass's enumeration read). */
 export async function listEmbeddableCharacterIdRows(db: Db): Promise<CharacterId[]> {
   const rows = await db

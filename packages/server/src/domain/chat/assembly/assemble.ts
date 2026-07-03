@@ -1,10 +1,9 @@
-// domain/chat/assembly/assemble — the BUILD section walk (chat.md Part II §2 ASSEMBLE phase 3 + §3 rules
-// 1/2/3). Render a reorderable `PromptConfig` against the immutable `AssembleContext` into the STATIC
+// domain/chat/assembly/assemble — the BUILD section walk. Render a reorderable `PromptConfig` against the immutable `AssembleContext` into the STATIC
 // (cache-stable) + DYNAMIC (per-turn) system-prompt halves + the after-history injection bucket. Pure: no
 // DB, no infra — context.ts loads the data and passes it in (`AssembleContext`), keeping this unit-testable
 // and reusable by a client preview.
 //
-// THE ORDER (chat.md §3): per section `macro → frame`, macros BEFORE framing (the WI per-entry
+// THE ORDER: per section `macro → frame`, macros BEFORE framing (the WI per-entry
 // `regex(WORLD_INFO)` ran upstream in context.ts's WI→injection conversion, NOT here). Render ONCE — every
 // section renders through `renderMacros` exactly once (the two overridable slots memoize their preset render
 // in `computeOriginals` so a `{{original}}`-wrapping card doesn't double-fire side-effect macros).
@@ -12,7 +11,7 @@
 // `chat_history` is the PIVOT: sections before it build the system block; sections after it are delivered as
 // `in_chat` injections AFTER the conversation (the runner/SHAPE splices history at the pivot).
 //
-// {{user}} resolves DIFFERENTLY by section origin (the dual-persona rule — chat.md Esoteric):
+// {{user}} resolves DIFFERENTLY by section origin (the dual-persona rule):
 //   • CARD-derived sections (char_*, post_history, scenario) → the PINNED ("anchor") persona, so a mid-chat
 //     persona switch never retroactively rewrites the card's {{user}} references.
 //   • USER-authored sections (literal blocks, the persona marker, host room overrides) → the ACTIVE persona.
@@ -22,7 +21,7 @@
 // verbatim. `in_chat` injections are the SHAPE splice's job (not handled here).
 //
 // FLAG[assemble-post-process]: neo applied `applyAssemblePostProcess` to the joined halves. That helper's
-// home is `@orb/server/kit/post-process` (chat.md movement table) — NOT yet built (it lands with RECEIVE).
+// home is `@orb/server/kit/post-process` — NOT yet built (it lands with RECEIVE).
 // This chunk returns the raw `\n\n`-joined halves; the post-process pass is wired when that kit lands.
 
 import type {
@@ -205,7 +204,7 @@ function renderCoSpeakers(ctx: AssembleContext): string {
     .join("\n\n");
 }
 
-// ── The two overridable markers (room > card > preset; chat.md Part III §9) ─────────────────────────────
+// ── The two overridable markers (room > card > preset) ─────────────────────────────
 const MERGED_CACHE_BUSTER = "merged-present-cast";
 
 function recordMergedCacheBuster(trace: AssembleTrace): void {
@@ -702,7 +701,7 @@ function applySystemInjections(ctx: AssembleContext, trace: AssembleTrace, acc: 
  * Render `config` against `ctx` into the system-prompt halves + the after-history injection bucket. Each
  * enabled section is delivered into the system block (static/dynamic via `isSectionDynamic`) or as an
  * `in_chat` injection (after the `chat_history` pivot, or with an explicit `inject`/non-system role).
- * Disabled sections and empty renders skip. Pure (chat.md §5 — SHAPE consumes the immutable result).
+ * Disabled sections and empty renders skip. Pure (SHAPE consumes the immutable result).
  */
 export function assemblePrompt(config: PromptConfig, ctx: AssembleContext): AssembledPrompt {
   const trace = freshTrace(ctx);

@@ -1,5 +1,5 @@
-// domain/chat/assembly/context — the RESOLVE → GATHER → BUILD orchestration (chat.md Part II §2 ASSEMBLE
-// phases 1-3; the immutable two-phase turn ctx of §5). This is the ASSEMBLE CONTEXT PRODUCER: it turns a
+// domain/chat/assembly/context — the RESOLVE → GATHER → BUILD orchestration (ASSEMBLE
+// phases 1-3; the immutable two-phase turn ctx). This is the ASSEMBLE CONTEXT PRODUCER: it turns a
 // chat + roster + preset + canon into the IMMUTABLE `AssembleContext` (the turn ctx) that SHAPE (chunk 7)
 // consumes per speaker. The order is the artifact — read it top-to-bottom in `buildAssembleContext`:
 //
@@ -22,7 +22,7 @@
 //     `resolvePersona`), • `memory` (the `{{memory}}` string — `ctx.searchDigests` returns block KEYS; the
 //     keys→text format step is the unbuilt `memory/` subsystem).
 // SEND (D53 step 2): the USER_INPUT regex pass runs HERE, between RESOLVE (`base` → the author-side macro ctx)
-// and GATHER (the WI keyword match) — chat.md §2 (`macro → set {{input}} → USER_INPUT regex → fold the POST-regex
+// and GATHER (the WI keyword match — `macro → set {{input}} → USER_INPUT regex → fold the POST-regex
 // text into the WI haystack + {{input}} → persist`). Running it inside the producer is what lets BOTH the haystack
 // the keyword match sees AND the user row the verb persists be the SAME post-regex text (no divergence; §3 rule 4
 // + §7 canon-mutating-at-write). The post-regex text is surfaced to the SEND verb via the {@link SendRegexResult}
@@ -64,7 +64,7 @@ interface MatchedKey {
   matchedLatestUserMessage: boolean;
 }
 
-// ── ONE injection list + ONE budget pass (chat.md §4) ──────────────────────────────────────────────────
+// ── ONE injection list + ONE budget pass ──────────────────────────────────────────────────
 /** A budget candidate: a fully-rendered injection + cost + survival flag + sort priority. WI entries carry
  *  their real priority + `ignoreBudget`; operator/author injections (user `chat_injections` / guided) are
  *  `ignoreBudget: true` (intent, never droppable) at a high priority. `bucket` routes an always-scope WI
@@ -92,7 +92,7 @@ function compareCandidates(a: InjectionCandidate, b: InjectionCandidate): number
   return b.priority !== a.priority ? b.priority - a.priority : compareStr(a.entryId, b.entryId);
 }
 
-/** The ONE budget pass (chat.md §4): walk the unified candidate list ONCE (priority order), charging tokens
+/** The ONE budget pass: walk the unified candidate list ONCE (priority order), charging tokens
  *  against `budget`; `ignoreBudget` entries always survive; `budget <= 0` ⇒ keep all. Returns the kept
  *  candidates (original order) + the budget-dropped ids for the trace. */
 function budgetInjections(
@@ -116,9 +116,9 @@ function budgetInjections(
   return { kept: candidates.filter((c) => keptSet.has(c)), dropped };
 }
 
-// ── WI → injection conversion (GATHER keyword match + BUILD render-once; chat.md §3 rules 1-4) ──────────
+// ── WI → injection conversion (GATHER keyword match + BUILD render-once) ──────────
 /** Resolve `{{entry}}` in a wiFormat template WITHOUT re-rendering the already-resolved entry content
- *  (chat.md §3 rule 3 — render once). `wiFormat`'s OWN macros render once (`{{entry}}` is unregistered, so
+ *  (render once). `wiFormat`'s OWN macros render once (`{{entry}}` is unregistered, so
  *  the engine re-emits it verbatim); the resolved entry text is then string-spliced in. */
 function wrapWiFormat(content: string, wiFormat: string, ctx: AssembleContext): string {
   if (!wiFormat.includes("{{entry}}")) {
@@ -207,7 +207,7 @@ function recordKeyHits(entry: AssembleWorldEntry, hits: readonly string[], env: 
 }
 
 /** Classify ONE enabled WI entry → a budget candidate (null if a keyword entry didn't fire). Renders ONCE:
- *  `macro → regex(WORLD_INFO) → wiFormat-wrap` (chat.md §3); source-routed persona (pinned for card-derived,
+ *  `macro → regex(WORLD_INFO) → wiFormat-wrap`; source-routed persona (pinned for card-derived,
  *  active for chat-attached — the dual-persona rule). */
 function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCandidate | null {
   if (entry.scope === "keyword") {
@@ -229,7 +229,7 @@ function classifyWiEntry(entry: AssembleWorldEntry, env: WiConvEnv): InjectionCa
   return wiCandidate(entry, wrapWiFormat(afterRegex, env.args.wiFormat, env.ctx), env.args);
 }
 
-/** Convert the WI pool → budget candidates + the matched-keys trace (chat.md §3/§4). Keyword matching sees
+/** Convert the WI pool → budget candidates + the matched-keys trace. Keyword matching sees
  *  the PENDING user text (the two-phase lag-kill). */
 function convertWorldInfo(
   pool: readonly AssembleWorldEntry[],
@@ -307,7 +307,7 @@ interface BuildAssembleContextInput {
   readonly memory?: string | null | undefined;
   readonly compactSummary?: string | null | undefined;
   readonly guidedInstruction?: string | null | undefined;
-  /** The one-turn typed steer (chat.md §6, PD-63 routed): resolved ONCE in BUILD — template + neutralized
+  /** The one-turn typed steer (PD-63 routed): resolved ONCE in BUILD — template + neutralized
    *  `{{input}}` → the `{{guided_instruction}}` marker (system placement, the default) or a depth-0
    *  `in_chat` injection (the `inject` arm). Never persisted; never re-routed at splice time. */
   readonly guided?: GuidedSteer | undefined;
@@ -330,7 +330,7 @@ interface BuildAssembleContextInput {
   readonly hostTierRegexScripts?: readonly RegexScript[] | undefined;
 }
 
-/** Out-param sink for the SEND USER_INPUT regex result (chat.md §2/§7 — canon-mutating at write). When the
+/** Out-param sink for the SEND USER_INPUT regex result (canon-mutating at write). When the
  *  caller supplies BOTH `pendingUserText` and `hostTierRegexScripts`, {@link buildAssembleContext} runs the
  *  USER_INPUT regex (to fold the post-regex text into the WI haystack + {{input}}) and writes the result here so
  *  the SEND verb can PERSIST that exact post-regex text — the haystack and the stored user row never diverge.
@@ -424,7 +424,7 @@ function routeKept(kept: readonly InjectionCandidate[]): {
   return { chatInjections, beforeParts, afterParts };
 }
 
-/** Resolve the one-turn guided steer (chat.md §6, PD-63) against the built base ctx. Placement is decided
+/** Resolve the one-turn guided steer (PD-63) against the built base ctx. Placement is decided
  *  ONCE: the explicit `steer.placement`, else the action config's `role` (`system` → the marker; `user`/
  *  `assistant` → a depth-0 injection). The system arm MUTATES `base.guidedInstruction` (base is the local
  *  under construction — the ctx is frozen after BUILD); the inject arm returns the candidate for the ONE
@@ -469,7 +469,7 @@ function resolveGuidedSteer(
 }
 
 /**
- * RESOLVE → GATHER → BUILD: produce the IMMUTABLE per-turn `AssembleContext` (chat.md §2/§5). Reads the
+ * RESOLVE → GATHER → BUILD: produce the IMMUTABLE per-turn `AssembleContext`. Reads the
  * chat-owned roster cast (via `ctx.getCard`) + the WI pool; everything cross-domain is in `input` (see the
  * FLAGs). The returned ctx is the turn artifact SHAPE consumes per speaker — never mutated after return.
  */
@@ -508,7 +508,7 @@ export async function buildAssembleContext(
 
   const base = buildBaseContext(character, cast, castMembers, input);
 
-  // ── SEND — USER_INPUT regex on the pending user text (chat.md §2: macro → set {{input}} → USER_INPUT regex
+  // ── SEND — USER_INPUT regex on the pending user text (macro → set {{input}} → USER_INPUT regex
   //    → fold the POST-regex text into the WI haystack + {{input}}). Between RESOLVE/base and GATHER so the
   //    haystack AND the persisted row (surfaced via `out`) are BOTH post-regex — no divergence (§3 rule 4 / §7).
   //    The replace-template macro ctx is author-side (macros-before-regex); the watchdog guards the regex (D53). ──
@@ -554,7 +554,7 @@ export async function buildAssembleContext(
       applyReplace: ctx.applyRegexReplace,
       wiFormat,
       recentMessages: input.recentMessages,
-      // POST-USER_INPUT-regex (chat.md §2 — the two-phase haystack sees the transformed pending text).
+      // POST-USER_INPUT-regex (the two-phase haystack sees the transformed pending text).
       pendingUserText: pendingText,
       names,
       lastUserMessage: input.lastUserMessage,
@@ -564,14 +564,14 @@ export async function buildAssembleContext(
     buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId }),
   );
 
-  // ── GUIDED (chat.md §6, PD-63): resolve the one-turn steer ONCE — the action template + the neutralized
+  // ── GUIDED (PD-63): resolve the one-turn steer ONCE — the action template + the neutralized
   //    `{{input}}` against the turn macro ctx — and deliver it via EXACTLY ONE placement: the
   //    `{{guided_instruction}}` system-marker (the default) or a depth-0 `in_chat` injection (author intent —
   //    it joins the ONE injection list, `ignoreBudget`). Never re-routed at splice time (§6 — the old
   //    `role:system`-at-depth auto-convert is dropped); never persisted. ──
   const guided = resolveGuidedSteer(base, input);
 
-  // The ONE injection list (chat.md §4): WI + the user `chat_injections` + a guided depth-0 injection
+  // The ONE injection list: WI + the user `chat_injections` + a guided depth-0 injection
   // (operator/author intent — never dropped).
   const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => ({
     injection,

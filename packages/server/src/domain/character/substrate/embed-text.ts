@@ -14,7 +14,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 
 /** The card fields that form the embeddable identity text. `greetings[0]` is the first message; the rest are
- *  alternate greetings (the unified `greetings` array, character.md D28). */
+ *  alternate greetings (the unified `greetings` array, D28). */
 type CardEmbedFields = Pick<
   CharacterCard,
   "name" | "description" | "personality" | "scenario" | "greetings"

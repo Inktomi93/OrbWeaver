@@ -1,5 +1,5 @@
-// domain/chat/assembly/speaker-card — the per-speaker CARD-SECTION shape (chat.md Part III §7 two-axis; §5
-// `shape(ctx, speaker)`). Given the ONE immutable turn ctx (the full resolved `cast` + its index-aligned
+// domain/chat/assembly/speaker-card — the per-speaker CARD-SECTION shape (two-axis; `shape(ctx, speaker)`).
+// Given the ONE immutable turn ctx (the full resolved `cast` + its index-aligned
 // `castMembers` identities) and the active speaker, pick THAT speaker's card as the rendered character section
 // (`ctx.character`/`speaker`) and the co-speakers:
 //   • merged (default)  → co-speakers = the OTHER present cast (the "[Also present — X]" block renders them).
@@ -14,7 +14,7 @@
 import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 
-/** Shape the immutable ctx to THIS speaker (chat.md §5/§7). `cardScope` selects the co-speaker breadth. */
+/** Shape the immutable ctx to THIS speaker. `cardScope` selects the co-speaker breadth. */
 export function shapeContextForSpeaker(
   ctx: AssembleContext,
   speaker: { readonly ref: SpeakerRef; readonly cardScope: "merged" | "scoped" },

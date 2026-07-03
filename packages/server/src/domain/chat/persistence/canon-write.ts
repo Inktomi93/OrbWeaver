@@ -1,5 +1,5 @@
-// domain/chat/persistence/canon-write — the D26 PRODUCTION canon writer (chat.md Part I 8-slot
-// `persistence/` + inv §15). The EXPLICIT named exception to "persistence is queries only" (like `lock.ts`):
+// domain/chat/persistence/canon-write — the D26 PRODUCTION canon writer. The EXPLICIT named exception to
+// "persistence is queries only" (like `lock.ts`):
 // it builds the INSERT/UPDATE statements that commit a message slot + its variants. The 3-step circular-FK
 // dance mirrors the `_support` harness's `seedMessage`, but this is the live writer — every statement is a
 // `BatchStmt` the engine commits ATOMICALLY in ONE `db.batch` (so the slot, its first variant, the pointer

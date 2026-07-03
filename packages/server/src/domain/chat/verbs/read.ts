@@ -1,5 +1,5 @@
-// domain/chat/verbs/read — the chat READ SURFACE (chat.md Part I 8-slot `verbs/read.ts`; the listings, the
-// single-chat reads, the DRY-RUN prompt previews, and the resumable stream-ring reads). PURE reads: no canon
+// domain/chat/verbs/read — the chat READ SURFACE (the listings, the single-chat reads, the DRY-RUN prompt
+// previews, and the resumable stream-ring reads). PURE reads: no canon
 // mutation, no bus emit. Every chatId surface is MEMBERSHIP-gated (D18) through the ONE `requireParticipant`
 // chokepoint (default-deny — a non-participant gets a leak-free `ChatNotFoundError`); listings are pure
 // membership (`listMemberChats` — only the caller's chats); the lineage/fork walks gate per-ancestor
@@ -12,7 +12,7 @@
 // (`AssembledPrompt`/`AssemblyPreview`/`SectionPreview`) are the BUILD halves (static/dynamic/afterHistory +
 // the host/admin trace); the SHAPE wire-history is a turn-only product (not in these read-models).
 //
-// GUIDED (chat.md §6, PD-63 routed): `previewAssembly` threads its `guided` steer into the GATHER→BUILD —
+// GUIDED (PD-63 routed): `previewAssembly` threads its `guided` steer into the GATHER→BUILD —
 // the SAME resolution a real turn gets (template + neutralized `{{input}}` → the `{{guided_instruction}}`
 // marker or a depth-0 injection), so the preview mirrors the steered prompt exactly.
 //

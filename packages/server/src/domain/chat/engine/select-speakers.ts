@@ -1,5 +1,5 @@
-// domain/chat/engine/select-speakers — the 7a DETERMINISTIC "who speaks this round" arbitration (chat.md
-// Part III §6). PURE: given the present+eligible character roster, the group config (policy + per-participant
+// domain/chat/engine/select-speakers — the 7a DETERMINISTIC "who speaks this round" arbitration. PURE: given
+// the present+eligible character roster, the group config (policy + per-participant
 // talkativeness), the last speaker, and any human-authored forced/@-mention target → the ORDERED character
 // list for the round. The injected PRNG (D46 — never `Math.random`) drives every weighted/random pick; the
 // same inputs + the same rng sequence ALWAYS yield the same order.
@@ -62,7 +62,7 @@ function weightedOrder(pool: readonly ArbiterCandidate[], rng: () => number): Ar
 }
 
 /**
- * The 7a deterministic arbitration (chat.md Part III §6). Returns the ORDERED character ids that speak this
+ * The 7a deterministic arbitration. Returns the ORDERED character ids that speak this
  * round (empty for `manual` with no forced target). PURE — the rng is the only entropy source (D46). Solo =
  * a roster-of-1: the soft ban-last yield makes the one eligible character re-speak with NO `if(isGroup)`.
  */
@@ -150,8 +150,8 @@ function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] 
 }
 
 /**
- * Extract @mention targets from HUMAN-AUTHORED trigger text (chat.md Part III §6 / §12 inv 6 — only human
- * text drives the override; the caller MUST pass a human post's body, NEVER an AI reply). Matches `@Name`
+ * Extract @mention targets from HUMAN-AUTHORED trigger text (only human text drives the override; the caller
+ * MUST pass a human post's body, NEVER an AI reply). Matches `@Name`
  * against the present cast's display names (longest-name-first so `@Aria Stormborn` wins over `@Aria`),
  * word-boundary-anchored, case-insensitive. Returns the matched character ids in first-appearance order.
  * PURE; uses the ONE `escapeRegExp` (@orb/kit/strings — the de-duplicated home, movement table).

@@ -233,7 +233,7 @@ notes — catalogued, not invented here:
   (at the mirror; the steady-clone driver is `tests/support/parity-runner.ts`): the rolling-pair breakpoint
   - cache-token delta diff vs the steady clone. The runbook + fixture are written **before** the chat
     scaffold. It pins parity only.
-- **Memory's 6 chat-scoped semantics** (`domains/chat.md`) — the genuine "could silently regress" surface
+- **Memory's 6 chat-scoped semantics** — the genuine "could silently regress" surface
   the oracle _cannot_ cover (memory is a rewrite, not a port). Each → a named `.int.test.ts` at the memory
   mirror. The one place "we have tests" and "we can prove parity" deliberately diverge.
 - **Serde round-trip** (`spine/serialization-core`) — import → export → reimport is a single

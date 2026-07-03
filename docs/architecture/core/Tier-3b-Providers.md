@@ -381,7 +381,7 @@ Two dispatch axes are infra-sealed and stay so, gated:
    the static system block pins the cache at the stable prefix (the top-level directive pins it at the
    volatile newest message → 0 cache writes, measured). The responses runner's top-level `cacheControl`
    is a measured no-op (stripped by the Responses→Messages wrapper) but kept for forward-compat;
-   guaranteed Anthropic caching uses chat-completions. `domains/chat.md §8` upgrades the single breakpoint to
+   guaranteed Anthropic caching uses chat-completions. The chat domain upgrades the single breakpoint to
    ST's rolling PAIR — the PLACEMENT stays in the runner, the offset computation stays in the chat
    domain.
 

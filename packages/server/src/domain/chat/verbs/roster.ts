@@ -1,6 +1,5 @@
-// domain/chat/verbs/roster — the roster / group-config / room-override / membership-lifecycle MUTATION verbs
-// (chat.md Part I 8-slot `verbs/roster.ts`; Part III §1 roster, §9 room overrides, §11 the auth matrix). Each
-// verb is a FACTORY `createX(ctx, emit)`: it GATES via the membership chokepoint (`requireHost`/
+// domain/chat/verbs/roster — the roster / group-config / room-override / membership-lifecycle MUTATION verbs.
+// Each verb is a FACTORY `createX(ctx, emit)`: it GATES via the membership chokepoint (`requireHost`/
 // `requireParticipant` → `ctx.can`, never a `role==='host'` compare), MUTATES via persistence / a `ctx.db`
 // inline write, then EMITS the room-public bus event (+ a `notifications` op where the design reaches a
 // non-member). Group-ness is DATA: no `if(isGroup)` — solo is a roster-of-1, byte-identical (Part III §0).

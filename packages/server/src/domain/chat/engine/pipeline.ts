@@ -1,4 +1,4 @@
-// domain/chat/engine/pipeline — the per-turn EXECUTION pipeline (chat.md §2 "the domain calls a role, never
+// domain/chat/engine/pipeline — the per-turn EXECUTION pipeline ("the domain calls a role, never
 // a backend" + the turn lifecycle's assemble→shape→run→reduce→fit middle). PURE orchestration of INJECTED
 // ops: it does NOT touch the db, credentials, or any backend — it BUILDS a `TurnRequest` from the DONE
 // assembly producer's output + the DONE SHAPE, calls the injected `runChatTurn` ROLE, reduces the stream, and
@@ -85,7 +85,7 @@ interface RunTurnPipelineArgs {
   readonly appendUserTurn?: string | null | undefined;
   /** The multi-speaker group nudge; null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
-  /** The per-speaker two-axis SHAPE (chat.md Part III §7), set by the group round driver. ABSENT ⇒ the
+  /** The per-speaker two-axis SHAPE, set by the group round driver. ABSENT ⇒ the
    *  single-speaker core's pinned default (per-speaker/merged/no fold, `{{char}}`=the ctx primary). */
   readonly shape?: TurnSpeakerShape | undefined;
   /** Fan one streamed delta out (the engine wires this to the chat bus / SSE log). Fire-and-forget by the
@@ -195,7 +195,7 @@ async function reduceStream(
   return { content, reasoning: finalReasoning, economics };
 }
 
-/** RECEIVE post-processing (chat.md §2 RECEIVE order) applied to the reduced `{content, reasoning}` BEFORE the
+/** RECEIVE post-processing applied to the reduced `{content, reasoning}` BEFORE the
  *  engine persists it (canon-mutating-at-write — §7). The order is fixed:
  *    0. `<think>` demux — split inline reasoning out of content ONLY when the native reasoning channel is empty
  *       AND `reasoningParse.autoParse` is on (native-first; never double-counts a real reasoning trace — D47#3).
@@ -260,12 +260,12 @@ function applyReceiveTransforms(
 }
 
 /**
- * Execute ONE single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE (chat.md §2). Pure orchestration
+ * Execute ONE single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration
  * of injected ops; persists nothing (the engine lifecycle commits the returned result). The assemble ctx is
- * consumed READ-ONLY (immutability — chat.md §5).
+ * consumed READ-ONLY (immutability).
  */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  // Per-speaker CARD-SECTION shape (chat.md §5/§7): pick THIS speaker's card + co-speakers off the immutable
+  // Per-speaker CARD-SECTION shape: pick THIS speaker's card + co-speakers off the immutable
   // ctx (D60 — an agent's card is its soul). ABSENT shape ⇒ the single-speaker core, byte-identical (D16).
   const ctx =
     args.shape !== undefined
@@ -287,7 +287,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const speakers = {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — `activePersona` is `AssemblePersona | null | undefined` (cross-package zod inference), so `?.name ?? "User"` is required.
     user: ctx.activePersona?.name ?? "User",
-    // The arbitration/round-driver chunk's two-axis seam (chat.md Part III §7): the per-speaker label is the
+    // The arbitration/round-driver chunk's two-axis seam: the per-speaker label is the
     // resolved speaker's name (per-speaker) / joined-cast name (narrator); ABSENT ⇒ the ctx primary.
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
@@ -339,7 +339,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // 5. REDUCE — one drain of the role stream.
   const reduced = await reduceStream(args.runChatTurn(request), args);
-  // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (chat.md §2; canon-mutating
+  // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (canon-mutating
   //    at write — the engine persists THIS post-regex {content, reasoning}). The reduced economics are unchanged.
   const received = applyReceiveTransforms(reduced, args);
   return {

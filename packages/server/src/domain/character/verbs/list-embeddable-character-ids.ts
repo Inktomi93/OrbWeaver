@@ -5,7 +5,7 @@
 // the embeddings service at the composition root, never exposed on the transport surface.
 //
 // Synthetic group buckets are excluded at the source: they carry no real card text and are never embedded
-// (character.md invariant) — excluding them here keeps the pass's scanned/skipped counts honest instead of
+// — excluding them here keeps the pass's scanned/skipped counts honest instead of
 // funneling every synthetic row through a null `loadCardText` skip.
 
 import type { CharacterId } from "@orb/kit/ids";

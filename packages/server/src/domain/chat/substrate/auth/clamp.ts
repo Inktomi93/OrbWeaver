@@ -1,4 +1,4 @@
-// domain/chat/substrate/auth/clamp — THE D22 member-card visibility clamp (chat.md Part III §7/§11). A pure
+// domain/chat/substrate/auth/clamp — THE D22 member-card visibility clamp. A pure
 // projection: a present human member may READ a roster character's card, but only the fields at or below the
 // room's `chatMetadata.group.memberCardVisibility` level (`name-avatar | sheet | sheet+lore | full`,
 // host-set, default `sheet`). The owner/host always sees `full`. Read-only + while-present; viewing ≠
@@ -21,8 +21,8 @@ function rank(level: MemberCardVisibility): number {
 }
 
 /**
- * The EFFECTIVE visibility for a viewer: the room host always sees `full` (chat.md §11 "the owner/host
- * always sees full"); every other present member sees the host-configured level. (The GLOBAL owner/admin
+ * The EFFECTIVE visibility for a viewer: the room host always sees `full`; every other present member sees
+ * the host-configured level. (The GLOBAL owner/admin
  * override is the caller's concern — it passes `full` directly; this resolves the per-chat resource role.)
  */
 export function resolveCardVisibility(

@@ -1,4 +1,4 @@
-// domain/chat/assembly/trace — the SHAPE-phase debug trace (chat.md §9 trace surface; the AssembleTrace
+// domain/chat/assembly/trace — the SHAPE-phase debug trace (the AssembleTrace
 // philosophy: "debug metadata about what assembly did — NOT the prompt text"). Host/admin-only; answers
 // "why did SHAPE produce this history + (not) place a cache breakpoint?" WITHOUT dumping RP content.
 //

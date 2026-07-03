@@ -212,8 +212,8 @@ misses (those feed the adversary).
   fallback**. Target: order is ONE explicit stage list; ONE injection list + ONE budget; two-phase
   immutable assemble; engines → `kit`; the LIVE 2B rolling-tail cache breakpoint is **PRESERVED** (only
   the dead boundary-gate drops — the early "drop the breakpoint minefield" framing was wrong).
-  (Authoritative for the exact counts + mechanics: `domains/chat.md` — this bullet orients; it does not
-  carry the numbers.)
+  (Authoritative for the exact counts + mechanics: `packages/server/src/domain/chat/` — this bullet
+  orients; it does not carry the numbers.)
 - **connection / models** (`models` is 242 lines, folds in): connection **fragmented** across
   user-settings / chat-row / preset; **two capability systems** (`ChatModel` + `FAMILY_CAPS`,
   incompatible shapes, cross-merged); **reasoning collapsed into one cascade** (`effort:"none"` doubles

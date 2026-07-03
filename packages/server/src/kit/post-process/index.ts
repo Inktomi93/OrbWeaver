@@ -1,7 +1,7 @@
 // @orb/server/kit/post-process — the RECEIVE/ASSEMBLE prompt-text munging (D53 step 2). Pure, deterministic
 // string transforms (no I/O, no clock, no random) ported from neo-tavern `shared/prompt/post-process.ts`
 // (core/Legacy-Migration-and-Gaps.md §80 — "pure but 0 client consumers", so server/kit not @orb/kit). Each fn is
-// keyed to ONE pipeline context (chat.md §2): the RECEIVE cleanups (singleLine / dropIncomplete / trim) run on
+// keyed to ONE pipeline context: the RECEIVE cleanups (singleLine / dropIncomplete / trim) run on
 // the model reply AFTER the AI_OUTPUT regex pass; the ASSEMBLE transform (collapseNewlines) runs on a rendered
 // system half. Kept pure so the ASSEMBLE transform never busts the static-cache prefix.
 

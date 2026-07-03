@@ -1,5 +1,5 @@
 // domain/chat/contract/arbitration — the cross-module CONTRACT types for the 7a/7b arbitration + auto-mode +
-// the group round driver (chat.md Part III §6/§7). Homed under `contract/` per the `types-in-contract` gate
+// the group round driver. Homed under `contract/` per the `types-in-contract` gate
 // (an exported feature type lives here, never inline on an engine file). The *Params shapes stay file-local
 // to each engine module (callers pass literals) — only the types SHARED across modules/tests live here.
 
@@ -29,7 +29,7 @@ export interface CastName {
   readonly name: string;
 }
 
-/** Why an auto-mode AI→AI chain stopped (chat.md Part III §6 — the dual bound + the interrupt/eligibility/
+/** Why an auto-mode AI→AI chain stopped (the dual bound + the interrupt/eligibility/
  *  lock guards). ONE home; the union derives from this tuple (no inline re-spell). */
 export const AUTO_MODE_STOP_REASONS = [
   /** The turn-count cap (`autoModeMaxTurns`) was reached. */
