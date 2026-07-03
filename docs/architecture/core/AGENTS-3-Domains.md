@@ -279,7 +279,14 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/core/Core-Debt-Cleared-Ledger.md)
   - [Core-Doc-Inconsistency-Audit-2026-06-26.md](docs/architecture/core/Core-Doc-Inconsistency-Audit-2026-06-26.md)
   - [Core-BUILD-PLAN.md](docs/architecture/core/Core-BUILD-PLAN.md)
-  - [Core-Laws-and-Precedents.md](docs/architecture/core/Core-Laws-and-Precedents.md)
+  - [Core-Laws-and-Precedents.md](docs/architecture/core/Core-Laws-and-Precedents.md) _(§0–§6 + §7/enforcement redirect index → the 7 below)_
+  - [Core-Path-Registry-D1-D34.md](docs/architecture/core/Core-Path-Registry-D1-D34.md)
+  - [Core-Path-Registry-D35-D43.md](docs/architecture/core/Core-Path-Registry-D35-D43.md)
+  - [Core-Path-Registry-D44-D52.md](docs/architecture/core/Core-Path-Registry-D44-D52.md)
+  - [Core-Path-Registry-D53-D59.md](docs/architecture/core/Core-Path-Registry-D53-D59.md)
+  - [Core-Path-Registry-D60-D61.md](docs/architecture/core/Core-Path-Registry-D60-D61.md)
+  - [Core-Enforcement-Active-Gates.md](docs/architecture/core/Core-Enforcement-Active-Gates.md)
+  - [Core-Enforcement-Deferred-Dropped.md](docs/architecture/core/Core-Enforcement-Deferred-Dropped.md)
   - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md) _(split index → the 3 below)_
   - [Core-Shared-Dissolution.md](docs/architecture/core/Core-Shared-Dissolution.md)
   - [Core-Event-Bus-Parity-Audit.md](docs/architecture/core/Core-Event-Bus-Parity-Audit.md)
