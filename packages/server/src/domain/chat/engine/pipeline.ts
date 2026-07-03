@@ -49,6 +49,7 @@ import {
   buildPrompt,
   buildTurnMacroContext,
   fitHistory,
+  shapeContextForSpeaker,
   shapeTurn,
 } from "../substrate/assembly-access";
 
@@ -264,7 +265,15 @@ function applyReceiveTransforms(
  * consumed READ-ONLY (immutability — chat.md §5).
  */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  const ctx = args.assembleContext;
+  // Per-speaker CARD-SECTION shape (chat.md §5/§7): pick THIS speaker's card + co-speakers off the immutable
+  // ctx (D60 — an agent's card is its soul). ABSENT shape ⇒ the single-speaker core, byte-identical (D16).
+  const ctx =
+    args.shape !== undefined
+      ? shapeContextForSpeaker(args.assembleContext, {
+          ref: args.shape.speakerRef,
+          cardScope: args.shape.cardScope,
+        })
+      : args.assembleContext;
 
   // 1. BUILD — the system-prompt halves + the after-history (`in_chat`) section splices.
   const assembled = buildPrompt(ctx.promptConfig, ctx);

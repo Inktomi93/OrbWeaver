@@ -15,13 +15,8 @@
 // a fresh caller — the caller wires that into the `runTurn` callback's `TurnPrep`. ban-last / `allowSelfResponses`
 // live inside the injected `nextSpeaker` (the arbitration seam), so this loop is policy-free orchestration.
 
-import type { MessageView } from "@orb/contracts/chat";
-import type {
-  AutoModeResult,
-  AutoModeStopReason,
-  CastName,
-  SpeakerRef,
-} from "../contract/arbitration";
+import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
+import type { AutoModeResult, AutoModeStopReason, CastName } from "../contract/arbitration";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
 import type { TurnOutcome } from "../contract/results";
 

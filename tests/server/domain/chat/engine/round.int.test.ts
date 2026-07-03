@@ -5,7 +5,13 @@
 // canon advances between speakers (speaker k+1 witnesses k's row); the two-axis nudge per speaker; the
 // narrator round (ONE turn authored by the group character); and the locked-yield (a fake engine).
 
-import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatBusEvent,
+  GroupConfig,
+  MessageView,
+  SpeakerRef,
+} from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
@@ -14,10 +20,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import type {
-  CastName,
-  SpeakerRef,
-} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
   ChatOperationError,
@@ -61,6 +64,20 @@ const ASSEMBLE_CTX: AssembleContext = {
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Nate", description: "the user" },
   recentMessages: [],
+};
+
+/** A 2-character group ctx (cast + index-aligned castMembers) — feeds the per-speaker card-section shape so
+ *  each speaker renders THEIR OWN card as primary + the other as a co-speaker (chat.md §7). */
+const GROUP_CTX: AssembleContext = {
+  character: { name: "Aria", description: "a bold knight" },
+  promptConfig: DEFAULT_PROMPT_CONFIG,
+  activePersona: { name: "Nate", description: "the user" },
+  recentMessages: [],
+  cast: [
+    { name: "Aria", description: "a bold knight" },
+    { name: "Bran", description: "a sly rogue" },
+  ],
+  castMembers: [charRef("a"), charRef("b")],
 };
 
 const PER_SPEAKER: GroupConfig = { ...DEFAULT_GROUP_CONFIG };
@@ -189,6 +206,28 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
     expect(history[0]?.role).toBe("assistant");
     expect(history[0]?.characterId).toBeNull();
     expect(history[0]?.authorUserId).toBe(agentId);
+  });
+
+  test("per-speaker card section: each speaker renders THEIR OWN card as primary + the other as co-speaker (§7)", async () => {
+    const chatId = await seedChat(db, "cards");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: { ...base(chatId), assembleContext: GROUP_CTX },
+      group: PER_SPEAKER,
+      speakers: [
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
+      ],
+      groupCharacterId: null,
+      castName: "Aria, Bran",
+    });
+    expect(requests).toHaveLength(2);
+    const prompt = (r: TurnRequest): string => `${r.prompt.static}\n${r.prompt.dynamic}`;
+    // Aria's turn: Aria is primary; Bran is the co-speaker ("[Also present — Bran]").
+    expect(prompt(requests[0] as TurnRequest)).toContain("Also present — Bran");
+    // Bran's turn: the primary SWAPPED per speaker — Aria is now the co-speaker.
+    expect(prompt(requests[1] as TurnRequest)).toContain("Also present — Aria");
   });
 
   test("ONE immutable ctx: every speaker's request shares the same built system block", async () => {

@@ -41,6 +41,7 @@ import type {
   AssembleWorldEntry,
   ChatInjection,
   RoomOverrides,
+  SpeakerRef,
 } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
@@ -368,6 +369,7 @@ function setIf<K extends keyof AssembleContext>(
 function buildBaseContext(
   character: AssembleCharacter,
   cast: AssembleCharacter[],
+  castMembers: SpeakerRef[],
   input: BuildAssembleContextInput,
 ): AssembleContext {
   const base: AssembleContext = {
@@ -375,6 +377,7 @@ function buildBaseContext(
     promptConfig: input.promptConfig,
     cast,
     castCharacterIds: [...input.castCharacterIds],
+    castMembers,
     // The NULL-ANCHOR FALLBACK (persona.md dual-persona rule, decided): an unset/dead anchor resolves to
     // the ACTIVE persona, so card-derived {{user}}/{{persona}} + source==='character' WI never collapse
     // to the literal "User" while the speaker HAS a persona. A SET anchor still never follows a mid-chat
@@ -475,13 +478,24 @@ export async function buildAssembleContext(
   input: BuildAssembleContextInput,
   out?: SendRegexResult,
 ): Promise<AssembleContext> {
-  // ── RESOLVE — cast (live cards via the injected getCard, D28). NO macros yet. ──
+  // ── RESOLVE — cast (live cards via the injected getCard, D28). NO macros yet. `castMembers` is the
+  //    speaker identity index-aligned with the FILTERED `cast` (a gone/null card drops from both) — the
+  //    per-speaker card selection keys on it (D60). Agent members join `cast`/`castMembers` at AP3-2's
+  //    RESOLVE substitution (soul → AssembleCharacter); a character-only room's refs are all `character`. ──
   const cards = await Promise.all(
     input.castCharacterIds.map((characterId) =>
       ctx.getCard({ ownerId: input.ownerId, characterId }),
     ),
   );
-  const cast = cards.filter((c): c is CharacterCard => c !== null).map(toAssembleCharacter);
+  const present = input.castCharacterIds.flatMap((characterId, i) => {
+    const card = cards[i];
+    return card ? [{ characterId, card }] : [];
+  });
+  const cast = present.map((p) => toAssembleCharacter(p.card));
+  const castMembers: SpeakerRef[] = present.map((p) => ({
+    kind: "character",
+    characterId: p.characterId,
+  }));
   const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
@@ -492,7 +506,7 @@ export async function buildAssembleContext(
     personaIds: input.personaIds,
   });
 
-  const base = buildBaseContext(character, cast, input);
+  const base = buildBaseContext(character, cast, castMembers, input);
 
   // ── SEND — USER_INPUT regex on the pending user text (chat.md §2: macro → set {{input}} → USER_INPUT regex
   //    → fold the POST-regex text into the WI haystack + {{input}}). Between RESOLVE/base and GATHER so the

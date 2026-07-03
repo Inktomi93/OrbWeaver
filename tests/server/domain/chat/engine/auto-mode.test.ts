@@ -3,14 +3,11 @@
 // no-eligible, locked), the re-arbitration seeding (the prior speaker feeds ban-last), the injected delay
 // pacing, and the non-lock error propagation.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type {
-  CastName,
-  SpeakerRef,
-} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   CHAT_OP_CODES,
   ChatOperationError,

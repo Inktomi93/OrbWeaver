@@ -68,6 +68,7 @@ function buildSpeakerPrep(
     cardScope,
     scopedTargetId,
     speakerName: speaker.name,
+    speakerRef: speaker.ref,
   };
   const groupNudge =
     group.groupNudge && multi ? `[Write the next reply only as ${speaker.name}.]` : null;

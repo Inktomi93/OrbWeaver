@@ -17,6 +17,7 @@ import {
   resolveGuidedActionText as resolveGuidedActionTextImpl,
 } from "../assembly/macros";
 import { shape } from "../assembly/shape";
+import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
 
 /** RESOLVE→GATHER→BUILD: produce the IMMUTABLE per-turn `AssembleContext` (the turn ctx the SHAPE phase + the
  *  round driver consume per speaker). The turn-running verbs build this ONCE per round through HERE — a direct
@@ -38,6 +39,14 @@ export function buildPrompt(
 /** SHAPE: scope→splice→squash→name-stamp the wire history + compute the §8 breakpoint. */
 export function shapeTurn(...args: Parameters<typeof shape>): ReturnType<typeof shape> {
   return shape(...args);
+}
+
+/** The per-speaker CARD-SECTION shape (chat.md §5/§7 — the two-axis `shape(ctx, speaker)`): pick the active
+ *  speaker's card + co-speakers off the immutable ctx (D60). The legal `engine/ → assembly/` bridge. */
+export function shapeContextForSpeaker(
+  ...args: Parameters<typeof shapeContextForSpeakerImpl>
+): ReturnType<typeof shapeContextForSpeakerImpl> {
+  return shapeContextForSpeakerImpl(...args);
 }
 
 /** Build the turn-stage `MacroContext` for regex find/replace templates (the RECEIVE AI_OUTPUT/REASONING

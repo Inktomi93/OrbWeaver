@@ -3,15 +3,12 @@
 // forced/@mention hard override; solo = roster-of-1; the eligible-set predicates (muted/left excluded). D60:
 // the speaker identity is a ref ({character}|{agent}) — an agent candidate is selectable (agent-principal/02).
 
-import type { GroupConfig } from "@orb/contracts/chat";
+import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type {
-  ArbiterCandidate,
-  SpeakerRef,
-} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import { speakerKey } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import {
   resolveMentions,
   selectSpeakers,
