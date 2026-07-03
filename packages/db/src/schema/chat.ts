@@ -1,7 +1,7 @@
 // schema/chat — the chat cluster (producer: domain/chat; the biggest, most intricate slice). Ten tables:
 // chats · messages · message_variants · chat_participants · chat_invites · pending_turns · chat_events ·
 // chat_stream_events · chat_injections · chat_locks. Built WHOLE (no feature-phasing — ledger D16); the
-// authoritative spec is `docs/architecture/domains/chat.md` (all three Parts) + `core/Tier-1-DB.md`.
+// authoritative spec is `core/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D18 — chats are MEMBERSHIP-scoped: there is NO `chats.ownerId`. Authority is the host participant
@@ -94,7 +94,7 @@ function checkList(values: readonly string[]): string {
 // host-handoff nominee (Part III §2), and the lazy-parsed room-behavior `metadata` blob.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The chat-room behavior blob (chat.md Part I §metadata + Part III §9). No single contract type spans all
+/** The chat-room behavior blob. No single contract type spans all
  *  three sub-blobs, so the column composes them; the domain's `parseChatMetadata` fault-isolates each
  *  (a malformed sub-blob falls back to its default without nuking siblings). */
 interface ChatMetadata {
@@ -143,7 +143,7 @@ export const chats = sqliteTable(
     // The room-behavior blob (GroupConfig/RoomOverrides/OpeningPolicy) — typed JSON, lazy-parsed at the
     // `@orb/db/kit` read seam; never trusted raw. Seeded from `userSettings.groupDefaults` (domain).
     metadata: text("metadata", { mode: "json" }).$type<ChatMetadata>(),
-    // PERSISTED CANON (chat.md L547): the per-chat ChoiceBlock variable flush — `setVariables` writes it,
+    // PERSISTED CANON: the per-chat ChoiceBlock variable flush — `setVariables` writes it,
     // `getStoredVariables` reads it. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
     // seam. Nullable (no variables flushed yet).
     variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
@@ -454,7 +454,7 @@ export const chatEvents = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_stream_events — the RESUMABLE SSE token log (chat.md §"resumable SSE stream log"). Each row is one
+// chat_stream_events — the RESUMABLE SSE token log. Each row is one
 // streamed delta; `seq` is the resume cursor (`replayStreamEvents`/`streamEventBounds`). `kind` mirrors the
 // `ChatDeltaEvent` discriminant (text | reasoning) — tied to the contract wire type via `satisfies`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -494,9 +494,9 @@ export const chatStreamEvents = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_injections — the PERSISTED positional injections (the `ChatInjection` wire shape; chat.md §4 — one
+// chat_injections — the PERSISTED positional injections (the `ChatInjection` wire shape; one
 // injection list). `position` is tied to the contract wire type; `role` derives MESSAGE_ROLES. Spliced
-// per-turn into the prompt, NEVER into a `message_variants` row (chat.md §7 transient-injection class).
+// per-turn into the prompt, NEVER into a `message_variants` row (transient-injection class).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 // The injection-position tuple — tied to the contract `ChatInjection["position"]` (compile-time validity).
@@ -539,7 +539,7 @@ export const chatInjections = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// chat_locks — the per-chat turn lock (chat.md §Decisions: a DB-backed concurrency primitive co-located
+// chat_locks — the per-chat turn lock (a DB-backed concurrency primitive co-located
 // with the table it guards). PK is the NATURAL `chat_id` (one lock per chat) — NO TypeID brand on the PK
 // (it is the chat's own id reused as the key). FK chats CASCADE (a deleted chat drops its lock).
 // `expiresAt` is the LOCK_TTL_MS horizon (multi-replica stale-takeover defense; the TTL value is a domain

@@ -1,4 +1,4 @@
-// domain/chat/engine/auto-mode — the AI→AI CHAINING loop (chat.md Part III §6 — auto-mode). Re-arbitrates
+// domain/chat/engine/auto-mode — the AI→AI CHAINING loop. Re-arbitrates
 // per turn (fixing ST's "deaf round" — a fresh `nextSpeaker` each iteration sees newly-committed canon +
 // presence), runs ONE turn, and repeats until a stop condition. DETERMINISTIC: the clock + the inter-turn
 // delay are INJECTED (D46 — no `Date.now()`/`setTimeout` ambient); the cap is explicit.
@@ -68,7 +68,7 @@ async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<St
 }
 
 /**
- * Run the auto-mode AI→AI chain (chat.md Part III §6). Returns how many turns ran, why it stopped, and the
+ * Run the auto-mode AI→AI chain. Returns how many turns ran, why it stopped, and the
  * committed messages across the chain. Deterministic given the injected `delay` + the arbitration/run
  * callbacks; the cap, the abort signal, eligibility, and the lock are the four stop conditions.
  */

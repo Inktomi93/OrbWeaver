@@ -1,5 +1,5 @@
 // domain/chat/contract/context — the explicit `ChatContext` DI bundle + every injected cross-feature op TYPE
-// (chat.md Part I 8-slot context + the "Cross-feature composition (the injection model)" table). HOMED under
+// (the "Cross-feature composition (the injection model)" table). HOMED under
 // `contract/` because the `types-in-contract`/`no-context-returntype` gate forbids an exported type in the
 // conventional `context.ts` slot (the connection precedent — `ConnectionContext` lives in `contract/`); the
 // top-level `context.ts` RE-EXPORTS this so the feature root + tests reference the DI bundle by name. It is an
@@ -9,7 +9,7 @@
 // sibling-domain runtime — `domain-no-cross-feature`; the ops are wired at the entry composition root). The op
 // TYPES reference only DOWN-the-cake contract/kit/db + foundation types; the runtime is adapted at the root.
 //
-// The chat ROLE (`runChatTurn`) is the ONE turn dispatch (chat.md §2 — "the domain calls a role, never a
+// The chat ROLE (`runChatTurn`) is the ONE turn dispatch ("the domain calls a role, never a
 // backend"): NO agent-sdk session/seed/runner vocab (inv §2/§3 — that is sealed in `infra/providers`).
 //
 // FLAG[memory-substrate]: `embeddings.store` / `search.digests` / `search.corpus` are injected at THIS seam but
@@ -59,13 +59,13 @@ import type { TurnRequest, TurnStreamChunk } from "./results";
  *  shape mirrors the kit `RegexExecuteOptions.applyReplace` seam. Bound at the root to `createRegexApplyReplace()`. */
 export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 
-// ── The turn role (chat.md §2 — the ONE dispatch) ─────────────────────────────
+// ── The turn role (the ONE dispatch) ─────────────────────────────
 /** The injected `chat` role (`infra/providers.runChatTurn`): the engine builds a {@link TurnRequest} and
  *  streams chunks back (text/reasoning deltas + a terminal `final` economics chunk). The 4 per-backend
  *  dispatch arms collapse into this ONE call; the runner translates `TurnRequest` → its sealed request. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
 
-// ── Connection / credentials (per-turn resolution; chat.md §7.1/§5) ───────────
+// ── Connection / credentials (per-turn resolution) ───────────
 /** `connection.resolveChat` — resolve `{api, model, credential, capability}` for a turn from the chat row's
  *  routable fields + the host's UserSettings, under the FROZEN `runAsUserId` (D19 — never the caller). */
 export type ResolveChatConnectionOp = (params: {
@@ -82,7 +82,7 @@ export type ResolveCredentialOp = (params: {
 }) => Promise<ResolvedCredential>;
 
 /** `credentials.maybeRevokeOnAuthFailed` — the post-turn auth_failed side-effect (un-invert the `_shared`
- *  drawer; chat.md movement table). Best-effort; never throws into the turn path. */
+ *  drawer). Best-effort; never throws into the turn path. */
 export type MaybeRevokeOnAuthFailedOp = (params: {
   readonly runAsUserId: UserId;
   readonly source: ChatSource;
@@ -156,7 +156,7 @@ export type NotificationsEmitOp = (
   coStatements?: readonly unknown[],
 ) => Promise<void>;
 
-/** `sessions.resolveHandle` — the EXACT handle→userId lookup for TARGETED invites (PD-66; chat.md §2 —
+/** `sessions.resolveHandle` — the EXACT handle→userId lookup for TARGETED invites (PD-66 —
  *  no listing, rate-limited at transport). Unknown/disabled collapses to null. Sessions is the sanctioned
  *  `users` reader; chat never reads `users` itself (`no-direct-users-read`). */
 export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;

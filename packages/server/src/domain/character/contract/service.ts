@@ -12,7 +12,7 @@
 // character surface in this slice, same as persona). The synthetic mint/find are internal chat-injected
 // ops on a resolved `ownerId`. Cross-feature deps (the avatar-reap, the tag attach, the domain-event emit)
 // arrive type-only on the bundle; character sideways-imports nothing (domain-no-cross-feature).
-// The default-card `seeder/` subsystem (PD-32, character.md §8-slot) lives in `seeder/` + `contract/seeder.ts`
+// The default-card `seeder/` subsystem (PD-32) lives in `seeder/` + `contract/seeder.ts`
 //   — it's reached by ENTRY over this service's `create`/`findByHandle` verbs (the injected settings latch
 //   ops are wired at the composition root), NOT a character verb, so no tier collapse here.
 

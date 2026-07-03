@@ -1,5 +1,5 @@
-// domain/chat/persistence/lock — the per-chat turn lock (chat.md §Decisions: "the chat turn lock home —
-// RESOLVED: chat/persistence/lock.ts"). A DB-backed concurrency primitive over the `chat_locks` table
+// domain/chat/persistence/lock — the per-chat turn lock. A DB-backed concurrency primitive over the
+// `chat_locks` table
 // (natural PK = `chatId`), the EXPLICIT named exception to "persistence is queries only" (inv #13): it does
 // INSERT/UPDATE/DELETE, not just reads, because it IS the concurrency mechanism, co-located with the table it
 // guards. Multi-replica-aware via a TTL horizon (`expiresAt`) + a `holder` tag; a stale lock is takeover-

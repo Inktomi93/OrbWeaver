@@ -1,5 +1,5 @@
-// domain/chat/contract/active-turns — the in-memory turn-controller registry TYPES (chat.md Part I 8-slot
-// `active-turns.ts` — the "active-turns Set-not-slot"). Homed here per the `types-in-contract` gate (an
+// domain/chat/contract/active-turns — the in-memory turn-controller registry TYPES. Homed here per the
+// `types-in-contract` gate (an
 // exported feature type lives in contract/, never on the root `active-turns.ts` file); the registry FACTORY
 // (`createActiveTurns`) is the value home at the chat root. See `../active-turns.ts` for the behavior + flags.
 

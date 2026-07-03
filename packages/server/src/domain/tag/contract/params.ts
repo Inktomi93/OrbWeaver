@@ -76,7 +76,7 @@ export interface BulkAttachTagParams extends TagActorParams {
 
 /**
  * The internal resolve-or-create-by-name card-tag attach (the `attachCardTagByName` verb) — character's
- * injected `AttachCardTagOp` (character.md / contract/service.ts). Deliberately NOT a {@link TagActorParams}:
+ * injected `AttachCardTagOp` (contract/service.ts). Deliberately NOT a {@link TagActorParams}:
  * it carries the already-resolved `ownerId` directly (NOT a `principal`), because the caller
  * (`character.bulkAddCardTag`) has ALREADY owner-verified the character. A trusted SYSTEM by-owner op wired at
  * the composition root — the same "un-principal, by-id, owner already gated" posture as character's

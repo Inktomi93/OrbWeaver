@@ -1,4 +1,4 @@
-// domain/character/contract/errors — the typed domain errors (character.md §8-slot contract/errors.ts).
+// domain/character/contract/errors — the typed domain errors.
 //   • CharacterNotFoundError — the entity is missing OR isn't the caller's (the two collapse into one
 //     answer; no foreign-existence leak), mirroring every owner-scoped read. Extends the kit
 //     `DomainNotFoundError` so the transport maps it to NOT_FOUND uniformly while callers/tests can

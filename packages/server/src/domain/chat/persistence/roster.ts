@@ -1,5 +1,5 @@
-// domain/chat/persistence/roster — the roster READ + the initial-membership row BUILDER (chat.md Part I 8-slot
-// `persistence/roster.ts`; un-exiled from neo's `_shared/group-character-rows`). QUERIES ONLY: `loadRoster`
+// domain/chat/persistence/roster — the roster READ + the initial-membership row BUILDER (un-exiled from
+// neo's `_shared/group-character-rows`). QUERIES ONLY: `loadRoster`
 // reads the present (or full) `chat_participants` set; `buildInitialRosterRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
 // `users` join here — the `no-direct-users-read` chokepoint); this returns the raw rows.

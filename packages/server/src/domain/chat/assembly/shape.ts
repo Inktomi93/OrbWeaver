@@ -1,9 +1,9 @@
-// domain/chat/assembly/shape — THE SHAPE substrate (chat.md Part II §2 ASSEMBLE phase 4 + §3 rules 5/6/7
-// + §8 the 2B rolling-pair cache breakpoint). The per-runner, per-speaker transform that turns the
+// domain/chat/assembly/shape — THE SHAPE substrate (ASSEMBLE phase 4 + the 2B rolling-pair cache
+// breakpoint). The per-runner, per-speaker transform that turns the
 // assembled (canon history, injections, speaker, params) into the final WIRE history + the cache
 // breakpoint offset.
 //
-// HOME (justified): the chat.md 8-slot offers two homes for this — "the SHAPE half of engine/pipeline.ts,
+// HOME (justified): the 8-slot template offers two homes for this — "the SHAPE half of engine/pipeline.ts,
 // or an assembly/shape.ts if the directory-module rule prefers". This chunk chooses `assembly/shape.ts`:
 //   1. Disjoint file sets — `engine/pipeline.ts` is the ENGINE chunk's slice (the runChatTurn dispatch +
 //      turn loop). SHAPE must not collide with it; co-locating SHAPE in `engine/` would force two chunks
@@ -12,7 +12,7 @@
 //      already lives in `assembly/`; the SHAPE COMPOSITION belongs with the shapers it orchestrates
 //      (the directory-module rule: assembly/ is the RESOLVE→GATHER→BUILD→SHAPE subsystem).
 //   3. Legibility — neo crammed SHAPE + dispatch into one 1600-line `pipeline.ts`, the exact "the order
-//      is invisible" failure chat.md §0 calls out. A named `shape.ts` makes the SHAPE order readable top
+//      is invisible" failure already flagged. A named `shape.ts` makes the SHAPE order readable top
 //      to bottom. The ENGINE's pipeline imports `shape` from here and only PLACES the cache tag.
 //
 // THE ORDER (read top to bottom): scope-to-speaker (egocentric) → splice in_chat by depth → squash
@@ -53,7 +53,7 @@ type GroupOutput = GroupConfig["output"];
 type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
 /** The resolved per-turn inputs SHAPE consumes. The engine RESOLVE/GATHER/BUILD stages produce these;
- *  SHAPE is pure given them (`shape(turnCtx, speaker)` — chat.md §5 immutable-ctx). */
+ *  SHAPE is pure given them (`shape(turnCtx, speaker)` — immutable-ctx). */
 interface ShapeInput {
   /** Loaded canon (empty when the `chat_history` pivot is disabled for the turn). */
   canon: readonly CanonRow[];
@@ -131,7 +131,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
 // (depth 0/1 land at/after it) + squash (the prefix is alternating canon → no internal merge) it stays
 // at index stableCount-1 in the final array → offset = finalLen - stableCount.
 /** @internal — exported for the off-by-one unit test, which drives the REAL splice + squash to build the
- *  inputs (chat.md §8 / Part III §12 inv 7). */
+ *  inputs. */
 export function computeHistoryBreakpoint(
   withTail: readonly { role: WireRole; content: string }[],
   injected: readonly { role: WireRole; content: string }[],
@@ -171,7 +171,7 @@ export function computeHistoryBreakpoint(
 }
 
 /**
- * The SHAPE transform. Pure given its input (chat.md §5). Returns the final wire history, the §8 cache
+ * The SHAPE transform. Pure given its input. Returns the final wire history, the §8 cache
  * breakpoint offset, and the per-stage snapshots (host/admin trace + the differential oracle).
  *
  * `no-if(isGroup)`: every group behavior is DATA-driven (roster size via `hasMultipleCharacters`, the

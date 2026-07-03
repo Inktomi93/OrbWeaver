@@ -1,8 +1,8 @@
-// domain/chat/contract/metadata — the `chats.metadata` blob parser (chat.md Part I §metadata + Part III §9;
-// the "metadata strict/lazy-parse fault isolation" load-bearing rule). This is the ONE file in the chat
+// domain/chat/contract/metadata — the `chats.metadata` blob parser (the "metadata strict/lazy-parse fault
+// isolation" load-bearing rule). This is the ONE file in the chat
 // contract slice with RUNTIME behavior (it gets a real test).
 //
-// THE FAULT-ISOLATION CONTRACT (chat.md Esoteric §"metadata strict/lazy-parse"):
+// THE FAULT-ISOLATION CONTRACT ("metadata strict/lazy-parse"):
 //   • the TOP level is LOOSE — unknown future fields are preserved, never dropped.
 //   • each sub-blob (`group` / `roomOverrides` / `opening` / `providerRouting`) is LAZY-parsed INDEPENDENTLY,
 //     so a malformed one falls back to its default WITHOUT nuking its siblings (a corrupt `group` must not
@@ -27,10 +27,10 @@ import { parseProviderRouting } from "@orb/contracts/connection";
 import { z } from "zod";
 
 /**
- * The parsed `chats.metadata` blob (chat.md Part I §metadata). Every sub-blob is OPTIONAL — absent ⇒ the
+ * The parsed `chats.metadata` blob. Every sub-blob is OPTIONAL — absent ⇒ the
  * consumer applies the canonical default (the off-path is byte-identical). The shape mirrors the db
- * `ChatMetadata` JSON column (`@orb/db/schema/chat.ts`) PLUS `providerRouting` (the chat.md Esoteric note +
- * the connection `RoutableChat` routing field — see FLAG in the handoff).
+ * `ChatMetadata` JSON column (`@orb/db/schema/chat.ts`) PLUS `providerRouting` (the connection
+ * `RoutableChat` routing field — see FLAG in the handoff).
  */
 export interface ChatMetadata {
   group?: GroupConfig;
@@ -94,7 +94,7 @@ export function parseChatMetadata(raw: unknown): ChatMetadata {
 /**
  * The effective {@link GroupConfig} for a chat's raw `metadata` blob — the parsed `group` sub-blob, or the
  * canonical {@link DEFAULT_GROUP_CONFIG} (per-speaker × merged, natural arbitration; the solo/off path is
- * byte-identical — chat.md Part III §0/§7). Accepts the RAW column value (fault-isolated internally).
+ * byte-identical). Accepts the RAW column value (fault-isolated internally).
  */
 export function getGroupConfig(rawMetadata: unknown): GroupConfig {
   return parseChatMetadata(rawMetadata).group ?? DEFAULT_GROUP_CONFIG;
@@ -102,7 +102,7 @@ export function getGroupConfig(rawMetadata: unknown): GroupConfig {
 
 /**
  * The effective {@link RoomOverrides} for a chat's raw `metadata` blob — the parsed `roomOverrides` sub-blob,
- * or the empty {@link DEFAULT_ROOM_OVERRIDES} (inherit everything — chat.md Part III §9). Accepts the RAW
+ * or the empty {@link DEFAULT_ROOM_OVERRIDES} (inherit everything). Accepts the RAW
  * column value (fault-isolated internally).
  */
 export function getRoomOverrides(rawMetadata: unknown): RoomOverrides {

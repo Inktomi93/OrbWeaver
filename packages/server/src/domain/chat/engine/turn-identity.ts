@@ -3,7 +3,7 @@
 // the consent belt. (The verb calls `resolveTurnIdentity` to build the `TurnPrep` triple; the engine calls
 // `assertMaxProSubConsent` IN-LOCK once the connection source is known.)
 //
-// THE TRIPLE (chat.md Part III §5 / D19 — there is NO `callerUserId` term, the `no-caller-user-id` gate):
+// THE TRIPLE (D19 — there is NO `callerUserId` term, the `no-caller-user-id` gate):
 //   • the CALLER         = `Principal.userId` (membership/CSRF; a human post's `authorUserId`). Passed here
 //                          as `principalUserId` — it NEVER reaches credential/settings resolution.
 //   • `triggeredBy`      = the human RESPONSIBLE for the turn (spend budget + abort-rights + attribution) =
@@ -13,7 +13,7 @@
 //                          Carries the credential/routing id, the role the gate reads, and the model
 //                          effort/intent is gated against — all rebind to the host together.
 //
-// THE BY-PROXY REFUSAL (chat.md Part III §5 / §12 inv 3, fail-closed, default OFF): a NON-owner-triggered
+// THE BY-PROXY REFUSAL (fail-closed, default OFF): a NON-owner-triggered
 // `max-pro-sub` (hosted creds) turn is refused unless EXPLICIT owner consent. `triggeredBy ≠ runAsUserId`
 // (the host funds it but someone else triggered it) forces the consent check; absent consent → refuse.
 
@@ -50,7 +50,7 @@ export function resolveTurnIdentity(params: {
 }
 
 /**
- * The max-pro-sub by-proxy refusal (chat.md Part III §5 / inv 3). Throws `ChatOperationError('consent_required')`
+ * The max-pro-sub by-proxy refusal. Throws `ChatOperationError('consent_required')`
  * when a hosted-credential (`max-pro-sub`) turn is triggered by someone OTHER than the funding host and the
  * owner has not consented (default OFF). Local compute (vllm / local-light) + openrouter (the triggerer's
  * own key path) are not gated here — only the owner-only hosted class. Fail-closed: no consent ⇒ refuse.

@@ -1,12 +1,12 @@
-// domain/chat/verbs/edit — the canon-EDIT verbs (the non-generation slot/variant mutations; chat.md Part III
-// the per-VERB specs + §11 the auth matrix; D26). A message is a SLOT (`messages`) ⋈ its selected
+// domain/chat/verbs/edit — the canon-EDIT verbs (the non-generation slot/variant mutations; D26). A message
+// is a SLOT (`messages`) ⋈ its selected
 // `message_variant`: an edit mutates the VARIANT content/reasoning (`editMessage`/`editReasoning`/
 // `clearReasoning`) OR the SLOT's selection/attribution/hidden/seq (`selectVariant`/`setMessageHidden`/
 // `reattributeMessages`/`moveMessage`/`deleteMessages`) — NEVER doubling content (D26 inv §15). Each verb:
 // gate (`ctx.can` via the guard) → the D26-correct mutation → emit the room-public bus event → return the
 // fresh `MessageView` (or void for the bulk mutators).
 //
-// AUTHORITY (chat.md §11 / substrate/auth/matrix): edit/delete a slot → `author-or-host`; reorder
+// AUTHORITY (substrate/auth/matrix): edit/delete a slot → `author-or-host`; reorder
 // (`moveMessage`) + re-attribute → `host`. The bulk `deleteMessages` gates each target's author independently
 // (the host clears any; a member clears only their own).
 //
@@ -113,7 +113,7 @@ async function reloadSlot(
   return view;
 }
 
-/** Resolve the speaking character's name for the canon-purity strip (chat.md — the trusted `Name:` label is
+/** Resolve the speaking character's name for the canon-purity strip (the trusted `Name:` label is
  *  out-of-band; a manual edit must not bake a leaked self-label into canon). The card reads under the room
  *  HOST's ownership (D28/D16); a hostless room / null card degrades to `""` (the strip becomes a tag-only
  *  no-op — never an error, never a wrong-name strip). */
@@ -131,7 +131,7 @@ async function resolveSpeakerName(
   return card?.name ?? "";
 }
 
-/** The D26 canon-purity strip at persist (chat.md): a per-speaker assistant edit drops a leaked leading
+/** The D26 canon-purity strip at persist: a per-speaker assistant edit drops a leaked leading
  *  `<speaker>`/`Name:` self-label so stored canon stays the spoken text only. Applied ONLY to a character-
  *  voiced slot; a user/system row (no `characterId`) keeps its content verbatim. */
 async function purifyEditedContent(
@@ -181,7 +181,9 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
 
 // ── editMessage (D26 — mutate the SELECTED variant's content; the slot is unchanged) ─────────────────────────
 /** `editMessage` — author-or-host. Overwrite the SELECTED variant's content in place (D26 — never doubles
- *  content) + stamp `editedAt`; the per-speaker canon-purity strip runs first. Emits `messageEdited`. */
+ *  content) + stamp `editedAt`; the per-speaker canon-purity strip runs first. Emits `messageEdited`.
+ *  FLAG[PD-110]: `runOnEdit` regex-on-edit is unwired here — only `purifyEditedContent` (the self-label
+ *  strip) runs before the verbatim write; the edited content never re-applies a `runOnEdit` regex. */
 function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["editMessage"] {
   return async ({ principal, chatId, messageId, content }: EditMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);

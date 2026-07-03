@@ -1,4 +1,4 @@
-// domain/chat/substrate/auth/decide — THE chat-authority decision core (chat.md Part III §11; spine §2a/§7.1).
+// domain/chat/substrate/auth/decide — THE chat-authority decision core (spine §2a/§7.1).
 // Zero I/O: every function decides over an ALREADY-LOADED membership (the `loadMemberChat` result) — the
 // verb/guard does the one db read (the turn loads it anyway, spine §6 "no extra query"), this layer is the
 // verdict. The `chat_participants.role` (`host|member`) IS the authority signal (D18 — replaces owner-equality;
@@ -20,7 +20,7 @@ import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../../cont
 /**
  * Present-membership gate (`requireParticipant`'s leak-free DATA half). A `loadMemberChat` MISS (`undefined` —
  * no such chat OR the caller is not a present member) collapses to ONE leak-free {@link ChatNotFoundError}
- * (chat.md Part III §11: a non-participant must not learn a foreign chat exists). On a hit, returns the loaded
+ * (a non-participant must not learn a foreign chat exists). On a hit, returns the loaded
  * membership unchanged (the verb reuses the row — no second query). This is NOT a `can()` decision: presence
  * is the precondition `can()` assumes — a non-member never reaches the seam. Generic so it never names the
  * file-local `loadMemberChat` row shape (queries.ts: "callers read the inferred return").
@@ -57,7 +57,7 @@ function permits(
  * verdict through `can(principal, 'host', {kind:'chat', roster})`. A member who is not the host is a KNOWN
  * existence (they're in the room), so the seam's deny is re-expressed as an authority refusal, NOT a leak:
  * {@link ChatOperationError}(`not_host`). Host-only surfaces: reseed/reorder/group-config/room-overrides/
- * invites/kick/handoff/anchor-reassignment/memberCardVisibility (chat.md §11).
+ * invites/kick/handoff/anchor-reassignment/memberCardVisibility.
  */
 export function assertHost(
   can: Can,
@@ -74,7 +74,7 @@ export function assertHost(
 }
 
 /**
- * Author-or-host gate (edit/delete a slot — chat.md §11). The caller passes if they authored the slot
+ * Author-or-host gate (edit/delete a slot). The caller passes if they authored the slot
  * (`authorUserId === principal.userId`) OR the seam grants host authority (`can(…, 'host', …)`). A null
  * `authorUserId` (a character/system-authored row) is never author-matchable, so only the host clears it.
  * A member who is neither author nor host is a KNOWN existence → {@link ChatOperationError}(`not_author`)

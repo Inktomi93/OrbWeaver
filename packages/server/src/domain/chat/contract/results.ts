@@ -3,10 +3,10 @@
 // live here, never inline on the engine). Most reads return a `views.ts` read-model; most canon-edits return
 // a `MessageView`; the bulk mutators return `void` — only the shapes that aren't one of those are declared.
 //
-// ENGINE TYPES (chat.md movement table — "engine inline types → chat contract/"): `TurnRequest` /
+// ENGINE TYPES ("engine inline types → chat contract/"): `TurnRequest` /
 // `TurnOutcome` / `TurnPrep` / `TurnEngine` / `VariantProvenance` (+ the `TurnKind` dispatch axis). These are
 // the LEAF contract the SHAPE/engine + verb-impl chunks build against — the turn path is "the domain calls a
-// role, never a backend" (chat.md §2): the engine builds a {@link TurnRequest} and calls the injected
+// role, never a backend": the engine builds a {@link TurnRequest} and calls the injected
 // `runChatTurn` role (see `context.ts`), which carries NO agent-sdk session/seed/runner vocab (inv §2/§3).
 
 import type {
@@ -34,7 +34,7 @@ export type { TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 // The engine turn-dispatch axis
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** The 8 turn KINDS the engine drives (chat.md §"What this domain owns" — the per-turn driver). DISTINCT
+/** The 8 turn KINDS the engine drives (the per-turn driver). DISTINCT
  *  from the public 5-member `TurnIntent` (the bus lifecycle axis, `@orb/contracts/chat`): this is the
  *  internal dispatch axis the engine + SHAPE switch on. NB: the movement table calls this engine type
  *  `TurnIntent`; it is RENAMED `TurnKind` here to avoid colliding with the canonical public `TurnIntent`
@@ -46,8 +46,8 @@ export type GroupOutput = GroupConfig["output"];
  *  + egocentric history). Lives ONLY on the `per-speaker` arm (`narrator ⇒ merged`, schema-unrepresentable). */
 export type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
-/** The per-speaker SHAPE axis a group round resolves and threads onto {@link TurnPrep} (chat.md Part III §7 —
- *  two-axis generation). ABSENT on the prep ⇒ the single-speaker core's pinned default (`per-speaker`/`merged`/
+/** The per-speaker SHAPE axis a group round resolves and threads onto {@link TurnPrep} (two-axis generation).
+ *  ABSENT on the prep ⇒ the single-speaker core's pinned default (`per-speaker`/`merged`/
  *  no fold, `{{char}}`=the assemble ctx's primary) — so solo is byte-identical (D16) and the chunk-9 pipeline
  *  tests are unchanged. The arbitration/round-driver chunk SETS it per resolved speaker. */
 export interface TurnSpeakerShape {
@@ -78,7 +78,7 @@ export const TURN_KINDS = [
 export type TurnKind = (typeof TURN_KINDS)[number];
 
 /**
- * The persist MODE for a turn's generated output (chat.md Part III — the per-MODE persist step the ONE engine
+ * The persist MODE for a turn's generated output (the per-MODE persist step the ONE engine
  * lifecycle parametrizes; D26). ABSENT on a {@link TurnPrep} ⇒ `new-slot` assistant (the chunk-9 default: a
  * fresh assistant slot at `maxSeq+1`). The belts → turnStarted → pipeline → emit spine is SHARED across all
  * modes; only the persist step + the canon-context truncation differ:
@@ -104,10 +104,10 @@ export type TurnPersist =
   | { readonly mode: "continue"; readonly targetMessageId: MessageId };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The role-call request/response (the ONE turn dispatch — chat.md §2)
+// The role-call request/response (the ONE turn dispatch)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** One shaped history message handed to the role on the wire (chat.md SHAPE output). The content is the
+/** One shaped history message handed to the role on the wire (SHAPE output). The content is the
  *  post-SHAPE text (squash + name-stamp applied). NB: the multimodal SEND model (D45 `ChatHistoryMessage`
  *  → content-parts) is NOT yet homed cross-package — this is the pre-D45 text shape; the engine chunk
  *  extends it to content-parts when D45 lands (FLAGGED). */
@@ -126,8 +126,8 @@ export interface TurnMessage {
 }
 
 /**
- * The chat-domain turn REQUEST the engine builds and hands to the injected `runChatTurn` role (chat.md §2 —
- * "the domain calls a role, never a backend"). SDK/provider-free: it carries NO `sessionStore`/`resume`/
+ * The chat-domain turn REQUEST the engine builds and hands to the injected `runChatTurn` role
+ * ("the domain calls a role, never a backend"). SDK/provider-free: it carries NO `sessionStore`/`resume`/
  * `runner`/`family` (inv §2/§3 — the agent-sdk session is sealed in `infra/providers`). The runner translates
  * THIS into its sealed `ChatTurnRequest` at the boundary.
  */
@@ -141,7 +141,7 @@ export interface TurnRequest {
   readonly intent: UserIntent;
   readonly kind: TurnKind;
   /** The §8 rolling-pair cache breakpoint offset from the tail (computed in SHAPE; the runner only PLACES
-   *  the `cache_control` tag here). Null ⇒ no safe boundary this round (chat.md §8/Part III §7). */
+   *  the `cache_control` tag here). Null ⇒ no safe boundary this round. */
   readonly cacheBreakpointFromEnd: number | null;
   readonly signal?: AbortSignal | undefined;
 }
@@ -178,7 +178,7 @@ export interface TurnEconomics {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * The immutable per-turn context (chat.md §5 — RESOLVE+GATHER produce it; BUILD+SHAPE take it + a speaker
+ * The immutable per-turn context (RESOLVE+GATHER produce it; BUILD+SHAPE take it + a speaker
  * and return a prompt, never mutating it). Carries the assemble ctx, the resolved connection, the
  * turn-identity triple (D19), and the turn kind. A per-speaker round re-derives SHAPE off this immutable
  * prep (+ the advancing canon) — no shared-ctx mutation (inv §4/§5).
@@ -207,7 +207,7 @@ export interface TurnPrep {
   /** The Step-6b group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round (the
    *  arbitration chunk's seam); null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
-  /** The per-speaker two-axis SHAPE (output × cardScope × scopedTarget × name — chat.md Part III §7), set by
+  /** The per-speaker two-axis SHAPE (output × cardScope × scopedTarget × name), set by
    *  the group round driver. ABSENT ⇒ the single-speaker core's pinned default (per-speaker/merged/primary
    *  name); solo stays byte-identical (D16). */
   readonly shape?: TurnSpeakerShape | undefined;
@@ -215,7 +215,7 @@ export interface TurnPrep {
    *  a fresh assistant slot at the canon tail). swipe/regenerate set `append-variant`; continue sets
    *  `continue`; impersonate sets `new-slot` with `role:"user"`. */
   readonly persist?: TurnPersist | undefined;
-  /** Lock-free execution (chat.md active-turns) — `generate` runs CONCURRENT with a locked send (it does NOT
+  /** Lock-free execution — `generate` runs CONCURRENT with a locked send (it does NOT
    *  acquire the per-chat send lock; the active-turns registry is its only concurrency control). ABSENT/false
    *  ⇒ the locked path (send/swipe/continue/impersonate/force). */
   readonly lockFree?: boolean | undefined;
@@ -229,8 +229,8 @@ export interface TurnPrep {
  * The injected per-turn driver the composition root builds ONCE and hands the verbs (service.ts "builds ctx +
  * one turnEngine"). `runTurn` executes the lifecycle shell (lock → preflight → plan → executeTurn → persist →
  * background) and resolves with the {@link TurnOutcome}; streaming deltas fan out over the chat bus, not the
- * return value (await-before-deliver durability — chat.md §"the chat bus"). The lock-free `runCompaction` is
- * injected INTO this engine at the root (chat.md §Decisions — compaction).
+ * return value (await-before-deliver durability). The lock-free `runCompaction` is
+ * injected INTO this engine at the root (compaction).
  */
 export interface TurnEngine {
   readonly runTurn: (prep: TurnPrep) => Promise<TurnOutcome>;
@@ -243,13 +243,13 @@ export interface TurnOutcome {
    *  turn aborted before any commit. */
   readonly messages: readonly MessageView[];
   readonly aborted: boolean;
-  /** Set only when `aborted` — why the turn ended (chat.md `TURN_ABORT_REASONS`). */
+  /** Set only when `aborted` — why the turn ended (`TURN_ABORT_REASONS`). */
   readonly abortReason?: TurnAbortReason | undefined;
 }
 
 /** Per-variant provenance recorded on each generated `message_variants` row (D26) — which turn produced it +
  *  the §8 cache hint. The static/dynamic split survives ONLY as this advisory provenance hint, never a cache
- *  gate (chat.md §8/Part II §11 — the hard boundary-gate is dead). */
+ *  gate (the hard boundary-gate is dead). */
 export interface VariantProvenance {
   readonly kind: TurnKind;
   readonly triggeredBy: UserId;

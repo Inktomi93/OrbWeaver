@@ -1,6 +1,6 @@
-// domain/chat/contract/errors — the typed chat domain errors (chat.md Part I 8-slot `contract/errors.ts`).
+// domain/chat/contract/errors — the typed chat domain errors.
 //   • ChatNotFoundError — the chat is missing OR the caller is not a participant (the two collapse into one
-//     answer — no foreign-existence leak; chat.md Part III §11: `requireParticipant` failure is NOT_FOUND,
+//     answer — no foreign-existence leak; `requireParticipant` failure is NOT_FOUND,
 //     never a "you're not the host of <that real chat>" leak). Extends the kit `DomainNotFoundError` so the
 //     transport maps it to NOT_FOUND uniformly while callers/tests discriminate the entity.
 //   • ChatOperationError — a coded operational failure (the `code` discriminates). The reason strings live
@@ -27,10 +27,10 @@ export const CHAT_OP_CODES = {
   /** A host-only verb (roster mutation, group-config, room-overrides, force-character, kick, delete-chat,
    *  invites, handoff, anchor-reassignment, memberCardVisibility) called by a non-host member. */
   notHost: "not_host",
-  /** An edit/delete-a-slot verb (`author-or-host`, chat.md §11) called by a member who is neither the slot's
+  /** An edit/delete-a-slot verb (`author-or-host`) called by a member who is neither the slot's
    *  `authorUserId` nor the room host — a known-existence authority refusal (the caller IS a member). */
   notAuthor: "not_author",
-  /** An abort called by a member who does not own the in-flight turn (`turn-owner`, chat.md §11 — the
+  /** An abort called by a member who does not own the in-flight turn (`turn-owner` — the
    *  rollback-theft defense; a host aborting a member's turn is refused). */
   notTurnOwner: "not_turn_owner",
   /** A roster mutation targeted a participant that is not a PRESENT member of the chat (missing or already
@@ -45,15 +45,15 @@ export const CHAT_OP_CODES = {
   /** A turn aborted (user-cancelled / stale / error) — the lifecycle refusal surfaced to the caller. */
   aborted: "aborted",
   /** A room-override write targeted a field outside the four-field host allowlist, or a `forbidRoomOverride`
-   *  field — default-deny (chat.md Part III §9). */
+   *  field — default-deny. */
   forbiddenOverride: "forbidden_override",
-  /** A non-owner-triggered `max-pro-sub` turn without explicit owner consent (chat.md Part III §5/inv 3 —
-   *  by-proxy refused, fail-closed, default OFF). */
+  /** A non-owner-triggered `max-pro-sub` turn without explicit owner consent (by-proxy refused, fail-closed,
+   *  default OFF). */
   consentRequired: "consent_required",
-  /** The per-member turn/request COUNT budget is exhausted (chat.md Part III §5, debited in-lock). */
+  /** The per-member turn/request COUNT budget is exhausted (debited in-lock). */
   budgetExceeded: "budget_exceeded",
   /** A multi-human / membership surface was reached while the deployment is in `single-user` AUTH_MODE
-   *  (chat.md Part III §2/§11 — the capability gate). */
+   *  (the capability gate). */
   singleUserMode: "single_user_mode",
   /** `seatAgent` targeted an owner who is not a PRESENT human member of the room (D60, doc 04 §3 — an agent
    *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing). */

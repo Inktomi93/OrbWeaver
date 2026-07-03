@@ -1,5 +1,5 @@
-// domain/character/substrate/card-tokens — the list-only card-heft estimate (character.md §8-slot
-// substrate/card-tokens.ts; Movement: "stays domain feature — local list-presentation logic"). Pure,
+// domain/character/substrate/card-tokens — the list-only card-heft estimate
+// (Movement: "stays domain feature — local list-presentation logic"). Pure,
 // zero-I/O. DERIVES the ONE generic estimator from `@orb/kit/tokens` (`estimateTokens`, the OpenRouter
 // QuadChars algo) — it does NOT re-implement counting (no-doubling). Joins the card's free-text fields
 // into one definition string (greetings appended), then estimates. Advisory only — billing truth is the

@@ -1,6 +1,6 @@
 // domain/character/contract/results — the thin result shapes that aren't a `CharacterDetail`/`void`
-// (one home, §7.4). The CRUD reads return `CharacterDetail` (views.ts); the bulk mutators return `void`
-// (character.md §Verbs). Only the history + synthetic-identity verbs carry their own small shapes.
+// (one home, §7.4). The CRUD reads return `CharacterDetail` (views.ts); the bulk mutators return `void`.
+// Only the history + synthetic-identity verbs carry their own small shapes.
 
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 

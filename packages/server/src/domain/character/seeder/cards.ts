@@ -1,4 +1,4 @@
-// domain/character/seeder/cards — the authored default-card pack (character.md §8-slot seeder/cards.ts).
+// domain/character/seeder/cards — the authored default-card pack.
 //
 // Carried VERBATIM from neo-tavern's `domain/character/seed.ts` (Alex 2026-06-28): the Assistant (the welcome
 // assistant) + Rev + Niko + Mara + JFC — 5 authored cards. The ONLY content edit is the Assistant copy's

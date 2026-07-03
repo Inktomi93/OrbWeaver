@@ -37,7 +37,7 @@ export interface ResolvedPersonas {
  *   • `scanDepth`           — the host's `UserSettings.worldInfo.scanDepth` (settings) — the WI keyword-scan
  *                             window the gather slices `recentMessages` to.
  *   • `injectionTokenBudget`— the host's `UserSettings.worldInfo.tokenBudget` (settings) — the ONE injection
- *                             budget pass (0 ⇒ unbudgeted; chat.md §4).
+ *                             budget pass (0 ⇒ unbudgeted).
  *   • `memoryConfig`        — the resolved memory tuning (`AppSettings.memoryDefaults` ⊕ `UserSettings.memory`
  *                             enable, settings/admin) the recall reads; absent ⇒ the recall floor (`DEFAULTS`).
  */

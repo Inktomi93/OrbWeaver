@@ -90,7 +90,7 @@ export interface GetCardParams extends CharacterActorParams {
 }
 
 /** Synthetic group-character mint/find (chat-injected, internal): act on the resolved room `ownerId`, not
- *  a request principal. The `__group__${chatId}` handle namespace is owned here (character.md invariant 7). */
+ *  a request principal. The `__group__${chatId}` handle namespace is owned here. */
 export interface MintGroupCharParams {
   readonly ownerId: UserId;
   readonly chatId: ChatId;

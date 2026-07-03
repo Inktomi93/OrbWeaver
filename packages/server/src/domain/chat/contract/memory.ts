@@ -1,4 +1,4 @@
-// domain/chat/contract/memory — the type HOME for the `memory/` subsystem (chat.md Part I §memory). The
+// domain/chat/contract/memory — the type HOME for the `memory/` subsystem. The
 // `types-in-contract` gate forbids an exported feature type in a subsystem file (verb/substrate/subsystem),
 // so the subsystem's internal types are declared HERE and RE-EXPORTED from `memory/types.ts` (the connection/
 // context.ts precedent — one type home, a conventional-slot re-export). These are subsystem-internal (they

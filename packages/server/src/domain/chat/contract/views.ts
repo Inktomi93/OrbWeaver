@@ -1,5 +1,5 @@
-// domain/chat/contract/views — the client read-models the chat service returns (chat.md Part I 8-slot
-// `contract/views.ts`). One home for the shapes (§7.4 / types-in-contract). Cross-boundary read-models that
+// domain/chat/contract/views — the client read-models the chat service returns. One home for the shapes
+// (§7.4 / types-in-contract). Cross-boundary read-models that
 // already live in `@orb/contracts/chat` (the wire node) are RE-EXPORTED here type-only (derive-don't-respell,
 // §7.5) so the service signatures + the front door reference one name — they are NOT re-declared:
 //   • MessageView        — the D26 slot⋈selected-variant read-model (listMessages / turn results).
@@ -75,7 +75,7 @@ export interface ChatDetail {
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor
- *  is walked + gated INDEPENDENTLY (a fork grants NO parent membership — chat.md inv §16/§12); a hidden/
+ *  is walked + gated INDEPENDENTLY (a fork grants NO parent membership); a hidden/
  *  not-a-member ancestor is omitted, so the chain may be sparse. */
 export interface ChatLineageView {
   /** Oldest ancestor → … → this chat. Membership-gated per ancestor (omitted where not a member). */
@@ -99,8 +99,8 @@ export interface ChatInjectionView extends ChatInjection {
  *  and getStoredVariables (the persisted `chats.variableValues` flush) both return this shape. */
 export type ChatVariables = Record<string, string>;
 
-/** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor (chat.md
- *  §"resumable SSE stream log"; the db `chat_stream_events` row projected). */
+/** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
+ *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */
 export interface ChatStreamReplayEvent {
   readonly seq: number;
   readonly messageId: MessageView["id"] | null;
@@ -124,7 +124,7 @@ export interface StreamEventBounds {
   readonly maxSeq: number | null;
 }
 
-/** The 4-scope world-info pool resolved for a chat (the WI activation surface; chat.md `assembly/world-info/
+/** The 4-scope world-info pool resolved for a chat (the WI activation surface; `assembly/world-info/
  *  pool.ts` — the union STAYS chat). A read-model of which entries are in scope for this chat's next turn,
  *  for the WI panel + the activation preview (NOT the rendered prompt — that's `AssembledPrompt`). */
 export interface WorldInfoPoolChat {

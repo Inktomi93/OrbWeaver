@@ -1,4 +1,4 @@
-// domain/chat/memory/persistence/queries — memory's OWN db reads (chat.md Part I §memory `persistence/`):
+// domain/chat/memory/persistence/queries — memory's OWN db reads:
 // the chat META (`maxSeq`), the canon a block is built from (slot ⋈ selected variant — D26), and the NON-vector
 // digest/segment/speaker facets (staleness hashes + recall facets). QUERIES ONLY — NO vector WRITE (that is
 // `embeddings.store`, the one write path), NO cosine (that is `search.*`), NO module-scope state. Memory READS

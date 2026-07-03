@@ -1,11 +1,11 @@
 // domain/chat/verbs/fork — `forkChat` (D27: a fork is a DEEP COPY into a NEW membership-scoped chat; the ONLY
-// link is `chats.parentChatId`; NO shared rows). chat.md inv §16 / the auth matrix: a member may fork the
+// link is `chats.parentChatId`; NO shared rows). Per the auth matrix: a member may fork the
 // source, and the FORKER becomes the new chat's HOST (a fork grants NO parent membership). Every copied row —
 // the chat, each message SLOT + EVERY one of its variants (swipes), each persisted injection — gets a FRESH
 // id, and the slot's `selectedVariantId` pointer is REMAPPED to the copied variant. The whole copy commits in
 // ONE atomic `db.batch` (so a fork is all-or-nothing).
 //
-// WHAT IS COPIED vs RESET (chat.md inv §16 + D27 + the D16 participant chokepoint — reconciled):
+// WHAT IS COPIED vs RESET (D27 + the D16 participant chokepoint — reconciled):
 //   • COPIED: the chat row's behavior (title/metadata/anchor/variables), the CHARACTER roster (the cast — so
 //     the conversation can continue), the canon (messages + all variants up to `throughSeq`), the injections.
 //   • RESET: `parentChatId` → the source; `forkedAt`/timestamps → now; `star`/`archived` → false; the HOST →

@@ -1,4 +1,4 @@
-// domain/chat/assembly/role-squash — the SHAPE-phase adjacent-same-role squash (chat.md Part II §3 rule 6).
+// domain/chat/assembly/role-squash — the SHAPE-phase adjacent-same-role squash.
 //
 // Wire-shape concern: many providers require strict user/assistant alternation. Anthropic's
 // chat-completions endpoint hard-errors on adjacent same-role messages; Bedrock matches; older Gemini

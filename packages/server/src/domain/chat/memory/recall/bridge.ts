@@ -8,7 +8,7 @@
 // Indexing (matches `build/digests.ts`): a tier-k digest at blockIdx j covers tier-0 range
 // `[j·fanOutᵏ, (j+1)·fanOutᵏ − 1]`. No search call (mixA/tiered are pure assembly — §11 #1); the
 // `MemoryQueryOptions.candidates` restriction is the seam for a FUTURE retrieval-restricted tiered mode.
-// FLAG[tiered-vs-candidates]: chat.md §11 #1 ("tiered = pure assembly") vs #2 ("tiered passes bridge keys as a
+// FLAG[tiered-vs-candidates]: #1 ("tiered = pure assembly") vs #2 ("tiered passes bridge keys as a
 // candidate-restriction param") read in tension — resolved as: base tiered is pure assembly (here), the
 // `candidates` param exists for the retrieval-combined case (see return note in `recall.ts`).
 

@@ -1,5 +1,5 @@
-// domain/chat/contract/service — the ChatService interface: the read-this-to-know-everything public surface
-// (chat.md Part I §"Public surface" + Part III §1/§2). Written WHOLE now so verb-impl chunks never re-touch
+// domain/chat/contract/service — the ChatService interface: the read-this-to-know-everything public surface.
+// Written WHOLE now so verb-impl chunks never re-touch
 // this file. Groups: reads/lifecycle · turn-running · canon-edits · injections · variables · chat-row ·
 // group/roster · invites · membership-lifecycle.
 //
@@ -9,10 +9,10 @@
 // TURN path freezes the D19 identity triple (`triggeredBy`/`runAsUserId`) internally — the caller never
 // passes them.
 //
-// `generateOpening` is INTERNAL (injected into `startChat`, NOT on this interface — chat.md §"Public surface").
+// `generateOpening` is INTERNAL (injected into `startChat`, NOT on this interface).
 // The invite + membership-lifecycle surface (createInvite/previewInvite/redeemInvite/revokeInvite/
-// declineInvite · kick/selfLeave/nominateHostHandoff/acceptHostHandoff) is sourced from chat.md Part III §1/§2
-// + the 8-slot `verbs/{invites,roster}.ts` (the prose's "54 verbs" headline under-listed them). `redeemInvite`
+// declineInvite · kick/selfLeave/nominateHostHandoff/acceptHostHandoff) is sourced from
+// the 8-slot `verbs/{invites,roster}.ts` (an earlier "54 verbs" headline under-listed them). `redeemInvite`
 // is the ONE participant-insert chokepoint AND the only public human-join path — there is NO standalone `join`
 // verb (re-add rides the redeem upsert; characters join via `addCharacterToChat`). The two-party host handoff
 // is modelled as TWO verbs (nominate + accept). The "@public" memory/persistence helpers (loadChatMeta/
@@ -183,7 +183,8 @@ export interface ChatService {
   // ── canon edits ───────────────────────────────────────────────────────────────
   /** Flip `selectedVariantId` to a sibling swipe (pointer move, zero copy — D26). */
   readonly selectVariant: (params: SelectVariantParams) => Promise<MessageView>;
-  /** Edit the selected variant's content (author-or-host; `runOnEdit` regex re-applies). */
+  /** Edit the selected variant's content (author-or-host; self-label purify only — NO `runOnEdit`
+   *  regex re-applies yet, FLAG[PD-110]). */
   readonly editMessage: (params: EditMessageParams) => Promise<MessageView>;
   /** Toggle `excludedFromPrompt` (held out of assembly; the row survives). */
   readonly setMessageHidden: (params: SetMessageHiddenParams) => Promise<MessageView>;

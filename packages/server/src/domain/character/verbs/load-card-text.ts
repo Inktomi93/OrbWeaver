@@ -8,7 +8,7 @@
 //
 // Returns the canonical card-text PROJECTION (`substrate/embed-text`) — the SAME text the indexer embeds —
 // or `null` when the card is gone (deleted between the emit and the handler) OR synthetic (group memory
-// buckets have no real card text and are never embedded — character.md invariant; the synthetic mint never
+// buckets have no real card text and are never embedded; the synthetic mint never
 // emits, so this is belt-and-suspenders for a standalone system read). A read: no audit, no emit.
 
 import type { CharacterId } from "@orb/kit/ids";

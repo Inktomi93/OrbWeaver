@@ -14,7 +14,7 @@
 // AUTHZ lives OUTSIDE this module: the channel is keyed by `chatId` only; the subscription generator
 // gates every yield through the member-scoped `chat.chatEventBounds` (a kicked member's stream stops
 // within the kick tx — the Tier-4 membership-chokepoint-covers-SSE rule). The payload is room-public by
-// the bus allowlist (chat.md inv #11).
+// the bus allowlist.
 
 import { EventEmitter, on } from "node:events";
 import type { ChatBusEvent } from "@orb/contracts/chat";

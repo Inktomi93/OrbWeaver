@@ -1,5 +1,4 @@
-// domain/chat/active-turns — the in-memory per-chat turn CONTROLLER registry (chat.md Part I 8-slot
-// `active-turns.ts`; the "active-turns Set-not-slot" esoteric note + §"the chat bus"). A `Set` of in-flight
+// domain/chat/active-turns — the in-memory per-chat turn CONTROLLER registry. A `Set` of in-flight
 // `AbortController`s PER chat (not a single slot) so a lock-free `generate` can run CONCURRENT with a locked
 // `send`, and an `abort` can signal them all. In-memory ⇒ ASSUMES single-replica (the same assumption auto-
 // mode's round state makes — Part III §6).
@@ -10,7 +9,7 @@
 // dep (like the `TurnEngine`); the verbs import only the TYPE (`contract/active-turns.ts`, the `types-in-
 // contract` home).
 //
-// ABORT IS OWNER-ONLY (chat.md §"the chat bus" / §11 — the rollback-theft defense): each registration records
+// ABORT IS OWNER-ONLY (the rollback-theft defense): each registration records
 // the `triggeredBy` owner; `abort(chatId, caller)` signals ONLY the caller's own in-flight turns. A caller who
 // owns NONE while another user's turn is in flight gets `foreignInFlight: true` (the verb maps that to
 // `not_turn_owner`) — a host cannot abort a member's turn.

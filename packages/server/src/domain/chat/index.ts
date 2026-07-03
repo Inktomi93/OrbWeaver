@@ -1,5 +1,4 @@
-// domain/chat — FRONT DOOR: the only legal external import; re-exports the public surface (chat.md
-// §"Public surface"). Three groups:
+// domain/chat — FRONT DOOR: the only legal external import; re-exports the public surface. Three groups:
 //   • createChatService — the composition root the entry seam wires + the service contract / DI bundle / deps
 //     types (transport + tests reference them).
 //   • the chat-OWNED collaborators the entry root must CONSTRUCT to supply `ChatServiceDeps`: the durable-first
@@ -30,7 +29,7 @@ export { getGroupConfig, getRoomOverrides, parseChatMetadata } from "./contract/
 export type { TurnRequest, TurnStreamChunk } from "./contract/results";
 export type { ChatService } from "./contract/service";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard";
-// The `@public` composition-root helpers (workload runners + bootstrap — chat.md §"Public surface"):
+// The `@public` composition-root helpers (workload runners + bootstrap):
 export { generateDigests } from "./memory/build/digests";
 export { generateSegments } from "./memory/build/segments";
 export { loadChatMeta } from "./memory/persistence/queries";

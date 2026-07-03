@@ -1,5 +1,4 @@
-// domain/chat/verbs/turn — the turn-running FRONT DOORS (chat.md Part I 8-slot `verbs/{send,regen}.ts`; the
-// turn lifecycle line ~22 + Part III §5/§6/§7). Each verb wires the DONE pieces into the lifecycle:
+// domain/chat/verbs/turn — the turn-running FRONT DOORS. Each verb wires the DONE pieces into the lifecycle:
 //   gate (`ctx.can` via guard) → resolve the D19 identity TRIPLE → resolve the connection → build the ONE
 //   immutable assemble ctx → arbitrate the speaker(s) → drive the round (per-turn-locked) → return the outcome.
 // Group-ness is DATA (roster size + arbitration), never a branch — solo is a roster-of-1 through the SAME path
@@ -16,7 +15,7 @@
 // D53 step 2: SEND USER_INPUT regex runs in the producer (the
 // post-regex row is persisted via the `SendRegexSink`); the host-tier scripts are the union the GATHER computes
 // (`gatherAssembleContext` → `resolveHostTierRegexScripts`) onto the assemble ctx (RECEIVE applies AI_OUTPUT/
-// REASONING in the pipeline). GUIDED (chat.md §6, PD-63 routed): every generating verb threads its `guided`
+// REASONING in the pipeline). GUIDED (PD-63 routed): every generating verb threads its `guided`
 // steer into the GATHER; the BUILD resolves the action template ONCE (macro-neutralized `{{input}}`) and
 // delivers it via EXACTLY ONE placement — the `{{guided_instruction}}` system-marker (the per-action config
 // default) or a depth-0 in_chat injection (role per the config/steer — the message-role axis, never pinned).
@@ -90,7 +89,7 @@ import {
   smartArbitrateVia,
 } from "../substrate/turn-access";
 
-/** The SEND USER_INPUT regex out-param sink (chat.md §2/§7) — `buildAssembleContext` writes the post-regex user
+/** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user
  *  text here so the verb persists THAT (the haystack + the stored row never diverge). Structural — the local
  *  `SendRegexResult` in `assembly/context.ts` is file-local (the `types-in-contract` gate). */
 interface SendRegexSink {
@@ -134,7 +133,7 @@ type TurnVerbs = Pick<
 /** How many trailing canon rows feed the `smart` arbiter's transcript. */
 const RECENT_TRANSCRIPT = 10;
 
-/** The synthetic trailing-user nudges (chat.md §6 — turn instructions): the UNSTEERED continue/impersonate
+/** The synthetic trailing-user nudges: the UNSTEERED continue/impersonate
  *  baseline, riding `appendUserTurn`. A `guided` steer COMPOSES with these (the nudge says WHAT the turn is;
  *  the steer adds the user's one-turn guidance via its placement). No magic strings (one home). */
 const CONTINUE_NUDGE =
@@ -252,7 +251,7 @@ async function buildTurnContext(
     readonly guided?: GuidedSteer | undefined;
   },
   /** SEND sink — when present + the round resolves host-tier scripts, the gather's `buildAssembleContext` writes
-   *  the post-USER_INPUT-regex user text here for the verb to PERSIST (chat.md §2/§7). */
+   *  the post-USER_INPUT-regex user text here for the verb to PERSIST. */
   out?: SendRegexSink,
 ): ReturnType<typeof gatherAssembleContext> {
   const foreign = await deps.resolveForeignInputs({
@@ -279,7 +278,7 @@ async function buildTurnContext(
 }
 
 /** Persist a user message (a fresh slot + its one variant — D26) and emit `messageCommitted`. FLAG[send-regex]
- *  RESOLVED (D53 step 2): the SEND-context USER_INPUT regex pass runs inside `buildAssembleContext` (chat.md §2)
+ *  RESOLVED (D53 step 2): the SEND-context USER_INPUT regex pass runs inside `buildAssembleContext`
  *  and the CALLER passes the post-regex text as `content` (via the `SendRegexSink`) — this fn persists exactly
  *  what it is handed (the host-tier 3-source union is computed by the GATHER — `resolveHostTierRegexScripts`). */
 async function persistUserMessage(
@@ -385,7 +384,7 @@ function asPerSpeaker(group: GroupConfig): GroupConfig {
   };
 }
 
-/** Run the auto-mode AI→AI chain after a human-triggered round (chat.md Part III §6): re-arbitrate ONE speaker
+/** Run the auto-mode AI→AI chain after a human-triggered round: re-arbitrate ONE speaker
  *  per iteration (ban-last unless `allowSelfResponses`), drive a single-speaker round, repeat to the dual bound
  *  / interrupt / no-eligible / lock. Every chained turn is `triggeredBy` the chain-starter (the `base` carries
  *  it — D19); the abort signal stops it at the next checkpoint (FLAG[abort-into-engine] — engine turns aren't
@@ -459,7 +458,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
 
     // The ONE immutable assemble ctx — built with the pending user text in the WI haystack (two-phase, §3.4)
     // BEFORE the user row commits; the engine reloads canon (incl. the committed row) for the wire history. The
-    // SEND USER_INPUT regex runs INSIDE the producer (chat.md §2) and writes the post-regex text to `sendOut`.
+    // SEND USER_INPUT regex runs INSIDE the producer and writes the post-regex text to `sendOut`.
     const sendOut: SendRegexSink = {};
     const assembleContext = await buildTurnContext(
       ctx,
@@ -731,7 +730,7 @@ async function resolveTurnBase(
     readonly principal: SendParams["principal"];
     readonly chatId: ChatId;
     readonly anchorPersonaId: PersonaId | null;
-    /** The one-turn typed steer (chat.md §6, PD-63) — threaded into the assemble ctx (GATHER → BUILD). */
+    /** The one-turn typed steer (PD-63) — threaded into the assemble ctx (GATHER → BUILD). */
     readonly guided?: GuidedSteer | undefined;
   },
 ): Promise<TurnBase> {
@@ -911,7 +910,7 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
 }
 
 // ── generate (a LOCK-FREE auxiliary generation — runs CONCURRENT with a locked send) ─────────────────────────
-/** `generate` — a lock-free auxiliary assistant generation (chat.md active-turns): it does NOT acquire the
+/** `generate` — a lock-free auxiliary assistant generation: it does NOT acquire the
  *  per-chat send lock, so it runs concurrent with a locked `send` (the active-turns registry is its only
  *  concurrency control). Commits a new assistant slot for the named speaker (or the primary character). */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
@@ -1015,7 +1014,7 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  *
  * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
  * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
- * `appendUserTurn`. The `guided` steer is ROUTED (chat.md §6, PD-63): every generating verb threads it into
+ * `appendUserTurn`. The `guided` steer is ROUTED (PD-63): every generating verb threads it into
  * the GATHER→BUILD, which resolves the action template once and delivers it via its one placement (the file
  * header). The SEND/RECEIVE regex pass is wired
  * (D53 step 2): aux turns (swipe/continue/generate/force) carry the host-tier scripts onto the assemble ctx, so

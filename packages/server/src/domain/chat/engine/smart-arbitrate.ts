@@ -1,4 +1,4 @@
-// domain/chat/engine/smart-arbitrate — the 7b SIDE-LLM arbitration (chat.md Part III §6 `smart` policy). A
+// domain/chat/engine/smart-arbitrate — the 7b SIDE-LLM arbitration (`smart` policy). A
 // request-shaper over the INJECTED `summarize` role (the same summarize/translate pattern memory uses — the
 // op is `ChatContext.summarize` = `RoleClients.summarize`, NOT a sideways call; the injection table homes the
 // side-LLM there, so no FLAG[missing-op]). A low-temp classify call picks the ONE next speaker from the

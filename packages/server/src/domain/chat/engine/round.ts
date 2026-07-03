@@ -1,11 +1,11 @@
-// domain/chat/engine/round — the GROUP ROUND DRIVER (chat.md Part III §6/§7 + §5). Maps an arbitration
+// domain/chat/engine/round — the GROUP ROUND DRIVER. Maps an arbitration
 // result (the ordered, name-resolved speakers) → a per-speaker `TurnPrep` carrying the two-axis SHAPE
 // (output × cardScope × scopedTarget × name), off the ONE immutable assemble ctx built for the round, and
 // executes each speaker through the chunk-9 engine. ONE ctx, N speakers shaped off it (§5 — each speaker is a
 // `shape(ctx, speaker)`; the ctx is reused by reference, never mutated). Solo = a roster-of-1: ONE speaker,
 // byte-identical, no `if(isGroup)` (D16).
 //
-// THE LOCK (chat.md Part III §6 — the DOC overrides the task prompt's "whole-round lock"): a multi-speaker
+// THE LOCK: a multi-speaker
 // round acquires the per-chat lock **PER SPEAKER** (TTL sized for one turn) so a human send can interleave at
 // a clean seq boundary. The chunk-9 `engine.runTurn` ALREADY locks per turn — so the driver simply LOOPS it
 // (NO chunk-9 lifecycle refactor needed). A mid-round `locked` refusal = a concurrent human turn won the lock
@@ -13,7 +13,7 @@
 // "never DROP a concurrent trigger").
 //
 // CANON ADVANCES BETWEEN SPEAKERS: each `engine.runTurn` re-loads canon, so speaker k+1 witnesses speaker
-// k's just-committed row (chat.md §5 / Part II §11 — `shape` is pure; the canon advances, not the function).
+// k's just-committed row (`shape` is pure; the canon advances, not the function).
 
 import type { GroupConfig } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
@@ -42,7 +42,7 @@ interface DriveRoundParams {
   readonly castName: string;
 }
 
-/** Build ONE speaker's two-axis prep off the shared round base (chat.md Part III §7). The `shape` axis SHAPEs
+/** Build ONE speaker's two-axis prep off the shared round base. The `shape` axis SHAPEs
  *  the immutable ctx for THIS speaker; `groupNudge` fences a per-speaker turn only when >1 speaker. */
 function buildSpeakerPrep(
   base: RoundBase,
@@ -98,7 +98,7 @@ function isLockedRefusal(err: unknown): boolean {
 }
 
 /**
- * Drive ONE group round (chat.md Part III §6/§7). Resolves the per-speaker list (the narrator collapses to a
+ * Drive ONE group round. Resolves the per-speaker list (the narrator collapses to a
  * single group-character turn voicing the cast; per-speaker runs the arbitration result in order), builds
  * each speaker's two-axis prep off the ONE immutable ctx, and runs each via the engine under its OWN per-turn
  * lock. Returns the committed messages across the round; a mid-round `locked` yields the round (partial
@@ -111,7 +111,7 @@ export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome>
   for (const speaker of speakers) {
     const prep = buildSpeakerPrep(params.base, params.group, speaker, multi);
     try {
-      // SEQUENTIAL BY DESIGN (chat.md §5/§6): speaker k+1 must witness speaker k's committed row (canon
+      // SEQUENTIAL BY DESIGN: speaker k+1 must witness speaker k's committed row (canon
       // advances between speakers), and the per-chat lock is acquired PER SPEAKER — both forbid parallelism.
       // biome-ignore lint/performance/noAwaitInLoops: per-speaker sequencing is the invariant, not a perf miss.
       const outcome = await params.engine.runTurn(prep);

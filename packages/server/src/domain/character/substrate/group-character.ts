@@ -1,5 +1,5 @@
 // domain/character/substrate/group-character — the synthetic group-identity shape (pure, zero I/O). The
-// `__group__${chatId}` handle namespace is owned HERE (character.md invariant 7 — no code outside this
+// `__group__${chatId}` handle namespace is owned HERE (no code outside this
 // domain inserts into `characters`). Per-owner handle uniqueness (the `(ownerId, handle)` index) makes the
 // mint find-or-mint idempotent and collision-free across rooms. The card is a minimal never-rendered memory
 // bucket (§11.5 group-chat); `synthetic=true` filters it from every user-facing query + the embed pass.

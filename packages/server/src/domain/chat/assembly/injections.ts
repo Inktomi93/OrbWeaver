@@ -1,15 +1,15 @@
 // domain/chat/assembly/injections — the ONE positional-injection model: the role-framing rule
-// (`frameInjection`) + the depth splice (`spliceInChatInjections`). chat.md Part I 8-slot homes this in
-// `assembly/injections.ts` as the SHARED frame()+splice consumed by BOTH BUILD (the before/in-prompt
-// section render) and SHAPE (the `in_chat` history splice) — "one home, can't drift".
+// (`frameInjection`) + the depth splice (`spliceInChatInjections`). This file is the SHARED frame()+splice
+// consumed by BOTH BUILD (the before/in-prompt section render) and SHAPE (the `in_chat` history splice) —
+// "one home, can't drift".
 //
 // FLAG[scope]: this file's canonical home is shared between the BUILD chunk (RESOLVE→GATHER→BUILD) and
-// the SHAPE chunk. SHAPE genuinely cannot run without `spliceInChatInjections` (chat.md Part II §2 SHAPE
-// step "splice in_chat by depth"), and the file did not yet exist, so the SHAPE chunk establishes the
+// the SHAPE chunk. SHAPE genuinely cannot run without `spliceInChatInjections` (the SHAPE step "splice
+// in_chat by depth"), and the file did not yet exist, so the SHAPE chunk establishes the
 // ONE home with ONLY the splice/frame primitives SHAPE needs. The BUILD chunk EXTENDS this same file
 // with the before_prompt/in_static/in_prompt section-render consumers (which import the same
-// `frameInjection`) — it does NOT re-home the splice. (The chat.md "do-not-touch" boundary between
-// chunks yields to the doc's one-home rule + SHAPE's hard dependency; flagged per CLAUDE.md conflict
+// `frameInjection`) — it does NOT re-home the splice. (The "do-not-touch" boundary between
+// chunks yields to the one-home rule + SHAPE's hard dependency; flagged per CLAUDE.md conflict
 // protocol.)
 
 import type { ChatInjection } from "@orb/contracts/chat";
@@ -19,11 +19,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 type WireRole = "user" | "assistant";
 
 /**
- * The before/in-static/in-prompt SECTION-RENDER consumer (chat.md Part I 8-slot — the BUILD chunk EXTENDS
+ * The before/in-static/in-prompt SECTION-RENDER consumer (the BUILD chunk EXTENDS
  * this file with "the before/in-prompt section-render consumers using the existing `frameInjection`"). The
  * three system-block positions (`before_prompt` PREPEND to static, `in_static` APPEND to static,
  * `in_prompt` APPEND to dynamic) all render the SAME way: macro-resolve the content (the caller's injected
- * resolver — macros BEFORE framing, render ONCE; chat.md §3 rules 1/2/3), then frame by role through the
+ * resolver — macros BEFORE framing, render ONCE), then frame by role through the
  * ONE shared {@link frameInjection} (so the system-block render and the `in_chat` splice can NEVER drift).
  * Returns "" for an empty/whitespace render (the caller skips it). The `in_chat` position is NOT handled
  * here — that is the SHAPE splice's job ({@link spliceInChatInjections}).

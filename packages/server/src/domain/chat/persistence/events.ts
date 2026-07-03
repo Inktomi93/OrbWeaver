@@ -1,4 +1,4 @@
-// domain/chat/persistence/events — the `chat_events` APPEND writer (chat.md §"the chat bus" durable-first
+// domain/chat/persistence/events — the `chat_events` APPEND writer (durable-first
 // log; the PD-88 extraction of the inline INSERT that lived in bus.ts). Like `canon-write.ts`/`lock.ts`,
 // an EXPLICIT named exception to "persistence is queries only": this is the ONE writer for the durable
 // chat-bus log. The readers (`replayChatEvents`/`chatEventBounds`) stay in `queries.ts` with the rest of

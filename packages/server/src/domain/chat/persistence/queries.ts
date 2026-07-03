@@ -1,4 +1,4 @@
-// domain/chat/persistence/queries — QUERIES ONLY (chat.md Part I 8-slot `persistence/queries.ts`). The
+// domain/chat/persistence/queries — QUERIES ONLY. The
 // membership-scoped chat-row reads (D18 — `loadMemberChat` replaces neo's `loadOwnedChat`; there is no
 // `chats.ownerId`, the host is just a `chat_participants` row), the D26 canon reads (slot ⋈ selected-variant),
 // and the durable chat-bus + resumable SSE stream-log replay/cursor reads. NO business logic, NO cross-feature
@@ -165,7 +165,7 @@ export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<Use
  * The membership-scoped chat read (D18 — replaces neo's `loadOwnedChat`): the chat row joined to the CALLER's
  * PRESENT participant row (`leftSeq IS NULL`), returning the row (metadata parsed) + the caller's `role`
  * (`host|member`). `undefined` ⇒ no such chat OR the caller is not a present member — the two collapse into one
- * leak-free answer (the verb maps it to `ChatNotFoundError`; chat.md Part III §11). The host is just a
+ * leak-free answer (the verb maps it to `ChatNotFoundError`). The host is just a
  * participant with `role='host'`, so this also yields the authority bit with no extra query.
  */
 export async function loadMemberChat(

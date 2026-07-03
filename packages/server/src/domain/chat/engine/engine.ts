@@ -1,5 +1,4 @@
-// domain/chat/engine/engine — the turn LIFECYCLE shell (chat.md Part I 8-slot engine/engine.ts; the turn
-// lifecycle of §5). SINGLE-SPEAKER CORE: one resolved speaker per turn — NO multi-speaker arbitration /
+// domain/chat/engine/engine — the turn LIFECYCLE shell. SINGLE-SPEAKER CORE: one resolved speaker per turn — NO multi-speaker arbitration /
 // auto-mode (the engine TAKES the resolved speaker on `TurnPrep`; the "who/how-many speaks" chunk wraps this)
 // and NO D48 tool-recurse (the pipeline does one model call + reduce). Those seams are left clean.
 //
@@ -9,7 +8,7 @@
 //   → load canon + next-seq → `runTurnPipeline` (assemble→shape→run→reduce→fit) → persist the canon (the D26
 //   slot+variant 3-step dance + the stats delta, ONE atomic `db.batch`) → emit `messageCommitted` +
 //   `turnCompleted` → release lock. On any error AFTER `turnStarted`: emit `turnAborted` (reason `error` /
-//   `user`) THEN RETHROW — never swallow (chat.md error-paths-flag-don't-swallow). The pre-start belt
+//   `user`) THEN RETHROW — never swallow (error-paths-flag-don't-swallow). The pre-start belt
 //   refusals (locked / consent_required / budget_exceeded) throw a coded `ChatOperationError` and emit
 //   nothing (the turn never started).
 //
@@ -68,7 +67,7 @@ interface EngineDeps {
   readonly resolveTurnPolicy: ResolveTurnPolicyOp;
   /** The lock holder tag (this replica/turn id) for stale-takeover + holder-scoped release. */
   readonly holder: string;
-  /** The per-chat lock TTL (ms) — sized for one turn (chat.md Part III §5/§6). */
+  /** The per-chat lock TTL (ms) — sized for one turn. */
   readonly lockTtlMs: number;
   /** Injected memory segment builder (domain-no-cross-subsystem rule). */
   readonly generateSegments: (
@@ -275,7 +274,7 @@ function abortReasonFor(err: unknown): TurnAbortReason {
   return err instanceof Error && err.name === "AbortError" ? "user" : "error";
 }
 
-/** The turn body (chat.md §5 lifecycle), parametrized by the persist MODE (D26) + lock-freedom: the §9 belts
+/** The turn body, parametrized by the persist MODE (D26) + lock-freedom: the §9 belts
  *  → resolve the persist target → `turnStarted` → assemble/generate (scoped canon) → persist → `turnCompleted`.
  *  On a post-start error: emit `turnAborted` (reason `user` for an abort-signalled cancel, else `error`) then
  *  RETHROW (never swallow). The pre-start belt refusals + a missing write-target throw a coded error and emit
@@ -337,7 +336,7 @@ async function executeTurn(
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
       groupNudge: prep.groupNudge,
-      // The per-speaker two-axis SHAPE (chat.md Part III §7) — set by the group round driver; ABSENT ⇒ the
+      // The per-speaker two-axis SHAPE — set by the group round driver; ABSENT ⇒ the
       // single-speaker core's pinned per-speaker/merged default (solo byte-identical, D16).
       shape: prep.shape,
       // Thread the caller's abort signal → the role; the runner aborts its
@@ -416,7 +415,7 @@ async function executeTurn(
  * lock (refusing `locked` if a turn is in flight), runs the lifecycle IN-LOCK, and ALWAYS releases the lock
  * (the `finally`) — even on a thrown turn error (which has already emitted `turnAborted`).
  *
- * LOCK-FREE GENERATE (chat.md active-turns): a `prep.lockFree` turn (`generate`) SKIPS the lock entirely so it
+ * LOCK-FREE GENERATE: a `prep.lockFree` turn (`generate`) SKIPS the lock entirely so it
  * runs CONCURRENT with a locked `send` (the active-turns registry is its only concurrency control). The SAME
  * lifecycle body runs either way — only the lock wrapper differs (ONE spine, parametrized).
  */

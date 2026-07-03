@@ -1,4 +1,4 @@
-// domain/chat/guard — THE membership chokepoint (chat.md Part III §11 + §12 inv #12; spine §2a/§7.1). The
+// domain/chat/guard — THE membership chokepoint (spine §2a/§7.1). The
 // ONE place a chatId surface loads its membership and routes the authority decision through the substrate
 // deciders. Every chatId verb + the non-verb surfaces (SSE subscribe, bus delivery, lineage walk, …) gate
 // HERE; an unlisted surface is default-deny (`substrate/auth/matrix`).
@@ -28,7 +28,7 @@ type GuardCtx = Pick<ChatContext, "db" | "can">;
 type MemberChat = NonNullable<Awaited<ReturnType<typeof loadMemberChat>>>;
 
 /**
- * Present-membership gate — read/stream/post/turn-run (chat.md §11 → `member`). Loads the caller's PRESENT
+ * Present-membership gate — read/stream/post/turn-run (→ `member`). Loads the caller's PRESENT
  * `chat_participants` row; a miss (no chat OR not a present member) throws a leak-free `ChatNotFoundError`.
  * Returns the loaded membership so the verb reuses it (no second query — the turn loads it anyway).
  */
@@ -48,7 +48,7 @@ export async function requireParticipant(
 }
 
 /**
- * Host-authority gate — room config / roster / lifecycle mutation (chat.md §11 → `host`). A non-member
+ * Host-authority gate — room config / roster / lifecycle mutation (→ `host`). A non-member
  * throws `ChatNotFoundError` (leak-free); a member who is not the host throws `ChatOperationError('not_host')`
  * (a known-existence authority refusal, per `contract/errors.ts`).
  */
@@ -63,7 +63,7 @@ export async function requireHost(
 }
 
 /**
- * Author-or-host gate — edit/delete a slot (chat.md §11 → `author-or-host`). The host overrides any slot;
+ * Author-or-host gate — edit/delete a slot (→ `author-or-host`). The host overrides any slot;
  * otherwise the caller must be the slot's `authorUserId`. The verb supplies the slot author (read from the
  * `messages` row it is editing).
  */
@@ -79,7 +79,7 @@ export async function requireAuthorOrHost(
 }
 
 /**
- * Lineage gate — fork/export/corpus ancestry (chat.md §11/§16 → `lineage-per-ancestor`). Each ancestor is
+ * Lineage gate — fork/export/corpus ancestry (→ `lineage-per-ancestor`). Each ancestor is
  * gated INDEPENDENTLY (a fork grants NO parent membership): returns the ancestors the caller is a present
  * member of. A non-member ancestor is EXCLUDED, not an error — the chain legitimately spans chats the caller
  * cannot see (the walker redacts; it does not leak their existence).

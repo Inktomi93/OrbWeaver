@@ -11,7 +11,7 @@
 //   • D25 — there is NO `chats.sessionId`/`chats.sessionDirty` back-pointer. The session-cache state left
 //           the `chats` row entirely; staleness is DETECTED vs canon (re-hash the live canon prefix and
 //           compare `canon_hash`), never stored as a `chats` dirty flag. A reseed APPENDS a new lineage
-//           entry rather than mutating a pointer (chat.md §"session-as-canon-cache" / §SDK-frame).
+//           entry rather than mutating a pointer.
 //
 // No enum columns — an SDK session entry is ids + ordinals + a canon hash + timestamps. Timestamps are
 // plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at insert via
@@ -55,7 +55,7 @@ export const sessionEntries = sqliteTable(
     // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the
     // `content_hash` staleness pattern on the vector tables.
     canonHash: text("canon_hash").notNull(),
-    // The dual-session reap's `keepPrimary` (chat.md §SDK-frame): among a chat's lineage exactly one entry
+    // The dual-session reap's `keepPrimary`: among a chat's lineage exactly one entry
     // is the live primary; reseeds spawn a secondary that is later reaped. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

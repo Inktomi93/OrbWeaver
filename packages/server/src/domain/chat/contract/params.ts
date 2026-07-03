@@ -52,7 +52,7 @@ export interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
 }
 
-/** A one-turn typed steer (chat.md §6 — guided steering). `placement` defaults to the `{{guided_instruction}}`
+/** A one-turn typed steer (guided steering). `placement` defaults to the `{{guided_instruction}}`
  *  system-marker; set the `inject` arm only for an action that must read as an in-character turn (the steer
  *  reaches the model ONLY via its placement — never folded into history/WI). Untrusted `input` is
  *  macro-neutralized downstream. */
@@ -178,7 +178,7 @@ export interface ImpersonateParams extends ChatScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send; chat.md active-turns). */
+/** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send). */
 export interface GenerateParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly intent?: UserIntent | undefined;
@@ -197,15 +197,15 @@ export interface UndoContinueParams extends MessageScopedParams {}
 /** `revertContinue` — re-apply the last reverted continuation (the redo twin of `undoContinue`). */
 export interface RevertContinueParams extends MessageScopedParams {}
 
-/** `forceCharacterTurn` — force a specific roster character to speak next (host-only; chat.md Part III §6). */
+/** `forceCharacterTurn` — force a specific roster character to speak next (host-only). */
 export interface ForceCharacterTurnParams extends ChatScopedParams {
   readonly characterId: CharacterId;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `compact` — the manual compaction lever (the lock-free `runCompaction` core is injected into the engine;
- *  chat.md §Decisions). Produces the portable checkpoint (D25). */
+/** `compact` — the manual compaction lever (the lock-free `runCompaction` core is injected into the engine).
+ *  Produces the portable checkpoint (D25). */
 export interface CompactParams extends ChatScopedParams {
   readonly instructions?: string | undefined;
 }
@@ -231,7 +231,8 @@ export interface SelectVariantParams extends MessageScopedParams {
   readonly variantId: MessageVariantId;
 }
 
-/** `editMessage` — edit the SELECTED variant's content in place (a `runOnEdit` regex re-applies — chat.md §7). */
+/** `editMessage` — edit the SELECTED variant's content in place (self-label purify only; NO `runOnEdit`
+ *  regex re-applies yet — FLAG[PD-110]). */
 export interface EditMessageParams extends MessageScopedParams {
   readonly content: string;
 }
@@ -295,7 +296,7 @@ export interface DeleteChatInjectionParams extends ChatScopedParams {
 /** `getVariables` — the EFFECTIVE ChoiceBlock variables computed for the next turn. */
 export interface GetVariablesParams extends ChatScopedParams {}
 
-/** `getStoredVariables` — the persisted `chats.variableValues` flush (chat.md L547 persisted canon). */
+/** `getStoredVariables` — the persisted `chats.variableValues` flush (persisted canon). */
 export interface GetStoredVariablesParams extends ChatScopedParams {}
 
 /** `setVariables` — flush a `{{var}}`→value map to `chats.variableValues`. */
@@ -328,7 +329,7 @@ export interface ArchiveChatParams extends ChatScopedParams {
 }
 
 /** `reattributeMessages` — re-stamp the `characterId` attribution of a set of slots (host-only; a swipe never
- *  re-voices, but a deliberate re-attribution does — chat.md self-heal hash-diff). */
+ *  re-voices, but a deliberate re-attribution does — self-heal hash-diff). */
 export interface ReattributeMessagesParams extends ChatScopedParams {
   readonly messageIds: readonly MessageId[];
   readonly characterId: CharacterId;

@@ -1,4 +1,4 @@
-// domain/chat/substrate/stats-delta — the StatsDelta BUILDERS (chat.md movement table: "stats-delta
+// domain/chat/substrate/stats-delta — the StatsDelta BUILDERS ("stats-delta
 // builders STAY chat; applyStatsDelta injected"). RELOCATED engine/ → substrate/ when the canon-mutator
 // verbs became consumers (start-chat/edit/delete/fork push too — the
 // `domain-substrate-mediates-subsystems` gate homes verb-shared pure helpers HERE, not in a named

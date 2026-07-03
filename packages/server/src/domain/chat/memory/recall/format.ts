@@ -1,5 +1,5 @@
-// domain/chat/memory/recall/format — assemble recalled blocks → the `{{memory}}` string GATHER consumes
-// (chat.md Part II §2 GATHER; §3b). PURE. The block ORDER is the caller's (chronological for mixA/tiered,
+// domain/chat/memory/recall/format — assemble recalled blocks → the `{{memory}}` string GATHER consumes.
+// PURE. The block ORDER is the caller's (chronological for mixA/tiered,
 // ranked for mixB/mixC); format preserves it and drops a key with no loaded row.
 //
 // `{{memory}}` is the stored digest `text` (§2b — the distilled topic-anchor + significance-filtered facts +

@@ -1,4 +1,4 @@
-// transport/trpc/presence-registry — the server-derived live-presence source (PD-70; chat.md Part III §4).
+// transport/trpc/presence-registry — the server-derived live-presence source (PD-70).
 // Presence (who is live) is a REF-COUNT per `userId` over the open SSE connections (one per device), NEVER a
 // client-asserted heartbeat — a spoofable presence is a prompt-composition attack (presence → cast → injected
 // WI/persona, neo §9). It lives HERE in transport (the connection registry) and is injected into chat as the
@@ -23,8 +23,8 @@
 import type { PresenceView } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 
-/** How long a fully-disconnected user is still reported `online` — the reconnect debounce (chat.md §4
- *  "debounced/grace-windowed"). A reload/blip reconnects well inside this; a real departure outlasts it. */
+/** How long a fully-disconnected user is still reported `online` — the reconnect debounce
+ *  ("debounced/grace-windowed"). A reload/blip reconnects well inside this; a real departure outlasts it. */
 const GRACE_MS = 15_000;
 
 /** Per-user liveness cell: the live-connection ref-count + the epoch-ms of the last drop-to-zero (the grace

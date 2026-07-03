@@ -80,8 +80,8 @@ export type NotificationType = NotificationEvent["type"];
 
 // ── PresenceView (the per-user presence wire — read-only, server-derived) ─────
 /**
- * The per-user presence shape transport derives from the live SSE connection ref-count (chat.md Part III §4)
- * and injects into chat for cast-gating. It is a READ-MODEL view (an outbound shape, not an inbound wire
+ * The per-user presence shape transport derives from the live SSE connection ref-count and injects into
+ * chat for cast-gating. It is a READ-MODEL view (an outbound shape, not an inbound wire
  * schema): presence is NEVER client-asserted — a spoofable heartbeat would be a prompt-composition attack
  * (presence → cast → injected WI/persona, neo §9) — so there is deliberately no `presenceSchema` to parse a
  * client claim into. `lastSeenAt` is epoch ms of the last observed disconnect, or `null` while `online` (or

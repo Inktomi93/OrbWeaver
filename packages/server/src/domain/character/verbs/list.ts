@@ -1,5 +1,5 @@
 // verb: list — the caller's NON-synthetic characters, newest first (owner-scoped off `principal.userId`).
-// Synthetic group buckets are excluded in the query (character.md invariant 3). A read: no audit, no emit.
+// Synthetic group buckets are excluded in the query. A read: no audit, no emit.
 // The canonical accepted tags ride each summary (ONE bulk junction read for the whole page — the library
 // tag filter), never an N+1 per row.
 

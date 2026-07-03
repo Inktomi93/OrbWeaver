@@ -1,4 +1,4 @@
-// domain/character/seeder/seed — the idempotent default-card seeder (character.md §8-slot seeder/seed.ts).
+// domain/character/seeder/seed — the idempotent default-card seeder.
 //
 // Same precedent as the env→OpenRouter credential boot-seed: an idempotent, composition-root-wired seeder
 // that gives every user a working starting library instead of an empty drawer. Two call sites, both wired in

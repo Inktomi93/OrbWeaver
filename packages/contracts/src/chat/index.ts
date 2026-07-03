@@ -17,7 +17,7 @@
 //     NEVER `callerUserId` (the caller is `Principal.userId`). The bus events here carry no caller id.
 //   • No `chats.ownerId` (D18): chats are membership-scoped; the host participant is the authority. No wire
 //     shape here stamps a chat owner.
-//   • Bus-payload allowlist (chat.md Part III inv §11): credentials / secrets / baseUrls are TYPE-LEVEL
+//   • Bus-payload allowlist: credentials / secrets / baseUrls are TYPE-LEVEL
 //     UNREPRESENTABLE in `ChatBusEvent` — every member is a closed object literal of branded ids, enum
 //     literals, plain scalars, and `MessageView`; there is no `unknown`/`Record`/index field a secret could
 //     ride in. The `.contract.test` pins this at the type level.

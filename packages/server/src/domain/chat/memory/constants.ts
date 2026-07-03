@@ -1,5 +1,5 @@
-// domain/chat/memory/constants — the baked-in memory tuning + the config resolver (chat.md Part I §memory
-// `constants.ts`). DEFAULTS are the domains/memory.md §5 GROUNDED numbers (neo tuned them against real
+// domain/chat/memory/constants — the baked-in memory tuning + the config resolver. DEFAULTS are the
+// domains/memory.md §5 GROUNDED numbers (neo tuned them against real
 // imported ST chats): `blockSize 8 · fanOut 4 · verbatimWindow 8 · maxTier 3` — tier-1 fills at 32 messages,
 // tier-2 at 128, tier-3 at 512, so tiering actually engages at typical lengths, and `blockSize 8 ≈ 3k tok`
 // fits a tiny local summarizer (the token-guard is the real safety — §3a). The numbers MIRROR the

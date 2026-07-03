@@ -1,6 +1,6 @@
 // verb: bulkAddCardTag — attach a tag (by NAME) to many owned characters. The tag work (resolve-or-create
 // the tag + write the junction row) is the tag domain's job, injected as `ctx.attachCardTag` (boundaries
-// are physics — character never imports tag; character.md §"tag junction"). This verb only owner-SCOPES the
+// are physics — character never imports tag). This verb only owner-SCOPES the
 // targets (an unowned/missing character is skipped, never attached to) and counts how many were newly
 // attached (the port returns `false` for an idempotent no-op). A blank tag name is a no-op. No emit (a tag
 // is not card content).

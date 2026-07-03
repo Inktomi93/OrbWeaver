@@ -1,4 +1,4 @@
-// domain/character/persistence/card — the card WRITE queries (character.md §8-slot persistence/card.ts).
+// domain/character/persistence/card — the card WRITE queries.
 // Edit-in-place only (D28 — the card IS the flat row; no CAS, no COW, always safe). Queries only: the
 // cleanup ORCHESTRATION (best-effort avatar reap via the injected `reapAssets` op) lives in the verbs —
 // `persistence/` never closes over a cross-feature op. The per-owner `(ownerId, handle)` unique index is

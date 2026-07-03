@@ -1,6 +1,6 @@
-// domain/chat/assembly/world-info/pool — the per-turn World-Info POOL (chat.md Part I 8-slot
-// `assembly/world-info/pool.ts`: "the 4-scope WI union — STAYS chat, reads `@orb/db` schema directly (the
-// sanctioned db-layer consumer)"). This is the ONE chat-domain reach into the `@orb/db` world-info schema:
+// domain/chat/assembly/world-info/pool — the per-turn World-Info POOL ("the 4-scope WI union — STAYS chat,
+// reads `@orb/db` schema directly (the sanctioned db-layer consumer)"). This is the ONE chat-domain reach
+// into the `@orb/db` world-info schema:
 // it loads + de-dups the four attachment scopes a turn's lore can come from. Per-entry BEHAVIOR
 // (always-vs-keyword, depth-injection, system-half bucket) is resolved by the pure `@orb/kit/world-info`
 // resolvers off each entry's `metadata` blob — the keyword MATCH + budget + the WI→injection conversion
