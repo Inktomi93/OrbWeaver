@@ -22,7 +22,6 @@ describe("getChatModel — 3-stage lookup", () => {
   });
 
   test("stage 3: OR version-only id prefix-matches the dated curated id", () => {
-    // `claude-haiku-4-5` (OR form) → `claude-haiku-4-5-20251001` (dated curated entry).
     const haiku = getChatModel("claude-haiku-4-5");
     expect(haiku?.tier).toBe("haiku");
     expect(haiku?.id).toBe("claude-haiku-4-5-20251001");

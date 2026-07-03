@@ -29,8 +29,8 @@ const DEFAULT_FALLBACK_NAME = "Imported Character";
 const PATH_SEPARATOR = /[/\\]/;
 const FILE_EXTENSION = /\.[^.]+$/;
 
-/** Derive the fallback character name from the source filename (`"Aria.png"` → `"Aria"`) when the card
- *  JSON carries no name. Strips the directory + the final extension; empty → a stable default. */
+// Derive the fallback character name from the source filename (`"Aria.png"` → `"Aria"`) when the card
+// JSON carries no name. Strips the directory + the final extension; empty → a stable default.
 function fallbackNameFrom(filename: string | undefined): string {
   if (filename === undefined) {
     return DEFAULT_FALLBACK_NAME;
@@ -66,7 +66,6 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       return { characterId: existing, created: false, importHash };
     }
 
-    // The card PNG is the avatar (one blob, both roles); a bare-JSON card has no image.
     const avatarAssetId = png
       ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME })
       : null;

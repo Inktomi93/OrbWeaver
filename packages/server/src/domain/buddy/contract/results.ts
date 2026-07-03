@@ -45,13 +45,11 @@ export type Proposal =
       readonly workloadKind: BuddyWorkloadKind;
     };
 
-/** Result of an `ask` turn — the reply, plus an optional proposed action awaiting confirm. */
 export interface AskBuddyResult {
   readonly reply: string;
   readonly proposal?: BuddyProposal | undefined;
 }
 
-/** Result of confirming/cancelling a proposal. */
 export interface ConfirmBuddyResult {
   /** True when an action was applied (confirmed + executed); false when cancelled / expired / gated. */
   readonly applied: boolean;
@@ -68,8 +66,6 @@ export interface BuddyTurnView {
   readonly createdAt: number;
 }
 
-/** Result of clearing the buddy-chat transcript. */
 export interface ClearBuddyChatResult {
-  /** How many turns were removed. */
   readonly cleared: number;
 }

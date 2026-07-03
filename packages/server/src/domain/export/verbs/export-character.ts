@@ -39,8 +39,8 @@ const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
 // falls through to the placeholder; any other I/O error propagates (corrupt ≠ absent).
 const ENOENT = "ENOENT";
 
-/** Parse the typed `depth_prompt` JSON column through the canonical schema (the read-seam — a malformed /
- *  legacy value collapses to null, never a throw). */
+// Parse the typed `depth_prompt` JSON column through the canonical schema (the read-seam — a malformed /
+// legacy value collapses to null, never a throw).
 function parseDepthPrompt(raw: unknown): CardDepthPrompt | null {
   if (raw === null || raw === undefined) {
     return null;
@@ -49,7 +49,7 @@ function parseDepthPrompt(raw: unknown): CardDepthPrompt | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** True when a rejected `cas.read` is the benign "blob absent" case (→ placeholder, not a throw). */
+// True when a rejected `cas.read` is the benign "blob absent" case (→ placeholder, not a throw).
 function isMissingBlob(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: string }).code === ENOENT;
 }

@@ -60,7 +60,6 @@ describe("ownerHandles", () => {
     vi.stubEnv(OWNER_HANDLES, undefined);
     const handles = ownerHandles();
     expect(handles).toHaveLength(1);
-    // The lone default handle provisions as owner (the single-user owner) — exactly one owner by config.
     expect(determineRole(handles[0] ?? "", [])).toBe("owner");
   });
 });

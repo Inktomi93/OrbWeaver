@@ -3,14 +3,13 @@
 // `ImageEmbedResult`) live in `@orb/contracts/providers`; the `RoleClients` bundle in
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
-// Typed errors
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors";
 
-// The vector-table registry (consumed by `discovery` + `search` + tests)
+// Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params";
 export { VECTOR_TABLES } from "./contract/params";
 
-// Service + indexer types (the entry root wires these; transport/tests reference them)
+// The entry root wires these; transport/tests reference them directly.
 export type {
   EmbeddingsContext,
   EmbeddingsIndexer,
@@ -23,6 +22,5 @@ export type {
   LoadCardText,
 } from "./contract/service";
 
-// Factories
 export { createEmbeddingsIndexer } from "./indexer";
 export { createEmbeddingsService } from "./service";

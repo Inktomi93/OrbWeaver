@@ -22,7 +22,7 @@ import { z } from "zod";
 /** Every kind of bulk-work the durable queue drives. ONE canonical tuple (the db `workloads.kind` enum,
  *  the `RUNNERS: { [K in WorkloadKind]: Runner<K> }` exhaustiveness pin, and the tRPC wire enum all derive
  *  from it — no inline re-spelling). `reconcile-world-state` is a RESERVED v2 seam (council 2026-06-25):
- *  it ships now as a no-op stub runner so `exhaustive-dispatch` stays green, the feature is v2. Copied
+ *  it ships now as a no-op stub runner so `exhaustive-dispatch` stays green, the feature is v2.
  *  This tuple is the ONE canonical member list — do NOT invent or reorder members. */
 export const WORKLOAD_KINDS = [
   "embed-corpus",

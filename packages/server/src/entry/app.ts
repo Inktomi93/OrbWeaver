@@ -105,7 +105,6 @@ function readSessionToken(headers: Headers): string | null {
   return null;
 }
 
-/** Build the Hono app: middleware (allowlist belt → auth seam) → tRPC mount → non-tRPC registrars → debug. */
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
@@ -131,8 +130,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
       },
     });
     c.set("principal", principal);
-    // First-authed-request default-card seed for a NEW user (SSO/admin-created). Fire-and-forget — never
-    // awaited (the seeder's memo+latch make it a Set lookup after the first touch; it never throws).
+    // Fire-and-forget, never awaited — see `seedUserCharacters` on AppDeps for why that's safe.
     if (principal !== null) {
       deps.seedUserCharacters(principal);
     }

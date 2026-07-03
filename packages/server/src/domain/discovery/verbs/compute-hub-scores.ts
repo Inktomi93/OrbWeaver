@@ -35,7 +35,7 @@ import {
 import { collapseByHash } from "../substrate/collapse";
 import { computeGroupHubs } from "../substrate/hub-math";
 
-/** A bare vector row a hub pass scores. */
+// A bare vector row a hub pass scores.
 interface HubRow {
   readonly id: string;
   readonly model: string;
@@ -43,14 +43,14 @@ interface HubRow {
   readonly contentHash: string;
 }
 
-/** One pre-computed hub-score update (the `writeHubScores` payload shape: keyed `(id, model)`). */
+// One pre-computed hub-score update (the writeHubScores payload shape: keyed (id, model)).
 interface HubUpdate {
   readonly id: string;
   readonly model: string;
   readonly hubScore: number;
 }
 
-/** Group rows by a string key (deterministic insertion order). */
+// Group rows by a string key (deterministic insertion order).
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
@@ -65,8 +65,8 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
-/** Compute every group's hub scores (content-collapsed, CSLS top-K mean) and write them through the seam.
- *  Returns the rows scored + the groups processed. `groupKeyOf` is the SPACE partition (cross-tenant, #5). */
+// Compute every group's hub scores (content-collapsed, CSLS top-K mean) and write them through the seam.
+// Returns the rows scored + the groups processed. groupKeyOf is the SPACE partition (cross-tenant, #5).
 async function runHubPass<T extends HubRow>(
   rows: readonly T[],
   cfg: {

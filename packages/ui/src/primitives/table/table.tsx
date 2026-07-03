@@ -39,7 +39,7 @@ export interface TableColumn<TData> {
   readonly accessor: (row: TData) => unknown;
   /** Custom cell renderer. Omit for the default (the raw value, booleans as Yes/No, null as blank). */
   readonly cell?: (value: unknown, row: TData) => ReactNode;
-  /** Enables the click-to-sort header button + `aria-sort`. @default false */
+  /** Enables the click-to-sort header button + `aria-sort`. @defaultValue false */
   readonly sortable?: boolean;
   readonly align?: "start" | "center" | "end";
   /** A CSS length (`"8rem"`, `"20%"`) applied to the header cell's `width` — a data-driven layout
@@ -85,7 +85,7 @@ export interface TableProps<TData> {
   readonly defaultPagination?: TablePagination;
   readonly onPaginationChange?: (pagination: TablePagination) => void;
 
-  /** Enables the leading checkbox column + row selection. @default false */
+  /** Enables the leading checkbox column + row selection. @defaultValue false */
   readonly selectable?: boolean;
   /** Controlled selection state (a set of `getRowId` values). Omit to run uncontrolled off
    * `defaultSelectedRowIds`. "Select all" selects every row in `data`, not just the current page. */

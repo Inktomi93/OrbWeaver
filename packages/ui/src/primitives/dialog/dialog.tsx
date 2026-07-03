@@ -39,11 +39,11 @@ export interface DialogPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
   /** Portal target — render the overlay into a specific container (default: document.body). */
   container?: BasePortalProps["container"];
-  /** Keep the portal mounted while the dialog is closed (preserve DOM/animations). @default false */
+  /** Keep the portal mounted while the dialog is closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
   /**
    * Force-render the backdrop even when Base UI would suppress it — required for the backdrop of a
-   * dialog nested inside another dialog (suppressed by default). @default false
+   * dialog nested inside another dialog (suppressed by default). @defaultValue false
    */
   forceRender?: boolean;
 }

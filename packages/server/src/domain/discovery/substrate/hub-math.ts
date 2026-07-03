@@ -19,8 +19,8 @@ export const CSLS_K = 10;
  *  per-row instead of materializing the square (esoteric #1). */
 export const HUBNESS_DENSE_MAX = 5000;
 
-/** Fold one cosine value into a bounded top-`k` accumulator kept ascending (`top[0]` = the current min). A
- *  full sort per offer is O(k log k) — negligible at k=10 — and keeps both code paths trivially identical. */
+// Fold one cosine value into a bounded top-k accumulator kept ascending (top[0] = the current min). A full
+// sort per offer is O(k log k) — negligible at k=10 — and keeps both code paths trivially identical.
 function offer(top: number[], value: number, k: number): void {
   if (top.length < k) {
     top.push(value);
@@ -35,7 +35,7 @@ function offer(top: number[], value: number, k: number): void {
   }
 }
 
-/** Mean of a non-empty number list; 0 for an empty list (a lone vector with no neighbours ⇒ hub 0). */
+// Mean of a non-empty number list; 0 for an empty list (a lone vector with no neighbours ⇒ hub 0).
 function meanOf(values: readonly number[]): number {
   if (values.length === 0) {
     return 0;
@@ -47,8 +47,8 @@ function meanOf(values: readonly number[]): number {
   return sum / values.length;
 }
 
-/** The top-`k` mean of one similarity row of length `n`, excluding index `skip` (self). Shared by the dense
- *  and streaming branches so both produce bit-identical hub scores. `at(j)` reads the j-th cosine. */
+// The top-k mean of one similarity row of length n, excluding index skip (self). Shared by the dense and
+// streaming branches so both produce bit-identical hub scores. at(j) reads the j-th cosine.
 function topKMean(at: (j: number) => number, n: number, skip: number, k: number): number {
   const top: number[] = [];
   for (let j = 0; j < n; j += 1) {
@@ -79,7 +79,7 @@ export function computeGroupHubs(
   return n <= denseMax ? denseHubs(vecs, n, k) : streamingHubs(vecs, n, k);
 }
 
-/** Dense path: one N×N `pairwiseCosine` pass; row i's top-K mean over the off-diagonal (esoteric #1). */
+// Dense path: one N×N pairwiseCosine pass; row i's top-K mean over the off-diagonal (esoteric #1).
 function denseHubs(vecs: readonly Float32Array[], n: number, k: number): number[] {
   const { sim } = pairwiseCosine(vecs);
   const hubs = new Array<number>(n);
@@ -90,8 +90,8 @@ function denseHubs(vecs: readonly Float32Array[], n: number, k: number): number[
   return hubs;
 }
 
-/** Streaming path: recompute row i on demand (1×N `cosineToMany`); O(N) memory (esoteric #1). Bit-identical
- *  to {@link denseHubs} — same normalized dot products, same top-K selection. */
+// Streaming path: recompute row i on demand (1×N cosineToMany); O(N) memory (esoteric #1). Bit-identical to
+// denseHubs — same normalized dot products, same top-K selection.
 function streamingHubs(vecs: readonly Float32Array[], n: number, k: number): number[] {
   const hubs = new Array<number>(n);
   for (let i = 0; i < n; i += 1) {

@@ -25,7 +25,6 @@ describe("updateUserSettingsSection", () => {
       }),
     ]);
     const view = await h.svc.getUserSettings({ principal: p });
-    // Neither write clobbered the other.
     expect(view.config.memory.enabled).toBe(true);
     expect(view.config.worldInfo.scanDepth).toBe(42);
   });

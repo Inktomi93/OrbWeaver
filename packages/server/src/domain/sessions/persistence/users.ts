@@ -74,7 +74,7 @@ export async function selectForProvisionById(
   return rows.at(0);
 }
 
-/** `ensureUser` lookup: the row id for a handle, or undefined. */
+/** `ensureUser` lookup by handle. */
 export async function selectIdByHandle(db: Db, handle: Handle): Promise<UserId | undefined> {
   const rows = await db
     .select({ id: users.id })

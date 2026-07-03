@@ -27,35 +27,35 @@ import { getLog } from "#foundation/observability";
 
 const LOG_COMPONENT = "workloads-worker";
 
-/** Idle poll cadence (queue empty). Fast enough that an admin "Run X" starts within the cadence; slow enough
- *  that idle DB cost is one indexed select per period. */
+// Idle poll cadence (queue empty). Fast enough that an admin "Run X" starts within the cadence; slow enough
+// that idle DB cost is one indexed select per period.
 const DEFAULT_POLL_INTERVAL_MS = 2000;
-/** Busy poll cadence (a row just ran) — shorter, the queue is likely warm. */
+// Busy poll cadence (a row just ran) — shorter, the queue is likely warm.
 const DEFAULT_BUSY_POLL_INTERVAL_MS = 200;
-/** Periodic orphan-reap cadence. Slow — correctness recovery, not a hot path. */
+// Periodic orphan-reap cadence. Slow — correctness recovery, not a hot path.
 const DEFAULT_REAP_INTERVAL_MS = 60_000;
 
 // ── Injected op shapes (entry wires the real front-door fns; tests pass fakes). File-local: the structural
 //    shape rides on `WorkloadsWorkerDeps` (the one exported surface) — entry provides functions, not the
 //    aliases. ───────────────────────────────────────────────────────────────────────────────────────────
 
-/** `nextRunnableWorkload` — the queue-head poll (front door). */
+// `nextRunnableWorkload` — the queue-head poll (front door).
 type NextRunnableOp = (db: Db, now: number) => Promise<WorkloadRowAnyKind | null>;
-/** `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door). */
+// `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
 type RunWorkloadOp = (
   deps: WorkloadRunnerDeps,
   row: WorkloadRowAnyKind,
   signal: AbortSignal,
 ) => Promise<void>;
-/** `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door). */
+// `reapOrphanedWorkloads` — sweep stale in-flight rows from dead workers (front door).
 type ReapOp = (args: { db: Db; now: number; staleThresholdMs?: number }) => Promise<number>;
-/** `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door). */
+// `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
 type LoadWorkloadOp = (db: Db, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
-/** Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
- *  driver never imports the bus directly. */
+// Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
+// driver never imports the bus directly.
 type SubscribeWakeOp = (listener: () => void) => () => void;
-/** A timer seam (entry wires `setInterval`/`setTimeout`; tests pass synchronous fakes). Returns a `clear`
- *  closure so the handle type never leaks (no `NodeJS.Timeout`/`ReturnType<>` in the surface). */
+// A timer seam (entry wires `setInterval`/`setTimeout`; tests pass synchronous fakes). Returns a `clear`
+// closure so the handle type never leaks (no `NodeJS.Timeout`/`ReturnType<>` in the surface).
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
 /** The DI bundle the worker driver closes over — every cross-feature/engine/timer dep injected at entry/. */

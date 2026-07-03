@@ -1,9 +1,9 @@
-// domain/preset/contract/params — every verb's input shape, declared ONCE (the contract is the one type
-// home, §7.4). preset is USER-SCOPED: each verb carries the `userId` resolved from the request `Principal`
-// (the injected context model — never a `users` join, the no-direct-users-read chokepoint). `config` is the
-// cross-boundary `PromptConfig` from `@orb/contracts/preset` (CONSUMED, never re-declared). No `principal`
-// field + no guard op: preset has ONE owner per row and gates by `ownerId === userId` (no
-// global-role / roster check), so there is nothing for the `admin` guard to arbitrate here.
+// Every verb's input shape, declared once (the contract is the one type home, §7.4). preset is
+// user-scoped: each verb carries the `userId` resolved from the request `Principal` — never a `users`
+// join (the no-direct-users-read chokepoint). `config` is the cross-boundary `PromptConfig` from
+// `@orb/contracts/preset`, consumed here, never re-declared. No `principal` field and no guard op:
+// preset has one owner per row and gates by `ownerId === userId`, so there's nothing for an `admin`
+// guard to arbitrate.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";

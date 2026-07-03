@@ -54,7 +54,7 @@ describe("setActivePersona", () => {
       principal: principal(otherUserId),
       input: { name: "other", description: "d" },
     });
-    const personaId = created.id; // Owned by someone else
+    const personaId = created.id;
     const p = principal(ownerId);
 
     await expect(

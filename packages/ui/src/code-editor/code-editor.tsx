@@ -101,7 +101,7 @@ const TOKEN_THEME = EditorView.theme(
   { dark: true },
 );
 
-/** A single lint diagnostic (A5 — CEL/macro rule diagnostics, themes custom-CSS @import warnings). */
+/** A single lint diagnostic (A5 — CEL/macro rule diagnostics, themes custom-CSS `@import` warnings). */
 export interface CodeEditorDiagnostic {
   readonly severity: "error" | "warning";
   readonly message: string;
@@ -162,7 +162,7 @@ export interface CodeEditorProps {
  * update loops); user edits surface through `onChange` via an `updateListener`. The view is
  * destroyed on unmount.
  *
- * Usage:
+ * @example
  * ```tsx
  * <CodeEditor lang="css" value={cardCss} onChange={setCardCss} ariaLabel="Card CSS" />
  * <CodeEditor lang="css" value={css} onChange={setCss} ariaLabel="Custom CSS" diagnostics={warnings} />
@@ -188,12 +188,11 @@ export function CodeEditor({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  // (Re)create the view when the non-controlled config changes. basicSetup/editable/readOnly/
+  // (Re)create the view when non-controlled config changes: basicSetup/editable/readOnly/
   // attributes are baked into the initial state — a fresh view is simpler than a Compartment
-  // reconfigure and these props change rarely (KISS). `hasDiagnostics` (opting the lint gutter
-  // in/out) is the one diagnostics-
-  // related value that belongs here — it changes the STATIC extension list, unlike diagnostic
-  // CONTENT, which is dispatched into the live view below without ever hitting this effect.
+  // reconfigure, and these props change rarely (KISS). `hasDiagnostics` (opts the lint gutter
+  // in/out) belongs here because it changes the STATIC extension list; diagnostic CONTENT is
+  // dispatched into the live view below without ever hitting this effect.
   useEffect(() => {
     const host = hostRef.current;
     if (host === null) {

@@ -2,8 +2,8 @@
 // verbatim in the card fixture — they ARE the format.
 // Mirror test for domain/import/verbs/import-character — the card-import verb (test-presence). Asserts the
 // end-to-end card path over the injected fakes: a real ST card → flatten + provenance into the create op,
-// the PNG-card avatar store, the bare-JSON no-avatar path, the importHash dedup oracle, and the unreadable
-// throw. EVERY INVARIANT SHIPS ITS ENFORCER.
+// the PNG-card avatar store, the bare-JSON no-avatar path, the importHash dedup oracle, the raw card-tag
+// carry (no extraction-side dedupe), and the unreadable throw. EVERY INVARIANT SHIPS ITS ENFORCER.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

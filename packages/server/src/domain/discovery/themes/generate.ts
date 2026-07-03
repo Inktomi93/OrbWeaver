@@ -32,16 +32,16 @@ import { collapseByHash } from "../substrate/collapse";
 import { kmeans } from "../substrate/kmeans";
 import { parseThemeName } from "./utils";
 
-/** The default k-means++ seeding seed (overridable via opts.seed) — pins the clustering for reproducibility. */
+// The default k-means++ seeding seed (overridable via opts.seed) — pins the clustering for reproducibility.
 const DEFAULT_SEED = 1;
-/** A cluster must have at least this many FULL-space members to be worth naming (else stored with `name`
- *  null). Small singleton clusters are not handed to the (costly) summarize pass. */
+// A cluster must have at least this many FULL-space members to be worth naming (else stored with name null).
+// Small singleton clusters are not handed to the (costly) summarize pass.
 const MIN_NAME_SIZE = 2;
-/** How many of a cluster's most-frequent keywords feed the naming prompt. */
+// How many of a cluster's most-frequent keywords feed the naming prompt.
 const NAME_KEYWORDS = 12;
-/** theme_clusters insert column count (id, ownerId, level, clusterIdx, name, centroid, size, model, at). */
+// theme_clusters insert column count (id, ownerId, level, clusterIdx, name, centroid, size, model, at).
 const CLUSTER_COLS = 9;
-/** digest_theme_assignments insert column count (digestId, themeClusterId, msgMidAt, computedAt). */
+// digest_theme_assignments insert column count (digestId, themeClusterId, msgMidAt, computedAt).
 const ASSIGN_COLS = 4;
 
 const NAME_SYSTEM =
@@ -51,8 +51,8 @@ type OwnedDigest = Awaited<ReturnType<typeof readOwnedDigestVectors>>[number];
 type ClusterRow = typeof themeClusters.$inferInsert;
 type AssignRow = typeof digestThemeAssignments.$inferInsert;
 
-/** A built cluster before persistence — its owner/level/space address, the normalized centroid rollup, the
- *  full-space member digest ids, and the member rows (for keyword-based naming). */
+// A built cluster before persistence — its owner/level/space address, the normalized centroid rollup, the
+// full-space member digest ids, and the member rows (for keyword-based naming).
 interface ClusterDraft {
   readonly ownerId: OwnedDigest["ownerId"];
   readonly level: ThemeLevel;
@@ -63,17 +63,17 @@ interface ClusterDraft {
   readonly memberRows: OwnedDigest[];
 }
 
-/** `scene` = tier-0 single-block digests; `arc` = tier-1+ cross-block syntheses. */
+// scene = tier-0 single-block digests; arc = tier-1+ cross-block syntheses.
 function levelOf(tier: number): ThemeLevel {
   return tier === 0 ? "scene" : "arc";
 }
 
-/** The cluster count heuristic √(n/2), clamped to ≥1 (overridable via opts.k). */
+// The cluster count heuristic √(n/2), clamped to ≥1 (overridable via opts.k).
 function heuristicK(n: number): number {
   return Math.max(1, Math.round(Math.sqrt(n / 2)));
 }
 
-/** Group rows by a string key (deterministic insertion order). */
+// Group rows by a string key (deterministic insertion order).
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
@@ -88,7 +88,7 @@ function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, 
   return groups;
 }
 
-/** The most-frequent keywords across a cluster's member digests (for the naming prompt). */
+// The most-frequent keywords across a cluster's member digests (for the naming prompt).
 function topKeywords(rows: readonly OwnedDigest[]): string[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
@@ -102,8 +102,8 @@ function topKeywords(rows: readonly OwnedDigest[]): string[] {
     .map(([kw]) => kw);
 }
 
-/** Cluster ONE (owner, level, space) subgroup → its non-empty clusters (no clusterIdx yet — the caller
- *  assigns a running index within the (owner, level) partition). */
+// Cluster ONE (owner, level, space) subgroup → its non-empty clusters (no clusterIdx yet — the caller
+// assigns a running index within the (owner, level) partition).
 function clusterSubgroup(
   rows: readonly OwnedDigest[],
   k: number,
@@ -143,7 +143,7 @@ function clusterSubgroup(
   return builds.filter((b) => b.memberDigestIds.length > 0);
 }
 
-/** Build every cluster draft across all (owner, level, space) partitions (clusterIdx running per owner+level). */
+// Build every cluster draft across all (owner, level, space) partitions (clusterIdx running per owner+level).
 function buildDrafts(
   solo: readonly OwnedDigest[],
   opts: ComputeThemesOptions,
@@ -170,8 +170,8 @@ function buildDrafts(
   return { drafts, owners };
 }
 
-/** Name the name-worthy drafts (≥ {@link MIN_NAME_SIZE} members) in ONE batched `summarize` call; return a
- *  name (or null) index-aligned to `drafts`. */
+// Name the name-worthy drafts (≥ MIN_NAME_SIZE members) in ONE batched summarize call; return a name (or
+// null) index-aligned to drafts.
 async function nameDrafts(
   drafts: readonly ClusterDraft[],
   summarize: Summarize,
@@ -252,8 +252,8 @@ export async function computeThemes(
   };
 }
 
-/** Atomic full replace: ONE `db.batch` of [delete-all clusters (CASCADE clears assignments), ...chunked
- *  cluster inserts, ...chunked assignment inserts] — clusters before assignments (the FK order). */
+// Atomic full replace: ONE db.batch of [delete-all clusters (CASCADE clears assignments), ...chunked cluster
+// inserts, ...chunked assignment inserts] — clusters before assignments (the FK order).
 async function replaceAll(
   db: Db,
   clusterRows: readonly ClusterRow[],

@@ -25,28 +25,27 @@ import { ImportCardError } from "../contract/errors";
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;
 
-/** A parsed card: the canonical `CharacterCard` (for create) PLUS the author-shipped tag names (for the
- *  card/pending junction carry — `cardFromJson` drops these). File-local: the verb destructures it; the
- *  type-only edge stays inside the substrate (not a cross-boundary contract type). */
+// A parsed card: the canonical `CharacterCard` (for create) PLUS the author-shipped tag names (for the
+// card/pending junction carry — `cardFromJson` drops these). File-local: the verb destructures it; the
+// type-only edge stays inside the substrate (not a cross-boundary contract type).
 interface ParsedCard {
   readonly card: CharacterCard;
   readonly tags: readonly string[];
 }
 
-/** Decode bytes (or pass through a string) to UTF-8 text, stripping a leading BOM. `TextDecoder` is a
- *  global (no node import) so the substrate stays import-clean. */
+// `TextDecoder` is a global (no node import) so the substrate stays import-clean.
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
 }
 
-/** Pull the card's author-shipped tag names off the raw card JSON (V2/V3 `data.tags`, or a bare top-level
- *  `tags`) — RAW strings, no normalization here. Only non-strings are skipped (tolerant IN). Trim +
- *  whitespace-collapse + case-insensitive dedupe are NOT done here on purpose: the tag resolve-or-create
- *  chokepoint (`@orb/kit/tag`'s `normalizeTagName` + the `(ownerId, lower(name))` functional unique) owns the
- *  one canonicalization, so the import loop attaching each raw name idempotently collapses within-card AND
- *  cross-card dupes there — one home, no second normalize knob. Feeds the card/pending junction carry, NOT
- *  the canonical card. */
+// Pull the card's author-shipped tag names off the raw card JSON (V2/V3 `data.tags`, or a bare top-level
+// `tags`) — RAW strings, no normalization here. Only non-strings are skipped (tolerant IN). Trim +
+// whitespace-collapse + case-insensitive dedupe are NOT done here on purpose: the tag resolve-or-create
+// chokepoint (`@orb/kit/tag`'s `normalizeTagName` + the `(ownerId, lower(name))` functional unique) owns the
+// one canonicalization, so the import loop attaching each raw name idempotently collapses within-card AND
+// cross-card dupes there — one home, no second normalize knob. Feeds the card/pending junction carry, NOT
+// the canonical card.
 function extractCardTags(raw: unknown): string[] {
   if (typeof raw !== "object" || raw === null) {
     return [];
@@ -62,8 +61,6 @@ function extractCardTags(raw: unknown): string[] {
   return candidate.filter((entry): entry is string => typeof entry === "string");
 }
 
-/** Parse already-decoded card JSON text → the canonical card + its tags, or null on malformed JSON /
- *  non-object. */
 function fromText(text: string, fallbackName: string): ParsedCard | null {
   try {
     const parsed: unknown = JSON.parse(text);
@@ -102,8 +99,8 @@ export function importFileHash(bytes: Uint8Array): string {
 /**
  * Flatten a canonical card → the `CreateCharacterInput` the create op consumes, deriving the per-owner
  * `handle` from the name and attaching the stored avatar. VALIDATES the result against the canonical
- * `createCharacterSchema` (the tolerant-IN → strict-validate seam, §7.3 inv 3) — a normalized card that
- * fails the canonical schema throws `ImportCardError("card_invalid")` rather than reaching the create op.
+ * `createCharacterSchema` (the tolerant-IN → strict-validate seam, §7.3 inv 3).
+ * @throws {@link ImportCardError} `card_invalid` when the normalized card fails the canonical schema.
  */
 export function cardToCreateInput(
   card: CharacterCard,

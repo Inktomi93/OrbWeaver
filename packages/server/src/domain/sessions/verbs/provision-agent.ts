@@ -58,8 +58,7 @@ export function createProvisionAgent(
   async function provisionAgentPrincipal(
     params: ProvisionAgentParams,
   ): Promise<ProvisionAgentResult> {
-    // Gate the owner: it must exist, be a HUMAN (no nested agents), and be enabled (a disabled human cannot
-    // mint hands). A non-human / unknown owner collapses to a leak-free not-found.
+    // HUMAN only (no nested agents); a non-human/unknown owner collapses to a leak-free not-found.
     const owner = await selectMintOwner(ctx.db, params.ownerUserId);
     if (owner === undefined || owner.kind !== "human") {
       throw new DomainNotFoundError("user", params.ownerUserId);

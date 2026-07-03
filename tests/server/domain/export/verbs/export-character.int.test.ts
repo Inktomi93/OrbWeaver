@@ -32,7 +32,7 @@ import {
 
 const AVATAR_HASH = "avatar_hash";
 
-/** Decode the V3 card JSON embedded in an exported PNG (the `ccv3` chunk). */
+// Decode the V3 card JSON embedded in an exported PNG (the `ccv3` chunk).
 function readCard(bytes: Uint8Array): unknown {
   const json = readCardChunk(bytes, "ccv3");
   if (json === null) {

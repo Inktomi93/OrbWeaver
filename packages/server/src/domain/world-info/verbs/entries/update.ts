@@ -17,7 +17,6 @@ import { loadOwnedEntry, toEntryView } from "../../persistence/queries";
 export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEntry"] {
   return async ({ principal, entryId, input }: UpdateEntryParams) => {
     const ownerId = principal.userId;
-    // undefined → skip (stripUndefined drops it); null → clear; a record → coerce at the write seam.
     let metadata: EntryMetadata | null | undefined;
     if (input.metadata === undefined) {
       metadata = undefined;

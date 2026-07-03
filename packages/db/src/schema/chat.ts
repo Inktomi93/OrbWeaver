@@ -94,9 +94,9 @@ function checkList(values: readonly string[]): string {
 // host-handoff nominee (Part III §2), and the lazy-parsed room-behavior `metadata` blob.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The chat-room behavior blob. No single contract type spans all
- *  three sub-blobs, so the column composes them; the domain's `parseChatMetadata` fault-isolates each
- *  (a malformed sub-blob falls back to its default without nuking siblings). */
+// The chat-room behavior blob. No single contract type spans all three sub-blobs, so the column composes
+// them; the domain's `parseChatMetadata` fault-isolates each (a malformed sub-blob falls back to its
+// default without nuking siblings).
 interface ChatMetadata {
   group?: GroupConfig;
   roomOverrides?: RoomOverrides;

@@ -34,9 +34,17 @@ const DELTA_GLYPH_LABEL = { up: "Up", down: "Down", flat: "Flat" } as const;
 const DEFAULT_SPARKLINE_HEIGHT_PX = 48;
 
 /**
- * Usage: `<StatFigure label="Documents indexed" value="1,204" trend={last30Days}
- *   delta={{ text: "+12% this week", direction: "up" }} />`. Omit `trend` for a bare number+delta
- * tile (no chart mounts).
+ * Omit `trend` for a bare number+delta tile (no chart mounts).
+ *
+ * @example
+ * ```tsx
+ * <StatFigure
+ *   label="Documents indexed"
+ *   value="1,204"
+ *   trend={last30Days}
+ *   delta={{ text: "+12% this week", direction: "up" }}
+ * />
+ * ```
  */
 export function StatFigure({
   label,

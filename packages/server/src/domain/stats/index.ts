@@ -8,11 +8,8 @@ export type { LatencyScope, LeaderboardSort } from "./contract/params";
 // Params — the type axes + their runtime sources (the tuple/schema a thin tRPC router derives its wire
 // input from; deep-importing contract/params is a front-door violation, so they re-export here).
 export { LEADERBOARD_SORTS, latencyScopeSchema } from "./contract/params";
-// Write-substrate result
 export type { ReconcileStatsResult } from "./contract/results";
-// Read service + factory
 export type { StatsService } from "./contract/service";
-// View types (what the client receives)
 export type {
   ActivityHeatmap,
   CharacterMomentum,
@@ -28,6 +25,5 @@ export type {
   WrappedSummary,
 } from "./contract/views";
 export { createStatsService } from "./service";
-// The standalone write substrate (NOT service verbs — injected / workload-driven).
 export { applyStatsDelta } from "./write/apply-delta";
 export { reconcileStats } from "./write/rebuild-from-canon";

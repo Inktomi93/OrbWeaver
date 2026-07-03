@@ -1,7 +1,7 @@
-// foundation/observability/tracing — the libSQL driver wrap. The two load-bearing invariants
-// (core/Tier-2-Foundation.md #6/#8): non-instrumented methods pass through BOUND to the target (the TC39
-// private-field brand check), and an instrumented `execute` opens a `db.execute` child span that lands in
-// the request's trace.
+// foundation/observability/tracing — the libSQL driver wrap. The load-bearing invariant
+// (core/Tier-2-Foundation.md esoteric #8): non-instrumented methods pass through BOUND to the target (the
+// TC39 private-field brand check). Also asserts an instrumented `execute` opens a `db.execute` child span
+// that lands in the request's trace.
 
 import {
   getTraceByRequestId,

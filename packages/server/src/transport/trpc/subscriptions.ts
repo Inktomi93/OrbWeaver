@@ -1,5 +1,5 @@
-// transport/trpc/subscriptions — the SSE subscription typed-error wrapper (core/Tier-4-Transport.md Esoteric #5 +
-// Esoteric #5). A subscription GENERATOR bypasses `domainErrorMiddleware` (the middleware returned a
+// transport/trpc/subscriptions — the SSE subscription typed-error wrapper (core/Tier-4-Transport.md Esoteric #5).
+// A subscription GENERATOR bypasses `domainErrorMiddleware` (the middleware returned a
 // result long before the generator yields/throws), so a thrown typed `DomainError` — e.g. a `NOT_FOUND`
 // during a draft-tolerant ownership gate — would surface as a spurious 500. `withSubscriptionErrors`
 // catches a `DomainError` thrown anywhere in the stream and converts it into a typed terminal frame
@@ -12,8 +12,8 @@ import type { TRPCError, TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { classifyDomainError } from "./error-mapping";
 
-/** The sentinel tracked id for the terminal error frame — never a durable cursor, so a reconnect's
- *  `lastEventId` never resumes "from the error". */
+// The sentinel tracked id for the terminal error frame — never a durable cursor, so a reconnect's
+// `lastEventId` never resumes "from the error".
 const SUBSCRIPTION_ERROR_ID = "__error__";
 
 /**

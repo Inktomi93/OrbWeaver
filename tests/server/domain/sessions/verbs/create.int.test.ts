@@ -41,7 +41,6 @@ describe("sessions.create", () => {
     expect(row).toBeDefined();
     expect(row?.tokenHash).toBe(createTokenHasher(PEPPER)(token));
     expect(row?.tokenHash).not.toBe(token);
-    // The raw token appears in NO column of the row.
     expect(JSON.stringify(row)).not.toContain(token);
   });
 

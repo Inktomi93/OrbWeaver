@@ -30,15 +30,15 @@ interface BuddyValues {
   stats: CompanionStats;
 }
 
-/** Insert a user (the FK root) + return its id. */
+// Insert a user (the FK root) + return its id.
 async function seedUser(db: Db, raw: string): Promise<UserId> {
   const id = castId<UserId>(raw);
   await db.insert(users).values({ id, handle: castId<Handle>(raw) });
   return id;
 }
 
-/** A minimal valid buddy values object (widened axis types so overrides typecheck; defaults fill
- *  mood/shiny/bondXp/flags/timestamps). */
+// A minimal valid buddy values object (widened axis types so overrides typecheck; defaults fill
+// mood/shiny/bondXp/flags/timestamps).
 function buddyValues(userId: UserId): BuddyValues {
   return {
     userId,

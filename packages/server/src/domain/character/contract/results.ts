@@ -10,15 +10,14 @@ export interface CharacterRef {
   readonly characterId: CharacterId;
 }
 
-/** `snapshot` — the appended history blob's id + when it was taken. */
+/** Returned by `snapshot`. */
 export interface SnapshotRef {
   readonly id: CharacterSnapshotId;
   readonly characterId: CharacterId;
   readonly createdAt: number;
 }
 
-/** A browse-history row (the git "commit log" entry) — id + optional label + timestamp; the opaque blob
- *  itself is read only on `restore`. */
+/** A browse-history row (the git "commit log" entry); the opaque blob itself is read only on `restore`. */
 export interface SnapshotSummary {
   readonly id: CharacterSnapshotId;
   readonly label: string | null;

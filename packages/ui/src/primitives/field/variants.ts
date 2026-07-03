@@ -1,6 +1,5 @@
 import { tv } from "tailwind-variants";
 
-// The labeled-form-row skin — slots for the multi-part composition (ui-package-design §5).
 export const fieldVariants = tv({
   slots: {
     root: "flex w-full flex-col gap-field",

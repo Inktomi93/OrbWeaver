@@ -135,7 +135,7 @@ function appendWarnings(
  * result; classifies compaction / retries / rate-limits / auth into `events` along the way. The first
  * `session_id` seen is reported via `ctx.onSessionId` (the resume-cache seam).
  *
- * @public — the test suite drives this with synthetic streams; the live spawn lives in `runChatTurn`.
+ * Exported so the test suite can drive it with synthetic streams; the live spawn lives in `runChatTurn`.
  */
 export async function consumeTurnStream(
   stream: AsyncIterable<SDKMessage>,

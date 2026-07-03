@@ -1,5 +1,5 @@
-// foundation/observability/debug/routes — the /api/_debug two-tier auth gate (foundation.md invariant
-// #9, the Phase-4a audit's blocker: this gate shipped untested). Pins: timing-safe token equality;
+// foundation/observability/debug/routes — the /api/_debug two-tier auth gate (this gate previously
+// shipped untested). Pins: timing-safe token equality;
 // admin-cookie short-circuit; DEBUG_TOKEN fallback; `expectedToken === undefined` → 404 only when no
 // admin checker authorizes; wrong token → 401; and — the security-critical one — `isAdmin` THROWING must
 // never OPEN the gate (it falls through to the token check, never short-circuits to allow).

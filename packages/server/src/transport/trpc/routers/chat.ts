@@ -25,7 +25,6 @@ import { subscribeChatEvents } from "../chat-events-bus";
 import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
 
-// Define a few simple schemas to bootstrap the chat router.
 const startChatSchema = z.object({
   characterIds: z.array(brandedId<CharacterId>()),
   anchorPersonaId: brandedId<PersonaId>().nullish(),
@@ -103,7 +102,7 @@ export const chatRouter = t.router({
   ),
 });
 
-/** The live-first / replay-second per-chat event generator (dedup by monotonic durable `seq`). */
+// The live-first / replay-second per-chat event generator (dedup by monotonic durable `seq`).
 async function* chatEventStream(args: {
   readonly service: ChatService;
   readonly principal: Principal;
@@ -145,8 +144,8 @@ async function* chatEventStream(args: {
   }
 }
 
-/** The withhold-not-throw membership probe: NOT_FOUND (no chat / not a member — the leak-free collapse)
- *  → `false`; anything else is a real fault and propagates. */
+// The withhold-not-throw membership probe: NOT_FOUND (no chat / not a member — the leak-free collapse)
+// → `false`; anything else is a real fault and propagates.
 async function isMember(
   service: ChatService,
   principal: Principal,
@@ -163,7 +162,7 @@ async function isMember(
   }
 }
 
-/** A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id). */
+// A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id).
 function parseResumeSeq(lastEventId: string | null): number | null {
   if (lastEventId === null) {
     return null;

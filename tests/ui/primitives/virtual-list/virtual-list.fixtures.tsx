@@ -97,7 +97,6 @@ const DERIVED_SOURCE: readonly FixtureItem[] = [
  */
 export function DerivedItemsList(): ReactElement {
   const [bump, setBump] = useState(0);
-  // fresh array, derived during render (filter+map) — a different reference each render.
   const items = DERIVED_SOURCE.filter((entry) => entry.label.length > 0).map((entry) => ({
     ...entry,
   }));

@@ -4,10 +4,10 @@
 // the agent-sdk credential firewall spreads into its child (the firewall OWNS the denylist policy —
 // ledger §2 / D8; env only produces the raw snapshot).
 //
-// Every other tier imports `env` and dot-accesses a typed key (`env.PORT`) — a real property access,
-// satisfying tsc's noPropertyAccessFromIndexSignature + Biome's useLiteralKeys at once. This file is the
-// SOLE place that touches `process.env` (the `sole-env-reader` rule; the biome `noProcessEnv` override is
-// scoped to this glob). NEVER written; parsed once, frozen, read down as the floor.
+// Every other tier imports `env` and dot-accesses a typed key (`env.PORT`), satisfying tsc's
+// noPropertyAccessFromIndexSignature. This file is the SOLE place that touches `process.env`
+// (the `sole-env-reader` rule; the biome `noProcessEnv` override is scoped to this glob).
+// NEVER written; parsed once, frozen, read down as the floor.
 
 import process from "node:process";
 import { AUTH_MODES } from "@orb/contracts/identity";
@@ -104,12 +104,9 @@ const envSchema = z
     // Import curation: comma-separated character names (case-insensitive) to EXCLUDE at import (the card +
     // its chats are dropped). Default skips non-RP utility cards; set to "" to import all.
     IMPORT_SKIP_CHARACTERS: z.string().default("Wren,Assistant"),
-    // IMPORT_DEFAULT_SOURCE — DROPPED (Alex 2026-06-28, PD-15 cleared): neo-jank. ST chats carry provenance
-    // PER MESSAGE (each assistant message's `extra` records its own model/api/tokens at generation time), and
-    // D26 homes economics on `message_variants` per-variant — so chat-import maps each message's OWN recorded
-    // source/model → that variant's provenance, never a single chat-level default. The live connection for
-    // NEW turns in an imported chat is resolved the normal way (`connection.resolveChat` → user roleDefaults
-    // → system default), so no per-chat source pin + no env floor is needed. There is nothing to default.
+    // No IMPORT_DEFAULT_SOURCE (PD-15 cleared): provenance is PER MESSAGE (each assistant message's `extra`
+    // records its own model/api/tokens; D26 homes economics per-variant on `message_variants`), so import
+    // maps each message's own recorded source — never a chat-level default. Do not re-add this var.
 
     // ── Auth / tenancy (spine/identity-auth-permission). The app only CONSUMES identity (never an IdP).
     // AUTH_MODE picks the SSO mechanism; AUTH_FALLBACK decides the un-credentialed case. Every var has a
@@ -259,7 +256,6 @@ export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(envSchema.
  * The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. It stays under
  * the single-reader roof because it reads `process.env`; WHICH keys the Claude child may not see is the
  * credential firewall's denylist policy (infra/providers/backends/agent-sdk), NOT env's (ledger §2 / D8).
- * @public — consumed by the agent-sdk backend to compose its host-env baseline.
  */
 export function processEnvSnapshot(): Record<string, string | undefined> {
   return { ...process.env };

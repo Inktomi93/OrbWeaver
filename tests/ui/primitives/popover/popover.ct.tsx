@@ -114,7 +114,7 @@ test("no backdrop element when the prop is omitted", async ({ mount, page }) => 
 });
 
 // createHandle: opening the popover imperatively via the detached handle routes the trigger payload
-// to the Root's render-function children (harness in ./popover-handle.harness — Playwright CT needs
+// to the Root's render-function children (harness in ./popover-handle.fixtures — Playwright CT needs
 // the mounted component in its own module).
 test("opens imperatively via a detached handle and routes the trigger payload to content", async ({
   mount,

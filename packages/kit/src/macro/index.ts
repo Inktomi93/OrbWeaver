@@ -86,14 +86,6 @@ export function createMacroContext(
   return ctx;
 }
 
-/**
- * Process macros in a string, replacing them with their evaluated values.
- * This combines Lexing, Parsing, and Evaluating into a single call.
- *
- * @param text - The text containing macros (e.g. `Hello {{user}}`)
- * @param options - Context variables needed for macro evaluation (e.g. char, user, env)
- * @param registry - Optional custom macro registry (defaults to the global registry)
- */
 export function processMacros(
   text: string,
   options: ProcessMacroOptions,

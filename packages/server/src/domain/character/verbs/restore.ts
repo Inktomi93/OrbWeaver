@@ -33,7 +33,6 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
     }
 
     const at = ctx.now();
-    // Snapshot the CURRENT card first so the restore can itself be undone.
     await appendSnapshot(ctx.db, {
       id: ctx.newSnapshotId(),
       characterId,

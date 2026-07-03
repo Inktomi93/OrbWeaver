@@ -25,7 +25,7 @@ function inboxView(seq: number): InboxView {
   };
 }
 
-/** Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1. */
+// Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1.
 function dataOf(yielded: unknown): InboxView {
   const value = Array.isArray(yielded) ? yielded[1] : yielded;
   return value as InboxView;

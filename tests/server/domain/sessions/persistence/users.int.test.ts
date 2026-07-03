@@ -58,7 +58,6 @@ describe("persistence/users", () => {
       createdAt: T0,
       updatedAt: T0,
     });
-    // The conflicting insert was ignored — the original row stands.
     const row = (await db.select().from(users).where(eq(users.handle, HANDLE)))[0];
     expect(row?.id).toBe(ALICE);
     expect(row?.role).toBe("user");

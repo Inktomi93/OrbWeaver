@@ -18,7 +18,6 @@ const PRESET_ENTITY = "preset";
 
 export function createResetToDefault(ctx: PresetContext): Pick<PresetService, "resetToDefault"> {
   async function resetToDefault(params: ResetToDefaultParams): Promise<PresetDetail> {
-    // The system default is already the default — return it unchanged (no fork, no write).
     if (params.id === SYSTEM_DEFAULT_PRESET_ID) {
       const current = await readablePreset(ctx.db, params.userId, params.id);
       if (current === undefined) {

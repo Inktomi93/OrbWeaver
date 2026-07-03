@@ -69,8 +69,8 @@ async function seedMember(
   });
 }
 
-/** A canon slot + its variants; `selectedIdx` picks the pointer (default: the last variant). The optional
- *  `characterId`/`personaId` stamp the speaker (Part III group fidelity — each turn resolves to its own name). */
+// A canon slot + its variants; `selectedIdx` picks the pointer (default: the last variant). The optional
+// `characterId`/`personaId` stamp the speaker (Part III group fidelity — each turn resolves to its own name).
 async function seedSlot(args: {
   chatId: ChatId;
   key: string;

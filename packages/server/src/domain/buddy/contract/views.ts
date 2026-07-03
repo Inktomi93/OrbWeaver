@@ -16,9 +16,9 @@ export interface BuddyView {
   /** epoch-ms UTC; null until hatched (the row's `createdAt`). */
   readonly hatchedAt: number | null;
   readonly mood: Mood;
-  /** Whether the buddy reacts to app events (the observer toggle). */
+  /** The observer toggle. */
   readonly reactionsEnabled: boolean;
-  /** Whether the buddy may run its tool-using "hands" (the capability-ceiling kill switch). */
+  /** The capability-ceiling kill switch for the tool-using "hands". */
   readonly agencyEnabled: boolean;
   /** Relationship tier (derived from bond XP). */
   readonly bondTier: BondTier;

@@ -47,7 +47,6 @@ describe("clearTable", () => {
     await svc.clearTable({ table: "character_embeddings" });
 
     expect(await db.select().from(characterEmbeddings)).toHaveLength(0);
-    // The image table is a different VectorTable — untouched.
     expect(await db.select().from(imageEmbeddings)).toHaveLength(1);
   });
 });

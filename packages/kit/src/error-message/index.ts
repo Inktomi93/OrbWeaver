@@ -6,7 +6,6 @@
 // Deliberately tiny and dependency-free: kit is importable from every layer (client, server, scripts)
 // and this must never grow logging / classification concerns — those live elsewhere.
 
-/** `err.message` when `err` is an Error, `String(err)` otherwise. */
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }

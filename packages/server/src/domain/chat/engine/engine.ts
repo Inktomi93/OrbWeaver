@@ -361,8 +361,7 @@ async function executeTurn(
     });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
 
-    // Memory trigger: §3a fire-and-forget post-turn build.
-    // Must not block the reply. We wrap it in a Promise.resolve().then(...)
+    // Memory trigger (§3a): fire-and-forget — must not block the reply.
     void Promise.resolve().then(async () => {
       try {
         await deps.generateSegments(ctx, { chatId: prep.chatId });

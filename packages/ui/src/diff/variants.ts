@@ -1,8 +1,7 @@
 import { tv } from "tailwind-variants";
 
 /**
- * Diff segment skin (ui-package-design §6.1 — "add/remove intent tokens"): added text on the
- * success intent pair, removed text struck through on the destructive pair, unchanged plain.
+ * Diff segment skin (ui-package-design §6.1 — "add/remove intent tokens").
  * Foreground/background always travel as a token PAIR — never an opacity calc over a raw color.
  */
 export const diffSegmentVariants = tv({

@@ -19,7 +19,6 @@ export function collapseByHash<T>(
   hashOf: (row: T) => string,
   idOf: (row: T) => string,
 ): { readonly reps: T[]; readonly repOf: number[] } {
-  // Pick the min-id representative per hash.
   const repByHash = new Map<string, T>();
   for (const row of rows) {
     const hash = hashOf(row);
@@ -41,7 +40,7 @@ export function collapseByHash<T>(
   return { reps, repOf };
 }
 
-/** Total order over strings (`-1 | 0 | 1`) — code-unit comparison, stable + locale-independent. */
+// Total order over strings (-1|0|1) — code-unit comparison, stable + locale-independent.
 function compareStr(a: string, b: string): number {
   if (a < b) {
     return -1;

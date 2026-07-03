@@ -17,8 +17,7 @@ export const rateLimitBuckets = sqliteTable("rate_limit_buckets", {
   // entity, it's a fixed-window counter slot). The `scope:` prefix is load-bearing — the lazy sweep keys
   // its `LIKE 'scope:%'` prefix scan on it, and the windowStart segment rolls the bucket over naturally.
   key: text("key").primaryKey(),
-  // The usage count accumulated in this window. The atomic upsert increments it; the limiter compares it
-  // against the configured cap. Starts at the first hit.
+  // Incremented by the atomic upsert; the limiter compares it against the configured cap.
   count: integer("count").notNull().default(0),
   // The window's expiry (ms epoch). Drives Retry-After / msBeforeNext AND the lazy sweep predicate
   // (a row whose expiresAt < now is dead weight, deleted on the next same-scope touch). Set at insert

@@ -20,7 +20,6 @@ import type {
 import { BOND_THRESHOLDS, FORMS, MOOD_PRIORITY, STAGE_THRESHOLDS } from "@orb/contracts/buddy";
 import type { BuddySignalKind } from "../contract/signals";
 
-// The mood a signal induces. Full Record over BuddySignalKind — exhaustive (a new kind fails tsc).
 const SIGNAL_MOOD: Record<BuddySignalKind, Mood> = {
   "workload:started": "working",
   "workload:completed": "excited",
@@ -36,7 +35,6 @@ const SIGNAL_MOOD: Record<BuddySignalKind, Mood> = {
   "buddy:evolved": "proud",
 };
 
-/** The mood a signal induces. */
 export function moodForSignal(kind: BuddySignalKind): Mood {
   return SIGNAL_MOOD[kind];
 }
@@ -75,8 +73,7 @@ export function resolveMood(
   return now - lastReactionAt < MOOD_HOLD_MS ? current : candidate;
 }
 
-// Stat growth — the same signals nudge stats (small, clamped, throttled by the cooldown). INTENTIONAL
-// partial: not every signal grows a stat.
+// Stat growth — the same signals nudge stats (small, clamped, throttled by the cooldown).
 const SIGNAL_STAT: Partial<Record<BuddySignalKind, StatName>> = {
   "chat:first-message": "LORE",
   "chat:turn-completed": "WARMTH",
@@ -85,14 +82,12 @@ const SIGNAL_STAT: Partial<Record<BuddySignalKind, StatName>> = {
   "trace:slow-turn": "WIT",
 };
 
-/** Which stat (if any) a signal grows. */
 export function statForSignal(kind: BuddySignalKind): StatName | null {
   return SIGNAL_STAT[kind] ?? null;
 }
 
 // --- Derived facets (relationship / maturity / archetype) --------------------
 
-/** Relationship tier from bond XP. Walks thresholds high→low. */
 export function bondTierOf(bondXp: number): BondTier {
   if (bondXp >= BOND_THRESHOLDS.bestie) {
     return "bestie";
@@ -111,7 +106,6 @@ function statSum(stats: CompanionStats): number {
   return Object.values(stats).reduce((a, b) => a + b, 0);
 }
 
-/** Maturity stage from the stat-sum. */
 export function stageOf(stats: CompanionStats): Stage {
   const sum = statSum(stats);
   if (sum >= STAGE_THRESHOLDS.stage2) {

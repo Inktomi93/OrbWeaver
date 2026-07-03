@@ -43,7 +43,6 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
       updatedAt: now,
     });
     getLog().info({ handle }, "user: created tenant row");
-    // Re-read to return the canonical row id if a concurrent insert won the race.
     const settled = await selectIdByHandle(ctx.db, handle);
     return settled ?? id;
   }

@@ -31,18 +31,20 @@ function kindOf(change: Change): SegmentKind {
 export interface DiffViewProps {
   readonly before: string;
   readonly after: string;
-  /** Diff granularity — `diffChars` / `diffWords` / `diffLines`. Defaults to `"chars"`. */
+  /**
+   * Diff granularity.
+   * @defaultValue "chars"
+   */
   readonly mode?: DiffMode;
   readonly className?: string;
 }
 
 /**
  * The jsdiff (`diff` v9) seal (ui-package-design §6.1 / D28/D54 — snapshot/edit-history diff
- * views; dep-cruiser `ui-satellite-seals` bans `diff` outside this dir): renders the before→after
- * change stream as inline segments — added on the success intent pair, removed struck through on
- * the destructive pair, unchanged plain (skin in `variants.ts`).
+ * views; dep-cruiser `ui-satellite-seals` bans `diff` outside this dir). Renders the before→after
+ * change stream as inline segments (skin in `variants.ts`).
  *
- * Usage:
+ * @example
  * ```tsx
  * <DiffView before={snapshot.text} after={draft.text} mode="words" />
  * ```

@@ -303,8 +303,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // The D17 max-pro-sub owner-gate reads the host's REAL role (the injected resolveHostPrincipal —
       // PD-73), so the owner's own max-pro-sub turn is no longer fail-closed-denied.
       input.credentials.resolve({ principal: await realHostPrincipal(runAsUserId), source }),
-    // Chat hands `{runAsUserId, source, status}`. We resolve the credential here
-    // to get the `credentialId` and pass it to `credentials.maybeRevokeOnAuthFailed`.
+    // Re-resolve the credential to get its `credentialId` for `credentials.maybeRevokeOnAuthFailed`.
     maybeRevokeOnAuthFailed: async ({ runAsUserId, source, status }) => {
       try {
         // biome-ignore lint/style/noMagicNumbers: HTTP status codes
@@ -328,7 +327,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
-    // Human publics. We fetch handle from `users` and `avatarAssetId` from `UserSettings`. If an active persona is provided, we fetch its name and avatar instead.
     resolveUserPublics: async (userId, personaId) => {
       const rows = await db
         .select({ handle: users.handle })
@@ -355,7 +353,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         }
       }
 
-      // If no persona avatar, fallback to user settings avatar
       if (avatarAssetId === null) {
         try {
           const userSettings = await input.settings.loadUserSettings(userId);

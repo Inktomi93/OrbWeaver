@@ -13,26 +13,22 @@ export function createGetRosterCardView(
     chatId,
     characterId,
   }: GetRosterCardViewParams): Promise<MemberCardView> => {
-    // 1. Membership gate
     await ctx.requireParticipant(principal, chatId);
 
-    // 2. Load visibility config
     let visibility: MemberCardVisibility = await ctx.getChatMemberCardVisibility(chatId);
 
-    // 3. Load character
     const row = await loadCharacterWithAvatarById(ctx.db, characterId);
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
 
-    // 4. Owner-override (an owner always sees full, even when calling through the roster view)
+    // Owner override: an owner always sees full, even when calling through the roster view.
     if (row.character.ownerId === principal.userId) {
       visibility = "full";
     }
 
     const c = row.character;
 
-    // Base fields (name-avatar floor)
     const view: MemberCardView = {
       id: c.id,
       handle: c.handle,
@@ -41,7 +37,6 @@ export function createGetRosterCardView(
       avatarHash: row.avatar?.hash ?? null,
     };
 
-    // Level: sheet
     if (visibility === "sheet" || visibility === "sheet+lore" || visibility === "full") {
       Object.assign(view, {
         description: c.description,
@@ -52,14 +47,12 @@ export function createGetRosterCardView(
       });
     }
 
-    // Level: sheet+lore
     if (visibility === "sheet+lore" || visibility === "full") {
       Object.assign(view, {
         creatorNotes: c.creatorNotes,
       });
     }
 
-    // Level: full
     if (visibility === "full") {
       Object.assign(view, {
         systemPrompt: c.systemPrompt,

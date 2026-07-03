@@ -11,7 +11,7 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 import { caller, makeContext, principal } from "./_support.ts";
 
-/** Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1. */
+// Unwrap a yielded subscription value — `tracked()` yields `[id, data, symbol]`; data is at index 1.
 function dataOf(yielded: unknown): Record<string, unknown> {
   const value = Array.isArray(yielded) ? yielded[1] : yielded;
   return value as Record<string, unknown>;

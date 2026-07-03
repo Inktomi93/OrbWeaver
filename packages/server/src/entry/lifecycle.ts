@@ -279,8 +279,7 @@ export function createLifecycle(): Lifecycle {
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
-      // Per-new-user first-request seed (SSO/admin-created accounts). Fire-and-forget — ensureSeeded never
-      // throws and the memo+latch make it a Set lookup after the first touch; NEVER block the request.
+      // See AppDeps.seedUserCharacters for why the fire-and-forget void here is safe.
       seedUserCharacters: (principal: Principal): void => {
         void built.characterSeeder.ensureSeeded(principal);
       },

@@ -26,8 +26,13 @@ export interface HistogramProps {
 const DEFAULT_HEIGHT_PX = 200;
 
 /**
- * Usage: `<Histogram label="Chunk size distribution"
- *   buckets={[{ label: "0–99", count: 12 }, { label: "100–199", count: 40 }, ...]} />`.
+ * @example
+ * ```tsx
+ * <Histogram
+ *   label="Chunk size distribution"
+ *   buckets={[{ label: "0–99", count: 12 }, { label: "100–199", count: 40 }]}
+ * />
+ * ```
  */
 export function Histogram({
   buckets,

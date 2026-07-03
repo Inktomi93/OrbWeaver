@@ -114,7 +114,7 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
 });
 
 // createHandle: open the dialog imperatively (no trigger) with a payload via handle.openWithPayload;
-// the payload reaches the Root render-function children (harness in ./dialog-handle.harness).
+// the payload reaches the Root render-function children (harness in ./dialog-handle.fixtures).
 test("opens imperatively via a handle and routes the payload to content", async ({
   mount,
   page,

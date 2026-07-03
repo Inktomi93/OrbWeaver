@@ -35,7 +35,7 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row (the `user_settings` FK requires it). Returns the branded id. */
+/** Insert a `users` row (the `user_settings` FK requires it). */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? overrides.role ?? "x"}`);
   await db.insert(users).values({
@@ -50,7 +50,7 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
+/** `via` is always `"cookie"` (hardcoded, not a param). */
 export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
   return {
     userId,
@@ -61,7 +61,6 @@ export function principal(userId: UserId, role: UserRole, handle: string = userI
   };
 }
 
-/** Build the settings service over a real db with the real guard + a recording audit fake. */
 export function makeHarness(db: Db): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];

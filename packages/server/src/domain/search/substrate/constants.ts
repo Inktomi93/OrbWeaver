@@ -4,8 +4,9 @@
 // then (optionally) rerank a budget-capped slice of that pool before capping to `topN`. Tightening any
 // constant trades recall for latency.
 //
-// W2 CORE defines only the constants the built verbs (`knn`/`findCharacters`) consume. The discover/scoped
-// budgets (`SCOPED_POOL_K`, `DISCOVER_SEGMENT_POOL_*`, `CSLS_POOL_FACTOR`) land with their deferred verbs.
+// W2 CORE defines the constants the built verbs (`knn`/`findCharacters`/`digests`/`segments`/`corpus`)
+// consume, including `SCOPED_POOL_K` (the chat-memory full-pool cap). The discover budgets
+// (`DISCOVER_SEGMENT_POOL_*`, `CSLS_POOL_FACTOR`) land with their deferred verbs.
 
 /** Over-fetch multiplier for the initial owner-scoped vector scan: fetch `OWNER_OVERFETCH × topN`
  *  candidates so CSLS hub-adjust + rerank can reorder a deep-enough pool without truncating real hits. */

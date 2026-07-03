@@ -38,12 +38,9 @@ function usePrefersReducedMotion(): boolean {
 }
 
 export interface ChartProps {
-  /** The ECharts option — bar/line series + grid/tooltip/dataset/aria (the v1 chart family). */
+  /** Bar/line series + grid/tooltip/dataset/aria — the v1 chart family. */
   readonly option: OrbChartOption;
-  /**
-   * Accessible name for the canvas. ECharts' `aria` component turns this into `role="img"` +
-   * `aria-label` on the rendered canvas — never a hand-rolled visually-hidden label over it.
-   */
+  /** Accessible name for the canvas, rendered via ECharts' `aria` component (see file header). */
   readonly label: string;
   readonly height?: number | string;
   readonly className?: string;
@@ -52,7 +49,10 @@ export interface ChartProps {
 }
 
 /**
- * Usage: `<Chart option={{ xAxis: {...}, yAxis: {...}, series: [...] }} label="Top sources" />`.
+ * @example
+ * ```tsx
+ * <Chart option={{ xAxis: {}, yAxis: {}, series: [] }} label="Top sources" />
+ * ```
  */
 export function Chart({
   option,
@@ -63,8 +63,8 @@ export function Chart({
 }: ChartProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const slots = chartVariants();
-  // Caller-supplied `option.aria`/`option.animation` are honored — EXCEPT under reduced motion,
-  // where `animation: false` is forced and never overridable (the one binding rule here).
+  // mergeChartOption enforces the binding rule: animation:false is never overridable under
+  // reduced motion (see its TSDoc).
   const merged = mergeChartOption(option, { label, reducedMotion });
 
   return (

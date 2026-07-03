@@ -25,7 +25,7 @@ export interface CompareBlocksProps {
    */
   readonly accepted?: readonly boolean[];
   readonly onAcceptedChange?: (accepted: readonly boolean[]) => void;
-  /** @default "Accept all" */
+  /** @defaultValue "Accept all" */
   readonly acceptAllLabel?: string;
   readonly className?: string;
 }

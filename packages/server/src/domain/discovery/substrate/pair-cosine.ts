@@ -12,9 +12,9 @@
 
 import { pairwiseCosine } from "@orb/kit/vector-math";
 
-/** One above-threshold pair: the two INDICES into the input arrays + the raw cosine + the CSLS rank key.
- *  File-local (no exported persistence/contract type — consumers infer it from the function return; the
- *  `no-inline-types` gate flags only EXPORTED type leaks, mirroring `search/persistence/nearest.ts`). */
+// One above-threshold pair: the two INDICES into the input arrays + the raw cosine + the CSLS rank key.
+// File-local (no exported persistence/contract type — consumers infer it from the function return; the
+// no-inline-types gate flags only EXPORTED type leaks, mirroring search/persistence/nearest.ts).
 interface DuplicatePair {
   readonly i: number;
   readonly j: number;

@@ -52,7 +52,7 @@ test("shows on keyboard focus", async ({ mount, page }) => {
 });
 
 // createHandle: opening the tooltip imperatively via the detached handle routes the trigger payload
-// to the Root render-function children (harness in ./tooltip-handle.harness).
+// to the Root render-function children (harness in ./tooltip-handle.fixtures).
 test("opens imperatively via a detached handle and routes the trigger payload to content", async ({
   mount,
   page,

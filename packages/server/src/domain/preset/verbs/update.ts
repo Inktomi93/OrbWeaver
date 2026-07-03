@@ -21,7 +21,7 @@ const PRESET_UPDATE = "preset.update";
 const PRESET_FORK = "preset.fork";
 const PRESET_ENTITY = "preset";
 
-/** Build the partial SET — only the present keys are written; a config edit also re-stamps schemaVersion. */
+/** A config edit also re-stamps `schemaVersion` (kept in sync with the blob). */
 function buildPatch(
   params: UpdatePresetParams,
   now: number,

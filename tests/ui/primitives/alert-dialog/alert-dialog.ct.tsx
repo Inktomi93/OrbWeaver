@@ -104,7 +104,7 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
 
 // createHandle: open the alert dialog imperatively (no trigger) with a payload via
 // handle.openWithPayload; the payload reaches the Root render-function children (harness in
-// ./alert-dialog-handle.harness).
+// ./alert-dialog-handle.fixtures).
 test("opens imperatively via a handle and routes the payload to content", async ({
   mount,
   page,

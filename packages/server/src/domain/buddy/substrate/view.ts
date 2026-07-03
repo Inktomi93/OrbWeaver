@@ -12,7 +12,6 @@ import type { BuddyTurnRole } from "../contract/results";
  *  orthogonal SIZE ceiling). Kept tight: agent turns also carry tool I/O. */
 export const MEMORY_TURNS = 12;
 
-/** One transcript turn for the view-builder (role + content only). */
 interface ViewTurn {
   readonly role: BuddyTurnRole;
   readonly content: string;
@@ -24,7 +23,6 @@ interface ViewTurn {
 export function fitSeedToBudget(history: readonly ViewTurn[], budgetTokens: number): ViewTurn[] {
   let used = 0;
   const kept: ViewTurn[] = [];
-  // Walk newest → oldest, keep while under budget, then restore oldest-first order.
   for (let i = history.length - 1; i >= 0; i -= 1) {
     const turn = history[i];
     if (turn === undefined) {

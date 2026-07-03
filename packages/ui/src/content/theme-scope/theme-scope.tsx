@@ -17,7 +17,6 @@ export interface ThemeScopeProps {
  * `data-*` attributes the shell + message render read; everything else is a `--color-*`/`--font-*`/
  * `--radius-*` custom property inherited by the subtree.
  *
- * Usage: `<ThemeScope tokens={character.theme}><MessageBody /></ThemeScope>`.
  * Spec: UI-Theming §12.1 (D44) — the safe Tier-A theming boundary.
  */
 export function ThemeScope({ tokens, children, className }: ThemeScopeProps): ReactElement {

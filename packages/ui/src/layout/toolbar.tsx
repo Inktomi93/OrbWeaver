@@ -11,9 +11,8 @@ export interface ToolbarProps extends Omit<ComponentProps<typeof BaseToolbar.Roo
 }
 
 /**
- * Horizontal control strip — Base UI Toolbar root (roving tabindex, arrow-key focus) dressed as a
- * Row (gap-row px-block h-control-md items-center). Put `<ToolbarButton>` items inside so the
- * roving tabindex engages (ui-package-design §6.1 layout row).
+ * Horizontal control strip — Base UI Toolbar root dressed as a Row. Put `<ToolbarButton>` items
+ * inside so the roving tabindex engages (ui-package-design §6.1 layout row).
  *
  * Usage: `<Toolbar aria-label="formatting"><ToolbarButton>Bold</ToolbarButton></Toolbar>`.
  */

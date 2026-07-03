@@ -31,8 +31,6 @@ export interface StreamTextProps {
  * `text` is empty. A still-growing target whose first word has no trailing whitespace yet is held
  * back by the pacer's word-snap (never flash a fragment), so the shimmer correctly persists a beat
  * longer than "the first byte arrived."
- *
- * Usage: `<StreamText text={accumulated} status={isStreaming ? "streaming" : "done"} />`.
  */
 export function StreamText({
   text,

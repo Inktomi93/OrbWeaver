@@ -106,10 +106,9 @@ describe("generatePicture (free mode)", () => {
       prompt: "a dragon over a castle",
     });
 
-    // The provider was called once (fan-out via n, never a per-image loop).
+    // fan-out via n, never a per-image loop.
     expect(generateCalls).toEqual([1]);
 
-    // The result shape: one image, a D44 media block, user-sourced, not reused.
     expect(result.images).toHaveLength(1);
     expect(result.promptSource).toBe("user");
     expect(result.reused).toBe(false);
@@ -119,12 +118,10 @@ describe("generatePicture (free mode)", () => {
     const block = result.images[0]?.block;
     expect(block).toMatchObject({ kind: "media", media: "image", src: { kind: "asset" } });
 
-    // One stored asset, kind "generated".
     const assetRows = await db.select().from(assets).where(eq(assets.ownerId, owner));
     expect(assetRows).toHaveLength(1);
     expect(assetRows[0]?.kind).toBe("generated");
 
-    // One provenance row, free-mode, tied to the stored asset.
     const genRows = await db.select().from(imageryGenerations);
     expect(genRows).toHaveLength(1);
     expect(genRows[0]).toMatchObject({
@@ -136,7 +133,6 @@ describe("generatePicture (free mode)", () => {
     });
     expect(genRows[0]?.assetId).toBe(assetRows[0]?.id);
 
-    // One economics delta recorded, attributed to the caller.
     expect(recordedStats).toHaveLength(1);
     expect(recordedStats[0]).toMatchObject({ ownerId: owner, modelGenerations: 1 });
   });

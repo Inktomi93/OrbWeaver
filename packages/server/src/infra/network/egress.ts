@@ -119,7 +119,6 @@ export function installEgressFirewall(): void {
 // with per-hop re-validation, and a single-use body guard. Staged seam — zero callers today; reach for
 // it the moment a feature accepts a user-supplied outbound URL (unwired ≠ worthless).
 
-/** @public — `safeFetch`'s options shape; staged for the first user-supplied URL feature. */
 export interface SafeFetchOptions {
   /** Hard cap on response bytes read. Default 5 MB. */
   maxBytes?: number;
@@ -131,7 +130,7 @@ export interface SafeFetchOptions {
   signal?: AbortSignal;
 }
 
-/** @public — the result of a safeFetch: headers + a byte reader that respects the size cap. */
+/** Headers + a byte reader that respects the size cap. */
 export interface SafeFetchResult {
   status: number;
   headers: Headers;
@@ -144,8 +143,6 @@ export interface SafeFetchResult {
  * lookup; this wrapper enforces the *response*-side controls a user-supplied URL still needs. Returns
  * the response (headers + a `bytes()` reader that respects the byte cap), throws on any block / cap /
  * disallowed type.
- *
- * @public — staged seam (zero current callers).
  */
 export async function safeFetch(
   url: string | URL,

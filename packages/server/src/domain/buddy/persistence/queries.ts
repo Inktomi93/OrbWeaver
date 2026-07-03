@@ -168,7 +168,6 @@ export async function loadTurns(db: Db, userId: UserId, limit: number): Promise<
   return rows.reverse();
 }
 
-/** Wipe the caller's transcript; returns how many turns were removed. */
 export async function clearTurns(db: Db, userId: UserId): Promise<number> {
   const removed = await db.delete(buddyTurns).where(eq(buddyTurns.userId, userId)).returning();
   return removed.length;

@@ -236,7 +236,7 @@ let tracer: Tracer | undefined;
 let processor: SpanProcessor | undefined;
 
 /** Initialize the OTel SDK. Called at boot BEFORE any code opens a span. Idempotent (a second call is a
- *  no-op — tests import freely without re-bootstrapping). @public — wired from `entry/`. */
+ *  no-op — tests import freely without re-bootstrapping). Wired from `entry/`. */
 export function initTracing(): void {
   if (booted) {
     return;
@@ -343,7 +343,7 @@ export function withRequestSpan<T>(
 }
 
 /** Add an event marker to the current span (no-op if there is none) — a point-in-time annotation within a
- *  long-running span (a cache hit, a retry attempt). @public */
+ *  long-running span (a cache hit, a retry attempt). */
 export function addSpanEvent(name: string, attrs: SpanAttrs = {}): void {
   trace.getActiveSpan()?.addEvent(name, cleanAttrs(attrs));
 }
@@ -395,7 +395,6 @@ function callAttrs(method: string, args: readonly unknown[]): SpanAttrs {
   return attrs;
 }
 
-/** Enrich the active span with the row count post-`execute`. */
 function enrichExecuteResult(result: unknown): void {
   if (result === null || typeof result !== "object") {
     return;
@@ -414,7 +413,7 @@ function enrichExecuteResult(result: unknown): void {
  *  (`#checkNotClosed()`) that throw a TypeError when invoked with the Proxy as `this`. Returning
  *  `value.bind(target)` for every function keeps the brand check happy so `migrate()`/`close()`/`sync()`
  *  keep working (core/Tier-2-Foundation.md esoteric #8). Generic so it stays decoupled from libSQL's exact shape
- *  while remaining assignable to `@orb/db`'s `LibSqlWrap`. @public — injected into `createDb` at `entry/`. */
+ *  while remaining assignable to `@orb/db`'s `LibSqlWrap`. Injected into `createDb` at `entry/`. */
 export function wrapLibSqlClient<T extends object>(client: T): T {
   return new Proxy(client, {
     get(target, prop, _receiver): unknown {

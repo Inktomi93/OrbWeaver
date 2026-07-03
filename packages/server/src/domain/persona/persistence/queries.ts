@@ -81,7 +81,7 @@ export async function listConnectedPersonasWithAvatar(
 }
 
 /** Gate: the character must belong to the caller. Reads `characters.ownerId` directly (the sanctioned
- *  schema read). A foreign/absent character collapses to `CharacterNotFoundError` (no existence leak). */
+ *  schema read). A foreign/absent character collapses to {@link CharacterNotFoundError} (no existence leak). */
 export async function ensureCharacterOwned(
   db: Db,
   ownerId: UserId,
@@ -97,7 +97,8 @@ export async function ensureCharacterOwned(
   }
 }
 
-/** Gate: the persona must belong to the caller. A foreign/absent persona collapses to NotFound. */
+/** Gate: the persona must belong to the caller. A foreign/absent persona collapses to
+ *  {@link PersonaNotFoundError} (no existence leak). */
 export async function ensurePersonaOwned(
   db: Db,
   ownerId: UserId,

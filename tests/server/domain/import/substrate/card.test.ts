@@ -50,8 +50,8 @@ const MINIMAL_PNG = Uint8Array.from([
   0xae, 0x42, 0x60, 0x82,
 ]);
 
-/** Unwrap a non-null parse result (the codebase guard idiom — narrows away the `| null` for both tsc and the
- *  biome optional-chain rule). */
+// Unwrap a non-null parse result (the codebase guard idiom — narrows away the `| null` for both tsc and the
+// biome optional-chain rule).
 function expectParsed<T>(value: T | null): T {
   if (value === null) {
     throw new Error("expected a parsed card");

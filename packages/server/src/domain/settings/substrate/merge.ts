@@ -13,17 +13,17 @@ export function deepMergeAppSettings(base: AppSettings, patch: AppSettings): App
   const merged: Record<string, unknown> = { ...base };
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) {
-      continue; // explicit "don't touch"
+      continue;
     }
     if (value === null) {
-      merged[key] = null; // explicit clear (the null=CLEAR sentinel)
+      merged[key] = null;
       continue;
     }
     const baseValue = merged[key];
     merged[key] =
       isPlainObject(value) && isPlainObject(baseValue)
         ? deepMergeAppSettings(baseValue as AppSettings, value as AppSettings)
-        : value; // arrays, primitives, or shape mismatch → replace
+        : value;
   }
   return merged as AppSettings;
 }

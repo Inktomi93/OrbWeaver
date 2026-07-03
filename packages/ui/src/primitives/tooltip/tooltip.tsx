@@ -46,10 +46,10 @@ export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payloa
 
 export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Placement side, forwarded to the explicit Positioner. @default "top" (Base UI default) */
+  /** Placement side, forwarded to the explicit Positioner. @defaultValue "top" (Base UI default) */
   side?: BasePositionerProps["side"];
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @default 8 (= --spacing-row) */
+  /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
 }
 

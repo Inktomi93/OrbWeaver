@@ -1,5 +1,5 @@
-// domain/preset — FRONT DOOR: the only legal external import. Re-exports the public surface — the service
-// factory + the boot seeder + the system-default sentinel + the typed errors, and (type-only) the contract
+// FRONT DOOR: the only legal external import. Re-exports the public surface — the service factory +
+// the boot seeder + the system-default sentinel + the typed errors, and (type-only) the contract
 // surface (the verb interface, the DI bundle, the params + views). The cross-boundary `PromptConfig` /
 // `UserIntent` / guided-action shapes the views carry are NEVER re-exported here — their one home is
 // `@orb/contracts/preset` (callers import them from there directly).

@@ -3,7 +3,6 @@
 // (persistence/latency.ts) over a bounded canon scan, and THIS is the math it folds the scanned values
 // through. Substrate, not persistence: no db, no domain (movement table — pure helper lands in substrate/).
 
-// The two reported rank fractions (50th + 90th percentile).
 const P50 = 0.5;
 const P90 = 0.9;
 

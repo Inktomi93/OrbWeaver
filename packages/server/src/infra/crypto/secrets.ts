@@ -17,7 +17,7 @@ const GCM_ALGORITHM = "aes-256-gcm";
 // GCM's standard/recommended IV length is 12 bytes (96 bits).
 const IV_BYTES = 12;
 
-/** @public — encrypted-blob shape (AES-256-GCM); stored on `user_credentials`. */
+/** Encrypted-blob shape (AES-256-GCM); stored on `user_credentials`. */
 export interface Sealed {
   /** base64 ciphertext. */
   ciphertext: string;
@@ -27,7 +27,7 @@ export interface Sealed {
   tag: string;
 }
 
-/** @public — the encryption seam for per-user credentials; constructed once at entry/ and injected into
+/** The encryption seam for per-user credentials; constructed once at entry/ and injected into
  *  `credentials.context`. The box receives the `aad` VALUE from the credentials domain on each call. */
 export interface SecretBox {
   /** false when no valid CREDENTIALS_KEY is configured → per-user credential storage is off. */

@@ -15,7 +15,6 @@ describe("getRosterCardView", () => {
     const charId = await seedRawCharacter(db, { ownerId });
     const p = principal(ownerId);
 
-    // Override the mock to return limited visibility
     harness.setChatMemberCardVisibility("name-avatar");
 
     const view = await svc.getRosterCardView({

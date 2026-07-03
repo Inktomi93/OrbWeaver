@@ -11,10 +11,8 @@ export function createSetActive(ctx: PersonaContext): PersonaService["setActiveP
     targetUserId,
     personaId,
   }: SetActivePersonaParams): Promise<void> => {
-    // 1. Authorize: Host or Self (delegated to chat domain via injected op)
     await ctx.requireChatAuthorOrHost(principal, chatId, targetUserId);
 
-    // 2. Validate persona ownership if one is provided
     if (personaId !== null) {
       const row = await ctx.db
         .select({ id: personas.id })
@@ -27,7 +25,6 @@ export function createSetActive(ctx: PersonaContext): PersonaService["setActiveP
       }
     }
 
-    // 3. Update the chat participant (delegated to chat domain via injected op)
     await ctx.setChatActivePersona(chatId, targetUserId, personaId);
   };
 }

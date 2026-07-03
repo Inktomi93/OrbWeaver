@@ -23,12 +23,12 @@
 import type { PresenceView } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 
-/** How long a fully-disconnected user is still reported `online` — the reconnect debounce
- *  ("debounced/grace-windowed"). A reload/blip reconnects well inside this; a real departure outlasts it. */
+// How long a fully-disconnected user is still reported `online` — the reconnect debounce. A
+// reload/blip reconnects well inside this; a real departure outlasts it.
 const GRACE_MS = 15_000;
 
-/** Per-user liveness cell: the live-connection ref-count + the epoch-ms of the last drop-to-zero (the grace
- *  anchor; `null` while ≥1 device is connected). */
+// Per-user liveness cell: the live-connection ref-count + the epoch-ms of the last drop-to-zero (the grace
+// anchor; `null` while ≥1 device is connected).
 interface PresenceCell {
   count: number;
   lastSeenAt: number | null;

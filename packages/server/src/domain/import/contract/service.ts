@@ -94,10 +94,12 @@ export interface ImportContext {
 }
 
 export interface ImportService {
-  /** Import one ST character card (PNG-embedded ccv3/chara JSON, or a bare V2/V3 JSON card): parse →
-   *  flatten to the canonical card → validate against `createCharacterSchema` → dedup by the whole-file
-   *  `importHash` → store the PNG as the avatar (PNG cards only) → create with import provenance. Idempotent
-   *  by `importHash` (a byte-identical re-import returns the existing character, `created:false`). Throws
-   *  `ImportCardError` when the bytes carry no readable/valid card. */
+  /**
+   * Import one ST character card (PNG-embedded ccv3/chara JSON, or a bare V2/V3 JSON card): parse →
+   * flatten to the canonical card → validate against `createCharacterSchema` → dedup by the whole-file
+   * `importHash` → store the PNG as the avatar (PNG cards only) → create with import provenance. Idempotent
+   * by `importHash` (a byte-identical re-import returns the existing character, `created:false`).
+   * @throws {@link ImportCardError} When the bytes carry no readable/valid card.
+   */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
 }

@@ -35,7 +35,6 @@ describe("sessions.listForUser", () => {
     expect(view?.id).toBe(sessionId);
     expect(view?.revokedAt).toBeNull();
     expect(view?.userAgent).toBe("UA/1");
-    // The projection carries no secret/identity fields.
     expect(view).not.toHaveProperty("tokenHash");
     expect(view).not.toHaveProperty("userId");
   });

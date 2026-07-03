@@ -1,8 +1,6 @@
-// foundation/config — what genuinely remains of the config tier after the AppSettings floor-merge folded
-// into the settings DOMAIN (core/Tier-2-Foundation.md "does NOT own"): constants. The lone
-// resident is `version` (`APP_VERSION`), read DOWN by `observability/tracing` (the service.version resource
-// attr) + `observability/debug` (/api/_debug/info). NO `app-config.ts` / `layer()` / `EffectiveAppConfig`
-// lives here — that resolver is the settings domain's `effective-config/` subsystem.
+// The AppSettings floor-merge moved config resolution into the settings domain's
+// effective-config/ subsystem (core/Tier-2-Foundation.md "does NOT own"). This tier
+// keeps only the one thing that isn't a setting: APP_VERSION.
 
 import { readFileSync } from "node:fs";
 
@@ -10,12 +8,10 @@ interface PackageManifest {
   version: string;
 }
 
-// `@orb/server`'s own package.json sits three directories up from this module's dir
-// (src/foundation/config → src/foundation → src → packages/server).
+// Three levels up from src/foundation/config to packages/server, where package.json lives.
 const manifest = JSON.parse(
   readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
 ) as PackageManifest;
 
-/** The running app version (the `@orb/server` package version). A pure constant read DOWN by tracing
- *  (service.version) + the /api/_debug/info surface. */
+/** The `@orb/server` package version. */
 export const APP_VERSION: string = manifest.version;

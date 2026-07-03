@@ -76,8 +76,8 @@ async function seedChat(db: Db, raw: string): Promise<ChatId> {
   return id;
 }
 
-/** The D26 insert dance: a slot is born WITHOUT a selected variant (the circular FK is null-broken), the
- *  variant is inserted, then the slot's pointer is set. Returns the slot + variant ids. */
+// The D26 insert dance: a slot is born WITHOUT a selected variant (the circular FK is null-broken), the
+// variant is inserted, then the slot's pointer is set. Returns the slot + variant ids.
 async function seedMessageWithVariant(
   db: Db,
   o: { chatId: ChatId; rawMsg: string; rawVar: string; content: string; seq: number },

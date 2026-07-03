@@ -30,7 +30,6 @@ describe("sniffMime", () => {
   });
 
   test("a buffer too short for a signature does not false-match", () => {
-    // RIFF prefix without the WEBP tag must NOT be sniffed as webp.
     expect(sniffMime(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBe("application/octet-stream");
     expect(sniffMime(new Uint8Array([]))).toBe("application/octet-stream");
   });

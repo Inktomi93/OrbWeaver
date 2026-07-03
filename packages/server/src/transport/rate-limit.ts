@@ -42,8 +42,7 @@ export interface RateLimitConfig {
    *  resets when the wall clock crosses the next boundary. */
   readonly windowMs: number;
   /** The injected clock seam — the limiter's ONLY impurity. REQUIRED (no ambient `Date.now` — `no-raw-clock`;
-   *  entry injects the wall clock, tests pin it). The 2026-06-11 flake: N attempts straddling a window
-   *  boundary split across two buckets and the N+1th never tripped — tests pin time through THIS seam. */
+   *  entry injects the wall clock, tests pin it). See the file header (esoteric #1) for why. */
   readonly now: () => number;
 }
 

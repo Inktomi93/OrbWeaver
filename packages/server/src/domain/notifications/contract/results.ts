@@ -1,9 +1,7 @@
 // domain/notifications/contract/results — the list-page result shape.
-// The per-row read-model is `InboxView` (contract/views.ts); this is
-// the cursor page wrapping it. The cursor IS the monotonic `seq` (the one stable per-recipient ordering /
-// resume key) — newest-first, so `nextCursor` is the seq to pass back for the page below it, or `null` when
-// the inbox is exhausted (no further rows). record/markRead/dismiss return a bare `InboxView` directly off
-// the service interface (one durable row each), so they need no wrapper type here.
+// The per-row read-model is `InboxView` (contract/views.ts); this is the cursor page wrapping it.
+// record/markRead/dismiss return a bare `InboxView` directly off the service interface (one durable
+// row each), so they need no wrapper type here.
 
 import type { InboxView } from "./views";
 

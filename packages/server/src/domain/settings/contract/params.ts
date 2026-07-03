@@ -25,7 +25,6 @@ export interface UpdateUserSettingsSectionInput {
   readonly patch: Record<string, unknown>;
 }
 
-/** Common to the UserSettings verbs: the acting principal (its `userId` is the row scope). */
 export interface UserSettingsActorParams {
   readonly principal: Principal;
 }
@@ -40,7 +39,6 @@ export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams
   readonly input: UpdateUserSettingsSectionInput;
 }
 
-/** Common to the AppSettings (admin-runtime) verbs: the acting principal the injected guard reads. */
 export interface AppSettingsActorParams {
   readonly principal: Principal;
 }

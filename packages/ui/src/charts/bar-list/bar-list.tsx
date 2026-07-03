@@ -32,9 +32,14 @@ function defaultValueFormatter(value: number): string {
 }
 
 /**
- * Usage: `<BarList label="Top sources" items={[{id:"a", label:"Handbook", value:42}, ...]}
- *   valueFormatter={(n) => `${n} chunks`} />`. Pass items already ranked — this component renders
- * them in the given order (inverse category axis: index 0 sits at the top).
+ * @example
+ * ```tsx
+ * <BarList
+ *   label="Top sources"
+ *   items={[{ id: "a", label: "Handbook", value: 42 }]}
+ *   valueFormatter={(n) => `${n} chunks`}
+ * />
+ * ```
  */
 export function BarList({
   items,

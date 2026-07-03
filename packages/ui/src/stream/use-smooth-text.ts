@@ -55,12 +55,10 @@ export interface UseSmoothTextOptions {
 
 /**
  * Paces the reveal of a growing `target` string at a smoothed rate rather than the raw, jittery
- * cadence it arrives at (ui-package-design §6.3.1 layer 2 — "the genuinely best-of-best layer,"
- * ported from neo's `use-smooth-text.ts` with the chat-domain `<speaker>`-tag hold-back stripped;
- * see `snap.ts`). Pure string-math + `requestAnimationFrame`; feed its output into a markdown
- * renderer or plain text — `useSmoothText` has no opinion on either.
- *
- * Usage: `const paced = useSmoothText(accumulatedText, { enabled: isStreaming, cps: 40 });`
+ * cadence it arrives at (ui-package-design §6.3.1 layer 2, ported from neo's `use-smooth-text.ts`
+ * with the chat-domain `<speaker>`-tag hold-back stripped; see `snap.ts`). Pure string-math +
+ * `requestAnimationFrame`; feed its output into a markdown renderer or plain text — `useSmoothText`
+ * has no opinion on either.
  */
 export function useSmoothText(target: string, opts: UseSmoothTextOptions): string {
   const { cps } = opts;

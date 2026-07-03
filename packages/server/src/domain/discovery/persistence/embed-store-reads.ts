@@ -27,7 +27,7 @@ import { and, eq } from "drizzle-orm";
 
 // ── row shapes (file-local; consumers infer them — no exported persistence type, `no-inline-types`) ────
 
-/** A card embedding tagged with its owner (via `characters.ownerId`) — the within-owner near-dup pass. */
+// A card embedding tagged with its owner (via characters.ownerId) — the within-owner near-dup pass.
 interface OwnedCharacterVector {
   readonly characterId: CharacterId;
   readonly ownerId: UserId;
@@ -36,7 +36,7 @@ interface OwnedCharacterVector {
   readonly contentHash: string;
 }
 
-/** A bare vector row for a cross-tenant hub pass (`id` is the row PK; `model` is the space tag). */
+// A bare vector row for a cross-tenant hub pass (id is the row PK; model is the space tag).
 interface HubVector {
   readonly id: string;
   readonly model: string;
@@ -44,13 +44,13 @@ interface HubVector {
   readonly contentHash: string;
 }
 
-/** A digest vector for the hub pass — additionally carries `tier` (digests group per (tier, space), #5). */
+// A digest vector for the hub pass — additionally carries tier (digests group per (tier, space), #5).
 interface DigestHubVector extends HubVector {
   readonly tier: number;
 }
 
-/** A solo digest vector tagged with its owner (host) + group flag + level inputs + the naming material
- *  (keywords + topic anchor) — the theme pass. */
+// A solo digest vector tagged with its owner (host) + group flag + level inputs + the naming material
+// (keywords + topic anchor) — the theme pass.
 interface OwnedDigestVector {
   readonly digestId: ChatDigestId;
   readonly ownerId: UserId;

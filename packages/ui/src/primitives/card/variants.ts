@@ -1,7 +1,7 @@
 import { tv } from "tailwind-variants";
 
-// The card SURFACE skin — the base panel features compose (character cards, config panels). A
-// surface, not a domain card (ui-package-design §6.1). `interactive` adds the clickable affordance.
+// Card is a generic SURFACE, not a domain card — features (character cards, config panels)
+// compose it (ui-package-design §6.1).
 export const cardVariants = tv({
   base: "rounded-card border border-border bg-card text-card-foreground",
   variants: {

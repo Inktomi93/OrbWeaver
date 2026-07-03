@@ -29,9 +29,9 @@ function initials(name: string): string {
 
 export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"> {
   readonly items: readonly AvatarStackItem[];
-  /** Avatars shown before the rest collapse into a "+N" overflow chip. @default 4 */
+  /** Avatars shown before the rest collapse into a "+N" overflow chip. @defaultValue 4 */
   readonly max?: number;
-  /** Matches `<Avatar size>`'s scale. @default "md" */
+  /** Matches `<Avatar size>`'s scale. @defaultValue "md" */
   readonly size?: AvatarSize;
 }
 

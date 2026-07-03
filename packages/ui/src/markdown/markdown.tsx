@@ -7,11 +7,11 @@ import { TIER_A_UNTRUSTED_ELEMENTS, untrustedUrlTransform } from "./policy";
 const TRUSTS = ["trusted", "untrusted"] as const;
 
 // Large-block perf guard (#195, UI-Arch §"Large-code-block perf guard"): Streamdown's Shiki
-// re-highlight can freeze the tab on a pathologically large fenced block. Re-parsing markdown
-// ourselves to isolate one giant fence would re-derive Streamdown's own parser (the thing this seal
-// exists to avoid), so the guard is on the WHOLE input's length instead — in practice a single huge
-// block dominates a message's total length. Above the threshold, skip the Streamdown mount entirely
-// and fall back to a plain, scrollable, un-highlighted `<pre>` (readable, never hangs the tab).
+// re-highlight can freeze the tab on a huge fenced block. Guarding per-block would mean re-parsing
+// markdown ourselves to isolate the fence — re-deriving Streamdown's own parser, the thing this seal
+// exists to avoid — so the guard is on the WHOLE input's length instead (in practice one huge block
+// dominates a message's total length). Above the threshold, skip the Streamdown mount and fall back
+// to a plain, scrollable, un-highlighted `<pre>` (readable, never hangs the tab).
 const MAX_RENDER_LENGTH = 20_000;
 
 export interface MarkdownProps {

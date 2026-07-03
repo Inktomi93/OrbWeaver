@@ -2,10 +2,8 @@
 // character-card primitive (`findCharacters`) + their typed surface. The memory/discover/image/lexical
 // verbs + the unified `search()`/`SearchScope` dispatch join as they land (see `contract/service.ts`).
 
-// Errors
 export { SEARCH_EMPTY_QUERY, SearchError } from "./contract/errors";
 
-// Input types
 export type {
   CorpusParams,
   DigestsParams,
@@ -14,7 +12,6 @@ export type {
   SegmentsParams,
 } from "./contract/params";
 
-// Result types
 export type {
   CharacterCardHit,
   CorpusHit,
@@ -23,8 +20,6 @@ export type {
   SegmentSearchHit,
 } from "./contract/results";
 
-// Service types
 export type { SearchContext, SearchService, SearchServiceDeps } from "./contract/service";
 
-// Factory
 export { createSearchService } from "./service";

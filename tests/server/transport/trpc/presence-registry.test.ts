@@ -11,12 +11,12 @@ import { createPresenceRegistry } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
-/** The grace window baked into the registry (chat.md §4 "debounced/grace-windowed"). Mirrored here to pin
- *  the exact boundary; a fully-disconnected user reads `online` for strictly less than this. */
+// The grace window baked into the registry (chat.md §4). Mirrored here to pin the exact boundary; a
+// fully-disconnected user reads `online` for strictly less than this.
 const GRACE_MS = 15_000;
 const ALICE = castId<UserId>("user_alice");
 
-/** A registry over a hand-cranked clock — `advance` moves time so the grace boundary is deterministic. */
+// A registry over a hand-cranked clock — `advance` moves time so the grace boundary is deterministic.
 function harness(): {
   registry: PresenceRegistry;
   advance: (ms: number) => void;

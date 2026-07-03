@@ -34,19 +34,19 @@ const JUSTIFY = {
   between: "justify-between",
 } as const;
 
-/** `<Stack>` skin — vertical flex on the intent-token spacing scale (UI-Arch §4). */
+/** `<Stack>` skin (UI-Arch §4). */
 export const stackVariants = tv({
   base: "flex flex-col",
   variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
 });
 
-/** `<Row>` skin — horizontal flex, items centered by default (UI-Arch §4). */
+/** `<Row>` skin (UI-Arch §4). */
 export const rowVariants = tv({
   base: "flex flex-row items-center",
   variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
 });
 
-/** `<Section>` skin — block-spacing wrapper (py-section) with a heading slot (ui-package-design §6.1). */
+/** `<Section>` skin (ui-package-design §6.1). */
 export const sectionVariants = tv({
   slots: {
     root: "flex flex-col gap-block py-section",
@@ -55,10 +55,8 @@ export const sectionVariants = tv({
 });
 
 /**
- * `<Container>` skin — the containment provider. The Tailwind v4 `@container` utility applies
- * `container-type: inline-size` (UI-Arch §4: layout/ OWNS container-type). `size` constrains the
- * container to the named container-breakpoint token scale (`--container-cq-*` — never raw widths;
- * gate no-raw-container-widths).
+ * `<Container>` skin. `size` must stay on the `--container-cq-*` token scale, never raw widths
+ * (gate no-raw-container-widths).
  */
 export const containerVariants = tv({
   base: "@container",
@@ -73,15 +71,15 @@ export const toolbarVariants = tv({
 });
 
 /**
- * `<ToolbarButton>` skin — a minimal roving-tabindex item. Meets the ≥44px touch floor via
- * h-control-sm (gate touch-target-floor, UI-Arch §4b axis 3); the full button skin belongs to
- * primitives/button — compose it via the Base UI `render` prop.
+ * `<ToolbarButton>` skin — meets the ≥44px touch floor via h-control-sm (gate touch-target-floor,
+ * UI-Arch §4b axis 3); the full button skin belongs to primitives/button, composed via the Base UI
+ * `render` prop.
  */
 export const toolbarButtonVariants = tv({
   base: "inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
 });
 
-/** `<ToolbarSeparator>` skin — a vertical rule between toolbar groups. */
+/** `<ToolbarSeparator>` skin. */
 export const toolbarSeparatorVariants = tv({
   base: "w-px self-stretch bg-border",
 });

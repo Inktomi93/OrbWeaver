@@ -142,7 +142,7 @@ describe("listWorkloads (filters, newest-first, poison-tolerant)", () => {
       createdAt: T0 + 10,
     });
     const all = await listWorkloads(db, {});
-    expect(all.map((r) => r.id)).toEqual(["w2", "w1"]); // newest first
+    expect(all.map((r) => r.id)).toEqual(["w2", "w1"]);
     expect((await listWorkloads(db, { kind: "compute-themes" })).map((r) => r.id)).toEqual(["w2"]);
     expect((await listWorkloads(db, { status: "succeeded" })).map((r) => r.id)).toEqual(["w1"]);
     expect((await listWorkloads(db, { ownerId: owner })).map((r) => r.id)).toEqual(["w2"]);

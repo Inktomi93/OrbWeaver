@@ -120,17 +120,17 @@ export interface SelectProps<Value = string, Multiple extends boolean = false>
    * `multiple`). Omit for the default label-lookup rendering.
    */
   renderValue?: (value: unknown) => ReactNode;
-  /** Render sticky hover-to-scroll arrows in the popup (long lists). @default false */
+  /** Render sticky hover-to-scroll arrows in the popup (long lists). @defaultValue false */
   scrollArrows?: boolean;
-  /** Render a dimming `bg-scrim` backdrop behind the (modal-by-default) popup. @default false */
+  /** Render a dimming `bg-scrim` backdrop behind the (modal-by-default) popup. @defaultValue false */
   backdrop?: boolean;
-  /** Render an arrow pointing at the trigger inside the popup. @default false */
+  /** Render an arrow pointing at the trigger inside the popup. @defaultValue false */
   arrow?: boolean;
-  /** Placement side, forwarded to the explicit Positioner. @default "bottom" (Base UI default) */
+  /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" (Base UI default) */
   side?: SelectPositionerProps["side"];
-  /** Alignment on the side. @default "start" (Base UI default) */
+  /** Alignment on the side. @defaultValue "start" (Base UI default) */
   align?: SelectPositionerProps["align"];
-  /** Anchor gap in px. @default 4 */
+  /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: SelectPositionerProps["sideOffset"];
   /**
    * Accessible name for the trigger (the combobox). `Select.Root` renders no element, so these ride

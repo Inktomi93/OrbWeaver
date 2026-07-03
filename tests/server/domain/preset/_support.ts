@@ -50,7 +50,7 @@ interface SeedPresetOverrides {
   readonly schemaVersion?: number;
 }
 
-/** Insert a preset row directly (the read/list/update/delete fixtures). Defaults to an owned roleplay row. */
+/** Insert a preset row directly (the read/list/update/delete fixtures). Defaults to an un-owned roleplay row. */
 export async function seedPreset(db: Db, overrides: SeedPresetOverrides = {}): Promise<PresetId> {
   const id = overrides.id ?? castId<PresetId>(`preset_seed_${overrides.name ?? "x"}`);
   const config = overrides.config ?? DEFAULT_PROMPT_CONFIG;

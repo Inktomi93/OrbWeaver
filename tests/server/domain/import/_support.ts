@@ -1,9 +1,10 @@
 // Shared test harness for the import domain (NOT a test file — no `.test` suffix, so test-layout ignores
-// it). Builds an `ImportContext` whose THREE cross-feature ops are recording FAKES — the sanctioned "fake
+// it). Builds an `ImportContext` whose FOUR cross-feature ops are recording FAKES — the sanctioned "fake
 // at the edges, inject at the root" doctrine (testing §3): real injected deps, not internal-module mocks.
-// The card-import slice touches NO db (it injects character.create + the by-importHash lookup + assets.store
-// + parses pure), so the harness needs no `freshDb` — the fakes record their calls so the verb tests assert
-// the flatten/provenance/dedup behaviour, and `setExisting` seeds the dedup oracle.
+// The card-import slice touches NO db (it injects character.create + the by-importHash lookup +
+// assets.store + tag.attachCardTagByName, and parses pure), so the harness needs no `freshDb` — the fakes
+// record their calls so the verb tests assert the flatten/provenance/dedup/tag-attach behaviour, and
+// `setExisting` seeds the dedup oracle.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";

@@ -41,7 +41,7 @@ export interface FileDropzoneProps
   maxSizeBytes?: number;
   /** Fires with every processed batch, from either the native picker or a drop. */
   onFilesSelected?: (result: FileDropzoneResult) => void;
-  /** Instructional copy inside the box. @default "Drag and drop, or click to browse" */
+  /** Instructional copy inside the box. @defaultValue "Drag and drop, or click to browse" */
   instructions?: string;
   /**
    * Supplementary line under the instructions (e.g. accepted types). When omitted and

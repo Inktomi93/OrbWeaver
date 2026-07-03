@@ -46,15 +46,12 @@ export interface CredentialHarness {
   readonly ctx: CredentialContext;
   /** Credentials handed to the faked `probe` op (testHealth). */
   readonly probed: ResolvedCredential[];
-  /** Set the next `probe` result. */
   readonly setProbeResult: (result: CredentialHealth) => void;
   /** Args handed to the faked `inspect` op. */
   readonly inspected: InspectCall[];
   /** Args handed to the faked `fetchModels` op. */
   readonly fetched: FetchModelsArgs[];
-  /** Set the next `fetchModels` result. */
   readonly setModels: (models: string[]) => void;
-  /** Set the next `inspect` result. */
   readonly setInspectResult: (result: EndpointInspection) => void;
   /** Advance the injected clock (e.g. past the 60s health throttle window). */
   readonly advance: (ms: number) => void;

@@ -22,9 +22,9 @@ export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress (rpg-design/11 §2). */
   kind: "linear" | "arc" | "bipolar";
   value: number;
-  /** Upper bound. Defaults to 100. */
+  /** @defaultValue 100 */
   max?: number;
-  /** Lower bound. Defaults to 0 (bipolar: −max, the −100..100 domain style — taken generically). */
+  /** @defaultValue 0 (bipolar: `-max`, the -100..100 domain style — taken generically) */
   min?: number;
   /** Tick positions in value space (rendered on linear/bipolar; arc has no tick geometry in v1). */
   milestones?: number[];
@@ -32,15 +32,18 @@ export interface MeterProps {
   dangerBelow?: number;
   /** Accessible name — names the meter (aria); also the visible label text when `showValue`. */
   label: string;
-  /** Render the visible label + value readout row above the geometry (mirrors Progress). @default false */
+  /**
+   * Render the visible label + value readout row above the geometry (mirrors Progress).
+   * @defaultValue false
+   */
   showValue?: boolean;
-  /** Custom formatter for the visible `Meter.Value` readout (Base UI's formatted string + raw value). */
+  /** Custom formatter for the visible `Meter.Value` readout. */
   formatValue?: (formattedValue: string, value: number) => ReactNode;
   /** Intl options for the value formatting behind `aria-valuetext` + the readout (Base UI Meter). */
   format?: Intl.NumberFormatOptions;
-  /** Locale for the value formatting (defaults to the runtime locale). */
+  /** @defaultValue the runtime locale */
   locale?: Intl.LocalesArgument;
-  /** Human-readable override for `aria-valuetext` (receives the formatted string + raw value). */
+  /** Human-readable override for `aria-valuetext`. */
   getAriaValueText?: (formattedValue: string, value: number) => string;
   className?: string;
 }
@@ -165,14 +168,17 @@ function renderGeometry(
 }
 
 /**
- * Pure magnitude display — knows NOTHING of HP/reputation (rpg-design/11 §2; the D58 spec):
- * `linear` = div track+fill, `arc` = SVG radial gauge, `bipolar` = center-origin −/+ fill with
- * milestone ticks. `dangerBelow` swaps the fill to the destructive intent token. The role="meter"
- * shell (aria-valuemin/max/now + locale-aware aria-valuetext) comes from Base UI Meter.Root (§10.4
- * hybrid); `showValue` adds the visible label/value readout row (Base UI Meter.Label/Value).
+ * Pure magnitude display — knows NOTHING of HP/reputation (rpg-design/11 §2; the D58 spec).
  *
- * Usage: `<Meter kind="linear" value={hp} max={maxHp} dangerBelow={maxHp / 4} label="HP" />`.
- * Readout: `<Meter kind="linear" value={hp} max={maxHp} label="HP" showValue />` → "HP … 50%".
+ * @example
+ * ```tsx
+ * <Meter kind="linear" value={hp} max={maxHp} dangerBelow={maxHp / 4} label="HP" />
+ * ```
+ *
+ * @example With the label/value readout row (renders "HP … 50%")
+ * ```tsx
+ * <Meter kind="linear" value={hp} max={maxHp} label="HP" showValue />
+ * ```
  */
 export function Meter({
   kind,
