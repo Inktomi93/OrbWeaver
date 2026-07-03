@@ -76,6 +76,7 @@ export const CHAT_VERB_AUTHORITY = {
   forceCharacterTurn: "host", // chat.md §11: host-only
   compact: "host", // rewrites the canon checkpoint substrate (room-wide) — host
   abort: "turn-owner", // turn-owner only (rollback-theft defense) — member floor + engine active-turns match
+  generateImage: "member", // any present member may generate an image (a user post) — the member floor
   // ── canon edits (edit/delete a slot → author-or-host; reorder/reattribute → host) ──
   selectVariant: "author-or-host",
   editMessage: "author-or-host",

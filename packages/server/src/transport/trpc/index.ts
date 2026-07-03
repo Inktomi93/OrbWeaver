@@ -13,6 +13,10 @@ export { classifyDomainError } from "./error-mapping";
 // The transport-owned per-user notifications bus — `entry/` composes `EmitNotification` as
 // `record (durable) → publishNotification (live)` (durable-first; PD-23).
 export { publishNotification } from "./notifications-bus";
+// The transport-owned server-derived presence registry (SSE ref-count per userId; PD-70). `entry/` builds it
+// over the injected clock, threads `read` into chat's `presence.read` op + `connect` onto the request ctx.
+export type { PresenceRegistry } from "./presence-registry";
+export { createPresenceRegistry } from "./presence-registry";
 export type { AppRouter } from "./router";
 export { appRouter, createCaller } from "./router";
 export type { SubscriptionErrorFrame } from "./subscriptions";

@@ -63,16 +63,15 @@ export const notificationsRouter = t.router({
   notifications: authedProcedure
     // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
     .input(z.object({ lastEventId: z.string().nullish() }).optional())
-    .subscription(({ ctx, input, signal }) =>
-      withSubscriptionErrors(
-        notificationStream(
-          ctx.services.notifications,
-          ctx.auth,
-          input?.lastEventId ?? null,
-          signal,
-        ),
-      ),
-    ),
+    .subscription(({ ctx, input, signal }) => {
+      const sig = signal ?? new AbortController().signal;
+      // Presence (PD-70): the per-user notifications stream IS the device-liveness signal — every device holds
+      // one, so ref-count this connection (released on `sig` abort) and cast-gating sees the user as present.
+      ctx.presence.connect(ctx.auth.userId, sig);
+      return withSubscriptionErrors(
+        notificationStream(ctx.services.notifications, ctx.auth, input?.lastEventId ?? null, sig),
+      );
+    }),
 });
 
 /** The durable-first per-user notification generator. */

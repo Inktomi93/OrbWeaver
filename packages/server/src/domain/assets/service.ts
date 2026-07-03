@@ -12,9 +12,13 @@
 // `personas.avatarAssetId`; building them here would ship dead, unwired code. Target: assets.md §"Verbs".
 
 import type { AssetsContext, AssetsService } from "./contract/service";
+import { createAddToGallery } from "./verbs/add-to-gallery";
 import { createGetMetadata } from "./verbs/get-metadata";
+import { createListGallery } from "./verbs/list-gallery";
 import { createListImageAssetIds } from "./verbs/list-image-asset-ids";
+import { createListOwned } from "./verbs/list-owned";
 import { createLoadAssetBytes } from "./verbs/load-asset-bytes";
+import { createRemoveFromGallery } from "./verbs/remove-from-gallery";
 import { createResolveVariant } from "./verbs/resolve-variant";
 import { createStore } from "./verbs/store";
 
@@ -25,5 +29,9 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     resolveVariant: createResolveVariant(ctx),
     loadAssetBytes: createLoadAssetBytes(ctx),
     listImageAssetIds: createListImageAssetIds(ctx),
+    listOwned: createListOwned(ctx),
+    addToGallery: createAddToGallery(ctx),
+    removeFromGallery: createRemoveFromGallery(ctx),
+    listGallery: createListGallery(ctx),
   };
 }

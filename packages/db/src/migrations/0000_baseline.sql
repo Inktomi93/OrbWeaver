@@ -15,7 +15,7 @@ CREATE TABLE `assets` (
 	`hash` text NOT NULL,
 	`uploaded_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export'))
+	CONSTRAINT "assets_kind_check" CHECK(kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `assets_owner_hash_unique` ON `assets` (`owner_id`,`hash`);--> statement-breakpoint
@@ -517,6 +517,37 @@ CREATE TABLE `image_embeddings` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `image_embeddings_asset_model_lens_unique` ON `image_embeddings` (`asset_id`,`model`,`lens`);--> statement-breakpoint
+CREATE TABLE `gallery_items` (
+	`id` text PRIMARY KEY NOT NULL,
+	`asset_id` text NOT NULL,
+	`subject_character_id` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`subject_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `gallery_items_asset_subject_unique` ON `gallery_items` (`asset_id`,`subject_character_id`);--> statement-breakpoint
+CREATE INDEX `gallery_items_character_idx` ON `gallery_items` (`subject_character_id`);--> statement-breakpoint
+CREATE TABLE `imagery_generations` (
+	`id` text PRIMARY KEY NOT NULL,
+	`asset_id` text NOT NULL,
+	`chat_id` text,
+	`mode` text NOT NULL,
+	`subject_character_id` text,
+	`identity_hash` text,
+	`prompt` text NOT NULL,
+	`negative_prompt` text,
+	`model` text NOT NULL,
+	`cost_usd` real,
+	`edited` integer DEFAULT false NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`subject_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "imagery_generations_mode_check" CHECK(mode in ('free', 'character', 'face', 'scenario', 'background', 'character_multimodal', 'face_multimodal'))
+);
+--> statement-breakpoint
+CREATE INDEX `imagery_generations_reuse_idx` ON `imagery_generations` (`subject_character_id`,`mode`,`identity_hash`);--> statement-breakpoint
 CREATE TABLE `notifications` (
 	`id` text PRIMARY KEY NOT NULL,
 	`recipient_user_id` text NOT NULL,

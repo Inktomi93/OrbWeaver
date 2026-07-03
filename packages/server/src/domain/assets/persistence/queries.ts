@@ -11,11 +11,11 @@
 // not an ownership bypass. `ownerId` is `principal.userId` (§7.1) on the normal path; the `no-direct-users-
 // read` chokepoint holds throughout.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
-import { assets } from "@orb/db";
-import type { AssetId, UserId } from "@orb/kit/ids";
-import { and, eq, like } from "drizzle-orm";
+import { assets, galleryItems } from "@orb/db";
+import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
+import { and, desc, eq, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { sniffMime } from "../substrate/mime";
 
@@ -171,4 +171,215 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
     throw new Error(`assets.store: row missing after upsert (${put.hash})`);
   }
   return { assetId, hash: put.hash, size: put.size, created: put.created };
+}
+
+// ── Gallery reads/writes (gallery-design §1.2/§1.3) ────────────────────────────────────────────────────
+
+// File-local (not exported — types-in-contract): the keyset-paged owned-asset list args.
+interface ListOwnedInput {
+  readonly ownerId: UserId;
+  readonly kind: AssetKind | undefined;
+  readonly limit: number;
+  /** `uploadedAt` of the previous page's last row (the keyset cursor); paired with `cursorId`. */
+  readonly cursor: number | undefined;
+  /** `id` of that same row — the deterministic tiebreak (bulk import stamps one `uploadedAt` on many rows). */
+  readonly cursorId: AssetId | undefined;
+}
+
+/** Gallery v1 (§1.2): the caller's own assets, `ORDER BY uploadedAt DESC, id DESC`, keyset-paged. The
+ *  cursor predicate is `uploadedAt < :cursor OR (uploadedAt = :cursor AND id < :cursorId)` — no offset (which
+ *  skips/dupes rows under concurrent writes/GC). Owner-scoped in the WHERE (never a post-filter); optional
+ *  `kind` filter. Returns `AssetListItem[]` verbatim (the client derives the next cursor from the last row). */
+export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise<AssetListItem[]> {
+  const keyset =
+    input.cursor !== undefined && input.cursorId !== undefined
+      ? or(
+          lt(assets.uploadedAt, input.cursor),
+          and(eq(assets.uploadedAt, input.cursor), lt(assets.id, input.cursorId)),
+        )
+      : undefined;
+  const rows = await db
+    .select({
+      assetId: assets.id,
+      hash: assets.hash,
+      kind: assets.kind,
+      mime: assets.mime,
+      size: assets.size,
+      uploadedAt: assets.uploadedAt,
+    })
+    .from(assets)
+    .where(
+      and(
+        eq(assets.ownerId, input.ownerId),
+        input.kind !== undefined ? eq(assets.kind, input.kind) : undefined,
+        keyset,
+      ),
+    )
+    .orderBy(desc(assets.uploadedAt), desc(assets.id))
+    .limit(input.limit);
+  return rows;
+}
+
+// File-local (not exported): the `{hash,mime}` of an owned asset by id — the addToGallery owner gate (the
+// assetId-keyed sibling of `metadataForOwnedHash`).
+interface OwnedAssetRow {
+  readonly hash: string;
+  readonly mime: string;
+}
+
+/** The `{hash,mime}` of the caller's asset by id, or undefined when not found / not theirs. The owner gate
+ *  `addToGallery` runs before curating (a gallery row must never reference another user's asset — §1.3). */
+export async function ownedAssetForGallery(
+  db: Db,
+  ownerId: UserId,
+  assetId: AssetId,
+): Promise<OwnedAssetRow | undefined> {
+  const rows = await db
+    .select({ hash: assets.hash, mime: assets.mime })
+    .from(assets)
+    .where(and(eq(assets.id, assetId), eq(assets.ownerId, ownerId)))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+// File-local (not exported): the upsert-guarded gallery-item insert args.
+interface InsertGalleryItemInput {
+  readonly id: GalleryItemId;
+  readonly assetId: AssetId;
+  readonly subjectCharacterId: CharacterId | undefined;
+  /** Epoch-ms from the injected clock — stamps `gallery_items.createdAt` (the DB default is a fallback). */
+  readonly now: number;
+}
+
+/** Insert a gallery item, upsert-guarded on `(assetId, subjectCharacterId)`. On a conflict (only fires for a
+ *  NON-null subject — SQLite treats NULL subjects as distinct under the unique index, so un-charactered adds
+ *  always insert; harmless per §1.3) the existing row's id is returned instead → the add is idempotent.
+ *  Returns the effective `GalleryItemId`. */
+export async function insertGalleryItem(
+  db: Db,
+  input: InsertGalleryItemInput,
+): Promise<GalleryItemId> {
+  const inserted = await db
+    .insert(galleryItems)
+    .values({
+      id: input.id,
+      assetId: input.assetId,
+      subjectCharacterId: input.subjectCharacterId ?? null,
+      createdAt: input.now,
+    })
+    .onConflictDoNothing({ target: [galleryItems.assetId, galleryItems.subjectCharacterId] })
+    .returning({ id: galleryItems.id });
+  if (inserted[0] !== undefined) {
+    return inserted[0].id;
+  }
+  const existing = await db
+    .select({ id: galleryItems.id })
+    .from(galleryItems)
+    .where(
+      and(
+        eq(galleryItems.assetId, input.assetId),
+        input.subjectCharacterId !== undefined
+          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
+          : isNull(galleryItems.subjectCharacterId),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  const existingId = existing[0]?.id;
+  if (existingId === undefined) {
+    throw new Error("assets.addToGallery: row missing after upsert conflict");
+  }
+  return existingId;
+}
+
+/** The full `GalleryItemView` for one item (joins `assets` for `hash`/`mime`), or undefined when gone. Built
+ *  after an insert/upsert so the returned view is authoritative (the conflict path resolves to the existing
+ *  row's createdAt/id, not the just-minted candidate). */
+export async function galleryItemViewById(
+  db: Db,
+  galleryItemId: GalleryItemId,
+): Promise<GalleryItemView | undefined> {
+  const rows = await db
+    .select({
+      galleryItemId: galleryItems.id,
+      assetId: galleryItems.assetId,
+      hash: assets.hash,
+      mime: assets.mime,
+      subjectCharacterId: galleryItems.subjectCharacterId,
+      createdAt: galleryItems.createdAt,
+    })
+    .from(galleryItems)
+    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .where(eq(galleryItems.id, galleryItemId))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** The owner of a gallery item, resolved THROUGH the asset join (`gallery_items → assets.ownerId`) — there
+ *  is no stamped owner column (§1.3). Undefined when the item is gone. `removeFromGallery` compares this to
+ *  the actor and rejects a non-owner (leak-free). */
+export async function galleryItemOwner(
+  db: Db,
+  galleryItemId: GalleryItemId,
+): Promise<UserId | undefined> {
+  const rows = await db
+    .select({ ownerId: assets.ownerId })
+    .from(galleryItems)
+    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .where(eq(galleryItems.id, galleryItemId))
+    .limit(LIMIT_ONE);
+  return rows[0]?.ownerId;
+}
+
+/** Delete a gallery item by id. The caller (`removeFromGallery`) has already gated ownership via
+ *  {@link galleryItemOwner}; this is the unconditional delete of the confirmed-owned row. */
+export async function deleteGalleryItemRow(db: Db, galleryItemId: GalleryItemId): Promise<void> {
+  await db.delete(galleryItems).where(eq(galleryItems.id, galleryItemId));
+}
+
+// File-local (not exported): the keyset-paged gallery list args.
+interface ListGalleryInput {
+  readonly ownerId: UserId;
+  readonly subjectCharacterId: CharacterId | undefined;
+  readonly limit: number;
+  readonly cursor: number | undefined;
+  readonly cursorId: GalleryItemId | undefined;
+}
+
+/** Gallery v2 (§1.3): the caller's gallery via the asset join filtered on `assets.ownerId = actor` (no
+ *  stamped owner column to scope on), `ORDER BY createdAt DESC, id DESC`, keyset-paged by `(createdAt, id)`.
+ *  Optional `subjectCharacterId` filter. */
+export async function listGalleryViewRows(
+  db: Db,
+  input: ListGalleryInput,
+): Promise<GalleryItemView[]> {
+  const keyset =
+    input.cursor !== undefined && input.cursorId !== undefined
+      ? or(
+          lt(galleryItems.createdAt, input.cursor),
+          and(eq(galleryItems.createdAt, input.cursor), lt(galleryItems.id, input.cursorId)),
+        )
+      : undefined;
+  const rows = await db
+    .select({
+      galleryItemId: galleryItems.id,
+      assetId: galleryItems.assetId,
+      hash: assets.hash,
+      mime: assets.mime,
+      subjectCharacterId: galleryItems.subjectCharacterId,
+      createdAt: galleryItems.createdAt,
+    })
+    .from(galleryItems)
+    .innerJoin(assets, eq(galleryItems.assetId, assets.id))
+    .where(
+      and(
+        eq(assets.ownerId, input.ownerId),
+        input.subjectCharacterId !== undefined
+          ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId)
+          : undefined,
+        keyset,
+      ),
+    )
+    .orderBy(desc(galleryItems.createdAt), desc(galleryItems.id))
+    .limit(input.limit);
+  return rows;
 }

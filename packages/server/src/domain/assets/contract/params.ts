@@ -7,14 +7,33 @@
 // Every verb carries the resolved `principal` (spine §7.1) — ownership is scoped off `principal.userId`,
 // the single source of truth for "whose blobs" (NEVER a `users` read — the `no-direct-users-read` gate).
 
-import type { AssetKind } from "@orb/contracts/assets";
+import type {
+  AssetKind,
+  GalleryAddParams as GalleryAddWireParams,
+  GalleryListParams as GalleryListWireParams,
+  ListOwnedParams as ListOwnedWireParams,
+} from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
+import type { GalleryItemId } from "@orb/kit/ids";
 
 export type { AssetKind } from "@orb/contracts/assets";
 
 /** Common to every assets verb: the acting principal whose `userId` scopes ownership. */
 export interface AssetsActorParams {
   readonly principal: Principal;
+}
+
+// The gallery verbs' params = the WIRE shape (from `@orb/contracts/assets`) ∩ the acting principal. The wire
+// carries no principal (it's server-resolved §7.1); the `& AssetsActorParams` intersection adds it here so
+// the verb signatures reference one name. `removeFromGallery` has no wire-params sibling (a single id), so it
+// gets a plain interface.
+
+export type ListOwnedParams = ListOwnedWireParams & AssetsActorParams;
+export type GalleryAddParams = GalleryAddWireParams & AssetsActorParams;
+export type GalleryListParams = GalleryListWireParams & AssetsActorParams;
+
+export interface RemoveFromGalleryParams extends AssetsActorParams {
+  readonly galleryItemId: GalleryItemId;
 }
 
 export interface StoreParams extends AssetsActorParams {

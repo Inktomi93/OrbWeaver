@@ -18,14 +18,26 @@
 // never `public`).
 
 import type { AssetId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 // ── The upload `kind` axis (ONE home; db enum + route + client all derive from this tuple) ───────────
 
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (declared intent — the export-blob write path
- *  is unwired in v1, kept per "unwired ≠ worthless"). The db `assets.kind` enum derives from this tuple. */
-export const ASSET_KINDS = ["card", "avatar", "export"] as const;
+ *  is unwired in v1, kept per "unwired ≠ worthless"); `generated` = a model-generated image stored from a
+ *  chat `generateImage` turn (D47 #1 — the chat caller; the `imagery` orchestrator is Phase 7); `gallery` =
+ *  a curated gallery image (gallery v2); `attachment` = a user-attached inline chat image (distinct from
+ *  `generated`/`gallery`/`card` so `listOwned` can filter it). The db `assets.kind` enum derives from this
+ *  tuple. */
+export const ASSET_KINDS = [
+  "card",
+  "avatar",
+  "export",
+  "generated",
+  "gallery",
+  "attachment",
+] as const;
 
 /** The upload-wire `kind` field; `z.enum` over {@link ASSET_KINDS} (the union's single source of truth —
  *  `no-inline-union-redecl`). */
@@ -63,3 +75,75 @@ export interface StoredAsset {
   /** `false` if the blob already existed (within-user content-addressed dedup, D21). */
   created: boolean;
 }
+
+// ── Branded-id boundary schemas (prefix-validating; the wire's id fields derive from these) ────────────
+
+/** An `asset_…` TypeID at a request boundary — validates shape AND prefix (`typeIdSchema`). */
+export const assetIdSchema = typeIdSchema(ID_PREFIX.asset);
+/** A `character_…` TypeID — the gallery `subjectCharacterId` association ref. */
+export const characterIdSchema = typeIdSchema(ID_PREFIX.character);
+/** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
+export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem);
+
+// ── Gallery v1: `listOwned` — the owned-asset grid read (gallery-design §1.2) ──────────────────────────
+
+/** Keyset page-size bounds (shared by `listOwned` + `listGallery`); extracted per `noMagicNumbers`. */
+export const ASSET_LIST_LIMIT_MIN = 1;
+export const ASSET_LIST_LIMIT_MAX = 100;
+
+/** One row of the owned-asset grid. `hash` → `blobUrl(hash)` + `?w=` for the thumbnail; `(uploadedAt, id)`
+ *  is the keyset cursor the client derives the next page from (both fields are on the view → the return
+ *  type stays a plain array, no page envelope — §1.2). NO `animated`: deferred to G2 (the grid that needs
+ *  the animated bailout is Phase 6; adding it now means a byte-sniff + an `assets` column with no consumer). */
+export const assetListItemSchema = z.object({
+  assetId: assetIdSchema,
+  hash: z.string(),
+  kind: assetKindSchema,
+  mime: z.string(),
+  size: z.number().int(),
+  uploadedAt: z.number().int(),
+});
+export type AssetListItem = z.infer<typeof assetListItemSchema>;
+
+/** `listOwned` wire params (the acting principal is server-side, NOT on the wire). `limit` is bounded
+ *  1..100; `cursor`/`cursorId` are the `(uploadedAt, id)` pair of the previous page's last row — pass both
+ *  or neither (§1.2 keyset contract). */
+export const listOwnedParamsSchema = z.object({
+  kind: assetKindSchema.optional(),
+  limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
+  cursor: z.number().int().optional(),
+  cursorId: assetIdSchema.optional(),
+});
+export type ListOwnedParams = z.infer<typeof listOwnedParamsSchema>;
+
+// ── Gallery v2: curated per-character media (gallery-design §1.3) ──────────────────────────────────────
+
+/** `addToGallery` wire params. Owner-only posture (§1.3 `can()`): the asset AND — when given — the subject
+ *  character must both be owned by the actor; enforced server-side. */
+export const galleryAddParamsSchema = z.object({
+  assetId: assetIdSchema,
+  subjectCharacterId: characterIdSchema.optional(),
+});
+export type GalleryAddParams = z.infer<typeof galleryAddParamsSchema>;
+
+/** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery; keyset is `(createdAt, id)`
+ *  — the same two-field contract as §1.2, but over `gallery_items`. */
+export const galleryListParamsSchema = z.object({
+  subjectCharacterId: characterIdSchema.optional(),
+  limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
+  cursor: z.number().int().optional(),
+  cursorId: galleryItemIdSchema.optional(),
+});
+export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
+
+/** One curated gallery item. `hash`/`mime` are joined from the `assets` row (owner derives through that FK
+ *  — no stamped owner column). NO `animated`: deferred to G2 (same reason as {@link assetListItemSchema}). */
+export const galleryItemViewSchema = z.object({
+  galleryItemId: galleryItemIdSchema,
+  assetId: assetIdSchema,
+  hash: z.string(),
+  mime: z.string(),
+  subjectCharacterId: characterIdSchema.nullable(),
+  createdAt: z.number().int(),
+});
+export type GalleryItemView = z.infer<typeof galleryItemViewSchema>;

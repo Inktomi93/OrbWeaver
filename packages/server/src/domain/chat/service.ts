@@ -16,6 +16,7 @@ import { createChatLifecycle } from "./verbs/chat-lifecycle";
 import { createCompaction } from "./verbs/compaction";
 import { createEdit } from "./verbs/edit";
 import { createFork } from "./verbs/fork";
+import { createGenerateImage } from "./verbs/generate-image";
 import { createInvites } from "./verbs/invites";
 import { createRead } from "./verbs/read";
 import { createRoster } from "./verbs/roster";
@@ -102,6 +103,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
   });
   const edit = createEdit(ctx, { emit: deps.emit });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
+  const imageGen = createGenerateImage(ctx, { emit: deps.emit });
   const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews });
   const read = createRead(ctx, {
     loadParticipantViews,
@@ -124,6 +126,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     ...turn,
     ...edit,
     ...fork,
+    ...imageGen,
     ...invites,
     ...read,
     ...startChat,

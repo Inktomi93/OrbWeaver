@@ -21,11 +21,20 @@
 
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
-import type { AssetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import type { GetMetadataParams, ResolveVariantParams, StoreParams } from "./params";
+import type {
+  GalleryAddParams,
+  GalleryListParams,
+  GetMetadataParams,
+  ListOwnedParams,
+  RemoveFromGalleryParams,
+  ResolveVariantParams,
+  StoreParams,
+} from "./params";
 import type { AssetMetadata, StoredAsset } from "./results";
+import type { AssetListItem, GalleryItemView } from "./views";
 
 /**
  * The DI bundle every assets verb closes over (wired at `service.ts`). Explicit interface (not
@@ -51,12 +60,23 @@ export interface AssetsContext {
   readonly emit: EmitDomainEvent;
   readonly now: () => number;
   readonly newAssetId: () => AssetId;
+  /** The INJECTED gallery-item id minter (gallery v2). No ambient `mintTypeId()` in a verb (the same
+   *  determinism seam as `newAssetId`). */
+  readonly newGalleryItemId: () => GalleryItemId;
   /**
    * (PD-28) Roster-avatar exception: given the CALLER's userId and a blob hash, returns the UserId of
    * a co-participant in any shared chat who owns that hash, or `undefined` when no such user exists.
    * Optional — absent on non-HTTP/DR/workload callers that never need the roster gate.
    */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
+  /**
+   * Gallery owner-only posture (§1.3 `can()`): does `ownerId` own `characterId`? Wired at the entry root
+   * as a direct owner-scoped `characters` read (assets never sideways-imports the character domain — the
+   * check arrives as an injected op, the same seam as `loadCoParticipantOwner`). Optional — absent on
+   * non-HTTP/DR/workload callers that never call `addToGallery`; when absent, `addToGallery` gates on the
+   * asset ONLY and skips the subject-character check (documented degradation).
+   */
+  readonly assertCharacterOwned?: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
 }
 
 export interface AssetsService {
@@ -83,4 +103,20 @@ export interface AssetsService {
    *  PD-53). UN-PRINCIPAL like `loadAssetBytes` (D20): a trusted SYSTEM sweep, never a user-facing surface;
    *  wired only into the embeddings service at the composition root. A read — never throws. */
   readonly listImageAssetIds: () => Promise<readonly AssetId[]>;
+  /** Gallery v1 (§1.2): the caller's own assets, newest-first, keyset-paged. Owner-scoped off
+   *  `principal.userId`; optional `kind` filter. Returns a plain array (the client derives the next cursor
+   *  from the last row's `(uploadedAt, assetId)`) — a short page is end-of-list. */
+  readonly listOwned: (params: ListOwnedParams) => Promise<AssetListItem[]>;
+  /** Gallery v2 (§1.3): curate an owned asset into the gallery (optionally as a character's subject). The
+   *  asset AND — when given, and when `assertCharacterOwned` is wired — the subject character must be owned
+   *  by the actor (owner-only posture); a foreign/missing asset rejects with `AssetNotFoundError`. Upsert-
+   *  guarded on `(assetId, subjectCharacterId)` → a duplicate add returns the existing item, idempotently. */
+  readonly addToGallery: (params: GalleryAddParams) => Promise<GalleryItemView>;
+  /** Gallery v2 (§1.3): remove a gallery item the caller owns. Owner resolved THROUGH the asset join
+   *  (`gallery_items → assets.ownerId`); a non-owner/missing item rejects with `GalleryItemNotFoundError`
+   *  (leak-free). */
+  readonly removeFromGallery: (params: RemoveFromGalleryParams) => Promise<void>;
+  /** Gallery v2 (§1.3): the caller's gallery, newest-first, keyset-paged by `(createdAt, galleryItemId)`.
+   *  Owner-scoped via the asset join (no stamped owner column); optional `subjectCharacterId` filter. */
+  readonly listGallery: (params: GalleryListParams) => Promise<GalleryItemView[]>;
 }

@@ -85,6 +85,9 @@ export const ID_PREFIX = {
   buddyQuip: "buddy_quip",
   // D16: the per-user durable notification inbox.
   notification: "notification",
+  // D49: hosted image-generation provenance (imagery leaf, item 1) + curated gallery items (gallery v2, item 2).
+  imageryGeneration: "imagery_generation",
+  galleryItem: "gallery_item",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -114,6 +117,8 @@ export type WorldBookId = TypeIdOf<"world_book">;
 export type WorldEntryId = TypeIdOf<"world_entry">;
 export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
+export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
+export type GalleryItemId = TypeIdOf<"gallery_item">;
 
 // --- Chat / conversation -----------------------------------------------------
 export type ChatId = TypeIdOf<"chat">;
