@@ -17,6 +17,8 @@ export * from "./chat";
 export * from "./credentials";
 export * from "./discovery";
 export * from "./embeddings";
+export * from "./gallery";
+export * from "./imagery";
 export * from "./notifications";
 export * from "./persona";
 export * from "./preset";

@@ -13,7 +13,12 @@
 export { createActiveTurns } from "./active-turns";
 export { createChatBus } from "./bus";
 // Service contract + the DI bundle / deps types
-export type { ChatContext, ChatServiceDeps, PresenceReadOp } from "./contract/context";
+export type {
+  ChatContext,
+  ChatServiceDeps,
+  GeneratePictureOp,
+  PresenceReadOp,
+} from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
 // Errors
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";

@@ -11,6 +11,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AdminService } from "#domain/admin";
+import type { AssetsService } from "#domain/assets";
 import type { BuddyService } from "#domain/buddy";
 import type { CharacterService } from "#domain/character";
 import type { ChatService } from "#domain/chat";
@@ -42,6 +43,7 @@ import type { PresenceRegistry } from "./presence-registry";
  */
 export interface Services {
   readonly admin: AdminService;
+  readonly assets: AssetsService;
   readonly buddy: BuddyService;
   readonly character: CharacterService;
   readonly chat: ChatService;

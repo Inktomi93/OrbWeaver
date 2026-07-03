@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1fef494f-ed52-4b9c-b6fc-b44cd515ac9e",
+  "id": "99436abe-d3f4-4929-a03e-b2ca4d7a3eb9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -128,7 +128,7 @@
       "checkConstraints": {
         "assets_kind_check": {
           "name": "assets_kind_check",
-          "value": "kind in ('card', 'avatar', 'export')"
+          "value": "kind in ('card', 'avatar', 'export', 'generated', 'gallery', 'attachment')"
         }
       }
     },
@@ -3360,6 +3360,210 @@
         "image_embeddings_lens_check": {
           "name": "image_embeddings_lens_check",
           "value": "lens in ('image-raw', 'image-captioned')"
+        }
+      }
+    },
+    "gallery_items": {
+      "name": "gallery_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_character_id": {
+          "name": "subject_character_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "gallery_items_asset_subject_unique": {
+          "name": "gallery_items_asset_subject_unique",
+          "columns": ["asset_id", "subject_character_id"],
+          "isUnique": true
+        },
+        "gallery_items_character_idx": {
+          "name": "gallery_items_character_idx",
+          "columns": ["subject_character_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "gallery_items_asset_id_assets_id_fk": {
+          "name": "gallery_items_asset_id_assets_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "gallery_items_subject_character_id_characters_id_fk": {
+          "name": "gallery_items_subject_character_id_characters_id_fk",
+          "tableFrom": "gallery_items",
+          "tableTo": "characters",
+          "columnsFrom": ["subject_character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "imagery_generations": {
+      "name": "imagery_generations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "asset_id": {
+          "name": "asset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mode": {
+          "name": "mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_character_id": {
+          "name": "subject_character_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "identity_hash": {
+          "name": "identity_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "negative_prompt": {
+          "name": "negative_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "model": {
+          "name": "model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "edited": {
+          "name": "edited",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "imagery_generations_reuse_idx": {
+          "name": "imagery_generations_reuse_idx",
+          "columns": ["subject_character_id", "mode", "identity_hash"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "imagery_generations_asset_id_assets_id_fk": {
+          "name": "imagery_generations_asset_id_assets_id_fk",
+          "tableFrom": "imagery_generations",
+          "tableTo": "assets",
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "imagery_generations_chat_id_chats_id_fk": {
+          "name": "imagery_generations_chat_id_chats_id_fk",
+          "tableFrom": "imagery_generations",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "imagery_generations_subject_character_id_characters_id_fk": {
+          "name": "imagery_generations_subject_character_id_characters_id_fk",
+          "tableFrom": "imagery_generations",
+          "tableTo": "characters",
+          "columnsFrom": ["subject_character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "imagery_generations_mode_check": {
+          "name": "imagery_generations_mode_check",
+          "value": "mode in ('free', 'character', 'face', 'scenario', 'background', 'character_multimodal', 'face_multimodal')"
         }
       }
     },

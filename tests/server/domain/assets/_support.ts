@@ -17,10 +17,11 @@ import { join } from "node:path";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { users } from "@orb/db";
-import type { AssetId, ExternalId, Handle, UserId } from "@orb/kit/ids";
+import { characters, users } from "@orb/db";
+import type { AssetId, CharacterId, ExternalId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
+import { and, eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "../../../../packages/server/src/domain/assets/contract/service.ts";
@@ -71,6 +72,17 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     },
     now: (): number => clock.now(),
     newAssetId: (): AssetId => castId<AssetId>(ids.next("asset")),
+    newGalleryItemId: (): GalleryItemId => castId<GalleryItemId>(ids.next("gallery_item")),
+    // The gallery owner-only gate, wired as the real owner-scoped `characters` read (mirrors compose) so
+    // the addToGallery character-ownership rejection is exercised for real, not stubbed.
+    assertCharacterOwned: async (ownerId: UserId, characterId: CharacterId): Promise<boolean> => {
+      const rows = await db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+        .limit(1);
+      return rows.length > 0;
+    },
   };
   return {
     ctx,
@@ -124,4 +136,38 @@ export function principal(
  *  content hashes). `sniffMime` recognizes the signature; the CAS just hashes/stores the bytes opaquely. */
 export function pngBytes(...tail: number[]): Uint8Array {
   return new Uint8Array([...PNG_SIGNATURE, ...tail]);
+}
+
+/** Index into a query result with a non-empty assertion — narrows `T | undefined` (noUncheckedIndexedAccess)
+ *  to `T` for the paging cursor/field reads, throwing a legible error if the page is unexpectedly short. */
+export function row<T>(rows: readonly T[], i: number): T {
+  const r = rows[i];
+  if (r === undefined) {
+    throw new Error(`expected a row at index ${i}, got a page of ${rows.length}`);
+  }
+  return r;
+}
+
+interface SeedCharacterOverrides {
+  readonly id?: string;
+  readonly handle?: string;
+  readonly name?: string;
+}
+
+/** Insert a minimal `characters` row owned by `ownerId` (the gallery `subjectCharacterId` FK target).
+ *  Only the notNull/no-default columns are supplied. Returns the branded id. */
+export async function seedCharacter(
+  db: Db,
+  ownerId: UserId,
+  overrides: SeedCharacterOverrides = {},
+): Promise<CharacterId> {
+  const id = castId<CharacterId>(overrides.id ?? `character_${overrides.handle ?? "x"}`);
+  await db.insert(characters).values({
+    id,
+    handle: overrides.handle ?? id,
+    ownerId,
+    contentHash: `hash_${id}`,
+    name: overrides.name ?? "Test Character",
+  });
+  return id;
 }
