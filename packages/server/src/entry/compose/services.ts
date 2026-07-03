@@ -548,6 +548,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embeddings,
     // PD-66: sessions' exact handle→userId resolver for targeted invites.
     resolveHandle: (handle) => sessions.resolveHandle(handle),
+    // D60: sessions' lazy agent-principal mint for seatAgent (doc 04 §3).
+    provisionAgentPrincipal: (params) => sessions.provisionAgentPrincipal(params),
     runChatTurn: executor.runChatTurn,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;

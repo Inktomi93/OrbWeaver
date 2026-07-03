@@ -18,7 +18,7 @@ import type {
   RedeemInviteInput,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
+import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import type { GuidedActionKind, UserIntent } from "@orb/contracts/preset";
 import type {
   CharacterId,
@@ -337,6 +337,16 @@ export interface SetGroupConfigParams extends ChatScopedParams {
  *  characters — D16). */
 export interface AddCharacterToChatParams extends ChatScopedParams {
   readonly characterId: CharacterId;
+}
+
+/** `seatAgent` — seat an agent principal in the roster (host-gated; the ONE agent-seat chokepoint — D60,
+ *  doc 04 §3). The host consents to the seat; the OWNER (whose agent/buddy this is) must be a present member
+ *  (owner==host collapses to one call). The principal is lazily minted via `provisionAgentPrincipal`. */
+export interface SeatAgentParams extends ChatScopedParams {
+  /** Whose agent to seat (v1: whose buddy) — must be a present human member of the room. */
+  readonly ownerUserId: UserId;
+  /** The agent flavor driving the seat (`AGENT_SOURCE_KINDS`; v1 = `'buddy'`). */
+  readonly sourceKind: AgentSourceKind;
 }
 
 /** `setRoomOverrides` — host-only write of the four-field `chatMetadata.roomOverrides` allowlist (Part III §9). */

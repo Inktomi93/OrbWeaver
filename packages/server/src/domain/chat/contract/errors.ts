@@ -55,6 +55,12 @@ export const CHAT_OP_CODES = {
   /** A multi-human / membership surface was reached while the deployment is in `single-user` AUTH_MODE
    *  (chat.md Part III §2/§11 — the capability gate). */
   singleUserMode: "single_user_mode",
+  /** `seatAgent` targeted an owner who is not a PRESENT human member of the room (D60, doc 04 §3 — an agent
+   *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing). */
+  ownerNotPresent: "owner_not_present",
+  /** `seatAgent` targeted a DISABLED agent principal (`users.enabled = false`) — the containment kill switch
+   *  refuses the seat (D60, doc 03 §5). */
+  agentDisabled: "agent_disabled",
 } as const;
 
 /** The reason-code union (derived from the one tuple of values — never re-spelled). */

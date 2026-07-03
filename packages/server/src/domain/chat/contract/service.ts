@@ -70,6 +70,7 @@ import type {
   ReplayStreamEventsParams,
   RevertContinueParams,
   RevokeInviteParams,
+  SeatAgentParams,
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
@@ -223,6 +224,9 @@ export interface ChatService {
   readonly setGroupConfig: (params: SetGroupConfigParams) => Promise<GroupConfig>;
   /** Add a character to the roster (host-only; the ONE character participant-insert chokepoint — D16). */
   readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
+  /** Seat an agent principal in the roster (host-gated; the ONE agent-seat chokepoint — D60, doc 04 §3). The
+   *  owner (whose agent) must be a present member; the principal is lazily minted. Idempotent re-seat. */
+  readonly seatAgent: (params: SeatAgentParams) => Promise<ParticipantView>;
   /** Host-only write of the four-field `chatMetadata.roomOverrides` allowlist (Part III §9). */
   readonly setRoomOverrides: (params: SetRoomOverridesParams) => Promise<RoomOverrides>;
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;

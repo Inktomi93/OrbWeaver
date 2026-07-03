@@ -161,6 +161,44 @@ export async function upsertMemberOnJoin(
   return rows.at(0);
 }
 
+/**
+ * The atomic agent (re)seat — the ONLY agent-membership write (called by `chat.seatAgent`, D60 doc 04 §3).
+ * Inserts a fresh `kind:'agent'` member row, or on a `(chatId,userId)` conflict re-seats a PREVIOUSLY-KICKED
+ * agent (`SET joinSeq=<head>, leftSeq=NULL, role='member' WHERE leftSeq IS NOT NULL`) — the same re-join
+ * physics as {@link upsertMemberOnJoin}, so kick-then-reseat works unchanged (doc 02 §1). `role` is
+ * server-forced `member` (an agent is NEVER a host). Returns the resulting row, or `undefined` when the agent
+ * is ALREADY a present member (the conflict's `WHERE` matched nothing — an idempotent double-seat no-op).
+ */
+export async function upsertAgentSeat(
+  db: Db,
+  params: {
+    readonly participantId: ChatParticipantId;
+    readonly chatId: ChatId;
+    readonly agentUserId: UserId;
+    readonly joinSeq: number;
+    readonly now: number;
+  },
+): Promise<typeof chatParticipants.$inferSelect | undefined> {
+  const rows = await db
+    .insert(chatParticipants)
+    .values({
+      id: params.participantId,
+      chatId: params.chatId,
+      kind: "agent",
+      userId: params.agentUserId,
+      role: "member",
+      joinedAt: params.now,
+      joinSeq: params.joinSeq,
+    })
+    .onConflictDoUpdate({
+      target: [chatParticipants.chatId, chatParticipants.userId],
+      set: { joinSeq: params.joinSeq, leftSeq: null, role: "member" },
+      setWhere: isNotNull(chatParticipants.leftSeq),
+    })
+    .returning();
+  return rows.at(0);
+}
+
 /** Self-leave / kick-a-human: stamp `leftSeq` on the caller's PRESENT row (atomic — `WHERE leftSeq IS NULL`,
  *  so only the winning call gets the row back to notify). Authored rows survive; the persona drops from the
  *  cast (Part III §2). Returns the row left this call, or `undefined` if already gone / not a member. */
