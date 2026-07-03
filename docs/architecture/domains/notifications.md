@@ -84,3 +84,10 @@ No named subsystems; no `substrate/` (it's a thin durable surface).
    _(test.)_
 4. **The stream uses the resume shape, never `buddy.stream`** — `tracked()` + `lastEventId` replay from the durable
    table. _(resolve-time: the subscription is transport's, over this table.)_
+5. **No agent recipient (D60)** — `record` REFUSES a `kind='agent'` recipient (agent-principal-design/06 §3 + inv 2):
+   an agent principal is structurally sessionless, so a durable row addressed to it would only rot. Enforced at the ONE
+   write chokepoint via the injected `isAgentRecipient` read (notifications never reads `users` itself —
+   `no-direct-users-read`; the entry root supplies the `users.kind` read, the `resolveAgentEnabled` precedent). Every
+   producer funnels through `record`, so all of them inherit the belt; a future MULTI-recipient producer (automation
+   `post_notification`, plugin `notify`) must EXCLUDE agent participants when expanding `all_members`/`participants`, and
+   this chokepoint is the loud backstop. _(test: `record` rejects an agent recipient, writes no row.)_

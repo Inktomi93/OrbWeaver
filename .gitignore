@@ -74,3 +74,6 @@ Thumbs.db
 scratchpad/
 scratch/
 /tmp/
+
+# transient agent worktrees (EnterWorktree / subagent isolation)
+.claude/worktrees/
