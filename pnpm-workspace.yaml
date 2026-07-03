@@ -169,6 +169,8 @@ catalog:
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
   eslint-plugin-better-tailwindcss: ^4.6.0
+  # tsdoc/syntax — validates TSDoc comment syntax (the Documentation-Law doc-comment gate). No eslint peer dep.
+  eslint-plugin-tsdoc: ^0.5.2
   # vite: not 8.1.3 (published <24h ago, minimumReleaseAge-blocked); ^8.1.2 is the latest mature — the
   # caret auto-adopts 8.1.3 once it clears the 24h window. (Matches the lucide pin-reason style.)
   vite: ^8.1.2

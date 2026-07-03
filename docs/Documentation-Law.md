@@ -162,7 +162,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 - `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `architecture/core/Core-Docs-Formatting-Law.md`).
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.
-- **Flip-on candidates (designated path, NOT yet wired):** `eslint-plugin-tsdoc` (official TSDoc parser — syntax validity of doc comments) and `@typescript-eslint/no-deprecated` (type-aware; hard-fails usage of `@deprecated` API). ESLint already runs scoped (`packages/ui`, `packages/client`, `tests/ui`); wiring these is an extension of that config, not a new tool.
+- **Doc-comment gates (wired 2026-07-03 on `server`/`kit`/`db`/`contracts` — the typed exported-API surface):** `@typescript-eslint/no-deprecated` (type-aware) is a hard gate — 0 violations today, a pure future guardrail so a `@deprecated` tag can't be silently used. `tsdoc/syntax` (`eslint-plugin-tsdoc`, the official parser) is `warn` pending a one-time cleanup of ~255 pre-existing violations (mostly `{…}` prose tokens wanting backticks + bare `@orb/…` names wanting `{@link}`); it flips to `error` once clean. ESLint also runs on `ui`/`client`/`tests/ui` (the react-surface gates).
 
 ## Evidence
 
