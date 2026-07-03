@@ -318,8 +318,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Event-Bus-Parity-Audit.md](docs/architecture/history/Core-Event-Bus-Parity-Audit.md)
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
-  - [character.md](docs/architecture/domains/character.md)
-  - [chat.md](docs/architecture/domains/chat.md)
   - [domains.md](docs/architecture/domains/domains.md)
   - [memory.md](docs/architecture/domains/memory.md)
   - [participants-agents-identity.md](docs/architecture/domains/participants-agents-identity.md)

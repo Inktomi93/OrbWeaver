@@ -8,8 +8,8 @@
 
 | Domain                               | File                                                               | Phase                              |
 | ------------------------------------ | ------------------------------------------------------------------ | ---------------------------------- |
-| **chat**                             | [chat.md](chat.md)                                                 | 5 (built whole, last)              |
-| **character**                        | [character.md](character.md)                                       | 4                                  |
+| **chat**                             | `packages/server/src/domain/chat/` (gutted — code is the doc)      | 5 (built whole, last)              |
+| **character**                        | `packages/server/src/domain/character/` (gutted — code is the doc); snapshot-UX: [character-snapshot-ux.md](../proposed/character-snapshot-ux.md) | 4                                  |
 | **persona**                          | `packages/server/src/domain/persona/` (gutted — code is the doc)                                           | 4                                  |
 | **preset**                           | `packages/server/src/domain/preset/` (gutted — code is the doc)                                             | 4                                  |
 | **world-info**                       | `packages/server/src/domain/world-info/` (gutted — code is the doc)                                     | 4                                  |
