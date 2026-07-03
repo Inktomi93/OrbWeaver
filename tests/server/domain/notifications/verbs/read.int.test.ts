@@ -4,12 +4,11 @@ import type { Db } from "@orb/db";
 import type { NotificationId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
-import { createNotificationsService } from "@orb/server/domain/notifications";
 import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { ALICE, BOB, inviteEvent, principal, seedUser } from "../_support";
+import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support";
 
 let db: Db;
 let svc: NotificationsService;
@@ -21,7 +20,7 @@ beforeEach(async () => {
   db = await freshDb();
   await seedUser(db, ALICE, "alice");
   await seedUser(db, BOB, "bob");
-  svc = createNotificationsService({ db, now: clock.now });
+  svc = makeNotificationsService(db, clock.now);
 });
 
 describe("markRead — recipient-scope + idempotence", () => {
