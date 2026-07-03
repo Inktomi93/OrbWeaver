@@ -8,6 +8,8 @@ import type { Check, Violation } from "../harness.ts";
 const PKGS = new Set(["kit", "contracts", "db", "server", "client", "ui"]);
 // Most-specific suffixes first (so `.int.test.ts` isn't mis-stripped as `.test.ts`).
 const KINDS = [
+  ".suite.int.test.ts",
+  ".suite.test.ts",
   ".int.test.ts",
   ".contract.test.ts",
   ".parity.test.ts",
@@ -61,6 +63,14 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
   // module — so it is exempt from the 1:1 source-mirror requirement. It still must sit under a valid
   // package tree (the pkg check above), and is opt-in/skipped until chat assembly lands.
   if (kind === ".parity.test.ts") {
+    return;
+  }
+  // Cross-cutting PROPERTY suites (`.suite.test.ts` / `.suite.int.test.ts`) validate a behaviour that spans
+  // MANY source modules — a security-containment matrix, a cross-writer drift-equality — not one module, so
+  // like `.parity.test.ts` they are exempt from the 1:1 source-mirror (they still sit under a valid package
+  // tree, the pkg check above). The named containment suite (agent-principal-design/07 §4) + the stats
+  // drift gate (stats.md inv #3) are the first; the seat wave's seated containment re-run extends the former.
+  if (kind === ".suite.int.test.ts" || kind === ".suite.test.ts") {
     return;
   }
   const base = name.slice(0, -kind.length);
