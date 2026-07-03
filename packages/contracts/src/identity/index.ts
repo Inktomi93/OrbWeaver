@@ -56,7 +56,7 @@ export function isReservedAgentHandle(handle: string): boolean {
 }
 
 // The ONE auth-mode axis — the SSO mechanism selector. The single tuple is the one home (§7.5,
-// Spine-TypeScript-and-Patterns.md §125 names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
+// Spine-TypeScript-and-Patterns.md §"String-union dispatch" names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
 // `AUTH_MODE` var + its superRefine, and `infra/auth`'s `AuthConfig.mode` + the `MODE_RESOLVERS` dispatch
 // DERIVE from it — no inline re-spell anywhere.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
