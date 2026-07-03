@@ -16,7 +16,7 @@ import type { Check, Violation } from "../harness.ts";
 const ACTIVE_REGISTRY = "docs/architecture/core/Core-Audits-and-Debt.md";
 const REGISTRY_FILES = [
   ACTIVE_REGISTRY, // active registry
-  "docs/architecture/core/Core-Debt-Cleared-Ledger.md", // cleared (done) ledger
+  "docs/architecture/history/Core-Debt-Cleared-Ledger.md", // cleared (done) ledger
 ];
 const REGISTRY_LABEL = REGISTRY_FILES.join(" / ");
 const ROW_RE = /^\|\s*PD-(\d+)\b/gmu; // a registry row (active table OR cleared table)
