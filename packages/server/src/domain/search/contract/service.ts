@@ -19,12 +19,10 @@
 //
 // ── BOUNDARY DEVIATION (flagged) ───────────────────────────────────────────────────────────────────────
 // search reads the vector tables DIRECTLY from `@orb/db/schema/embeddings` (a downward dep into the schema
-// — allowed; embeddings.md §"Cross-feature composition": "search reads the tables directly via @orb/db; it
-// does NOT call embeddings verbs"). It does NOT inject an `embeddings.query` op. The vector_distance_cos
+// — allowed BY DESIGN: search is the bulk reader over the whole store and reads the tables via @orb/db; it
+// does NOT call embeddings verbs). It does NOT inject an `embeddings.query` op. The vector_distance_cos
 // SQL lives in `persistence/nearest.ts` and is search's alone (invariant #1: no domain outside search
-// issues that query). This is the AUTHORITATIVE-DOC boundary; the task prompt's "inject embeddings.query
-// type-only" was the older framing — the doc wins (CLAUDE.md: when a prompt conflicts with the spine, the
-// doc wins). No concurrent `domain/embeddings` file is touched or imported.
+// issues that query). No `domain/embeddings` file is touched or imported.
 //
 // ── DEFERRAL LEDGER ─────────────────────────────────────────────────────────────────────────────────────
 // FLAG[PD-35]: `discover` verb (the DISCOVERY-domain character-discovery consumer, NOT memory —

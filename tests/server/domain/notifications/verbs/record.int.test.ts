@@ -57,7 +57,7 @@ describe("record — durable-first", () => {
     expect(view.createdAt).toBe(clock.frozenAt);
     expect(view.readAt).toBeNull();
     expect(view.dismissedAt).toBeNull();
-    // Deliverable from the durable table with NO fan-out path in play — invariant #1.
+    // Deliverable from the durable table with NO fan-out path in play — durable-first.
     const page = await svc.list({ principal: principal(ALICE) });
     expect(page.items).toHaveLength(1);
     expect(page.items[0]?.id).toBe(view.id);
@@ -115,7 +115,7 @@ describe("record — coStatements ride the SAME batch (PD-24 tx-atomicity)", () 
   });
 });
 
-describe("record — the closed union is the secret-free belt (invariant #2)", () => {
+describe("record — the closed union is the secret-free belt", () => {
   test("an unknown secret field smuggled onto the event does NOT survive the parse", async () => {
     // The type makes this unrepresentable; force it via a cast to prove the RUNTIME strip at the write seam.
     const dirty = {

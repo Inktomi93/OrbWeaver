@@ -5,10 +5,10 @@
 //     cursor is db-driven, never minted in JS (determinism); `unique(recipientUserId, seq)` is the backstop.
 //   • RECIPIENT-SCOPE — every read/update WHERE-clause pins `recipientUserId`, so a row that isn't the
 //     caller's matches NOTHING (the verb maps the empty match → not-found). A user cannot read/touch
-//     another's inbox (notifications.md invariant #3). This file NEVER imports/joins `users`
+//     another's inbox. This file NEVER imports/joins `users`
 //     (no-direct-users-read): the recipient id arrives as a param from the resolved Principal / the event.
 //   • IDEMPOTENT state flips — markRead/dismiss set the timestamp via `COALESCE(col, :now)`, so a re-flip
-//     keeps the original instant (notifications.md: markRead/dismiss idempotence).
+//     keeps the original instant (markRead/dismiss idempotence).
 //
 // The row shape is the file-local `NotificationRow` (NOT exported — no feature type leaks from persistence,
 // no-inline-types); the verbs project it to the `InboxView` contract shape.

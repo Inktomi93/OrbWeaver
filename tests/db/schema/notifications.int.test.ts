@@ -216,7 +216,7 @@ test("deleting the recipient cascades their notifications", async () => {
 test("the closed union makes a credential-shaped payload UNREPRESENTABLE (stripped on parse)", () => {
   const userId = castId<UserId>("user_secret");
   // A producer that tries to smuggle a secret/baseUrl into an event — the z.object members STRIP unknown
-  // keys (no .loose()/.catchall()), so the parsed event cannot carry them (notifications.md invariant #2).
+  // keys (no .loose()/.catchall()), so the parsed event cannot carry them.
   const hostile = {
     ...inviteEvent(userId),
     apiKey: "sk-super-secret",

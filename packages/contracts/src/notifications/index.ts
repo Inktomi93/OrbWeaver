@@ -1,10 +1,10 @@
 // The notifications cross-boundary wire surface — the CLOSED `NotificationEvent` discriminated union and
-// the read-only `PresenceView` (D16; shared-dissolution §4; `domains/notifications.md`). The per-chat bus
+// the read-only `PresenceView` (D16; shared-dissolution §4). The per-chat bus
 // CANNOT reach a non-member (they can't subscribe to a chat they're not in), so invite / kick / host-handoff
 // delivery rides a per-user durable inbox owned by the `notifications` domain; this node is the wire shape
 // that domain persists (the `type` + `payload` columns) and that transport streams to the caller.
 //
-// TWO load-bearing belts (notifications.md invariants 2 + 3 — both the whole point of the union being a
+// TWO load-bearing belts (both the whole point of the union being a
 // CONTRACT and not a loose blob):
 //   • recipientUserId is MANDATORY on every variant — a notification with no recipient is unrepresentable.
 //   • credentials / secrets / baseUrls are TYPE-LEVEL UNREPRESENTABLE (the `bus-payload-allowlist` gate,

@@ -9,7 +9,8 @@
 // `rebuildFromTree` (+ the avatar-ref registry in persistence/) — land in the assets GC/backfill wave.
 // They require injection seams in OTHER domains' composition roots (`reapIfOrphan` → `character.remove`;
 // the backfill slice → the workloads runner) and the avatar-ref registry over `characters.avatarAssetId` /
-// `personas.avatarAssetId`; building them here would ship dead, unwired code. Target: assets.md §"Verbs".
+// `personas.avatarAssetId`; building them here would ship dead, unwired code. Target:
+// docs/architecture/proposed/assets-maintenance.md.
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";

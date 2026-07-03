@@ -4,10 +4,11 @@
 // `Date.now()`). `enforceMagic` is the upload boundary's defense (invariant #6) — the route passes `true`;
 // trusted non-HTTP callers (DR rebuild, future import backfill) omit it.
 //
-// The emit is the asset → embeddings seam (assets.md §"asset → embeddings"): the indexer subscribes to
+// The emit is the asset → embeddings seam: the indexer subscribes to
 // `asset.created` and embeds the image; assets has ZERO knowledge of who consumes it (the bus is wired at
-// the composition root). FLAG[PD-27]: at-least-once delivery (in-process fire-and-forget vs an
-// outbox) is decided jointly with `embeddings.md` §events — the emit MECHANISM is what's locked here.
+// the composition root). Delivery is in-process fire-and-forget for v1 (RESOLVED PD-27; ASSUMES
+// single-replica) — the embeddings `content_hash` catch-up sweep (PD-53) is the reliability backstop;
+// a durable outbox is the multi-replica seam.
 
 import type { StoreParams } from "../contract/params";
 import type { AssetsContext, AssetsService } from "../contract/service";

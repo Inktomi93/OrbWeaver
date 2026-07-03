@@ -1,7 +1,7 @@
 // domain/notifications/contract/service — the typed API surface (read THIS to know everything the domain
 // does). Holds the explicit DI bundle, the producer-facing `emit` op type, and the 4-verb interface.
 //
-// notifications is the per-user DURABLE inbox (D16; notifications.md): the per-chat bus cannot reach a
+// notifications is the per-user DURABLE inbox (D16): the per-chat bus cannot reach a
 // NON-member, so invite / kick / host-handoff delivery rides a per-user channel that survives the recipient
 // being offline. The TABLE is the source of truth — DURABLE-FIRST: `record` INSERTs the row; the per-user
 // bus fan-out is a separate after-commit concern composed at the entry root (see `EmitNotification`).
@@ -36,26 +36,26 @@ export interface NotificationsContext {
 
 /**
  * The producer-facing op a producer (chat's invite/kick/handoff, + any future producer) injects to deliver
- * a notification (notifications.md §"Cross-feature composition"). It is the one cross-feature edge: a
+ * a notification. It is the one cross-feature edge: a
  * producer NEVER imports this domain's internals — it receives `emit` at the composition root. `emit` =
  * `record` (the durable INSERT — its core) + the after-commit per-user bus fan-out; **durable-first**, the
  * INSERT happens before any fan-out so the event is deliverable from the table alone (`list` returns it even
- * if the bus path is dead — notifications.md invariant #1). The recipient is the event's mandatory
- * `recipientUserId`; credentials/secrets are type-level unrepresentable in the union it carries (invariant
- * #2). The op is COMPOSED at `entry/` from this domain's `record` + transport's bus — it is not minted here.
+ * if the bus path is dead). The recipient is the event's mandatory
+ * `recipientUserId`; credentials/secrets are type-level unrepresentable in the union it carries (the
+ * secret-free belt). The op is COMPOSED at `entry/` from this domain's `record` + transport's bus — it is not minted here.
  *
  * This domain owns ONLY the durable `record` half. The after-commit per-user bus FAN-OUT and the resumable
  * `authedProcedure.subscription` (`tracked()` + `lastEventId` replay over this table) are TRANSPORT's
- * (notifications.md §"does NOT own"); `emit` IS stitched together at the entry root (PD-23 cleared —
+ * (this domain owns neither); `emit` IS stitched together at the entry root (PD-23 cleared —
  * `entry/compose/chat.ts`: `record` → `publishNotification`, durable-first). notifications never imports
  * transport — the edge is one-directional.
  */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
 
 /**
- * The 4 verbs (notifications.md §"What this domain owns"). `record` is the producer write (durable INSERT,
+ * The 4 verbs. `record` is the producer write (durable INSERT,
  * scoped to the event's recipient); markRead / dismiss / list are caller-scoped to `principal.userId` — a
- * user reads/touches ONLY their own inbox (invariant #3).
+ * user reads/touches ONLY their own inbox (no cross-user inbox read).
  */
 export interface NotificationsService {
   /** Durable-first write: INSERT one closed event for its recipient with a db-driven monotonic `seq`,

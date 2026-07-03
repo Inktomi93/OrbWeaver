@@ -1,6 +1,6 @@
-// verb: store — THE single vector write path (embeddings.md §"the defining invariant": the ONLY inserter
-// into any vector table). One parametrized body collapses the 6 hand-rolled embed+upsert sites neo-tavern
-// scattered across 5 tables.
+// verb: store — THE single vector write path (the defining invariant: the ONLY inserter into any vector
+// table). One parametrized body collapses the 6 hand-rolled embed+upsert sites neo-tavern scattered across
+// 5 tables.
 //
 // The flow, per lens arm:
 //   1. content_hash the content (the staleness gate + cross-chat collapse key).

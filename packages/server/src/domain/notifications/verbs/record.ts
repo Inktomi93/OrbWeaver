@@ -1,4 +1,4 @@
-// verb: record — the DURABLE-FIRST producer write (notifications.md §verbs + invariant #1). The injected
+// verb: record — the DURABLE-FIRST producer write. The injected
 // `emit` op (composed at entry from this verb + transport's per-user bus) wraps it: `record` is the durable
 // core, the after-commit fan-out is the bus hook — the INSERT happens BEFORE any fan-out, so the event is
 // deliverable from the table alone (kill the bus → `list` still returns it).
@@ -7,7 +7,7 @@
 //   • SECRET-FREE write seam — the closed `notificationEventSchema` is PARSED (not just trusted from the
 //     type): every member is a `z.object` that STRIPS unknown keys, so a credential/baseUrl smuggled onto
 //     the event (even via a cast at the producer) does NOT survive into the persisted `payload`
-//     (notifications.md invariant #2 — the union is the phishing/exfil belt).
+//     (the union is the phishing/exfil belt).
 //   • RECIPIENT — the recipient is the event's MANDATORY `recipientUserId` (the producer names it; it is
 //     by definition not the producer). No Principal: a producer delivers TO a user, it isn't the caller.
 // The `seq` is db-driven (persistence) and the id is minted via the one `mintTypeId` primitive; `createdAt`

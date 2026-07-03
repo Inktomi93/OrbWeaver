@@ -4,7 +4,7 @@
 //   • POST /api/import         — character-card file(s) → DELEGATES to `entry/import/run-profile-import`
 //                                (DECISIONS-LEDGER §7 D3 — the route never re-implements the import flow).
 //
-// `enforceMagic:true` on the asset upload is the user-upload boundary belt (assets.md inv 6 — a mislabeled
+// `enforceMagic:true` on the asset upload is the user-upload boundary belt (a mislabeled
 // binary is rejected before it reaches CAS). The import route trusts the import flow's own card parse, so
 // it does NOT enforce magic (the bytes are validated as a card, not by mime).
 //

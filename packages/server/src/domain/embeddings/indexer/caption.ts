@@ -1,8 +1,8 @@
 // domain/embeddings/indexer/caption — the ONE avatar-caption generator for the `image-captioned` lens.
 // Shared by the event handler (`onAssetCreated`) and the PD-53 bulk asset pass (`verbs/embed-assets.ts`) so
 // the caption prompt/behavior can never drift between the on-write and catch-up paths. Homed in the indexer
-// subsystem (the async/bulk path, embeddings.md §"Named subsystem: indexer") because it calls the injected
-// `summarize` role op — NOT `substrate/` (which stays pure compute).
+// subsystem (the async/bulk path) because it calls the injected `summarize` role op — NOT `substrate/`
+// (which stays pure compute).
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 
@@ -12,9 +12,10 @@ const CAPTION_SYSTEM_PROMPT =
   "You are an image captioner. Describe the visible subject, style, and notable details in one concise sentence. No preamble.";
 const CAPTION_USER_PROMPT = "Describe this image.";
 
-/** Generate the avatar caption inline via the injected `summarize` op (embeddings.md open decision: inline,
- *  not a chained `caption.created` event). Returns the summary text (empty string when the family returned
- *  no item — the joint embed still runs on the image bytes). */
+/** Generate the avatar caption inline via the injected `summarize` op (decided: inline, not a chained
+ *  `caption.created` event — the caption is fast enough; an extra event hop buys nothing). Returns the
+ *  summary text (empty string when the family returned no item — the joint embed still runs on the image
+ *  bytes). */
 export async function generateAvatarCaption(
   roleClients: RoleClients,
   bytes: Uint8Array,

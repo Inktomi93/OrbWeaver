@@ -12,8 +12,8 @@
 // FLAG[PD-26]: backfillAvatars · collectGarbage · reapIfOrphan · fsck · rebuildFromTree (+ the
 // avatar-ref registry) → the assets GC/backfill wave, when `character.remove` can inject `reapIfOrphan`
 // and the workloads runner can inject the backfill slice (both are OTHER domains' composition roots —
-// building those verbs now would either ship dead, unwired code or collapse tiers). The full 7-verb
-// target is `docs/architecture/domains/assets.md` §"Verbs".
+// building those verbs now would either ship dead, unwired code or collapse tiers). The maintenance-wave
+// target is `docs/architecture/proposed/assets-maintenance.md`.
 //
 // Every surface is OWNER-SCOPED off `principal.userId` (§7.1 — never a `users` read; the
 // `no-direct-users-read` chokepoint). Assets predate the permission model: there is NO admin/owner guard

@@ -4,7 +4,7 @@
 // the secret-free `type`+`payload`) with the durable inbox columns the client needs to render + page:
 // `seq` (the monotonic per-recipient cursor / `lastEventId` resume key), the `readAt`/`dismissedAt` state
 // (null = unread / active), and `createdAt`. No row id leaks beyond the recipient's own `id`; there is no
-// secret field because the union itself cannot represent one (notifications.md invariant #2).
+// secret field because the union itself cannot represent one.
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
