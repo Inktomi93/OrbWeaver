@@ -344,7 +344,7 @@ leaking UP (a domain re-declaring a column shape, or a wire schema sneaking into
   and the workloads constraint classifiers into ONE classifier that walks `error.cause` 4 levels and
   exposes a "which constraint" discriminator (so domain marker predicates read the discriminator instead
   of re-walking, and a FK-on-`ownerId` violation isn't swallowed as "already active"). Per
-  `Core-Legacy-Migration-and-Gaps.md` §3 + `workloads.md`.
+  `Core-Legacy-Migration-and-Gaps.md` §3 + `domain/workloads`.
 
 ### Still open (deferred, with criteria)
 

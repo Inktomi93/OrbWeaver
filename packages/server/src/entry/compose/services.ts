@@ -547,7 +547,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return { text: result.reply };
     },
     // Build the in-process MCP tool server via the seal-preserving providers front-door factory.
-    // `BuddyToolSpec` mirrors `AgentToolSpec` by design (buddy.md — name/description/inputSchema:ZodRawShape/
+    // `BuddyToolSpec` mirrors `AgentToolSpec` by design (name/description/inputSchema:ZodRawShape/
     // handler→{content:[{type:'text',text}],isError?}); the cast bridges the readonly-array nominal gap only.
     buildToolServer: (tools): BuddyToolServer =>
       createAgentToolServer({ tools: tools as readonly AgentToolSpec[] }),

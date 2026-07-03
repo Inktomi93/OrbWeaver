@@ -155,7 +155,8 @@ content (full-card JSON), label?, createdAt}` — append-only, **nothing FKs it*
 - **Buddy unification scope — RESOLVED: agent is a PATTERN, not a domain.** There is **no `domain/agent`**;
   "agent" is the participant shape `(identity, connection, view, tools)` (§2). Buddy is the first consumer
   of the pattern — "an agent with tools + its own connection + a soul instead of a card" — and folds its
-  ad-hoc router/memory/prompt onto it. Aligns with `buddy.md` (which leans PATTERN).
+  ad-hoc router/memory/prompt onto it. BUILT as the pattern: `domain/buddy` composes the injected
+  `agentTurn` op over the sealed `infra/providers` runner (`domain/buddy/contract/agent-turn.ts`).
 - **`createFromCharacter` lossy macro-swap (§3) — RESOLVED: keep a re-derivable mapping, don't bake a
   swapped string.** The persona-from-card stores a reference to its source character + the
   `{{char}}↔{{user}}` mapping **as data**, so the original is reconstructable; the one-way string-swap is

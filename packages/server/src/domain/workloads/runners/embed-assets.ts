@@ -1,6 +1,6 @@
 // runner: embed-assets — the embeddings IMAGE pass (reads originals via `cas`, embeds via the role op). A
 // distinct kind from embed-corpus (single-active is per-kind, so a text reindex + an image reindex run
-// concurrently — workloads.md "Resolved decisions"). Wraps `ctx.env.embeddings.embedAssets`.
+// concurrently — a deliberate decision, not an accident). Wraps `ctx.env.embeddings.embedAssets`.
 
 import type { Runner } from "../contract/runner";
 

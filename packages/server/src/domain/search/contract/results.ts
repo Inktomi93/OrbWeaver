@@ -1,4 +1,4 @@
-// domain/search/contract/results — every verb's *Result (search.md §"Verbs"). The W2 CORE hit types.
+// domain/search/contract/results — every verb's *Result. The W2 CORE hit types.
 //
 // `score` is ALWAYS the CSLS-adjusted retrieval score (`distance − 1 + hubScore`; LOWER = closer — see
 // `substrate/csls.ts`). When rerank is enabled the result ORDER reflects the cross-encoder, but `score`

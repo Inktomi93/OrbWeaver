@@ -1,4 +1,4 @@
-// Engine test: the progress bus — the defensive empty-id throw (invariant #10) + the per-workload replay
+// Engine test: the progress bus — the defensive empty-id throw + the per-workload replay
 // ring (ordered catch-up for a late subscriber).
 
 import type { WorkloadId } from "@orb/kit/ids";

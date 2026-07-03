@@ -1,11 +1,12 @@
-// `@orb/contracts/search` — the memory↔search query wire (search.md Open decision RESOLVED 2026-06-25).
+// `@orb/contracts/search` — the memory↔search query wire (RESOLVED 2026-06-25; ledgered in
+// Core-Laws-and-Precedents).
 // DAG root: kit-only (`ChatId`/`CharacterId` from `@orb/kit/ids`) + zod. No domain, no `@orb/db`, no
 // sibling contracts node.
 //
 // SCOPE FLAG (deliberate, per the per-node spec): the search PARAMS (`UnifiedSearchParams`/`SearchScope`/
 // `FieldSearchParams`/…) and the RESULT union + hit types (`UnifiedSearchResult`/`SearchHit`/… ) are
 // search-DOMAIN-INTERNAL — they live in `domain/search/contract/{params,results}.ts` and reach the client
-// via tRPC inference (search.md §public surface; contracts-dag §`contracts/search`). They are NOT a
+// via tRPC inference (contracts-dag §`contracts/search`). They are NOT a
 // cross-package wire shape and do NOT belong here. The ONE genuinely cross-boundary search shape is the
 // `MemoryQueryOptions` sub-shape: `memory.recall` (another domain) constructs it and threads it across the
 // domain seam into `search.digests`/`search.corpus`. That — plus its `BlockKey` element — is this node.

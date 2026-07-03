@@ -1,13 +1,13 @@
 // domain/workloads/persistence/queries — ALL `workloads`-table access (queries only; the verbs + engine
 // hold the logic). The load-bearing properties live HERE as physics:
 //   • CLAIM is idempotent — `markStarted` is `UPDATE … WHERE id=? AND status='queued'`; the loser of a
-//     two-worker race updates 0 rows (returns false) and polls the next row (workloads.md esoteric #2).
+//     two-worker race updates 0 rows (returns false) and polls the next row.
 //   • The STATE MACHINE is linear — `markTerminal`/`markCancelling`/`failQueuedRow` are STATUS-GUARDED and
 //     report whether they actually moved the row (a returned boolean / a transition). A zombie runner whose
-//     row was already reaped finds the predicate false, writes NOTHING (esoteric #3); no terminal→terminal.
+//     row was already reaped finds the predicate false, writes NOTHING; no terminal→terminal.
 //   • POISON-ROW tolerance — `nextRunnableWorkload` windows the queue head (limit 10) and FAILS an
 //     unrecognized-`kind` row in place via `failQueuedRow` instead of starving the queue; `toView` mirrors
-//     this on the read path (a legacy/renamed kind → `null`, filtered, never 500s `list`) (esoteric #7).
+//     this on the read path (a legacy/renamed kind → `null`, filtered, never 500s `list`).
 // Determinism: every timestamp write takes the INJECTED `now` (no ambient `Date.now()` / db-clock default on
 // the write path). The typed projection `toView` lives here (it touches the row); the TYPE is in `contract/`.
 
@@ -41,7 +41,7 @@ const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly
 
 // The poison-tolerance window: how many queue-head rows `nextRunnableWorkload` scans past unrecognized kinds.
 const QUEUE_HEAD_WINDOW = 10;
-// `list` hard cap (workloads.md §"Verbs").
+// `list` hard cap.
 const LIST_HARD_CAP = 500;
 
 /** A new queued row (file-local; the verb mints `id`, parses `params`, passes its injected clock). */
@@ -64,7 +64,7 @@ const isKnownKind = (kind: string): kind is WorkloadKind =>
 /**
  * Narrow a raw row to the typed `WorkloadRowAnyKind`, or `null` for a POISON row (a `kind` this build doesn't
  * ship, or a `params` blob that fails its kind schema — deploy skew). The ONE place the JSON columns are
- * narrowed against the discriminator, so no consumer casts (workloads.md movement table).
+ * narrowed against the discriminator, so no consumer casts.
  */
 export function toView(row: WorkloadSelectRow): WorkloadRowAnyKind | null {
   if (!isKnownKind(row.kind)) {
@@ -130,10 +130,10 @@ export async function heartbeat(db: Db, id: WorkloadId, now: number): Promise<vo
 
 /**
  * Stamp a terminal state — STATUS-GUARDED. Returns whether it actually moved the row: a zombie runner whose
- * row was already reaped finds the predicate false → returns `false`, writes NOTHING (esoteric #3, the
+ * row was already reaped finds the predicate false → returns `false`, writes NOTHING (the
  * reaper-vs-zombie guard). The guard is status-specific to keep the machine LINEAR: `succeeded` is allowed
  * ONLY from `running` (a `cancelling` row can never flip to `succeeded` — the engine pins it to `cancelled`
- * instead, esoteric #3); the failure terminals (`failed`/`cancelled`/`worker_died`) move from EITHER
+ * instead); the failure terminals (`failed`/`cancelled`/`worker_died`) move from EITHER
  * in-flight state. `succeeded` carries the result JSON; the failure terminals carry an `error` string.
  */
 export async function markTerminal(
@@ -271,7 +271,7 @@ export async function listWorkloads(
  * The next runnable row, or `null`. Windows the queue head (`status='queued'`, oldest first) and returns the
  * first VALID row; an unrecognized-`kind` poison row inside the window is FAILED in place (not thrown — a
  * throw would back the worker off and re-poll the same oldest row forever, starving the queue). Dispatch is
- * purely `(scheduledAt, createdAt)` order — `dependsOn` is NOT enforced (esoteric #8).
+ * purely `(scheduledAt, createdAt)` order — `dependsOn` is NOT enforced.
  */
 export async function nextRunnableWorkload(
   db: Db,

@@ -17,18 +17,18 @@
 | **credentials**                      | [credentials.md](credentials.md)                                   | 4                                  |
 | **tag**                              | `packages/server/src/domain/tag/` (gutted — code is the doc)                                                   | 4                                  |
 | **embeddings**                       | [embeddings.md](embeddings.md)                                     | 4 — NEW; the ONE vector write path |
-| **search**                           | [search.md](search.md)                                             | 4                                  |
+| **search**                           | `packages/server/src/domain/search/` (gutted — code is the doc)                                             | 4                                  |
 | **discovery**                        | [discovery.md](discovery.md)                                       | 4 — rename of `corpus`             |
 | **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
 | **stats**                            | BUILT — code is source: `packages/server/src/domain/stats/`; seam: [stats-discovery-seam.md](../proposed/stats-discovery-seam.md) | 4 — doc gutted 2026-07 (code truth) |
-| **buddy**                            | [buddy.md](buddy.md)                                               | 5                                  |
+| **buddy**                            | `packages/server/src/domain/buddy/` (gutted — code is the doc)                                               | 5                                  |
 | **settings**                         | [settings.md](settings.md)                                         | 3                                  |
 | **sessions**                         | `packages/server/src/domain/sessions/` (gutted — code is the doc)                                         | 3                                  |
 | **admin**                            | `packages/server/src/domain/admin/` (gutted — code is the doc)                                               | 3                                  |
 | **import**                           | [import.md](import.md)                                             | 4                                  |
 | **export**                           | [export.md](export.md)                                             | 4                                  |
 | **assets**                           | [assets.md](assets.md)                                             | 4                                  |
-| **workloads**                        | [workloads.md](workloads.md)                                       | 4                                  |
+| **workloads**                        | `packages/server/src/domain/workloads/` (gutted — code is the doc)                                       | 4                                  |
 | **participants / agents / identity** | [participants-agents-identity.md](participants-agents-identity.md) | 5                                  |
 | **notifications**                    | [notifications.md](notifications.md)                               | 5                                  |
 

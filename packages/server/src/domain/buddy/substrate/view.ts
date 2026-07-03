@@ -1,8 +1,8 @@
-// domain/buddy/substrate/view — the buddy's egocentric VIEW of canon (agent part #3, buddy.md movement
-// table). For the solo buddy chat the `buddy_turns` transcript IS the view; this is the window-discipline
+// domain/buddy/substrate/view — the buddy's egocentric VIEW of canon (the agent pattern's `view` part).
+// For the solo buddy chat the `buddy_turns` transcript IS the view; this is the window-discipline
 // trim + the per-turn prompt assembly. PURE (no I/O). The token budget + the runtime context cap are
 // DERIVED by `ask` from the connection capability descriptor (`context.window`) and passed in — NOT a
-// buddy literal (buddy.md "vLLM window discipline": the local Messages-API returns a non-fail-fast 500 on
+// buddy literal (the vLLM window discipline: the local Messages-API returns a non-fail-fast 500 on
 // overflow, so the working set must stay under the window by construction).
 
 import { estimateTokens } from "@orb/kit/tokens";

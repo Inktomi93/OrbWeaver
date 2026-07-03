@@ -5,7 +5,7 @@
 // `mixC`) → block-level dedupe (a digest + its segment of the same block collapse to the better-ranked lens)
 // → content-hash collapse (fork/import copies → one representative, AFTER rank, BEFORE any k-cap; inv 6).
 //
-// OWNER-DERIVED, NOT membership-read (knowledge-cluster §6 supersedes search.md's stale "host-only v1"):
+// OWNER-DERIVED, NOT membership-read (knowledge-cluster §6 full-membership model, not "host-only v1"):
 // the digest owner belt is `characters.ownerId` via the `scopedCharacterId` producer card (D20) — NO
 // `chats.ownerId` (D18), NO `chat_participants` (membership is materialized at BUILD by the witnessing
 // horizons; the read-time gate is the owned bucket). The verbatim lens has no character column, so its chat

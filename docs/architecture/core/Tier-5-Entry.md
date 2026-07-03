@@ -81,7 +81,7 @@ foundation's pino), versions confirm-latest at build:
 
 | Unit                                                                                                                           | From                                   | Why entry                                                                                |
 | ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `buildWorkloadsEnv` / the `WorkloadRunnerEnv` value                                                                            | workloads.md                           | crosses every feature boundary — above `domain-no-cross-feature`                         |
+| `buildWorkloadsEnv` / the `WorkloadRunnerEnv` value                                                                            | domain/workloads                           | crosses every feature boundary — above `domain-no-cross-feature`                         |
 | the auth seam (`createAuthResolver`/`resolveOwner` → the `Principal` mint) — `entry/auth/seam.ts` (per Core-Laws-and-Precedents.md §7 D1) | domain/sessions / infra.md                 | the ONE place that may import both `infra/auth` (verify) and `domain/sessions` (resolve) |
 | the bulk-import outer driver (`run-profile-import.ts`)                                                                         | import.md                              | composes import + assets + workloads + the event emit                                    |
 | the non-tRPC registrars (blob/upload/auth-routes/healthz)                                                                      | transport.md / domain/sessions / assets.md | compose domain+infra+auth; not thin drivers                                              |
@@ -105,7 +105,7 @@ wired here**. `entry/compose/services.ts` is the graph. Examples (non-exhaustive
 - `connection.context` ← `credentials.resolve`, `credentials.buildKeylessCatalogCredential`,
   `providers.fetchOrCatalog`.
 - `workloads.runner-env` ← `connection.resolveRole`, `embeddings.store`, `memory.build`,
-  `discovery.*`, `tag.*` (the re-partitioned bundle per workloads.md).
+  `discovery.*`, `tag.*` (the re-partitioned bundle per domain/workloads).
 - `discovery.context` ← `embeddings.writeHubScores`, `search.findCharacters`/`discover`,
   the injected `stats` economics op.
 

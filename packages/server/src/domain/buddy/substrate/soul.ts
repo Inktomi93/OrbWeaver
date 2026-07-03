@@ -1,6 +1,6 @@
 // domain/buddy/substrate/soul — soul generation at hatch (the agent's IDENTITY, model-authored once).
 // A vLLM `summarize` call with `jsonSchema` guided decoding (free, local) seeded by the bones so the
-// soul matches the body, with a canned fallback when the engine is down (buddy.md "Esoteric"). Pure-ish:
+// soul matches the body, with a canned fallback when the engine is down. Pure-ish:
 // it calls the INJECTED `roleClients.summarize` op (no direct provider import).
 
 import type { CompanionBones, Species } from "@orb/contracts/buddy";

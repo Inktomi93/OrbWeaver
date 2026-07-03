@@ -1,4 +1,4 @@
-// roll — the deterministic gacha. BYTE-STABLE (buddy.md invariant #4): the golden test PINS
+// roll — the deterministic gacha. BYTE-STABLE (load-bearing): the golden test PINS
 // `roll(knownId)` to fixed bones so a salt rotation or a draw-order change goes RED (it would re-roll
 // every user's preview). Also pins purity (same id → same bones) + per-id divergence. (substrate is a
 // flat file — imported by deep relative path, not the @orb front door which only exposes directories.)
@@ -13,7 +13,7 @@ const alice = castId<UserId>("user_alice");
 const bob = castId<UserId>("user_bob");
 
 describe("roll (deterministic gacha)", () => {
-  test("GOLDEN: a known id rolls fixed bones (salt + draw order are frozen — invariant #4)", () => {
+  test("GOLDEN: a known id rolls fixed bones (salt + draw order are frozen — byte-stable)", () => {
     const b = roll(alice).bones;
     expect(b.rarity).toBe("uncommon");
     expect(b.species).toBe("scribe");

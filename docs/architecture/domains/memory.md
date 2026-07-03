@@ -220,7 +220,7 @@ clean additive graft, never a schema fight, and easy to hook up + design down th
 > `ClipSourceKind ∈ 'user'|'synthesized'|'promoted'` (never auto-delete a `'user'` clip),
 > `clip.scope ∈ 'character'|'chat'|'global'` — all in `@orb/contracts/memory`. A `{{world_state}}` macro
 > reserves the same dynamic/cache-safe slot as `{{memory}}`; the `reconcile-world-state` `WorkloadKind` is
-> reserved in `domains/workloads.md`. (Nate 2026-06-29: "carve out contract and make it easy to hook them
+> reserved in `domain/workloads`. (Nate 2026-06-29: "carve out contract and make it easy to hook them
 > up and design them down the road.")
 
 ---
@@ -492,7 +492,7 @@ clean additive graft, never a schema fight, and easy to hook up + design down th
 > `ClipSourceKind ∈ 'user'|'synthesized'|'promoted'` (never auto-delete a `'user'` clip),
 > `clip.scope ∈ 'character'|'chat'|'global'` — all in `@orb/contracts/memory`. A `{{world_state}}` macro
 > reserves the same dynamic/cache-safe slot as `{{memory}}`; the `reconcile-world-state` `WorkloadKind` is
-> reserved in `domains/workloads.md`. (Nate 2026-06-29: "carve out contract and make it easy to hook them
+> reserved in `domain/workloads`. (Nate 2026-06-29: "carve out contract and make it easy to hook them
 > up and design them down the road.")
 
 ---
@@ -544,4 +544,4 @@ Every cross-domain access goes through a real boundary (`embeddings.store` / `se
 12. **The witnessing predicate is the join/leave horizon** (`joinSeq`/`leftSeq`), never the global
     `excludedFromPrompt` boolean.
 
-> **See also:** [embeddings.md](embeddings.md) · [memory.md](memory.md) · [search.md](search.md) · [discovery.md](discovery.md)
+> **See also:** [embeddings.md](embeddings.md) · [memory.md](memory.md) · `domain/search` (code) · [discovery.md](discovery.md)

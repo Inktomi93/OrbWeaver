@@ -1,5 +1,5 @@
 // domain/workloads/contract/runner — the ONE `Runner<K>` signature every per-kind runner satisfies. It
-// lives in `contract/` (NOT `engine/`) on purpose (workloads.md §"two named subsystems" + invariant #8): the
+// lives in `contract/` (NOT `engine/`) on purpose: the
 // runner files depend on THIS for their type, while `engine/dispatch.ts` depends on this for the type AND on
 // each runner for the value — so there is no edge from a runner back to the engine, no cycle.
 //

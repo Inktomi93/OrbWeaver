@@ -1,6 +1,6 @@
 // verb: setAgency — toggle the buddy's "hands": whether it may run tool-using agent turns + execute
-// confirmed mutations (writes `buddies.agencyEnabled`). The capability-ceiling kill switch (buddy.md
-// invariant #3). A no-op for an unhatched buddy — returns the preview view with the requested flag.
+// confirmed mutations (writes `buddies.agencyEnabled`). The capability-ceiling kill switch (pairs with
+// the propose/confirm gate). A no-op for an unhatched buddy — returns the preview view with the requested flag.
 // Owner-scoped.
 
 import type { SetAgencyParams } from "../contract/params";

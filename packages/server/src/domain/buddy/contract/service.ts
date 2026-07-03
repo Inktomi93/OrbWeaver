@@ -1,23 +1,22 @@
-// domain/buddy/contract/service — the typed API surface (read THIS to know everything the domain does;
-// buddy.md §"Verbs"). Holds:
+// domain/buddy/contract/service — the typed API surface (read THIS to know everything the domain does).
+// Holds:
 //   • BuddyService        the 8-verb authoritative interface (the front door re-exports the type)
 //   • BuddyContext        the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • BuddyServiceDeps    what the entry root supplies (identical to the context — no transform)
 //   • the injected cross-feature op TYPES (buddy sideways-imports NO sibling runtime; every edge is a
 //     type-only op wired at the entry composition root — `domain-no-cross-feature`).
 //
-// THE INJECTION MODEL (buddy.md §"Cross-feature composition"):
+// THE INJECTION MODEL:
 //   - `resolveAgentConnection`  connection.resolveRole('agent') → the buddy's brain + the resolved
-//                               credential + the capability descriptor. RECONCILED with buddy.md's
-//                               injection table: that table listed `credentials.resolve` +
-//                               `mintVllmCredential` as SEPARATE injected ops, but the connection
-//                               contract's `ResolvedConnection` ALREADY carries `.credential` (resolved
-//                               inside `resolveRole`, where the D17 owner gate lives). Re-resolving the
-//                               credential here would DOUBLE the resolve (against derive-don't-double,
-//                               §7.4); buddy reads `conn.credential`/`conn.model`/`conn.capability`. The
+//                               credential + the capability descriptor. NOT separate credential ops:
+//                               the connection contract's `ResolvedConnection` ALREADY carries
+//                               `.credential` (resolved inside `resolveRole`, where the D17 owner gate
+//                               lives) — re-resolving the credential here would DOUBLE the resolve
+//                               (against derive-don't-double, §7.4); buddy reads
+//                               `conn.credential`/`conn.model`/`conn.capability`. The
 //                               entry binder fixes `role:'agent'` + the buddy's per-agent override, so
 //                               buddy carries NEITHER the model literal NOR the routing logic
-//                               (buddy.md resolved decision; `resolveBuddyRouting` is deleted).
+//                               (the neo-tavern `resolveBuddyRouting` router is deleted).
 //   - `agentTurn` / `buildToolServer`  the sealed `infra/providers` agent-mode runner + tool-server
 //                               factory (the firewall lives in the sealed runner; buddy never imports it).
 //   - `roleClients`             the bound inference clients (`summarize` → soul-gen at hatch).
@@ -83,8 +82,8 @@ export type BuddyServiceDeps = BuddyContext;
 /**
  * Caller-scoped buddy operations — each user has exactly one buddy (PK = userId). Bones are rolled
  * deterministically from the user id; the soul is model-authored at hatch. `ask` is the tool-using
- * agent turn (may surface a proposal); `confirm` is the SOLE executor of a proposed action (buddy.md
- * invariant #3). The reaction engine is started out-of-band (FLAG[PD-64]), not a verb.
+ * agent turn (may surface a proposal); `confirm` is the SOLE executor of a proposed action (the
+ * propose/confirm gate). The reaction engine is started out-of-band (FLAG[PD-64]), not a verb.
  */
 export interface BuddyService {
   /** The caller's buddy — `unhatched` preview (deterministic bones) if not hatched, else the stored view. */

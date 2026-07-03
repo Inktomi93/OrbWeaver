@@ -1,11 +1,11 @@
-// domain/buddy/agency/proposals — the propose/confirm gate, structurally (buddy.md invariant #3). The
+// domain/buddy/agency/proposals — the propose/confirm gate, structurally. The
 // buddy AGENT never holds a mutating tool; its only "action" tools are read-only `propose_*` tools that
 // STASH a Proposal here and hand the user a summary. Nothing changes until the user clicks Confirm, which
 // calls `buddy.confirm` — the ONLY thing that executes the pending action. A runaway/confused model can
 // suggest, never act.
 //
 // ASSUMES(single-replica): the `pendingByUser` map is module-scope in-memory state (TTL'd, keyed by
-// userId, replace-on-new) — correct for our ONE replica (buddy.md "Esoteric": a locked NOTE, not a bug).
+// userId, replace-on-new) — correct for our ONE replica (a locked NOTE, not a bug).
 // IF reversed, a propose on replica A + the matching confirm on replica B would miss each other (the
 // confirm reports "expired"); the DB-backed replacement seam is then a `buddy_proposals` table (same TTL
 // + replace/atomic semantics). Lives in `agency/` (NOT `persistence/`) precisely because it is

@@ -1,5 +1,4 @@
-// domain/search/substrate/dedupe — the post-rank collapse helpers (search.md movement table:
-// "`dedupeRankedBlocks` → substrate/dedupe.ts"; §"Joint cross-chat rerank + block-level dedupe"). PURE
+// domain/search/substrate/dedupe — the post-rank collapse helpers. PURE
 // functions over an ALREADY-RANKED (best-first) list; no I/O, no domain deps. Two collapses + the block-key
 // string:
 //   1. `blockKeyStr` — the stable string identity of a `BlockKey`. `scopedCharacterId` is ALWAYS in the key
@@ -11,7 +10,7 @@
 //      is best-first, so keep the first seen).
 //   3. `collapseByContentHash` — collapse fork/import copies (identical `contentHash` across chats) AFTER
 //      ranking, BEFORE the k-cap (inv 6 — the better-ranked representative wins; the consumer gets distinct
-//      blocks). search.md homes this in `@orb/server/kit` eventually; kept search-local until that primitive
+//      blocks). D9 homes content-hash in `@orb/server/kit` eventually; kept search-local until that primitive
 //      exists (the placeholder `@orb/server/kit/content-hash` is not built — FLAG[PD-35]).
 
 import type { BlockKey } from "@orb/contracts/search";

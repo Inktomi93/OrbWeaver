@@ -1,4 +1,4 @@
-// domain/search/verbs/knn — the within-space top-k vector scan (search.md §"Verbs"): embed the query →
+// domain/search/verbs/knn — the within-space top-k vector scan: embed the query →
 // scan ONE embedding space (the card space, `character_embeddings`) → CSLS hub-adjust → optional
 // cross-encoder rerank. The generic retrieval primitive; returns raw {@link SearchHit}s (no display
 // enrichment — `find-characters` layers that on top).

@@ -42,7 +42,7 @@ export function dropProposal(userId: Parameters<typeof clearProposal>[0]): void 
 }
 
 /** Whether a confirmed mutation is within the hourly budget (records a slot when true; the capability
- *  ceiling — buddy.md invariant #3). */
+ *  ceiling). */
 export function withinMutationBudget(
   userId: Parameters<typeof allowMutation>[0],
   now: number,

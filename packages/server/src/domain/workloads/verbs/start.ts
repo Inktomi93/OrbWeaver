@@ -1,8 +1,8 @@
 // verb: start — enqueue a `queued` row. RE-PARSES the `StartWorkloadInput` discriminated union (defense in
-// depth — the wire validated, but mocked-procedure tests bypass that validator; workloads.md §"Verbs"). It
+// depth — the wire validated, but mocked-procedure tests bypass that validator). It
 // catches the `workloads_kind_active` single-active collision SPECIFICALLY (`isActiveKindUniqueViolation`)
 // and translates it to `DomainConflictError`; any other error rethrows. `dependsOn` is PERSISTED but NOT
-// enforced — `start` warns loudly at the seam so a caller isn't silently misled (esoteric #8).
+// enforced — `start` warns loudly at the seam so a caller isn't silently misled.
 
 import { DomainConflictError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";

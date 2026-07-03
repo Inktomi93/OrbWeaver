@@ -1,5 +1,5 @@
-// domain/search/persistence/nearest — the raw vector-scan reads (search.md movement table: "nearest…
-// raw SQL vector_distance_cos queries; the row shapes live here"). This is the ONE place the
+// domain/search/persistence/nearest — the raw vector-scan reads (raw SQL vector_distance_cos queries;
+// the row shapes live here). This is the ONE place the
 // `vector_distance_cos` SQL appears in the whole codebase (invariant #1 — no domain outside search issues
 // it). Queries ONLY; no business logic.
 //

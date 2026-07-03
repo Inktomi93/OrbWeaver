@@ -17,7 +17,7 @@ export const buddyRouter = t.router({
     ),
 
   confirm: authedProcedure
-    // biome-ignore lint/plugin/no-raw-id: proposalId is the ephemeral in-memory proposal handle (buddy.md invariant #3), not a branded entity id.
+    // biome-ignore lint/plugin/no-raw-id: proposalId is the ephemeral in-memory proposal handle (5-min TTL, never persisted), not a branded entity id.
     .input(z.object({ proposalId: z.string().min(1), confirmed: z.boolean() }))
     .mutation(({ ctx, input }) =>
       ctx.services.buddy.confirm({

@@ -15,7 +15,7 @@ the `sillytavern-feature-gap` "committed" statuses sit in limbo.
 
 ## Confirmed CLEAN (do not manufacture findings here)
 
-The spine docs (identity/settings/serde/testing), `infra.md`, `transport.md`, `entry.md`, `buddy.md`,
+The spine docs (identity/settings/serde/testing), `infra.md`, `transport.md`, `entry.md`, `domain/buddy`,
 `discovery.md`, `assets.md`, `domain/sessions`, `notifications.md`, `domains/memory.md`,
 `Core-Laws-and-Precedents.md`, `Core-Audits-and-Debt.md`, `Core-Planning-and-Checklists.md`, `Core-Audits-and-Debt.md`, and `UI-Architecture-and-Layout.md` (internally).
 The ownership model (D18→D20/D23), D28 de-pin/flat-card, D16 notifications, D17 roles, D31 CredentialSource,
@@ -152,6 +152,7 @@ code-verified; **flip these statuses in the Registry as each is picked up.**
 | PD-99 | `persona.setActivePersona` verb is built, composed (`entry/compose/services.ts`) and domain-tested, but NO tRPC procedure exposes it (`transport/trpc/routers/persona.ts`) — a client-unreachable dead surface. | `transport/trpc/routers/persona.ts` (no procedure) | add the `setActivePersona` procedure | persona client / P6 | ready |
 | PD-100 | `messages.personaId` attribution never falls back to the participant's `activePersonaId`: `chat/verbs/turn.ts` stamps caller-supplied `personaId ?? null` (also simpleSend/impersonate) with no default from `chat_participants.activePersonaId`. Assembly reads the participant row; attribution doesn't — client omitting the param → user line gets null persona while an active persona is set. May be deliberate explicit-voicing; verify intent before wiring. | `domain/chat/verbs/turn.ts:487` | default from `participant.activePersonaId`, OR document explicit-voicing as intended | chat/persona attribution decision | ready |
 | PD-101 | `@orb/server/kit/custom-parameters.ts` is a placeholder scaffold, but `@orb/contracts/preset` claims the Layer-2 prototype-pollution defense `deepMergeRequestBody` ("the ACTUAL defense") lives there. Runners use a shallow overlay (custom-byo `runners/chat.ts:228` FLAG[PD-13]; openrouter `mergeCustomParameters`). Esoteric #8's two-layer invariant currently has only Layer 1 (schema superRefine). Arguably safe today (boundary validation + object-spread makes `__proto__` an own key) — a defense-in-depth / doc-truth gap. | `server/kit/custom-parameters.ts` (placeholder) | build `deepMergeRequestBody` + wire the 3 runner overlay sites | custom-byo hardening | ready |
+| PD-102 | search read-only-context is faked-as-claimed: `SearchContext.db` is the full `Db`, but the code header asserts "the bundle carries no write path." Behaviorally read-only (no write is issued) but nothing prevents one — the compile-time read-only enforcement the invariant promised does not exist. | `domain/search` `SearchContext` (full `Db`) | a read-only db view/type for `SearchContext`, OR drop the false "no write path" claim | search surface next touched | ready |
 
 <!-- Source: Core-Audits-and-Debt.md -->
 

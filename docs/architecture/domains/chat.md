@@ -391,9 +391,9 @@ timestamps}`; every generation's `content`/`reasoning`/economics/`promptSnapshot
   is owner-scoped today, so this is a hard build prerequisite, not a nicety. The remaining choice (flat
   `DigestsParams` fields vs a nested `MemoryQueryOptions` sub-shape) is the search domain's to make;
   criterion: the nested shape keeps memory-specific knobs out of the general search contract, the flat
-  shape avoids a memory type leaking into search — pick when `search.digests` is typed. **FLAGGED
-  cross-doc:** `search.md` carries the same item as its open decision + notes chat-scope as "the risk to
-  manage" — coordinate (knowledge-cluster QA owns any `search.md` edit).
+  shape avoids a memory type leaking into search — pick when `search.digests` is typed. **RESOLVED in
+  code:** the nested `MemoryQueryOptions` sub-shape (`@orb/contracts/search`) with first-class
+  `scope.chat` + `candidates` — ledgered in Core-Laws-and-Precedents.
 - **the chat turn lock home — RESOLVED: `chat/persistence/lock.ts`.** It is a DB-backed concurrency
   primitive (the `chat_locks` table, PK on `chat_id`, `LOCK_TTL_MS`, multi-replica-aware) consumed only
   by chat verbs/engine — not a generic infra primitive (no other consumer). It is a **named exception to

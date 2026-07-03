@@ -1,6 +1,5 @@
-// domain/search/persistence/digest-rows — the raw chat-memory vector scans (search.md movement table:
-// "`MemoryDigestRow`/`MemorySegmentRow` shapes + fetch helpers → persistence/digest-rows.ts"). The
-// digest/segment analogues of `nearest.ts`: the SAME `vector_distance_cos` + `vector32(?)` F32-blob pattern,
+// domain/search/persistence/digest-rows — the raw chat-memory vector scans (row shapes + fetch
+// helpers). The digest/segment analogues of `nearest.ts`: the SAME `vector_distance_cos` + `vector32(?)` F32-blob pattern,
 // the SAME scope-belt-in-the-WHERE discipline (never a post-filter). Queries ONLY; no business logic. The
 // `vector_distance_cos` SQL appears here and in `nearest.ts` ONLY (invariant #1).
 //

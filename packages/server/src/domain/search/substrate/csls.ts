@@ -1,7 +1,7 @@
-// domain/search/substrate/csls — the CSLS hub-adjust ranking math (search.md §"CSLS hub-adjust ranking").
+// domain/search/substrate/csls — the CSLS hub-adjust ranking math.
 // PURE functions over floats; no I/O, no domain deps; search-local (they do NOT move to @orb/kit — search
 // is the only caller; `discovery` hands its `hub_score` values to `embeddings.store`, it never calls these
-// comparators — search.md movement table).
+// comparators).
 //
 // CSLS (Cross-domain Similarity Local Scaling) penalizes "hub" vectors that sit close to EVERYTHING (a
 // generic/blank embedding that would otherwise win every query). The adjusted score is a distance-like
@@ -19,7 +19,7 @@
 // treating them as zero-hub (which would make every new row artificially win).
 
 /** The hub-score stand-in for a row whose `hub_score` has not been computed yet (NULL in the table). 0.5
- *  keeps unscored rows mid-scale alongside scored rows — search.md §"CSLS hub-adjust ranking". */
+ *  keeps unscored rows mid-scale alongside scored rows (see the file header). */
 export const NULL_HUB_FALLBACK = 0.5;
 
 /** The CSLS-adjusted retrieval score: `max(0, distance − 1 + hubScore)` (LOWER = closer; the clamp is

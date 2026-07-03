@@ -1,10 +1,10 @@
-// domain/search/persistence/scope — the chat-memory scope SQL-fragment builders (search.md movement
-// table: "`scopeCond` SQL helper → persistence/scope.ts; shared by digests/segments/corpus"). SQL-fragment
+// domain/search/persistence/scope — the chat-memory scope SQL-fragment builders (shared by
+// digests/segments/corpus). SQL-fragment
 // builders ONLY (no query execution — `digest-rows.ts` runs the scan); the WHERE belts that keep a
 // cross-space / cross-scope / non-candidate row out of the result, applied BEFORE cosine rank (the no-leak
 // invariant, D18/D20 — scope lives in the WHERE, never a post-filter).
 //
-// THE BELTS (domains/memory.md §6 is authoritative; it WINS over search.md's stale "host-only v1"):
+// THE BELTS (domains/memory.md §6 is authoritative):
 //   • SPACE — `model = ?` (the active embed model = the `(model, dim)` space tag; compare ONLY within one
 //     space — providers.md §2b/§11). ALWAYS applied.
 //   • WITHIN-CHAT — `chatId IN (...)`. The within-chat `digests`/`segments` lenses pass the ONE authorized

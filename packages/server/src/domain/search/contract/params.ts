@@ -1,4 +1,4 @@
-// domain/search/contract/params — every verb's *Params (search.md §"Verbs"). The card-space surface (`knn`
+// domain/search/contract/params — every verb's *Params. The card-space surface (`knn`
 // /`findCharacters`) + the chat-memory surface (`digests`/`segments`/`corpus`, PD-35).
 //
 // SCOPING: the card verbs are OWNER-scoped over `character_embeddings` via `characters.ownerId` (D20: the
@@ -9,7 +9,7 @@
 // (@orb/contracts/search — the cross-domain wire `memory.recall` threads into `search`): scope is the ONE
 // authorized chat (`scope.chat`), no membership derivation at all (knowledge-cluster §6 within-chat —
 // the caller already holds the chat). `DigestsParams`/`SegmentsParams` are pure ALIASES of
-// `MemoryQueryOptions` (the `*Params` names in search.md add nothing over the canonical contract type — they
+// `MemoryQueryOptions` (dedicated `*Params` shapes would add nothing over the canonical contract type — they
 // are kept only so the `SearchService` signatures read self-documenting; FLAG[PD-35]). `CorpusParams` is a
 // DISTINCT shape (owner-wide cross-chat, owner-DERIVED — NOT expressible from a single-chat
 // `MemoryQueryOptions`), defined below.

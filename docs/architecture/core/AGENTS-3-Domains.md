@@ -319,7 +319,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
   - [assets.md](docs/architecture/domains/assets.md)
-  - [buddy.md](docs/architecture/domains/buddy.md)
   - [character.md](docs/architecture/domains/character.md)
   - [chat.md](docs/architecture/domains/chat.md)
   - [connection.md](docs/architecture/domains/connection.md)
@@ -346,7 +345,5 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
       - [scripting-automation-extensibility.md](docs/architecture/domains/proposed/scripting-automation-extensibility/scripting-automation-extensibility.md)
     - **tool-use/**
       - [tool-use.md](docs/architecture/proposed/tool-use.md)
-  - [search.md](docs/architecture/domains/search.md)
   - [settings.md](docs/architecture/domains/settings.md)
   - stats — BUILT; doc gutted 2026-07, code is source (`packages/server/src/domain/stats/`); seam design: [stats-discovery-seam.md](docs/architecture/proposed/stats-discovery-seam.md)
-  - [workloads.md](docs/architecture/domains/workloads.md)

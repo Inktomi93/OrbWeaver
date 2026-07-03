@@ -1,5 +1,5 @@
 // verb: retry — CLONE a row's kind+params+dependsOn into a FRESH `queued` row; NEVER mutates the original
-// (the original failure row stays as the audit trail — esoteric #6). The clone is subject to the same
+// (the original failure row stays as the audit trail). The clone is subject to the same
 // single-active constraint, so a still-active kind collides → `DomainConflictError`. `dependsOn` rides along
 // but is still NOT enforced (the warn-seam mirrors `start`).
 

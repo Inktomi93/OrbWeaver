@@ -87,7 +87,7 @@
 
 ### Knowledge cluster (`knowledge-cluster`, embeddings, search, discovery, stats)
 
-- **Memory's `search` contract = a nested `MemoryQueryOptions` in `@orb/contracts/search`** with `scope:{chat}` + `candidates?:BlockKey[]` (bridge) as **first-class** fields; the other 4 semantics flat. (search.md, landed.)
+- **Memory's `search` contract = a nested `MemoryQueryOptions` in `@orb/contracts/search`** with `scope:{chat}` + `candidates?:BlockKey[]` (bridge) as **first-class** fields; the other 4 semantics flat. (domain/search, landed.)
 - **`embeddings.store` accepts `fkRefs.speakers`** (atomic speaker-sync). **Re-index trigger** = connection→workloads. **Image caption** generated in `embeddings/indexer` inline (precedes the joint embed); **image `content_hash`** = SHA-256 of the resized/sliced bytes (shared across both lenses).
 - **`buildCardEmbedText` lives with `character`** (producer); discovery reads the flat `characters` card row (D28 — no version table). **`character_summaries` schema → `@orb/db/schema/discovery.ts`** (writer owns; search reads down). **`sliceJsonObject` stays discovery-substrate** unless a non-discovery consumer appears. **`segment.ts` reference segmenter → `memory/substrate`**. **`similarChats` stays in-RAM** (centroid not in the store).
 - **stats delta builders stay in `chat/engine`** (chat owns the row shapes; anti-drift = shared `kit/stats-tally`). **Economics `messages` projection**: constructor in `stats/persistence`, the result shape discovery receives in `@orb/contracts`. **`forgottenGems`/`modelRouting` stay discovery verbs** with an injected stats-economics op.

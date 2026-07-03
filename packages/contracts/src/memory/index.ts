@@ -9,7 +9,7 @@ import { z } from "zod";
 
 /** What a clip captures. `'world-state'` pairs with the reserved `{{world_state}}` macro slot (same
  *  dynamic/cache-safe half as `{{memory}}`) + the Phase-2/4 `reconcile-world-state` WorkloadKind
- *  (reserved in domains/workloads.md when the WorkloadKind union + RUNNERS map are built). */
+ *  (a reserved member of `@orb/contracts/workloads` WORKLOAD_KINDS with a no-op stub runner). */
 export const CLIP_KINDS = ["fact", "trait", "relationship", "world-state", "plot-thread"] as const;
 export type ClipKind = (typeof CLIP_KINDS)[number];
 /** Wire schema for {@link ClipKind} — `z.enum` over the canonical tuple (derive, don't re-spell). */

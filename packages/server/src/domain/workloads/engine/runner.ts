@@ -4,7 +4,7 @@
 // kind's runner inside a detached trace span → catch the outcome (return → `succeeded`, abort → `cancelled`,
 // throw → `failed`) → stamp the terminal (status-guarded) → emit the bus event.
 //
-// LOAD-BEARING (workloads.md esoteric #3/#9/#10):
+// LOAD-BEARING:
 //   • Claim loser returns silently (0 rows from `markStarted`) — a two-worker race resolves at the DB.
 //   • Reaper-vs-zombie: every terminal stamp is status-guarded + checked; a zombie whose row was already
 //     reaped writes NOTHING and emits NOTHING.
@@ -36,7 +36,7 @@ import { emitWorkloadEvent } from "./progress-bus";
 // path uniform (every runner binds a `roleClients` for SOME user). Not a real `users` row.
 const SYSTEM_OWNER_ID = castId<UserId>("system");
 
-// Single-replica lease cadences (workloads.md esoteric #2: heartbeat 5s, cancel-poll = heartbeat cadence).
+// Single-replica lease cadences (heartbeat 5s; cancel-poll = heartbeat cadence; reaper threshold 3×).
 const DEFAULT_HEARTBEAT_MS = 5000;
 const DEFAULT_CANCEL_POLL_MS = 5000;
 

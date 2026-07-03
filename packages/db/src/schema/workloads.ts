@@ -13,7 +13,7 @@
 // single-active lock (a second start() of an active kind collides at INSERT, no leader election). The
 // `WHERE` list is DERIVED from `ACTIVE_WORKLOAD_STATUSES` (sql.raw over the tuple — same no-respell
 // discipline as users.ts's role CHECK); the named tuple is the mirror of this predicate and the two
-// cannot drift (esoteric #1 — removing `cancelling` wedges the kind forever after a mid-cancel crash).
+// cannot drift (removing `cancelling` wedges the kind forever after a mid-cancel crash).
 
 import {
   ACTIVE_WORKLOAD_STATUSES,
@@ -62,7 +62,7 @@ export const workloads = sqliteTable(
       .references(() => users.id, { onDelete: "set null" }),
     // Forward-compat DAG hint: PERSISTED but NOT FK-ENFORCED (dispatch is purely (status='queued',
     // scheduledAt) order; start/retry warn at the seam). A plain JSON array of workload ids — deliberately
-    // no FK (esoteric #8). Null when the caller supplied no deps.
+    // no FK. Null when the caller supplied no deps.
     dependsOn: text("depends_on", { mode: "json" }).$type<readonly WorkloadId[]>(),
     // A human-readable failure reason stamped on the terminal (failed/worker_died) path. Null otherwise.
     error: text("error"),

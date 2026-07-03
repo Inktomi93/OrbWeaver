@@ -46,7 +46,7 @@ const stats = (over: Partial<CompanionStats> = {}): CompanionStats => ({
   ...over,
 });
 
-describe("mood machine — exhaustiveness (invariant #8)", () => {
+describe("mood machine — exhaustiveness (exhaustive-dispatch)", () => {
   test("every BuddySignalKind maps to a real mood", () => {
     for (const kind of ALL_SIGNALS) {
       expect(MOODS).toContain(moodForSignal(kind));

@@ -1,12 +1,12 @@
 // biome-ignore-all lint/suspicious/noBitwiseOperators: mulberry32 + FNV-1a are byte-defined PRNG/hash
 // codecs — the `>>>`/`^`/`|`/`|=`/`^=` ops ARE the algorithm. Rewriting them re-rolls every user's
-// preview (invariant #4 — byte-stable). Suppressed file-wide (kit/png-card-chunk precedent).
+// preview (the byte-stable invariant). Suppressed file-wide (kit/png-card-chunk precedent).
 // domain/buddy/substrate/roll — the deterministic gacha. A user's bones are a PURE function of their id
 // (+ SALT), so the pre-hatch preview is stable and "your id → your creature" holds; at hatch the bones
 // snapshot to the row (then mutable as stats grow). Ported byte-stable from neo-tavern (mulberry32 +
 // FNV-1a).
 //
-// BYTE-STABLE (buddy.md invariant #4 — load-bearing): the `tavern-buddy-2026-01` SALT + the FROZEN draw
+// BYTE-STABLE (load-bearing): the `tavern-buddy-2026-01` SALT + the FROZEN draw
 // order (`rarity → species → eye → hat → shiny → stats`) NEVER change once buddies exist — rotating the
 // salt or reordering the draws RE-ROLLS every user's preview. A golden test pins `roll(knownId)`.
 
@@ -22,7 +22,7 @@ import {
 } from "@orb/contracts/buddy";
 import type { UserId } from "@orb/kit/ids";
 
-// Rotating this re-rolls the whole population — treat as FROZEN once buddies exist (invariant #4).
+// Rotating this re-rolls the whole population — treat as FROZEN once buddies exist (byte-stable).
 const SALT = "tavern-buddy-2026-01";
 
 // --- Pinned numeric constants (the gacha curve; byte-stable with the salt) ----
@@ -106,7 +106,7 @@ interface Roll {
   readonly inspirationSeed: number;
 }
 
-// FROZEN draw order: rarity → species → eye → hat → shiny → stats (invariant #4).
+// FROZEN draw order: rarity → species → eye → hat → shiny → stats (byte-stable).
 function rollFrom(rng: () => number): Roll {
   const rarity = rollRarity(rng);
   const bones: CompanionBones = {

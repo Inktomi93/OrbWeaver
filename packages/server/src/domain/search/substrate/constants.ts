@@ -1,4 +1,4 @@
-// domain/search/substrate/constants — the numeric pool-sizing tunables (search.md §"Pool sizing math").
+// domain/search/substrate/constants — the numeric pool-sizing tunables.
 // Pure constants + deterministic over-fetch budgets; no I/O. These make top-k STABLE under CSLS + rerank:
 // an exact `vector_distance_cos` scan is cheap, so we over-fetch a wider pool than `topN`, hub-adjust it,
 // then (optionally) rerank a budget-capped slice of that pool before capping to `topN`. Tightening any
