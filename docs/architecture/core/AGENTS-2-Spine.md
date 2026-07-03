@@ -19,7 +19,7 @@ only. **Read the Spine doc IN FULL before touching its thread.**
 
 **Canonical: [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md).** Identity resolves ONCE at
 the edge into one immutable `Principal`; permission = global-role × resource-role × capability; agents
-are FIRST-CLASS PRINCIPALS (model locked; mint mechanics fully designed per D60 —
+are FIRST-CLASS PRINCIPALS (model locked; mint + ceiling BUILT (AP1/AP2), seat wave remaining, per D60 —
 `../proposed/agent-principal-design/`); BFF sessions ≠ SDK chat sessions.
 
 ### 7.2 settings / config / the env FOUR natures

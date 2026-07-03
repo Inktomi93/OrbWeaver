@@ -1,16 +1,16 @@
+---
+kind: law
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-> **Status: planning (authoritative detail).** This is the CANONICAL cross-cutting Spine document for
-> spine threads §7.4 (types & schemas) AND §7.5 (string-union dispatch) — cited elsewhere as "the §7.4
-> rule" / "spine §7.5" / `AGENTS-2-Spine.md` §7.4/§7.5, which point here. The gates the two threads
-> feed (`no-inline-types`, `no-inline-union-redecl`, `exhaustive-dispatch`) are referenced throughout.
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS-2-Spine.md` §7.4/§7.5 point here. The gates are LIVE: `no-inline-types` (GritQL, `tools/grit/`), `no-inline-union-redecl` (`scripts/check/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
-The problem: a shape's "home" is ambiguous — drizzle schema in `db`, re-declared/re-exported in `shared`,
-each domain has its own `contract/`, and the client needs some shapes for client-side validation. So
-shapes get duplicated and inline types/schemas sprout everywhere. The target rule (**one home per shape,
-derived by who needs it; flows DOWN only**):
+The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo's failure mode: the home was ambiguous, so shapes duplicated and inline types sprouted everywhere.)
 
 | Shape kind | Home | Consumers (down only) |
 | - | - | - |
@@ -20,19 +20,15 @@ derived by who needs it; flows DOWN only**):
 | **client-only view** | client | client |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
-**The gate — `no-inline-types`:** no exported `type`/`interface`/`z.object` (and no structural cast)
-declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`,
-`persistence/`, `service.ts`, transport, or client components are RED. This is the enforced version of
-"no schemas or types outside their proper places." Readers flag every leak (§6B `inlineTypes`); the
-spine doc defines the exact gate.
-
----
+**The gate — `no-inline-types` (GritQL, live):** no exported `type`/`interface`/`z.object` (and no structural cast) declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`, `persistence/`, `service.ts`, transport, or client components are RED. Companion: `types-in-contract` (`scripts/check/gates/`) requires each feature's `contract/service.ts` to declare its exported service interface and bans exported `ReturnType<typeof fn>` for `context.ts`.
 
 ## House TypeScript style
 
-*The opinionated conventions (TS 6.0, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake) — distilled from a full read of the TypeScript handbook against our actual constraints. ⚙️ = gate- or biome-enforced. The enforcement machinery itself (biome ratchet, GritQL plugins, tsconfig fast-lane) is catalogued in `Core-Laws-and-Precedents.md`'s Enforcement registry; this section is the "how we write it" reference those gates protect.*
+The opinionated conventions (TS 6.0, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
 
-The keystone everything hangs on: a string axis is an `as const` tuple; its union is **derived**, never re-spelled; dispatch is a total `Record` or ends in `assertNever` (⚙️ `no-inline-union-redecl`, `exhaustive-dispatch` — see the home-rule + gate above).
+## 1. The keystone
+
+A string axis is an `as const` tuple; its union is **derived**, never re-spelled; dispatch is a total `Record` or ends in `assertNever` (⚙️ `no-inline-union-redecl` + `exhaustive-dispatch` — see the home-rule + gates above).
 
 ## 2. Utility types — the policy
 
@@ -60,8 +56,8 @@ The keystone everything hangs on: a string axis is an `as const` tuple; its unio
 - **`Record<LiteralUnion,V>` over index signatures** (index sigs force bracket access under `noPropertyAccessFromIndexSignature` + lose key safety); **`Map` for open/dynamic keys** (`.get()` is `V | undefined`, matching `noUncheckedIndexedAccess`).
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
-- **Banned habits ⚙️ (biome):** `any` (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` (use a guard / `?? throw`) · single `as` assertions (use `satisfies`/narrowing/zod); `as any as T` is a hard no.
-- **`@total-typescript/ts-reset` is on (root `reset.d.ts`, all 5 packages).** It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. (`Core-Laws-and-Precedents.md` fast-lane.)
+- **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by `no-loose-id-cast`/`no-mint-via-cast` GritQL); `as any as T` is a hard no.
+- **`@total-typescript/ts-reset` is on (root `reset.d.ts`, all 5 packages).** It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost.
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 
@@ -74,7 +70,7 @@ The compiler flag catches most of these; **decorators it does NOT catch** — th
 | constructor **parameter properties** (`constructor(public x)`) | generates field assignments | declare the field + assign in the body |
 | `import x = require()` / `export =` | CommonJS, not ESM (also fights `verbatimModuleSyntax`) | `import`/`export` (+ `import type`) |
 | `<T>expr` angle-bracket assertion | not erasable; illegal in `.tsx` anyway | `expr as T` |
-| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Needs a `no-decorators` biome rule (the compiler is silent here). |
+| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by `tools/grit/no-decorators.grit` (the compiler is silent here). |
 
 ## 6. Classes vs factory services
 
@@ -101,15 +97,11 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 - **Non-optional** callback params; **union params over arg-position overloads** (`f(x: number | string)` not two sigs — overloads break pass-through callers); optional params over trailing-arg overloads.
 - Never the boxed types (`Number`/`String`/`Object`); lowercase primitives + `object`. No generic that doesn't use its type param.
 
----
-
 ## String-union dispatch discipline (spine §7.5)
-
-*Moved here 2026-07-03 from `AGENTS-2-Spine.md` §7.5 (which now points here).*
 
 The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. The AST dispatch
 scout **quantified the "touch N spots to add one variant" pain** in neo-tavern
-(`reports/dispatch-scout.json`; the full scan record: `../history/Grounded-Intelligence-AST-Scan.md`):
+(scan record: `../history/Grounded-Intelligence-AST-Scan.md`):
 
 | axis | touch-count | shape of the rot |
 | - | - | - |
@@ -125,7 +117,6 @@ Record**, so a missing kind is a hard `tsc` error. `routing.api`/`source` runner
 typed-return / `assertNever`.
 
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
-and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build). The
-leaky axes (`messageRole` switches, `guidedAction` untyped Records, the `authMode`/`runner` if-chains)
-convert to that shape. Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
-(`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Laws-and-Precedents.md`).
+and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
+Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `RUNNERS`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
+(`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Enforcement-Active-Gates.md`).

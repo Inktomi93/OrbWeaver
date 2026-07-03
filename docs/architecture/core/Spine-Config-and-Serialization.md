@@ -1,66 +1,34 @@
+---
+kind: law
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — Spine: Config, Settings, and Serialization
 
-> **Status: planning (authoritative detail).** This is the CANONICAL cross-cutting Spine document for
-> spine threads §7.2 (settings/config) and §7.3 (serialization) — cited elsewhere as "spine §7.2/§7.3"
-> / `AGENTS-2-Spine.md` §7.2/§7.3, which points here.
+Canonical doc for spine §7.2 (settings/config) and §7.3 (serialization) — `AGENTS-2-Spine.md` §7.2/§7.3 point here. BUILT — current law.
 
 ## Settings / config / the env FOUR natures (spine §7.2)
 
-The four natures confirmed, and the headline: **a fourth nature has NO home today.**
+Every config value has exactly one of four natures; misfiling one recreates neo's env tangle.
 
-- **(a) true env** — boot/secret/identity (the one `process.env` reader; keep, with the
-  `superRefine` boot-fatality per `AUTH_MODE`). Sub-nature **(a/seed)**: env that writes a DB row once
-  then goes inert (`OPENROUTER_API_KEY` → labeled credential) — the cleanest env→DB pattern; **keep as the model.**
-- **(b) runtime toggles → AppSettings** (env floor, DB override wins, via `layer()` + a versioned blob).
-  **Stranded today (env-only, should be AppSettings):** `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`,
-  `VLLM_*_CONCURRENCY`. Also: "env is the floor" is only **half-true** — `envDefaults()` mixes
-  env-mirrored toggles with born-in-DB defaults (floor for 3 of 7 fields).
-- **(c) agent-sdk runtime config — THE homeless nature.** ~13 isolation pins + an 11-key reserved-denylist
-  - the 3-mode credential firewall (200+ lines, **security-load-bearing, rebuilt every turn**), today
-    hardcoded literals in `providers/claude-sdk/env.ts`, called "env" only because it _emits_ env vars.
-    Target: **extract into a named backend-internal config of the claude-sdk strategy** — NOT a settings
-    tier. (This is the credential firewall that must never leak the sub — handle with care.)
-- **(d) generation params** — `UserIntent`/preset, translated per-backend. **CLAUDE.md claim verified
-  TRUE:** reasoning is typed SDK Options, not env (`effort`/`thinking`); only `maxOutputTokens`/
-  `maxContextTokens`/compaction ride env, and they're preset-sourced (env-_shaped_ only at the wire).
-- **Tangle to undo:** `claudeRuntimeEnv()` mixes (c)+(d) in one object; `OPENROUTER_API_KEY` wears 3 hats
-  (secret/seed/live-client-read); `UserIntent.advanced.claudeEnv` is a preset (d) field reaching into (c),
-  gated by a runtime denylist not a type. **Keep:** all 3 tiers share ONE `defineVersionedConfig`
-  primitive; memory tuning is correctly split write-side (AppSettings) vs read-side (UserSettings).
+| Nature | Home | Shape |
+| - | - | - |
+| (a) true env — boot/secret/identity | `foundation/env` (the ONE `process.env` reader; gates: `sole-env-reader` + biome `noProcessEnv`) | frozen zod schema; `superRefine` boot-fatality per `AUTH_MODE` |
+| (a/seed) env → DB row once, then inert | `entry/boot/seed-credential.ts` (`OPENROUTER_API_KEY` → labeled credential) | the model env→DB pattern; the var wears no second hat at runtime |
+| (b) runtime toggles | `domain/settings/effective-config/layer.ts` → `EffectiveAppConfig` | `override ?? floor` per field; stored `null` = CLEAR sentinel |
+| (c) agent-sdk runner machinery | `infra/providers/backends/agent-sdk/env.ts` | backend-internal, NOT a settings tier; rebuilt every turn |
+| (d) generation params | `UserIntent`/preset (`@orb/contracts/preset`) → per-backend translate | typed SDK Options, not env |
+
+- **(b) floors have TWO origins** ("env is the floor" is only half-true, kept legible in `layer.ts`): env-mirrored fields read `foundation/env` (`corpusAutoindex`, `importSkipCharacters`, `logLevel`, the `RATE_LIMIT_*` budgets — deliberately boot-env, the limiter reads them); born-in-DB fields have a code floor only an admin override moves (`forbidExternalMedia`, the promoted `vllmConcurrency` — NO env var, the old `VLLM_*_CONCURRENCY` stranding resolved; the D17 governance floors derive from `@orb/contracts/settings`). `EffectiveAppConfig` is 11 fields; `IMPORT_DEFAULT_SOURCE` was DROPPED (PD-15), not promoted.
+- **(c) is THE CREDENTIAL FIREWALL** (security-load-bearing, D8): three per-turn subprocess-env builders + the `RESERVED_CLAUDE_ENV_KEYS` denylist + ephemeral `CLAUDE_CONFIG_DIR` isolation. The ordering-is-the-security law lives in that file's header — read it before touching; the sub OAuth token must stay structurally unreachable from a paid/local spawn. It's called "env" only because it *emits* env vars.
+- **(d):** reasoning is typed SDK Options (`thinking`/`effort` via `translate.ts`); only output/context caps + compaction ride subprocess env, preset-sourced (env-*shaped* only at the wire). The `UserIntent.advanced.claudeEnv` escape hatch is filtered through `RESERVED_CLAUDE_ENV_KEYS` BEFORE the auth firewall applies — a preset can neither set auth/routing env nor strip the firewall.
+- **Shared machinery:** all versioned blobs ride the ONE `defineVersionedConfig` primitive (`@orb/contracts/versioned-config`). Memory tuning splits write-side (`AppSettings.memoryDefaults`/`memorySummarizer`) vs read-side (`UserSettings.memory.enabled` per-user opt-out).
 
 ## Serialization / serde core (spine §7.3)
 
-Recon **corrected the first read** — two of the "3 card shapes" are a _justified_ emit/read pair, and the
-PNG codec is _not_ scattered. The real findings:
-
-- **Card shape — LOCKED: ONE fully-modeled canonical card in `contracts`.** (User: "we can support them
-  now in full.") neo-tavern had three shapes — the V3 emit schema (`export/contract/card-v3.ts`), the
-  permissive `ParsedCard`/`RawCard` reader (`import/card.ts`), and the disjoint app-CRUD schema
-  (`shared/character/character-schema.ts`) — with `creator`/`character_version`/`regex_scripts`/
-  `extensions` surviving **only via the `raw` blob** (so app-authored cards dropped them). **BUILT:**
-  orbweaver's flat `characters` row (`packages/db/src/schema/character.ts`) promotes `creator`/
-  `cardVersion`/`regexScripts` to typed columns — app-authored AND imported cards round-trip identically;
-  `extensions` stays a JSON column reserved for genuinely-unknown vendor residue. The permissive `RawCard`
-  reader stays — but only as a **tolerant input adapter that normalizes INTO the one canonical model**, not
-  a parallel lossy shape; `raw` is reserved for genuinely-unknown vendor extras, not for fields now modeled.
-- **PNG codec:** only **two sites** (a pure read half in `card.ts`, a pure write half in `export/png.ts`)
-  — a read/write pair, not duplication. The chunk-walk loop + `isPng` + `PNG_SIGNATURE` are copied, and
-  a 3rd `isPng` is inline in `http/import.ts`. Target: ONE `kit/png-card-chunk` engine
-  (`readCardChunk(bytes)→string` / `writeCardChunk(png, jsonString)→bytes`) — **string-based, so the
-  codec never imports the card type** (the layer-cake caveat). First lift the read half out of `card.ts`
-  (away from the server logger + mappers).
-- **The REAL strandings:** the **preset ST-mapper** (`shared/prompt/st-preset.ts` + `preset-file.ts`) is
-  client-only, **zero server consumers**, never touches import/export — the clearest stranded mapper. And
-  **regex-script "mapping" doesn't exist** — card `regex_scripts` are raw-blob passthrough only (parsed,
-  never columned), despite a real `regexScriptSchema` existing.
-- **Triplication (textbook):** the ST numeric role-map `{0:system,1:user,2:assistant}` is written **4×**
-  (`persona.ts`, `lore.ts`, `card-v3.ts` inverse, `card.ts` inline). One bimap in `contracts`/`kit`.
-- **Lossiness — FIXED for the card:** `creator`/`cardVersion`/`regexScripts` are now typed columns on
-  `characters` (no more `raw`-blob-only survival), so an app-authored card round-trips them on export.
-  Still open: accepted tags diverge from proposed (`proposedTags` re-exports, accepted `character_tags`
-  junction doesn't) — that promotion is `domain/tag`'s, not the card's.
-- Target: SHAPES → `contracts` (the emit/read pairs + ST preset shape co-located); CODEC → pure `kit`
-  (string-based); per-entity MAPPERS consolidated & shared by import+export (role-map, WI-entry mapper,
-  card pair); the import↔assets bulk glue (duplicated in `http/import.ts` + `import-st.ts`) → one
-  composition-layer helper. **Already clean (don't touch):** the parse/write split, the shared
-  chat-writer, idempotency hashing.
+- **ONE canonical card:** `@orb/contracts/character`. The serde core is one file-pair home, `packages/server/src/kit/serde/card/` — tolerant IN-adapter `cardFromJson` (normalizes INTO the canonical model, never a parallel lossy shape) + strict OUT-emitter `buildCardV3` + `cardContentHash` (PD-33: the single card-hash home; PD-44: one emitter beside the one adapter). Co-location makes import → export → reimport a one-file invariant: the IN/OUT halves hash-mirror (the dedup property the determinism tests pin).
+- **Lossiness closed:** `creator`/`cardVersion`/`regexScripts` are typed columns flat on the `characters` row (D28) — app-authored AND imported cards round-trip identically. `extensions` stays a JSON column reserved for genuinely-unknown vendor residue; `raw`-blob survival is dead. Export serializes ACCEPTED `character_tags` names (pending tags are not serialized).
+- **PNG codec:** `@orb/kit/png-card-chunk` — `readCardChunk`/`writeCardChunk` + `isPng`, a pure STRING engine (takes/returns card JSON as a string, never imports the card type — the layer-cake caveat). Byte surgery lives there; JSON parse + null-on-failure is the import parser's (`domain/import/substrate/card`); PNG packaging + DB reads are export's.
+- **ST numeric role bimap:** `@orb/kit/message-role` (`messageRoleFromSt`/`messageRoleToSt`, D32) — the one home for `{0:system, 1:user, 2:assistant}`; neo wrote it 4×.
+- **Preset shape:** ST semantics (`injection_order`/`injection_trigger`/`forbid_overrides`, …) are fully modeled in `@orb/contracts/preset` — no stranded client-only ST mapper survives.
