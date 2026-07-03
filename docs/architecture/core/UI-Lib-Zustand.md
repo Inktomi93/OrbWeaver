@@ -1,37 +1,20 @@
+---
+kind: reference
+status: active
+updated: 2026-07-03
+---
+
 # UI-Lib-Zustand
 
 > **A lib companion of the nine-doc UI law set** — a full-read examples/deep-docs mine (evidence + provenance, NOT extra law; the distilled verdicts are folded into the spec sections of `UI-Architecture-and-Layout.md` / `UI-Gates-and-Lessons.md` / `UI-Primitives-and-Reuse.md`, cited per claim).
 >
-> **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.6 → `UI-Primitives-and-Reuse.md`.
-
-## Table of Contents
-
-- [Zustand v5 — full-docs mining + orbweaver verdict](#4798e018)
-  - [A. Best-practice / capability map (v5)](#324e24a1)
-  - [B. The verdict (per area)](#04235bda)
-  - [C. Are we doing anything WEIRD?](#2ed3b107)
-  - [D. Adopt / sharpen shortlist](#7fa96274)
-  - [E. TypeScript best practices (v5)](#9e0e4240)
-  - [F. Open forks for Nate](#a29524d5)
-    - [One-screen TL;DR](#bbcb8b67)
-
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='4798e018'></a>
+> Cross-doc `§N` references resolve via the §-map in `UI-Architecture-and-Layout.md`.
 
 ## Zustand v5 — full-docs mining + orbweaver verdict
 
 Source: shallow clone of `pmndrs/zustand` `docs/` (current `main`, v5.x line; latest published v5.0.14). Every `.md`/`.mdx` under `learn/`, `reference/` read in full. Doc paths below are relative to `docs/`.
 
 Orbweaver context recap (the thing being judged): Vite SPA, React 19 + React Compiler ON; Zustand for client/UI state only (server state = TanStack Query). Gates (`state:files`): one `create(` per file, ≤10 top-level fields, no exported `set`/`getState`/store-handle, `persist({name})` namespaced. Lifecycle slices as discriminated-union transitions. `createEntityDraftStore` factory: `persist` w/ `version:1`+`migrate`, frozen `EMPTY = Object.freeze({})` returned by `useDraft(id)` when no draft, `drafts: Record<id, Partial<TInput>>`, setField/clearField/clearDraft/hasDraft.
-
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='324e24a1'></a>
 
 ### A. Best-practice / capability map (v5)
 
@@ -79,49 +62,37 @@ Orbweaver context recap (the thing being judged): Vite SPA, React 19 + React Com
 
 **TS minimums (v5):** TS ≥4.5, React ≥18 (for `useSyncExternalStore`), `use-sync-external-store` is a PEER dep needed only for `zustand/traditional`.
 
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='04235bda'></a>
-
 ### B. The verdict (per area)
 
-| #   | Area                                                                 | Verdict                                                                                          | Doc basis                                                                                                                                                                  |
-| --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Zustand for client state, TanStack Query for server state            | ✅ CORRECT                                                                                       | `comparison.md` frames Zustand as immutable client store; selectors are the render-opt model. Nothing in docs wants it owning server cache.                                |
-| 2   | `Object.is` default + footgun gate on fresh `{}`/`[]` from selectors | ✅ CORRECT, and the gate is MORE necessary in v5                                                 | `migrating-to-v5.md#requiring-stable-selector-outputs`; `use-shallow.md` Troubleshooting. v5 removed v4's implicit shallow; new-ref selectors now infinite-loop.           |
-| 3   | Frozen `EMPTY = Object.freeze({})` default from `useDraft(id)`       | ✅ CORRECT — and NOT redundant with `useShallow` (different problems; see C-1)                   | `migrating-to-v5.md` shows the exact `FALLBACK_ACTION` stable-ref pattern for `?? default`.                                                                                |
-| 4   | No exported `set`/`getState`/store-handle gate                       | ✅ CORRECT, compatible with docs (see C-2 reconciliation)                                        | `practice-with-no-store-actions.md` blesses colocated actions; module-level `setState` is an _option_, not a mandate.                                                      |
-| 5   | `persist` w/ `version:1`+`migrate` on draft factory                  | ✅ CORRECT, but tighten `merge`/`partialize`/hydration (see C-4)                                 | `persist.md`, `persisting-store-data.md`: default `merge` is SHALLOW → drops nested keys.                                                                                  |
-| 6   | `≤10 top-level fields`, one `create` per file                        | ⚠️ MILD TENSION with slices — fine if counted post-compose, risky if it blocks slicing (see C-5) | `slices-pattern.md`: the whole point is the bounded store grows; ≤10 must mean per-file authored fields, not per-composed-store.                                           |
-| 7   | Split per-token stream fields from lifecycle fields                  | ✅ CORRECT, strongly endorsed                                                                    | `subscribe-with-selector.md` + transient-update pattern; chrome subscribes to lifecycle, token churn goes through a narrow selector or transient subscribe.                |
-| 8   | Lifecycle modeled as discriminated-union transitions in a store      | ✅ CORRECT / well-supported, no native "machine" primitive                                       | `flux-inspired-practice.md` (single store, `set`-only) + `redux.md` reducer option. Docs neither bless nor forbid; DU-in-store is idiomatic immutable updating. (See C-7.) |
-| 9   | React 19 + React Compiler                                            | ✅ CLEAN — no accommodation needed                                                               | Zustand uses `useSyncExternalStore`; nothing in v5 migration needs `"use no memo"`. (See C-6.)                                                                             |
-| 10  | `createWithEqualityFn`/`zustand/traditional`                         | ⏭️ CORRECTLY SKIP                                                                                | `migrating-to-v5.md`: it's the v4-compat escape hatch + extra peer dep. `useShallow` covers our needs. Don't add it.                                                       |
-| 11  | `immer` middleware                                                   | ⏭️ CORRECTLY SKIP (default), unless DU transitions get spread-heavy                              | `immutable-state-and-merging.md` calls spreads "very long" for deep nests; but draft `setField` on `Record<id,Partial>` is one-level → no immer needed.                    |
-| 12  | `devtools` middleware                                                | 🔼 SHOULD-ADOPT in dev                                                                           | `devtools.md`; cheap observability for the DU lifecycle transitions. Gate it `enabled: dev only` (default) and put it OUTERMOST.                                           |
-| 13  | Auto-generating selectors (`createSelectors`)                        | ⏭️ CORRECTLY SKIP                                                                                | DX sugar; adds a magic layer an amnesiac agent must learn. Explicit selectors are more gate-legible.                                                                       |
-| 14  | `combine` for inference                                              | ⚠️ OPTIONAL — convenience vs the `Object.keys`/`replace` lie                                     | `advanced-typescript.md` "Be a little careful". Given orbweaver's rigor + curried `create<T>()`, prefer explicit types over `combine`'s inference shortcut.                |
-
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='2ed3b107'></a>
+| # | Area | Verdict | Doc basis |
+| - | - | - | - |
+| 1 | Zustand for client state, TanStack Query for server state | ✅ CORRECT | `comparison.md` frames Zustand as immutable client store; selectors are the render-opt model. Nothing in docs wants it owning server cache. |
+| 2 | `Object.is` default + footgun gate on fresh `{}`/`[]` from selectors | ✅ CORRECT, and the gate is MORE necessary in v5 | `migrating-to-v5.md#requiring-stable-selector-outputs`; `use-shallow.md` Troubleshooting. v5 removed v4's implicit shallow; new-ref selectors now infinite-loop. |
+| 3 | Frozen `EMPTY = Object.freeze({})` default from `useDraft(id)` | ✅ CORRECT — and NOT redundant with `useShallow` (different problems; see C-1) | `migrating-to-v5.md` shows the exact `FALLBACK_ACTION` stable-ref pattern for `?? default`. |
+| 4 | No exported `set`/`getState`/store-handle gate | ✅ CORRECT, compatible with docs (see C-2 reconciliation) | `practice-with-no-store-actions.md` blesses colocated actions; module-level `setState` is an *option*, not a mandate. |
+| 5 | `persist` w/ `version:1`+`migrate` on draft factory | ✅ CORRECT, but tighten `merge`/`partialize`/hydration (see C-4) | `persist.md`, `persisting-store-data.md`: default `merge` is SHALLOW → drops nested keys. |
+| 6 | `≤10 top-level fields`, one `create` per file | ⚠️ MILD TENSION with slices — fine if counted post-compose, risky if it blocks slicing (see C-5) | `slices-pattern.md`: the whole point is the bounded store grows; ≤10 must mean per-file authored fields, not per-composed-store. |
+| 7 | Split per-token stream fields from lifecycle fields | ✅ CORRECT, strongly endorsed | `subscribe-with-selector.md` + transient-update pattern; chrome subscribes to lifecycle, token churn goes through a narrow selector or transient subscribe. |
+| 8 | Lifecycle modeled as discriminated-union transitions in a store | ✅ CORRECT / well-supported, no native "machine" primitive | `flux-inspired-practice.md` (single store, `set`-only) + `redux.md` reducer option. Docs neither bless nor forbid; DU-in-store is idiomatic immutable updating. (See C-7.) |
+| 9 | React 19 + React Compiler | ✅ CLEAN — no accommodation needed | Zustand uses `useSyncExternalStore`; nothing in v5 migration needs `"use no memo"`. (See C-6.) |
+| 10 | `createWithEqualityFn`/`zustand/traditional` | ⏭️ CORRECTLY SKIP | `migrating-to-v5.md`: it's the v4-compat escape hatch + extra peer dep. `useShallow` covers our needs. Don't add it. |
+| 11 | `immer` middleware | ⏭️ CORRECTLY SKIP (default), unless DU transitions get spread-heavy | `immutable-state-and-merging.md` calls spreads "very long" for deep nests; but draft `setField` on `Record<id,Partial>` is one-level → no immer needed. |
+| 12 | `devtools` middleware | 🔼 SHOULD-ADOPT in dev | `devtools.md`; cheap observability for the DU lifecycle transitions. Gate it `enabled: dev only` (default) and put it OUTERMOST. |
+| 13 | Auto-generating selectors (`createSelectors`) | ⏭️ CORRECTLY SKIP | DX sugar; adds a magic layer an amnesiac agent must learn. Explicit selectors are more gate-legible. |
+| 14 | `combine` for inference | ⚠️ OPTIONAL — convenience vs the `Object.keys`/`replace` lie | `advanced-typescript.md` "Be a little careful". Given orbweaver's rigor + curried `create<T>()`, prefer explicit types over `combine`'s inference shortcut. |
 
 ### C. Are we doing anything WEIRD?
 
 **C-1 — Frozen `EMPTY` vs `useShallow`: NOT redundant. They solve different problems. Keep BOTH, for different reasons.**
 
-- `useShallow` (`use-shallow.md`): memoizes a selector that DERIVES/COMPUTES a new object/array every render (`Object.keys(state)`, `{a,b}` bundles). It shallow-compares this render's output to last render's and returns the previous ref if equal. It is about _derived_ outputs changing identity on every call.
+- `useShallow` (`use-shallow.md`): memoizes a selector that DERIVES/COMPUTES a new object/array every render (`Object.keys(state)`, `{a,b}` bundles). It shallow-compares this render's output to last render's and returns the previous ref if equal. It is about *derived* outputs changing identity on every call.
 - Frozen `EMPTY` (`migrating-to-v5.md` `FALLBACK_ACTION` pattern): provides ONE stable reference for the "no draft exists" DEFAULT branch of a selector — `drafts[id] ?? EMPTY`. The danger is `drafts[id] ?? {}` minting a fresh `{}` each render → infinite loop. A constant fixes it. `useShallow` would ALSO mask this, but it's the heavier hammer (runs a shallow compare every render) for a case a frozen constant solves for free with zero per-render work.
-- **Verdict:** the frozen `EMPTY` is the textbook-correct tool for a stable default; it is exactly the pattern the v5 migration guide prescribes. It is NOT made unnecessary by `useShallow`. The `Object.freeze` is a nice belt-and-suspenders (prevents a consumer mutating the shared default) but is not what fixes the loop — the _stable identity_ (module-level constant) is. **However** `EMPTY` only covers the "missing draft" path. The moment `useDraft` returns a _populated_ derived shape (e.g. selecting multiple draft fields into an object, or `Object.values(drafts)`), you need `useShallow` on TOP. So: frozen `EMPTY` for the default branch, `useShallow` for any multi-field/derived draft selector. Recommend the factory expose both correctly (see D).
+- **Verdict:** the frozen `EMPTY` is the textbook-correct tool for a stable default; it is exactly the pattern the v5 migration guide prescribes. It is NOT made unnecessary by `useShallow`. The `Object.freeze` is a nice belt-and-suspenders (prevents a consumer mutating the shared default) but is not what fixes the loop — the *stable identity* (module-level constant) is. **However** `EMPTY` only covers the "missing draft" path. The moment `useDraft` returns a *populated* derived shape (e.g. selecting multiple draft fields into an object, or `Object.values(drafts)`), you need `useShallow` on TOP. So: frozen `EMPTY` for the default branch, `useShallow` for any multi-field/derived draft selector. Recommend the factory expose both correctly (see D).
 
 **C-2 — "No exported `set`/`getState`" gate vs the "actions-outside-store" guidance: reconcilable, no contradiction.**
-The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) does `useStore.setState(...)` from a module function in the SAME file as the store. Orbweaver's gate bans _exporting_ the raw `set`/`getState`/handle across module boundaries. These don't conflict: the doc pattern keeps `setState` private to the store's module and exposes named action functions — which is exactly "colocate, expose intent, hide the primitive." Our gate enforces the stronger half of the doc's OWN recommendation ("recommended way is to colocate actions"). The only thing to make explicit in the gate doc: module-level action fns that close over the store and call `setState` _internally_ are allowed; what's banned is leaking the store handle/`setState`/`getState` to callers. That's a sharpening, not a conflict.
+The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) does `useStore.setState(...)` from a module function in the SAME file as the store. Orbweaver's gate bans *exporting* the raw `set`/`getState`/handle across module boundaries. These don't conflict: the doc pattern keeps `setState` private to the store's module and exposes named action functions — which is exactly "colocate, expose intent, hide the primitive." Our gate enforces the stronger half of the doc's OWN recommendation ("recommended way is to colocate actions"). The only thing to make explicit in the gate doc: module-level action fns that close over the store and call `setState` *internally* are allowed; what's banned is leaking the store handle/`setState`/`getState` to callers. That's a sharpening, not a conflict.
 
-**C-3 — Nothing weird about one-store-per-concept.** `flux-inspired-practice.md` says "global state in a single store, split via slices if large" — but orbweaver runs MULTIPLE small stores (active selection / theme / stream buffer / drafts). The docs' "single store" advice is about not scattering ONE app's global state into many uncoordinated stores; multiple _domain-scoped_ stores is fine and the multi-store examples (`beginner-typescript.md#multiple-stores`) endorse it. No issue.
+**C-3 — Nothing weird about one-store-per-concept.** `flux-inspired-practice.md` says "global state in a single store, split via slices if large" — but orbweaver runs MULTIPLE small stores (active selection / theme / stream buffer / drafts). The docs' "single store" advice is about not scattering ONE app's global state into many uncoordinated stores; multiple *domain-scoped* stores is fine and the multi-store examples (`beginner-typescript.md#multiple-stores`) endorse it. No issue.
 
 **C-4 — Real risk we may be under-gating: the `persist` `merge`/hydration trio on the draft factory.**
 
@@ -138,12 +109,6 @@ The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) doe
 **C-7 — DU-as-state-machine in a store: idiomatic, but the docs give you NO machine primitive — so the gate IS the safety.** Docs only offer `set`-merges + optional `redux` reducer. A discriminated-union (`turnStarted→delta→turnCompleted|turnAborted`) modeled as `set(replace:true)` transitions is just immutable updating — fully supported. Watch the v5 `replace:true` strictness: `setState(x, true)` now requires a COMPLETE state object (`migrating-to-v5.md`), which actually HELPS — a DU transition that forgets a field won't type-check. Lean into `replace:true` for transitions so partial-merge can't leave a stale field from a previous phase.
 
 **C-8 — Things we are NOT hand-rolling that we could be tempted to:** we correctly are NOT reaching for `combine`, `createWithEqualityFn`, `redux`, auto-selectors, or immer by default. Good — each is a layer of magic an amnesiac agent would have to re-learn. The only native thing worth ADOPTING that we're currently not using is `devtools` (dev-only) and `subscribeWithSelector` for the stream (see D).
-
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='7fa96274'></a>
 
 ### D. Adopt / sharpen shortlist
 
@@ -167,12 +132,6 @@ The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) doe
 
 10. **Keep curried `create<T>()(...)`; do NOT switch to `combine` for inference.** (`advanced-typescript.md`) — the rigor/one-home bar wants explicit state types; `combine`'s inference trades away `Object.keys`/`replace` soundness. (Confirms current plan; flagging because `combine` is tempting.)
 
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='9e0e4240'></a>
-
 ### E. TypeScript best practices (v5)
 
 - **Always curry: `create<T>()(stateCreatorFn)`** — the extra `()` is a workaround for TS#10571 so `T` is annotated while middleware mutators stay inferred (`advanced-typescript.md`, `beginner-typescript.md`). State generic `T` is invariant → can't be inferred from initial state, hence the manual annotation.
@@ -187,12 +146,6 @@ The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) doe
 - **Strict mode:** all examples assume `strict`. `create<T>()` + slice `StateCreator` typing are strict-clean. The one unsound spot is calling `get()` synchronously during initial-state creation (returns `undefined` though typed `T`) — never read `get()` while building initial state (`advanced-typescript.md` proof).
 - **Maps/Sets typing:** init with hints (`new Set([] as string[])`) or you get `never[]` (`maps-and-sets-usage.md`).
 
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='a29524d5'></a>
-
 ### F. Open forks for Nate
 
 1. **`Object.freeze` on `EMPTY` — keep or drop?** The stability fix is the module-level constant identity; `freeze` only adds mutation-protection. Keep it (cheap, prevents a consumer mutating the shared default) or drop as ceremony? My call: keep — it's a one-time cost and documents intent. (Confirms your plan; it's not the loop-fixer though — make sure the gate's rationale says "stable identity," not "freeze," fixes the infinite loop.)
@@ -206,12 +159,6 @@ The docs' module-level-actions pattern (`practice-with-no-store-actions.md`) doe
 5. **Does any draft store need PER-INSTANCE isolation?** If two editors can be open on the same entity type simultaneously with independent drafts, the global `Record<id,...>` keyed by id already handles it — but if drafts must be scoped to an editor instance (not an entity id), switch to the vanilla-`createStore`-in-context DI pattern (`initialize-state-with-props.md`). Confirm the keying model.
 
 6. **`≤10 fields` gate semantics:** authored-per-file or composed-per-store? (See C-5.) Needs a one-line decision in the gate doc so slicing isn't accidentally blocked.
-
----
-
-<!-- Source: client-zustand-notes.md -->
-
-<a id='bbcb8b67'></a>
 
 #### One-screen TL;DR
 

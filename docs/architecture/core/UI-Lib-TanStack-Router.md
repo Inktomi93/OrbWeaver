@@ -1,39 +1,14 @@
+---
+kind: reference
+status: active
+updated: 2026-07-03
+---
+
 # UI-Lib-TanStack-Router
 
 > **A lib companion of the nine-doc UI law set** — a full-read examples/deep-docs mine (evidence + provenance, NOT extra law; the distilled verdicts are folded into the spec sections of `UI-Architecture-and-Layout.md` / `UI-Gates-and-Lessons.md` / `UI-Primitives-and-Reuse.md`, cited per claim).
 >
-> **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.6 → `UI-Primitives-and-Reuse.md`.
-
-## Table of Contents
-
-- [TanStack Router — full-docs mine for orbweaver](#c3457270)
-  - [A. Capability map (what the router actually offers)](#cdd394ac)
-    - [Route definition](#cae302ff)
-    - [Type-safety model](#66228d1c)
-    - [Navigation](#cd240e92)
-    - [Search-param state](#ddf3e490)
-    - [Loaders + `beforeLoad`](#76456685)
-    - [Router context / dependency injection](#4abda536)
-    - [Code-splitting / lazy routes](#75dbc05b)
-    - [Navigation blocking](#d99ccd0d)
-    - [Location masking](#d1e88b36)
-    - [View transitions](#1bbe2e70)
-    - [Scroll restoration](#423da6af)
-    - [Router events](#2e34bf92)
-    - [Document head](#8fe891ab)
-    - [Devtools + Vite plugin](#cb74db33)
-    - [History](#dc7069bc)
-  - [B. The verdict (per feature)](#2dfe410e)
-  - [C. Are we doing anything WEIRD? — the blunt answer](#368cf207)
-  - [D. What we should STEAL (concrete adopt list)](#28172cc9)
-  - [E. Open questions / forks for Nate](#810c2cac)
-    - [Coverage note](#260c76ab)
-
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='c3457270'></a>
+> Cross-doc `§N` references resolve via the §-map in `UI-Architecture-and-Layout.md`.
 
 ## TanStack Router — full-docs mine for orbweaver
 
@@ -51,17 +26,7 @@ admin split.
 
 Doc paths below are relative to `docs/router/` in the TanStack/router repo unless noted.
 
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='cdd394ac'></a>
-
 ### A. Capability map (what the router actually offers)
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='cae302ff'></a>
 
 #### Route definition
 
@@ -77,22 +42,14 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
 - **Route matching** (`routing/route-matching.md`) — routes are auto-sorted by specificity regardless of
   definition order: index → static → dynamic → splat. You never hand-order the tree to get correct matching.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='66228d1c'></a>
-
 #### Type-safety model
 
 - **Inference + declaration merging** (`guide/type-safety.md`, `guide/creating-a-router.md`, `api/router/RegisterType.md`).
   All types flow from generic inference on `createRoute`/`addChildren`; the top-level exports (`Link`,
   `useNavigate`, …) are wired to your tree by ONE `declare module '@tanstack/react-router' { interface Register
-{ router: typeof router } }`. **Codegen is not the source of type-safety** — inference + `Register` is.
+  { router: typeof router } }`. **Codegen is not the source of type-safety** — inference + `Register` is.
 - **Type utilities** (`guide/type-utilities.md`) — `ValidateLinkOptions`, `ValidateNavigateOptions`,
   `ValidateRedirectOptions`, `linkOptions()` for type-checking reusable nav option objects.
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='cd240e92'></a>
 
 #### Navigation
 
@@ -103,10 +60,6 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
   takes the same options as navigate. `isRedirect(err)` distinguishes intentional redirects from real errors.
 - **`createLink`** (`guide/custom-link.md`) — wrap any component (design-system button/anchor) into a typed
   router link with full `to`/`params`/`search` safety + `preload`.
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='ddf3e490'></a>
 
 #### Search-param state
 
@@ -119,10 +72,6 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
 - **Custom serialization** (`guide/custom-search-param-serialization.md`) — `parseSearch`/`stringifySearch`
   (base64, query-string, JSURL2, Zipson).
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='76456685'></a>
-
 #### Loaders + `beforeLoad`
 
 - **`loader` + built-in SWR cache** (`guide/data-loading.md`) — per-route loaders keyed on path params +
@@ -134,20 +83,12 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
   "coordinator" for TanStack Query et al. The official `@tanstack/react-router-ssr-query` integration is
   **SSR dehydration/hydration/streaming only**.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='4abda536'></a>
-
 #### Router context / dependency injection
 
 - **`createRootRouteWithContext<T>()` + `createRouter({ context })`** (`guide/router-context.md`,
   `api/router/createRootRouteWithContextFunction.md`). Hierarchical, type-safe DI: inject `queryClient`,
   data clients, auth state, services; merged + extended down the tree; available in every
   `beforeLoad`/`loader` and via `useRouteContext`. React hooks are injected at the `RouterProvider` seam.
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='75dbc05b'></a>
 
 #### Code-splitting / lazy routes
 
@@ -157,19 +98,11 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
 - **File-based auto-splitting:** `autoCodeSplitting: true` on the plugin (`guide/automatic-code-splitting.md`)
   — **plugin-only**, unavailable without codegen.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='d99ccd0d'></a>
-
 #### Navigation blocking
 
 - **`useBlocker` / `<Block>`** (`guide/navigation-blocking.md`, `api/router/useBlockerHook.md`, ⚠ experimental)
   — block router navigations + the browser `beforeunload` event when a form is dirty, with optional custom-UI
   resolver (`proceed`/`reset`/`status`).
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='d1e88b36'></a>
 
 #### Location masking
 
@@ -177,20 +110,12 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
   in the bar than the one actually matched (modal-at-/photos/5 etc). Imperative `mask` prop or declarative
   `routeMasks`.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='1bbe2e70'></a>
-
 #### View transitions
 
 - **`defaultViewTransition` (router) + per-nav `viewTransition`** (`api/router/RouterOptionsType.md`,
   `ViewTransitionOptionsType.md`, `guide/navigation.md`) — `boolean | { types }`. On navigation the router
   calls `document.startViewTransition({ update, types })`. `types` can be a function returning `false` to skip.
   **Fires only on location commits.**
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='423da6af'></a>
 
 #### Scroll restoration
 
@@ -200,27 +125,15 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
   `resetScroll: false`. (Note: this option is documented in the guide but missing from the
   `RouterOptionsType.md` API page — the guide is authoritative.)
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='2e34bf92'></a>
-
 #### Router events
 
 - **`router.subscribe(event, cb)`** (`guide/router-events.md`) — `onBeforeNavigate`/`onBeforeLoad`/`onLoad`/
   `onResolved`/`onRendered` for analytics, focus management, external-cache/mutation-state resets after nav.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='8fe891ab'></a>
-
 #### Document head
 
 - **`head` route option + `<HeadContent />` / `<Scripts />` / `ScriptOnce`** (`guide/document-head-management.md`)
   — works in SPAs; per-route title/meta dedupe; `ScriptOnce` for pre-hydration theme scripts.
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='cb74db33'></a>
 
 #### Devtools + Vite plugin
 
@@ -229,158 +142,130 @@ Doc paths below are relative to `docs/router/` in the TanStack/router repo unles
 - **`@tanstack/router-plugin/vite`** (`installation/with-vite.md`) — exists ONLY to power file-based routing
   (codegen + `autoCodeSplitting`). Not required to run the router.
 
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='dc7069bc'></a>
-
 #### History
 
 - **`history` option** (`guide/history-types.md`) — omit for browser history (the SPA default);
   `createHashHistory()` for no-rewrite hosting; `createMemoryHistory({ initialEntries: ['/'] })` for tests.
 
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='2dfe410e'></a>
-
 ### B. The verdict (per feature)
 
 Legend: ✅ doing it right · ⚠️ weird/risky/fighting the router · 🔼 should adopt · ⏭️ correctly skip.
 
-| #   | Topic                                                | Verdict                                  | One-line basis (doc)                                                                                                                                                                                                                                                                                                                                          |
-| --- | ---------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Single-route shell, **no ids in URL**                | ✅ CORRECT                               | URL-as-state is _offered, not required_; nothing forces ids into the path. `search-params.md` calls URL state a _choice_; `history-types.md` even ships `createMemoryHistory` for "when you do not want components to interact with the URL."                                                                                                                 |
-| 2   | Using the router for only ~3 routes                  | ✅ CORRECT                               | `decisions-on-dx.md` pushes file-based _for scale (40-50 routes)_; for a tiny tree the boilerplate it solves doesn't exist. A 3-route tree is the trivial case, not a misuse.                                                                                                                                                                                 |
-| 3   | **Hand-write tree, drop codegen plugin**             | ✅ CORRECT                               | `installation/manual.md` documents a complete code-based app importing only `@tanstack/react-router` — no plugin, no `routeTree.gen.ts`. File-based is explicitly "a superset … code-generation abstraction on top" (`code-based-routing.md` L259).                                                                                                           |
-| 4   | **Type-safety after dropping the plugin**            | ✅ CORRECT (critical)                    | Type-safety = inference + the one `declare module { interface Register }` (`type-safety.md`, `RegisterType.md`), NOT codegen. The plugin only writes the tree file + manages `getParentRoute` linkage for you. Hand-wiring `getParentRoute` + `Register` keeps 100% of the type-safety value prop. **Dropping codegen does NOT undermine type-safe routing.** |
-| 5   | Virtual file routes as a middle ground               | ⏭️ CORRECTLY SKIP                        | `virtual-file-routes.md` still requires the plugin; it solves "custom file org at scale," not "tiny tree." Pure overhead for 3 routes.                                                                                                                                                                                                                        |
-| 6   | **Router loaders for data**                          | ⏭️ CORRECTLY SKIP                        | `data-loading.md` + `external-data-loading.md`: loaders coordinate fetches _on navigation_. With the URL pinned at `/`, entity changes aren't navigations, so loaders would never re-fire on entity switch. Query owning server-state is the documented "coordinate, don't store" path.                                                                       |
-| 7   | **`beforeLoad` for auth**                            | 🔼 SHOULD ADOPT                          | `authenticated-routes.md` + `how-to/setup-authentication.md`: `beforeLoad` + `throw redirect({ to: '/login' })` is THE documented gate, and it's the one place a route earns its keep for us — on `/login` + `/admin/*`.                                                                                                                                      |
-| 8   | **Router context DI (`queryClient`/`trpc`/`auth`)**  | 🔼 SHOULD ADOPT (with care)              | `router-context.md`: documented DI. Inject at the `RouterProvider` seam (the `InnerApp` pattern). Caveat in C/E: this is a _second_ DI channel — composition root stays source of truth; the router context just forwards already-constructed singletons.                                                                                                     |
-| 9   | **Code-splitting routes**                            | ⏭️ MOSTLY SKIP / 🔼 split the admin pane | `code-splitting.md`: route-level splitting matters at scale. For 3 routes the win is lazy _components_ inside the shell; the one real route-split worth doing is `/admin/*` via `lazyRouteComponent(() => import('./Admin'))`.                                                                                                                                |
-| 10  | **View Transitions for in-page nav (§4a)**           | ✅ CORRECT to hand-roll                  | `RouterOptionsType.md`/`ViewTransitionOptionsType.md`: router VT fires on **location commits** (`pathChanged`/`hrefChanged`). Our pane swaps don't change the URL ⇒ router VT can't fire ⇒ hand-rolled `document.startViewTransition()` in the reducer is correct, not a workaround.                                                                          |
-| 10b | Router VT for the 3 real route changes               | 🔼 OPTIONAL ADOPT                        | For `/` ⇄ `/login` ⇄ `/admin/*`, `defaultViewTransition: true` (or per-`Link` `viewTransition`) is a free one-liner since those _are_ navigations.                                                                                                                                                                                                            |
-| 11  | **`useBlocker` editor leave-guard**                  | ⚠️ WEIRD-FIT / partial                   | `useBlockerHook.md` (experimental): triggers on router navigations + `beforeunload`. Switching entity via the reducer is NOT a navigation ⇒ won't catch the in-app "leave editor." Useful only for tab-close/refresh and the 3 real routes; the in-app guard must be hand-rolled.                                                                             |
-| 12  | Search-param state (Zod `validateSearch`)            | ⏭️ CORRECTLY SKIP (until bolt-on)        | `search-params.md` etc. are the URL-as-state pattern we deliberately reject. Keep only as the recipe **if** §5.1 ever bolts on a chat-id route; then use `fallback`/`.catch` so a malformed URL never throws.                                                                                                                                                 |
-| 13  | Route masking                                        | ⏭️ CORRECTLY SKIP                        | `route-masking.md`: masks one URL as another. Our URL never changes — nothing to mask.                                                                                                                                                                                                                                                                        |
-| 14  | URL rewrites / basepath                              | ⏭️ CORRECTLY SKIP                        | `url-rewrites.md`: i18n/subdomain/multi-tenant URL transforms. N/A at `/`.                                                                                                                                                                                                                                                                                    |
-| 15  | Scroll restoration                                   | ⚠️ LIMITED VALUE                         | `scroll-restoration.md`: `scrollRestoration: true` keys on pathname/`__TSR_key`; with a constant pathname it can't distinguish panes. The _manual_ `useElementScrollRestoration` + `data-scroll-restoration-id` is the only useful slice (chat scroll area).                                                                                                  |
-| 16  | Preloading (`defaultPreload: 'intent'`)              | ⏭️ MOSTLY SKIP                           | `preloading.md`: preloads route deps on hover. With no loaders + 3 routes there's little to preload; Query's own prefetch is the lever.                                                                                                                                                                                                                       |
-| 17  | Devtools                                             | 🔼 SHOULD ADOPT                          | `devtools.md`: cheap insight into matches/context/nav; gate behind `import.meta.env.DEV`.                                                                                                                                                                                                                                                                     |
-| 18  | Router events (`router.subscribe`)                   | 🔼 OPTIONAL ADOPT                        | `router-events.md`: `onResolved` for analytics / focus / resetting transient state on the real route changes.                                                                                                                                                                                                                                                 |
-| 19  | `notFoundComponent` / `notFoundMode`                 | 🔼 MINOR ADOPT                           | `not-found-errors.md`: set a root `notFoundComponent` so a stray `/admin/garbage` deep-link renders something sane.                                                                                                                                                                                                                                           |
-| 20  | SSR / Query SSR integration / streaming / deferred   | ⏭️ CORRECTLY SKIP                        | `integrations/query.md`, `ssr.md`, `deferred-data-loading.md`: all SSR/Start-only. We're a Vite SPA.                                                                                                                                                                                                                                                          |
-| 21  | Parallel routes                                      | ⏭️ CORRECTLY SKIP                        | `parallel-routes.md` is an unimplemented stub; `comparison.md` marks it 🛑 for TanStack.                                                                                                                                                                                                                                                                      |
-| 22  | SPA history fallback to `index.html`                 | ✅ CORRECT                               | `how-to/deploy-to-production.md`: a client-routed SPA needs all paths rewritten to `/index.html`. Our Hono `serveStatic` + index.html fallback is exactly the prescribed config (and barely exercised since the URL rarely leaves `/`).                                                                                                                       |
-| 23  | `linkOptions` / `createLink` for design-system links | 🔼 MINOR ADOPT                           | `link-options.md`, `custom-link.md`: type-checked reusable nav configs + typed wrapper around our button/anchor primitives.                                                                                                                                                                                                                                   |
-| 24  | `staticData` (e.g. `showNavbar:false` on `/admin`)   | 🔼 OPTIONAL                              | `static-route-data.md`: clean way to flag the admin route as chrome-less vs the `/` shell.                                                                                                                                                                                                                                                                    |
-
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='368cf207'></a>
+| # | Topic | Verdict | One-line basis (doc) |
+| - | - | - | - |
+| 1 | Single-route shell, **no ids in URL** | ✅ CORRECT | URL-as-state is *offered, not required*; nothing forces ids into the path. `search-params.md` calls URL state a *choice*; `history-types.md` even ships `createMemoryHistory` for "when you do not want components to interact with the URL." |
+| 2 | Using the router for only \~3 routes | ✅ CORRECT | `decisions-on-dx.md` pushes file-based *for scale (40-50 routes)*; for a tiny tree the boilerplate it solves doesn't exist. A 3-route tree is the trivial case, not a misuse. |
+| 3 | **Hand-write tree, drop codegen plugin** | ✅ CORRECT | `installation/manual.md` documents a complete code-based app importing only `@tanstack/react-router` — no plugin, no `routeTree.gen.ts`. File-based is explicitly "a superset … code-generation abstraction on top" (`code-based-routing.md` L259). |
+| 4 | **Type-safety after dropping the plugin** | ✅ CORRECT (critical) | Type-safety = inference + the one `declare module { interface Register }` (`type-safety.md`, `RegisterType.md`), NOT codegen. The plugin only writes the tree file + manages `getParentRoute` linkage for you. Hand-wiring `getParentRoute` + `Register` keeps 100% of the type-safety value prop. **Dropping codegen does NOT undermine type-safe routing.** |
+| 5 | Virtual file routes as a middle ground | ⏭️ CORRECTLY SKIP | `virtual-file-routes.md` still requires the plugin; it solves "custom file org at scale," not "tiny tree." Pure overhead for 3 routes. |
+| 6 | **Router loaders for data** | ⏭️ CORRECTLY SKIP | `data-loading.md` + `external-data-loading.md`: loaders coordinate fetches *on navigation*. With the URL pinned at `/`, entity changes aren't navigations, so loaders would never re-fire on entity switch. Query owning server-state is the documented "coordinate, don't store" path. |
+| 7 | **`beforeLoad` for auth** | 🔼 SHOULD ADOPT | `authenticated-routes.md` + `how-to/setup-authentication.md`: `beforeLoad` + `throw redirect({ to: '/login' })` is THE documented gate, and it's the one place a route earns its keep for us — on `/login` + `/admin/*`. |
+| 8 | **Router context DI (`queryClient`/`trpc`/`auth`)** | 🔼 SHOULD ADOPT (with care) | `router-context.md`: documented DI. Inject at the `RouterProvider` seam (the `InnerApp` pattern). Caveat in C/E: this is a *second* DI channel — composition root stays source of truth; the router context just forwards already-constructed singletons. |
+| 9 | **Code-splitting routes** | ⏭️ MOSTLY SKIP / 🔼 split the admin pane | `code-splitting.md`: route-level splitting matters at scale. For 3 routes the win is lazy *components* inside the shell; the one real route-split worth doing is `/admin/*` via `lazyRouteComponent(() => import('./Admin'))`. |
+| 10 | **View Transitions for in-page nav (§4a)** | ✅ CORRECT to hand-roll | `RouterOptionsType.md`/`ViewTransitionOptionsType.md`: router VT fires on **location commits** (`pathChanged`/`hrefChanged`). Our pane swaps don't change the URL ⇒ router VT can't fire ⇒ hand-rolled `document.startViewTransition()` in the reducer is correct, not a workaround. |
+| 10b | Router VT for the 3 real route changes | 🔼 OPTIONAL ADOPT | For `/` ⇄ `/login` ⇄ `/admin/*`, `defaultViewTransition: true` (or per-`Link` `viewTransition`) is a free one-liner since those *are* navigations. |
+| 11 | **`useBlocker` editor leave-guard** | ⚠️ WEIRD-FIT / partial | `useBlockerHook.md` (experimental): triggers on router navigations + `beforeunload`. Switching entity via the reducer is NOT a navigation ⇒ won't catch the in-app "leave editor." Useful only for tab-close/refresh and the 3 real routes; the in-app guard must be hand-rolled. |
+| 12 | Search-param state (Zod `validateSearch`) | ⏭️ CORRECTLY SKIP (until bolt-on) | `search-params.md` etc. are the URL-as-state pattern we deliberately reject. Keep only as the recipe **if** §5.1 ever bolts on a chat-id route; then use `fallback`/`.catch` so a malformed URL never throws. |
+| 13 | Route masking | ⏭️ CORRECTLY SKIP | `route-masking.md`: masks one URL as another. Our URL never changes — nothing to mask. |
+| 14 | URL rewrites / basepath | ⏭️ CORRECTLY SKIP | `url-rewrites.md`: i18n/subdomain/multi-tenant URL transforms. N/A at `/`. |
+| 15 | Scroll restoration | ⚠️ LIMITED VALUE | `scroll-restoration.md`: `scrollRestoration: true` keys on pathname/`__TSR_key`; with a constant pathname it can't distinguish panes. The *manual* `useElementScrollRestoration` + `data-scroll-restoration-id` is the only useful slice (chat scroll area). |
+| 16 | Preloading (`defaultPreload: 'intent'`) | ⏭️ MOSTLY SKIP | `preloading.md`: preloads route deps on hover. With no loaders + 3 routes there's little to preload; Query's own prefetch is the lever. |
+| 17 | Devtools | 🔼 SHOULD ADOPT | `devtools.md`: cheap insight into matches/context/nav; gate behind `import.meta.env.DEV`. |
+| 18 | Router events (`router.subscribe`) | 🔼 OPTIONAL ADOPT | `router-events.md`: `onResolved` for analytics / focus / resetting transient state on the real route changes. |
+| 19 | `notFoundComponent` / `notFoundMode` | 🔼 MINOR ADOPT | `not-found-errors.md`: set a root `notFoundComponent` so a stray `/admin/garbage` deep-link renders something sane. |
+| 20 | SSR / Query SSR integration / streaming / deferred | ⏭️ CORRECTLY SKIP | `integrations/query.md`, `ssr.md`, `deferred-data-loading.md`: all SSR/Start-only. We're a Vite SPA. |
+| 21 | Parallel routes | ⏭️ CORRECTLY SKIP | `parallel-routes.md` is an unimplemented stub; `comparison.md` marks it 🛑 for TanStack. |
+| 22 | SPA history fallback to `index.html` | ✅ CORRECT | `how-to/deploy-to-production.md`: a client-routed SPA needs all paths rewritten to `/index.html`. Our Hono `serveStatic` + index.html fallback is exactly the prescribed config (and barely exercised since the URL rarely leaves `/`). |
+| 23 | `linkOptions` / `createLink` for design-system links | 🔼 MINOR ADOPT | `link-options.md`, `custom-link.md`: type-checked reusable nav configs + typed wrapper around our button/anchor primitives. |
+| 24 | `staticData` (e.g. `showNavbar:false` on `/admin`) | 🔼 OPTIONAL | `static-route-data.md`: clean way to flag the admin route as chrome-less vs the `/` shell. |
 
 ### C. Are we doing anything WEIRD? — the blunt answer
 
 Mostly no. Going feature by feature against what the docs assume:
 
 1. **"Single-route, no ids in the URL" is NOT fighting the router — but it does opt out of the router's
-   single biggest selling point.** The docs lean _hard_ on URL search params as "the OG state manager"
+   single biggest selling point.** The docs lean *hard* on URL search params as "the OG state manager"
    (`overview.md`, `search-params.md`) and the how-to search series uniformly recommends putting filter/view/
    modal/theme/pagination state in the URL (`how-to/share-search-params-across-routes.md` literally lists
    "modal visibility, drawer state, view modes" as things to store in the URL). We reject all of that. That's
    not unsupported — `history-types.md` ships `createMemoryHistory` for exactly "when you do not want
    components to interact with the URL" — but be clear-eyed: **we're using maybe 15% of what TanStack Router
-   is _for_.** The justification (family cohesion + type-safety, §6.1) is sound, but it's worth saying out loud
-   that wouter/no-router would cover our actual usage. _Fix: none needed — just don't let anyone "use search
-   params because the router's so good at them" creep ids into the bar and break multi-device DB-is-truth._
+   is *for*.** The justification (family cohesion + type-safety, §6.1) is sound, but it's worth saying out loud
+   that wouter/no-router would cover our actual usage. *Fix: none needed — just don't let anyone "use search
+   params because the router's so good at them" creep ids into the bar and break multi-device DB-is-truth.*
 
 2. **`useBlocker` for the editor leave-guard will quietly not fire.** This is the sharpest real trap.
    `useBlockerHook.md` is keyed to router navigation + `beforeunload`. Our "leaving the editor" is a reducer
    state swap at a stable `/`, which is not a navigation — so `useBlocker` catches tab-close/refresh and the 3
-   real routes, but **not** the in-app pane switch you actually want to guard. _Fix: hand-roll the in-app
+   real routes, but **not** the in-app pane switch you actually want to guard. *Fix: hand-roll the in-app
    dirty-guard against our own view/reducer transition; optionally add `useBlocker` purely for the
-   `beforeunload` (tab-close) belt-and-suspenders._ The hook is also flagged **experimental** — another reason
+   `beforeunload` (tab-close) belt-and-suspenders.* The hook is also flagged **experimental** — another reason
    not to lean on it.
 
 3. **View Transitions (§4a) via the router won't fire for pane swaps.** Same root cause as #2:
    `ViewTransitionOptions.types` receives `pathChanged`/`hrefChanged`, both always false for us, and the router
-   only calls `startViewTransition` on a location commit. _Fix: §4a's plan to hand-roll
+   only calls `startViewTransition` on a location commit. *Fix: §4a's plan to hand-roll
    `document.startViewTransition()` in the reducer is correct — confirmed, not a smell. Don't wire
-   `AnimatePresence`/router VT to `location.pathname` (it's constant); key transitions off our view state._
+   `AnimatePresence`/router VT to `location.pathname` (it's constant); key transitions off our view state.*
    (`how-to/integrate-framer-motion.md` makes the same mistake-to-avoid explicit.)
 
 4. **Router context DI overlaps our composition-root DI.** `router-context.md` says "inject data fetching and
    mutation implementations themselves! In fact, this is highly recommended." If we follow that literally we
-   end up with two DI systems. _Fix: keep the composition root as the one home (per CLAUDE.md); the router
-   context should only _forward_ already-constructed singletons (`queryClient`, `trpc`, `auth` snapshot) so
-   `beforeLoad` can reach them — not _construct_ anything. Inject at the `RouterProvider` seam, matching the
-   `InnerApp`/`context={{ auth }}` pattern in `authenticated-routes.md`._
+   end up with two DI systems. *Fix: keep the composition root as the one home (per CLAUDE.md); the router
+   context should only *forward* already-constructed singletons (`queryClient`, `trpc`, `auth` snapshot) so
+   `beforeLoad` can reach them — not *construct* anything. Inject at the `RouterProvider` seam, matching the
+   `InnerApp`/`context={{ auth }}` pattern in `authenticated-routes.md`.*
 
 5. **The auth redirect search-param is dead weight for us.** Every auth recipe stores the post-login target in
    a `?redirect=` search param (`authenticated-routes.md`, `how-to/setup-authentication.md`). With a
-   single-`/` shell the post-login destination is always `/`. _Fix: hardcode the destination, drop the
-   `redirect` search param and its `validateSearch`._
+   single-`/` shell the post-login destination is always `/`. *Fix: hardcode the destination, drop the
+   `redirect` search param and its `validateSearch`.*
 
 Nothing else qualifies as weird. The hand-written tree, the no-loaders stance, the SPA index.html fallback,
 and the 3-route count are all squarely within documented, intended usage.
-
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='28172cc9'></a>
 
 ### D. What we should STEAL (concrete adopt list)
 
 1. **Router-context DI for `queryClient` + `trpc` + `auth`** — `guide/router-context.md`,
    `api/router/createRootRouteWithContextFunction.md`. `createRootRouteWithContext<{ queryClient; trpc; auth }>()`
-   then `createRouter({ context })`, injected at the `RouterProvider` seam. _Why: gives `beforeLoad` typed
-   access to auth/services without sideways imports — and it's the only clean way to make the auth gate work._
+   then `createRouter({ context })`, injected at the `RouterProvider` seam. *Why: gives `beforeLoad` typed
+   access to auth/services without sideways imports — and it's the only clean way to make the auth gate work.*
 2. **`beforeLoad` + `throw redirect({ to: '/login' })` auth gate** — `guide/authenticated-routes.md`,
    `api/router/redirectFunction.md`, `how-to/setup-authentication.md`. Put it on `/admin/*` (and reverse-gate
-   `/login`). Use `isRedirect(err)` in catch blocks. _Why: the one job a route genuinely does for us; drop the
-   `?redirect=` param._
+   `/login`). Use `isRedirect(err)` in catch blocks. *Why: the one job a route genuinely does for us; drop the
+   `?redirect=` param.*
 3. **`createMemoryHistory({ initialEntries: ['/'] })` for router tests** — `guide/history-types.md`,
-   `how-to/setup-testing.md`. _Why: deterministic, no jsdom history quirks; the documented way to test
-   `beforeLoad` gates with a mocked auth context._
+   `how-to/setup-testing.md`. *Why: deterministic, no jsdom history quirks; the documented way to test
+   `beforeLoad` gates with a mocked auth context.*
 4. **`lazyRouteComponent(() => import('./Admin'))` for the `/admin/*` split** — `guide/code-splitting.md`,
-   `api/router/lazyRouteComponentFunction.md`. _Why: keeps the admin bundle out of the main chat shell, no
-   plugin required._
-5. **Devtools (`@tanstack/react-router-devtools`), DEV-gated** — `devtools.md`. _Why: free visibility into
-   matches/context/nav; `import.meta.env.DEV` gate._
-6. **Root `notFoundComponent` + `notFoundMode: 'root'`** — `guide/not-found-errors.md`. _Why: a stray
-   `/admin/garbage` deep-link renders a real page, not the bare `<p>Not Found</p>`._
-7. **`router.subscribe('onResolved', …)`** — `guide/router-events.md`. _Why: analytics + focus-management +
-   resetting transient state on the real route changes, without polluting components._
-8. **`createLink` around the design-system anchor/button** — `guide/custom-link.md`. _Why: typed `to`/`params`
-   for the few real links (login/admin/back-to-app) with our own styling._
-9. **`linkOptions([...])`** — `guide/link-options.md`. _Why: eager type-checking of reusable nav configs
-   (admin nav items) instead of object literals that only fail when spread into `<Link>`._
-10. **`staticData: { showNavbar: false }` on `/admin`** — `guide/static-route-data.md`. _Why: declarative way
-    for the root shell to know admin is chrome-less vs the chat `/` surface._
+   `api/router/lazyRouteComponentFunction.md`. *Why: keeps the admin bundle out of the main chat shell, no
+   plugin required.*
+5. **Devtools (`@tanstack/react-router-devtools`), DEV-gated** — `devtools.md`. *Why: free visibility into
+   matches/context/nav; `import.meta.env.DEV` gate.*
+6. **Root `notFoundComponent` + `notFoundMode: 'root'`** — `guide/not-found-errors.md`. *Why: a stray
+   `/admin/garbage` deep-link renders a real page, not the bare `<p>Not Found</p>`.*
+7. **`router.subscribe('onResolved', …)`** — `guide/router-events.md`. *Why: analytics + focus-management +
+   resetting transient state on the real route changes, without polluting components.*
+8. **`createLink` around the design-system anchor/button** — `guide/custom-link.md`. *Why: typed `to`/`params`
+   for the few real links (login/admin/back-to-app) with our own styling.*
+9. **`linkOptions([...])`** — `guide/link-options.md`. *Why: eager type-checking of reusable nav configs
+   (admin nav items) instead of object literals that only fail when spread into `<Link>`.*
+10. **`staticData: { showNavbar: false }` on `/admin`** — `guide/static-route-data.md`. *Why: declarative way
+    for the root shell to know admin is chrome-less vs the chat `/` surface.*
 11. **`useElementScrollRestoration` + `data-scroll-restoration-id` on the chat scroll area** —
-    `guide/scroll-restoration.md`. _Why: the only slice of scroll-restoration that survives a constant
-    pathname; pairs with TanStack Virtual if the message list virtualizes._
+    `guide/scroll-restoration.md`. *Why: the only slice of scroll-restoration that survives a constant
+    pathname; pairs with TanStack Virtual if the message list virtualizes.*
 12. **(Conditional) Zod `validateSearch` with `fallback`/`.catch`** — `guide/search-params.md`,
-    `how-to/validate-search-params.md`. _Why: the right recipe IF §5.1's localized deep-link bolt-on (a route
-    for the chat id only) ever ships — never throw on a malformed shared URL._
-13. **`defaultViewTransition: true`** — `api/router/RouterOptionsType.md`. _Why: free crossfade on the 3 real
-    route changes (the only navigations we make); harmless no-op where unsupported._
-
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='810c2cac'></a>
+    `how-to/validate-search-params.md`. *Why: the right recipe IF §5.1's localized deep-link bolt-on (a route
+    for the chat id only) ever ships — never throw on a malformed shared URL.*
+13. **`defaultViewTransition: true`** — `api/router/RouterOptionsType.md`. *Why: free crossfade on the 3 real
+    route changes (the only navigations we make); harmless no-op where unsupported.*
 
 ### E. Open questions / forks for Nate
 
-1. **Keep TanStack Router at all, or is this wouter's job?** Honest read of the docs: we use ~15% of the
+1. **Keep TanStack Router at all, or is this wouter's job?** Honest read of the docs: we use \~15% of the
    router (3 routes, no URL state, no loaders, no masking, no search params). §6.1 already decided "keep for
-   family cohesion + type-safety" — this mine _confirms_ that's a values call, not a technical necessity, since
+   family cohesion + type-safety" — this mine *confirms* that's a values call, not a technical necessity, since
    wouter would cover the actual surface. **Decision stands; just acknowledging the cost honestly.** (Basis: the
    entire `search-params.md`/loaders apparatus is what justifies TanStack over alternatives, and we opt out of
    it.)
@@ -394,7 +279,7 @@ and the 3-route count are all squarely within documented, intended usage.
    (b) skip `useBlocker` entirely and hand-roll both. Default: (a).
 
 4. **View Transitions — two mechanisms or one?** In-page swaps must hand-roll `startViewTransition` (§4a). Do
-   we _also_ turn on `defaultViewTransition: true` for the 3 real route changes, or keep a single hand-rolled VT
+   we *also* turn on `defaultViewTransition: true` for the 3 real route changes, or keep a single hand-rolled VT
    path for consistency? Default: turn it on (free, no extra code).
 
 5. **`/admin/*` shape: splat vs pathless layout vs lazy.** Code-based gives three knobs: a splat route
@@ -406,19 +291,11 @@ and the 3-route count are all squarely within documented, intended usage.
    the shell stateless; search param drags in the whole `validateSearch` apparatus. Default: path param, and
    only that one route.
 
----
-
-<!-- Source: client-tanstack-router-notes.md -->
-
-<a id='260c76ab'></a>
-
 #### Coverage note
 
-Read in full: all of `routing/` (7), all of `guide/` (33), `integrations/query.md`, `installation/with-vite.md`
-
-- `manual.md` + migration files, all of `how-to/` (23 incl. drafts), the load-bearing `api/router/` pages
-  (`RouterOptionsType`, `ViewTransitionOptionsType`, `useBlockerHook`, `createRouteFunction`/`RouteOptionsType`,
-  lazy-route + redirect + mask + register + getRouteApi + nav-options pages), and all top-level docs
-  (`overview`, `quick-start`, `faq`, `decisions-on-dx`, `devtools`, `comparison`). One discrepancy surfaced:
-  `scrollRestoration` is documented in `guide/scroll-restoration.md` but absent from `api/router/RouterOptionsType.md`
-  — the guide is authoritative.
+Read in full: all of `routing/` (7), all of `guide/` (33), `integrations/query.md`, `installation/with-vite.md` + `manual.md` + migration files, all of `how-to/` (23 incl. drafts), the load-bearing `api/router/` pages
+(`RouterOptionsType`, `ViewTransitionOptionsType`, `useBlockerHook`, `createRouteFunction`/`RouteOptionsType`,
+lazy-route + redirect + mask + register + getRouteApi + nav-options pages), and all top-level docs
+(`overview`, `quick-start`, `faq`, `decisions-on-dx`, `devtools`, `comparison`). One discrepancy surfaced:
+`scrollRestoration` is documented in `guide/scroll-restoration.md` but absent from `api/router/RouterOptionsType.md`
+— the guide is authoritative.

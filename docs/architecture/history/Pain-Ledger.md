@@ -105,4 +105,4 @@ misses (those feed the adversary).
   feature-internal — per Core-Laws-and-Precedents.md §7 D10), `content-hash` (→ `@orb/server/kit`, node-only-pure,
   NOT `@orb/kit` — per Core-Laws-and-Precedents.md §7 D9),
   `rate-limit.ts` (→ `transport`). **No `_shared` exists in orbweaver** — every file must land somewhere.
-  (The full per-file dissolution record: `core/Core-Shared-Dissolution.md`.)
+  (The full per-file dissolution record: `history/Shared-Drawer-Dissolution-Map.md`.)

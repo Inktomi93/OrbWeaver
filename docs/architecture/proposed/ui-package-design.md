@@ -1,18 +1,12 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # `@orb/ui` — the package design (structure · scaffold · factories · build order)
 
-> **Status: prescriptive build design (2026-07-02).** The build plan for the `@orb/ui` package — the
-> frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the nine
-> `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54 (+ D58 for the meter/clock kinds); **those win on
-> any conflict with this doc** — this doc adds only (a) the concrete scaffold decisions the law
-> leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the build order, and
-> (d) the recorded doc-vs-current-API deltas from the 2026-07 registry verification.
->
-> **Why `@orb/ui` is buildable NOW (mid-Phase-5):** per D42 physics it depends on NOTHING in flight —
-> no `@orb/contracts`, no `@orb/server`, no `@orb/db`, no domain code. Its deps are Base UI + the
-> sealed satellite libs + `@orb/kit` (isomorphic-pure only). Every primitive here is
-> domain-agnostic (`Button`/`Meter`/`MessageMedia`, never `Character`/`Chat`).
-
----
+> **Status: EXECUTED build design (waves 0–3 + the carve-out fleet are BUILT, 2026-07; the §6.2 client factories remain Phase 6).** The build plan for the `@orb/ui` package — the frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54/D58; **those win on any conflict** — this doc adds (a) the concrete scaffold decisions the law leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the recorded doc-vs-current-API deltas. **For anything built, the code is the doc** (`packages/ui/src` + the CT suite); code comments cite this doc's §-numbers as their spec provenance — the §-numbering is load-bearing, do not renumber. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9.
 
 ## 1. Position in the cake + the physics
 
@@ -55,19 +49,25 @@ packages/ui/
       dialog/ popover/ tooltip/ tabs/ select/ switch/ slider/ menu/ field/ input/
       number-field/ avatar/                                    ← Base UI (avatar/number-field: D54)
       toast/ drawer/                                           ← Base UI NATIVE (D54 — no sonner, no vaul)
-      command/            ← cmdk (deferred chunk)
-      sortable/           ← @dnd-kit/react (deferred chunk)
+      command/            ← cmdk (BUILT)
+      sortable/           ← @dnd-kit/react (BUILT)
+      macro-textarea/     ← minisearch (BUILT — carve-out item 18)
       virtual-list/       ← TanStack Virtual, directDomUpdates (D54)
-      message-list/       ← the chat seal (deferred to the chat client chunk; same lib)
+      message-list/       ← the chat seal (BUILT; same lib)   media-grid/ ← lanes grid (same lib)
       icons/              ← lucide-react (the ONE icon set; gate icons-lucide-only)
+      + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
+        combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
+        badge · skeleton · spinner · empty-state · card · list-row · setting-row · selection-bar ·
+        save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text ·
+        log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
     layout/             # Stack · Row · Section · Toolbar · Container (owns container-type — §4-tier
                         #   model; Toolbar = Base UI Toolbar for roving-tabindex + our layout skin)
-    charts/             # seals ECharts (deferred to the corpus client chunk — D52)
+    charts/             # seals ECharts (D52) — BUILT: chart/ + bar-list/ + histogram/ + stat-figure/
       meter/            # Meter (linear/arc/bipolar + milestones/dangerBelow) + SegmentedClock —
                         #   plain CSS/SVG, NOT the chart lib (D52/D58; rpg-design/11 §2); exported ./meter
     markdown/           # seals Streamdown — TWO trust policies (UI-Gates §11.6) + toPlainText
                         #   (remark strip-markdown, D54) — the Tier-A allowlist lives HERE (D44 §12.2)
-    stream/             # useSmoothText pacer + TTFT shimmer (deferred; §6.3.1 — pure string-math)
+    stream/             # useSmoothText pacer + TTFT shimmer (BUILT; §6.3.1 — pure string-math)
     content/            # sandbox-frame · MessageMedia · ThemeScope · lightbox (D44 — the security trio)
     code-editor/        # seals CodeMirror 6, token-themed (custom-CSS field · Tier-B card CSS · D46)
     diff/               # seals `diff` (jsdiff) — snapshot/edit-history diff views (D28/D54)
@@ -100,9 +100,10 @@ packages/ui/
 | `diff` | ^9.0.0 | diff seal | ⚠️ docs said "v8+"; current is **9.x** — same modern TS/async surface, ^9 pinned |
 | `zod` | catalog (^4.4.3) | the `ThemeScope` ui-local clamp (§7) | isomorphic-pure; already a kit dep — legal everywhere |
 | `remark` + `strip-markdown` | ^15 / ^6 | `toPlainText` (D54 — previews/snippets) | ✅ same unified pipeline as Streamdown |
-| `cmdk` | ^1.1.1 | command seal | deferred chunk — added to `package.json` WHEN the seal builds (deps grow per chunk; no dead deps) |
-| `@dnd-kit/react` | ^0.5.0 | sortable seal | deferred chunk (the rewrite — still 0.x; re-verify API at build) |
-| `echarts` + `echarts-for-react` | ^6.1.0 / ^3.0.6 | charts seal (D52) | deferred chunk (corpus client) |
+| `cmdk` | ^1.1.1 | command seal | BUILT |
+| `@dnd-kit/react` (+`/dom`+`/helpers`) | ^0.5.0 | sortable seal | BUILT (the rewrite; the legacy `@dnd-kit/core`/`sortable`/`utilities` stack is dead — never install) |
+| `echarts` + `echarts-for-react` | ^6.1.0 / ^3.0.6 | charts seal (D52) | BUILT |
+| `minisearch` | catalog | macro-textarea fuzzy match (carve-out item 18 — DECIDED dep) | BUILT |
 | **peer** `react` / `react-dom` | ^19 | the renderer stays the client's | see §1 — react-dom peer is a Base UI requirement (recorded delta vs D54's "react only") |
 | **dev** `@types/react`(-dom), `react`, `react-dom`, `tailwindcss`, `@tailwindcss/vite`, `style-dictionary` | catalog | typecheck + token codegen + CT | `style-dictionary` current major is **5.x** (docs said v4) — v5 is ESM/async; DTCG support intact. Recorded delta. |
 
@@ -267,14 +268,10 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
   alert-dialog · progress — Base UI wraps) · **hand-authored display** (badge/chip/pill · skeleton ·
   spinner · empty-state · card — pure `tv()` over semantic HTML, no lib). Same bar: tv unions,
   tokens-only, `.ct.tsx`, doc-comment, Base UI verified live.
-- **Deferred (named, with reasons):**
-  - `message-list` — the chat seal configures against the chat client's ghost-row/stream model;
-    built with the chat client chunk (same lib, seal dir reserved).
-  - `stream/` pacer + shimmer — pure, but its cut-point contract co-designs with the chat
-    stream store; built with the chat client chunk (§6.3.1 verify-at-build items live there).
-  - `command` (cmdk) · `sortable` (@dnd-kit) · `charts` (ECharts, D52 — corpus-only footprint) —
-    each lands with its first consumer's chunk; deps enter `package.json` then (no dead deps).
-  - ALL §6.2 client factories — Phase 6 (they need tRPC/Query/contracts).
+- **Deferral outcome (2026-07):** the originally-deferred ui chunks (`message-list` · `stream/` ·
+  `command` · `sortable` · `charts` · `macro-textarea` + the whole carve-out set) were UN-PARKED and
+  BUILT by the primitive fleet. Still deferred: **ALL §6.2 client factories — Phase 6** (they need
+  tRPC/Query/contracts).
 
 ## 10. Recorded deltas + flags for Nate (decision-level, not resolved unilaterally)
 
@@ -333,7 +330,7 @@ client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them wi
 | `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ⏸ PARKED (named) | need the app-shell/anchor structure to exist to allowlist against — client-foundation wave; until then ui ships zero `@media` (reviewable by grep) |
 | `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ⏸ PARKED (correct) | the D43/D54 client-foundation belts — they gate constructs (`trpc.*`, stores, factories, features/) that do not exist yet; MUST land in the client-foundation wave BEFORE feature agents (§11.7/§13.6) — this is the ENFORCEMENT.md backlog's `optimistic-chat`/`client-structure` cluster |
 | D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ◐ Wave-2/Phase-6 | the ui half ships as Wave-2 CT containment tests; the lint/route halves need message-render + entry/http code to exist |
-| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | ⚠ DECISION NEEDED | orbweaver is biome-only — adopting these means adding an eslint lane to `check` (scoped to packages/client) at the client-foundation wave. Biome already carries `useExhaustiveDependencies`/`useHookAtTopLevel` (partial hooks coverage), but the Compiler's Rules-of-React enforcement + `prefer-query-options` have no biome twin. Flagged for Nate. |
+| `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | RESOLVED — LIVE | the eslint lane was adopted (`eslint.config.js`, wired into `pnpm check` via `lint:eslint`); rationale in that file's header + `proposed/client-tooling-setup.md` |
 | visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
 
 ## 12. The neo-parity primitive sweep (what `@orb/ui` must cover; audited 2026-07-02)
@@ -351,13 +348,14 @@ referenced by ≥1 committed design (or a neo staple). Domain components live in
 | meter (linear/arc/bipolar) + SegmentedClock | — | ✗ (hand) | ✅ built | W1 |
 | virtual-list · code-editor · diff | ✓ (resizable dropped) | ✗ (seals) | ✅ built | W1 |
 | ThemeScope · MessageMedia · sandbox-frame · lightbox · markdown | — | ✗ (D44 owned) | ✅ built | W2 |
-| checkbox · radio-group · toggle · toggle-group · textarea · autocomplete | ✓ (label/textarea) | ✓ | ▶ Wave 3-A | W3 |
-| separator · collapsible · accordion · scroll-area · alert-dialog · progress | ✓ (accordion/alert-dialog/scroll-area/separator/skeleton) | ✓ | ▶ Wave 3-B | W3 |
-| badge/chip/pill · skeleton · spinner · empty-state · card | ✓ (badge/skeleton/empty-state) | ✗ (hand) | ▶ Wave 3-C | W3 |
-| message-list · stream pacer | ✓ (hand-rolled) | ✗ (seal) | ⏸ chat chunk (needs the chat stream store) | P6 |
-| charts (ECharts) | ✓ (nivo→ECharts) | ✗ (seal) | ⏸ corpus chunk (corpus-only footprint) | P6 |
-| command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ⏸ first-consumer chunk (dep enters then) | P6 |
-| macro-textarea | ✓ (hand-rolled) | ✗ | ⏸ Deferred — D54: stays hand-rolled, sealed in @orb/ui; no 2026 lib fits the mid-text `{{macro}}`+`::`-arg model (Base UI Autocomplete is whole-input-only). Needs its own design pass. |
+| checkbox · radio-group · toggle · toggle-group · textarea · autocomplete | ✓ (label/textarea) | ✓ | ✅ built | W3 |
+| separator · collapsible · accordion · scroll-area · alert-dialog · progress | ✓ (accordion/alert-dialog/scroll-area/separator/skeleton) | ✓ | ✅ built | W3 |
+| badge/chip/pill · skeleton · spinner · empty-state · card | ✓ (badge/skeleton/empty-state) | ✗ (hand) | ✅ built | W3 |
+| message-list · stream pacer | ✓ (hand-rolled) | ✗ (seal) | ✅ built (un-parked) | carve-out |
+| charts (ECharts: chart/bar-list/histogram/stat-figure) | ✓ (nivo→ECharts) | ✗ (seal) | ✅ built (un-parked) | carve-out |
+| command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ✅ built (un-parked) | carve-out |
+| macro-textarea (minisearch fuzzy match) | ✓ (hand-rolled, ported) | ✗ | ✅ built (carve-out item 18) | carve-out |
+| carve-out set (media-grid · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate · list-row · setting-row · selection-bar · save-bar) | partial | mixed | ✅ built | carve-out |
 | weave-glyph (brand) | ✓ | — | ⏸ brand asset — lands with app-shell (the RAIL brand mark) |
 
 **Deliberately NOT `@orb/ui` (they were neo `components/ui/` but are app-shell/feature concerns):**

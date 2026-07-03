@@ -1,6 +1,12 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Themes & Appearance — the D44 §12.1 persistence design (`themes` entity + the two `UserSettings` namespaces)
 
-> **Status: COMMITTED (D44, 2026-06-28) — prescriptive build design.** `Core-Laws-and-Precedents.md`
+> **Status: COMMITTED (D44, 2026-06-28) — prescriptive build design, UNBUILT (verified 2026-07-03: no `themes` table in `@orb/db/schema/settings.ts`, no `@orb/contracts/theme` module yet; the client `<ThemeScope>` + `code-editor` halves ARE built in `@orb/ui`).** `Core-Laws-and-Precedents.md`
 > D44 is the decision record; `core/UI-Theming-and-Content.md` §12 (especially §12.1) is the
 > authority — both win on any conflict with this doc. This doc specs the server/contracts/db build
 > for the two commitments §12.1 makes but does not home: (1) the **first-class single-owned
