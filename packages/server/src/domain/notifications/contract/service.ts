@@ -8,6 +8,7 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import type { DismissParams, ListInboxParams, MarkReadParams, RecordParams } from "./params";
 import type { ListInboxResult } from "./results";
 import type { InboxView } from "./views";
@@ -23,6 +24,14 @@ import type { InboxView } from "./views";
 export interface NotificationsContext {
   db: Db;
   now: () => number;
+  /** Is `userId` an agent principal (`users.kind='agent'`)? The D60 recipient belt
+   *  (agent-principal-design/06 §3 + inv 2): an agent is structurally sessionless — no session, no
+   *  subscription, nothing that reads its inbox — so `record` REFUSES an agent recipient (a durable row that
+   *  could only rot). notifications never reads `users` itself (`no-direct-users-read`); the entry root — the
+   *  sanctioned reader — supplies this as an inline `users.kind` read (the chat `resolveAgentEnabled`
+   *  precedent). A missing row ⇒ `false` (only a real agent row refuses). REQUIRED, not optional: a forgotten
+   *  wiring must fail `tsc`, never silently drop the belt. */
+  isAgentRecipient: (userId: UserId) => Promise<boolean>;
 }
 
 /**
