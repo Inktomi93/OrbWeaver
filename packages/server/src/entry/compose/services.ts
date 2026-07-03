@@ -84,6 +84,8 @@ import {
   requireParticipant,
 } from "../../domain/chat";
 import type { Services } from "../../transport/trpc/context";
+import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
+import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createHostPrincipalResolver } from "../auth";
 import { buildChatService } from "./chat";
 import type { EffectiveConfigWiring } from "./effective-config";
@@ -125,6 +127,9 @@ export interface ServicesDeps {
  *  + vLLM engine go to the worker/lifecycle; the SecretBox is probed by the crypto boot step). */
 export interface ServicesResult {
   readonly services: Services;
+  /** The transport presence registry (PD-70) — surfaced so `entry/` can thread it onto the request ctx (the
+   *  SSE `connect` side); its `read` side is already injected into the chat service's `presence.read` op. */
+  readonly presence: PresenceRegistry;
   readonly sessions: SessionsService;
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
@@ -161,6 +166,10 @@ function assertNeverEvent(event: never): never {
  *  each derive-role's connection once (the PD-9 paydown) before the consumers that require it are built. */
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
   const { db, now } = deps;
+  // PD-70: the transport presence registry — built HERE over the injected `now` (transport modules can't read
+  // ambient time, the `no-raw-clock` seam). Its `read` side feeds chat's `presence.read` op (cast-gating);
+  // its `connect` side is surfaced on `ServicesResult` for `entry/` to thread onto the request ctx.
+  const presence = createPresenceRegistry(now);
 
   // ── Shared seams (the bound audit writer, the user-id minter, the in-process event bus) ───────────────
   const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
@@ -551,6 +560,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // D60: sessions' lazy agent-principal mint for seatAgent (doc 04 §3).
     provisionAgentPrincipal: (params) => sessions.provisionAgentPrincipal(params),
     runChatTurn: executor.runChatTurn,
+    // PD-70: the read side of the transport presence registry → chat's `presence.read` op (cast-gating drops
+    // an offline human's persona from the present cast for the next round).
+    readPresence: (userId) => Promise.resolve(presence.read(userId)),
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
@@ -605,6 +617,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   return {
     services,
+    presence,
     sessions,
     embeddings,
     indexer,

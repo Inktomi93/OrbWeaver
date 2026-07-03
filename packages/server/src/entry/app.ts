@@ -18,7 +18,7 @@ import { env } from "#foundation/env";
 import { registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist } from "#infra/network";
-import type { RateLimitGate, Services } from "../transport/trpc";
+import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
 import type {
@@ -61,6 +61,9 @@ export interface AppDeps {
   readonly seam: AuthSeam;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
+  /** The transport presence registry (PD-70) — threaded onto each request ctx so the notifications SSE can
+   *  ref-count device liveness. Built at the composition root over the injected clock. */
+  readonly presence: PresenceRegistry;
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store. */
   readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort;
   readonly cas: BlobCasPort;
@@ -147,6 +150,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           auth: c.get("principal"),
           services: deps.services,
           rateLimit: deps.rateLimit,
+          presence: deps.presence,
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),
