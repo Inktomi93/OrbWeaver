@@ -43,7 +43,7 @@ interface DriveRoundParams {
 }
 
 /** Build ONE speaker's two-axis prep off the shared round base. The `shape` axis SHAPEs
- *  the immutable ctx for THIS speaker; `groupNudge` fences a per-speaker turn only when >1 speaker. */
+ *  the immutable ctx for THIS speaker; `groupNudge` fences a per-speaker turn only when \>1 speaker. */
 function buildSpeakerPrep(
   base: RoundBase,
   group: GroupConfig,

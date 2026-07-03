@@ -28,7 +28,7 @@ export interface MacroBlockNode {
   raw?: string;
 }
 
-/** A macro's runtime variable bag (the {{get}}/{{if}} key→value store). Values are `unknown`:
+/** A macro's runtime variable bag (the `{{get}}`/`{{if}}` key→value store). Values are `unknown`:
  *  the mutation handlers (`setvar`/`addvar`/`incvar`/`decvar`) write strings, but `{{if}}` and
  *  consumer-provided fixtures legitimately hold booleans/numbers for truthiness tests, so the
  *  type stays open. `chats.variableValues` (the persisted form) IS string-only — see the
@@ -38,12 +38,12 @@ export type MacroEnv = Record<string, unknown>;
 export interface MacroContext {
   char: string;
   user: string;
-  /** The character CAST member names (primary first), INCLUDING muted members. Drives {{group}}/
-   *  {{charIfNotGroup}}/{{notChar}}. A solo chat is a cast-of-one, so {{group}} == {{char}} (byte-
+  /** The character CAST member names (primary first), INCLUDING muted members. Drives `{{group}}`/
+   *  `{{charIfNotGroup}}`/`{{notChar}}`. A solo chat is a cast-of-one, so `{{group}}` == `{{char}}` (byte-
    *  identical). Absent ⇒ treated as the cast-of-one `[char]`. */
   cast?: readonly string[];
-  /** The ACTIVE (non-muted) cast member names — drives {{groupNotMuted}}, distinct from {{group}}
-   *  (which includes muted members for their lore). Absent ⇒ {{groupNotMuted}} falls back to `cast`. */
+  /** The ACTIVE (non-muted) cast member names — drives `{{groupNotMuted}}`, distinct from `{{group}}`
+   *  (which includes muted members for their lore). Absent ⇒ `{{groupNotMuted}}` falls back to `cast`. */
   castNotMuted?: readonly string[];
   persona: string;
   scenario: string;

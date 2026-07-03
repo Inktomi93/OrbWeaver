@@ -124,8 +124,8 @@ export interface StreamEventBounds {
   readonly maxSeq: number | null;
 }
 
-/** The 4-scope world-info pool resolved for a chat (the WI activation surface; `assembly/world-info/
- *  pool.ts` — the union STAYS chat). A read-model of which entries are in scope for this chat's next turn,
+/** The 4-scope world-info pool resolved for a chat (the WI activation surface;
+ *  `assembly/world-info/pool.ts` — the union STAYS chat). A read-model of which entries are in scope for this chat's next turn,
  *  for the WI panel + the activation preview (NOT the rendered prompt — that's `AssembledPrompt`). */
 export interface WorldInfoPoolChat {
   readonly entries: readonly WorldInfoPoolEntry[];

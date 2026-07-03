@@ -119,8 +119,8 @@ type ReadVerbs = Pick<
 type ChatRowView = Awaited<ReturnType<typeof listMemberChats>>[number];
 
 /** The resolved preview substrate: the host (D19 funding id), the resolved cast/personas, the connection
- *  `model`, and the cross-domain assemble inputs (incl. the `PromptConfig`). The previews + `getActivePreset
- *  Config` share this resolution. */
+ *  `model`, and the cross-domain assemble inputs (incl. the `PromptConfig`). The previews + `getActivePresetConfig`
+ *  share this resolution. */
 interface PreviewInputs {
   readonly hostUserId: UserId;
   readonly model: string;

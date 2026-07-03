@@ -119,7 +119,7 @@ type MemberField = (typeof MEMBER_FIELDS)[number];
 const MERGED_FALLBACK_CAP = 4000;
 
 /** Render ONE member's card field with `{{char}}` bound to THAT member and `{{user}}` to the room anchor
- *  (pinned persona). The member sub-context drops the room tier so a member-field {{scenario}} binds to the
+ *  (pinned persona). The member sub-context drops the room tier so a member-field `{{scenario}}` binds to the
  *  member's own value. `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh. */
 function renderMemberField(
   field: MemberField,
@@ -530,7 +530,7 @@ function isSectionDynamic(section: PromptSection): boolean {
 const BEFORE_HISTORY_DEPTH = Number.MAX_SAFE_INTEGER;
 
 /** A section's `in_chat` delivery depth, or null for system-block placement. Precedence: explicit
- *  `inject.depth` > after the pivot (depth 0) > non-system role (top of history) > system block. */
+ *  `inject.depth` \> after the pivot (depth 0) \> non-system role (top of history) \> system block. */
 function injectionDepthFor(section: PromptSection, idx: number, pivotIndex: number): number | null {
   if (
     section.type === "marker" &&

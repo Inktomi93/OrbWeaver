@@ -175,9 +175,9 @@ export interface CharacterMomentum {
   /** The two most recent calendar months WITH any activity (YYYY-MM), or null if fewer than two. */
   latestMonth: string | null;
   prevMonth: string | null;
-  /** Characters gaining attention (delta > 0), strongest first. */
+  /** Characters gaining attention (`delta > 0`), strongest first. */
   rising: MomentumRow[];
-  /** Characters cooling off (delta < 0), steepest drop first. */
+  /** Characters cooling off (`delta < 0`), steepest drop first. */
   falling: MomentumRow[];
 }
 

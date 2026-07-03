@@ -45,8 +45,8 @@ export interface SettingsContext {
   readonly requireOwner: RequireOwner;
   readonly serializeUserWrite: <T>(ownerId: UserId, run: () => Promise<T>) => Promise<T>;
   /** The floor-merge read side, bound from the `effective-config/` subsystem at the composition root
-   *  (context.ts is a composition surface — the one place allowed to reach the subsystem). `getEffective
-   *  Config` is the SYNC cache read; `reloadEffectiveConfig` rebuilds the cache (called by
+   *  (context.ts is a composition surface — the one place allowed to reach the subsystem).
+   *  `getEffectiveConfig` is the SYNC cache read; `reloadEffectiveConfig` rebuilds the cache (called by
    *  `updateAppSettings` after a write, and by entry boot). */
   readonly getEffectiveConfig: () => EffectiveAppConfig;
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;

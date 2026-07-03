@@ -60,8 +60,8 @@ export interface ImageEmbedPair {
   text: string;
 }
 
-/** The credential-free call argument for `imageEmbed` — `Omit<ImageEmbedRequest, "credential" |
- *  "model" | "signal">` from the infra request, re-expressed as the cross-boundary input. Discriminate
+/** The credential-free call argument for `imageEmbed` — `Omit<ImageEmbedRequest, "credential" | "model" | "signal">`
+ *  from the infra request, re-expressed as the cross-boundary input. Discriminate
  *  via `kind`: image-side / text-side (text→image search) / joint multimodal. `instruction` is the
  *  per-task hint for instruction-aware families; others ignore it. */
 export type ImageEmbedInput =

@@ -50,7 +50,7 @@ function has(v: number | null | undefined): v is number {
   return typeof v === "number";
 }
 
-/** The DECOUPLED model_stats slice (null model ⇒ {} — apply skips the model row). Built with object-literal
+/** The DECOUPLED model_stats slice (null model ⇒ `{}` — apply skips the model row). Built with object-literal
  *  KEYS so the high-entropy `model*` field names never appear as STRING literals (biome `noSecrets`). */
 function modelSliceFor(model: string | null, e: TurnEconomicsInput): Record<string, number> {
   if (model === null) {

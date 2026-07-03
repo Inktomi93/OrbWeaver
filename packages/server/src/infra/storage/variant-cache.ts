@@ -24,7 +24,7 @@ import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 
 /** @public — the derived-variant cache handle; `entry/` wires `createVariantCache` into the blob route +
- *  the assets service's GC/reap paths (the sibling seam to {@link import("./cas").Cas}). Per-user (D21). */
+ *  the assets service's GC/reap paths (the sibling seam to `Cas` in `./cas`). Per-user (D21). */
 export interface VariantCache {
   /** Cached webp bytes for `(owner, hash, width)`, or undefined on miss (or unreadable — recompute). */
   read: (ownerId: UserId, hash: string, width: number) => Promise<Uint8Array | undefined>;

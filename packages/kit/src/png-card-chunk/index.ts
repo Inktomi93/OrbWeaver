@@ -162,7 +162,7 @@ function isStaleCardChunk(whole: Uint8Array, length: number): boolean {
 }
 
 /** A `tEXt` chunk for `keyword`: `keyword\0<base64(utf8(value))>`, all latin1 (base64 + keyword are
- *  ASCII, so latin1 round-trips the keyword\0value layout byte-for-byte). */
+ *  ASCII, so latin1 round-trips the `keyword\0value` layout byte-for-byte). */
 function makeTextChunk(keyword: string, value: string): Uint8Array {
   const body = `${keyword}\0${bytesToBase64(utf8ToBytes(value))}`;
   return makeChunk(TEXT_TYPE, latin1ToBytes(body));
@@ -214,7 +214,7 @@ function stripSpecKeys(cardJson: string): string {
 
 // --- encoding primitives (pure ES2025; no node, no DOM) ---------------------------------------------
 
-/** latin1 string → bytes (each char's low byte). Used for ASCII chunk types + the keyword\0value. */
+/** latin1 string → bytes (each char's low byte). Used for ASCII chunk types + the `keyword\0value`. */
 function latin1ToBytes(s: string): Uint8Array {
   return Uint8Array.from(s, (ch) => ch.charCodeAt(0) & BYTE_MASK);
 }

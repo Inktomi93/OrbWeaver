@@ -47,9 +47,9 @@ function setIf<K extends keyof ProcessMacroOptions>(
   }
 }
 
-/** The {{char}} binding for a turn: the single character name normally, OR the joined cast names under a
+/** The `{{char}}` binding for a turn: the single character name normally, OR the joined cast names under a
  *  `cast` speaker (narrator mode — Part III §7/§8). A cast-of-one collapses to that one name, so single /
- *  per-speaker / solo are byte-identical (no `if(isGroup)`). The kit engine resolves {{char}} from
+ *  per-speaker / solo are byte-identical (no `if(isGroup)`). The kit engine resolves `{{char}}` from
  *  `MacroContext.char`; this is the ONE place that maps the speaker arm to it. */
 function charForSpeaker(ctx: AssembleContext): string {
   if (ctx.speaker?.kind === "cast") {
@@ -60,23 +60,23 @@ function charForSpeaker(ctx: AssembleContext): string {
 
 /** Per-render extras layered onto the shared option base. All optional. */
 interface MacroExtras {
-  /** {{original}} — the preset Main-Prompt/Jailbreak, threaded ONLY while rendering the two overridable
-   *  markers; absent ⇒ {{original}} resolves to "". */
+  /** `{{original}}` — the preset Main-Prompt/Jailbreak, threaded ONLY while rendering the two overridable
+   *  markers; absent ⇒ `{{original}}` resolves to "". */
   original?: string | undefined;
-  /** {{input}} override (the in-flight steer / user turn for regex replace-strings). */
+  /** `{{input}}` override (the in-flight steer / user turn for regex replace-strings). */
   input?: string | undefined;
-  /** {{model}} — the routing-resolved model id (turn-stage only; the assemble ctx carries none). */
+  /** `{{model}}` — the routing-resolved model id (turn-stage only; the assemble ctx carries none). */
   model?: string | undefined;
-  /** {{chatId}}. */
+  /** `{{chatId}}`. */
   chatId?: ChatId | undefined;
-  /** The injectable PRNG seam for {{random}}/{{roll}}/{{pick}} (determinism — D46). Absent ⇒ kit ambient. */
+  /** The injectable PRNG seam for `{{random}}`/`{{roll}}`/`{{pick}}` (determinism — D46). Absent ⇒ kit ambient. */
   random?: (() => number) | undefined;
   onWarn?: ((msg: string, err?: unknown) => void) | undefined;
 }
 
 /** The ONE AssembleContext → `ProcessMacroOptions` mapping, shared by both `renderMacros` (per-section
  *  render) and `buildTurnMacroContext` (the turn-stage regex/guided context). `persona` decides
- *  {{user}}/{{persona}} (the dual-persona routing); `env` is the SHARED `variableValues` reference (D46). */
+ *  `{{user}}`/`{{persona}}` (the dual-persona routing); `env` is the SHARED `variableValues` reference (D46). */
 function macroOptionsFor(
   ctx: AssembleContext,
   persona: AssemblePersona | null | undefined,
@@ -143,7 +143,7 @@ export function renderMacros(
  * Resolve a guided-action TEMPLATE against the turn ctx (guided steering, PD-63 routed):
  * the per-action config comes from the preset (`promptConfig.guidedActions`, falling back to the contract
  * defaults); the untrusted steering `input` is macro-NEUTRALIZED by the kit resolver (ZWSP between braces)
- * before it is spliced into `{{input}}`; the rest of the macro context ({{char}}/{{user}}/{{persona}}/…)
+ * before it is spliced into `{{input}}`; the rest of the macro context (`{{char}}`/`{{user}}`/`{{persona}}`/…)
  * resolves against the ACTIVE persona (a steer is user-authored — the dual-persona rule). Resolved ONCE;
  * the caller delivers the result via EXACTLY ONE placement (system-marker / depth-0 injection / the
  * `opening` turn prompt) — never re-routed at splice time.
@@ -174,10 +174,10 @@ export function resolveGuidedActionText(
  */
 export function buildTurnMacroContext(args: {
   readonly assembleCtx: AssembleContext;
-  /** The routing-resolved model id — {{model}}, visible to regex replacements. */
+  /** The routing-resolved model id — `{{model}}`, visible to regex replacements. */
   readonly model: string;
   readonly chatId: ChatId;
-  /** The in-flight user input ({{input}} for USER_INPUT regex replace-strings). */
+  /** The in-flight user input (`{{input}}` for USER_INPUT regex replace-strings). */
   readonly input?: string | undefined;
   /** The injectable PRNG seam (determinism — D46). */
   readonly random?: (() => number) | undefined;

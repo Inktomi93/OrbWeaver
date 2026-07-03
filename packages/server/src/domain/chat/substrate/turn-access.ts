@@ -33,7 +33,7 @@ export function selectSpeakersVia(
   return selectSpeakers(...args);
 }
 
-/** Extract @mention targets from HUMAN-authored trigger text (only human text drives the override — §12 inv 6). */
+/** Extract `@mention` targets from HUMAN-authored trigger text (only human text drives the override — §12 inv 6). */
 export function resolveMentionsVia(
   ...args: Parameters<typeof resolveMentions>
 ): ReturnType<typeof resolveMentions> {

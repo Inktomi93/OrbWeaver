@@ -30,7 +30,7 @@ const MIN_OUTPUT = 1;
 const CLAUDE_DISPLAY_MODES = ["summarized", "omitted"] as const;
 
 /** A curated shortlist entry. File-local (non-exported): the cross-boundary descriptor is
- *  `ModelCapability` (@orb/contracts); the entry just pairs a branded id + tier/label with it. `sampling`
+ *  `ModelCapability` (`@orb/contracts`); the entry just pairs a branded id + tier/label with it. `sampling`
  *  is `{}` for every entry — these run on `agent-sdk`, which honors NO sampling knob (the panel shows no
  *  sampling for agent-sdk); the sampling axes are synthesized for OR/vLLM, not curated here. */
 interface CuratedChatModel {

@@ -97,8 +97,8 @@ export interface DigestRow {
 }
 
 /** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff);
- *  skipped = the `content_hash` was unchanged (the self-heal no-op). Mirrors the workloads `MaintenancePass
- *  Counts` shape so the composition root can wire it into the `memory-backfill` runner (PD-41). */
+ *  skipped = the `content_hash` was unchanged (the self-heal no-op). Mirrors the workloads
+ *  `MaintenancePassCounts` shape so the composition root can wire it into the `memory-backfill` runner (PD-41). */
 export interface MemoryPassCounts {
   readonly written: number;
   readonly skipped: number;

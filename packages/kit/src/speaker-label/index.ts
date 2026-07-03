@@ -95,7 +95,7 @@ export function stripSelfSpeakerLabel(content: string, speakerName: string): str
 /** Truncate a per-speaker reply at the first FOREIGN speaker label — a line that starts with
  *  `<other>:` (optionally markdown-wrapped) for any name in `otherNames`. The agent-sdk fence
  *  FALLBACK: that runner ignores stop sequences (completion runners get `\nName:` stops), so a turn
- *  can roll on into another speaker's lines ("…\n\nNiko: …"); cut them so the row stays ONE speaker.
+ *  can roll on into another speaker's lines (`"…\n\nNiko: …"`); cut them so the row stays ONE speaker.
  *  Returns the content up to (not including) the first foreign label, right-trimmed. No foreign label
  *  / empty `otherNames` (solo) → unchanged. Only matches at a LINE START so an in-prose "Niko:" inside
  *  a sentence is left alone. */

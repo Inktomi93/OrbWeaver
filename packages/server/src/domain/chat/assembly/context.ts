@@ -294,7 +294,7 @@ interface BuildAssembleContextInput {
   readonly personas: ResolvedPersonas;
   readonly roomOverrides?: RoomOverrides | undefined;
   /** The committed recent window (oldest→newest), already scan-depth sliced — the WI haystack + the
-   *  {{lastMessage}}-family macro inputs. */
+   *  `{{lastMessage}}`-family macro inputs. */
   readonly recentMessages: readonly string[];
   readonly lastMessage?: string | undefined;
   readonly lastUserMessage?: string | undefined;
@@ -318,7 +318,7 @@ interface BuildAssembleContextInput {
    *  (turn request → here) lands with the client; FLAG[timezone-per-request] in assemble-gather. */
   readonly timezone?: string | undefined;
   readonly nowMs?: number | undefined;
-  /** The routing-resolved model id (for {{model}} inside WORLD_INFO regex replacements). */
+  /** The routing-resolved model id (for `{{model}}` inside WORLD_INFO regex replacements). */
   readonly model: string;
   /** The per-turn injection token budget (0 ⇒ unbudgeted). */
   readonly injectionTokenBudget: number;
@@ -332,7 +332,7 @@ interface BuildAssembleContextInput {
 
 /** Out-param sink for the SEND USER_INPUT regex result (canon-mutating at write). When the
  *  caller supplies BOTH `pendingUserText` and `hostTierRegexScripts`, {@link buildAssembleContext} runs the
- *  USER_INPUT regex (to fold the post-regex text into the WI haystack + {{input}}) and writes the result here so
+ *  USER_INPUT regex (to fold the post-regex text into the WI haystack + `{{input}}`) and writes the result here so
  *  the SEND verb can PERSIST that exact post-regex text — the haystack and the stored user row never diverge.
  *  Unset otherwise (a no-op turn, no host scripts, or no pending text). A caller-owned scratch object, NOT a
  *  mutation of any producer input. File-local (the `types-in-contract` gate) — callers pass a structural

@@ -43,7 +43,7 @@ const REGEX_SCRIPTS_MAX = 500;
 // (`@orb/kit/injection`, role = `MessageRole`, D32) and adds the note `prompt`. An empty `prompt` is treated
 // as "no note" at assemble time. `depth` is required; `role` is optional (the assembler defaults it).
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
-  /** The note text — macro-aware ({{char}}/{{user}}/…), resolved at assemble time. */
+  /** The note text — macro-aware (`{{char}}`/`{{user}}`/…), resolved at assemble time. */
   prompt: z.string().max(TEXT_MAX),
 });
 export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
@@ -53,7 +53,7 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // a legacy/imported value), so this guard layers only on the WRITE side.
 const PREFILL_DEPTH = 0;
 
-/** Write-side depth-prompt guard: validates the directive shape AND rejects the assistant@depth-0 prefill. */
+/** Write-side depth-prompt guard: validates the directive shape AND rejects the `assistant@depth-0` prefill. */
 export const cardDepthPromptWriteSchema = cardDepthPromptSchema.superRefine((val, ctx): void => {
   if (val.role === "assistant" && val.depth === PREFILL_DEPTH) {
     ctx.addIssue({
@@ -90,7 +90,7 @@ export const characterCardSchema = z.object({
   exampleMessages: z.string().max(TEXT_MAX).nullable(),
   systemPrompt: z.string().max(TEXT_MAX).nullable(),
   postHistoryInstructions: z.string().max(TEXT_MAX).nullable(),
-  /** Character's Note @ Depth, or null (no/empty note). */
+  /** Character's Note \@ Depth, or null (no/empty note). */
   depthPrompt: cardDepthPromptSchema.nullable(),
   creatorNotes: z.string().max(TEXT_MAX).nullable(),
   // ── Typed promotions (D28): the fields neo leaked through `raw`, now first-class columns ──
@@ -130,7 +130,7 @@ export const createCharacterSchema = z.object({
   regexScripts: z.array(regexScriptSchema).max(REGEX_SCRIPTS_MAX).nullable().optional(),
   extensions: z.record(z.string(), z.unknown()).nullable().optional(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),
-  /** Character's Note @ Depth — null clears it; omit to leave unchanged. */
+  /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
   depthPrompt: cardDepthPromptWriteSchema.nullable().optional(),
 });
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;

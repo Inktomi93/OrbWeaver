@@ -51,8 +51,8 @@ export function compareCslsBy<T>(
 }
 
 /** The rerank budget cap: take the top `cap` CSLS-ranked candidates to hand the (expensive) cross-encoder.
- *  Caller passes an ALREADY CSLS-sorted list; this trims it to the rerank budget (`RERANK_POOL_FACTOR ×
- *  topN`). A non-positive `cap` yields an empty pool. */
+ *  Caller passes an ALREADY CSLS-sorted list; this trims it to the rerank budget (`RERANK_POOL_FACTOR × topN`).
+ *  A non-positive `cap` yields an empty pool. */
 export function rerankPoolByScores<T>(sortedByCsls: readonly T[], cap: number): T[] {
   if (cap <= 0) {
     return [];

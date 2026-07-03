@@ -90,7 +90,7 @@ export async function backfillMemory(
 }
 
 /**
- * The group-character backfill (PD-41/D38): every >1-character room gets its synthetic group character
+ * The group-character backfill (PD-41/D38): every \>1-character room gets its synthetic group character
  * (the shared memory bucket key + the narrator author) if it lacks one. Idempotent — an existing mint is a
  * scanned-not-changed pass. `scanned` = group rooms visited; `changed` = characters minted this run.
  */

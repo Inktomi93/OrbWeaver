@@ -203,11 +203,11 @@ const REWRITE_DEFAULT_PROMPT =
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
 export const guidedActionConfigSchema = z.object({
-  /** The injection template. {{input}} = the user's steering text; standard {{char}}/{{user}}/{{persona}}
-   *  macros also resolve. A missing/empty template falls back to {{input}} alone (resolver floor). */
+  /** The injection template. `{{input}}` = the user's steering text; standard `{{char}}`/`{{user}}`/`{{persona}}`
+   *  macros also resolve. A missing/empty template falls back to `{{input}}` alone (resolver floor). */
   prompt: z.string(),
   /** Which conversation role this guided action's resolved text is delivered with (D32 — `MessageRole`,
-   *  NOT a re-spelled inline union). `system` renders the {{guided_instruction}} marker in the cacheable
+   *  NOT a re-spelled inline union). `system` renders the `{{guided_instruction}}` marker in the cacheable
    *  system prompt; `user`/`assistant` push it as an in-chat depth-0 injection (the splice enforces the
    *  no-prefill / depth-0 wire constraints — not here). */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
@@ -297,7 +297,7 @@ export const customParametersSchema: z.ZodType<CustomParameters> = z
 
 /** Marker = a SLOT filled from chat data at assembly time (vs a literal text block). The two
  *  character-overridable preset slots (`main_prompt`, `post_history`) follow SillyTavern's model: the
- *  card field REPLACES the slot content in place ({{original}} recovers the preset text). `chat_history`
+ *  card field REPLACES the slot content in place (`{{original}}` recovers the preset text). `chat_history`
  *  is the PIVOT — sections before build the system block, sections after land after the conversation. */
 // Templated markers carry an editable `template`; plain markers (content owned by the assembler) do not.
 const TEMPLATED_MARKERS = [
@@ -854,7 +854,7 @@ function copyParamsToForm(params: UserIntent, out: PresetFormValues): void {
   }
 }
 
-/** Flatten the 6 guided actions (× {prompt, role}) onto the form. The preset may omit guidedActions
+/** Flatten the 6 guided actions (× `{prompt, role}`) onto the form. The preset may omit guidedActions
  *  entirely (→ DEFAULT_GUIDED_ACTIONS at resolve time); when present every action is required, so we
  *  copy all 12 keys. */
 function copyGuidedToForm(ga: GuidedActionsConfig, out: PresetFormValues): void {

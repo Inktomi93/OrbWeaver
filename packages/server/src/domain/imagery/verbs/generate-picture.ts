@@ -83,8 +83,8 @@ async function materialize(img: GeneratedImage): Promise<DecodedImage | null> {
   return null;
 }
 
-/** The D44 media block for one stored image (imagery-design/02 step 11 — verified against @orb/contracts/chat
- *  `messageContentBlockSchema`). */
+/** The D44 media block for one stored image (imagery-design/02 step 11 — verified against
+ *  `@orb/contracts/chat` `messageContentBlockSchema`). */
 function buildBlock(assetId: AssetId, prompt: string): MessageContentBlock {
   return {
     kind: "media",

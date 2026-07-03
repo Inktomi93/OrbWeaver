@@ -141,7 +141,7 @@ const CONTINUE_NUDGE =
 const IMPERSONATE_NUDGE = "[Write the next message as the user, in the user's own voice.]";
 
 /** The roster-derived turn substrate: the host (the D19 funding id), the character candidates (arbitration),
- *  their display names (@mention + name-stamp), the full present cast (WI cards), and the present personas. */
+ *  their display names (`@mention` + name-stamp), the full present cast (WI cards), and the present personas. */
 interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
@@ -320,7 +320,7 @@ async function persistUserMessage(
   return view;
 }
 
-/** Arbitrate WHO speaks (7a sync / 7b smart side-LLM). An @mention/forced target HARD-overrides any policy
+/** Arbitrate WHO speaks (7a sync / 7b smart side-LLM). An `@mention`/forced target HARD-overrides any policy
  *  (routed to the sync path, which honors forced first — §6); `smart` (no forced) runs the side-LLM. Maps the
  *  resolved ids back to their cast names (the SHAPE name-stamp + the round driver consume `CastName`). */
 async function arbitrate(

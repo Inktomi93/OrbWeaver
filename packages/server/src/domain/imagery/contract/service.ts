@@ -30,8 +30,9 @@ export interface GeneratedImage {
   readonly mediaType?: string | undefined;
 }
 
-/** The text→image request the domain hands the sealed executor. P5 free mode fills `{credential, model,
- *  prompt, n}`; `systemPrompt` is the optional prepend. Structural over contract/kit types (no `#infra`). */
+/** The text→image request the domain hands the sealed executor. P5 free mode fills
+ *  `{credential, model, prompt, n}`; `systemPrompt` is the optional prepend. Structural over contract/kit
+ *  types (no `#infra`). */
 export interface ImageGenerateRequest {
   readonly credential: ResolvedCredential;
   readonly model: ModelId;
