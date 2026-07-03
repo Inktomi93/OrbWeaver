@@ -27,7 +27,7 @@ Each is enforced at its code site (a rung-4 comment and/or a named test); this l
 - **`params: userIntentSchema.catch({})`** damage-bounding; **CONFIG\_LIFTS v1→v2** three transforms (post-history-pivot guard).
 - **PNG dual-chunk** (chara V2 + ccv3 V3, V2 first, before IEND), CRC-32 `0xedb88320` (`kit/png-card-chunk`).
 - **ST role bimap** `{0:system,1:user,2:assistant}` — ONE home, `kit/message-role` (D32).
-- **`scopedCharacterId=''` sentinel** (not NULL) for the shared memory bucket (knowledge-cluster).
+- **`scopedCharacterId=''` sentinel** — SUPERSEDED (D55: the shared bucket keys on a real synthetic-group `CharacterId`, never a sentinel; see `Tier-1-DB.md` esoteric #3) for the shared memory bucket (knowledge-cluster).
 - **Two-layer prototype-pollution defense** (schema superRefine + `deepMergeRequestBody` runtime check) — Layer 2 is the one unfinished dissolution row: `server/kit/custom-parameters` is a placeholder, tracked **PD-101**.
 - **`parseNeoPresetFile` strict** vs `parsePromptConfig` lenient — both behaviors preserved.
 - **storedVersion (DB column) beats in-blob version probe** (versioned-config) — else lifts re-run and corrupt.
