@@ -4,7 +4,7 @@
 // drizzle `customType` so the four vector tables (`schema/embeddings.ts`) and the k-means `centroid`
 // rollup (`schema/discovery.ts`) read/write `Float32Array` directly while the SQL column is a blob.
 //
-// Two load-bearing facts (db.md "Esoteric" #1/#2 — must survive):
+// Two load-bearing facts (Tier-1-DB.md "Esoteric" #1/#2 — must survive):
 //   1. The stored bytes ARE libSQL's on-wire `F32_BLOB`, so we sidestep the drizzle `sql`vector32()``
 //      insert caveat (#3899): the query vector is wrapped `vector32(?)` in the search SQL, but stored
 //      rows are the raw blob. There is no ANN/DiskANN shadow index — an exact `ORDER BY

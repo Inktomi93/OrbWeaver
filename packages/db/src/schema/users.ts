@@ -3,7 +3,7 @@
 // from `@orb/contracts/identity` (D17 — owner|admin|user); the column never re-spells the union, and a
 // CHECK built from the same tuple enforces it at the SQL level (a test-mirror pins db === contracts).
 //
-// `users.id` is DELIBERATELY a PLAIN `Branded<"UserId">` nanoid, NOT a prefix-validated TypeID (db.md
+// `users.id` is DELIBERATELY a PLAIN `Branded<"UserId">` nanoid, NOT a prefix-validated TypeID (Tier-1-DB.md
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`
 // brand (the schema-branding gate + type-safety), the brand is just not a `prefix_…` TypeID.
 //

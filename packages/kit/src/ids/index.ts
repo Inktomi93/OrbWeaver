@@ -64,7 +64,7 @@ export const ID_PREFIX = {
   characterEmbedding: "character_embedding",
   chatDigest: "chat_digest",
   chatSegment: "chat_segment",
-  // Discovery rollups — prefixes mirror their db.md table names (theme_clusters,
+  // Discovery rollups — prefixes mirror their Tier-1-DB.md table names (theme_clusters,
   // character_keyword_profiles, keyword_cooccurrence).
   themeCluster: "theme_cluster",
   // D24: the polymorphic `duplicate_pair` becomes per-type FK tables.
@@ -198,7 +198,7 @@ export function mintTypeId<P extends string>(prefix: P): TypeIdOf<P> {
 
 /**
  * Mint a fresh PLAIN (non-TypeID) branded id — for the brands that are deliberately
- * prefix-less nanoids, not `prefix_…` TypeIDs (today: `UserId`, db.md §4). The
+ * prefix-less nanoids, not `prefix_…` TypeIDs (today: `UserId`, Tier-1-DB.md §4). The
  * companion to {@link mintTypeId}: both gates (`no-mint-via-cast`, `no-raw-id`) name
  * `newId<T>()` as THE plain-id minter so a row id never has to be laundered through
  * {@link castId}. Mints via `typeid-js` with an EMPTY prefix → a 26-char base32

@@ -4,7 +4,7 @@
 //
 // LOAD-BEARING (carried verbatim from neo-tavern): a plain `DELETE FROM` is SAFE here because there is NO
 // ANN/DiskANN shadow index over these `F32_BLOB` columns — search is an exact `ORDER BY
-// vector_distance_cos(...) LIMIT k` scan (sub-ms + 100% recall at this corpus scale, db.md esoteric #1), so
+// vector_distance_cos(...) LIMIT k` scan (sub-ms + 100% recall at this corpus scale, Tier-1-DB.md esoteric #1), so
 // deleting rows leaves no orphaned index segment to vacuum/rebuild. If a libSQL ANN index is ever added,
 // this comment is the tripwire: a bare DELETE would then desync the shadow index.
 

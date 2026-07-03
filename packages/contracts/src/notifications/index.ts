@@ -25,7 +25,7 @@ import { z } from "zod";
 
 // ── Shared id schemas (built once; reused across the closed variants) ─────────
 // `recipientUserId` repeats on every member by design — it is the FK the inbox is scoped by AND the proof
-// that a notification always names its single recipient. `UserId` is a plain `Branded` nanoid (db.md §4),
+// that a notification always names its single recipient. `UserId` is a plain `Branded` nanoid (Tier-1-DB.md §4),
 // so it validates with `brandedId` (non-empty) rather than the prefix-checking `typeIdSchema`.
 const recipientUserIdSchema = brandedId<UserId>();
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);

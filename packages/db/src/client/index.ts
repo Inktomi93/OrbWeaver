@@ -1,9 +1,9 @@
 // client.ts — the libSQL client, the PRAGMA discipline, the migration runner, and the lifecycle helpers.
-// This is the ONE place that constructs a connection and owns the FK dance (db.md esoteric #5 + §5).
+// This is the ONE place that constructs a connection and owns the FK dance (Tier-1-DB.md esoteric #5 + §5).
 //
 // The OTel tracing wrapper is INJECTED (`wrap`), never imported: `@orb/db` cannot import `@orb/server`
 // (the cake), so `server/observability` passes its wrapper IN at `createDb`. node:fs/node:url are
-// sanctioned here for the NON-OPTIONAL pre-migration backup (db.md "backupBeforeMigrate").
+// sanctioned here for the NON-OPTIONAL pre-migration backup (Tier-1-DB.md "backupBeforeMigrate").
 
 import { copyFileSync, existsSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";

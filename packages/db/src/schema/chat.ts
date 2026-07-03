@@ -269,7 +269,7 @@ export const messageVariants = sqliteTable(
     // Raw provider envelopes (debug/replay) — open JSON, parsed at the read seam.
     rawRequest: text("raw_request", { mode: "json" }).$type<Record<string, unknown>>(),
     rawResponse: text("raw_response", { mode: "json" }).$type<Record<string, unknown>>(),
-    // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — db.md §chat). ──
+    // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
     preContinueContent: text("pre_continue_content"),
     preContinueReasoning: text("pre_continue_reasoning"),
     lastContinuationContent: text("last_continuation_content"),
