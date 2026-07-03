@@ -44,3 +44,10 @@ Findings that fix the target:
   credential AAD binds `(userId, provider)`; the `max-pro-sub` gate is the only construction site (admin-gated in neo-source today → `requireOwner` in orbweaver, D17).
 - **BFF session ≠ SDK chat session** — keep the two "session" concepts firmly separate (identity vs
   prompt-cache lineage); the schema already calls this out.
+- **Persona = the human principal's presentation identity — three axes, three homes** (authoritative here;
+  `AGENTS-3-Domains.md` §"Participants, agents & identity" is the map): **active** per-participant
+  (`chat_participants.activePersonaId` — each human's lines render under their own persona; multi-human
+  native), **anchor** per-chat (`chats.anchorPersonaId` — the stable `{{user}}` POV; a mid-chat persona
+  switch never rewrites the card's established `{{user}}`; the dual-persona render rule lives in
+  `chat/assembly`), **attribution** per-message (`messages.personaId` + `authorUserId`, server-stamped).
+  There is NO `chats.personaId` second home.

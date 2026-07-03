@@ -19,7 +19,7 @@
 | **embeddings**                       | `packages/server/src/domain/embeddings/` (gutted — code is the doc)                                     | 4 — NEW; the ONE vector write path |
 | **search**                           | `packages/server/src/domain/search/` (gutted — code is the doc)                                             | 4                                  |
 | **discovery**                        | `packages/server/src/domain/discovery/` (gutted — code is the doc)                                       | 4 — rename of `corpus`             |
-| **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
+| **memory**                           | `packages/server/src/domain/chat/memory/` (gutted); boundary: [Knowledge-Cluster](../core/Knowledge-Cluster.md) | 5 (subsystem of chat)              |
 | **stats**                            | BUILT — code is source: `packages/server/src/domain/stats/`; seam: [stats-discovery-seam.md](../proposed/stats-discovery-seam.md) | 4 — doc gutted 2026-07 (code truth) |
 | **buddy**                            | `packages/server/src/domain/buddy/` (gutted — code is the doc)                                               | 5                                  |
 | **settings**                         | `packages/server/src/domain/settings/` (gutted — code is the doc)                                         | 3                                  |
@@ -29,7 +29,7 @@
 | **export**                           | `packages/server/src/domain/export/` (gutted — code is the doc)                                             | 4                                  |
 | **assets**                           | `packages/server/src/domain/assets/` (gutted — code is the doc)                                             | 4                                  |
 | **workloads**                        | `packages/server/src/domain/workloads/` (gutted — code is the doc)                                       | 4                                  |
-| **participants / agents / identity** | [participants-agents-identity.md](participants-agents-identity.md) | 5                                  |
+| **participants / agents / identity** | gutted → [Spine-Identity](../core/Spine-Identity-and-Auth.md) + code; agents: [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/) | 5                                  |
 | **notifications**                    | `packages/server/src/domain/notifications/` (gutted — code is the doc)                               | 5                                  |
 
 ## Phase 7 domains (post-chat additive grafts — D47/D48/D49)

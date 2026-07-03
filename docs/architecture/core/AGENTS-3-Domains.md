@@ -20,7 +20,7 @@
 | **tag**           | keep (fix)                     | one tag namespace + per-entity junctions; **proposed = a status**, not a parallel store. Labels only — NOT analytics facets (those are `discovery`).                                                                                                                                                                           |
 | **embeddings**    | **NEW**                        | the vector substrate: embeds every source + owns the vector store + the event-driven indexer. The ONE write path. (Below.)                                                                                                                                                                                                     |
 | **search**        | keep (narrow)                  | the ONE retrieval capability (cosine + rerank + field-search). One cosine engine.                                                                                                                                                                                                                                              |
-| **discovery**     | rename of **corpus**           | library _semantic understanding_: themes, hubness/centrality, near-duplicates, distillation (genre/tone/pitch), archetypes, similarity browsing. Consumes embeddings + search; embeds nothing itself.                                                                                                                          |
+| **discovery**     | rename of **corpus**           | library _semantic understanding_: themes, hubness/centrality, near-duplicates, distillation (genre/tone/pitch), archetypes, similarity browsing. Consumes embeddings; embeds nothing; holds its OWN in-RAM cosine — does NOT call `search` (analytics ≠ retrieval).                                                                                                                          |
 | **stats**         | keep (narrow)                  | turn **economics** only — tokens/cost/cache/timing. Distinct from `discovery` (semantics).                                                                                                                                                                                                                                     |
 | **buddy**         | keep                           | the companion = the `agent` role connection (no hand-rolled router).                                                                                                                                                                                                                                                           |
 | **settings**      | keep                           | app + user setting tiers.                                                                                                                                                                                                                                                                                                      |
@@ -37,7 +37,9 @@
 
 ## Participants, agents & identity (character + persona)
 
-> **Authoritative detail: [`participants-agents-identity.md`](./participants-agents-identity.md).**
+> **Authoritative detail: [`Spine-Identity-and-Auth.md`](./Spine-Identity-and-Auth.md)** (identity/persona)
+> · [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md) (agent principals)
+> · ledger D28 + `domain/character` (character).
 
 The reframe (confirmed by recon): the foundation is a **stateless chat turn** —
 `(system prompt, this-participant's-view-of-canon, connection) → reply`, a pure function of canon, run by
@@ -59,10 +61,10 @@ a thin shared domain vs a pattern composed by chat+buddy.
 
 ## Memory ↔ search: two reads over ONE substrate (original intent — `memory-diagram.pdf`)
 
-> **Authoritative detail: [`domains/memory.md`](./domains/memory.md).** That doc is the source of
-> truth for the embeddings/memory/search/discovery cluster (substrate shape, tiering, group scoping, the
-> egocentric-scoped-recall decision, knobs, invariants). The summary below must not contradict it; if it
-> ever does, the cluster doc wins.
+> **Authoritative: [`Knowledge-Cluster.md`](./Knowledge-Cluster.md)** (the cluster boundary + the 6
+> cross-domain invariants) + the `domain/chat/memory` code headers + ledger D55 (recall semantics). The
+> detailed summary below is superseded by those and pending a trim to a pointer — where it differs (it
+> still shows stale `fanOut 8` / "discovery consumes search"), Knowledge-Cluster.md + the code win.
 
 The downloaded purpose doc establishes memory's design, and it reframes the whole cluster: **memory and
 cross-chat search were _designed_ to share one substrate — the tangle is botched execution of
@@ -252,7 +254,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   not a move — the chat-scoped semantics (which `search`'s owner-wide scan doesn't model) must survive.
 - **`hub_score` ownership seam — RESOLVED:** column on the embeddings row; **discovery computes** (CSLS),
   **embeddings stores** (via `writeHubScores`), **search reads**, and a vector write **never nulls** it.
-  (`domain/embeddings`, `domain/discovery`, `domains/memory.md §7`.)
+  (`domain/embeddings`, `domain/discovery`, `core/Knowledge-Cluster.md` inv 3.)
 - **serialization core — RESOLVED:** ONE serde core shared by import+export — mappers →
   `@orb/server/kit/serde`, canonical card → `@orb/contracts/character`, PNG codec →
   `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/message-role` (D32).
@@ -293,6 +295,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Planning-and-Checklists.md](docs/architecture/core/Core-Planning-and-Checklists.md)
   - [Core-SillyTavern-Feature-Map.md](docs/architecture/core/Core-SillyTavern-Feature-Map.md)
   - [Core-STATUS.md](docs/architecture/core/Core-STATUS.md)
+  - [Knowledge-Cluster.md](docs/architecture/core/Knowledge-Cluster.md)
   - [Spine-Config-and-Serialization.md](docs/architecture/core/Spine-Config-and-Serialization.md)
   - [Spine-Identity-and-Auth.md](docs/architecture/core/Spine-Identity-and-Auth.md)
   - [Spine-Testing.md](docs/architecture/core/Spine-Testing.md)
@@ -319,8 +322,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
   - [domains.md](docs/architecture/domains/domains.md)
-  - [memory.md](docs/architecture/domains/memory.md)
-  - [participants-agents-identity.md](docs/architecture/domains/participants-agents-identity.md)
   - **proposed/**
     - [README.md](docs/architecture/domains/proposed/README.md)
     - **databank/**

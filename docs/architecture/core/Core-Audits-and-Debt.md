@@ -193,10 +193,15 @@ Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previo
 
 - **`vector-scope-derived` (D20)** — `Core-Enforcement-Deferred-Dropped.md` gates it on "embeddings + search built"; both now built. Promote to active gates + wire.
 
-### Consolidate — concept docs (the plan)
+### Consolidate — concept docs — DONE 2026-07-03 (except the mechanical de-dangle below)
 
-- Knowledge-cluster boundary (restated across embeddings/search/memory/discovery) → ONE core home (slim `core/Knowledge-Cluster.md` or Core-0 partitioning); `memory.md` residue folds there.
-- `participants-agents-identity.md` residue → `Spine-Identity` + ledger (agent-principal future owned by `proposed/agent-principal-design/`).
+- ✓ `core/Knowledge-Cluster.md` created (the producer→store→consumer boundary + 6 cross-domain invariants, all `sg`-verified). `memory.md` git rm'd — recall/build semantics are code-carried (`chat/memory/` headers + `constants.ts`), decision record = ledger D55; it also carried a full internal self-duplicate (the drift disease).
+- ✓ `participants-agents-identity.md` git rm'd. Persona three-axis residue → `Spine-Identity-and-Auth.md`; agent-principal future owned by `proposed/agent-principal-design/`; everything else already homed (Tier-3b, D28, schema).
+- **REMAINING — mechanical de-dangle (track for the sub; facts already inline, some cites reference dead §numbers → drop those):**
+  - ~40 code cites of `memory.md` / `knowledge-cluster` / `participants-agents-identity.md` → repoint to `core/Knowledge-Cluster.md` (cluster) or `Spine-Identity`/`Tier-3b` (identity). Full file list: the concept-consolidation agent report (2026-07-03).
+  - Cross-doc prose: AGENTS-1 L235 (memory) + L250 (participants) authoritative pointers; AGENTS-2 L6-7 + L165 checkable-target list; Tier-3b (6 cites); Core-STATUS.
+  - **Trim** AGENTS-3 §"Memory ↔ search" + §"knowledge/derived-data untangle" → a `Knowledge-Cluster.md` pointer (they now duplicate it AND carry stale `fanOut 8` / "discovery consumes search"; the banner already flags this + points to the authoritative doc).
+  - **Refresh** `Spine-Identity-and-Auth.md` (`Status: planning` → built): Principal mint built (`entry/auth/seam.ts`, the ONE construction site); `chat_participants.role='host'` now GATES (roster authority, host-handoff, membership-derived "my chats" — no `chats.ownerId`); D60 4-kind shape CHECK live (`human|character|agent|observer`, `chat_participants_kind_shape`).
 
 ### Structural / mechanical
 
