@@ -32,7 +32,8 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
   "[markdown]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": null,
+    "editor.formatOnSave": false
   },
   "markdown.validate.enabled": true,
   "typescript.tsdk": "node_modules/typescript/lib",

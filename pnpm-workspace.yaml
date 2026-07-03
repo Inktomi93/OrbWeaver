@@ -139,6 +139,10 @@ catalog:
   minisearch: ^7.2.0
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
+  # docs formatter (scripts/docs/format-md.ts): frontmatter passthrough + compact GFM tables
+  # (tablePipeAlign:false) — law in docs/architecture/core/Core-Docs-Formatting-Law.md.
+  "remark-frontmatter": ^5.0.0
+  "remark-gfm": ^4.0.1
   strip-markdown: ^6.0.0
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.0
