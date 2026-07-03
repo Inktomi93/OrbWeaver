@@ -9,6 +9,18 @@ import { buildBuddySystemPrompt } from "../agent/system-prompt";
 import { createBuddyTools } from "../agent/tools";
 import type { BuddyToolSpec } from "../contract/agent-turn";
 
+/** The soul system-prompt ALONE — the agent's identity with NO hands (D60 room turn: a plain roleplay turn,
+ *  no tools — doc 04 §5). `resolveSpeakerIdentity` uses this to voice a seated buddy in a chat room; the solo
+ *  `ask` path uses {@link buildAgentInputs} (soul + tools). `soul`/`growth` null/absent before hatch. */
+export function buildSoulPrompt(
+  soul: { readonly name: string; readonly personality: string } | null,
+  growth?:
+    | { readonly formTitle: string; readonly formBlurb: string; readonly bondTier: string }
+    | undefined,
+): string {
+  return buildBuddySystemPrompt(soul, growth);
+}
+
 /** Build the agent-turn inputs: the soul system-prompt (the identity) + the curated tool specs (handed to
  *  the injected `buildToolServer`). `soul`/`growth` are null/absent before hatch. */
 export function buildAgentInputs(args: {

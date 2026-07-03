@@ -24,11 +24,12 @@
 //   - `agentEnv`                the cross-feature HANDS (`startWorkload`) for the confirm→workload arm.
 // `now`/`newTurnId`/`newProposalId` are the injected determinism seam (no ambient clock/id — testing §3).
 
+import type { AgentSpeakerIdentity } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { BuddyTurnId } from "@orb/kit/ids";
+import type { BuddyTurnId, UserId } from "@orb/kit/ids";
 import type { BuddyAgentEnv } from "./agent-env";
 import type { AgentTurnOp, BuildToolServerOp } from "./agent-turn";
 import type {
@@ -102,4 +103,9 @@ export interface BuddyService {
   readonly setReactions: (params: SetReactionsParams) => Promise<BuddyView>;
   /** Toggle the buddy's "hands" (the capability-ceiling kill switch). Returns the updated view. */
   readonly setAgency: (params: SetAgencyParams) => Promise<BuddyView>;
+  /** Resolve the owner's buddy SOUL as an agent-speaker identity (D60, doc 04 §5) — the RESOLVE-phase product
+   *  chat voices a seated buddy with (`displayName`←soul name, `systemPrompt`←`buildBuddySystemPrompt`). An
+   *  INTERNAL cross-domain op (owner-keyed, NO principal — not tRPC-routed): the chat compose dispatch resolves
+   *  agent→owner and calls this via the `AGENT_SPEAKER_SOURCES` registry. `null` = no buddy hatched. */
+  readonly resolveSpeakerIdentity: (ownerUserId: UserId) => Promise<AgentSpeakerIdentity | null>;
 }

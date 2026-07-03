@@ -1,6 +1,6 @@
 // assembly/speaker-card — the per-speaker CARD-SECTION shape (chat.md §5/§7 two-axis). Pins: the active
 // speaker's card becomes `ctx.character`/`speaker`; merged ⇒ the OTHER cast are co-speakers, scoped ⇒ none;
-// an AGENT ref selects its soul card exactly like a character (D60); a member-less/absent ctx is unchanged
+// an AGENT ref selects its soul-filled card-shaped slot like a character (D60); a member-less ctx is unchanged
 // (byte-identical, D16); an off-cast speaker keeps the primary (never crashes).
 
 import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contracts/chat";
@@ -42,9 +42,9 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
     expect(out.coSpeakers).toEqual([]);
   });
 
-  test("an AGENT speaker selects its soul card exactly like a character (D60)", () => {
+  test("an AGENT speaker selects its soul (in the card-shaped slot) like a character (D60)", () => {
     const out = shapeContextForSpeaker(ctx(), { ref: agentRef("buddy"), cardScope: "merged" });
-    expect(out.character.name).toBe("Buddy"); // the agent's resolved soul card
+    expect(out.character.name).toBe("Buddy"); // the agent's resolved soul (no card — the soul fills the slot)
     expect(out.coSpeakers?.map((c) => c.name)).toEqual(["Aria", "Bran"]); // the characters are co-present
   });
 

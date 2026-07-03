@@ -12,6 +12,7 @@ import { createConfirm } from "./verbs/confirm";
 import { createGet } from "./verbs/get";
 import { createHatch } from "./verbs/hatch";
 import { createHistory } from "./verbs/history";
+import { createResolveSpeakerIdentity } from "./verbs/resolve-speaker-identity";
 import { createSetAgency } from "./verbs/set-agency";
 import { createSetReactions } from "./verbs/set-reactions";
 
@@ -25,5 +26,6 @@ export function createBuddyService(ctx: BuddyContext): BuddyService {
     clearChat: createClearChat(ctx),
     setReactions: createSetReactions(ctx),
     setAgency: createSetAgency(ctx),
+    resolveSpeakerIdentity: createResolveSpeakerIdentity(ctx),
   };
 }
