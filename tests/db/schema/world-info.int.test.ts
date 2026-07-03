@@ -122,7 +122,6 @@ test("world_entries round-trips with no ownerId (owned via book) + the always-on
   expect(row?.id).toBe(entryId);
   expect(row?.worldBookId).toBe(bookId);
   expect(row?.content).toBe("lore body");
-  // Defaults: enabled on, priority 0, budget not ignored.
   expect(row?.enabled).toBe(true);
   expect(row?.priority).toBe(0);
   expect(row?.ignoreBudget).toBe(false);

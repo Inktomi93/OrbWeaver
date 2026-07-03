@@ -16,11 +16,11 @@ export interface ExtraStats {
   variantMessages: number; // replies that got re-rolled at least once
   maxContextTokens: number | null;
   // derived (substrate/rates.ts)
-  throughputTps: number; // tokens/sec across all generations
+  throughputTps: number;
   avgSwipeDepth: number; // avg settled swipe index (how deep you re-roll)
   swipeRate: number; // fraction of replies re-rolled
-  cacheHitRate: number; // cacheRead / (read + write)
-  avgReplyWords: number; // assistant words per reply
+  cacheHitRate: number;
+  avgReplyWords: number;
 }
 
 export interface OwnerStatsView extends ExtraStats {
@@ -149,7 +149,6 @@ export interface WrappedSummary {
   computedAt: number;
 }
 
-// ── Activity heatmap (day-of-week × hour-of-day) ──────────────────────────────────────────────────
 export interface ActivityHeatmap {
   /** 7 rows (0 = Sunday … 6 = Saturday) × 24 cols (UTC hour). cell = messages exchanged that slot. */
   matrix: number[][];
@@ -159,7 +158,6 @@ export interface ActivityHeatmap {
   peak: { dayOfWeek: number; hour: number; count: number } | null;
 }
 
-// ── Character momentum (rising / falling vs the prior active month) ───────────────────────────────
 export interface MomentumRow {
   characterId: CharacterId;
   name: string;

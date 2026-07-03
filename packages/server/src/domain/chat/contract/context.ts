@@ -292,26 +292,21 @@ export interface ChatContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
   readonly applyRegexReplace: ApplyRegexReplaceOp;
-  // ── the turn role ──
   readonly runChatTurn: RunChatTurnOp;
-  // ── connection / credentials ──
   readonly resolveChat: ResolveChatConnectionOp;
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
-  // ── character ──
   readonly getCard: GetCardOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;
   readonly resolveImageUrl: ResolveImageUrlOp;
-  // ── stats / summarizer ──
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard reads it to fit
    *  each summarizer call to the user's ACTUAL context (knowledge-cluster §3a/§10). Bound at the root from
    *  `roleClients.summarizerContextTokens`. */
   readonly summarizerContextTokens: number;
-  // ── notifications / presence ──
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   // ── agent principals (D60 — the seatAgent mint + the containment enabled-read; both sanctioned users ops) ──
@@ -329,7 +324,6 @@ export interface ChatContext {
   /** The structured memory observability sink (knowledge-cluster §3a — `memoryTrace` + the greppable
    *  `memory.build`/`memory.recall` log points). Bound at the root to `#foundation/observability`. */
   readonly log: MemoryLog;
-  // ── metadata parse-seam convenience ──
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
 }

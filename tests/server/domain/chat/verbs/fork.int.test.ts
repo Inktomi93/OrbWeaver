@@ -101,7 +101,6 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
     expect(deltas.filter((d) => d.userTurns === 1)).toHaveLength(1);
     expect(deltas.filter((d) => d.assistantTurns === 1)).toHaveLength(1);
     expect(deltas.filter((d) => d.swipes === 1)).toHaveLength(1);
-    // Every delta is attributed to the fork's host (the forker).
     expect(new Set(deltas.map((d) => d.ownerId))).toEqual(new Set([host]));
   });
 });
@@ -134,7 +133,6 @@ describe("forkChat — D27 deep copy", () => {
     const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
     const { chat } = await fork.forkChat({ principal: principal(member), chatId });
 
-    // Lineage + a brand-new id.
     expect(chat.parentChatId).toBe(chatId);
     expect(chat.id).not.toBe(chatId);
     expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
@@ -155,7 +153,6 @@ describe("forkChat — D27 deep copy", () => {
     expect(forkMsgs.map((r) => r.content)).toEqual(["one", "two"]);
     expect(forkMsgs.some((r) => r.id === m1.messageId)).toBe(false);
 
-    // The injection copied with a fresh id into the fork.
     const forkInjections = await db
       .select()
       .from(chatInjections)

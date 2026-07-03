@@ -157,7 +157,6 @@ describe("runAutoMode — re-arbitration + delay + error propagation", () => {
       nextSpeaker: (): Promise<CastName | null> => Promise.resolve(sp("a")),
       runTurn: (): Promise<TurnOutcome> => Promise.resolve(committed()),
     });
-    // 3 turns → 2 inter-turn delays (none after the final turn).
     expect(delay).toHaveBeenCalledTimes(2);
     expect(delay).toHaveBeenCalledWith(1500);
   });

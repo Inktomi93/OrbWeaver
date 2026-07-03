@@ -32,7 +32,6 @@ test("worldInfoScopeSchema round-trips always|keyword and rejects others", () =>
   expect(worldInfoScopeSchema.safeParse("auto").success).toBe(false);
 });
 
-// ── Book CRUD ───────────────────────────────────────────────────────────────
 test("createBookSchema accepts a valid book and round-trips", () => {
   const book = { name: "Lore", description: "world background" };
   expect(createBookSchema.parse(book)).toEqual(book);
@@ -49,7 +48,6 @@ test("updateBookSchema makes every field optional", () => {
   expect(updateBookSchema.parse({ name: "Renamed" })).toEqual({ name: "Renamed" });
 });
 
-// ── Entry CRUD ───────────────────────────────────────────────────────────────
 test("createEntrySchema accepts a valid entry and round-trips", () => {
   const entry = {
     title: "The Capital",
@@ -97,7 +95,6 @@ test("entryMetadataSchema inject carries the shared {depth, role?} directive (ro
   expect(entryMetadataSchema.parse({})).toEqual({});
 });
 
-// ── Write guard ──────────────────────────────────────────────────────────────
 test("entryMetadataWriteSchema accepts a valid blob and a lenient open record", () => {
   expect(entryMetadataWriteSchema.safeParse({ scopeMode: "always" }).success).toBe(true);
   // unknown keys are tolerated (open record).

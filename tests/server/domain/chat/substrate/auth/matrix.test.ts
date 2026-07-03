@@ -10,15 +10,12 @@ import { expect, test } from "../../../../../support/fixtures";
 
 describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
   test("the chat.md §11 explicit classifications hold", () => {
-    // read/stream/post → member
     expect(CHAT_VERB_AUTHORITY.getChat).toBe("member");
     expect(CHAT_VERB_AUTHORITY.listMessages).toBe("member");
     expect(CHAT_VERB_AUTHORITY.send).toBe("member");
     expect(CHAT_VERB_AUTHORITY.replayStreamEvents).toBe("member");
-    // edit/delete → author-or-host
     expect(CHAT_VERB_AUTHORITY.editMessage).toBe("author-or-host");
     expect(CHAT_VERB_AUTHORITY.deleteMessages).toBe("author-or-host");
-    // host-only roster/config/lifecycle mutation
     expect(CHAT_VERB_AUTHORITY.setGroupConfig).toBe("host");
     expect(CHAT_VERB_AUTHORITY.setRoomOverrides).toBe("host");
     expect(CHAT_VERB_AUTHORITY.addCharacterToChat).toBe("host");
@@ -29,7 +26,6 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.reattributeMessages).toBe("host");
     expect(CHAT_VERB_AUTHORITY.delete).toBe("host");
     expect(CHAT_VERB_AUTHORITY.moveMessage).toBe("host"); // the §11 "reorder" entry
-    // lineage walked + gated independently
     expect(CHAT_VERB_AUTHORITY.getChatLineage).toBe("lineage-per-ancestor");
     // abort = the turn owner, never the host (rollback-theft defense)
     expect(CHAT_VERB_AUTHORITY.abort).toBe("turn-owner");

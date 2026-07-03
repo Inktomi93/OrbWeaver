@@ -42,14 +42,12 @@ import {
 
 export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService {
   return {
-    // Books
     listBooks: createListBooks(ctx),
     getBook: createGetBook(ctx),
     createBook: createCreateBook(ctx),
     updateBook: createUpdateBook(ctx),
     removeBook: createRemoveBook(ctx),
     duplicateBook: createDuplicateBook(ctx),
-    // Entries
     listEntries: createListEntries(ctx),
     getEntry: createGetEntry(ctx),
     createEntry: createCreateEntry(ctx),
@@ -57,19 +55,15 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     removeEntry: createRemoveEntry(ctx),
     backfillTitles: createBackfillTitles(ctx),
     applyEntryOrder: createApplyEntryOrder(ctx),
-    // Attachments — character
     attachToCharacter: createAttachToCharacter(ctx),
     detachFromCharacter: createDetachFromCharacter(ctx),
     listForCharacter: createListForCharacter(ctx),
-    // Attachments — global
     attachGlobal: createAttachGlobal(ctx),
     detachGlobal: createDetachGlobal(ctx),
     listGlobal: createListGlobal(ctx),
-    // Attachments — persona
     attachToPersona: createAttachToPersona(ctx),
     detachFromPersona: createDetachFromPersona(ctx),
     listForPersona: createListForPersona(ctx),
-    // Attachments — chat (PD-30 — membership-scoped via the injected chat guards; emits WiBusEvent)
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     listForChat: createListForChat(ctx),

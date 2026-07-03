@@ -32,7 +32,6 @@ export interface DiffViewProps {
   readonly before: string;
   readonly after: string;
   /**
-   * Diff granularity.
    * @defaultValue "chars"
    */
   readonly mode?: DiffMode;

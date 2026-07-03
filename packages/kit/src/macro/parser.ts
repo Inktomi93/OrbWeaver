@@ -141,7 +141,6 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
 
   const idMatch = text.slice(pos).match(MACRO_IDENT);
   if (!idMatch) {
-    // Invalid macro, treat the prefix as text
     return { nodes: [{ type: "text", value: prefixFor(kind) }], pos, stop: false };
   }
   const name = idMatch[0];

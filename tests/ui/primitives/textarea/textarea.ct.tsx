@@ -22,7 +22,6 @@ test("inside a <Field>, the label associates with the textarea (Field.Control re
   await expect(control).toBeVisible();
   await control.fill("hello");
   await expect(control).toHaveValue("hello");
-  // and the description is wired via aria-describedby
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 

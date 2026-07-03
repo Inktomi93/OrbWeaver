@@ -16,8 +16,7 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
   ): Promise<ValidatedSession | null> {
     const now = ctx.now();
     const session = await selectForValidation(ctx.db, ctx.hashToken(token));
-    // Per-request gates: missing / revoked / expired / disabled → unauthenticated. Gating `enabled` to
-    // null here IS how disable takes effect next request.
+    // Gating `enabled` to null here IS how disable takes effect next request.
     if (
       session === undefined ||
       session.revokedAt !== null ||
@@ -31,7 +30,6 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
       await slideExpiry(ctx.db, session.sessionId, now, slidExpiresAt);
       onSlide?.(slidExpiresAt);
     }
-    // The Route-A payload: `userId` carried (the seam never re-queries), `role`/`enabled` re-read fresh.
     return {
       userId: session.userId,
       role: session.role,

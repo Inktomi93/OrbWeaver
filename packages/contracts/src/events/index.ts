@@ -27,7 +27,6 @@ export interface AssetCreatedEvent {
   readonly assetId: AssetId;
 }
 
-/** The closed domain-event union carried by the in-process bus. */
 export type DomainEvent = CharacterUpdatedEvent | AssetCreatedEvent;
 
 /** The injected op an emitting domain calls; the composition root binds it to the bus. */

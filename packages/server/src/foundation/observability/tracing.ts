@@ -29,7 +29,6 @@ const MAX_LIVE_BUCKETS = 2000;
 // A bounded per-attribute string cap. RP content never reaches an attribute; this is belt-and-braces for a
 // developer-added attribute that might accidentally carry a large string (e.g. a SQL fragment).
 const MAX_ATTR_LEN = 512;
-// hrtime → ms conversions.
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1e6;
 

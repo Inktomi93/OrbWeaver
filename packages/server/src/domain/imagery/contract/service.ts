@@ -61,7 +61,6 @@ export interface ResolvedGenerateImage {
   readonly capability: ModelCapability;
 }
 
-// ── The DI bundle ─────────────────────────────────────────────────────────────────────────────────────────
 /**
  * The injected-op bundle every imagery verb closes over (assembled at the entry composition root, handed to
  * `createImageryService`). `db` is the `imagery_generations` handle (persistence/ is its sole user); `now` is
@@ -88,7 +87,6 @@ export interface ImageryContext {
   readonly recordStats: (delta: StatsDelta) => Promise<void>;
 }
 
-// ── The public surface ────────────────────────────────────────────────────────────────────────────────────
 /** The imagery surface — P5 exposes ONLY `generatePicture` (free mode). The Phase-7 verbs (`extractPrompt`/
  *  `editImage`) grow this interface additively (imagery-design/01 §3.1). */
 export interface ImageryService {

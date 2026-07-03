@@ -38,7 +38,6 @@ export interface WorldInfoActorParams {
   readonly principal: Principal;
 }
 
-// ── Books ──────────────────────────────────────────────────────────────────
 export interface ListBooksParams extends WorldInfoActorParams {}
 
 export interface GetBookParams extends WorldInfoActorParams {
@@ -62,7 +61,6 @@ export interface DuplicateBookParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
 
-// ── Entries ────────────────────────────────────────────────────────────────
 export interface ListEntriesParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
@@ -96,7 +94,6 @@ export interface ApplyEntryOrderParams extends WorldInfoActorParams {
   readonly orderedEntryIds: readonly WorldEntryId[];
 }
 
-// ── Attachments — character ──────────────────────────────────────────────────
 export interface AttachToCharacterParams extends WorldInfoActorParams {
   readonly characterId: CharacterId;
   readonly bookId: WorldBookId;
@@ -113,7 +110,6 @@ export interface ListForCharacterParams extends WorldInfoActorParams {
   readonly characterId: CharacterId;
 }
 
-// ── Attachments — global ─────────────────────────────────────────────────────
 export interface AttachGlobalParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
@@ -124,7 +120,6 @@ export interface DetachGlobalParams extends WorldInfoActorParams {
 
 export interface ListGlobalParams extends WorldInfoActorParams {}
 
-// ── Attachments — persona ────────────────────────────────────────────────────
 export interface AttachToPersonaParams extends WorldInfoActorParams {
   readonly personaId: PersonaId;
   readonly bookId: WorldBookId;
@@ -139,7 +134,6 @@ export interface ListForPersonaParams extends WorldInfoActorParams {
   readonly personaId: PersonaId;
 }
 
-// ── Attachments — chat (membership-scoped, D18; gates via the injected chat-guard ops — PD-30) ──
 /** Attach a caller-OWNED book to a chat room (host authority — room-wide prompt content). */
 export interface AttachToChatParams extends WorldInfoActorParams {
   readonly chatId: ChatId;

@@ -24,7 +24,6 @@ describe("memory/constants — DEFAULTS + resolveCfg", () => {
     const cfg = resolveCfg({ blockSize: 4, mode: "tiered" });
     expect(cfg.blockSize).toBe(4);
     expect(cfg.mode).toBe("tiered");
-    // untouched knobs fall back to the floor
     expect(cfg.verbatimWindow).toBe(DEFAULTS.verbatimWindow);
     expect(cfg.fanOut).toBe(DEFAULTS.fanOut);
   });

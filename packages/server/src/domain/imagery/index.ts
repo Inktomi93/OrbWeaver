@@ -18,5 +18,4 @@ export type {
   ImageryService,
   ResolvedGenerateImage,
 } from "./contract/service";
-// Factory.
 export { createImageryService } from "./service";

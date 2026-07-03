@@ -18,7 +18,6 @@ import { expect, test } from "../../../../support/fixtures";
 
 const FAILED_VALIDATION = /failed validation/u;
 
-// A real-shaped ST V3 card object (the parsers' input under test).
 const V3_CARD = {
   spec: "chara_card_v3",
   spec_version: "3.0",

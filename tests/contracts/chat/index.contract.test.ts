@@ -216,8 +216,6 @@ test("roomOverridesSchema round-trips the four allowlisted fields and rejects an
   expect(DEFAULT_ROOM_OVERRIDES).toEqual({});
 });
 
-// ═══ openingPolicy ══════════════════════════════════════════════════════════════
-
 test("openingPolicySchema round-trips its members", () => {
   for (const policy of ["greet-all", "generate", "none", "first-message"] as const) {
     expect(openingPolicySchema.parse(policy)).toBe(policy);
@@ -268,8 +266,6 @@ test("InviteView / InvitePreview pin the host + accept-flow shapes (no token lea
   );
 });
 
-// ═══ roster + member-card views ════════════════════════════════════════════════
-
 test("ParticipantView pins the roster row (membership-scoped; XOR human/character)", () => {
   const human: ParticipantView = {
     id: SAMPLE_PARTICIPANT_ID,
@@ -316,8 +312,6 @@ test("MemberCardView is a level-clamped projection — full-only fields null at 
   expect(sheetView.systemPrompt).toBeNull();
   expect(sheetView.name).toBe("Aria");
 });
-
-// ═══ ChatDeltaEvent + ChatBusEvent ═════════════════════════════════════════════
 
 test("ChatDeltaEvent carries text and reasoning chunks", () => {
   const textDelta: ChatDeltaEvent = { chatId: SAMPLE_CHAT_ID, kind: "text", text: "hi" };

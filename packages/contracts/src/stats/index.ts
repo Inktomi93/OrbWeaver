@@ -31,7 +31,6 @@ import { z } from "zod";
  * No `.default()` on any field: an omitted increment stays absent (the delta is a sparse patch).
  */
 export const statsDeltaSchema = z.object({
-  // ── keys / grain ──────────────────────────────────────────────────────────────
   ownerId: brandedId<UserId>(),
   // null for system / no-character writes → `character_stats` is skipped for this delta.
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
@@ -41,7 +40,6 @@ export const statsDeltaSchema = z.object({
   model: z.string().nullable(),
   provider: z.string().nullable(),
 
-  // ── SCALAR monotonic increments (per-character + per-owner; all optional, default 0) ──
   userTurns: z.number().optional(),
   assistantTurns: z.number().optional(),
   systemTurns: z.number().optional(),
@@ -69,11 +67,9 @@ export const statsDeltaSchema = z.object({
   // `daily_stats` flag — set when a migrated chat clobbers a message day (OR-merged in the upsert).
   messageDatesApprox: z.boolean().optional(),
 
-  // ── DAILY token slice (DECOUPLED from the scalar tokens above) ─────────────────
   dailyTokensIn: z.number().optional(),
   dailyTokensOut: z.number().optional(),
 
-  // ── MODEL slice (DECOUPLED from the scalar fields above) ──────────────────────
   modelGenerations: z.number().optional(),
   modelTokensIn: z.number().optional(),
   modelTokensOut: z.number().optional(),
@@ -85,7 +81,6 @@ export const statsDeltaSchema = z.object({
   modelCacheReadTokens: z.number().optional(),
   modelCacheWriteTokens: z.number().optional(),
 
-  // ── NON-additive maintenance (extrema reconcile derives via MIN/MAX) ──────────
   // Bump `owner_stats.characters` by 1 — set ONLY when this write is the FIRST chat for a character
   // (live-undercounts a character with no chats until a drift-repair reconcile; documented, acceptable).
   newCharacter: z.boolean().optional(),

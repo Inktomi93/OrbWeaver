@@ -79,7 +79,6 @@ export function principal(userId: UserId, role: UserRole = "user"): Principal {
   };
 }
 
-/** Insert a `users` row; returns its branded id. */
 export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
   const userId = castId<UserId>(id);
   await db.insert(users).values({

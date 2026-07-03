@@ -36,7 +36,6 @@ describe("memory/recall/format", () => {
       [blockKeyStr(key(0, 0)), dr(0, 0, "[scene 0]\nkeywords: a")],
       [blockKeyStr(key(0, 1)), dr(0, 1, "[scene 1]\nkeywords: b, c")],
     ]);
-    // ranked order: block 1 then block 0
     const out = formatMemory([key(0, 1), key(0, 0)], byKey);
     expect(out).toBe("[scene 1]\nkeywords: b, c\n\n[scene 0]\nkeywords: a");
   });

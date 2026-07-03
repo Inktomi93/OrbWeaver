@@ -29,9 +29,9 @@ describe("rate-limit: createRateLimiter", () => {
       now: () => T0,
     });
 
-    await limiter.consume("ip-1"); // count 1
-    await limiter.consume("ip-1"); // count 2 (== cap, allowed)
-    await expect(limiter.consume("ip-1")).rejects.toBeInstanceOf(DomainRateLimitError); // count 3 > cap
+    await limiter.consume("ip-1");
+    await limiter.consume("ip-1");
+    await expect(limiter.consume("ip-1")).rejects.toBeInstanceOf(DomainRateLimitError);
   });
 
   test("the rejection carries msBeforeNext (until window reset) + remainingPoints 0", async () => {
@@ -62,10 +62,10 @@ describe("rate-limit: createRateLimiter", () => {
       now: () => clock,
     });
 
-    await limiter.consume("ip-1"); // window A, count 1
-    await expect(limiter.consume("ip-1")).rejects.toBeInstanceOf(DomainRateLimitError); // window A over
-    clock += WINDOW_MS; // cross the boundary → window B
-    await expect(limiter.consume("ip-1")).resolves.toBeUndefined(); // fresh bucket, allowed
+    await limiter.consume("ip-1");
+    await expect(limiter.consume("ip-1")).rejects.toBeInstanceOf(DomainRateLimitError);
+    clock += WINDOW_MS;
+    await expect(limiter.consume("ip-1")).resolves.toBeUndefined();
   });
 
   test("distinct ids have independent buckets (one IP's flood doesn't throttle another)", async () => {
@@ -79,7 +79,6 @@ describe("rate-limit: createRateLimiter", () => {
 
     await limiter.consume("ip-1");
     await expect(limiter.consume("ip-1")).rejects.toBeInstanceOf(DomainRateLimitError);
-    // A different id is untouched.
     await expect(limiter.consume("ip-2")).resolves.toBeUndefined();
   });
 });
@@ -92,9 +91,9 @@ describe("rate-limit: createMemberBudget (PD-14)", () => {
     const db = await freshDb();
     const budget = createMemberBudget(db, { windowMs: WINDOW_MS, now: () => T0 });
 
-    await budget.debit(memberA, 2); // 1
-    await budget.debit(memberA, 2); // 2 (== cap)
-    await expect(budget.debit(memberA, 2)).rejects.toBeInstanceOf(DomainRateLimitError); // over
+    await budget.debit(memberA, 2);
+    await budget.debit(memberA, 2);
+    await expect(budget.debit(memberA, 2)).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // Attribution: member B's budget is independent — member A's spend never debits B.
     await expect(budget.debit(memberB, 2)).resolves.toBeUndefined();

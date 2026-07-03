@@ -14,7 +14,6 @@ export interface AvatarProps
   className?: string;
   /** Image source; when it fails to load (or is omitted) the fallback children render instead. */
   src?: string;
-  /** Alt text for the avatar image. */
   alt?: string;
   /**
    * Delay in ms before the fallback appears — set a small value (e.g. 600) to avoid an

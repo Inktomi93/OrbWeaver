@@ -9,5 +9,4 @@
 // format union (PD-42).
 export type { ExportChatFormat, ExportService } from "./contract/service";
 
-// Factory (wired at the composition root).
 export { createExportService } from "./service";

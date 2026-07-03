@@ -9,7 +9,7 @@ export function createProbeKeyDecrypt(
 ): CredentialsService["probeKeyDecrypt"] {
   return async (): Promise<boolean> => {
     if (!ctx.box.enabled) {
-      return true; // No key to probe
+      return true;
     }
 
     const rows = await ctx.db
@@ -24,7 +24,7 @@ export function createProbeKeyDecrypt(
       .limit(1);
 
     if (rows.length === 0) {
-      return true; // No credentials to test against
+      return true;
     }
 
     const r = rows[0];

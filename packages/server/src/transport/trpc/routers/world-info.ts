@@ -16,7 +16,6 @@ import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
 
 export const worldInfoRouter = t.router({
-  // ── Books ──────────────────────────────────────────────────────────────────
   listBooks: authedProcedure.query(({ ctx }) =>
     ctx.services.worldInfo.listBooks({ principal: ctx.auth }),
   ),
@@ -55,7 +54,6 @@ export const worldInfoRouter = t.router({
       ctx.services.worldInfo.duplicateBook({ principal: ctx.auth, bookId: input.bookId }),
     ),
 
-  // ── Entries ──────────────────────────────────────────────────────────────────
   listEntries: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))
     .query(({ ctx, input }) =>
@@ -115,7 +113,6 @@ export const worldInfoRouter = t.router({
       }),
     ),
 
-  // ── Attachments — character ──────────────────────────────────────────────────
   attachToCharacter: authedProcedure
     .input(
       z.object({
@@ -152,7 +149,6 @@ export const worldInfoRouter = t.router({
       }),
     ),
 
-  // ── Attachments — global ─────────────────────────────────────────────────────
   attachGlobal: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))
     .mutation(({ ctx, input }) =>
@@ -169,7 +165,6 @@ export const worldInfoRouter = t.router({
     ctx.services.worldInfo.listGlobal({ principal: ctx.auth }),
   ),
 
-  // ── Attachments — persona ────────────────────────────────────────────────────
   attachToPersona: authedProcedure
     .input(z.object({ personaId: brandedId<PersonaId>(), bookId: brandedId<WorldBookId>() }))
     .mutation(({ ctx, input }) =>

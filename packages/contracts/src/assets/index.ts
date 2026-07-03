@@ -39,8 +39,6 @@ export const ASSET_KINDS = [
   "attachment",
 ] as const;
 
-/** The upload-wire `kind` field; `z.enum` over {@link ASSET_KINDS} (the union's single source of truth —
- *  `no-inline-union-redecl`). */
 export const assetKindSchema = z.enum(ASSET_KINDS);
 
 export type AssetKind = z.infer<typeof assetKindSchema>;

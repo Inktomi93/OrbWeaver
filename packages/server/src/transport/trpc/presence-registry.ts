@@ -55,7 +55,7 @@ export function createPresenceRegistry(now: () => number): PresenceRegistry {
   function decrement(cell: PresenceCell): void {
     cell.count = Math.max(0, cell.count - 1);
     if (cell.count === 0) {
-      cell.lastSeenAt = now(); // grace anchor: the last device left at this instant.
+      cell.lastSeenAt = now();
     }
   }
 
@@ -74,10 +74,10 @@ export function createPresenceRegistry(now: () => number): PresenceRegistry {
   function read(userId: UserId): PresenceView {
     const cell = cells.get(userId);
     if (cell === undefined) {
-      return { userId, online: false, lastSeenAt: null }; // never seen.
+      return { userId, online: false, lastSeenAt: null };
     }
     if (cell.count > 0) {
-      return { userId, online: true, lastSeenAt: null }; // ≥1 live device.
+      return { userId, online: true, lastSeenAt: null };
     }
     // Fully disconnected: still online inside the grace window (reconnect debounce), then offline with the
     // disconnect stamp surfaced as `lastSeenAt` (contract: `null` while online).

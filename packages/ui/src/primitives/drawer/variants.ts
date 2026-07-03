@@ -32,7 +32,6 @@ export const drawerVariants = tv(
       swipeArea: "fixed z-(--z-overlay) touch-none",
       // The app wrapper scales back behind an open drawer (data-active) — the stacked-sheet depth cue.
       indent: "transition-transform duration-(--motion-layout) ease-out-expo data-active:scale-95",
-      // The layer that peeks from behind the scaled app when a drawer opens (data-active).
       indentBackground:
         "pointer-events-none fixed inset-0 bg-scrim opacity-0 transition-opacity duration-(--motion-layout) ease-out-expo data-active:opacity-100",
       title: "text-title leading-title font-semibold",

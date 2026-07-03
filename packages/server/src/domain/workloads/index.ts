@@ -54,5 +54,4 @@ export { reapOrphanedWorkloads } from "./engine/reaper";
 export { runWorkload } from "./engine/runner";
 // The typed row + queue poll the worker driver + tRPC get/list project (@public).
 export { loadWorkload, nextRunnableWorkload } from "./persistence/queries";
-// Service + factory + DI bundle types
 export { createWorkloadService } from "./service";

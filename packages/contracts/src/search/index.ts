@@ -20,7 +20,6 @@ import { z } from "zod";
 // `no-inline-union-redecl`).
 export const MEMORY_RETRIEVAL_MODES = ["off", "mixA", "mixB", "mixC", "tiered"] as const;
 export type MemoryRetrievalMode = (typeof MEMORY_RETRIEVAL_MODES)[number];
-/** The wire schema for the retrieval-mode axis — `z.enum` over the canonical tuple. */
 export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES);
 
 /**

@@ -118,11 +118,11 @@ describe("workloads-worker loop", () => {
 
     await startWorkloadsWorker(deps);
 
-    expect(reap).toHaveBeenCalledTimes(1); // boot reap
-    expect(run).toHaveBeenCalledTimes(1); // one row claimed + run
-    expect(deps.scheduleInterval).toHaveBeenCalledTimes(1); // periodic reap armed
-    expect(clearReap).toHaveBeenCalledTimes(1); // ...and torn down on exit
-    expect(unsubscribe).toHaveBeenCalledTimes(1); // wake listener torn down on exit
+    expect(reap).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(deps.scheduleInterval).toHaveBeenCalledTimes(1);
+    expect(clearReap).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   test("an already-aborted signal does no work beyond the boot reap", async () => {

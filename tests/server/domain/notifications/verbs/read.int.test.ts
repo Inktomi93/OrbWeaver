@@ -73,7 +73,6 @@ describe("dismiss — recipient-scope + idempotence", () => {
     await expect(
       svc.dismiss({ principal: principal(BOB), notificationId: view.id }),
     ).rejects.toThrow();
-    // Still active in Alice's inbox.
     const page = await svc.list({ principal: principal(ALICE) });
     expect(page.items).toHaveLength(1);
   });

@@ -54,10 +54,8 @@ export function clampMemberCard(input: {
   return {
     characterId,
     visibility,
-    // ── name-avatar floor (always) ──
     name: card.name,
     avatarAssetId: card.avatarAssetId,
-    // ── sheet (>= sheet) ──
     description: atSheet ? card.description : null,
     personality: atSheet ? card.personality : null,
     scenario: atSheet ? card.scenario : null,
@@ -65,9 +63,7 @@ export function clampMemberCard(input: {
     exampleMessages: atSheet ? card.exampleMessages : null,
     tags: atSheet ? tags : null,
     creatorNotes: atSheet ? card.creatorNotes : null,
-    // ── sheet+lore (>= sheet+lore) ──
     lore: atLore ? lore : null,
-    // ── full (== full): the prompt-steering internals ──
     systemPrompt: atFull ? card.systemPrompt : null,
     postHistoryInstructions: atFull ? card.postHistoryInstructions : null,
     authorsNoteDepth: atFull ? (card.depthPrompt?.depth ?? null) : null,

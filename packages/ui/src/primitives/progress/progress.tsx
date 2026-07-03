@@ -11,7 +11,6 @@ const DEFAULT_MAX = 100;
 
 export interface ProgressProps extends Omit<BaseRootProps, "className"> {
   className?: string;
-  /** Class for the inner track element. */
   trackClassName?: string;
   /** Visible, auto-associated label — renders `Progress.Label`. */
   label?: ReactNode;

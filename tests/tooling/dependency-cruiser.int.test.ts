@@ -73,7 +73,6 @@ function writeAllFixtures(): void {
   fx(`${S}/transport/__dc/target.ts`, VAL);
   fx(`${S}/entry/__dc/target.ts`, VAL);
 
-  // ── package cake ──
   fx("packages/kit/src/__dc/up.ts", `import "../../../server/src/foundation/__dc/target.ts";\n`);
   fx("packages/kit/src/__dc/node.ts", `import "node:fs";\n`);
   fx("packages/contracts/src/__dc/up.ts", `import "../../../db/src/__dc/target.ts";\n`);
@@ -102,7 +101,6 @@ function writeAllFixtures(): void {
     `import "../features/__dc_cfeat/internal.ts";\n`,
   );
 
-  // ── server tiers ──
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
   fx(`${S}/infra/__dc/db.ts`, `import "../../../../db/src/__dc/target.ts";\n`);
@@ -116,7 +114,6 @@ function writeAllFixtures(): void {
   fx(`${S}/transport/trpc/__dc.ts`, `import "../jobs/__dc.ts";\n`);
   fx(`${S}/kit/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
 
-  // ── domain isolation ──
   fx(`${S}/domain/__dc_feat/cross.ts`, `import "../__dc_feat2/index.ts";\n`);
   fx(`${S}/transport/__dc/frontdoor.ts`, `import "../../domain/__dc_feat/internal.ts";\n`);
   fx(`${S}/domain/__dc_feat/verbs/b.ts`, "export const b = 1;\n");
@@ -127,7 +124,6 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/engine/e.ts`, VAL);
   fx(`${S}/domain/__dc_feat/memory/x.ts`, `import "../engine/e.ts";\n`);
 
-  // ── infra/providers ──
   fx(`${S}/infra/providers/backends/__dc_back/i.ts`, VAL);
   fx(`${S}/infra/providers/backends/__dc_back2/i.ts`, VAL);
   fx(
@@ -140,7 +136,6 @@ function writeAllFixtures(): void {
   fx(`${S}/infra/providers/backends/agent-sdk/__dc.ts`, VAL);
   fx(`${S}/infra/providers/backends/openrouter/__dc.ts`, `import "../agent-sdk/__dc.ts";\n`);
 
-  // ── persistence + stats + hygiene ──
   fx(`${S}/domain/__dc_feat/persistence/io.ts`, `import "node:fs";\n`);
   if (!existsSync(join(ROOT, EMBEDDINGS))) {
     fx(EMBEDDINGS, VAL);

@@ -44,10 +44,7 @@ export const WORKLOAD_KINDS = [
 
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
-/** The wire schema for the kind axis — `z.enum` over {@link WORKLOAD_KINDS} (the single source of truth). */
 export const workloadKindSchema = z.enum(WORKLOAD_KINDS);
-
-// ── The `WorkloadStatus` lifecycle axis ──────────────────────────────────────────────────────────────
 
 /** The row's lifecycle state. `queued → running → {succeeded | failed | cancelled | worker_died}`, with
  *  `cancelling` the in-flight "stop requested" state a running row passes through before `cancelled`.
@@ -65,10 +62,7 @@ export const WORKLOAD_STATUSES = [
 
 export type WorkloadStatus = (typeof WORKLOAD_STATUSES)[number];
 
-/** The wire schema for the status axis — `z.enum` over {@link WORKLOAD_STATUSES}. */
 export const workloadStatusSchema = z.enum(WORKLOAD_STATUSES);
-
-// ── The active-status subset (the partial-unique-index `WHERE` axis) ──────────────────────────────────
 
 /** The statuses that hold a kind's single-active slot — the NAMED mirror of the
  *  `workloads_kind_active` partial unique index's `WHERE status IN (…)` predicate. The db index derives

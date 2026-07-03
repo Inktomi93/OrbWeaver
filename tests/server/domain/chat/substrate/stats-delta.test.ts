@@ -37,7 +37,6 @@ describe("assistantTurnDelta", () => {
     expect(d.tokensOut).toBe(9);
     // DAILY slice is decoupled but credited for the message stream.
     expect(d.dailyTokensIn).toBe(5);
-    // MODEL slice present (model set).
     expect(d.model).toBe("opus");
     expect(d.modelGenerations).toBe(1);
     expect(d.modelTokensIn).toBe(5);

@@ -65,7 +65,6 @@ test("characters insert→select round-trips (branded id + always-a-list default
   expect(rows[0]?.id).toBe(id);
   expect(rows[0]?.ownerId).toBe(ownerId);
   expect(rows[0]?.name).toBe("Test Card");
-  // Identity-flag defaults.
   expect(rows[0]?.starred).toBe(false);
   expect(rows[0]?.synthetic).toBe(false);
   // forbidExternalMedia is the tri-state — absent ⇒ null (inherit deployment default).

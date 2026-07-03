@@ -391,7 +391,6 @@ export type ToolCallRecord = z.infer<typeof toolCallRecordSchema>;
  *  readout. `variantCount`/`selectedVariantIdx` drive the "3 / 5" swipe counter. The cost/latency readout is
  *  exact for whichever swipe is shown (the economics live on each variant — D26 ends the swipe-overwrite). */
 export interface MessageView {
-  // ── slot ────────────────────────────────────────────────────────────────
   id: MessageId;
   chatId: ChatId;
   seq: number;
@@ -402,7 +401,6 @@ export interface MessageView {
   excludedFromPrompt: boolean;
   createdAt: number;
   editedAt: number | null;
-  // ── selected-variant projection (the join) ───────────────────────────────
   selectedVariantId: MessageVariantId;
   /** Which swipe is shown (the selected variant's `idx`). */
   selectedVariantIdx: number;
@@ -471,7 +469,6 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
  *  carries a caller id — turn attribution lives on the turn path (`triggeredBy`/`runAsUserId`), never the
  *  public bus (D19). */
 export type ChatBusEvent =
-  // ── Streaming ──────────────────────────────────────────────────────────────
   | { type: "delta"; chatId: ChatId; delta: ChatDeltaEvent }
   // ── Canon mutations (view = the no-refetch carrier; absent only if the row raced a delete) ──
   | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
@@ -506,11 +503,9 @@ export type ChatBusEvent =
   // ── World-info ACTIVATION (which entries FIRED during this turn's assembly — distinct from the
   //    attachment changes in WiBusEvent; ST WORLD_INFO_ACTIVATED — the "what lore fired" automation hook) ──
   | { type: "worldInfoActivated"; chatId: ChatId; entryIds: WorldEntryId[] }
-  // ── Persona (per-participant active persona switched; carries old + new) ─────
   | { type: "personaSwitched"; chatId: ChatId; from: PersonaId | null; to: PersonaId | null }
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent
-  // ── Chat existence ──────────────────────────────────────────────────────────
   | { type: "chatCreated"; chatId: ChatId }
   | { type: "chatDeleted"; chatId: ChatId }
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;

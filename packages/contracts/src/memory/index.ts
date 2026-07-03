@@ -12,17 +12,13 @@ import { z } from "zod";
  *  (a reserved member of `@orb/contracts/workloads` WORKLOAD_KINDS with a no-op stub runner). */
 export const CLIP_KINDS = ["fact", "trait", "relationship", "world-state", "plot-thread"] as const;
 export type ClipKind = (typeof CLIP_KINDS)[number];
-/** Wire schema for {@link ClipKind} — `z.enum` over the canonical tuple (derive, don't re-spell). */
 export const clipKindSchema = z.enum(CLIP_KINDS);
 
 /** Provenance of a clip. A `'user'` clip is NEVER auto-deleted (knowledge-cluster §9). */
 export const CLIP_SOURCE_KINDS = ["user", "synthesized", "promoted"] as const;
 export type ClipSourceKind = (typeof CLIP_SOURCE_KINDS)[number];
-/** Wire schema for {@link ClipSourceKind} — `z.enum` over the canonical tuple. */
 export const clipSourceKindSchema = z.enum(CLIP_SOURCE_KINDS);
 
-/** Reach of a clip. */
 export const CLIP_SCOPES = ["character", "chat", "global"] as const;
 export type ClipScope = (typeof CLIP_SCOPES)[number];
-/** Wire schema for {@link ClipScope} — `z.enum` over the canonical tuple. */
 export const clipScopeSchema = z.enum(CLIP_SCOPES);

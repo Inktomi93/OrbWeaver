@@ -24,7 +24,6 @@ import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { resolveEntryInjection, resolveEntryScope } from "@orb/kit/world-info";
 
-// ── small pure string folds (dependency-free) ──────────────────────────────
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
@@ -309,7 +308,6 @@ export interface ExportWorldEntry {
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
 const ST_POSITION_AT_DEPTH = 4;
 
-// The ST card spec_version this emitter writes.
 const SPEC_VERSION = "3.0";
 
 /**

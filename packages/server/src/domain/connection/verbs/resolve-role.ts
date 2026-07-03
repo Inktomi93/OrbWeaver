@@ -132,7 +132,6 @@ function assertCoherent(api: ChatApi, source: ChatSource): void {
     }
     return;
   }
-  // chat-completions | responses
   if (source === "max-pro-sub") {
     throw new ConnectionRoutingError(api, source);
   }

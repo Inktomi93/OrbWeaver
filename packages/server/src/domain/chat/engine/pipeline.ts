@@ -337,7 +337,6 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     signal: args.signal,
   };
 
-  // 5. REDUCE — one drain of the role stream.
   const reduced = await reduceStream(args.runChatTurn(request), args);
   // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (canon-mutating
   //    at write — the engine persists THIS post-regex {content, reasoning}). The reduced economics are unchanged.

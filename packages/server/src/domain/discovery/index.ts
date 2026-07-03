@@ -3,7 +3,6 @@
 // projection/similarity/catalog/analyze/swipes/insights/tag-suggest/image-analytics/cooccurrence/views + the
 // chat near-dup arm) is DEFERRED to later discovery waves (contract/service.ts deferral ledger).
 
-// Typed error
 export { DiscoveryError } from "./contract/errors";
 export type {
   ComputeDuplicatesOptions,
@@ -12,9 +11,9 @@ export type {
   DuplicateCharactersOptions,
   ThemeLevel,
 } from "./contract/params";
-// Params (dispatch axis + option bags)
 export { THEME_LEVELS } from "./contract/params";
-// Result + view types (consumed via service-method-signature inference at the tRPC routers + tests)
+// Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports —
+// don't flag these as unused exports.
 export type {
   DuplicateCharacterPair,
   DuplicateComputeStats,
@@ -27,9 +26,8 @@ export type {
   DiscoveryService,
   DiscoveryServiceDeps,
 } from "./contract/service";
-// Standalone workload passes (driven by the transport/jobs runners, not via tRPC) + their constants
+// Driven directly by the transport/jobs runners, not via tRPC.
 export { computeDuplicatePairs, DEFAULT_DUP_THRESHOLD } from "./duplicates/generate";
-// Service + factory + injection shape
 export { createDiscoveryService } from "./service";
 export { CSLS_K, HUBNESS_DENSE_MAX } from "./substrate/hub-math";
 export { computeThemes } from "./themes/generate";

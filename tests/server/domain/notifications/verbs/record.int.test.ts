@@ -36,7 +36,7 @@ beforeEach(async () => {
 
 describe("record — the D60 recipient belt (agent-principal-design/06 §3 + inv 2)", () => {
   test("refuses an agent-principal recipient — no row is written (a durable row would only rot)", async () => {
-    await seedAgent(db, AGENT, ALICE); // ALICE's agent principal (kind='agent', loginless)
+    await seedAgent(db, AGENT, ALICE);
     await expect(svc.record({ event: inviteEvent(AGENT) })).rejects.toThrow(AGENT_REFUSAL);
     // The refusal runs BEFORE the write — nothing landed in the agent's (non-)inbox.
     const page = await svc.list({ principal: principal(AGENT) });
@@ -127,7 +127,6 @@ describe("record — the closed union is the secret-free belt", () => {
     const payload = view.payload as Record<string, unknown>;
     expect(payload["apiKey"]).toBeUndefined();
     expect(payload["baseUrl"]).toBeUndefined();
-    // The legitimate fields are preserved.
     expect(payload["type"]).toBe("invite");
     expect(payload["recipientUserId"]).toBe(ALICE);
   });

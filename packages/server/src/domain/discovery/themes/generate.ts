@@ -73,7 +73,6 @@ function heuristicK(n: number): number {
   return Math.max(1, Math.round(Math.sqrt(n / 2)));
 }
 
-// Group rows by a string key (deterministic insertion order).
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const row of rows) {

@@ -95,8 +95,6 @@ function readSessionToken(headers: Headers): string | null {
   return null;
 }
 
-// ── Injected ports ──────────────────────────────────────────────────────────────────────────────────────
-
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the WRITE side). */
 export interface AuthSessionsPort {
   readonly create: (params: {
@@ -141,8 +139,6 @@ export interface AuthRoutesDeps {
   /** Present in `oidc` mode (else the OIDC routes are not registered). */
   readonly oidc?: OidcRoutesDeps;
 }
-
-// ── Registrar ───────────────────────────────────────────────────────────────────────────────────────────
 
 /** Register the auth mint routes on `app`. Logout is always present; local login / OIDC are registered
  *  only when their injected op is supplied (the mode-conditional, fail-closed posture). */

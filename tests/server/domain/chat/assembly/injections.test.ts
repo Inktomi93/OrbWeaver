@@ -62,7 +62,6 @@ describe("spliceInChatInjections", () => {
     const out = spliceInChatInjections(HIST, [
       inj({ depth: 0, role: "assistant", content: "cont" }),
     ]);
-    // Lands BEFORE the tail (depth 1), never as the trailing row.
     expect(out.at(-1)).toEqual({ role: "user", content: "tail" });
     expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont" });
   });

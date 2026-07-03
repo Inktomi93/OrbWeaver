@@ -35,7 +35,6 @@ import {
 import { collapseByHash } from "../substrate/collapse";
 import { computeGroupHubs } from "../substrate/hub-math";
 
-// A bare vector row a hub pass scores.
 interface HubRow {
   readonly id: string;
   readonly model: string;
@@ -50,7 +49,6 @@ interface HubUpdate {
   readonly hubScore: number;
 }
 
-// Group rows by a string key (deterministic insertion order).
 function groupBy<T>(rows: readonly T[], keyOf: (row: T) => string): Map<string, T[]> {
   const groups = new Map<string, T[]>();
   for (const row of rows) {

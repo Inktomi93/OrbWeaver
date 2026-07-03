@@ -125,7 +125,6 @@ describe("exportChat — D29 host gate", () => {
     expect(
       await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") }),
     ).toBeNull();
-    // The host DOES get the artifact.
     expect(await exportChat({ principal: principal(host), chatId })).not.toBeNull();
   });
 });
@@ -269,7 +268,6 @@ describe("exportChat — the D26/D28 assembly", () => {
     // …but each message LINE carries its actual speaker — the multi-speaker fix.
     expect((JSON.parse(lines[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
     expect((JSON.parse(lines[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
-    // TXT too.
     const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
     expect(txt?.text).toBe("User: hey all\n\nBran: Bran speaks\n\nCara: Cara speaks\n");
   });

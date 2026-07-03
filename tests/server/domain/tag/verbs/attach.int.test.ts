@@ -27,7 +27,6 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const characterId = await seedCharacter(db, owner);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
-    // import/corpus-style staged suggestion.
     await svc.attachTag({
       principal: principal(owner),
       tagId,

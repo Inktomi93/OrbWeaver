@@ -42,7 +42,6 @@ describe("insertNotification — db-driven monotonic seq", () => {
     const b1 = await insert(BOB);
     expect(a1.seq).toBe(1);
     expect(a2.seq).toBe(2);
-    // Bob's sequence is independent of Alice's — per-recipient monotonic.
     expect(b1.seq).toBe(1);
   });
 
@@ -86,7 +85,6 @@ describe("selectInbox — recipient-scope + dismissed-exclusion + newest-first",
 describe("markReadScoped / dismissScoped — scope + COALESCE idempotence", () => {
   test("a non-owner id matches nothing (undefined) and mutates no row", async () => {
     const row = await insert(ALICE);
-    // Bob tries to mark Alice's notification read — recipient-scope denies it.
     const result = await markReadScoped(db, BOB, row.id, 2000);
     expect(result).toBeUndefined();
     const fresh = await db.select().from(notifications).where(eq(notifications.id, row.id));

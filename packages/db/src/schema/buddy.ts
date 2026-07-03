@@ -65,7 +65,6 @@ export const buddies = sqliteTable(
     shiny: integer("shiny", { mode: "boolean" }).notNull().default(false),
     stats: text("stats", { mode: "json" }).$type<CompanionStats>().notNull(),
 
-    // ── reaction-engine state ──
     mood: text("mood", { enum: MOODS }).notNull().default(DEFAULT_MOOD),
     // epoch-ms anchor for the reactor cooldown + lazy read-time mood decay; null until the first reaction.
     lastReactionAt: integer("last_reaction_at"),
@@ -73,7 +72,6 @@ export const buddies = sqliteTable(
     lastSignalKey: text("last_signal_key"),
     reactionsEnabled: integer("reactions_enabled", { mode: "boolean" }).notNull().default(true),
 
-    // ── agency / bond ──
     // relationship XP → `bondTierOf` (derived, never stored). Server-side `sql` increment in the reactor.
     bondXp: integer("bond_xp").notNull().default(0),
     // the "hands" kill switch (the capability ceiling — pairs with the propose/confirm gate).

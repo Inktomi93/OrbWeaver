@@ -65,7 +65,6 @@ export function turnAbortSignal(
   // dangling timer.
   controller.signal.addEventListener("abort", dispose, { once: true });
 
-  // Arm the window immediately.
   reset();
 
   return { signal: controller.signal, reset, dispose };

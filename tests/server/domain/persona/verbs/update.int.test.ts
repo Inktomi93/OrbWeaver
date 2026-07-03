@@ -58,7 +58,7 @@ describe("update", () => {
     });
 
     expect(result.name).toBe("Same");
-    expect(result.updatedAt).toBe(created.updatedAt); // unchanged — no write happened
+    expect(result.updatedAt).toBe(created.updatedAt);
     expect(h.audits.some((a) => a.entry.action === "persona.update")).toBe(false);
   });
 

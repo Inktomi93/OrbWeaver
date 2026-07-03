@@ -580,7 +580,6 @@ export function createDefaultRegistry(): MacroRegistry {
   registry.register("isotime", (_args, ctx) => nowInZone(ctx).toISO() ?? "", vol);
   registry.register("datetimeformat", dateTimeFormat, vol);
 
-  // Dice.
   registry.register("roll", rollHandler, vol);
 
   // ── Conversation context (set by the chat send/assembly path; "" elsewhere) ──────────────────

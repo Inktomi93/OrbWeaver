@@ -1,5 +1,3 @@
-// verb: resetToDefault — owned reset to DEFAULT_PROMPT_CONFIG; a no-op for the (already-default) system row.
-
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

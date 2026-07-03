@@ -65,7 +65,6 @@ describe("importCharacter", () => {
     expect(call.input.handle).toBe("aria");
     expect(call.input.greetings).toEqual(["Hello there!", "Well met."]);
     expect(call.input.avatarAssetId).toBe(h.storedAssetId);
-    // provenance: the filename + the whole-file hash (which the result echoes).
     expect(call.importedFrom).toBe("Aria.png");
     expect(call.importHash).toBe(result.importHash);
     expect(call.importHash).toMatch(SHA256_HEX);
@@ -145,7 +144,6 @@ describe("importCharacter", () => {
     const svc = createImportService(h.ctx);
     const bytes = encoder.encode(V3_JSON);
 
-    // First run creates it; capture the hash, then seed the oracle as if it already exists.
     const first = await svc.importCharacter({ card: { bytes } });
     const existingId = castId<CharacterId>("character_existing");
     h.setExisting(first.importHash, existingId);

@@ -23,7 +23,6 @@ export const selectVariants = tv({
       // the trigger edge, not center).
       "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     ],
-    // A grouped section — Base UI Select.Group; the label sits above its items.
     group: "flex flex-col",
     groupLabel:
       "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",

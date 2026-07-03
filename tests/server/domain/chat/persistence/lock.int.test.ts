@@ -25,7 +25,6 @@ describe("persistence/lock — the per-chat turn lock", () => {
     expect(await tryAcquireLock(db, { chatId, holder: "r1", now: T0, expiresAt: T0 + TTL })).toBe(
       true,
     );
-    // r2 contends while r1's lock is still fresh → refused.
     expect(await tryAcquireLock(db, { chatId, holder: "r2", now: T0, expiresAt: T0 + TTL })).toBe(
       false,
     );
@@ -34,7 +33,6 @@ describe("persistence/lock — the per-chat turn lock", () => {
   test("tryAcquireLock STEALS a stale lock (expiresAt <= now)", async () => {
     const chatId = await seedChat(db, "a");
     await tryAcquireLock(db, { chatId, holder: "r1", now: T0, expiresAt: T0 + TTL });
-    // r2 contends AFTER r1's TTL horizon → steal succeeds.
     const stolen = await tryAcquireLock(db, {
       chatId,
       holder: "r2",

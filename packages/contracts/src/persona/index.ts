@@ -38,9 +38,7 @@ export const personaMetadataSchema = z
     descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),
     /** Depth + role for the `at_depth` placement — the shared injection directive (`@orb/kit/injection`). */
     inject: injectionDirectiveSchema.optional(),
-    /** Provenance: the character whose description seeded this persona (non-lossy createFromCharacter). */
     sourceCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-    /** Whether `{{char}}` ↔ `{{user}}` macros were swapped when minting from the source character. */
     swapMacros: z.boolean().optional(),
   })
   .loose();

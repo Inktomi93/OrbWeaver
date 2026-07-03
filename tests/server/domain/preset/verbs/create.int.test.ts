@@ -1,5 +1,3 @@
-// verb: create — writes an OWNED preset (audited), defaulting the config to DEFAULT_PROMPT_CONFIG.
-
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { createPresetService } from "@orb/server/domain/preset";
 import { describe } from "vitest";

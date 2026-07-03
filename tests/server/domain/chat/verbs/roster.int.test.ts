@@ -205,7 +205,6 @@ describe("add character to chat — the participant-insert chokepoint", () => {
         characterId: castId<CharacterId>("character_foreign"),
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
-    // No ghost roster seat; no bus event.
     const rows = await db
       .select()
       .from(chatParticipants)

@@ -11,7 +11,6 @@
 // The composition root + the chat-owned collaborators the entry root constructs for `ChatServiceDeps`
 export { createActiveTurns } from "./active-turns";
 export { createChatBus } from "./bus";
-// Service contract + the DI bundle / deps types
 export type {
   ChatContext,
   ChatServiceDeps,
@@ -19,7 +18,6 @@ export type {
   PresenceReadOp,
 } from "./contract/context";
 export type { ChatOpCode } from "./contract/errors";
-// Errors
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors";
 // The `chats.metadata` parse-seam the composition root binds onto `ChatContext.getGroupConfig`/
 // `getRoomOverrides` (a thin convenience so chat verbs don't re-import the parser — see contract/context.ts).

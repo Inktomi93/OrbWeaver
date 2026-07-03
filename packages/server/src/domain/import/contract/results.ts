@@ -7,7 +7,6 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 
-/** The minimal handle the injected create op returns — just the resulting character identity. */
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
 }

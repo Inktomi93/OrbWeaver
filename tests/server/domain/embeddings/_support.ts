@@ -193,8 +193,6 @@ export function makeIndexerHarness(
   return { ctx, roleClients, loadCardText, loadAssetBytes, store };
 }
 
-// ── FK-parent seeders ─────────────────────────────────────────────────────────
-
 interface SeedUserOverrides {
   readonly id?: string;
   readonly handle?: string;

@@ -88,7 +88,6 @@ export interface WorldInfoContext {
 }
 
 export interface WorldInfoService {
-  // ── Books ──────────────────────────────────────────────────────────────────
   /** The caller's books, newest first. Empty array when they have none. */
   readonly listBooks: (params: ListBooksParams) => Promise<BookView[]>;
   /** One owned book by id. Throws `WorldInfoNotFoundError` when missing OR not the caller's. */
@@ -103,7 +102,6 @@ export interface WorldInfoService {
    *  every scope). One atomic batch. Returns the new book view. Throws when the source isn't owned/found. */
   readonly duplicateBook: (params: DuplicateBookParams) => Promise<BookView>;
 
-  // ── Entries ──────────────────────────────────────────────────────────────────
   /** The entries of an owned book, by descending `priority` (the display/injection order). */
   readonly listEntries: (params: ListEntriesParams) => Promise<EntryView[]>;
   /** One entry, owner-scoped via its book. Throws when missing OR not the caller's. */
@@ -122,16 +120,14 @@ export interface WorldInfoService {
    *  dropped; unlisted entries keep their priority. One atomic batch. Returns the rewrite count. */
   readonly applyEntryOrder: (params: ApplyEntryOrderParams) => Promise<ReorderResult>;
 
-  // ── Attachments — character (the only scope carrying a role) ─────────────────
-  /** Attach an owned book to an owned character at `role`. `primary` atomically demotes any other primary
-   *  on that character (single demote+upsert batch). Idempotent on the composite key. */
+  /** Only scope carrying a role. Attach an owned book to an owned character at `role`. `primary` atomically
+   *  demotes any other primary on that character (single demote+upsert batch). Idempotent on the composite key. */
   readonly attachToCharacter: (params: AttachToCharacterParams) => Promise<void>;
   /** Detach a book from a character (idempotent — `detached:false` when already absent). */
   readonly detachFromCharacter: (params: DetachFromCharacterParams) => Promise<DetachResult>;
   /** The books attached to an owned character, primary first then newest. Carries the per-attachment role. */
   readonly listForCharacter: (params: ListForCharacterParams) => Promise<BookAttachmentView[]>;
 
-  // ── Attachments — global (deployment scope; owner-gated via the book) ─────────
   /** Mark an owned book global (fires for every chat). Gate is plain book ownership. Idempotent. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;
   /** Un-mark an owned book global (idempotent — `detached:false` when not global). */
@@ -139,7 +135,6 @@ export interface WorldInfoService {
   /** The caller's global books, newest first (owner-scoped via the book). `role` is null. */
   readonly listGlobal: (params: ListGlobalParams) => Promise<BookAttachmentView[]>;
 
-  // ── Attachments — persona ────────────────────────────────────────────────────
   /** Attach an owned book to an owned persona (idempotent on the composite key). */
   readonly attachToPersona: (params: AttachToPersonaParams) => Promise<void>;
   /** Detach a book from a persona (idempotent — `detached:false` when already absent). */
@@ -147,7 +142,6 @@ export interface WorldInfoService {
   /** The books attached to an owned persona, newest first. `role` is null. */
   readonly listForPersona: (params: ListForPersonaParams) => Promise<BookAttachmentView[]>;
 
-  // ── Attachments — chat (membership-scoped, D18; the injected chat-guard ops gate — PD-30) ──────
   /** Attach a caller-OWNED book to a chat room (HOST authority — room-wide prompt content is a one-shot
    *  jailbreak surface, the chat-injection precedent). Idempotent on the composite key; only a REAL insert
    *  emits `wiBookAttached` + audits. */

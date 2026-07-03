@@ -13,7 +13,6 @@
 export type { Can, GlobalAction, ResourceRef, UserRole } from "@orb/contracts/identity";
 // The GLOBAL-role wrapper op types the gating domains inject (type-only) at the composition root.
 export type { RequireAdmin, RequireOwner } from "./contract/guard";
-// Service contract (client consumes AdminUserView via tRPC service-method-signature inference).
 export type { AdminService } from "./contract/service";
 export type { AdminUserView } from "./contract/views";
 // The guard seam primitives — injected at the root into the other domains that gate. `canAgent` (D60/PD-17)

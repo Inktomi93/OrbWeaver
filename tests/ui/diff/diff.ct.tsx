@@ -18,7 +18,6 @@ test("words mode renders added/removed segments with intent token colors", async
   await expect(removed).toHaveCSS("background-color", TOKENS["color.destructive"].value);
   await expect(removed).toHaveCSS("color", TOKENS["color.destructive-foreground"].value);
   await expect(removed).toHaveCSS("text-decoration-line", "line-through");
-  // Unchanged text renders plain.
   await expect(component.locator("[data-diff=unchanged]").first()).toContainText("the quick");
 });
 

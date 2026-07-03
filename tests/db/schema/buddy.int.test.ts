@@ -63,7 +63,6 @@ test("buddies insert→select round-trips (defaults, JSON stats, typed-text eye)
   expect(row?.userId).toBe(userId);
   expect(row?.eye).toBe("●");
   expect(row?.stats).toEqual(STATS);
-  // defaults
   expect(row?.mood).toBe("content");
   expect(row?.shiny).toBe(false);
   expect(row?.bondXp).toBe(0);

@@ -502,7 +502,6 @@ export function startVllmEngines(opts: { repoRoot: string; now: () => number }):
     queueSpawn(s, `restart: ${reason}`, backoff);
   }
 
-  // Apply one decided action to its engine state.
   function applyAction(s: EngineState, action: TickAction): void {
     switch (action.kind) {
       case "none":

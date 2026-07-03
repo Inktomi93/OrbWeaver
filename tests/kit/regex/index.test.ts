@@ -140,7 +140,6 @@ test("an invalid regex is caught and reported, not thrown", () => {
 });
 
 test("default flags are global + multiline", () => {
-  // global: every "a" replaced.
   expect(
     executeRegexScripts({
       text: "banana",
@@ -149,7 +148,6 @@ test("default flags are global + multiline", () => {
       ctx: macroOpts(),
     }),
   ).toBe("bonono");
-  // multiline: `^` matches each line start.
   expect(
     executeRegexScripts({
       text: "x\nx",

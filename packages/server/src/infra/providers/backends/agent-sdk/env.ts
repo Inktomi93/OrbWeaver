@@ -109,7 +109,6 @@ const ISOLATION_PINS: Readonly<Record<string, string>> = {
  * {@link claudeUserEnv} BEFORE the auth overlay. (security-load-bearing; the firewall test asserts it.)
  */
 export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
-  // Auth / token sources
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "ANTHROPIC_BASE_URL",
@@ -117,7 +116,6 @@ export const RESERVED_CLAUDE_ENV_KEYS: ReadonlySet<string> = new Set<string>([
   "ANTHROPIC_IDENTITY_TOKEN",
   "ANTHROPIC_IDENTITY_TOKEN_FILE",
   "ANTHROPIC_SERVICE_ACCOUNT_ID",
-  // Credential isolation
   "CLAUDE_CONFIG_DIR",
   "ANTHROPIC_CONFIG_DIR",
   // Model routing tier defaults (OR-skin path) — set by the env builder from the resolved routing

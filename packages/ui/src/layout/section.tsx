@@ -2,7 +2,6 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { sectionVariants } from "./variants";
 
 export interface SectionProps extends ComponentProps<"section"> {
-  /** Heading rendered above the section's content. */
   heading?: ReactNode;
 }
 

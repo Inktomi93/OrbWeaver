@@ -176,7 +176,6 @@ export async function listOwnedTagsWithUsage(db: Db, ownerId: UserId): Promise<T
     return [];
   }
   const ids = owned.map((t) => t.id);
-  // Five GROUP BY rollups in parallel (one per per-type junction), merged in-process below.
   const [characters, chats, worldBooks, personas, presets] = await Promise.all([
     countByTag(db, characterTags, characterTags.tagId, ids),
     countByTag(db, chatTags, chatTags.tagId, ids),

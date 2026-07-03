@@ -248,7 +248,6 @@ export const messageVariants = sqliteTable(
     contextWindow: integer("context_window"),
     maxOutputTokens: integer("max_output_tokens"),
     ttftMs: integer("ttft_ms"),
-    // ── Termination triple ──
     finishReason: text("finish_reason"),
     stopReason: text("stop_reason"),
     terminalReason: text("terminal_reason"),

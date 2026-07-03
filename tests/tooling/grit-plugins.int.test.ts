@@ -33,7 +33,6 @@ const GRITS: string[] = readdirSync(GRIT_DIR)
   .map((f) => f.replace(GRIT_EXT_RE, ""))
   .sort();
 
-// The plugins biome.json actually registers (basenames).
 function readBiomePlugins(): string[] {
   const cfg = JSON.parse(readFileSync(join(ROOT, "biome.json"), "utf8")) as { plugins?: string[] };
   return (cfg.plugins ?? []).map((p) => p.replace(LEADING_PATH_RE, "").replace(GRIT_EXT_RE, ""));
