@@ -74,3 +74,31 @@ test("under prefers-reduced-motion the swap is instant (no transition)", async (
   await expect(current).toHaveCSS("transition-duration", "1e-05s");
   await expect(page.locator('[data-slot="crossfade-image-previous"]')).toHaveCount(0);
 });
+
+test("a src that fails to load renders the broken-image fallback, not a native broken <img>", async ({
+  mount,
+  page,
+}) => {
+  await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src="/does-not-exist-404.png" />);
+
+  await expect(page.locator('[data-slot="crossfade-image-fallback"]')).toBeVisible();
+  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveCount(0);
+});
+
+test("the fallback replaces the previous layer too, once the incoming src fails", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<CrossfadeImage alt="Portrait" aspectRatio="1" src={ONE_PX_SVG} />);
+  await expect(page.locator('[data-slot="crossfade-image-current"]')).toHaveAttribute(
+    "src",
+    ONE_PX_SVG,
+  );
+
+  await component.update(
+    <CrossfadeImage alt="Portrait" aspectRatio="1" src="/does-not-exist-404.png" />,
+  );
+
+  await expect(page.locator('[data-slot="crossfade-image-fallback"]')).toBeVisible();
+  await expect(page.locator('[data-slot="crossfade-image-previous"]')).toHaveCount(0);
+});

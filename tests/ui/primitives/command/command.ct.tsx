@@ -120,6 +120,11 @@ test("combobox/listbox ARIA wiring is wired (input <-> list association)", async
   await expect(input).toHaveAttribute("aria-controls", listId ?? "");
 });
 
+test("group headings carry data-slot", async ({ mount, page }) => {
+  await mount(<CommandPaletteStory />);
+  await expect(page.locator('[data-slot="command-group-heading"]')).toHaveCount(2);
+});
+
 test("the root wears the popover token", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);
   const root = page.locator('[data-slot="command-root"]');

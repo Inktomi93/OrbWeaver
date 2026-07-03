@@ -65,17 +65,17 @@ export function ScrollArea(props: ScrollAreaProps): ReactElement {
       </BaseScrollArea.Viewport>
       <BaseScrollArea.Scrollbar
         className={slots.scrollbar()}
-        data-slot="scroll-area-scrollbar"
+        data-slot="scroll-area-scrollbar-vertical"
         orientation="vertical"
       >
-        <BaseScrollArea.Thumb className={slots.thumb()} data-slot="scroll-area-thumb" />
+        <BaseScrollArea.Thumb className={slots.thumb()} data-slot="scroll-area-thumb-vertical" />
       </BaseScrollArea.Scrollbar>
       <BaseScrollArea.Scrollbar
         className={slots.scrollbar()}
-        data-slot="scroll-area-scrollbar"
+        data-slot="scroll-area-scrollbar-horizontal"
         orientation="horizontal"
       >
-        <BaseScrollArea.Thumb className={slots.thumb()} data-slot="scroll-area-thumb" />
+        <BaseScrollArea.Thumb className={slots.thumb()} data-slot="scroll-area-thumb-horizontal" />
       </BaseScrollArea.Scrollbar>
       <BaseScrollArea.Corner className={slots.corner()} data-slot="scroll-area-corner" />
     </BaseScrollArea.Root>

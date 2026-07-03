@@ -14,6 +14,11 @@ export const colorFieldVariants = tv({
       "transition-colors duration-(--motion-fast) ease-out-expo",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "cursor-pointer data-disabled:pointer-events-none data-disabled:opacity-50",
+      // The 8-state contract's loading/success arms (ui-package-design §5) — disabled/error/hover/
+      // focus-visible/active ride pseudo-classes or Base UI's own data-invalid elsewhere; these two
+      // need explicit skin since nothing native drives them.
+      "data-loading:cursor-wait data-loading:pointer-events-none",
+      "data-success:ring-2 data-success:ring-success data-success:ring-offset-2 data-success:ring-offset-background",
     ],
     popupBody: "flex flex-col gap-field",
     nativeColorInput:

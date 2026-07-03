@@ -77,9 +77,13 @@ function splitRuns(text: string, ranges: readonly HighlightedTextRange[]): TextR
  * `<mark>` elements (screen readers announce them; a `<span style="background">` would not).
  * Overlapping/adjacent ranges are merged into a single run before splitting (ui-primitive
  * carve-out work-order item 11) — the simplest correct behavior; there is no nested-highlight
- * concept. The first highlight scrolls into view on mount via `scrollIntoView({ block: "nearest"
- * })` — an instant jump, not an animated scroll, so there's nothing to gate behind
- * prefers-reduced-motion. Plain DOM/CSS; no windowing in v1 — a caller windowing a huge document
+ * concept. The first highlight scrolls into view via `scrollIntoView({ block: "nearest" })` — an
+ * instant jump, not an animated scroll, so there's nothing to gate behind prefers-reduced-motion.
+ * This fires on MOUNT and again whenever `ranges` genuinely changes VALUE (the "find next match"
+ * case — a caller advancing a search cursor passes a new `ranges` array pointing further into the
+ * text), keyed off a content signature rather than the array's identity so a parent re-render that
+ * passes an equal-but-freshly-allocated `ranges` array does not re-fire and yank a reader who has
+ * since scrolled elsewhere. Plain DOM/CSS; no windowing in v1 — a caller windowing a huge document
  * composes `@orb/ui/virtual-list` itself (no direct TanStack Virtual import here).
  *
  * Usage: `<HighlightedText text={doc} ranges={[{ start: 120, end: 148 }]} />`.
@@ -94,9 +98,18 @@ export function HighlightedText({
   const runs = splitRuns(text, ranges);
   const firstHighlightIndex = runs.findIndex((run) => run.highlighted);
 
+  // Content, not identity: a fresh `ranges` array with the SAME start/end pairs (the common
+  // `ranges={[{ start, end }]}` inline-literal shape) must not re-trigger the scroll.
+  const rangesSignature = ranges.map((range) => `${range.start}-${range.end}`).join(",");
+  const previousRangesSignatureRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (previousRangesSignatureRef.current === rangesSignature) {
+      return;
+    }
+    previousRangesSignatureRef.current = rangesSignature;
     firstMarkRef.current?.scrollIntoView({ block: "nearest" });
-  }, []);
+  }, [rangesSignature]);
 
   return (
     <div {...props} className={cn(slots.root(), className)} data-slot="highlighted-text-root">

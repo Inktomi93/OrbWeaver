@@ -8,6 +8,7 @@ import {
   ActivatableGrid,
   AnimatedDispatchGrid,
   BasicGrid,
+  DerivedItemsGrid,
   MixedContentGrid,
   SelectableGrid,
   UnboundedGrid,
@@ -166,4 +167,18 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
   await expect(alert).toContainText("no bounded height");
+});
+
+// R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
+// re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
+test("renders correctly when the parent passes a freshly-derived items array each render", async ({
+  mount,
+}) => {
+  const component = await mount(<DerivedItemsGrid />);
+  await expect(component.getByRole("gridcell", { name: "Alpha" })).toBeVisible();
+
+  await component.getByTestId("rerender").click();
+  await expect(component.getByRole("gridcell", { name: "Alpha" })).toBeVisible();
+  await expect(component.getByRole("gridcell", { name: "Bravo" })).toBeVisible();
+  await expect(component.getByRole("gridcell", { name: "Charlie" })).toBeVisible();
 });

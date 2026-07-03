@@ -3,6 +3,7 @@
 // driven with pressSequentially (real keystrokes) so Base UI's open-on-type fires; gates use role
 // locators for the input/popup and the `combobox-chip` data-slot for committed chips.
 import { Combobox } from "@orb/ui/combobox";
+import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DerivedItemsStory } from "./combobox.fixtures";
@@ -11,6 +12,7 @@ const TAGS = ["adventure", "mystery", "romance"];
 const CHIP_SELECTOR = '[data-slot="combobox-chip"]';
 // Exact-text match: `hasText` substring-matches, and "adventure" itself contains "adv".
 const EXACT_ADV = /^adv$/u;
+const NON_EMPTY = /.+/u;
 
 test("selecting a suggestion commits it as a chip and clears the draft", async ({
   mount,
@@ -136,9 +138,8 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   const input = page.getByRole("combobox");
   await input.click();
   await input.pressSequentially("r");
-  const list = page.getByRole("listbox");
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
-  const popup = list.locator("xpath=..");
+  const popup = page.locator('[data-slot="combobox-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
   await expect(popup).toHaveCSS("z-index", "40");
 });
@@ -152,4 +153,51 @@ test("the Status live region announces the filtered result count", async ({ moun
   const status = page.locator('[data-slot="combobox-status"]');
   await expect(status).toHaveRole("status");
   await expect(status).toHaveText("1 result");
+});
+
+test("disabled: the input is inert", async ({ mount, page }) => {
+  await mount(<Combobox aria-label="Tag" disabled={true} items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await expect(input).toBeDisabled();
+  await expect(input).toHaveAttribute("data-disabled", "");
+});
+
+test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field description="Press Enter to add" label="Tags">
+      <Combobox items={TAGS} />
+    </Field>,
+  );
+  // getByLabel resolves only if Field's label associates with the input — the R7 shape
+  // (Combobox.Input extends FieldRootState, auto-registering under Field.Root).
+  const input = page.getByLabel("Tags");
+  await expect(input).toBeVisible();
+  await expect(input).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
+
+test("arrow: renders inside the popup when enabled", async ({ mount, page }) => {
+  await mount(<Combobox arrow={true} aria-label="Tag" items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("r");
+  await expect(page.locator('[data-slot="combobox-arrow"]')).toBeVisible();
+});
+
+test("side: overrides the Positioner's requested placement", async ({ mount, page }) => {
+  await mount(
+    <div style={{ paddingBottom: 300, paddingTop: 300 }}>
+      <Combobox aria-label="Tag" items={TAGS} side="top" />
+    </div>,
+  );
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("r");
+  await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
+  await expect(page.locator('[data-slot="combobox-positioner"]')).toHaveAttribute(
+    "data-side",
+    "top",
+  );
 });

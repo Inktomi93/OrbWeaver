@@ -23,7 +23,13 @@ export function Textarea({ className, ...rest }: TextareaProps): ReactElement {
   // never conflicts with the textarea's `onChange`/etc.
   return (
     <BaseField.Control
-      render={<textarea {...rest} className={cn(textareaVariants(), className)} />}
+      render={
+        <textarea
+          {...rest}
+          className={cn(textareaVariants(), className)}
+          data-slot="textarea-root"
+        />
+      }
     />
   );
 }

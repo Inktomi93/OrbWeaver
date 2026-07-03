@@ -14,6 +14,10 @@ export const fileDropzoneVariants = tv({
       "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
       "data-drag-over:border-primary data-drag-over:bg-accent/15",
+      // The 8-state contract's loading/success arms (ui-package-design §5) — the toast.tsx
+      // `data-type` border-tint precedent, applied here via plain boolean data-attributes.
+      "data-loading:cursor-wait data-loading:opacity-70",
+      "data-success:border-success",
     ],
     input: "absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed",
     content: "pointer-events-none flex flex-col items-center gap-field",

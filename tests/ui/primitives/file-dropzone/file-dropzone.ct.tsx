@@ -95,3 +95,32 @@ test("disabled: the native input is disabled and the root carries data-disabled"
   await expect(page.getByLabel("Upload")).toBeDisabled();
   await expect(page.locator('[data-slot="file-dropzone"]')).toHaveAttribute("data-disabled", "");
 });
+
+test("keyboard: Tab focuses the real input and Enter opens the native file picker", async ({
+  mount,
+  page,
+}) => {
+  await mount(<FileDropzone aria-label="Upload" />);
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("Upload")).toBeFocused();
+  const fileChooserPromise = page.waitForEvent("filechooser");
+  await page.keyboard.press("Enter");
+  await fileChooserPromise;
+});
+
+test("loading swaps the Upload glyph for a spinner and inerts the input", async ({
+  mount,
+  page,
+}) => {
+  await mount(<FileDropzone aria-label="Upload" loading={true} />);
+  const root = page.locator('[data-slot="file-dropzone"]');
+  await expect(root).toHaveAttribute("data-loading", "");
+  await expect(page.getByLabel("Upload")).toBeDisabled();
+  await expect(root.getByRole("status")).toBeVisible();
+});
+
+test("success shows a checkmark glyph and the success border token", async ({ mount, page }) => {
+  await mount(<FileDropzone aria-label="Upload" success={true} />);
+  const root = page.locator('[data-slot="file-dropzone"]');
+  await expect(root).toHaveAttribute("data-success", "");
+});

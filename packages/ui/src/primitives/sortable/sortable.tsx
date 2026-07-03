@@ -12,6 +12,12 @@
 // `draggable.handle ?? draggable.element` AUTOMATICALLY, and appends an off-screen
 // `aria-live="polite"` region with default dragstart/dragend announcements — all on by construction,
 // nothing to wire.
+// `Feedback` is the ONE piece of `@dnd-kit/dom` this seal reaches past `@dnd-kit/react`'s public
+// surface for (it is not re-exported there) — needed to configure the post-drop settle animation
+// below. Still inside the ui-satellite-seals `primitives/sortable/` dir, so the dep-cruiser gate
+// (a from-path allowlist keyed on the `@dnd-kit` PACKAGE SCOPE, not a specific subpackage) permits
+// it; declared as a direct dependency (not left transitive) per the `@codemirror/lint` precedent.
+import { Feedback } from "@dnd-kit/dom";
 import { move } from "@dnd-kit/helpers";
 import type { DragEndEvent } from "@dnd-kit/react";
 import { DragDropProvider } from "@dnd-kit/react";
@@ -28,6 +34,13 @@ import { sortableVariants } from "./variants";
 // Declaring the identical shape locally as `SortableItemKey` keeps the public API type-compatible
 // with `useSortable`'s `id` and `move()`'s array element type without importing the unlisted package.
 export type SortableItemKey = string | number;
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof globalThis.matchMedia === "function" &&
+    globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
 export interface SortableListProps<T> {
   readonly items: readonly T[];
@@ -55,7 +68,24 @@ interface SortableItemProps {
 }
 
 function SortableItem({ id, index, handle, disabled, children }: SortableItemProps): ReactElement {
-  const { ref, handleRef, isDragging } = useSortable({ id, index, disabled });
+  const { ref, handleRef, isDragging } = useSortable({
+    id,
+    index,
+    disabled,
+    // Reduced-motion: skip the post-drop settle bounce outright (verified against the shipped
+    // `@dnd-kit/dom` source, R1) — `runDropAnimation` drives it via `element.animate()` (WAAPI),
+    // a motion path the app's CSS reduced-motion floor (near-zero transition DURATIONS) cannot
+    // reach, since there's no CSS transition/animation to shorten (the chart.tsx WAAPI
+    // precedent). `dropAnimation: null` short-circuits the whole animation, not just its
+    // duration. Extends `useSortable`'s own per-item plugin DEFAULTS (`SortableKeyboardPlugin` +
+    // `OptimisticSortingPlugin`) via its documented `(defaults) => [...defaults, …]` shape rather
+    // than replacing them.
+    ...(prefersReducedMotion()
+      ? {
+          plugins: (defaults) => [...defaults, Feedback.configure({ dropAnimation: null })],
+        }
+      : {}),
+  });
   const slots = sortableVariants();
   return (
     <div

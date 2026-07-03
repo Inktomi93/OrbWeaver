@@ -89,3 +89,24 @@ test("no corner when only one axis overflows", async ({ mount, page }) => {
   // Base UI returns null for the Corner unless BOTH axes overflow.
   await expect(page.locator('[data-slot="scroll-area-corner"]')).toHaveCount(0);
 });
+
+test("the vertical and horizontal scrollbar/thumb data-slots each resolve to exactly one element", async ({
+  mount,
+  page,
+}) => {
+  // Both axes overflow so both scrollbars render — the case that previously collided under the
+  // shared "scroll-area-scrollbar"/"scroll-area-thumb" data-slot (a Playwright strict-mode locator
+  // resolving to 2 elements). Suffixing by orientation gives each a unique locator.
+  await mount(
+    <ScrollArea style={{ height: 120, width: 200 }}>
+      <div style={{ height: 1200, width: 1200 }}>
+        <p>Both axes overflow</p>
+      </div>
+    </ScrollArea>,
+  );
+
+  await expect(page.locator('[data-slot="scroll-area-scrollbar-vertical"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="scroll-area-scrollbar-horizontal"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="scroll-area-thumb-vertical"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="scroll-area-thumb-horizontal"]')).toHaveCount(1);
+});

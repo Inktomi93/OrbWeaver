@@ -73,3 +73,32 @@ test("a toast auto-dismisses after its timeout", async ({ mount, page }) => {
   // 500ms timeout — expect polling (never manual sleeps) sees it removed.
   await expect(toast).toHaveCount(0);
 });
+
+// Base UI's default swipeDirection is ['down', 'right'] with a 40px dismiss threshold. This drags
+// PAST that threshold and asserts BOTH halves of the fix: `data-swiping` is present mid-drag (so
+// `data-swiping:transition-none` can suspend the enter/exit transition and the gesture tracks 1:1 —
+// the defect this fix closes, mirroring drawer's popup) and the toast is actually dismissed on release.
+test("a toast can be swiped away past the dismiss threshold", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  await page.getByRole("button", { name: "add toast", exact: true }).click();
+  const toast = page.locator('[data-slot="toast-root"]');
+  await expect(toast).toHaveCount(1);
+
+  const box = await toast.boundingBox();
+  if (box === null) {
+    throw new Error("toast CT: missing bounding box for swipe geometry");
+  }
+  // Start the drag over the title/description area (avoids the close button and action, which are
+  // in the swipe-gesture ignore-selector) and drag DOWN well past the 40px threshold.
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 3;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX, startY + 30, { steps: 5 });
+  await expect(toast).toHaveAttribute("data-swiping");
+  await page.mouse.move(startX, startY + 80, { steps: 5 });
+  await page.mouse.up();
+
+  await expect(toast).toHaveCount(0);
+});

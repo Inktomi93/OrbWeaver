@@ -25,7 +25,7 @@ test("over max collapses the rest into a +N overflow chip", async ({ mount }) =>
   await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveCount(3);
   const overflow = component.locator('[data-slot="avatar-stack-overflow"]');
   await expect(overflow).toHaveText("+3");
-  await expect(overflow).toHaveAttribute("aria-label", "3 more");
+  await expect(overflow).toHaveAccessibleName("3 more");
 });
 
 test("the group carries an aria-label with the full member count", async ({ mount, page }) => {
@@ -44,8 +44,8 @@ test("a single member renders singular group wording", async ({ mount, page }) =
 test("each avatar keeps its own name as its accessible name", async ({ mount }) => {
   const component = await mount(<AvatarStack items={MEMBERS.slice(0, 2)} />);
   const items = component.locator('[data-slot="avatar-stack-item"]');
-  await expect(items.nth(0)).toHaveAttribute("aria-label", "Alex Ward");
-  await expect(items.nth(1)).toHaveAttribute("aria-label", "Robin Song");
+  await expect(items.nth(0)).toHaveAccessibleName("Alex Ward");
+  await expect(items.nth(1)).toHaveAccessibleName("Robin Song");
 });
 
 test("falls back to initials when no image src is given", async ({ mount }) => {

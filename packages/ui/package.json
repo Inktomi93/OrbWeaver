@@ -89,6 +89,8 @@
     "@base-ui/react": "catalog:",
     "@codemirror/lang-css": "catalog:",
     "@codemirror/lint": "catalog:",
+    "@codemirror/state": "catalog:",
+    "@dnd-kit/dom": "catalog:",
     "@dnd-kit/helpers": "catalog:",
     "@dnd-kit/react": "catalog:",
     "@orb/kit": "workspace:*",

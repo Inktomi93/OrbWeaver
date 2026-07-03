@@ -117,12 +117,20 @@ catalog:
   # @codemirror/lint: A5 diagnostics layer (code-editor seal) — pinned direct (was transitive) so the
   #   seal imports it without a phantom dependency (biome noUndeclaredDependencies).
   "@codemirror/lint": ^6.9.7
+  # @codemirror/state: pinned direct (was transitive, same reasoning) — the code-editor seal reaches
+  #   it directly for EditorState.readOnly (state-gates paste/drop/command inserts; EditorView.editable
+  #   alone only toggles contentEditable).
+  "@codemirror/state": ^6.7.0
   # cmdk: the command-palette seal (primitives/command/). 1.1.1 (2025-03-14, mature).
   cmdk: ^1.1.1
   # @dnd-kit/react + helpers: the MODERN rewrite (0.5.0, 2026-06-11) for the sortable seal. NEVER
   #   @dnd-kit/core|sortable|utilities — the dead legacy stack (biome-banned).
   "@dnd-kit/react": ^0.5.0
   "@dnd-kit/helpers": ^0.5.0
+  # @dnd-kit/dom: pinned direct (was transitive, the @codemirror/lint precedent) — the sortable
+  #   seal reaches past @dnd-kit/react's public surface for the `Feedback` plugin class (not
+  #   re-exported there) to configure the reduced-motion drop-animation override.
+  "@dnd-kit/dom": ^0.5.0
   # echarts + echarts-for-react (D52, nivo replacement): the charts/ analytics seal. Tree-shaken
   #   imports only (echarts/core + used charts/components/renderers) — never `import "echarts"` whole.
   echarts: ^6.1.0

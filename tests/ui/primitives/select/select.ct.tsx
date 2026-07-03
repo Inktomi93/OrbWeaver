@@ -1,8 +1,12 @@
 // CT: the select seal — explicit Positioner/Popup anatomy portals a real popup (popover token,
 // overlay z), pointer + keyboard select, controlled value surfaces in the trigger.
+import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { RenderValueStory } from "./select.fixtures";
+
+const NON_EMPTY = /.+/u;
 
 const ITEMS = [
   { label: "Alpha", value: "alpha" },
@@ -30,10 +34,8 @@ test("opens on click, selects an option, and closes", async ({ mount, page }) =>
 test("popup wears the popover token and the overlay z-index", async ({ mount, page }) => {
   await mount(<Select items={ITEMS} placeholder="Pick one" />);
   await page.getByRole("combobox").click();
-  // role="listbox" lands on the List part; the styled Popup is its direct parent in the seal.
-  const list = page.getByRole("listbox");
-  await expect(list).toBeVisible();
-  const popup = list.locator("xpath=..");
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const popup = page.locator('[data-slot="select-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
   await expect(popup).toHaveCSS("z-index", "40");
 });
@@ -153,6 +155,61 @@ const LONG = Array.from({ length: 40 }, (_unused, i) => ({
   label: `Option ${i + 1}`,
   value: `opt-${i + 1}`,
 }));
+
+test("disabled: the trigger is inert and cannot be opened", async ({ mount, page }) => {
+  await mount(<Select disabled={true} items={ITEMS} placeholder="Pick one" />);
+  const trigger = page.getByRole("combobox");
+  await expect(trigger).toBeDisabled();
+  await expect(trigger).toHaveAttribute("data-disabled", "");
+});
+
+test("inside a <Field>, the label associates with the trigger and aria-describedby is wired", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field description="Used for new chats" label="Model">
+      <Select items={ITEMS} placeholder="Pick one" />
+    </Field>,
+  );
+  // getByLabel resolves only if the Field's label associates with the trigger's combobox role — the
+  // R7 shape (Select.Trigger extends FieldRootState and auto-registers under Field.Root).
+  const trigger = page.getByLabel("Model");
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
+
+test("label: Select.Label renders and names the trigger without a wrapping <Field>", async ({
+  mount,
+  page,
+}) => {
+  await mount(<Select items={ITEMS} label="Country" placeholder="Pick one" />);
+  await expect(page.locator('[data-slot="select-label"]')).toHaveText("Country");
+  await expect(page.getByRole("combobox", { name: "Country" })).toBeVisible();
+});
+
+test("renderValue: formats the trigger's selected-value text", async ({ mount, page }) => {
+  await mount(<RenderValueStory />);
+  await expect(page.getByRole("combobox")).toContainText("Selected: beta");
+});
+
+test("arrow: renders inside the popup when enabled", async ({ mount, page }) => {
+  await mount(<Select arrow={true} items={ITEMS} placeholder="Pick one" />);
+  await page.getByRole("combobox").click();
+  await expect(page.locator('[data-slot="select-arrow"]')).toBeVisible();
+});
+
+test("side: overrides the Positioner's requested placement", async ({ mount, page }) => {
+  // Generous room above and below so the requested side isn't flipped by a collision.
+  await mount(
+    <div style={{ paddingBottom: 300, paddingTop: 300 }}>
+      <Select items={ITEMS} placeholder="Pick one" side="top" />
+    </div>,
+  );
+  await page.getByRole("combobox").click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await expect(page.locator('[data-slot="select-positioner"]')).toHaveAttribute("data-side", "top");
+});
 
 test("scrollArrows: the down arrow mounts on an overflowing list", async ({ mount, page }) => {
   // A spacer keeps the trigger away from the viewport edge so Base UI stays in align-item mode
