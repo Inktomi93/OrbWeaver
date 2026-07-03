@@ -1,4 +1,4 @@
-// Gate: ui-primitive-structure (docs/architecture/proposed/ui-primitive-contract.md §5.2) — the
+// Gate: ui-primitive-structure (core/UI-Primitives-and-Reuse.md §13.7) — the
 // structure gate @orb/ui shipped without, which is why it drifted. Eight clauses (5 AST, 3
 // filesystem) turning each measured divergence into a build failure. See the contract for the WHY
 // of each; this file is the enforcer.

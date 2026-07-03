@@ -44,7 +44,7 @@ const MAX_COLOR_LEN = 64;
  * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare named color) and never carry an
  * injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). Exported
  * so OTHER ui primitives that accept a raw color value (e.g. `color-field`) can reuse the exact
- * same clamp instead of re-deriving their own regex set — see ui-primitive-carve-out-work-order.md
+ * same clamp instead of re-deriving their own regex set (see UI-Primitives-and-Reuse.md §13.9)
  * item 13 ("mirror the ThemeScope clamp, don't reinvent it").
  */
 export function isSafeColor(raw: string): boolean {
