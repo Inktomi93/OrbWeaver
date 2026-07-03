@@ -7,8 +7,9 @@
 // PURE — never mutates the input ctx (§5: per-speaker is a fresh shape, not a mutation). A ctx with no
 // `castMembers` (solo / hand-built / preview) returns UNCHANGED → byte-identical (D16, no `if(isGroup)`).
 //
-// D60: `castMembers` carries `agent` refs too (an agent's card is its resolved soul, injected at RESOLVE), so
-// an agent speaker's soul becomes the character section here exactly like a character's card — one turn path.
+// D60: `castMembers` carries `agent` refs too. An agent has NO card — its resolved SOUL fills the same
+// card-shaped `AssembleCharacter` slot (doc 04 §5, "the card-shape minus the card"), so an agent speaker's
+// soul becomes the character section here exactly the way a character's card does — one turn path.
 
 import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
