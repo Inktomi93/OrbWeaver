@@ -159,5 +159,47 @@ code-verified; **flip these statuses in the Registry as each is picked up.**
 | PD-106 | the `AUTH_MODE != 'single-user'` capability gate is declared but enforced NOWHERE: notifications/Tier-4-Transport claim "404 in single-user" on every invite/notifications/join procedure, chat declares the `single_user_mode` op-code (`chat/contract/errors.ts:57`), but there are ZERO throw sites repo-wide — all multi-human surfaces are reachable in single-user mode. Benign today (no peers) but a doc-truth + capability gap; the dead error code is the tripwire. | producer surfaces (invites/roster/notifications procedures + subscription) | wire the single-user 404 guard, OR drop the claim + the dead op-code | multi-user surface hardening | ready |
 | PD-107 | assets PD-28 roster-avatar exception is implemented BROADER than D21: `loadCoParticipantOwner` (`entry/compose/services.ts:295`) gates only on (hash→any owner) + (both users co-members of any shared chat) and serves ANY asset kind of a co-participant (gallery/attachment/generated/export) — a known-bytes existence oracle between co-participants. D21 (amended 2026-07-02) demands avatar + sprite-set of a roster character ONLY, via a reference-check. The widening was never adjudicated. | `entry/compose/services.ts:295` `loadCoParticipantOwner` (too broad) | constrain to roster characters' `avatarAssetId` (+ `character_sprites` when it lands), not a bare hash→owner lookup | assets/roster security pass | ready |
 
+## Post-gut documentation follow-ups (2026-07-03)
+
+Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previously scattered across agent reports + session notes). These are doc/law relocation + freshness work, not code-symbol PD rows. Do as one consolidated pass.
+
+### Promotes — cross-cutting law carried only in code comments / sibling docs; give it a core/ledger home
+
+- **AAD `${userId}|${provider}` byte-identical belt** (credentials) → ledger/Core-0 (carried in `persistence/aad.ts` + `infra/crypto/secrets.ts` + schema header + aad.int pin).
+- **`ResolvedCredential` brand — one construction home** (`substrate/mint.ts`) → ledger.
+- **embeddings ONE-write-path** (only `embeddings/persistence` writes vector tables; `writeHubScoreRows` sole `hub_score` setter) → Core-0/ledger.
+- **notifications durable-first ordering** (INSERT-then-publish; cross-cutting — inbox + chat bus both) → Core-0.
+- **secret type-level-unrepresentability in wire event unions** (closed discriminated union of strict objects, ids+literals only) → Core-0.
+- **agent-principal recipient refusal — `notifications.record` is the ONE write chokepoint** every producer inherits → ledger.
+- **search = the ONE retrieval engine** (memory+discovery call it, never reimplement cosine; memory holds zero cosine/vector-write) → Core-0.
+- **settings `defineVersionedConfig` one-primitive rule** + **settings-table tenancy rule** (settings owns the KV mechanism; tenants own blob meaning) → Core-0/Spine-Config.
+- **admin users-read chokepoint** (only admin+sessions+entry read `users`; every admin read gates first) + **audit-ordering** (check→write→audit; a refused write leaves no phantom row) → Core-0.
+
+### Doc-freshness — shared docs carry superseded facts (fix or delete)
+
+- `Core-Laws-and-Precedents.md` §Settings: "promote IMPORT_DEFAULT_SOURCE to AppSettings" — DROPPED (PD-15 cleared); VLLM_*_CONCURRENCY landed born-in-DB (no env floor).
+- `Spine-Config-and-Serialization.md`: "stranded env-only, 3 of 7 fields" — now 11 fields.
+- `Tier-1-DB.md:259`: teaches the superseded `''`-sentinel (embeddings invariant 5) — now real CharacterId.
+- `Spine-Identity-and-Auth.md`: present-tense pre-build ("resolved twice per request", old viaFallback/viaCookie names, "role gates NOTHING") — all built; flip to built-state + absorb the two de-numbered sessions invariants (token-hash-not-stored, per-request revoked/expired/enabled recheck).
+- `Tier-4-Transport.md ~246`: "404 in single-user on every invite/notifications/join" — unenforced (see PD-106).
+- `preset` contracts (~L175): names a non-existent `GUIDED_ACTION_IMPLS` identifier.
+- stale PD-5 OIDC comments in `entry/http/auth-routes.ts` (claim OIDC unbuilt; it's built + tested).
+
+### Enable-now — gates whose triggers have landed
+
+- **`vector-scope-derived` (D20)** — `Core-Enforcement-Deferred-Dropped.md` gates it on "embeddings + search built"; both now built. Promote to active gates + wire.
+
+### Consolidate — concept docs (the plan)
+
+- Knowledge-cluster boundary (restated across embeddings/search/memory/discovery) → ONE core home (slim `core/Knowledge-Cluster.md` or Core-0 partitioning); `memory.md` residue folds there.
+- `participants-agents-identity.md` residue → `Spine-Identity` + ledger (agent-principal future owned by `proposed/agent-principal-design/`).
+
+### Structural / mechanical
+
+- FLAG[PD-98..107] at-seam comments (registry rows exist; add the in-code `FLAG` when each seam is next touched).
+- `Core-Shared-Dissolution.md` — migration doc: kit-purity law stays core, the symbol map → history/.
+- **AGENTS-1/2/3 trim** — per `docs/Documentation-Law.md` §Evidence, comprehensive overviews hurt agents; make the trio terser/navigational.
+- Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
+
 <!-- Source: Core-Audits-and-Debt.md -->
 
