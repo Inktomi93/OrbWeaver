@@ -1,6 +1,12 @@
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-> **Status: planning (authoritative detail).** This is a cross-cutting Spine document.
+> **Status: planning (authoritative detail).** This is the CANONICAL cross-cutting Spine document for
+> spine thread §7.4 (types & schemas) — cited elsewhere as "the §7.4 rule" / `AGENTS-2-Spine.md` §7.4,
+> which points here. The string-union DISPATCH thread (§7.5 — the measured touch-count table + the
+> `RUNNERS` mapped-type gold standard) lives in `AGENTS-2-Spine.md` §7.5; the gates it feeds
+> (`no-inline-union-redecl`, `exhaustive-dispatch`) are referenced throughout this doc.
+
+## Types & schemas — one home, one direction, no inline (spine §7.4)
 
 The problem: a shape's "home" is ambiguous — drizzle schema in `db`, re-declared/re-exported in `shared`,
 each domain has its own `contract/`, and the client needs some shapes for client-side validation. So

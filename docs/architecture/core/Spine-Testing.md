@@ -7,7 +7,7 @@
 - [Orbweaver — `testing`: one centralized tree, suffix-selected lanes, Playwright for browser](#a5de2a4e)
   - [0. The principle — the test path is a derivation, the kind is a suffix, a gate forces both](#acdf0926)
   - [1. The lanes — one centralized Vitest config (projects by suffix) + Playwright for browser](#858cecd4)
-  - [2. The tree (one centralized `tests/` mirroring `src/`; `support/` + `e2e/` are the only non-mirror trees)](#476d26ec)
+  - [2. The tree (one centralized `tests/` mirroring `src/`; `support/` + `e2e/` + `tooling/` are the non-mirror trees)](#476d26ec)
   - [3. Determinism + mock doctrine (the two rules that keep tests honest)](#ffaa00e3)
   - [4. The fixture + factory contract (so `tests/support/` is buildable day-one)](#7ef4212b)
   - [5. The presence rule — what MUST have a test (the `test-presence` gate)](#e4a27ed2)
@@ -84,6 +84,12 @@ hit exactly this and migrated off it). They are separate runners with their own 
   be excludable from the inner loop + the fast CI lane. The honest caveat travels with the lane: **the
   oracle validates parity, never memory** — memory is an intentional rewrite and gets `.int` behavioral
   tests (§5), not a diff.
+- **`.suite.test.ts` / `.suite.int.test.ts` — cross-cutting PROPERTY suites (sanctioned 2026-07-02).**
+  Not a new lane: the existing unit/integration globs collect them (`*.int.test.ts` matches
+  `.suite.int.test.ts`). The suffix marks a **mirror exemption** — a suite that validates ONE property
+  spanning MANY source modules (the stats live-vs-reconcile drift gate, the agent-principal containment
+  matrix) mirrors no single module, the same category `.parity.test.ts` is already exempted for. It
+  must still sit under a valid package tree. (Gate: `scripts/check/gates/test-layout.ts`.)
 - **Browser lanes are NOT in `pnpm check`** (no fast-gate browser — same reason e2e isn't): run
   `pnpm test:ct` / `pnpm e2e` on demand. Client **pure-logic** (`.test.ts`, no DOM) runs in the node
   `unit` project and DOES gate — extract DOM-free logic to a function and node-test it over reaching for a
@@ -97,7 +103,7 @@ A file's node lanes sit **together** at its mirror (e.g. `tests/server/domain/ch
 
 <a id='476d26ec'></a>
 
-### 2. The tree (one centralized `tests/` mirroring `src/`; `support/` + `e2e/` are the only non-mirror trees)
+### 2. The tree (one centralized `tests/` mirroring `src/`; `support/` + `e2e/` + `tooling/` are the non-mirror trees)
 
 ```
 tests/
@@ -113,13 +119,18 @@ tests/
 ├── kit/              mirrors packages/kit/src/        (.test.ts · .test-d.ts)
 ├── contracts/        mirrors packages/contracts/src/  (.contract.test.ts · .test-d.ts)
 ├── db/               mirrors packages/db/src/         (.int.test.ts)
-├── server/           mirrors packages/server/src/     (all node suffixes; .parity.test.ts at the validated module)
+├── server/           mirrors packages/server/src/     (all node suffixes; .parity/.suite at the assembled surface)
+├── ui/               mirrors packages/ui/src/         (.ct.tsx = Playwright CT · .test.ts = node pure-logic)
 ├── client/           mirrors features/                (.ct.tsx = Playwright CT · .test.ts = node pure-logic)
+├── tooling/          tests of root configs + scripts/ gates (NOT a mirror — no packages/<pkg>/src to swap to)
 └── e2e/              full-stack Playwright .spec.ts    (NOT a mirror — spans the whole app)
 ```
 
-`support/` (fixtures + harnesses) and `e2e/` (whole-app `.spec.ts`) are the only non-mirror trees; the
-`test-mirror` gate exempts exactly these two and treats every other path as a strict prefix-swap mirror.
+`support/` (fixtures + harnesses), `e2e/` (whole-app `.spec.ts`), and `tooling/` (tests of the root
+configs + the `scripts/check` gates themselves) are the non-mirror TREES; the mirror gate
+(`scripts/check/gates/test-layout.ts`) exempts exactly these three, exempts the `.parity`/`.suite`
+KINDS (cross-cutting surfaces that mirror no single module — §1), and treats every other path as a
+strict prefix-swap mirror.
 The two Playwright configs (`playwright-ct.config.ts`, `playwright.config.ts`) live at the repo root /
 `.config/` — they are **separate runners**, not part of the Vitest config.
 
@@ -306,7 +317,9 @@ See `core/Core-Laws-and-Precedents.md` › Layer 6.
 
 ### Invariants (gate candidates)
 
-- `test-mirror` (`core/Core-0-Architecture-and-Structure.md §7`) — mirror path or `check` is red; exempts `support/` + `e2e/`.
+- `test-mirror` (`core/Core-0-Architecture-and-Structure.md §7`; implemented as
+  `scripts/check/gates/test-layout.ts`) — mirror path or `check` is red; exempts the `support/` +
+  `e2e/` + `tooling/` trees and the `.parity`/`.suite` kinds (§1/§2).
 - `test-presence` (§5) — verbs/schemas/persistence must have their required test.
 - `test-determinism` (§3) — no ambient clock/random/unseeded-id under `tests/` (biome no-restricted-globals).
 - `no-internal-mocks` (advisory, §3) — `vi.mock` of a sibling `src/` module is a review-flag; fakes inject at the root.

@@ -6,125 +6,57 @@ fanout); the fanout's readers + adversary treat these as fixed targets. (These j
 docs — `domains/chat.md`, `domains/connection.md`, `core/Tier-3b-Providers.md`, `participants-agents-identity.md`,
 `domains/memory.md` — as the checkable target surface.)
 
+> **De-dup (2026-07-03):** §7.1–§7.4 used to carry full copies of the per-thread Spine docs, and the
+> copies drifted (e.g. this file's agent-principal digest missed the D60 update). The `Spine-*.md`
+> docs are CANONICAL; the sections below are pointers plus a one-paragraph orientation each — a
+> citation of "AGENTS-2 §7.x" still resolves here and redirects. §7.5 (string-union dispatch) has no
+> `Spine-*` home and remains full content, as does §8 (the AST-audit findings).
+
 ### 7.1 identity / auth / permission _(see `core/Spine-Identity-and-Auth.md`)_
 
-Findings that fix the target:
-
-- **Resolve identity ONCE at the edge → one immutable `Principal` flows down.** Today it's resolved
-  **twice per request** (`provisionIdentity` computes the row id keyed on `externalId`, then
-  `createContext` throws it away and re-resolves by `handle` via `ensureUser`), across **3 principal
-  shapes** (`ResolvedIdentity → AuthContext → Context`) with `role`/`userId` duplicated. Carry `userId`
-  out of `resolve()`; never re-query. The 4 auth modes are already clean (one dispatcher, one branch
-  point — keep).
-- **Permission = global-role × resource-role × capability** (only the first is wired today). Global
-  `admin|user` is real + 2-layer enforced (`adminProcedure` + `requireAdmin`). The per-resource
-  `chat_participants.role: host|member` **exists in schema but gates NOTHING** ("added-but-unwired").
-  Access control today is **pure single-owner row-scoping** (`chats.ownerId === ctx.userId` via
-  `loadOwnedChat`) — the exact assumption that breaks for multi-human + agents. Target: wire `host|member`
-  as chat authority; replace owner-equality with **participant-membership**; introduce a real
-  `can(principal, action, resource)` seam instead of scattered `role===admin` / `ownerId===userId`.
-- **LOCKED (user decision): agents are FIRST-CLASS PRINCIPALS** _(the MODEL is locked; the agent-principal
-  MINT mechanics are DEFERRED to v2 — v1 ships the borrowed-owner posture, ledger §3/§5/D17. This file is a
-  non-authoritative digest; the ledger + spine docs win on any conflict)._ Today the buddy is NOT a `users` row —
-  it's a per-owner row (`buddies.userId → users.id`) acting **as the owner** (kill-switch + propose/confirm
-  gate + in-process rate-limit, firewalled OUT of chat `messages`). Orbweaver makes an agent a **real
-  principal**: its own `users` row + identity, a seat in `chat_participants`, **self-attributed messages**
-  (`authorUserId` = the agent, not the owner). This unifies with multi-human (both want
-  `chat_participants` to carry authz + `authorUserId` to mean the real author) — ONE model, not two. The
-  blast radius (grounded by the principal-ripple dig): the `chat_participants.kind` enum + XOR check, the
-  `authorUserId` stamping path, `loadOwnedChat`'s owner-equality access predicate, the `buddies`-table
-  plumbing, and the roster builders all change. Preserve the safety the borrowed-identity model gave for
-  free (an agent principal still needs a capability ceiling + the confirm gate — it must not silently
-  exceed what its actions should do); that's now enforced by the permission model (global×resource×capability)
-  rather than by "it's just the owner."
-- **Esoteric to preserve:** `externalId` keys SSO / `handle` keys the rest (rename stability); the
-  owner-fallback is bootstrap AND an origin-gated security belt (`viaFallback` is the safe "this is the
-  owner" discriminator, NOT `externalId===null`); JWKS fails-closed 3 ways; CSRF keys on `viaCookie`;
-  credential AAD binds `(userId, provider)`; the `max-pro-sub` gate is the only construction site (admin-gated in neo-source today → `requireOwner` in orbweaver, D17).
-- **BFF session ≠ SDK chat session** — keep the two "session" concepts firmly separate (identity vs
-  prompt-cache lineage); the schema already calls this out.
+**Canonical: [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md) — the full findings live
+there; read it before touching identity/auth/permission.** Orientation only: resolve identity ONCE at
+the edge into one immutable `Principal`; permission = global-role × resource-role × capability (only
+the first is wired in neo — `chat_participants.role: host|member` exists but gates nothing; access is
+pure single-owner row-scoping, the assumption that breaks for multi-human + agents); **agents are
+FIRST-CLASS PRINCIPALS** (the model is locked, and per D60 the mint mechanics are fully designed —
+authoritative: `../proposed/agent-principal-design/`); the esoterica to preserve (`externalId`-keys-SSO
+vs `handle`, the `viaFallback` discriminator, JWKS fails-closed, credential AAD binding, the
+`max-pro-sub` construction site) and the BFF-session ≠ SDK-chat-session split are enumerated in the
+Spine doc.
 
 ### 7.2 settings / config / the env FOUR natures _(see `core/Spine-Config-and-Serialization.md`)_
 
-The four natures confirmed, and the headline: **a fourth nature has NO home today.**
-
-- **(a) true env** — boot/secret/identity (the one `process.env` reader; keep, with the
-  `superRefine` boot-fatality per `AUTH_MODE`). Sub-nature **(a/seed)**: env that writes a DB row once
-  then goes inert (`OPENROUTER_API_KEY` → labeled credential) — the cleanest env→DB pattern; **keep as the model.**
-- **(b) runtime toggles → AppSettings** (env floor, DB override wins, via `layer()` + a versioned blob).
-  **Stranded today (env-only, should be AppSettings):** `IMPORT_DEFAULT_SOURCE`, `RATE_LIMIT_*`,
-  `VLLM_*_CONCURRENCY`. Also: "env is the floor" is only **half-true** — `envDefaults()` mixes
-  env-mirrored toggles with born-in-DB defaults (floor for 3 of 7 fields).
-- **(c) agent-sdk runtime config — THE homeless nature.** ~13 isolation pins + an 11-key reserved-denylist
-  - the 3-mode credential firewall (200+ lines, **security-load-bearing, rebuilt every turn**), today
-    hardcoded literals in `providers/claude-sdk/env.ts`, called "env" only because it _emits_ env vars.
-    Target: **extract into a named backend-internal config of the claude-sdk strategy** — NOT a settings
-    tier. (This is the credential firewall that must never leak the sub — handle with care.)
-- **(d) generation params** — `UserIntent`/preset, translated per-backend. **CLAUDE.md claim verified
-  TRUE:** reasoning is typed SDK Options, not env (`effort`/`thinking`); only `maxOutputTokens`/
-  `maxContextTokens`/compaction ride env, and they're preset-sourced (env-_shaped_ only at the wire).
-- **Tangle to undo:** `claudeRuntimeEnv()` mixes (c)+(d) in one object; `OPENROUTER_API_KEY` wears 3 hats
-  (secret/seed/live-client-read); `UserIntent.advanced.claudeEnv` is a preset (d) field reaching into (c),
-  gated by a runtime denylist not a type. **Keep:** all 3 tiers share ONE `defineVersionedConfig`
-  primitive; memory tuning is correctly split write-side (AppSettings) vs read-side (UserSettings).
+**Canonical: [`Spine-Config-and-Serialization.md`](Spine-Config-and-Serialization.md), its "Settings /
+config" section (spine §7.2).** Orientation only: env has FOUR natures — (a) true env (boot/secret/
+identity, plus the (a/seed) env→DB-once pattern to keep as the model), (b) runtime toggles →
+AppSettings (env floor, DB override wins), (c) agent-sdk runtime config (**the homeless nature** — the
+security-load-bearing credential firewall, to be extracted into a named backend-internal config of the
+claude-sdk strategy, NOT a settings tier), and (d) generation params (`UserIntent`/preset, translated
+per-backend). The stranded env-only keys, the tangles to undo (`claudeRuntimeEnv()` mixing (c)+(d),
+`OPENROUTER_API_KEY`'s 3 hats), and the keep-list are in the Spine doc.
 
 ### 7.3 serialization / serde core _(see `core/Spine-Config-and-Serialization.md`)_
 
-Recon **corrected the first read** — two of the "3 card shapes" are a _justified_ emit/read pair, and the
-PNG codec is _not_ scattered. The real findings:
-
-- **Card shape — LOCKED: unify into ONE fully-modeled canonical card in `contracts`.** (User: "we can
-  support them now in full.") Recon found three shapes — the V3 emit schema (`export/contract/card-v3.ts`),
-  the permissive `ParsedCard`/`RawCard` reader (`import/card.ts`), and the disjoint app-CRUD schema
-  (`shared/character/character-schema.ts`) — with `creator`/`character_version`/`regex_scripts`/
-  `extensions` surviving **only via the `raw` blob** (so app-authored cards drop them). Target: model the
-  **FULL card as typed fields/columns** (promote creator/cardVersion/regex_scripts/extensions/book) so
-  app-authored AND imported cards round-trip identically. The permissive `RawCard` reader stays — but
-  only as a **tolerant input adapter that normalizes INTO the one canonical model**, not a parallel lossy
-  shape; `raw` is reserved for genuinely-unknown vendor extras, not for fields we now model. Kills the §6
-  lossiness + the shape-C disjointness in one move.
-- **PNG codec:** only **two sites** (a pure read half in `card.ts`, a pure write half in `export/png.ts`)
-  — a read/write pair, not duplication. The chunk-walk loop + `isPng` + `PNG_SIGNATURE` are copied, and
-  a 3rd `isPng` is inline in `http/import.ts`. Target: ONE `kit/png-card-chunk` engine
-  (`readCardChunk(bytes)→string` / `writeCardChunk(png, jsonString)→bytes`) — **string-based, so the
-  codec never imports the card type** (the layer-cake caveat). First lift the read half out of `card.ts`
-  (away from the server logger + mappers).
-- **The REAL strandings:** the **preset ST-mapper** (`shared/prompt/st-preset.ts` + `preset-file.ts`) is
-  client-only, **zero server consumers**, never touches import/export — the clearest stranded mapper. And
-  **regex-script "mapping" doesn't exist** — card `regex_scripts` are raw-blob passthrough only (parsed,
-  never columned), despite a real `regexScriptSchema` existing.
-- **Triplication (textbook):** the ST numeric role-map `{0:system,1:user,2:assistant}` is written **4×**
-  (`persona.ts`, `lore.ts`, `card-v3.ts` inverse, `card.ts` inline). One bimap in `contracts`/`kit`.
-- **Lossiness to FIX (not just tidy):** `creator`/`character_version`/`regex_scripts` survive only via
-  the `raw` blob → an **app-authored** card (no `raw`) drops them on export. Accepted tags diverge from
-  proposed (`proposedTags` re-exports, accepted `character_tags` junction doesn't). Promote those to
-  typed columns.
-- Target: SHAPES → `contracts` (the emit/read pairs + ST preset shape co-located); CODEC → pure `kit`
-  (string-based); per-entity MAPPERS consolidated & shared by import+export (role-map, WI-entry mapper,
-  card pair); the import↔assets bulk glue (duplicated in `http/import.ts` + `import-st.ts`) → one
-  composition-layer helper. **Already clean (don't touch):** the parse/write split, the shared
-  chat-writer, idempotency hashing.
+**Canonical: [`Spine-Config-and-Serialization.md`](Spine-Config-and-Serialization.md), its
+"Serialization / serde core" section (spine §7.3).** Orientation only: the card shape is **LOCKED —
+ONE fully-modeled canonical card in `contracts`** (the permissive `RawCard` reader survives only as a
+tolerant input adapter; `raw` is for genuinely-unknown vendor extras); the PNG codec is a read/write
+pair, not duplication → ONE string-based `kit/png-card-chunk` engine; the real strandings (the
+client-only preset ST-mapper, the nonexistent regex-script mapping), the 4×-written ST role-map, and
+the raw-blob lossiness to FIX are all detailed in the Spine doc, along with the target homes
+(SHAPES → `contracts`, CODEC → `kit`, MAPPERS consolidated) and the already-clean don't-touch list.
 
 ### 7.4 types & schemas — one home, one direction, no inline _(see `core/Spine-TypeScript-and-Patterns.md`)_
 
-The problem: a shape's "home" is ambiguous — drizzle schema in `db`, re-declared/re-exported in `shared`,
-each domain has its own `contract/`, and the client needs some shapes for client-side validation. So
-shapes get duplicated and inline types/schemas sprout everywhere. The target rule (**one home per shape,
-derived by who needs it; flows DOWN only**):
-
-| Shape kind                                                | Home                                                    | Consumers (down only)         |
-| --------------------------------------------------------- | ------------------------------------------------------- | ----------------------------- |
-| **DB row**                                                | `db` (drizzle table → inferred `$inferSelect`/`Insert`) | server persistence            |
-| **cross-boundary wire** (server↔client, or domain↔domain) | `contracts` (zod + inferred TS)                         | server, client, other domains |
-| **domain-internal**                                       | that domain's `contract/` (params/results/views/errors) | only that domain              |
-| **client-only view**                                      | client                                                  | client                        |
-| **pure primitive shape**                                  | `kit`                                                   | anyone (it's the bottom)      |
-
-**The gate — `no-inline-types`:** no exported `type`/`interface`/`z.object` (and no structural cast)
-declared OUTSIDE `db` schema / `contracts` / a domain's `contract/` / `kit`. Inline shapes in `verbs/`,
-`persistence/`, `service.ts`, transport, or client components are RED. This is the enforced version of
-"no schemas or types outside their proper places." Readers flag every leak (§6B `inlineTypes`); the
-spine doc defines the exact gate.
+**Canonical: [`Spine-TypeScript-and-Patterns.md`](Spine-TypeScript-and-Patterns.md).** Orientation
+only: **one home per shape, derived by who needs it; flows DOWN only** — DB row → `db`; cross-boundary
+wire → `contracts`; domain-internal → that domain's `contract/`; client-only view → client; pure
+primitive → `kit` — enforced by the **`no-inline-types` gate** (no exported shape or structural cast
+outside a proper home; inline shapes in `verbs/`/`persistence/`/`service.ts`/transport/client
+components are RED). The home table, the exact gate definition, and the house TypeScript style
+(utility-type policy, narrowing, `erasableSyntaxOnly`, classes-vs-factories, async-generator streaming)
+are in the Spine doc.
 
 ### 7.5 string-union dispatch discipline _(NEW thread — grounded by the AST dispatch scout)_
 

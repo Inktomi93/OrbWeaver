@@ -1,8 +1,10 @@
 # Orbweaver — Spine: Config, Settings, and Serialization
 
-> **Status: planning (authoritative detail).** This is a cross-cutting Spine document.
+> **Status: planning (authoritative detail).** This is the CANONICAL cross-cutting Spine document for
+> spine threads §7.2 (settings/config) and §7.3 (serialization) — cited elsewhere as "spine §7.2/§7.3"
+> / `AGENTS-2-Spine.md` §7.2/§7.3, which points here.
 
-## Settings / config / the env FOUR natures
+## Settings / config / the env FOUR natures (spine §7.2)
 
 The four natures confirmed, and the headline: **a fourth nature has NO home today.**
 
@@ -26,7 +28,7 @@ The four natures confirmed, and the headline: **a fourth nature has NO home toda
   gated by a runtime denylist not a type. **Keep:** all 3 tiers share ONE `defineVersionedConfig`
   primitive; memory tuning is correctly split write-side (AppSettings) vs read-side (UserSettings).
 
-## Serialization / serde core
+## Serialization / serde core (spine §7.3)
 
 Recon **corrected the first read** — two of the "3 card shapes" are a _justified_ emit/read pair, and the
 PNG codec is _not_ scattered. The real findings:

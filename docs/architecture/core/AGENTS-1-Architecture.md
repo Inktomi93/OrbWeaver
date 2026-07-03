@@ -76,7 +76,8 @@ kit        @orb/kit        pure primitives + pure ENGINES; isomorphic (browser-s
 contracts  @orb/contracts  cross-boundary types + zod (the wire)            → deps: kit
 db         @orb/db         drizzle schema + libsql + migrations             → deps: kit, contracts
 server     @orb/server     business logic                                   → deps: kit, contracts, db
-client     @orb/client     UI                                               → deps: kit, contracts, server(type-only)
+ui         @orb/ui         sealed browser primitives (D54)                  → deps: kit (react/react-dom are peers)
+client     @orb/client     UI                                               → deps: kit, contracts, ui, server(type-only)
 ```
 
 **`kit` holds the pure ENGINES, not just utils:** the **macro engine** (`kit/macro` — parse + resolve a
@@ -192,7 +193,7 @@ seam), not tautologies. Tests are deterministic — injected clock/ids, no `Date
 
 ## Stack
 
-5-package pnpm workspace under `packages/{kit,contracts,db,server,client}`; tests mirror under `tests/`.
+6-package pnpm workspace under `packages/{kit,contracts,db,server,ui,client}`; tests mirror under `tests/`.
 Node 24 · pnpm 11 · TypeScript strict · Biome (ratcheted to MAX) · dependency-cruiser · vitest · lefthook.
 Backend: Drizzle + libSQL · Zod · tRPC · `@anthropic-ai/claude-agent-sdk` · OpenRouter. Pinned versions +
 the rationale live in `Core-BUILD-PLAN.md` §0 and the ledger — check there, don't assume.
@@ -206,26 +207,28 @@ misses (those feed the adversary).
 - **chat** (16k lines — the integration point): the resolution **order is invisible** (split across
   `context.ts`/`assembly`/`engine/pipeline.ts`, no function says "this is the order"); WI **double-render**
   (`macro→regex→wrap→macro`) is a correctness trap; `assembleCtx` **mutated in place** (fragile per-speaker
-  loop); **3 budget tallies** (WI-at-depth, system-half WI, completion fit) + unbudgeted chat_injections;
-  guided steering = 6 actions / 2 paths / 3 override layers; the **breakpoint minefield**
-  (`computeHistoryBreakpoint` off-by-one); the **name-stamp quartet** (`applyNamesBehavior`+`prefixNames`+
-  `authorName`-smuggling+`truncateAtForeignLabel`); `runOnEdit` **unwired** (intent, not dead);
-  render-context-null **silent raw fallback**; speaker-label re-derived in 3 places. Target: order is ONE
-  explicit stage list; ONE injection list + ONE budget; two-phase immutable assemble; engines → `kit`.
-  (Authoritative: `domains/chat.md`.)
+  loop); budget split across tallies + **unbudgeted** `chat_injections`; the guided-steering and
+  name-stamp sprawl; `runOnEdit` **unwired** (intent, not dead); render-context-null **silent raw
+  fallback**. Target: order is ONE explicit stage list; ONE injection list + ONE budget; two-phase
+  immutable assemble; engines → `kit`; the LIVE 2B rolling-tail cache breakpoint is **PRESERVED** (only
+  the dead boundary-gate drops — the early "drop the breakpoint minefield" framing was wrong).
+  (Authoritative for the exact counts + mechanics: `domains/chat.md` — this bullet orients; it does not
+  carry the numbers.)
 - **connection / models** (`models` is 242 lines, folds in): connection **fragmented** across
   user-settings / chat-row / preset; **two capability systems** (`ChatModel` + `FAMILY_CAPS`,
   incompatible shapes, cross-merged); **reasoning collapsed into one cascade** (`effort:"none"` doubles
   as the off-switch; translated twice); `routing.ts` keyed on **`runner`** (infra-internal vocab leak);
-  4 scattered `derive*Profile`; **panel ignores capabilities**; 5 roles + buddy **hard-pin** instead of
-  reading settings. Target: ONE capability descriptor (distinct reasoning/sampling/verbosity axes) drives
-  translation AND panel; `resolveRole`. (Authoritative: `domains/connection.md`.)
+  scattered `derive*Profile` dispatchers (three, not four); the params panel has only **coarse
+  source-level knob gating** (a build-on point, not capability-driven); roles **hard-pinned in the
+  binder** instead of reading settings. Target: ONE capability descriptor (distinct reasoning/sampling/
+  verbosity axes) drives translation AND panel; `resolveRole`. (Authoritative: `domains/connection.md`.)
 - **providers** (infra): the pipeline knows each backend's guts (`dispatchAgentSdk`, seed-frames,
   per-runner name-stamping/cache); **custom-openai hardcodes** window/tier/thinking + assumes OpenAI
   response shape (despite a "user owns the truth" comment); embed/rerank/summarize/imageEmbed
-  **vLLM-hard-pinned** (no local-light, no hosted — locks out no-GPU users); summarize as a separate
-  engine. Target: roles are the firewall; sealed backends; vLLM = own multi-role engine; custom/BYO fully
-  user-declared; hardware tiers. (Authoritative: `core/Tier-3b-Providers.md`.)
+  **vLLM-locked via the boot-binder default** (the role dispatchers themselves switch on
+  `credential.source` — NOT hard-pinned; the lock is one rebind site) — still locks out no-GPU users;
+  summarize as a separate engine. Target: roles are the firewall; sealed backends; vLLM = own multi-role
+  engine; custom/BYO fully user-declared; hardware tiers. (Authoritative: `core/Tier-3b-Providers.md`.)
 - **corpus → discovery** (6631 lines): name needs insider knowledge; **embeds + reads memory's digests**
   (incest); **writes `hub_score` back into memory tables**; `insights.ts` reads **raw `messages`** (the
   stats/discovery gray zone). Target: semantics only; consumes embeddings+search; embeds nothing;
@@ -247,7 +250,8 @@ misses (those feed the adversary).
   per-chat, attribution per-message; drop `chats.personaId`. (Authoritative: `participants-agents-identity.md`.)
 - **character** (1795 lines): the **cv-pin** is woven through (`chats.characterVersionId` notNull);
   `cow.ts` CAS dance **exists only because chats pin**; `character_books` keyed on **cv** while
-  `character_personas` keys on `characters.id` (inconsistent). Target (**D28**): NO version table at all —
+  `character_personas` keys on `characters.id` (deliberate book-snapshot semantics in neo — superseded
+  by D28: no version table, so both key on `characters.id`). Target (**D28**): NO version table at all —
   the card is the flat `characters` row (read via `getCard`); `cow.ts` deleted; history = the
   `character_snapshots` log (browse/`restore`, gates nothing); all associations key on `characters.id`.
 - **tag** (693 lines): **proposed = a parallel store** (JSON column) instead of a junction status —

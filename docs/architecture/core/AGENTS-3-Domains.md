@@ -272,7 +272,9 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
 ## 8. Full Architecture Documentation Index
 
 - **core/**
-  - [AGENTS.md](docs/architecture/core/AGENTS.md)
+  - [AGENTS-1-Architecture.md](docs/architecture/core/AGENTS-1-Architecture.md)
+  - [AGENTS-2-Spine.md](docs/architecture/core/AGENTS-2-Spine.md)
+  - [AGENTS-3-Domains.md](docs/architecture/core/AGENTS-3-Domains.md)
   - [Core-0-Architecture-and-Structure.md](docs/architecture/core/Core-0-Architecture-and-Structure.md)
   - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md) _(live debt registry; archeology split into the 3 below)_
   - [Core-Doc-Review-Punchlist-2026-06-28.md](docs/architecture/core/Core-Doc-Review-Punchlist-2026-06-28.md)
@@ -292,6 +294,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Event-Bus-Parity-Audit.md](docs/architecture/core/Core-Event-Bus-Parity-Audit.md)
   - [Core-ST-Feature-Gap-Register.md](docs/architecture/core/Core-ST-Feature-Gap-Register.md)
   - [Core-Planning-and-Checklists.md](docs/architecture/core/Core-Planning-and-Checklists.md)
+  - [Core-SillyTavern-Feature-Map.md](docs/architecture/core/Core-SillyTavern-Feature-Map.md)
   - [Core-STATUS.md](docs/architecture/core/Core-STATUS.md)
   - [Spine-Config-and-Serialization.md](docs/architecture/core/Spine-Config-and-Serialization.md)
   - [Spine-Identity-and-Auth.md](docs/architecture/core/Spine-Identity-and-Auth.md)

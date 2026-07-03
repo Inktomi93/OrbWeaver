@@ -1,8 +1,9 @@
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-> **Status: planning (authoritative detail).** This is a cross-cutting Spine document.
+> **Status: planning (authoritative detail).** This is the CANONICAL cross-cutting Spine document for
+> spine thread §7.1 (cited elsewhere as "spine §7.1" / `AGENTS-2-Spine.md` §7.1, which points here).
 
-> **D60 (2026-07-01): the agent-principal mechanics are now FULLY DESIGNED — authoritative:
+> **D60 (2026-07-01): the agent-principal mechanics are now FULLY DESIGNED** — authoritative:
 > [`../proposed/agent-principal-design/`](../proposed/agent-principal-design/README.md); this
 > file's agent digest is superseded on any conflict by that set + the ledger D60 entry.
 
@@ -21,9 +22,11 @@ Findings that fix the target:
   `loadOwnedChat`) — the exact assumption that breaks for multi-human + agents. Target: wire `host|member`
   as chat authority; replace owner-equality with **participant-membership**; introduce a real
   `can(principal, action, resource)` seam instead of scattered `role===admin` / `ownerId===userId`.
-- **LOCKED (user decision): agents are FIRST-CLASS PRINCIPALS** _(the MODEL is locked; the agent-principal
-  MINT mechanics are DEFERRED to v2 — v1 ships the borrowed-owner posture, ledger §3/§5/D17. This file is a
-  non-authoritative digest; the ledger + spine docs win on any conflict)._ Today the buddy is NOT a `users` row —
+- **LOCKED (user decision): agents are FIRST-CLASS PRINCIPALS** _(the MODEL is locked; per D60
+  (2026-07-01) the mint mechanics are FULLY DESIGNED and committed as planned work — authoritative:
+  `../proposed/agent-principal-design/` + the ledger D60 entry, which win over this digest on any
+  detail. The v1 borrowed-owner posture (ledger §3/§5/D17) stays the shipping posture until the seat
+  wave lands)._ Today the buddy is NOT a `users` row —
   it's a per-owner row (`buddies.userId → users.id`) acting **as the owner** (kill-switch + propose/confirm
   gate + in-process rate-limit, firewalled OUT of chat `messages`). Orbweaver makes an agent a **real
   principal**: its own `users` row + identity, a seat in `chat_participants`, **self-attributed messages**
