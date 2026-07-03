@@ -2,14 +2,12 @@
 // FAKE summarize op: a validated pick from the eligible roster; the round-robin (natural) fallback on an
 // off-roster / garbled reply AND on an op throw; single-eligible short-circuit (no LLM call); no eligible → [].
 
+import type { SpeakerRef } from "@orb/contracts/chat";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type {
-  ArbiterCandidate,
-  SpeakerRef,
-} from "../../../../../packages/server/src/domain/chat/contract/arbitration";
+import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
 import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate";
 import { expect, test } from "../../../../support/fixtures";

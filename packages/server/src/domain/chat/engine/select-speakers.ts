@@ -20,11 +20,11 @@
 //   5. CAP — `maxSpeakers` (optional) truncates the ordered result (the per-round count is the caller's; the
 //      GroupConfig carries NO max-speakers-per-round field — FLAGGED; default = all eligible).
 
-import type { GroupConfig } from "@orb/contracts/chat";
+import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { escapeRegExp } from "@orb/kit/strings";
-import type { ArbiterCandidate, CastName, SpeakerRef } from "../contract/arbitration";
-import { speakerKey } from "../contract/arbitration";
+import type { ArbiterCandidate, CastName } from "../contract/arbitration";
 import { isArbiterEligible } from "../persistence/participant";
 
 /** The 7a inputs (file-local — callers pass a literal; the shared candidate/cast types live in contract/). */

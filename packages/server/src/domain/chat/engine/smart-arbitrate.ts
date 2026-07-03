@@ -8,8 +8,9 @@
 // Runs ONCE per round, lock-free, metered (the caller meters the summarizer spend — §6). Solo / single-
 // eligible short-circuits WITHOUT an LLM call (byte-identical, no `if(isGroup)`).
 
-import type { ArbiterCandidate, CastName, SpeakerRef } from "../contract/arbitration";
-import { speakerKey } from "../contract/arbitration";
+import type { SpeakerRef } from "@orb/contracts/chat";
+import { speakerKey } from "@orb/contracts/chat";
+import type { ArbiterCandidate, CastName } from "../contract/arbitration";
 import type { SummarizeOp } from "../contract/context";
 import { isArbiterEligible } from "../persistence/participant";
 import { selectSpeakers } from "./select-speakers";

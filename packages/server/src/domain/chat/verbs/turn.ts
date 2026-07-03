@@ -39,19 +39,13 @@
 //                          (canon/injections/variables/metadata/memory/regex-tier union) `gatherAssembleContext`
 //                          reads ITSELF via `ChatContext`; the verb fills cast/persona-ids/pending text.
 
-import type { ChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, isAiDriven } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ActiveTurns } from "../contract/active-turns";
-import type {
-  ArbiterCandidate,
-  AutoModeResult,
-  CastName,
-  SpeakerRef,
-} from "../contract/arbitration";
-import { speakerKey } from "../contract/arbitration";
+import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
@@ -780,13 +774,22 @@ async function runRegistered(
  *  slot's speaker — D26 slot attribution unchanged). Returns undefined (⇒ the ctx primary) when the name can't
  *  be resolved (a deleted character — the stamp falls back, never stamps an empty label). */
 function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep["shape"] {
+  if (characterId === null) {
+    return; // a non-character slot (D26 swipe/continue of an agent row) has no per-speaker character shape.
+  }
   const name = room.castNames.find(
     (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
   )?.name;
   if (name === undefined || name.length === 0) {
     return;
   }
-  return { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: name };
+  return {
+    output: "per-speaker",
+    cardScope: "merged",
+    scopedTargetId: null,
+    speakerName: name,
+    speakerRef: { kind: "character", characterId },
+  };
 }
 
 // ── swipe / regenerate (append a NEW variant to an EXISTING assistant slot — D26) ────────────────────────────

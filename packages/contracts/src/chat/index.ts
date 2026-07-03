@@ -68,11 +68,42 @@ export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 // DRIVES the seat. `AI_DRIVEN_KINDS` splits out the DRIVE axis — the seats the engine schedules/voices
 // (arbitration ranks them; a turn is generated for them). An agent is AI-driven AND userId-backed — the exact
 // combination the XOR could not represent. The `satisfies readonly ParticipantKind[]` makes a 5th kind fail
-// `tsc` here until it declares its axis. (`USER_BACKED_KINDS` lands at AP2-2 with the present-predicate that
-// reads it — the human/agent shared column shape; deferred here per no-dead-code until that consumer exists.)
+// `tsc` here until it declares its axis. `USER_BACKED_KINDS` is the human/agent shared column shape (both FK
+// `users`) — consumed by the present-and-contributing predicate's principal-`enabled` read (AP3-2, doc 02 §1.1).
 export const AI_DRIVEN_KINDS = ["character", "agent"] as const satisfies readonly ParticipantKind[];
+export const USER_BACKED_KINDS = ["human", "agent"] as const satisfies readonly ParticipantKind[];
 export const isAiDriven = (k: ParticipantKind): boolean =>
   (AI_DRIVEN_KINDS as readonly ParticipantKind[]).includes(k);
+export const isUserBacked = (k: ParticipantKind): boolean =>
+  (USER_BACKED_KINDS as readonly ParticipantKind[]).includes(k);
+
+/** The identity of ONE AI-driven speaker (D60) — the cross-cutting speaker reference the arbitration,
+ *  assembly (per-speaker card selection), and persist paths all key on. A `character` FKs `characters.id`;
+ *  an `agent` FKs its `users` row (self-attributed: `authorUserId` = the agent, `characterId` NULL). An agent
+ *  has no characterId, so anything per-speaker keys on THIS ref. NOT a Set/Map key directly — use
+ *  {@link speakerKey} (a struct is not value-comparable). */
+export type SpeakerRef =
+  | { readonly kind: "character"; readonly characterId: CharacterId }
+  | { readonly kind: "agent"; readonly userId: UserId };
+
+/** The stable string key for a {@link SpeakerRef} (Set membership + equality). Kind-prefixed so a characterId
+ *  and a userId can never collide. Pure; deterministic. */
+export function speakerKey(ref: SpeakerRef): string {
+  return ref.kind === "character" ? `c:${ref.characterId}` : `a:${ref.userId}`;
+}
+
+/** The RESOLVE-phase product for an AGENT speaker (D60, doc 04 §5) — "the card-shape minus the card." Chat
+ *  voices an agent by mapping THIS onto an `AssembleCharacter` (`name`←displayName, `systemPrompt`←the soul
+ *  prompt) at RESOLVE, so the agent rides the ONE turn path like any character. The source (buddy's soul) is
+ *  resolved through an injected `resolveAgentSpeaker` op — chat stays source-blind. */
+export interface AgentSpeakerIdentity {
+  /** The soul's display name → speaker labels, macros, cast lists. */
+  readonly displayName: string;
+  /** `buildBuddySystemPrompt` output (the soul prompt) — replaces the character-card system section. */
+  readonly systemPrompt: string;
+  /** v1: null (sprites are client-side; widens with the D22 agent card view — doc 04 §5). */
+  readonly avatarAssetId: AssetId | null;
+}
 
 // ── The chat-message role wire schema (D32 — THE canonical home) ──────────────
 // `z.enum(MESSAGE_ROLES)`: the tuple is `@orb/kit/message-role` (a pure isomorphic atom kit resolvers +
@@ -195,6 +226,11 @@ export interface AssembleContext {
   cast?: AssembleCharacter[];
   /** Per-cast-member identity, index-aligned with `cast`. Null for an un-backfilled legacy member. */
   castCharacterIds?: (CharacterId | null)[];
+  /** Per-cast-member SPEAKER identity, index-aligned with `cast` (D60) — a `character` or an `agent` (whose
+   *  card is its resolved soul). The per-speaker card selection (`shape(ctx, speaker)`) keys on THIS to pick
+   *  the active member + the co-speakers; a character-only room's refs are all `{kind:'character'}`. Absent ⇒
+   *  a hand-built/legacy ctx (the per-speaker shape falls back to the primary — byte-identical). */
+  castMembers?: SpeakerRef[];
   /** The non-muted subset of `cast` — drives `{{groupNotMuted}}`. Absent ⇒ falls back to the full cast. */
   castNotMuted?: AssembleCharacter[];
   /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`

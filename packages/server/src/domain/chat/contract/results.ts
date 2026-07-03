@@ -17,6 +17,7 @@ import type {
   InviteView,
   MessageView,
   ParticipantView,
+  SpeakerRef,
   TurnAbortReason,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
@@ -57,6 +58,10 @@ export interface TurnSpeakerShape {
   /** The assistant-speaker label SHAPE name-stamps (`{{char}}`): the speaking character's name (per-speaker)
    *  or the joined-cast name (narrator). Overrides the assemble ctx's primary `character.name`. */
   readonly speakerName: string;
+  /** The ACTIVE speaker's identity (D60) — the per-speaker card selection keys on this to pick the speaker's
+   *  card (`ctx.character`) + the co-speakers off the immutable ctx's `castMembers`. A `character` or an
+   *  `agent` (its card = the resolved soul). */
+  readonly speakerRef: SpeakerRef;
 }
 
 export const TURN_KINDS = [

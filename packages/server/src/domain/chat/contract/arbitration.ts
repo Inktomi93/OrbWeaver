@@ -3,23 +3,10 @@
 // (an exported feature type lives here, never inline on an engine file). The *Params shapes stay file-local
 // to each engine module (callers pass literals) — only the types SHARED across modules/tests live here.
 
-import type { MessageView } from "@orb/contracts/chat";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-
-/** The identity of ONE arbiter-selectable speaker (D60; agent-principal-design/02 §1.1) — the AI-driven kinds
- *  the engine schedules + voices. A `character` FKs `characters.id`; an `agent` FKs its `users` row (its turn
- *  is self-attributed, `authorUserId` = the agent, `characterId` NULL — doc 02 §2). The old pipeline was
- *  bare-`CharacterId`-keyed; an agent has no characterId, so selection/attribution key on THIS ref. NOT a
- *  Set/Map key directly — use {@link speakerKey} (a struct is not value-comparable). */
-export type SpeakerRef =
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  | { readonly kind: "agent"; readonly userId: UserId };
-
-/** The stable string key for a {@link SpeakerRef} (Set membership + equality across the arbitration path).
- *  Kind-prefixed so a characterId and a userId can never collide. Pure; deterministic. */
-export function speakerKey(ref: SpeakerRef): string {
-  return ref.kind === "character" ? `c:${ref.characterId}` : `a:${ref.userId}`;
-}
+// SpeakerRef + speakerKey (the cross-cutting speaker identity) are promoted to `@orb/contracts/chat` (D60) —
+// the assembly per-speaker card selection consumes them off `AssembleContext`, not just arbitration. Consumers
+// import them straight from the contract.
+import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 
 /** One candidate the 7a/7b arbitration ranks — a present AI-driven `chat_participants` row's
  *  arbitration-relevant fields (the caller maps `loadRoster` rows; `isAiDriven` gates the set). Humans are
