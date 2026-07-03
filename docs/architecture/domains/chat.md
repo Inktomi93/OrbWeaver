@@ -695,7 +695,7 @@ read.
 
 # Part III — The unified roster / group / multi-human system (authoritative design)
 
-> **Status: planning (authoritative — built WHOLE, no feature-phasing — `DECISIONS-LEDGER §7 D16`).** The chat domain
+> **Status: planning (authoritative — built WHOLE, no feature-phasing — `Core-Laws-and-Precedents.md §7 D16`).** The chat domain
 > rebuild delivers this ENTIRE system in ONE cohesive build. There is no solo-first/multi-human split: neo-tavern's
 > Phase A/B + its 12-step order are **neo retrofit artifacts, not carried** (orbweaver greenfields everything; the
 > package-cake build-order — chat is leaf-last — is the only ordering, and is unrelated). **Source:** neo

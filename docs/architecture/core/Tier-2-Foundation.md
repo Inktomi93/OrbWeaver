@@ -77,7 +77,7 @@ This tier does **not** own:
   initialization (`credentials.md` §7.2). `env` only supplies the raw `CREDENTIALS_KEY` string (and
   validates length in `infra/crypto`, NOT at boot — a missing/short key must DEGRADE, never crash).
 - **The boot/shutdown protocol (`lifecycle.ts`).** DECIDED `entry/lifecycle.ts` (the composition
-  root), per DECISIONS-LEDGER §7 D5: it is invoked once with injected deps (`httpServer` / `db` /
+  root), per Core-Laws-and-Precedents.md §7 D5: it is invoked once with injected deps (`httpServer` / `db` /
   `intervals` / `onShutdown`), is read by entry only, and reaches down only to `logger` — it is NOT
   "read down by all," so it fails the foundation test. The `foundation/lifecycle.ts` alternative is
   closed. (See the movement table.)
@@ -437,7 +437,7 @@ decisions (this doc only locates the env READER). No double-claim.
 
 ## Open decisions
 
-- **`lifecycle.ts` — DECIDED: `entry/lifecycle.ts`** (per DECISIONS-LEDGER §7 D5; no longer open). The
+- **`lifecycle.ts` — DECIDED: `entry/lifecycle.ts`** (per Core-Laws-and-Precedents.md §7 D5; no longer open). The
   boot/shutdown protocol is the composition root's (injected deps, read by entry only, not
   read-down-by-all), NOT `foundation/lifecycle.ts`. The foundation alternative is closed; the
   one-directional invariant holds.

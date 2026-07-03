@@ -75,7 +75,7 @@ packages/
 
 `workspace:*` makes cross-package refs explicit; a package importing an undeclared package fails to
 resolve. (Package scope name **DECIDED: `@orb/*`** — scoped, native via pnpm, no alias tooling; see Open
-decisions + `DECISIONS-LEDGER §0`. The shadcn `@/` path-alias is NOT carried over.)
+decisions + `Core-Laws-and-Precedents.md §0`. The shadcn `@/` path-alias is NOT carried over.)
 
 **Every importable module is a DIRECTORY with `index.ts`** (front-door = folder; internal files stay flat
 and relative-imported). So all five packages share ONE resolution map — `exports: { ".": "./src/index.ts",
@@ -85,7 +85,7 @@ Consumers never see the `index.ts` (`@orb/kit/ids`, not `@orb/kit/ids/index`). T
 special-casing that rots: Node's `exports` has **no directory-index and no file-existence fallback** (an
 array target resolves to the first _syntactically valid_ entry, not the first existing file), so a mixed
 flat/dir layout would force per-package exception lists. Uniform folders = one rule, zero maintenance
-(`DECISIONS-LEDGER §7 D15`).
+(`Core-Laws-and-Precedents.md §7 D15`).
 
 **`kit` holds the pure ENGINES (not just tiny utils):** the **macro engine** (`kit/macro` — AST/parse +
 resolve a template against a `MacroContext`) and the **regex engine** (`kit/regex` — compile + apply +

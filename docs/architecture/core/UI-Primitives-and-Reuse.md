@@ -1,6 +1,6 @@
 # UI-Primitives-and-Reuse
 
-> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: `archive/client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with the archive). The ledger entries (D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`) are the decision records; these docs are the expansion.
+> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: the former `client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with the archive). The ledger entries (D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`) are the decision records; these docs are the expansion.
 >
 > **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → the five lib companions (`UI-Lib-TanStack-{Query,Form,Router,Virtual}` · `UI-Lib-Zustand` — evidence/provenance mines; distilled verdicts already live in the spec sections).
 >

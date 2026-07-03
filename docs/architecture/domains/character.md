@@ -6,7 +6,7 @@
 > The defining change from neo-tavern: **`character_versions` is GONE (ledger D28)** — no version table,
 > no cv pin, no copy-on-write, no `resolveCurrentVersion`. Everything references `characters.id` (the live
 > card); history is an opaque snapshot log you can restore in-place. This doc is the target spec.
-> Authoritative upstream: `DECISIONS-LEDGER` D28, `participants-agents-identity.md` §4, `domains.md`.
+> Authoritative upstream: `Core-Laws-and-Precedents.md` D28, `participants-agents-identity.md` §4, `domains.md`.
 > `Core-0-Architecture-and-Structure.md` §4 is the 8-slot template this domain follows.
 
 ---

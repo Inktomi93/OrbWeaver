@@ -271,33 +271,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
 
 ## 8. Full Architecture Documentation Index
 
-- **archive/**
-  - [COUNCIL-REVIEW.md](docs/architecture/archive/COUNCIL-REVIEW.md)
-  - [DECISIONS-LEDGER.md](docs/architecture/archive/DECISIONS-LEDGER.md)
-  - [DOC-REVIEW-FINDINGS-2026-06-28.md](docs/architecture/archive/DOC-REVIEW-FINDINGS-2026-06-28.md)
-  - [ENFORCEMENT.md](docs/architecture/archive/ENFORCEMENT.md)
-  - [INCONSISTENCY-AUDIT.md](docs/architecture/archive/INCONSISTENCY-AUDIT.md)
-  - [PRE-SCAFFOLD-CHECKLIST.md](docs/architecture/archive/PRE-SCAFFOLD-CHECKLIST.md)
-  - [PROMOTION-DEBT.md](docs/architecture/archive/PROMOTION-DEBT.md)
-  - [boundary-scan.md](docs/architecture/archive/boundary-scan.md)
-  - [client-tanstack-form-examples.md](docs/architecture/archive/client-tanstack-form-examples.md)
-  - [client-tanstack-form-notes.md](docs/architecture/archive/client-tanstack-form-notes.md)
-  - [client-tanstack-query-examples.md](docs/architecture/archive/client-tanstack-query-examples.md)
-  - [client-tanstack-query-notes.md](docs/architecture/archive/client-tanstack-query-notes.md)
-  - [client-tanstack-router-notes.md](docs/architecture/archive/client-tanstack-router-notes.md)
-  - [client-tanstack-virtual-notes.md](docs/architecture/archive/client-tanstack-virtual-notes.md)
-  - [client-zustand-notes.md](docs/architecture/archive/client-zustand-notes.md)
-  - [client.md](docs/architecture/archive/client.md)
-  - [event-bus-st-parity.md](docs/architecture/archive/event-bus-st-parity.md)
-  - [identity-auth-permission.md](docs/architecture/archive/identity-auth-permission.md)
-  - [serialization-core.md](docs/architecture/archive/serialization-core.md)
-  - [settings-and-config.md](docs/architecture/archive/settings-and-config.md)
-  - [shared-dissolution.md](docs/architecture/archive/shared-dissolution.md)
-  - [sillytavern-feature-gap.md](docs/architecture/archive/sillytavern-feature-gap.md)
-  - [string-union-dispatch.md](docs/architecture/archive/string-union-dispatch.md)
-  - [testing.md](docs/architecture/archive/testing.md)
-  - [types-and-schemas.md](docs/architecture/archive/types-and-schemas.md)
-  - [typescript-style.md](docs/architecture/archive/typescript-style.md)
 - **core/**
   - [AGENTS.md](docs/architecture/core/AGENTS.md)
   - [Core-0-Architecture-and-Structure.md](docs/architecture/core/Core-0-Architecture-and-Structure.md)

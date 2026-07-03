@@ -11,7 +11,7 @@
 > domain+infra+the auth seam together (composition), which is above `domain-no-cross-feature`; only
 > `entry/` may cross feature front doors. The other cross-feature builders neo-tavern parked in
 > `jobs/` (`workloads-env.ts`, `buddy-env.ts`) move to `entry/compose/runner-env.ts` (per
-> DECISIONS-LEDGER §7 D4) for the same reason. Authoritative
+> Core-Laws-and-Precedents.md §7 D4) for the same reason. Authoritative
 > upstream: `Core-0-Architecture-and-Structure.md` §3 (server tiers — `transport` is `trpc/` + `jobs/`, `http/` is under
 > `entry/`; drivers are THIN, call DOWN into front doors only), §7 (the 13 legibility gates); `AGENTS.md`
 > §2 (one-directional flow), §3 (placement rule), §8.1 (coupling already clean — zero cross-feature
@@ -74,7 +74,7 @@ ctx.services.<feature>.<verb> → let the typed domain error map to a wire code`
   `domain-no-cross-feature`. (RESOLVED → `entry/http/`; see §Resolved decisions.)
 - **The cross-feature env builders** — `buildWorkloadsEnv` (`WorkloadRunnerEnv`) and the buddy
   agent/observer envs lived in neo-tavern's `jobs/` but cross EVERY feature boundary; they are
-  `entry/compose/runner-env.ts` (per DECISIONS-LEDGER §7 D4 — the type stays in
+  `entry/compose/runner-env.ts` (per Core-Laws-and-Precedents.md §7 D4 — the type stays in
   `domain/workloads/contract`). `workloads.md` already states this — transport/jobs must not reach
   sideways into features.
 - **The bulk-import driver** — `importCollectedProfile` (store-then-import glue across import+assets)
@@ -277,7 +277,7 @@ bucket is a build error rather than a silent free-turn leak.
 Transport is the proof that the driver tier adds zero coupling: every router is a single front-door
 call, the worker enters `workloads` through `index.ts`, and the cross-feature builders that LOOK like
 they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hoisted to
-`entry/compose/runner-env.ts` (per DECISIONS-LEDGER §7 D4). The one true cross-feature hub TYPE stays
+`entry/compose/runner-env.ts` (per Core-Laws-and-Precedents.md §7 D4). The one true cross-feature hub TYPE stays
 `workloads/contract/runner-env.ts` (a domain contract), and the builder is wired at
 `entry/compose/runner-env.ts` — never in transport.
 

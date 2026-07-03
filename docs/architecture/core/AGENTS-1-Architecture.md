@@ -286,8 +286,8 @@ misses (those feed the adversary).
   `roster-rows.ts` (feature-internals → home), `ids.ts`/`strip-undefined.ts`/
   `batch.ts`/`errors.ts`/`db-errors.ts`/`fetch-owned.ts`/`replay-buffer.ts`/`stats-tally.ts`
   (primitives → `kit`; `replay-buffer` + `stats-tally` are pure `@orb/kit` primitives, NOT
-  feature-internal — per DECISIONS-LEDGER §7 D10), `content-hash` (→ `@orb/server/kit`, node-only-pure,
-  NOT `@orb/kit` — per DECISIONS-LEDGER §7 D9),
+  feature-internal — per Core-Laws-and-Precedents.md §7 D10), `content-hash` (→ `@orb/server/kit`, node-only-pure,
+  NOT `@orb/kit` — per Core-Laws-and-Precedents.md §7 D9),
   `rate-limit.ts` (→ `transport`). **No `_shared` exists in orbweaver** — every file must land somewhere.
 
 ---

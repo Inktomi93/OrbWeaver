@@ -456,7 +456,7 @@ feeds the tRPC seam + the local-login throttle so all three gate on one observed
   so a shared infra home avoids a transport→transport sideways import).
 - **`safeFetch` — keep the staged seam unwired?** Zero callers today; it's the hardening seam for the
   first user-supplied-URL feature. Keep (unwired ≠ worthless); wire on the first avatar-by-URL/webhook.
-- **The blob-route `?w=&f=webp` `sharp` transform — RESOLVED (per DECISIONS-LEDGER §7 D6).** The image
+- **The blob-route `?w=&f=webp` `sharp` transform — RESOLVED (per Core-Laws-and-Precedents.md §7 D6).** The image
   variant transform is EXTRACTED to a new `infra/image` surface: a `sharp` adapter behind an
   `imageTransform` op, injected into `domain/assets/verbs/resolve-variant.ts` (width-snap = domain
   policy; `sharp` = infra I/O). NOT inline in the blob route. This is a fifth `infra` surface under this

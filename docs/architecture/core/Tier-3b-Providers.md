@@ -291,7 +291,7 @@ with `env.ts` because the firewall is built around env._
 The agent-sdk runtime config (~13 isolation pins + the 11-key reserved denylist + the 3-mode firewall)
 is `core/AGENTS.md §7.2(c)`'s "homeless nature": it is called "env" only because it EMITS env vars,
 but it is **backend-internal config of the agent-sdk strategy**, NOT a settings tier. It stays in
-`backends/agent-sdk/env.ts` (per DECISIONS-LEDGER §7 D8 — the `infra/providers/claude-sdk` name is DROPPED). Generation params (`UserIntent`) are nature (d) — they ride in on the
+`backends/agent-sdk/env.ts` (per Core-Laws-and-Precedents.md §7 D8 — the `infra/providers/claude-sdk` name is DROPPED). Generation params (`UserIntent`) are nature (d) — they ride in on the
 request and `resolve-chat` projects them per-backend; `maxOutputTokens`/`maxContextTokens`/compaction
 are env-shaped only at the wire. The vLLM engine reads `VLLM_*_PORT`/`VLLM_*_MODEL`/`VLLM_*_CONCURRENCY`
 from `foundation/env` (true env / runtime toggles); `VLLM_*_CONCURRENCY` is flagged in §7.2(b) as
@@ -479,7 +479,7 @@ Two dispatch axes are infra-sealed and stay so, gated:
 
 ## Decisions (resolved / deferred)
 
-- **Tree location — RESOLVED (per DECISIONS-LEDGER §7 D7): vllm nested under `infra/providers/vllm/`**
+- **Tree location — RESOLVED (per Core-Laws-and-Precedents.md §7 D7): vllm nested under `infra/providers/vllm/`**
   (the layout above, with `engine/` + `surfaces/`; the `infra/vllm` sibling alternative is DROPPED). Both
   consumer refs are satisfied: `connection` references `infra/providers/resolve-chat.ts` (exact); the
   vLLM role-clients builder is `infra/providers/vllm/role-clients` and `credentials.md` now uses that
