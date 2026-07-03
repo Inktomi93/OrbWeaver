@@ -105,6 +105,7 @@ export const CHAT_VERB_AUTHORITY = {
   // ── group / roster (all host-only per chat.md §11) ──
   setGroupConfig: "host",
   addCharacterToChat: "host",
+  seatAgent: "host",
   setRoomOverrides: "host",
   getGroupConfigForChat: "member", // read the effective room config (it affects the member)
   getRoomOverridesForChat: "member",

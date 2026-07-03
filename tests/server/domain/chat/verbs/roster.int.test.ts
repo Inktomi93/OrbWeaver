@@ -4,7 +4,7 @@
 // verbs are reached through the grouped-file BUNDLE (`createRoster(ctx, { emit })`).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatBusEvent, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
@@ -12,7 +12,7 @@ import { chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
@@ -24,7 +24,14 @@ import {
 import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
+import {
+  makeChatContext,
+  seedAgent,
+  seedCharacter,
+  seedChat,
+  seedParticipant,
+  seedUser,
+} from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -559,5 +566,151 @@ describe("audit wiring — the membership/config mutations write best-effort aud
       .catch((e: unknown) => e);
 
     expect(rows).toEqual([]);
+  });
+});
+
+describe("seatAgent — the ONE agent-seat chokepoint (D60, doc 04 §3)", () => {
+  const Agent = castId<UserId>("user_buddy");
+
+  /** A roster bundle whose agent ops are stubbed (the real mint is tested in sessions' provision-agent
+   *  int-test; here we exercise the VERB — owner-presence, containment, the seat upsert, the view). */
+  function seatRoster(opts: { enabled?: boolean } = {}): ReturnType<typeof createRoster> {
+    const ctx = makeChatContext(db, {
+      provisionAgentPrincipal: () => Promise.resolve({ agentUserId: Agent, created: true }),
+      resolveAgentEnabled: () => Promise.resolve(opts.enabled ?? true),
+    });
+    return createRoster(ctx, { emit });
+  }
+
+  const agentRows = async (chatId: ChatId): Promise<(typeof chatParticipants.$inferSelect)[]> =>
+    await db
+      .select()
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "agent")));
+
+  test("the host seats their OWN agent (owner==host): a kind='agent' member row + chatUpdated", async () => {
+    const host = await seedUser(db, "host");
+    await seedAgent(db, host, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+
+    const view = await seatRoster().seatAgent({
+      principal: principal(host),
+      chatId,
+      ownerUserId: host,
+      sourceKind: "buddy",
+    });
+
+    expect(view.kind).toBe("agent");
+    expect(view.userId).toBe(Agent);
+    expect(view.characterId).toBeNull();
+    expect(view.role).toBe("member");
+    const rows = await agentRows(chatId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.userId).toBe(Agent);
+    expect(rows[0]?.leftSeq).toBeNull();
+    expect(emitted).toContainEqual({ type: "chatUpdated", chatId });
+  });
+
+  test("the host seats a present member's agent when the owner is not the host", async () => {
+    const host = await seedUser(db, "host");
+    const friend = await seedUser(db, "friend");
+    await seedAgent(db, friend, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "f", userId: friend, role: "member" });
+
+    const view = await seatRoster().seatAgent({
+      principal: principal(host),
+      chatId,
+      ownerUserId: friend,
+      sourceKind: "buddy",
+    });
+    expect(view.userId).toBe(Agent);
+    expect(await agentRows(chatId)).toHaveLength(1);
+  });
+
+  test("a non-host member is refused (not_host) — no seat", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    await seedAgent(db, member, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+
+    await expect(
+      seatRoster().seatAgent({
+        principal: principal(member),
+        chatId,
+        ownerUserId: member,
+        sourceKind: "buddy",
+      }),
+    ).rejects.toMatchObject({ code: "not_host" });
+    expect(await agentRows(chatId)).toHaveLength(0);
+  });
+
+  test("an owner who is NOT a present member is refused (owner_not_present)", async () => {
+    const host = await seedUser(db, "host");
+    const stranger = await seedUser(db, "stranger");
+    await seedAgent(db, stranger, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+
+    await expect(
+      seatRoster().seatAgent({
+        principal: principal(host),
+        chatId,
+        ownerUserId: stranger, // owns an agent but is not in the room
+        sourceKind: "buddy",
+      }),
+    ).rejects.toMatchObject({ code: "owner_not_present" });
+    expect(await agentRows(chatId)).toHaveLength(0);
+  });
+
+  test("a DISABLED agent principal is refused the seat (agent_disabled) — containment", async () => {
+    const host = await seedUser(db, "host");
+    await seedAgent(db, host, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+
+    await expect(
+      seatRoster({ enabled: false }).seatAgent({
+        principal: principal(host),
+        chatId,
+        ownerUserId: host,
+        sourceKind: "buddy",
+      }),
+    ).rejects.toMatchObject({ code: "agent_disabled" });
+    expect(await agentRows(chatId)).toHaveLength(0);
+  });
+
+  test("re-seat of a KICKED agent re-joins (leftSeq cleared); a double-seat is idempotent", async () => {
+    const host = await seedUser(db, "host");
+    await seedAgent(db, host, "buddy");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = seatRoster();
+    const seat = (): Promise<ParticipantView> =>
+      roster.seatAgent({
+        principal: principal(host),
+        chatId,
+        ownerUserId: host,
+        sourceKind: "buddy",
+      });
+
+    await seat();
+    // Double-seat while present → idempotent (still exactly one row, present).
+    await seat();
+    expect(await agentRows(chatId)).toHaveLength(1);
+
+    // Kick the agent (stamp leftSeq), then re-seat → the SAME row re-joins (leftSeq cleared), no duplicate.
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 5 })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, Agent)));
+    await seat();
+    const rows = await agentRows(chatId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.leftSeq).toBeNull();
   });
 });

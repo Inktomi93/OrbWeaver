@@ -59,6 +59,7 @@ import type {
   GetRoomOverridesForChatParams,
   KickParticipantParams,
   NominateHostHandoffParams,
+  SeatAgentParams,
   SelfLeaveParams,
   SetGroupConfigParams,
   SetParticipantDisabledParams,
@@ -74,6 +75,7 @@ import {
   markUserLeft,
   markUserLeftStatement,
   setPendingHostStatement,
+  upsertAgentSeat,
 } from "../persistence/participant";
 import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
@@ -91,6 +93,7 @@ interface RosterDeps {
 type RosterVerbs = Pick<
   ChatService,
   | "addCharacterToChat"
+  | "seatAgent"
   | "setParticipantDisabled"
   | "setParticipantTalkativeness"
   | "setGroupConfig"
@@ -116,6 +119,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
     addCharacterToChat: createAddCharacterToChat(ctx, emit),
+    seatAgent: createSeatAgent(ctx, emit),
     setParticipantDisabled: createSetParticipantDisabled(ctx, emit),
     setParticipantTalkativeness: createSetParticipantTalkativeness(ctx, emit),
     kick: createKick(ctx, emit),
@@ -288,6 +292,77 @@ function createAddCharacterToChat(
       },
       card,
     );
+  };
+}
+
+/** One resolved AGENT `chat_participants` row → `ParticipantView`. An agent seat FKs `users` (userId), carries
+ *  no character. FLAG[PD-17]: the agent's `displayName`/`avatarAssetId` come from the doc-04 §5 speaker source
+ *  (`resolveAgentSpeaker`, AP3-2) — not yet wired, so the roster view carries the placeholder floor; the client
+ *  renders the room-facing identity via the D22 `AgentCardView` (doc 06 §5), not this row. */
+function agentParticipantView(row: typeof chatParticipants.$inferSelect): ParticipantView {
+  return {
+    id: row.id,
+    chatId: row.chatId,
+    kind: row.kind,
+    userId: row.userId,
+    characterId: row.characterId,
+    role: row.role,
+    activePersonaId: row.activePersonaId,
+    talkativeness: row.talkativeness,
+    disabled: row.disabled,
+    joinedAt: row.joinedAt,
+    joinSeq: row.joinSeq,
+    leftSeq: row.leftSeq,
+    joinHistoryVisibility: row.joinHistoryVisibility,
+    displayName: "",
+    handle: null,
+    avatarAssetId: null,
+  };
+}
+
+/** `seatAgent` — host-gated; the ONE agent-seat insert path (D60, doc 04 §3). The HOST consents to the seat;
+ *  the OWNER (whose agent/buddy) must be a PRESENT human member (owner==host is the common case — one call).
+ *  The principal is lazily minted via `provisionAgentPrincipal` (idempotent), refused if disabled (containment,
+ *  doc 03 §5), then seated via the re-join upsert (a kicked agent re-seats; a present agent is an idempotent
+ *  no-op). Emits `chatUpdated`. Unseating is the normal kick path — no new verb. */
+function createSeatAgent(ctx: ChatContext, emit: EmitChatEvent): ChatService["seatAgent"] {
+  return async ({ principal, chatId, ownerUserId, sourceKind }: SeatAgentParams) => {
+    await requireHost(ctx, principal, chatId);
+    // The owner (whose agent) must be a PRESENT human member — the owner-consent-by-presence model (doc 04 §3).
+    const roster = await loadRoster(ctx.db, chatId);
+    const ownerPresent = roster.some((p) => p.kind === "human" && p.userId === ownerUserId);
+    if (!ownerPresent) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.ownerNotPresent,
+        `chat ${chatId}: the agent's owner is not a present member`,
+      );
+    }
+    // Lazily find-or-mint the owner's agent principal (D60 — the mint gates the owner human+enabled).
+    const { agentUserId } = await ctx.provisionAgentPrincipal({ ownerUserId, sourceKind });
+    // Containment kill switch (doc 03 §5): a disabled agent principal is refused a seat.
+    if (!(await ctx.resolveAgentEnabled(agentUserId))) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.agentDisabled,
+        `chat ${chatId}: agent principal ${agentUserId} is disabled`,
+      );
+    }
+    const at = ctx.now();
+    const joinSeq = await loadMaxMessageSeq(ctx.db, chatId);
+    const row = await upsertAgentSeat(ctx.db, {
+      participantId: ctx.newParticipantId(),
+      chatId,
+      agentUserId,
+      joinSeq,
+      now: at,
+    });
+    await emit({ type: "chatUpdated", chatId });
+    // A `undefined` upsert means the agent was ALREADY present (idempotent double-seat) — it is in the roster
+    // loaded above; a miss there is a real inconsistency (fail loud, not a phantom branch).
+    const seated = row ?? roster.find((p) => p.kind === "agent" && p.userId === agentUserId);
+    if (seated === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return agentParticipantView(seated);
   };
 }
 

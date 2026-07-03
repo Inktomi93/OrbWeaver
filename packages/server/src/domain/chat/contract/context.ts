@@ -21,7 +21,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { Can } from "@orb/contracts/identity";
+import type { AgentSourceKind, Can } from "@orb/contracts/identity";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
@@ -160,6 +160,20 @@ export type NotificationsEmitOp = (
  *  `users` reader; chat never reads `users` itself (`no-direct-users-read`). */
 export type ResolveHandleOp = (handle: Handle) => Promise<UserId | null>;
 
+/** `sessions.provisionAgentPrincipal` — lazily find-or-mint the owner's agent principal (D60; the D60 mint
+ *  gates the owner human+enabled). `seatAgent` calls it at the seat moment (doc 04 §3). Sessions is the
+ *  sanctioned `users` WRITER; chat never touches `users`. The `AgentSourceKind`/result are re-spelled
+ *  structurally (the {@link GroupCharacterRef} precedent) so chat takes no `→ sessions` server edge. */
+export type ProvisionAgentPrincipalOp = (params: {
+  readonly ownerUserId: UserId;
+  readonly sourceKind: AgentSourceKind;
+}) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
+
+/** `users.resolveAgentEnabled` — is this agent principal's kill switch ON (`users.enabled`)? The containment
+ *  read (doc 03 §5 / doc 02 §1.1): a disabled agent is refused a seat AND dropped from every cast. The entry
+ *  root is the sanctioned `users` reader; chat never reads `users` (`no-direct-users-read`). */
+export type ResolveAgentEnabledOp = (agentUserId: UserId) => Promise<boolean>;
+
 /** `presence.read` — the server-derived SSE liveness for a `userId` (NEVER client-asserted — a spoofable
  *  presence is a prompt-composition attack). Read once per round for cast-gating (a flip takes next round). */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
@@ -284,6 +298,9 @@ export interface ChatContext {
   // ── notifications / presence ──
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
+  // ── agent principals (D60 — the seatAgent mint + the containment enabled-read; both sanctioned users ops) ──
+  readonly provisionAgentPrincipal: ProvisionAgentPrincipalOp;
+  readonly resolveAgentEnabled: ResolveAgentEnabledOp;
   readonly readPresence: PresenceReadOp;
   /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;

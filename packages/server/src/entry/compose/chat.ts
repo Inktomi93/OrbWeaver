@@ -17,7 +17,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
@@ -100,6 +100,11 @@ export interface ChatComposeInput {
   readonly notifications: NotificationsService;
   /** sessions' EXACT handle→userId (PD-66 targeted invites) — the sanctioned users reader, injected DOWN. */
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
+  /** sessions' lazy agent-principal mint (D60, seatAgent — doc 04 §3); the sanctioned users writer, injected DOWN. */
+  readonly provisionAgentPrincipal: (params: {
+    readonly ownerUserId: UserId;
+    readonly sourceKind: AgentSourceKind;
+  }) => Promise<{ readonly agentUserId: UserId; readonly created: boolean }>;
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
@@ -394,6 +399,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // `coStatements` (PD-24): the producer's membership-transition statements commit in ONE batch WITH the
     // INSERT (record owns the commit); the publish still runs strictly AFTER that commit.
     resolveHandle: (handle) => input.resolveHandle(handle),
+    // D60 agent-principal seam (seatAgent): the mint is sessions' (injected DOWN); the enabled kill-switch read
+    // is inline here (the entry root is the sanctioned `users` reader, exempt from `no-direct-users-read`), the
+    // `resolveUserPublics` precedent. A missing row → disabled (fail-closed containment).
+    provisionAgentPrincipal: (params) => input.provisionAgentPrincipal(params),
+    resolveAgentEnabled: async (agentUserId) => {
+      const rows = await db
+        .select({ enabled: users.enabled })
+        .from(users)
+        .where(eq(users.id, agentUserId))
+        .limit(1);
+      return rows[0]?.enabled ?? false;
+    },
     // The startChat anchor default-seed: the starter's user-level active persona (settings
     // `seeds.defaultPersonaId`), VALIDATED as an owned live persona (persona.get under the synthetic
     // host principal) -- a stale/unowned id collapses to null so a dead id never lands in the

@@ -316,6 +316,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     },
     readPresence: notStubbed,
     resolveHandle: notStubbed,
+    provisionAgentPrincipal: notStubbed,
+    resolveAgentEnabled: notStubbed,
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),
