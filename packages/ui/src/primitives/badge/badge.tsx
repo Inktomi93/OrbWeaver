@@ -13,5 +13,7 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * Usage: `<Badge intent="success" size="sm">Active</Badge>`.
  */
 export function Badge({ className, intent, size, ...props }: BadgeProps): ReactElement {
-  return <span {...props} className={cn(badgeVariants({ intent, size }), className)} />;
+  return (
+    <span data-slot="badge" {...props} className={cn(badgeVariants({ intent, size }), className)} />
+  );
 }

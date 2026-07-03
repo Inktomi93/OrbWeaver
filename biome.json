@@ -21,7 +21,10 @@
     "./tools/grit/no-direct-useform.grit",
     "./tools/grit/no-form-state-in-useeffect.grit",
     "./tools/grit/no-inline-optimistic-in-surface.grit",
-    "./tools/grit/no-layout-context-props.grit"
+    "./tools/grit/no-layout-context-props.grit",
+    "./tools/grit/no-untrusted-html-in-main-dom.grit",
+    "./tools/grit/no-external-media-without-gate.grit",
+    "./tools/grit/theme-override-only-via-scope.grit"
   ],
   "vcs": {
     "enabled": true,

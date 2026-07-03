@@ -66,11 +66,11 @@ test("empty ranges render plain text with no marks", async ({ mount }) => {
   await expect(component).toContainText(TEXT);
 });
 
-test("the mark wears the warning token pair, not a raw color", async ({ mount }) => {
+test("the mark wears the highlight token pair, not a raw color", async ({ mount }) => {
   const component = await mount(<HighlightedText text={TEXT} ranges={[{ start: 0, end: 3 }]} />);
   const mark = component.locator("mark").first();
-  await expect(mark).toHaveCSS("background-color", TOKENS["color.warning"].value);
-  await expect(mark).toHaveCSS("color", TOKENS["color.warning-foreground"].value);
+  await expect(mark).toHaveCSS("background-color", TOKENS["color.highlight"].value);
+  await expect(mark).toHaveCSS("color", TOKENS["color.highlight-foreground"].value);
 });
 
 test("the first highlight scrolls into view on mount", async ({ mount, page }) => {

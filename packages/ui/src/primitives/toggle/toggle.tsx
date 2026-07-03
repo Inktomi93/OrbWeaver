@@ -17,5 +17,11 @@ export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeo
  * Usage: `<Toggle aria-label="Bold" pressed={bold} onPressedChange={setBold}>B</Toggle>`
  */
 export function Toggle({ className, intent, size, ...rest }: ToggleProps): ReactElement {
-  return <BaseToggle className={cn(toggleVariants({ intent, size }), className)} {...rest} />;
+  return (
+    <BaseToggle
+      data-slot="toggle"
+      className={cn(toggleVariants({ intent, size }), className)}
+      {...rest}
+    />
+  );
 }
