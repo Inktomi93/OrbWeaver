@@ -13,7 +13,7 @@
 > `→ infra` taxonomy row: "external I/O adapter — provider, crypto, storage, network, auth
 > verification"), §7.1 (identity/auth spine — **auth VERIFICATION is infra; identity RESOLUTION + the
 > users-row upsert is `domain/sessions`**); `core/Core-Legacy-Migration-and-Gaps.md` §0 (kit-purity LOCKED),
-> §5 (`openai-models` → `infra/network`); the adjacent domain docs `domains/sessions.md` (the auth
+> §5 (`openai-models` → `infra/network`); the adjacent domain docs `domain/sessions` (the auth
 > seam split), `domains/credentials.md` (the crypto seam + AAD belt), `domains/assets.md` (the CAS
 > byte-store vs the assets-domain index split).
 
@@ -195,8 +195,8 @@ gates on beyond the handle type).
 | `auth/_shared/host.ts` — `normalizeHost`                                                                     | stays infra (kit candidate)         | `infra/auth/host.ts`                             | Pure host normalize used by the origin gate + JWKS allowlist match. Pure → could be `@orb/kit/net`; only infra consumers today.                                                                                                               | resolve-time (see Open decisions)                                                                             |
 | `auth/_shared/config.ts` — `authConfigFromEnv` + parse helpers                                               | stays infra                         | `infra/auth/config.ts`                           | env → `AuthConfig`. Reads `foundation/env` DOWN (allowed). The fail-closed `jwksAllowlistFromEnv` lives here.                                                                                                                                 | resolve-time (foundation is below infra)                                                                      |
 | `auth/_shared/password.ts` — scrypt + pepper + `verifyPassword` + `DUMMY_PASSWORD_HASH`                      | stays infra                         | `infra/auth/password.ts`                         | Mint-side credential-verification crypto (local mode). Pure `node:crypto`; reads `SESSION_SECRET` DOWN; consumed by the entry login route.                                                                                                    | resolve-time + test-time (round-trip; throws if `SESSION_SECRET` unset; constant-time)                        |
-| `auth/_shared/oidc-store.ts` — `createOidcStore` (PKCE/state)                                                | **→ `domain/sessions/persistence`** | `domain/sessions/persistence/oidc-store.ts`      | **It imports `@orb/db` (`oidc_transactions`).** A db-dependent store CANNOT live in sealed infra (the `infra-no-db` physics). It is session-mint state. **RESOLVED 2026-06-25 — consistent with sessions.md (ledger R5).**                    | resolve-time (`infra-no-db` would go RED if left in infra)                                                    |
-| `auth/_shared/cookie.ts` — `setSessionCookie`/`clear`/`refresh` + `__Host-` name                             | **→ entry**                         | `entry/http/auth-routes.ts`                      | Cookie I/O is the route layer's job; the domain returns a token string. (Per sessions.md.)                                                                                                                                                    | resolve-time                                                                                                  |
+| `auth/_shared/oidc-store.ts` — `createOidcStore` (PKCE/state)                                                | **→ `domain/sessions/persistence`** | `domain/sessions/persistence/oidc-store.ts`      | **It imports `@orb/db` (`oidc_transactions`).** A db-dependent store CANNOT live in sealed infra (the `infra-no-db` physics). It is session-mint state. **RESOLVED 2026-06-25 — consistent with domain/sessions (ledger R5).**                    | resolve-time (`infra-no-db` would go RED if left in infra)                                                    |
+| `auth/_shared/cookie.ts` — `setSessionCookie`/`clear`/`refresh` + `__Host-` name                             | **→ entry**                         | `entry/http/auth-routes.ts`                      | Cookie I/O is the route layer's job; the domain returns a token string. (Per domain/sessions.)                                                                                                                                                    | resolve-time                                                                                                  |
 | `auth/{local,oidc}/routes.ts` — the mint handlers                                                            | **→ entry**                         | `entry/http/auth-routes.ts`                      | Session MINTING (PKCE machine, password verify, session insert, cookie set) is the route layer.                                                                                                                                               | resolve-time                                                                                                  |
 | `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution`                  | **→ entry (the seam)**              | `entry/auth/seam.ts`                             | The ONE place wiring `infra/auth` (verify) + `domain/sessions` (resolve/upsert). Builds the one `Principal`.                                                                                                                                  | resolve-time (`entry/` is topmost; may import both)                                                           |
 | `auth/identity.ts` — `ResolvedIdentity` re-import                                                            | **→ contracts**                     | `@orb/contracts/identity`                        | Cross-boundary: infra/auth produces it, domain/sessions + the seam consume it. Branded cast lives at the producer (the resolver).                                                                                                             | resolve-time                                                                                                  |
@@ -269,7 +269,7 @@ domain/db import).
 
 ### §7.1 identity / auth / permission — three tiers, one dispatcher
 
-The headline of the whole spine is the **three-tier split** that `domains/sessions.md` anchors and this
+The headline of the whole spine is the **three-tier split** that `domain/sessions` anchors and this
 doc enforces from below:
 
 - **Verification = `infra/auth`** (this tier). JWT/JWKS, the mode dispatch, the origin gate, the CSRF
@@ -446,10 +446,10 @@ feeds the tRPC seam + the local-login throttle so all three gate on one observed
   consumer ever appears. Same question for `host.ts` (`normalizeHost`).
 - **`oidc-store.ts` — RESOLVED (2026-06-25): `domain/sessions/persistence`** (it imports `@orb/db`, so
   sealed infra is out; session-mint state co-located with the validate path). Consistent with
-  `domains/sessions.md` (reconciled) + ledger R5.
+  `domain/sessions` (reconciled) + ledger R5.
 - **`password.ts` — `infra/auth` vs `infra/crypto`.** It's credential-verification crypto (scrypt) but
   it belongs to the local AUTH mode and reads `SESSION_SECRET`. Lean: `infra/auth/password.ts` (keeps
-  the auth crypto with auth), consistent with sessions.md. Revisit only if a non-auth caller emerges.
+  the auth crypto with auth), consistent with domain/sessions. Revisit only if a non-auth caller emerges.
 - **`ingress-allowlist.ts` — `infra/network` vs `transport`.** It's a Hono middleware mounted at
   `entry/app.ts` and depends on the Hono `Context` — arguably a transport/edge concern, not a pure
   adapter. Lean: `infra/network` (it's an I/O edge belt; `clientIp` is reused by the transport seam,

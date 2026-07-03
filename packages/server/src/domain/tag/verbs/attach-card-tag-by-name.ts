@@ -7,7 +7,7 @@
 //   1. RESOLVE-OR-CREATE the owner's tag by NAME — try-insert (no-op on the `(ownerId, lower(name))` functional
 //      unique), then fall back to the existing row via a `lower(name)` match. The functional unique is the race
 //      guard: a concurrent OR case-variant create loses the INSERT (empty RETURNING) and re-reads the winner —
-//      never a duplicate tag (tag.md invariant #1). `source` is stamped ONLY on first create (a tag's source is
+//      never a duplicate tag (one namespace, one owner). `source` is stamped ONLY on first create (a tag's source is
 //      set once); an existing tag keeps its source.
 //   2. ATTACH it to the character at `status`, reporting whether it was NEWLY attached (the boolean
 //      character.bulkAddCardTag counts as updated-vs-skipped). The attach is `onConflictDoNothing` → a

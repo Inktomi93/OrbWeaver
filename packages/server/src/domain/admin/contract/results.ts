@@ -1,5 +1,5 @@
 // domain/admin/contract/results — every verb's *Result. Most return the secret-free `AdminUserView`;
-// the session/vllm verbs return the port-shaped views or coded primitives (admin.md §contract/results).
+// the session/vllm verbs return the port-shaped views or coded primitives.
 
 import type { AdminEngineStatus, AdminUserView, SessionAdminView } from "./views";
 

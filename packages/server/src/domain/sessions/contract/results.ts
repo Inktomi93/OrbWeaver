@@ -1,5 +1,5 @@
 // domain/sessions — verb output shapes (the contract type home, §7.4). These are the three return shapes
-// the `entry/auth/seam` assembles the one `Principal` from (sessions.md §"Resolve identity ONCE"):
+// the `entry/auth/seam` assembles the one `Principal` from (resolve-once, core/Spine-Identity-and-Auth.md):
 // `validate` (cookie path) → `ValidatedSession`, `provisionIdentity` (SSO/header path) → `ProvisionResult`,
 // `ensureUser` (fallback) → a bare `UserId`. None is a `Principal` itself — the seam adds `via` + mints it.
 
@@ -18,7 +18,7 @@ export interface CreateSessionResult {
  *  `role` is RE-READ from the `users` row each request (a role-change propagates next request). `enabled`
  *  is carried for shape-parity with `ProvisionResult` so the seam builds the `Principal` uniformly from
  *  either return; it is ALWAYS `true` on a non-null result, because `validate` GATES disabled rows to
- *  `null` (invariant #8 — disable takes effect on the next request). */
+ *  `null` (disable takes effect on the next request). */
 export interface ValidatedSession {
   userId: UserId;
   role: UserRole;

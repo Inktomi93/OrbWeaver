@@ -1,4 +1,4 @@
-// domain/admin/contract/errors — NO custom error class (by design; admin.md §Esoteric). admin throws kit
+// domain/admin/contract/errors — NO custom error class (by design). admin throws kit
 // primitives: `DomainNotFoundError`, `DomainConflictError`, `DomainForbiddenError` (from the guard), and
 // `DomainOperationError` discriminated by a `code`. This file is the ONE home for those reason codes —
 // the magic-string discriminator the verbs throw and the transport maps (no inline re-spell, §7.5).

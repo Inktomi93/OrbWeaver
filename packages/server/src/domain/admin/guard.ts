@@ -1,5 +1,5 @@
 // domain/admin/guard — THE `can()` GUARD SEAM (the unblocker the other domains inject; identity-auth-
-// permission §6, admin.md §"Resolved decisions Q1"). This is the ONE place a role/host is compared: `owner ⊇
+// permission §6). This is the ONE place a role/host is compared: `owner ⊇
 // admin` (global) and `role === 'host'` (chat resource-role) live HERE and NOWHERE else (no scattered
 // `role === 'admin'`/`'owner'` in the gating domains, no `role === 'host'` in chat — spine #6).
 //

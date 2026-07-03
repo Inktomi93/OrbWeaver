@@ -1,4 +1,4 @@
-// verbs: vllmEngines / restartVllmEngine — a thin admin-gated shell over the vLLM supervisor (admin.md).
+// verbs: vllmEngines / restartVllmEngine — a thin admin-gated shell over the vLLM supervisor.
 // DECIDED (PD-3, 2026-06-28): admin OWNS the engine-status surface (no separate ops-admin home). It is
 // admin-gated (owner ∪ admin), then delegates to the injected VllmSupervisorPort — admin owns neither the
 // supervisor nor the engine-status vocab (sealed in infra/providers; the compose root adapts the

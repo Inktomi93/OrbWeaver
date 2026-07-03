@@ -1,4 +1,4 @@
-// verb: resetPassword — set a user's local password (admin.md). admin-gated (owner ∪ admin). Guards:
+// verb: resetPassword — set a user's local password. admin-gated (owner ∪ admin). Guards:
 // weak_password (below the auth floor), existence-before-audit (loadUser throws DomainNotFoundError BEFORE
 // the write, so a reset on a missing id leaves no phantom audit row, invariant #4). A successful reset
 // revokes all of the target's live sessions (a credential change invalidates outstanding logins).

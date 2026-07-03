@@ -105,9 +105,9 @@ possible but pure cost. Recommendation: **accept the ruling.**
 
 | Source                   | Symbol(s)                              | Note                                                                                                                                                                |
 | ------------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_shared/batch.ts`       | `batchStmt`, `batchMany`               | **REFINES tag.md's open kit-vs-db question → db/kit** (needs `Parameters<Db["batch"]>`). ~59 inline `BatchItem` casts on the chat send path should be wired to this |
+| `_shared/batch.ts`       | `batchStmt`, `batchMany`               | **REFINES domain/tag's open kit-vs-db question → db/kit** (needs `Parameters<Db["batch"]>`). ~59 inline `BatchItem` casts on the chat send path should be wired to this |
 | `_shared/db-errors.ts`   | `isConstraintViolation`                | unify with credentials' `isCredentialUniqueViolation` (4-depth `cause` walk) + workloads constraints                                                                |
-| `_shared/fetch-owned.ts` | `fetchOwned` (`OwnedTable` constraint) | **REFINES tag.md → db/kit** (`OwnedTable` requires drizzle column types, can't be kit-pure). `ownerId` → `principal.userId` under §7.1                              |
+| `_shared/fetch-owned.ts` | `fetchOwned` (`OwnedTable` constraint) | **REFINES domain/tag → db/kit** (`OwnedTable` requires drizzle column types, can't be kit-pure). `ownerId` → `principal.userId` under §7.1                              |
 
 ---
 
@@ -180,7 +180,7 @@ tuple shared by a pure kit resolver AND a zod schema lives in `kit`; the `z.enum
 
 1. **`replay-buffer` → `@orb/kit`**, not "feature-internal" (brief §4). 3 feature consumers (chat/buddy/workloads), pure.
 2. **`stats-tally` splits**: pure fns → `kit/stats-tally`, `StatsDelta`/`ApplyStatsDelta` → `contracts/stats`. Not "own feature stats" — chat consumes at runtime; a feature home forces an illegal chat→stats sideways import.
-3. **`fetch-owned` + `batch` + `db-errors` → `@orb/db/kit`** (need drizzle types). Resolves tag.md's open kit-vs-db question.
+3. **`fetch-owned` + `batch` + `db-errors` → `@orb/db/kit`** (need drizzle types). Resolves domain/tag's open kit-vs-db question.
 4. **`room-overrides.ts`, `group-config.ts`, `opening-policy.ts` are MISFILED in `shared/settings` → `contracts/chat`.** They are chatMetadata sub-blobs / start-chat unions consumed by chat verbs + chat assemble types + client chat forms, NOT the settings KV. The brief grouped them under "settings (7 files)"; the settings domain owns only AppSettings/UserSettings.
 5. **The kit↔contracts tuple rule** (world-info.md under-specified it): const tuples shared by a kit resolver AND a contracts schema live in **kit**; the schema imports them down. Applies to `ENTRY_SCOPE_MODES`/`ENTRY_INJECTION_ROLES`/`ENTRY_POSITIONS` (persona.md already does this correctly for `PERSONA_DESCRIPTION_POSITIONS`).
 6. **`RegexScript` direction**: the kit executor can't import the contracts shape (kit←contracts). Resolution: kit-local structural `RegexScriptInput`; `contracts/regex.RegexScript satisfies RegexScriptInput`.

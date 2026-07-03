@@ -7,7 +7,7 @@
 // THE ONE JSON-PARSE BOUNDARY: `chats.metadata` is read through `parseChatMetadata` (the contract's
 // fault-isolated lazy parser — reused, never re-spelled). Every other column is trusted (db CHECK/FK enforced).
 //
-// `users` is NEVER joined here (the `no-direct-users-read` chokepoint — admin.md): roster name/handle
+// `users` is NEVER joined here (the `no-direct-users-read` chokepoint — admin + sessions are the only sanctioned `users` readers): roster name/handle
 // resolution is a verb concern (it takes ids from the resolved Principal + injected ops); persistence returns
 // the raw membership-scoped rows. Row/return SHAPES are file-LOCAL (callers read the inferred return) so no
 // feature type leaks out of `persistence/` (`types-in-contract`). Timestamps/cursors arrive as PARAMS.

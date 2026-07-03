@@ -19,7 +19,7 @@
   `greetings`, `exampleMessages`, `systemPrompt`, `postHistoryInstructions`, `depthPrompt`, `creatorNotes`,
   the typed promotions `creator`/`cardVersion`/`regexScripts`/`extensions`, `avatarAssetId`, refinery
   signals). **No `currentVersionId`, no `version` counter, no `character_versions` table** (D28). The card
-  tags surface is the `character_tags` junction (`tag.md`), not a `proposedTags` blob. `raw` stays dropped.
+  tags surface is the `character_tags` junction (`domain/tag`), not a `proposedTags` blob. `raw` stays dropped.
 - **`character_snapshots` — the history log (NEW, D28)** — append-only `{id, characterId (FK CASCADE),
 content (JSON = the full card snapshot), label?, createdAt}`. **NOTHING FKs it** (it's opaque history,
   not the content home). It's the git "commit log": browse it, restore from it. A snapshot is taken on a

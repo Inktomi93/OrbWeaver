@@ -16,7 +16,7 @@ the `sillytavern-feature-gap` "committed" statuses sit in limbo.
 ## Confirmed CLEAN (do not manufacture findings here)
 
 The spine docs (identity/settings/serde/testing), `infra.md`, `transport.md`, `entry.md`, `buddy.md`,
-`discovery.md`, `assets.md`, `sessions.md`, `notifications.md`, `domains/memory.md`,
+`discovery.md`, `assets.md`, `domain/sessions`, `notifications.md`, `domains/memory.md`,
 `Core-Laws-and-Precedents.md`, `Core-Audits-and-Debt.md`, `Core-Planning-and-Checklists.md`, `Core-Audits-and-Debt.md`, and `UI-Architecture-and-Layout.md` (internally).
 The ownership model (D18→D20/D23), D28 de-pin/flat-card, D16 notifications, D17 roles, D31 CredentialSource,
 D33 guided-actions, D24 per-type-FK are all correct and consistent across docs.

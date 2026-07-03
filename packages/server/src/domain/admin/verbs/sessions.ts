@@ -1,5 +1,5 @@
 // verbs: listSessions / revokeSession / revokeUserSessions — the admin session-management surface. One
-// file (the "one logical group per file" allowance, admin.md §8-slot) because the three share identical
+// file (the "one logical group per file" allowance) because the three share identical
 // guard + delegation mechanics: admin-gate, then delegate to the injected SessionAdminPort (admin owns
 // neither the sessions table nor its revoke machinery — dependency inversion). Each WRITE audits.
 

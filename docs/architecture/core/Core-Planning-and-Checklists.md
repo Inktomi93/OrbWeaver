@@ -82,7 +82,7 @@ runners, NOT in the fast `check`. Full policy: `core/Spine-Testing.md`.
 - **`proposedTags → character_tags.status`** (neo→orb data port): for each neo
   `character_versions.proposedTags` array element upsert a `character_tags` row (`source='card'`,
   `status='pending'`, create the tag if needed). Orbweaver has no `proposedTags` column anywhere (D28 +
-  `tag.md`). Add a post-migration count-validation query. Without this, existing pending-tag data is
+  `domain/tag`). Add a post-migration count-validation query. Without this, existing pending-tag data is
   silently lost on the port.
 - **`character_books` land on `characters.id`** (D28; neo keyed books on the cv): when porting, add a
   pre-flight orphan check (neo `LEFT JOIN character_versions … characters WHERE characters.id IS NULL`);

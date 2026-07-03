@@ -111,7 +111,7 @@ export type CharacterCard = z.infer<typeof characterCardSchema>;
 // ── CRUD wire schemas — the ONE schema the tRPC router AND the import normalizer validate against ────
 // `create` is the authoring input: handle (identity) + card content + the typed promotions, so an app can
 // author a COMPLETE card (the §7.3 lossiness fix — app-authored == imported). Pipeline-derived `refinery` is
-// NOT here. Tags are the `character_tags` junction (tag.md), NOT a `proposedTags` blob (D-adapt: neo's
+// NOT here. Tags are the `character_tags` junction, NOT a `proposedTags` blob (D-adapt: neo's
 // `proposedTags` is dropped — import writes pending junction rows instead). null clears a field; omit to
 // leave it unchanged.
 export const createCharacterSchema = z.object({

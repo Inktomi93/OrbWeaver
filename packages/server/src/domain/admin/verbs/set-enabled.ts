@@ -2,7 +2,7 @@
 //   • cannot_disable_self — an actor may not disable their own account (locks the deployment out of itself)
 //   • owner-immutability  — the owner is never disabled (friendly pre-check + atomic `WHERE role <> 'owner'`)
 //   • existence-before-audit — `loadUser` throws DomainNotFoundError BEFORE the write, so a write to a
-//     missing id never leaves a phantom audit row (admin.md §Esoteric; invariant #4)
+//     missing id never leaves a phantom audit row
 // Disabling revokes all of the target's live sessions (the kick tail) via the injected SessionAdminPort.
 
 import { users } from "@orb/db";

@@ -1,6 +1,6 @@
 // verb: setRole — grant/revoke the delegated `admin` role. OWNER-ONLY (`requireOwner`, D17 — only the box
 // owner grants/revokes admin; `user ↔ admin` only, NEVER to/from `owner`). Carries the owner-immutability
-// guard in BOTH layers (admin.md invariant #3): a friendly `loadUser` owner-row pre-check for the fast
+// guard in BOTH layers: a friendly `loadUser` owner-row pre-check for the fast
 // error, AND the atomic `WHERE role <> 'owner'` ON THE UPDATE so the owner row is un-demotable under a race.
 // Neo's "≥1 enabled admin" last-admin guard is GONE: `requireAdmin` = owner ∪ admin, so the immutable owner
 // is always an administrator — the admin-capable set can never empty, and demoting the last DELEGATED admin

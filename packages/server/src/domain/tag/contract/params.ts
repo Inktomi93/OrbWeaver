@@ -1,6 +1,6 @@
 // domain/tag/contract/params — every verb's *Params, declared ONCE (§7.4). The wire INPUT shapes
 // (`CreateTagInput`/`UpdateTagInput`) + the wire axes (`TagTargetType`/`TagStatus`) are the cross-boundary
-// concern and live in `@orb/contracts/tag` (tag.md Movement); the verb params WRAP them with the acting
+// concern and live in `@orb/contracts/tag`; the verb params WRAP them with the acting
 // `principal` (resolved at the entry seam — the verb gates on the principal it is handed, spine §1) and the
 // branded ids. Owner scoping is `principal.userId` (§7.1) — tags are personal labels, no resource-role.
 

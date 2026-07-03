@@ -18,7 +18,7 @@
 > deep imports, zero domain→transport edges); `core/Core-Legacy-Migration-and-Gaps.md` §6
 > (`_shared/rate-limit.ts` → `transport/rate-limit`); `domains/workloads.md` (the worker is
 > transport/jobs, the domain owns the engine, `buildWorkloadsEnv` is `entry/`);
-> `domains/credentials.md` + `domains/sessions.md` (the `Principal` is built at the `entry/` seam —
+> `domains/credentials.md` + `domain/sessions` (the `Principal` is built at the `entry/` seam —
 > transport CARRIES it); `domains/assets.md` / `domains/import.md` / `domains/connection.md` (where
 > each route/router delegates).
 
@@ -67,7 +67,7 @@ ctx.services.<feature>.<verb> → let the typed domain error map to a wire code`
 
 - **The `Principal` construction / the auth seam** — `createAuthResolver`/`resolveOwner` (today
   `server/auth-context.ts`) move to `entry/auth/seam.ts`. Identity is resolved ONCE at the edge into
-  one immutable `Principal` (`sessions.md` §7.1); transport **carries** it on `ctx`, never builds it.
+  one immutable `Principal` (`domain/sessions` §7.1); transport **carries** it on `ctx`, never builds it.
 - **The non-tRPC HTTP registrars** — `assets`/`import`/`export`/`health`/`auth-meta` registrars are
   `entry/http/*` (`Core-0-Architecture-and-Structure.md` §3), NOT transport. They wire a domain + infra (`cas`/`variants`/
   `sharp`) + the auth seam together — cross-feature composition, an `entry/` concern above
@@ -179,7 +179,7 @@ entry/app.ts                                             the Hono builder + the 
 | `http/export.ts` — character PNG / chat JSONL downloads                                                | **→ entry**                               | `entry/http/export.ts`                                                     | One domain (`export`) + the auth seam; safe GET → no CSRF. A thin-ish driver, but the `register<X>Routes` discipline + the auth-seam wiring make it route-tier (entry).                                                                                                      | resolve-time (entry)                                                                                                                     |
 | `http/health.ts` — `/api/healthz`                                                                      | **→ entry**                               | `entry/http/health.ts`                                                     | Readiness probe — reads `isShuttingDown()` (lifecycle) + `allEngineStatuses()` (providers/infra). Route-tier; no domain at all.                                                                                                                                              | resolve-time (entry)                                                                                                                     |
 | `http/auth-meta.ts` — `/api/auth/{config,me}`                                                          | **→ entry**                               | `entry/http/auth-meta.ts`                                                  | The bootstrap chicken-and-egg endpoints the tRPC client can't bootstrap itself with; they go through the same `authResolver`. Route-tier (entry), deliberately NOT tRPC.                                                                                                     | resolve-time (entry); documented "stay Hono" invariant                                                                                   |
-| `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution`            | **→ entry (the seam)**                    | `entry/auth/seam.ts`                                                       | The ONE place that wires `infra/auth` (verification) + `domain/sessions` (resolution/upsert) → the immutable `Principal`. Transport CARRIES the result, never builds it. (sessions.md.)                                                                                      | resolve-time (`entry/` only)                                                                                                             |
+| `auth-context.ts` — `createAuthResolver`, `resolveOwner`, `AuthResolver`, `OwnerResolution`            | **→ entry (the seam)**                    | `entry/auth/seam.ts`                                                       | The ONE place that wires `infra/auth` (verification) + `domain/sessions` (resolution/upsert) → the immutable `Principal`. Transport CARRIES the result, never builds it. (domain/sessions.)                                                                                      | resolve-time (`entry/` only)                                                                                                             |
 | `app.ts` — `createRateLimiter(db, …)` instances + the `responseMeta` Retry-After mapping               | **→ entry**                               | `entry/app.ts`                                                             | Limiter construction needs db (composition root); the tRPC fetch-handler mount (createContext seam + onError + responseMeta) is the Hono builder's job. The Retry-After mapping reads `DomainRateLimitError` fields (the transport error class).                             | resolve-time (entry has db); the error class is transport/kit                                                                            |
 
 ---
@@ -219,7 +219,7 @@ front-door.
 - The `Principal`/identity resolved in transport (it is carried from the `entry/` seam).
 
 The `adminProcedure` gate is transport's **layer-1** authority check; the matching `requireAdmin`
-inside the admin-touching domain verbs is **layer-2** (admin.md — defense in depth). A driver gate is
+inside the admin-touching domain verbs is **layer-2** (defense in depth). A driver gate is
 not a substitute for the domain check.
 
 ---
@@ -417,7 +417,7 @@ they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hois
   is above `domain-no-cross-feature` and so cannot be a thin driver. Even the genuinely-thin ones
   (`health`, `export`, blob-serve) live at the route tier (entry) so the `register<X>Routes` discipline +
   the shared auth-seam wiring follow one consistent rule. Consistent with `Core-0-Architecture-and-Structure.md` §3 and every
-  domain doc (`assets.md`/`sessions.md`/`import.md`/`export.md`); no conflict remains.
+  domain doc (`assets.md`/`domain/sessions`/`import.md`/`export.md`); no conflict remains.
 
 - **The rate-limit primitive's tier — RESOLVED: keep the primitive in `transport/rate-limit`,
   constructed at `entry/`.** The DB-backed `createRateLimiter`/`RateLimiter`/`RateLimitConfig` IS the

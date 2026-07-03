@@ -259,7 +259,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   (`core/Spine-Config-and-Serialization.md`.)
 - **bulk-import + proposedTags — RESOLVED:** the outer bulk-loop driver lives at
   `entry/import/run-profile-import.ts`; `proposedTags` becomes `character_tags.status` (export reads
-  `status='accepted'`). (`domains/import.md`, `domains/tag.md`.)
+  `status='accepted'`). (`domains/import.md`, `domain/tag`.)
 - **stats/discovery line as a type — RESOLVED:** type-enforced via disjoint `messages` projections
   (a stats-only economics projection vs a discovery semantic projection) + a `stats-no-vector-tables`
   dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (stats BUILT — code is source; the
@@ -318,7 +318,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Event-Bus-Parity-Audit.md](docs/architecture/history/Core-Event-Bus-Parity-Audit.md)
   - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
-  - [admin.md](docs/architecture/domains/admin.md)
   - [assets.md](docs/architecture/domains/assets.md)
   - [buddy.md](docs/architecture/domains/buddy.md)
   - [character.md](docs/architecture/domains/character.md)
@@ -338,7 +337,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - **proposed/**
     - [README.md](docs/architecture/domains/proposed/README.md)
     - **databank/**
-      - [databank.md](docs/architecture/domains/proposed/databank/databank.md)
+      - [databank.md](docs/architecture/proposed/databank.md)
     - **expression-stage/**
       - [expression-stage.md](docs/architecture/domains/proposed/expression-stage/expression-stage.md)
     - **image-studio/**
@@ -348,11 +347,9 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
     - **scripting-automation-extensibility/**
       - [scripting-automation-extensibility.md](docs/architecture/domains/proposed/scripting-automation-extensibility/scripting-automation-extensibility.md)
     - **tool-use/**
-      - [tool-use.md](docs/architecture/domains/proposed/tool-use/tool-use.md)
+      - [tool-use.md](docs/architecture/proposed/tool-use.md)
   - [search.md](docs/architecture/domains/search.md)
-  - [sessions.md](docs/architecture/domains/sessions.md)
   - [settings.md](docs/architecture/domains/settings.md)
   - stats — BUILT; doc gutted 2026-07, code is source (`packages/server/src/domain/stats/`); seam design: [stats-discovery-seam.md](docs/architecture/proposed/stats-discovery-seam.md)
-  - [tag.md](docs/architecture/domains/tag.md)
   - [workloads.md](docs/architecture/domains/workloads.md)
   - [world-info.md](docs/architecture/domains/world-info.md)

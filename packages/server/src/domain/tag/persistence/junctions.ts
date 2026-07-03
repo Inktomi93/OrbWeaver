@@ -1,5 +1,6 @@
 // domain/tag/persistence/junctions — the polymorphic junction REGISTRY: the ONE insertion / deletion path for
-// the five per-type FK junctions (tag.md invariant #3) + the per-target ownership / membership gate. Each
+// the five per-type FK junctions (no junction insert/delete lives anywhere else) + the per-target ownership /
+// membership gate. Each
 // dispatch is a mapped-type Record keyed by `TagTargetType` (a `: Record<TagTargetType, …>` ANNOTATION —
 // §7.5 / exhaustive-dispatch: a 6th target member is a `tsc` error until the Record gains its key). A Record,
 // not a `switch`, because the canonical `TagTargetType` is a `z.infer` union (the biome lint type-checker
@@ -9,13 +10,13 @@
 // TWO scoping flavors (D30):
 //   • target-derived (character / worldBook / persona / preset) — owner reached via the target's KEPT
 //     `ownerId` using `fetchOwned`. The `OwnedTable` constraint on `fetchOwned` is the COMPILE-TIME upgrade of
-//     neo's module-load ownerId assertion (tag.md §Esoteric): a target table without `ownerId` would not
+//     neo's module-load ownerId assertion: a target table without `ownerId` would not
 //     typecheck as `fetchOwned`'s argument — a misconfigured target-derived entry can't compile, so no runtime
 //     assertion is needed (and no `users` table is read — the `no-direct-users-read` chokepoint holds).
 //   • membership (chat) — `chats` has no owner (D18); access is the INJECTED `requireParticipant` gate, and the
 //     junction carries its own `ownerId` (the tagger) so two members tag a shared chat independently.
 //
-// No `as never` polymorphic cast (tag.md offers this typed alternative to neo's cast): each Record arm brands
+// No `as never` polymorphic cast (the typed alternative to neo's computed-key cast): each Record arm brands
 // `targetId` with the typed `castId` helper for its own junction (type-safe + the `no-loose-id-cast` gate).
 
 import type { Principal } from "@orb/contracts/identity";

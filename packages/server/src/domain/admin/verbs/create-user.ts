@@ -1,8 +1,8 @@
-// verb: createUser — mint a loginable LOCAL human (admin.md). admin-gated (owner ∪ admin). Mints humans
+// verb: createUser — mint a loginable LOCAL human. admin-gated (owner ∪ admin). Mints humans
 // ONLY (loginable: a password hash, no agent kind — agent principals are sessions' `provisionAgentPrincipal`,
 // not this path). Guards: invalid_handle (empty), cannot_grant_owner (the owner is never minted here),
 // weak_password (below the auth floor), user_exists (the handle is taken — BOTH the friendly pre-SELECT
-// and the TOCTOU `INSERT`-conflict race translate to the same typed code, admin.md §Esoteric).
+// and the TOCTOU `INSERT`-conflict race translate to the same typed code).
 
 import type { UserRole } from "@orb/contracts/identity";
 import { isConstraintViolation, users } from "@orb/db";

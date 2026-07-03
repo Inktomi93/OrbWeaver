@@ -11,7 +11,7 @@
 > "serialization core" / "proposedTags round-trip"), `AGENTS.md` §4 (import/export
 > pain), **§7.3 serde core**, §7.4 (types), `core/Core-Legacy-Migration-and-Gaps.md` §1–§3 (the serde
 > symbols' homes, CITE-authoritative), `character.md` §7.3 (the one canonical card),
-> `tag.md` (the proposed→status redesign). `Core-0-Architecture-and-Structure.md` §4 is the 8-slot template.
+> `domain/tag` (the proposed→status redesign). `Core-0-Architecture-and-Structure.md` §4 is the 8-slot template.
 
 ---
 
@@ -104,7 +104,7 @@ The defining fixes export delivers:
 3. **Close the `proposedTags` accepted-tags round-trip gap.** Export today reads
    `character_versions.proposedTags` and emits it as the card's `tags` — the **accepted**
    `character_tags` junction is never serialized, so accepted tags are silently lost on
-   re-export. Per `tag.md`, the `proposedTags` JSON column is deleted and `character_tags`
+   re-export. Per `domain/tag`, the `proposedTags` JSON column is deleted and `character_tags`
    grows a `status: 'pending' | 'accepted'` column; **export reads `character_tags WHERE
 status='accepted'`** for the card's `tags`. Enforcement: compile-time (the `proposedTags`
    column is absent → any read site is a `tsc` error).
@@ -201,7 +201,7 @@ Every unit: where it goes, why, and what enforcement tier makes a violation RED.
 | `_shared/fetch-owned.ts` — `fetchOwned` (used by `exportCharacter`; `exportChat` uses `requireHost` — D29)        | **→ `@orb/db/kit`**                                  | `@orb/db/kit` (`OwnedTable` constraint)                                                                                            | Owner-scoped single-row fetch for the owned `exportCharacter`; needs drizzle column types → db/kit, not kit. `ownerId` → `principal.userId` under §7.1. `exportChat` does NOT use it (chats are membership-scoped, D18 — it gates `requireHost`).                                                                       | resolve-time: `@orb/db/kit` below `@orb/server`                                                                |
 | `#db/parsers` — `parseRecord`                                                                                     | stays `@orb/db`                                      | `@orb/db`                                                                                                                          | The JSON boundary parser used at every row→view seam; export reads it directly as a db consumer.                                                                                                                                                                                                                        | resolve-time                                                                                                   |
 | `creator`/`character_version`/`regex_scripts`/`extensions` — survive only via `raw` blob                          | **→ typed columns**                                  | `@orb/db/schema/character` (the flat `characters` row, D28)                                                                        | The §7.3 lossiness fix: app-authored cards (no `raw`) must round-trip identically. Export reads each typed column off the row. Owned by `character` schema; export consumes.                                                                                                                                            | compile-time: typed columns are the schema source; a `raw`-only read is the absence of a column                |
-| `character_versions.proposedTags` read → card `tags`                                                              | **→ accepted `character_tags`**                      | read `character_tags WHERE status='accepted'` (`tag.md` redesign)                                                                  | Closes the round-trip gap — accepted tags now export; `proposedTags` JSON column is deleted. (Behavioral shift, see Open decisions / Esoteric.)                                                                                                                                                                         | compile-time: `proposedTags` column absent → `tsc` red at any read site                                        |
+| `character_versions.proposedTags` read → card `tags`                                                              | **→ accepted `character_tags`**                      | read `character_tags WHERE status='accepted'` (`domain/tag` redesign)                                                                  | Closes the round-trip gap — accepted tags now export; `proposedTags` JSON column is deleted. (Behavioral shift, see Open decisions / Esoteric.)                                                                                                                                                                         | compile-time: `proposedTags` column absent → `tsc` red at any read site                                        |
 | `export-chat.ts` reads `chat.characterVersionId` (for the character name)                                         | **rewrite — resolve off the flat character row**     | chat → `characterId` → `characters.name` (direct read)                                                                             | D28 removes the version model entirely: there is no `chats.characterVersionId` (and no version to resolve); export reads the character name straight off the `characters` row.                                                                                                                                          | compile-time: column gone → `tsc` red                                                                          |
 | `export-chat.ts` reads `chat.personaId ?? chat.pinnedPersonaId` (for the user name)                               | **rewrite — resolve via participant active persona** | participant active-persona resolution (`persona.md` drops `chats.personaId`)                                                       | `persona.md` target: active per-participant, anchor per-chat; `chats.personaId` is dropped.                                                                                                                                                                                                                             | compile-time: column gone → `tsc` red                                                                          |
 | `export-character.ts` book walk joins `characterBooks.characterVersionId`                                         | **rewrite — identity-keyed (D28)**                   | `character_books.characterId = characters.id` (re-keyed); export reads the live card's book set off the flat row (no version join) | RESOLVED (`character.md` + `world-info.md`): D28 collapses the version model, so `character_books` re-keys to `characters.id` and the book set is simply the live card's books, read at assemble — there is no cv pin to resolve. Export reads books by `characterId`.                                                  | compile-time: the cv-keyed FK is gone post-migration                                                           |
@@ -331,7 +331,7 @@ they own. This is the one place the at-depth encoding is written — preserve it
 (the staging surface) and accepted `character_tags` are NOT serialized — a known round-trip
 gap. Orbweaver flips this: `proposedTags` is deleted; `card.tags = character_tags WHERE
 status='accepted'`. **Consequence to flag:** a freshly-imported card whose tags arrived as
-`status:'pending'` (per `tag.md`, import writes pending rows) and were never accepted will
+`status:'pending'` (per `domain/tag`, import writes pending rows) and were never accepted will
 **not** re-export its tags until the user accepts them — the opposite of today, where proposed
 tags always re-export. This is the intended design (accepted = canonical), but it is a visible
 semantic change in the import→export round-trip; document it for the migration.
@@ -392,7 +392,7 @@ re-emerging is a second emitter (the drift this domain exists to kill).
 4. **Accepted tags export; `proposedTags` does not exist.** The card's `tags` come from
    `character_tags WHERE status='accepted'`. No `proposedTags` column anywhere (and no
    `character_versions` table — D28).
-   _Enforcement: compile-time (column absent → `tsc` red) — shared with `tag.md` invariant 4._
+   _Enforcement: compile-time (column absent → `tsc` red) — shared with `domain/tag` invariant 4._
 
 5. **Export resolves the character name off the flat character row.** `exportChat` resolves the
    character name via `chat → characterId → characters.name`, not a `chats.characterVersionId` pin.
@@ -420,11 +420,11 @@ re-emerging is a second emitter (the drift this domain exists to kill).
 ## Resolved decisions (was: open)
 
 - **The proposed→accepted card-tags re-export semantics — RESOLVED: export accepted-only.**
-  `card.tags = character_tags WHERE status='accepted'` (per `tag.md`). A
+  `card.tags = character_tags WHERE status='accepted'` (per `domain/tag`). A
   freshly-imported-but-not-accepted card does NOT re-export its (pending) tags until accepted —
   the reverse of today, intended (accepted = canonical). Pending tags are NOT serialized. The
   behavioral shift stays documented (Esoteric §"accepted-tags round-trip fix") for migration; it
-  is no longer an open question. (Same resolution as `core/Spine-Config-and-Serialization.md` + `tag.md`.)
+  is no longer an open question. (Same resolution as `core/Spine-Config-and-Serialization.md` + `domain/tag`.)
 
 - **`character_books` FK + book walk — RESOLVED: identity-keyed, current-version resolution.**
   `character_books` re-keys to `characters.id` (`character.md` + `world-info.md`); export resolves

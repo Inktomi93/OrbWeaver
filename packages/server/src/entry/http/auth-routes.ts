@@ -1,11 +1,11 @@
 // entry/http/auth-routes — the auth MINT routes + cookie I/O (core/Tier-5-Entry.md §layout "auth-routes.ts";
-// spine Spine-Identity-and-Auth.md §3 "Construction"; sessions.md movement "cookie I/O is the route
-// layer's job"). This is the WRITE side of the `__Host-orb_session` cookie — the READ side is the seam +
+// spine Spine-Identity-and-Auth.md §3 "Construction"; cookie I/O is the route layer's job — the domain
+// returns a token string). This is the WRITE side of the `__Host-orb_session` cookie — the READ side is the seam +
 // `infra/auth` (`SESSION_COOKIE_NAME`, imported here so writer + reader agree on the ONE constant). It
 // NEVER re-implements identity resolution: it mints sessions via `domain/sessions` (create / revokeByToken
 // / provisionIdentity) and writes the cookie; resolution belongs to the seam.
 //
-// The cookie contract (sessions.md §11): `__Host-orb_session` ⇒ Secure + host-only + Path=/ + NO Domain +
+// The cookie contract: `__Host-orb_session` ⇒ Secure + host-only + Path=/ + NO Domain +
 // HttpOnly + SameSite=Lax (the `__Host-` prefix's browser-enforced trio is Secure + Path=/ + no Domain;
 // SameSite=Lax + the custom CSRF header is the whole CSRF story — infra/auth/csrf.ts). Max-Age is derived
 // from the session expiry minus the INJECTED `now` (determinism — no ambient clock).

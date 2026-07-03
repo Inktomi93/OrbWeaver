@@ -4,7 +4,7 @@
 // screen, library filters) deep-imports the same schemas/views, so server and client can never disagree
 // about what's a valid target type / source / folder state, or what a tag row looks like. Neo-tavern
 // re-spelled these unions inline 2–5× across `trpc/routers/tag.ts` + `contract/{params,views}.ts`; here
-// each is ONE `as const` tuple + ONE `z.enum` (the `no-inline-union-redecl` gate — tag.md invariant #2).
+// each is ONE `as const` tuple + ONE `z.enum` (the `no-inline-union-redecl` gate).
 //
 // DAG ROOT: kit-only (the branded ids from `@orb/kit/ids`) + zod. No domain, no `@orb/db`, no sibling
 // contracts node.
@@ -17,7 +17,7 @@
 //    junction carries its OWN `ownerId` (the tagger) and is membership-gated; the other four junctions
 //    derive their owner from the owned target. The junction view below reflects this — `taggerId` is
 //    populated ONLY for `targetType: "chat"` (null elsewhere).
-//  • The `proposedTags` → `character_tags.status` redesign (tag.md §"the two-surface problem"): neo's
+//  • The `proposedTags` → `character_tags.status` redesign (the two-surface collapse): neo's
 //    staging JSON column on `character_versions` (a table D28 deletes outright) collapses into a junction
 //    STATUS column — `pending` (import / corpus distillation suggestion, awaiting accept) | `accepted`
 //    (the live tag). "Promote" is a status flip, not a copy; export reads `accepted` rows. The status is
@@ -51,7 +51,8 @@ export type TagTargetType = z.infer<typeof tagTargetTypeSchema>;
 /** Tag provenance (display-only axis; behavior is identical across the three). `manual` = user-typed ·
  *  `auto` = minted by corpus tag-suggest distillation review · `card` = adopted from a character card's
  *  tag field via promote. NOT semantic facets (genre/tone/theme) — those are `discovery`'s concern
- *  (tag.md invariant #5), so no `theme`/`facet` member here. */
+ *  (Core-0 §6 partitioning: descriptive labels → tag, semantic facets → discovery), so no `theme`/`facet`
+ *  member here. */
 export const TAG_SOURCES = ["manual", "auto", "card"] as const;
 export const tagSourceSchema = z.enum(TAG_SOURCES);
 export type TagSource = z.infer<typeof tagSourceSchema>;
@@ -94,7 +95,7 @@ export const updateTagSchema = z.object({
 export type UpdateTagInput = z.infer<typeof updateTagSchema>;
 
 // ── Cross-boundary views (the client deep-imports these; the domain's `contract/views.ts` re-exports,
-//    never re-declares — tag.md invariant #6) ──────────────────────────────────────────────────────────
+//    never re-declares — one home, no second declaration the client could disagree with) ───────────────
 
 /** One tag row, as the library / management screen sees it. `color`/`color2` are `null` for theme-default
  *  (ST's link-to-theme); `sortOrder` is `null` when unordered (name fallback). */

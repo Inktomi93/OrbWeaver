@@ -65,7 +65,7 @@ export type StoreImportAsset = (args: {
 
 /**
  * Attach one author-shipped card tag (BY NAME) to the just-created character as a card/pending suggestion
- * (the `proposedTags` → `character_tags.status` redesign — import.md §tag.md intersection). Injected type-only;
+ * (the `proposedTags` → `character_tags.status` redesign). Injected type-only;
  * the composition root (the import driver) binds it to `tag.attachCardTagByName` with `source:'card'`,
  * `status:'pending'` (import never sideways-imports `domain/tag` — domain-no-cross-feature). Resolve-or-create
  * + idempotent + race-safe; a re-attach never downgrades an `accepted` row. Returns whether NEWLY attached.
