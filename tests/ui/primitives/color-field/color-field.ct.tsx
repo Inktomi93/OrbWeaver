@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { ColorFieldHarness } from "./color-field.fixtures";
 
 const STYLE_URL_RE = /url/u;
+const NON_EMPTY = /.+/u;
 
 function noop(): void {
   // Intentional no-op — this test only checks the disabled trigger's DOM state, not commits.
@@ -85,4 +86,48 @@ test("the clamp rejects an expression() injection attempt — no commit, inline 
 test("the disabled swatch trigger is inert", async ({ mount, page }) => {
   await mount(<ColorField aria-label="Accent" disabled={true} onValueChange={noop} value="#fff" />);
   await expect(page.getByLabel("Accent")).toBeDisabled();
+});
+
+// R7 (ui-primitive-contract): a Field description must associate to the swatch trigger via
+// aria-describedby — the mergeProps id/aria footgun (color-field.tsx's own documented gotcha)
+// applies just as much to aria-describedby as it does to id.
+test("inside a <Field description>, the trigger gets aria-describedby (Field.Control registration)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ColorFieldHarness description="Used for buttons and links" />);
+  const trigger = page.getByLabel("Accent");
+  await expect(trigger).toHaveAttribute("aria-describedby", NON_EMPTY);
+  const describedBy = await trigger.getAttribute("aria-describedby");
+  await expect(page.locator(`#${describedBy}`)).toHaveText("Used for buttons and links");
+});
+
+test("keyboard: Enter opens the popover (native button activation) and Escape closes it, returning focus to the trigger", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ColorFieldHarness />);
+  const trigger = page.getByLabel("Accent");
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Hex")).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Hex")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test("loading swaps the swatch for a spinner and inerts the trigger", async ({ mount, page }) => {
+  await mount(<ColorField aria-label="Accent" loading={true} onValueChange={noop} value="#fff" />);
+  const trigger = page.getByLabel("Accent");
+  await expect(trigger).toBeDisabled();
+  await expect(trigger.getByRole("status")).toBeVisible();
+  await expect(trigger.locator('[data-slot="color-field-swatch"]')).toHaveCount(0);
+});
+
+test("success shows a checkmark over the trigger", async ({ mount, page }) => {
+  await mount(<ColorField aria-label="Accent" onValueChange={noop} success={true} value="#fff" />);
+  const trigger = page.getByLabel("Accent");
+  await expect(trigger).toHaveAttribute("data-success", "");
+  await expect(trigger.locator('[data-slot="color-field-swatch"]')).toHaveCount(0);
 });

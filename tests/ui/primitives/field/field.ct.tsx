@@ -1,10 +1,15 @@
 // CT: the labeled-form-row seal — Base UI wires label→control (getByLabel resolves the input),
 // error renders in the destructive token and flips the control invalid (ui-package-design §6.1).
+// Also covers the R5 fix (FieldProps extends the full Field.Root surface) and R2 (FieldValidity).
 
+import { Checkbox } from "@orb/ui/checkbox";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
+import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
+import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FieldValidityStory } from "./field-validity.fixtures";
 
 test("wires the label to the composed control", async ({ mount, page }) => {
   await mount(
@@ -36,4 +41,62 @@ test("description renders muted below the control", async ({ mount, page }) => {
   );
   const description = page.getByText("Shown on your profile");
   await expect(description).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
+});
+
+test("composes Checkbox/Switch/RadioGroup — every control registers independently", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <>
+      <Field label="Terms">
+        <Checkbox />
+      </Field>
+      <Field label="Streaming">
+        <Switch />
+      </Field>
+      <Field label="Who runs the game">
+        <RadioGroup>
+          <RadioGroupItem value="ai">An AI</RadioGroupItem>
+          <RadioGroupItem value="human">A human GM</RadioGroupItem>
+        </RadioGroup>
+      </Field>
+    </>,
+  );
+  await expect(page.getByRole("checkbox")).toBeVisible();
+  await expect(page.getByRole("switch")).toBeVisible();
+  await expect(page.getByRole("radiogroup")).toBeVisible();
+});
+
+test("validate/validationMode flow through — internal validation drives data-invalid", async ({
+  mount,
+  page,
+}) => {
+  // Field only renders its OWN `error` prop as visible text (§ field.tsx doc-comment); internal
+  // `validate` results still drive `data-invalid` on the control without one (see FieldValidity
+  // below for surfacing the message text itself). Confirms passing `validate` doesn't force
+  // `invalid` — Base UI's own computation must be free to run un-overridden.
+  await mount(
+    <Field
+      label="Age"
+      validate={(value): string | null => (value === "13" ? "Too young" : null)}
+      validationMode="onChange"
+    >
+      <Input />
+    </Field>,
+  );
+  const input = page.getByLabel("Age");
+  await expect(input).not.toHaveAttribute("data-invalid", "");
+  await input.fill("13");
+  await expect(input).toHaveAttribute("data-invalid", "");
+});
+
+test("FieldValidity exposes the raw validity state as a render-prop", async ({ mount, page }) => {
+  // The render-prop itself is defined in the fixture, not inline here — Playwright CT proxies
+  // inline children-callback props back to Node (event-style), it does not render their JSX
+  // return value in-browser (see field-validity.fixtures.tsx).
+  await mount(<FieldValidityStory />);
+  const input = page.getByLabel("Age");
+  await input.fill("13");
+  await expect(page.getByText("field is invalid", { exact: true })).toBeVisible();
 });

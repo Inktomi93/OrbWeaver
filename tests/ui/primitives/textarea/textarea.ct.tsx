@@ -56,3 +56,10 @@ test("wears the token skin and autosizes to content", async ({ mount, page }) =>
   const sizing = await control.evaluate((el) => getComputedStyle(el).fieldSizing);
   expect(sizing).toBe("content");
 });
+
+test("disabled blocks input and drops the interactive skin", async ({ mount, page }) => {
+  await mount(<Textarea aria-label="Scene" disabled={true} />);
+  const control = page.getByRole("textbox");
+  await expect(control).toBeDisabled();
+  await expect(control).toHaveCSS("opacity", "0.5");
+});

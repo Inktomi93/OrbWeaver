@@ -39,3 +39,13 @@ test("trusted: a GFM table renders", async ({ mount }) => {
   const cmp = await mount(<Markdown trust="trusted">{md}</Markdown>);
   await expect(cmp.locator("table")).toBeVisible();
 });
+
+test("large-block guard (issue 195): a pathologically large block skips Streamdown for a plain fallback", async ({
+  mount,
+}) => {
+  const huge = "a".repeat(25_000);
+  const cmp = await mount(<Markdown trust="trusted">{huge}</Markdown>);
+  await expect(cmp).toHaveAttribute("data-slot", "markdown-oversized");
+  expect(await cmp.evaluate((el) => el.tagName.toLowerCase())).toBe("pre");
+  await expect(cmp).toContainText("aaaa");
+});

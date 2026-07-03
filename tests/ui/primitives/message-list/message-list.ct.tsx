@@ -2,7 +2,12 @@
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
 // side, + reduced-motion), matching virtual-list.ct.tsx's tripwire test for the shared discipline.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AppendableList, UnboundedMessageList } from "./message-list.fixtures";
+import {
+  AppendableList,
+  DerivedItemsMessageList,
+  PrependableList,
+  UnboundedMessageList,
+} from "./message-list.fixtures";
 
 const ROW_HEIGHT_PX = 40;
 const LIST_HEIGHT_PX = 200; // 5 rows visible
@@ -82,6 +87,72 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
   await expect(alert).toContainText("no bounded height");
+});
+
+test("the scroll wrapper exposes role=log + aria-live=polite (arriving messages are announced)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <AppendableList
+      initialCount={ITEM_COUNT}
+      rowHeightPx={ROW_HEIGHT_PX}
+      listHeightPx={LIST_HEIGHT_PX}
+    />,
+  );
+  const log = component.getByRole("log");
+  await expect(log).toBeVisible();
+  await expect(log).toHaveAttribute("aria-live", "polite");
+});
+
+// R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
+// re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
+test("renders correctly when the parent passes a freshly-derived items array each render", async ({
+  mount,
+}) => {
+  const component = await mount(<DerivedItemsMessageList />);
+  await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
+
+  await component.getByTestId("rerender").click();
+  await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
+  await expect(component.getByText("Bravo", { exact: true })).toBeVisible();
+  await expect(component.getByText("Charlie", { exact: true })).toBeVisible();
+});
+
+test("prepend stability: the id-keyed anchor keeps a mid-scroll reader's view in place when older history loads", async ({
+  mount,
+  page,
+}) => {
+  const initialCount = 50;
+  const component = await mount(
+    <PrependableList
+      initialCount={initialCount}
+      rowHeightPx={ROW_HEIGHT_PX}
+      listHeightPx={LIST_HEIGHT_PX}
+    />,
+  );
+  // Scroll away from the bottom-anchored mount position to a mid-thread item.
+  const midLabel = `Message ${Math.floor(initialCount / 2)}`;
+  await component.getByText(`Message ${initialCount - 1}`, { exact: true }).hover();
+  await page.mouse.wheel(0, -((initialCount * ROW_HEIGHT_PX) / 2));
+  const anchor = component.getByText(midLabel, { exact: true });
+  await expect(anchor).toBeVisible();
+  const before = await anchor.boundingBox();
+  if (before === null) {
+    throw new Error("message-list CT: missing bounding box for the prepend-stability anchor");
+  }
+
+  await component.getByTestId("prepend").click();
+
+  // The SAME item, by key, is still on screen at (near enough) the SAME viewport position — the
+  // reader was never visually yanked by 20 items landing above their scroll position.
+  await expect(anchor).toBeVisible();
+  const after = await anchor.boundingBox();
+  if (after === null) {
+    throw new Error("message-list CT: missing bounding box for the prepend-stability anchor");
+  }
+  expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+  // The newly-loaded older items landed ABOVE the viewport, not yanking the reader up to them.
+  await expect(component.getByText("Older 0", { exact: true })).toHaveCount(0);
 });
 
 test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-motion", async ({

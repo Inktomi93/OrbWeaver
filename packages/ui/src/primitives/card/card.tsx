@@ -36,6 +36,11 @@ export function Card({ className, padding, interactive, ...props }: CardProps): 
         }
       : undefined;
   return (
-    <div {...props} {...a11y} className={cn(cardVariants({ padding, interactive }), className)} />
+    <div
+      {...props}
+      {...a11y}
+      className={cn(cardVariants({ padding, interactive }), className)}
+      data-slot="card-root"
+    />
   );
 }

@@ -8,8 +8,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import {
   DerivedSuggestionsStory,
   EmptySuggestionsStory,
+  FieldWrappedStory,
   MacroTextareaStory,
 } from "./macro-textarea.fixtures";
+
+const NON_EMPTY = /.+/u;
 
 test("typing `{{` opens a filtered popover", async ({ mount, page }) => {
   await mount(<MacroTextareaStory />);
@@ -121,6 +124,35 @@ test("the popup wears the popover token and the overlay z-index", async ({ mount
   await expect(list).toBeVisible();
   await expect(list).toHaveCSS("background-color", TOKENS["color.popover"].value);
   await expect(list).toHaveCSS("z-index", "40");
+});
+
+test("option rows carry tabIndex=-1 (real DOM focus never leaves the textarea — roving via aria-activedescendant only)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<MacroTextareaStory />);
+  const textarea = page.getByRole("combobox");
+  await textarea.click();
+  await textarea.pressSequentially("{{");
+  const options = page.getByRole("option");
+  await expect(options.first()).toBeVisible();
+  const tabIndexes = await options.evaluateAll((els) =>
+    els.map((el) => el.getAttribute("tabindex")),
+  );
+  expect(tabIndexes.length).toBeGreaterThan(0);
+  expect(tabIndexes.every((value) => value === "-1")).toBe(true);
+  // Focus never left the textarea despite the popover being open.
+  await expect(textarea).toBeFocused();
+});
+
+test("inside a <Field>, the label associates with the textarea with NO explicit id passed (Field.Control registration)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<FieldWrappedStory />);
+  const control = page.getByLabel("Body");
+  await expect(control).toHaveAttribute("role", "combobox");
+  await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
 test("filters correctly when the parent re-renders and passes a freshly-DERIVED suggestions array (the real consumer shape)", async ({

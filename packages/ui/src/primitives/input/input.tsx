@@ -15,5 +15,5 @@ export interface InputProps extends BaseInputProps {
  * Usage: `<Input placeholder="Search…" value={query} onValueChange={setQuery} />`
  */
 export function Input({ className, ...rest }: InputProps): ReactElement {
-  return <BaseInput className={cn(inputVariants(), className)} {...rest} />;
+  return <BaseInput className={cn(inputVariants(), className)} data-slot="input-root" {...rest} />;
 }

@@ -1,4 +1,7 @@
-import type { AutocompleteRootProps as BaseRootProps } from "@base-ui/react/autocomplete";
+import type {
+  AutocompletePositionerProps as BasePositionerProps,
+  AutocompleteRootProps as BaseRootProps,
+} from "@base-ui/react/autocomplete";
 import { Autocomplete as BaseAutocomplete } from "@base-ui/react/autocomplete";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
@@ -54,11 +57,21 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   emptyText?: ReactNode;
   /** Accessible name for the input (there is no visible label — pair with `<Field>` for one). */
   "aria-label"?: string;
+  /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
+  "aria-describedby"?: string;
   /** Accessible name for the clear button. @default "Clear" */
   clearLabel?: string;
   /** Applied to the input (the in-flow element). */
   className?: string;
   id?: string;
+  /** Render an arrow pointing at the input inside the popup. @default false */
+  arrow?: boolean;
+  /** Placement side, forwarded to the explicit Positioner. @default "bottom" (Base UI default) */
+  side?: BasePositionerProps["side"];
+  /** Alignment on the side. @default "start" */
+  align?: BasePositionerProps["align"];
+  /** Anchor gap in px. @default 4 */
+  sideOffset?: BasePositionerProps["sideOffset"];
 }
 
 /**
@@ -103,6 +116,11 @@ function AutocompleteResultStatus(): ReactElement {
  * remain mounted (only its children change) or screen readers miss updates; note Base UI's `Empty`
  * part ALSO renders `role="status"`, so address the count region by its `data-slot`.
  *
+ * `arrow` mounts `Autocomplete.Arrow`; `side`/`align`/`sideOffset` override the Positioner's
+ * placement. Inside a `<Field>`, the input auto-registers (label association + `aria-describedby`)
+ * because `Autocomplete.Input` is the same field-aware `Combobox.Input` used package-wide;
+ * `aria-describedby` is also exposed directly for standalone (non-`<Field>`) composition.
+ *
  * Usage: `<Autocomplete aria-label="Tag" items={tagNames} onValueChange={setQuery} />`
  */
 export function Autocomplete({
@@ -116,26 +134,49 @@ export function Autocomplete({
   disabled = false,
   emptyText = "No results.",
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedby,
   clearLabel = "Clear",
   className,
   id,
+  arrow = false,
+  side,
+  align,
+  sideOffset = POPUP_SIDE_OFFSET,
   ...rest
 }: AutocompleteProps): ReactElement {
   const listChild =
     groups === undefined
       ? (item: string): ReactNode => (
-          <BaseAutocomplete.Item className={slots.item()} key={item} value={item}>
+          <BaseAutocomplete.Item
+            className={slots.item()}
+            data-slot="autocomplete-item"
+            key={item}
+            value={item}
+          >
             {item}
           </BaseAutocomplete.Item>
         )
       : (group: AutocompleteGroup): ReactNode => (
-          <BaseAutocomplete.Group className={slots.group()} items={group.items} key={group.label}>
-            <BaseAutocomplete.GroupLabel className={slots.groupLabel()}>
+          <BaseAutocomplete.Group
+            className={slots.group()}
+            data-slot="autocomplete-group"
+            items={group.items}
+            key={group.label}
+          >
+            <BaseAutocomplete.GroupLabel
+              className={slots.groupLabel()}
+              data-slot="autocomplete-group-label"
+            >
               {group.label}
             </BaseAutocomplete.GroupLabel>
             <BaseAutocomplete.Collection>
               {(item: string): ReactNode => (
-                <BaseAutocomplete.Item className={slots.item()} key={item} value={item}>
+                <BaseAutocomplete.Item
+                  className={slots.item()}
+                  data-slot="autocomplete-item"
+                  key={item}
+                  value={item}
+                >
                   {item}
                 </BaseAutocomplete.Item>
               )}
@@ -145,10 +186,15 @@ export function Autocomplete({
 
   const inner = (
     <>
-      <BaseAutocomplete.InputGroup className={slots.inputGroup()}>
+      <BaseAutocomplete.InputGroup
+        className={slots.inputGroup()}
+        data-slot="autocomplete-input-group"
+      >
         <BaseAutocomplete.Input
+          aria-describedby={ariaDescribedby}
           aria-label={ariaLabel}
           className={cn(slots.input(), className)}
+          data-slot="autocomplete-input"
           id={id}
           placeholder={placeholder}
         />
@@ -161,10 +207,23 @@ export function Autocomplete({
         </BaseAutocomplete.Clear>
       </BaseAutocomplete.InputGroup>
       <BaseAutocomplete.Portal>
-        <BaseAutocomplete.Positioner className={slots.positioner()} sideOffset={POPUP_SIDE_OFFSET}>
-          <BaseAutocomplete.Popup className={slots.popup()}>
-            <BaseAutocomplete.Empty className={slots.empty()}>{emptyText}</BaseAutocomplete.Empty>
-            <BaseAutocomplete.List className={slots.list()}>{listChild}</BaseAutocomplete.List>
+        <BaseAutocomplete.Positioner
+          align={align}
+          className={slots.positioner()}
+          data-slot="autocomplete-positioner"
+          side={side}
+          sideOffset={sideOffset}
+        >
+          <BaseAutocomplete.Popup className={slots.popup()} data-slot="autocomplete-popup">
+            {arrow ? (
+              <BaseAutocomplete.Arrow className={slots.arrow()} data-slot="autocomplete-arrow" />
+            ) : null}
+            <BaseAutocomplete.Empty className={slots.empty()} data-slot="autocomplete-empty">
+              {emptyText}
+            </BaseAutocomplete.Empty>
+            <BaseAutocomplete.List className={slots.list()} data-slot="autocomplete-list">
+              {listChild}
+            </BaseAutocomplete.List>
             <AutocompleteResultStatus />
           </BaseAutocomplete.Popup>
         </BaseAutocomplete.Positioner>

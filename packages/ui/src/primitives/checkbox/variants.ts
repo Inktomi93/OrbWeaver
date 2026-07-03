@@ -11,10 +11,19 @@ export const checkboxVariants = tv({
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "data-checked:border-primary data-checked:bg-primary data-indeterminate:border-primary data-indeterminate:bg-primary",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
+      // Read-only (A3): NOT the disabled grey-out — border/fill keep their normal token colors;
+      // only the cursor + the Lock glyph (below) signal the blocked state.
+      "data-readonly:cursor-default",
+      // Base UI sets data-invalid on the Root when wrapped in an invalid <Field> (FieldRootState).
+      "data-invalid:border-destructive data-invalid:focus-visible:ring-destructive",
       "before:absolute before:top-1/2 before:left-1/2 before:size-touch-target before:-translate-x-1/2 before:-translate-y-1/2 before:content-['']",
     ],
     indicator: "group flex items-center justify-center",
-    check: "hidden text-current group-data-[checked]:block",
-    dash: "hidden text-current group-data-[indeterminate]:block",
+    check: "hidden text-current group-data-[checked]:block group-data-[readonly]:hidden",
+    dash: "hidden text-current group-data-[indeterminate]:block group-data-[readonly]:hidden",
+    // The read-only signal (A3): hidden by default, shown only when Base UI sets data-readonly on
+    // the indicator — takes precedence over check/dash so read-only reads as ONE consistent mark
+    // regardless of checked state (mirrors Switch's thumb-Lock treatment).
+    readOnlyIcon: "hidden text-current group-data-[readonly]:block",
   },
 });

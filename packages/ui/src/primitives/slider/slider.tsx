@@ -52,22 +52,29 @@ export function Slider<Value extends number | readonly number[] = number>(
   const hasLabel = label !== undefined && label !== null;
 
   return (
-    <BaseSlider.Root className={cn(slots.root(), className)} {...rootProps}>
+    <BaseSlider.Root className={cn(slots.root(), className)} data-slot="slider-root" {...rootProps}>
       {hasLabel || showValue ? (
-        <div className={slots.header()}>
-          {hasLabel ? <BaseSlider.Label className={slots.label()}>{label}</BaseSlider.Label> : null}
+        <div className={slots.header()} data-slot="slider-header">
+          {hasLabel ? (
+            <BaseSlider.Label className={slots.label()} data-slot="slider-label">
+              {label}
+            </BaseSlider.Label>
+          ) : null}
           {showValue ? (
-            <BaseSlider.Value className={slots.value()}>{formatValue ?? null}</BaseSlider.Value>
+            <BaseSlider.Value className={slots.value()} data-slot="slider-value">
+              {formatValue ?? null}
+            </BaseSlider.Value>
           ) : null}
         </div>
       ) : null}
-      <BaseSlider.Control className={slots.control()}>
-        <BaseSlider.Track className={slots.track()}>
-          <BaseSlider.Indicator className={slots.indicator()} />
+      <BaseSlider.Control className={slots.control()} data-slot="slider-control">
+        <BaseSlider.Track className={slots.track()} data-slot="slider-track">
+          <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
           {Array.from({ length: count }, (_unused, index) => (
             <BaseSlider.Thumb
               aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
               className={slots.thumb()}
+              data-slot="slider-thumb"
               index={isRange ? index : undefined}
               // biome-ignore lint/suspicious/noArrayIndexKey: thumbs are a fixed positional set (one per value slot), never reordered.
               key={index}

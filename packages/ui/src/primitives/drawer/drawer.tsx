@@ -44,10 +44,13 @@ export function Drawer<Payload = unknown>(props: DrawerProps<Payload>): ReactEle
 
 /**
  * Opens the drawer. Unstyled passthrough — compose your own control via `render`.
+ * Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven drawer
+ * — generic over `Payload` to match Base UI's own `DrawerTrigger` and the dialog/alert-dialog
+ * siblings (a prior non-generic wrap silently dropped the payload's type).
  * `<DrawerTrigger render={<Button>Filters</Button>} />`
- * Spec: ui-package-design §6.1.
+ * Spec: ui-package-design §6.1 / §13 R2.
  */
-export function DrawerTrigger(props: BaseTriggerProps): ReactElement {
+export function DrawerTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseDrawer.Trigger {...props} />;
 }
 

@@ -117,7 +117,10 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
  *
  * ARIA: the textarea plays `combobox` (`aria-expanded`/`aria-controls`/`aria-activedescendant`,
  * `aria-autocomplete="list"`) over a `listbox` popup of `option` rows — the standard combobox-with-
- * listbox-popup composite pattern, hand-wired because this widget is hand-rolled.
+ * listbox-popup composite pattern, hand-wired because this widget is hand-rolled. The textarea is
+ * the ONE tab stop (option rows carry `tabIndex={-1}` — real DOM focus never leaves it; highlight
+ * moves via `aria-activedescendant`); the post-insert `::`-arg hint is `aria-live="polite"` (it
+ * lands after the popover closes, so it's otherwise a silent DOM change for a screen-reader user).
  *
  * Usage: `<MacroTextarea value={body} onChange={setBody} suggestions={MACRO_CATALOG} />`
  */
@@ -247,7 +250,13 @@ export function MacroTextarea({
         aria-label={ariaLabel}
         data-slot="macro-textarea-control"
         disabled={disabled}
-        id={id}
+        // Conditionally spread (not a bare `id={id}`) — Base UI's Field.Control→…→this element
+        // render chain merges props via `mergeProps`, which treats an EXPLICITLY-declared key as
+        // an override even when its value is `undefined`. A bare `id={id}` here would silently
+        // erase the id Field.Control auto-generates when the caller doesn't pass one (the common
+        // case), breaking `<Field label>` association (the color-field.tsx precedent — verified
+        // empirically there via a `getByLabel` timeout).
+        {...(id === undefined ? {} : { id })}
         onBlur={(): void => {
           // Two-part close-on-blur guard:
           //   • PRIMARY (mouse): the popover items' `onMouseDown` preventDefault (below) stops the
@@ -278,7 +287,12 @@ export function MacroTextarea({
         >
           {rowsList.map((row) =>
             row.kind === "header" ? (
-              <div className={slots.groupLabel()} key={`header-${row.label}`} role="presentation">
+              <div
+                className={slots.groupLabel()}
+                data-slot="macro-textarea-group-header"
+                key={`header-${row.label}`}
+                role="presentation"
+              >
                 {row.label}
               </div>
             ) : (
@@ -289,6 +303,14 @@ export function MacroTextarea({
                 data-slot="macro-textarea-option"
                 id={optionId(row.index)}
                 key={row.suggestion.name}
+                // The roving-focus contract this widget CLAIMS (aria-activedescendant roving over
+                // a listbox, textarea comment above): the textarea is the ONE tab stop, and
+                // highlight moves via ArrowUp/Down, never real DOM focus. A plain `<button>`
+                // defaults to tabIndex 0, which would make every option row its OWN page tab stop
+                // — breaking that contract (Tab would walk through N option buttons instead of
+                // leaving the popover). -1 keeps them out of the tab sequence while `onMouseDown`/
+                // `onClick` still fire normally (tabIndex has no effect on pointer activation).
+                tabIndex={-1}
                 onMouseDown={(e): void => {
                   // PRIMARY mouse-click guard: preventDefault on mousedown stops the textarea from
                   // blurring at all, so the popover can't unmount out from under the click — this
@@ -314,7 +336,10 @@ export function MacroTextarea({
         </div>
       ) : null}
       {argHintText ? (
-        <p className={slots.argHint()} data-slot="macro-textarea-arg-hint">
+        // aria-live="polite": the hint appears AFTER the popover closes (on insert), so it's the
+        // only remaining signal that the macro takes args — a screen-reader user who just
+        // dismissed the listbox needs it announced, not silently rendered.
+        <p aria-live="polite" className={slots.argHint()} data-slot="macro-textarea-arg-hint">
           {argHintText}
         </p>
       ) : null}

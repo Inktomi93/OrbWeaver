@@ -21,6 +21,12 @@ catalogs:
     '@codemirror/lint':
       specifier: ^6.9.7
       version: 6.9.7
+    '@codemirror/state':
+      specifier: ^6.7.0
+      version: 6.7.0
+    '@dnd-kit/dom':
+      specifier: ^0.5.0
+      version: 0.5.0
     '@dnd-kit/helpers':
       specifier: ^0.5.0
       version: 0.5.0
@@ -549,6 +555,12 @@ importers:
       '@codemirror/lint':
         specifier: 'catalog:'
         version: 6.9.7
+      '@codemirror/state':
+        specifier: 'catalog:'
+        version: 6.7.0
+      '@dnd-kit/dom':
+        specifier: 'catalog:'
+        version: 0.5.0
       '@dnd-kit/helpers':
         specifier: 'catalog:'
         version: 0.5.0

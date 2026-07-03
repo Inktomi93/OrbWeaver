@@ -1,3 +1,4 @@
+import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
@@ -40,6 +41,21 @@ export interface VirtualListProps<T> {
   readonly overscan?: number;
   /** Gap between rows as a spacing intent token. */
   readonly gapToken?: VirtualListGapToken;
+  /**
+   * Round-robins rows across N lanes (TanStack's masonry primitive — each virtual item gets a
+   * `lane` index) instead of one column. Passthrough only: this seal stays a 1D row list, so a
+   * lanes>1 caller owns the lane→horizontal-position CSS itself (e.g. via the `data-lane`
+   * attribute this seal stamps on every row) — see `@orb/ui/media-grid` for the uniform-grid shape
+   * this is NOT (that seal deliberately derives its own CSS-grid columns instead, per its own doc).
+   */
+  readonly lanes?: number;
+  /**
+   * Overrides which indices get rendered for a given scroll range — the escape hatch for a caller
+   * that needs to keep specific rows mounted outside the normal overscan window (e.g. always
+   * keeping a pinned/sticky row alive). Passthrough straight to the virtualizer; omit for the
+   * library default (a plain overscan-padded contiguous range).
+   */
+  readonly rangeExtractor?: (range: Range) => number[];
   readonly renderItem: (item: T, index: number) => ReactNode;
   /**
    * When provided, scrolls to this item index (end-aligned) any time the VALUE changes — the
@@ -80,6 +96,8 @@ export function VirtualList<T>({
   estimateSize,
   overscan = DEFAULT_OVERSCAN,
   gapToken,
+  lanes,
+  rangeExtractor,
   renderItem,
   scrollToIndex,
   className,
@@ -101,6 +119,11 @@ export function VirtualList<T>({
     overscan,
     gap: gapToken === undefined ? 0 : gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
+    // Conditionally spread (not a bare `lanes`/`rangeExtractor` key): `exactOptionalPropertyTypes`
+    // distinguishes an omitted optional property from one explicitly set to `undefined` — a bare
+    // key here would widen the virtualizer's own `lanes: number` (no `| undefined`) and fail tsc.
+    ...(lanes === undefined ? {} : { lanes }),
+    ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
     // UI-Gates §7: the sealed Compiler-safe mode — scroll positioning bypasses React renders, so
     // the Compiler caching getVirtualItems() can no longer freeze the list (upstream #736).
     directDomUpdates: true,
@@ -146,8 +169,16 @@ export function VirtualList<T>({
   }, [scrollToIndex, virtualizer, virtualizer.scrollToIndex]);
 
   return (
-    <div ref={scrollRef} className={cn("overflow-auto overscroll-contain", className)}>
-      <div ref={virtualizer.containerRef} className="relative w-full">
+    <div
+      ref={scrollRef}
+      className={cn("overflow-auto overscroll-contain", className)}
+      data-slot="virtual-list-scroll"
+    >
+      <div
+        ref={virtualizer.containerRef}
+        className="relative w-full"
+        data-slot="virtual-list-viewport"
+      >
         {virtualizer.getVirtualItems().map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
@@ -155,6 +186,8 @@ export function VirtualList<T>({
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
+            data-lane={lanes === undefined ? undefined : virtualItem.lane}
+            data-slot="virtual-list-row"
             className="absolute inset-x-0"
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index)}

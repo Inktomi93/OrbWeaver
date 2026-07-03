@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import type { ReactElement, UIEvent } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
@@ -62,19 +62,30 @@ interface LogLineRowProps {
 function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
   const level = levelOf(line);
   return (
-    <div data-log-line="" data-level={level} className={slots.line({ level })}>
+    <div
+      data-log-line=""
+      data-level={level}
+      data-slot="log-viewer-line"
+      className={slots.line({ level })}
+    >
       {level === undefined ? null : (
         <Icon
           icon={LEVEL_GLYPH[level]}
           size="sm"
           label={LEVEL_LABEL[level]}
           className={slots.glyph()}
+          data-slot="log-viewer-glyph"
         />
       )}
       <span>{textOf(line)}</span>
     </div>
   );
 }
+
+// "Near enough to the bottom to count as pinned" — a few px of slack absorbs sub-pixel scroll
+// rounding so a reader sitting exactly at the bottom doesn't get read as "scrolled up" by a
+// fraction of a pixel.
+const NEAR_BOTTOM_SLACK_PX = 4;
 
 export interface LogViewerProps {
   readonly lines: readonly LogLine[];
@@ -85,14 +96,17 @@ export interface LogViewerProps {
 
 /**
  * LogViewer — a read-only monospace line panel (ui-package-design item 12). NOT the code-editor
- * seal: no editing, no CodeMirror, just lines. Pinned-to-bottom autoscroll on append, a
- * copy-to-clipboard affordance, and a `level` glyph+intent-token pair per line (never color
- * alone).
+ * seal: no editing, no CodeMirror, just lines. PIN-not-yank autoscroll on append (only re-scrolls
+ * to the bottom when the reader is already there — a reader who has scrolled up to read history
+ * is never yanked back down), a copy-to-clipboard affordance, and a `level` glyph+intent-token
+ * pair per line (never color alone).
  *
  * The scrollable line region carries `role="log"` + `aria-live="polite"` — the streaming-log
  * accessibility contract (assistive tech announces new lines as they arrive). That role/live-region
  * pair lives on a STABLE wrapper in both paths below — never on the windowed rows themselves — so
- * announcements keep working once the panel is virtualized (§ below).
+ * announcements keep working once the panel is virtualized (§ below). `tabIndex={0}` makes the
+ * region keyboard-scrollable (WCAG 2.1.1 — arrow/Page keys scroll a focused overflow container even
+ * with no other focusable descendant).
  *
  * At/above `VIRTUALIZE_THRESHOLD` visible lines, the line region composes the `virtual-list` seal
  * instead of mapping every line to a `<div>`. That path inherits virtual-list's own bounded-height
@@ -104,6 +118,10 @@ export interface LogViewerProps {
  */
 export function LogViewer({ lines, maxLines, className }: LogViewerProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Updated from `onScroll` (a real user/native scroll), never from the autoscroll effect itself —
+  // so it reflects "was the reader at the bottom BEFORE this append", not "did we just force them
+  // there". Starts `true`: an empty/short log begins pinned, matching pre-existing behavior.
+  const isNearBottomRef = useRef(true);
   const visible = maxLines === undefined ? lines : lines.slice(-maxLines);
   const slots = logViewerVariants();
   const shouldVirtualize = visible.length >= VIRTUALIZE_THRESHOLD;
@@ -122,12 +140,14 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
   const contentSignature = `${visible.length}:${lastLine === undefined ? "" : textOf(lastLine)}`;
   const previousSignatureRef = useRef<string | null>(null);
 
-  // Pinned-to-bottom autoscroll for the PLAIN path: every append re-scrolls the line region to its
-  // new bottom. No dependency array (runs every commit) + an internal signature guard, since the
-  // effect body itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps
-  // would flag them as unused deps otherwise). `behavior` passed explicitly to `scrollTo` overrides
-  // the global reduced-motion CSS floor (styles/globals.css forces `scroll-behavior: auto` only
-  // for CSS-triggered scrolls), so the reduced-motion check happens here via `matchMedia` directly.
+  // PIN-not-yank autoscroll for the PLAIN path: an append only re-scrolls the line region to its
+  // new bottom when the reader was ALREADY at/near the bottom (isNearBottomRef, kept current by
+  // `handleScroll` below) — a reader scrolled up to read history is never yanked back down. No
+  // dependency array (runs every commit) + an internal signature guard, since the effect body
+  // itself doesn't reference `visible`/`contentSignature` directly (exhaustive-deps would flag them
+  // as unused deps otherwise). `behavior` passed explicitly to `scrollTo` overrides the global
+  // reduced-motion CSS floor (styles/globals.css forces `scroll-behavior: auto` only for
+  // CSS-triggered scrolls), so the reduced-motion check happens here via `matchMedia` directly.
   // When virtualized, `scrollRef` is never attached to the DOM (below) so this is inert — VirtualList's
   // own `scrollToIndex` prop drives the equivalent pin-to-bottom behavior instead.
   useLayoutEffect(() => {
@@ -136,20 +156,26 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
     }
     previousSignatureRef.current = contentSignature;
     const el = scrollRef.current;
-    if (el === null) {
+    if (el === null || !isNearBottomRef.current) {
       return;
     }
     const reducedMotion = globalThis.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollTo({ top: el.scrollHeight, behavior: reducedMotion ? "auto" : "smooth" });
   });
 
+  const handleScroll = (event: UIEvent<HTMLDivElement>): void => {
+    const el = event.currentTarget;
+    isNearBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_SLACK_PX;
+  };
+
   const handleCopy = (): void => {
     void navigator.clipboard.writeText(visible.map(textOf).join("\n"));
   };
 
   return (
-    <div className={cn(slots.root(), className)}>
-      <div className={slots.toolbar()}>
+    <div className={cn(slots.root(), className)} data-slot="log-viewer-root">
+      <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
         <Button type="button" intent="ghost" size="sm" onClick={handleCopy}>
           <Icon icon={Copy} size="sm" label="Copy log" />
         </Button>
@@ -158,7 +184,11 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
         ref={shouldVirtualize ? undefined : scrollRef}
         role="log"
         aria-live="polite"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
+        tabIndex={0}
+        onScroll={shouldVirtualize ? undefined : handleScroll}
         className={slots.scroll()}
+        data-slot="log-viewer-scroll"
       >
         {shouldVirtualize ? (
           <VirtualList

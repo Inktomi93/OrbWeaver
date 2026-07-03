@@ -1,4 +1,7 @@
-import type { ComboboxRootProps as BaseRootProps } from "@base-ui/react/combobox";
+import type {
+  ComboboxPositionerProps as BasePositionerProps,
+  ComboboxRootProps as BaseRootProps,
+} from "@base-ui/react/combobox";
 import { Combobox as BaseCombobox } from "@base-ui/react/combobox";
 import type { KeyboardEvent, ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
@@ -48,9 +51,19 @@ export interface ComboboxProps extends ComboboxPassthrough {
   emptyText?: ReactNode;
   /** Accessible name for the input (there is no visible label — pair with `<Field>` for one). */
   "aria-label"?: string;
+  /** Additional id(s) describing the input — merges with `<Field>`'s own wiring when composed. */
+  "aria-describedby"?: string;
   /** Applied to the input (the in-flow element). */
   className?: string;
   id?: string;
+  /** Render an arrow pointing at the input inside the popup. @default false */
+  arrow?: boolean;
+  /** Placement side, forwarded to the explicit Positioner. @default "bottom" (Base UI default) */
+  side?: BasePositionerProps["side"];
+  /** Alignment on the side. @default "start" */
+  align?: BasePositionerProps["align"];
+  /** Anchor gap in px. @default 4 */
+  sideOffset?: BasePositionerProps["sideOffset"];
 }
 
 /**
@@ -99,6 +112,11 @@ function ComboboxResultStatus(): ReactElement {
  * `Label` (this is an input-anchored combobox, not a trigger-opened one — same cut the
  * autocomplete seal makes).
  *
+ * `arrow` mounts `Combobox.Arrow`; `side`/`align`/`sideOffset` override the Positioner's placement.
+ * Inside a `<Field>`, the input auto-registers (label association + `aria-describedby`) because
+ * `Combobox.Input` extends `FieldRootState`; `aria-describedby` is also exposed directly for
+ * standalone (non-`<Field>`) composition.
+ *
  * Usage: `<Combobox aria-label="Labels" items={seedLabels} maxItems={8} onValueChange={setLabels}
  * value={labels} />` — omit `items` for pure free-text chip entry (world-info keyword triggers).
  */
@@ -112,8 +130,13 @@ export function Combobox({
   disabled = false,
   emptyText = "No results.",
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedby,
   className,
   id,
+  arrow = false,
+  side,
+  align,
+  sideOffset = POPUP_SIDE_OFFSET,
   ...rest
 }: ComboboxProps): ReactElement {
   const isControlled = valueProp !== undefined;
@@ -198,8 +221,8 @@ export function Combobox({
       value={[...value]}
       {...rest}
     >
-      <BaseCombobox.InputGroup className={slots.inputGroup()}>
-        <BaseCombobox.Chips className={slots.chips()}>
+      <BaseCombobox.InputGroup className={slots.inputGroup()} data-slot="combobox-input-group">
+        <BaseCombobox.Chips className={slots.chips()} data-slot="combobox-chips">
           <BaseCombobox.Value>
             {(selected: string[]): ReactNode => (
               <>
@@ -209,14 +232,17 @@ export function Combobox({
                     <BaseCombobox.ChipRemove
                       aria-label={`Remove ${chip}`}
                       className={slots.chipRemove()}
+                      data-slot="combobox-chip-remove"
                     >
                       <Icon icon={X} size="xs" />
                     </BaseCombobox.ChipRemove>
                   </BaseCombobox.Chip>
                 ))}
                 <BaseCombobox.Input
+                  aria-describedby={ariaDescribedby}
                   aria-label={ariaLabel}
                   className={cn(slots.input(), className)}
+                  data-slot="combobox-input"
                   id={id}
                   onKeyDown={handleInputKeyDown}
                   placeholder={selected.length === 0 ? placeholder : ""}
@@ -228,12 +254,28 @@ export function Combobox({
       </BaseCombobox.InputGroup>
       {suggestionsEnabled ? (
         <BaseCombobox.Portal>
-          <BaseCombobox.Positioner className={slots.positioner()} sideOffset={POPUP_SIDE_OFFSET}>
-            <BaseCombobox.Popup className={slots.popup()}>
-              <BaseCombobox.Empty className={slots.empty()}>{emptyContent}</BaseCombobox.Empty>
-              <BaseCombobox.List className={slots.list()}>
+          <BaseCombobox.Positioner
+            align={align}
+            className={slots.positioner()}
+            data-slot="combobox-positioner"
+            side={side}
+            sideOffset={sideOffset}
+          >
+            <BaseCombobox.Popup className={slots.popup()} data-slot="combobox-popup">
+              {arrow ? (
+                <BaseCombobox.Arrow className={slots.arrow()} data-slot="combobox-arrow" />
+              ) : null}
+              <BaseCombobox.Empty className={slots.empty()} data-slot="combobox-empty">
+                {emptyContent}
+              </BaseCombobox.Empty>
+              <BaseCombobox.List className={slots.list()} data-slot="combobox-list">
                 {(item: string): ReactNode => (
-                  <BaseCombobox.Item className={slots.item()} key={item} value={item}>
+                  <BaseCombobox.Item
+                    className={slots.item()}
+                    data-slot="combobox-item"
+                    key={item}
+                    value={item}
+                  >
                     {item}
                   </BaseCombobox.Item>
                 )}
