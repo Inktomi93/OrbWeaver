@@ -1,7 +1,7 @@
 # Orbweaver — domain index
 
 > **This is the index.** Each domain follows the 8-slot template in `Core-0-Architecture-and-Structure.md`.
-> For the full domain inventory table (origins, ownership, the neo→orbweaver map), see `AGENTS.md §7`.
+> For the full domain inventory table (origins, ownership, the neo→orbweaver map), see `AGENTS-3-Domains.md §7`.
 > For per-domain architecture specs, read the individual files listed below.
 
 ## Core domains

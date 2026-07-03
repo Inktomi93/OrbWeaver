@@ -207,7 +207,7 @@ Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previo
 
 - FLAG[PD-98..107] at-seam comments (registry rows exist; add the in-code `FLAG` when each seam is next touched).
 - `Core-Shared-Dissolution.md` — migration doc: kit-purity law stays core, the symbol map → history/.
-- **AGENTS-1/2/3 trim** — per `docs/Documentation-Law.md` §Evidence, comprehensive overviews hurt agents; make the trio terser/navigational.
+- ~~**AGENTS-1/2/3 trim**~~ — DONE 2026-07-03: AGENTS-1 298→115, AGENTS-2 195→58, AGENTS-3 339→117 (each now = brief doctrine + index). Pain Ledger §4 → `history/Pain-Ledger.md`; §6/§8 AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch §7.5 → `Spine-TypeScript-and-Patterns.md`.
 - Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
 - ~~`tsdoc/syntax` cleanup → flip warn→error~~ — DONE 2026-07-03: 255 violations across 45 files cleaned, `tsdoc/syntax` is now `error` on server/kit/db/contracts.
 

@@ -8,9 +8,8 @@ updated: 2026-07-03
 
 > The cross-domain boundary map for the derived-data cluster: `embeddings` · `search` · `discovery` ·
 > `chat/memory` (+ the `stats` fence). BUILT — the per-domain semantics live in the code and its file
-> headers; this doc carries only the multi-domain seam no single file shows. Deeper map:
-> `AGENTS-3-Domains.md` §"Memory ↔ search" + §"The knowledge / derived-data untangle"; decision record:
-> ledger D55 (`Core-Path-Registry-D53-D59.md`).
+> headers; this doc carries only the multi-domain seam no single file shows. Domain map:
+> `AGENTS-3-Domains.md` §7; decision record: ledger D55 (`Core-Path-Registry-D53-D59.md`).
 
 One substrate of embedded content, built once, stored once, read by many. It is a **pure function of
 canon** (any row deletes and rebuilds from `messages`/`characters`/`assets` alone — never a second source
