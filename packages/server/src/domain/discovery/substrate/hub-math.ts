@@ -2,9 +2,9 @@
 // the MEAN cosine to its K nearest SAME-TYPE neighbours (CSLS_K = 10): a generic/blank vector that sits close
 // to EVERYTHING scores high (≈1) and is demoted by `search`'s CSLS rerank; a distinctive vector scores low.
 // (Was neo-tavern `corpus/verbs/hubness.ts`'s `computeGroupHubs`/`offer`; the WRITE moved to the injected
-// `embeddings.writeHubScores` seam — this file is the compute only, discovery.md movement table.)
+// `embeddings.writeHubScores` seam — this file is the compute only.)
 //
-// ESOTERIC #1 (load-bearing — discovery.md): the dense path materializes the N×N similarity matrix
+// ESOTERIC #1 (load-bearing): the dense path materializes the N×N similarity matrix
 // (`@orb/kit/vector-math.pairwiseCosine`, 4·N² bytes ≈ 100MB at N=5000); ABOVE `HUBNESS_DENSE_MAX` it must
 // NOT materialize the square — it streams row-by-row via `cosineToMany` (one 1×N row, O(N) memory), folding
 // each into the top-K. The two paths are BIT-FOR-BIT identical (same normalized dot products, same top-K

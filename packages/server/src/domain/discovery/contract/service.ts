@@ -1,5 +1,5 @@
-// domain/discovery/contract/service — the typed API surface (read THIS to know everything the slice does;
-// discovery.md §"Verbs"). Holds:
+// domain/discovery/contract/service — the typed API surface (read THIS to know everything the slice does).
+// Holds:
 //   • DiscoveryContext      the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • DiscoveryServiceDeps  what the entry root supplies (identical to the context — no transform)
 //   • DiscoveryService      the authoritative verb interface (the front door re-exports the type)
@@ -7,7 +7,7 @@
 //   • the injected cross-feature op types (type-only — wired at the composition root)
 //
 // ── THE INJECTION MODEL (boundaries-are-physics) ───────────────────────────────────────────────────────
-// discovery embeds NOTHING and writes no vector row (discovery.md §"The defining seam"). It reads the vector
+// THE DEFINING SEAM: discovery embeds NOTHING and writes no vector row. It reads the vector
 // store read-only (via @orb/db), computes its signals in-RAM (@orb/kit/vector-math + substrate), and writes
 // ONLY its own rollup tables + the `hub_score` column — the latter through the INJECTED `writeHubScores`
 // seam (the embeddings domain owns the write mechanism; discovery owns the values; search reads — §1/§8).
@@ -17,13 +17,13 @@
 //     features ARE allowed"). The ONLY non-`store` vector-table write + the ONLY `hub_score` writer.
 //   - `summarize` — the bound `RoleClients["summarize"]` callable (the entry root binds credential+model via
 //     `connection.resolveRole(summarize)` and threads the THUNK in; discovery never sees a credential and
-//     NEVER gets `embed` — it embeds nothing, discovery.md §"Embeds nothing"). Used for theme NAMING only.
+//     NEVER gets `embed` — it embeds nothing). Used for theme NAMING only.
 //   - `now` / `new*Id` — the injected clock + id minters (determinism — no ambient `Date.now()`/`typeid()`).
 //
 // RECONCILIATION (the task prompt's older framing): the prompt said "inject search (knn/findCharacters) +
 // connection.resolveRole + RoleClients". The DOC wins (CLAUDE.md). This slice — duplicate-CHARACTER
 // detection + theme/hub discovery — uses NONE of `search`: character near-dup is in-RAM all-pairs
-// (discovery.md §"Two cosine access patterns": discovery keeps the all-pairs pattern, search owns top-k).
+// (the two-cosine-access-patterns rule: discovery keeps the in-RAM all-pairs pattern, search owns top-k).
 // `search.findCharacters` is consumed by the DEFERRED similarity-graph/dossier surface, not this slice — so
 // it is NOT on the bundle (no unused dep). `connection.resolveRole` + the RoleClients BIND happen at the
 // entry root; discovery receives the already-bound `summarize` thunk, not the resolver.
@@ -74,7 +74,7 @@ export type WriteHubScores = EmbeddingsService["writeHubScores"];
 export type Summarize = RoleClients["summarize"];
 
 // ── the standalone-compute DEPS shapes (the workload runners construct these directly) ─────────────────
-// discovery.md §"Verbs": the `compute*` passes keep a `(db, deps, opts?)` standalone export (re-exported
+// The `compute*` passes keep a `(db, deps, opts?)` standalone export (re-exported
 // from the front door) so the `transport/jobs` runners (find-duplicates / compute-themes / csls) build their
 // own injected ops WITHOUT threading the whole service. These are the minimal per-pass slices of the context.
 

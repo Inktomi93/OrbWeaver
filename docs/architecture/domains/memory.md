@@ -544,4 +544,4 @@ Every cross-domain access goes through a real boundary (`embeddings.store` / `se
 12. **The witnessing predicate is the join/leave horizon** (`joinSeq`/`leftSeq`), never the global
     `excludedFromPrompt` boolean.
 
-> **See also:** [domain/embeddings](domain/embeddings) · [memory.md](memory.md) · `domain/search` (code) · [discovery.md](discovery.md)
+> **See also:** [domain/embeddings](domain/embeddings) · [memory.md](memory.md) · `domain/search` (code) · [domain/discovery](domain/discovery)

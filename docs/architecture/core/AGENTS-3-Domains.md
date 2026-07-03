@@ -252,21 +252,21 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   not a move — the chat-scoped semantics (which `search`'s owner-wide scan doesn't model) must survive.
 - **`hub_score` ownership seam — RESOLVED:** column on the embeddings row; **discovery computes** (CSLS),
   **embeddings stores** (via `writeHubScores`), **search reads**, and a vector write **never nulls** it.
-  (`domain/embeddings`, `domains/discovery.md`, `domains/memory.md §7`.)
+  (`domain/embeddings`, `domain/discovery`, `domains/memory.md §7`.)
 - **serialization core — RESOLVED:** ONE serde core shared by import+export — mappers →
   `@orb/server/kit/serde`, canonical card → `@orb/contracts/character`, PNG codec →
   `@orb/kit/png-card-chunk` (string-based), ST role bimap → `@orb/kit/message-role` (D32).
   (`core/Spine-Config-and-Serialization.md`.)
 - **bulk-import + proposedTags — RESOLVED:** the outer bulk-loop driver lives at
   `entry/import/run-profile-import.ts`; `proposedTags` becomes `character_tags.status` (export reads
-  `status='accepted'`). (`domains/import.md`, `domain/tag`.)
+  `status='accepted'`). (`domain/import`, `domain/tag`.)
 - **stats/discovery line as a type — RESOLVED:** type-enforced via disjoint `messages` projections
   (a stats-only economics projection vs a discovery semantic projection) + a `stats-no-vector-tables`
   dep-cruiser rule; `insights.ts`'s economics bits inject a stats op. (stats BUILT — code is source; the
   unbuilt discovery-side tiers: [`proposed/stats-discovery-seam.md`](../proposed/stats-discovery-seam.md).)
 - **assets vs infra/storage** — `assets` domain owns the CAS _index_ (table + verbs); `infra/storage`
   owns the byte I/O. Keep split.
-- **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ image-analytics/` + `substrate/` (distill is a VERB, not a subsystem — see `domains/discovery.md`) (kmeans/pca/etc., the pure math), per the template.
+- **discovery internal shape** — likely subsystems `themes/ duplicates/ cooccurrence/ image-analytics/` + `substrate/` (distill is a VERB, not a subsystem — see `domain/discovery`) (kmeans/pca/etc., the pure math), per the template.
 
 ---
 
@@ -320,10 +320,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
 - **domains/**
   - [character.md](docs/architecture/domains/character.md)
   - [chat.md](docs/architecture/domains/chat.md)
-  - [discovery.md](docs/architecture/domains/discovery.md)
   - [domains.md](docs/architecture/domains/domains.md)
-  - [export.md](docs/architecture/domains/export.md)
-  - [import.md](docs/architecture/domains/import.md)
   - [memory.md](docs/architecture/domains/memory.md)
   - [participants-agents-identity.md](docs/architecture/domains/participants-agents-identity.md)
   - **proposed/**

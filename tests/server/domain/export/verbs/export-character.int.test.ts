@@ -1,11 +1,11 @@
 // Integration: exportCharacter against a real :memory: db. Pins the load-bearing behaviour:
 //   • the flat-card → V3-PNG → re-parse round-trip (the artifact re-imports cleanly through the SHARED
-//     cardFromJson IN adapter — export.md inv 1);
+//     cardFromJson IN adapter — the one-serde-core invariant);
 //   • owner-scoping (a foreign / missing character returns null — no existence leak);
-//   • accepted-only tags (pending suggestions are NOT serialized — export.md inv 4);
+//   • accepted-only tags (pending suggestions are NOT serialized);
 //   • the book walk (attached books' entries ride into the card's character_book);
 //   • avatar embedding (the avatar blob is the base; a non-PNG is transcoded via the injected op; a
-//     missing/absent avatar falls back to the placeholder via a SINGLE cas.read — export.md Esoteric).
+//     missing/absent avatar falls back to the placeholder via a SINGLE TOCTOU-safe cas.read).
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";

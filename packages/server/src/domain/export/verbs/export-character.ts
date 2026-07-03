@@ -2,12 +2,13 @@
 // ACCEPTED tags) and emit a V3 character-card PNG. The OUT assembly + the direct `@orb/db` reads + the
 // packaging (basePng + slug + the bytes envelope) are export's job; the card mapper (`buildCardV3`) and the
 // PNG byte codec (`writeCardChunk`) are COMPOSED from below (the serde core / kit), never re-implemented
-// here — crossing that line would re-create the second emitter this domain exists to kill (export.md
-// §"What export owns vs what is shared"). The serde core is `@orb/server/kit/serde/card` (PD-44 resolved).
+// here — crossing that line would re-create the second emitter this domain exists to kill (export owns
+// the assembly/packaging; the mappers/codec are shared). The serde core is `@orb/server/kit/serde/card`
+// (PD-44 resolved).
 //
 // Ownership is `principal.userId` (§7.1 — never a `users` read). `fetchOwned` puts the owner predicate in
 // the WHERE, so a non-owner / missing character both collapse to `undefined` → the verb returns `null`
-// (→ 404 at the HTTP layer; no foreign-existence leak, no error class — export.md §8-slot).
+// (→ 404 at the HTTP layer; no foreign-existence leak, no error class — verbs return null by design).
 //
 // D28 adaptations vs neo: there is no `currentVersionId` / `character_versions` — the card is read straight
 // off the flat `characters` row; the book walk re-keys to `character_books.characterId`; the card's `tags`
@@ -31,8 +32,8 @@ import { slug } from "../substrate/download-slug";
 import { PLACEHOLDER_PNG } from "../substrate/placeholder-png";
 
 const PNG_MIME = "image/png";
-// The card's tags are the ACCEPTED junction rows (export.md inv 4); derived from the canonical schema, not
-// an inline re-spelling (§7.5).
+// The card's tags are the ACCEPTED junction rows; derived from the canonical schema, not an inline
+// re-spelling (§7.5).
 const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
 // `cas.read` rejects with a Node ENOENT when the blob is absent (GC'd / never written) — that one error
 // falls through to the placeholder; any other I/O error propagates (corrupt ≠ absent).
@@ -56,8 +57,8 @@ function isMissingBlob(err: unknown): boolean {
 export function createExportCharacter(ctx: ExportContext): ExportService["exportCharacter"] {
   // The base PNG the card JSON embeds into: the owner's avatar (transcoded to PNG when it isn't already),
   // else the 256×256 placeholder. The avatar blob is read with a SINGLE `cas.read` attempt — `cas.exists`
-  // THEN `cas.read` was a TOCTOU race where a concurrent GC pass could drop the blob between the two calls
-  // (export.md Esoteric). ENOENT falls through to the placeholder; any other error throws.
+  // THEN `cas.read` was a TOCTOU race where a concurrent GC pass could drop the blob between the two
+  // calls. ENOENT falls through to the placeholder; any other error throws.
   async function basePng(avatarAssetId: AssetId | null, ownerId: UserId): Promise<Uint8Array> {
     if (avatarAssetId === null) {
       return PLACEHOLDER_PNG;
@@ -88,7 +89,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     }
 
     // The card's tags = the ACCEPTED `character_tags` names (pending suggestions are NOT serialized —
-    // export.md inv 4 / the accepted-tags round-trip fix).
+    // the accepted-tags round-trip fix; neo re-exported `proposedTags` and lost accepted tags).
     const tagRows = await ctx.db
       .select({ name: tags.name })
       .from(characterTags)
@@ -137,7 +138,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
 
     // The typed columns (`creator` / `cardVersion` / `regexScripts` / `extensions` / `depthPrompt`) are
     // read straight off the flat row — no `raw` blob, so an app-authored card round-trips identically
-    // (export.md inv 3). The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
+    // (the §7.3 lossiness fix). The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
     const card = buildCardV3(
       {
         name: charRow.name,

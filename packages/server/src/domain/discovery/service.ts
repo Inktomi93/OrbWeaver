@@ -2,7 +2,7 @@
 // `DiscoveryContext` is assembled at the entry root (db + the injected clock/id determinism seam + the bound
 // `summarize` thunk + the injected `embeddings.writeHubScores` seam) and passed in. Each service method binds
 // the context's sub-deps to the standalone `compute*`/read function (the same functions the `transport/jobs`
-// runners call directly — discovery.md §"compute* stay standalone-exportable").
+// runners call directly — the compute* passes stay standalone-exportable).
 
 import type { DiscoveryContext, DiscoveryService } from "./contract/service";
 import { computeDuplicatePairs as runComputeDuplicatePairs } from "./duplicates/generate";

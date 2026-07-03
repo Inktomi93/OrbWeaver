@@ -18,15 +18,15 @@
 | **tag**                              | `packages/server/src/domain/tag/` (gutted — code is the doc)                                                   | 4                                  |
 | **embeddings**                       | `packages/server/src/domain/embeddings/` (gutted — code is the doc)                                     | 4 — NEW; the ONE vector write path |
 | **search**                           | `packages/server/src/domain/search/` (gutted — code is the doc)                                             | 4                                  |
-| **discovery**                        | [discovery.md](discovery.md)                                       | 4 — rename of `corpus`             |
+| **discovery**                        | `packages/server/src/domain/discovery/` (gutted — code is the doc)                                       | 4 — rename of `corpus`             |
 | **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
 | **stats**                            | BUILT — code is source: `packages/server/src/domain/stats/`; seam: [stats-discovery-seam.md](../proposed/stats-discovery-seam.md) | 4 — doc gutted 2026-07 (code truth) |
 | **buddy**                            | `packages/server/src/domain/buddy/` (gutted — code is the doc)                                               | 5                                  |
 | **settings**                         | `packages/server/src/domain/settings/` (gutted — code is the doc)                                         | 3                                  |
 | **sessions**                         | `packages/server/src/domain/sessions/` (gutted — code is the doc)                                         | 3                                  |
 | **admin**                            | `packages/server/src/domain/admin/` (gutted — code is the doc)                                               | 3                                  |
-| **import**                           | [import.md](import.md)                                             | 4                                  |
-| **export**                           | [export.md](export.md)                                             | 4                                  |
+| **import**                           | `packages/server/src/domain/import/` (gutted — code is the doc)                                             | 4                                  |
+| **export**                           | `packages/server/src/domain/export/` (gutted — code is the doc)                                             | 4                                  |
 | **assets**                           | `packages/server/src/domain/assets/` (gutted — code is the doc)                                             | 4                                  |
 | **workloads**                        | `packages/server/src/domain/workloads/` (gutted — code is the doc)                                       | 4                                  |
 | **participants / agents / identity** | [participants-agents-identity.md](participants-agents-identity.md) | 5                                  |
@@ -36,7 +36,7 @@
 
 | Domain          | File                             | Notes                                                                   |
 | --------------- | -------------------------------- | ----------------------------------------------------------------------- |
-| **imagery**     | [imagery.md](imagery.md)         | chat-facing image gen, prompt-template modes, `/imagine` via automation |
+| **imagery**     | `packages/server/src/domain/imagery/` (gutted — code is the doc)         | chat-facing image gen, prompt-template modes, `/imagine` via automation |
 | **tool-use**    | [tool-use.md](../proposed/tool-use.md) _(→ proposed, unbuilt/reconcile)_       | ONE tool registry → two wire projections; structured output             |
 | **databank**    | [databank.md](../proposed/databank.md) _(→ proposed, unbuilt/reconcile)_       | document-RAG; `@orb/kit/chunk`; `infra/extraction`                      |
 | **expressions** | [expressions.md](../proposed/expressions.md) _(→ proposed, unbuilt/reconcile)_ | character sprites + classify-per-turn; background = D44 token           |

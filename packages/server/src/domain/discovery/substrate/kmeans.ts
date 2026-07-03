@@ -2,7 +2,7 @@
 // L2-normalized vectors so squared-Euclidean ranks AS cosine (the embedding space's metric). Was neo-tavern
 // `corpus/substrate/kmeans.ts`; its `providers/_shared` import is swapped for `@orb/kit/vector-math`.
 //
-// ESOTERIC #6 (load-bearing — discovery.md): the returned centroids are RE-NORMALIZED, so a downstream
+// ESOTERIC #6 (load-bearing): the returned centroids are RE-NORMALIZED, so a downstream
 // `cosineDistance` against them ranks the SAME way the clusterer's argmin did near the tail. Skip the return-
 // normalize and theme/archetype ASSIGNMENTS quietly disagree with the CLUSTERING.
 //

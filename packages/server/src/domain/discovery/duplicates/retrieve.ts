@@ -2,7 +2,7 @@
 // `duplicate_character_pairs` to `characters` on BOTH sides (the names for display + the owner scope belt:
 // a pair is within ONE owner's library, so filtering side A's owner = the principal is sufficient and the
 // join NEVER reads the `users` table). CSLS-ranked (highest first). No `similarCharacters` here — top-k
-// "more like this character" is `search`'s (discovery.md movement table); this is the recorded-pairs read.
+// "more like this character" is `search`'s; this is the recorded-pairs read.
 //
 // `ownerId` is ALWAYS the resolved principal id, never caller input (audit #1) — the verb signature takes a
 // branded `UserId` the tRPC seam supplies.

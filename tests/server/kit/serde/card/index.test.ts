@@ -5,7 +5,8 @@
 // (buildCardV3 + exportBookEntry, PD-44). Asserts the multi-spec normalize (V3 / V1 / Pygmalion), the
 // typed-promotion mapping (depthPrompt / greetings / residual extensions), the hash invariants the dedup
 // relies on (key-order independence + the deliberate provenance EXCLUSION), and the load-bearing
-// round-trip: buildCardV3 → cardFromJson is lossless over the card content fields (export.md inv 1).
+// round-trip: buildCardV3 → cardFromJson is lossless over the card content fields (the one-serde-core
+// invariant).
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardV3Schema } from "@orb/contracts/character";

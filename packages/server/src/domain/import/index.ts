@@ -6,10 +6,10 @@
 //   • ImportCardError (so the transport + tests discriminate the card-read/validate failure)
 //
 // SCOPE (4c W3): the SillyTavern character-card path. The chats/personas parsers + the profile collector
-// (import.md §Public surface) land with their waves.
+// (`proposed/import-st-profile-waves.md`, PD-77) land with their waves.
 
 // The card content hash is single-homed in the serde kit (PD-33); the front door re-surfaces it so the
-// bulk driver + tests reach the import public surface in one place (import.md §Public surface).
+// bulk driver + tests reach the import public surface in one place.
 export { cardContentHash } from "#kit/serde/card";
 export type { ImportCardErrorCode } from "./contract/errors";
 export { ImportCardError } from "./contract/errors";

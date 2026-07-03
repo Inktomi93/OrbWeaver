@@ -1,7 +1,7 @@
 // domain/discovery/persistence/embed-store-reads — the READ-ONLY SELECTs over the embeddings vector store
 // (the four primary tables owned by `embeddings`) that discovery's in-RAM analytics cluster over. This is a
-// DOWNWARD, read-only dep into `@orb/db/schema/embeddings` — allowed (discovery.md §"The defining seam":
-// "Reads the store read-only … the same posture `search` has"). discovery embeds NOTHING and writes no
+// DOWNWARD, read-only dep into `@orb/db/schema/embeddings` — allowed (reads the store read-only — the same
+// posture `search` has). discovery embeds NOTHING and writes no
 // vector row here — the table NAMES appear ONLY in this file; the hub-score WRITE is the injected
 // `embeddings.writeHubScores` seam, never a `db.update` here.
 //
@@ -10,7 +10,7 @@
 // authority (D18: chats have no ownerId; the `chat_participants` row with `kind='human' AND role='host'`).
 // Reading `chat_participants`/`characters` is a downward @orb/db read, NOT a sibling-domain runtime import.
 //
-// Hub passes are CROSS-TENANT (discovery.md esoteric #5 — hubness describes a vector SPACE, not a user), so
+// Hub passes are CROSS-TENANT (hubness describes a vector SPACE, not a user), so
 // the hub reads carry no owner column; only the owner-scoped passes (duplicates, themes) join the owner in.
 
 import type { Db } from "@orb/db";
@@ -65,7 +65,7 @@ interface OwnedDigestVector {
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
 /** Every card embedding with its owner — EXCLUDING synthetic (per-room group) characters (they have no real
- *  card text and would pollute character similarity, discovery.md esoteric #12). The recompute groups these
+ *  card text and would pollute character similarity). The recompute groups these
  *  by (ownerId, model) for the within-owner, within-space all-pairs scan. */
 export async function readOwnedCharacterVectors(db: Db): Promise<OwnedCharacterVector[]> {
   return await db

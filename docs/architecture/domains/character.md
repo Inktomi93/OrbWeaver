@@ -277,8 +277,8 @@ dropped — so an app-authored card already round-trips identically to an import
 **preserve** this, not re-derive it:
 the canonical shape lives in `@orb/contracts/character`; the Zod schema validates both the wire (tRPC)
 and the import normalizer (the tolerant `RawCard` adapter normalizes INTO it). Character's
-`contract/params.ts` re-exports the inferred TS type from `@orb/contracts/character`. (import.md +
-export.md both independently confirmed this against the code — the earlier "promote (pending)" framing
+`contract/params.ts` re-exports the inferred TS type from `@orb/contracts/character`. (domain/import +
+domain/export both independently confirmed this against the code — the earlier "promote (pending)" framing
 was stale recon.)
 
 ### §7.4 types and schemas — one home, one direction
@@ -357,7 +357,7 @@ a `chat_participants` row. A character agent has both.
 - **`character_books` FK — RESOLVED: keys on `characters.id`.** `character_books.characterId` references
   `characters.id` (no cv exists); the live card's book set is read at assemble. A freeze-lore-at-a-snapshot
   feature, if ever wanted, would reference a `character_snapshots` id — never a cv.
-  Locked consistently with `domain/world-info`, `db.md`, `export.md`.
+  Locked consistently with `domain/world-info`, `db.md`, `domain/export`.
 - **`restore` verb — RESOLVED: copy a snapshot blob onto the live row, in place.** `restore` reads a
   `character_snapshots.content` blob and writes it over the `characters` row (an `UPDATE`, not a new row).
   Snapshot-current-first so it's reversible. No partial restores (a partial restore is just an `update`).

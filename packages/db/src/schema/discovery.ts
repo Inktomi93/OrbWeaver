@@ -2,8 +2,8 @@
 // rename). Discovery EMBEDS NOTHING and writes no vector row — it reads the embeddings store read-only,
 // computes its signals in-RAM, and writes ONLY these OWN rollup tables (+ the `hub_score` column on the
 // embeddings rows via the injected `embeddings.writeHubScores` seam, which is NOT here). Authoritative
-// spec: `docs/architecture/domains/discovery.md` + `domains/memory.md` §7 + `core/Tier-1-DB.md` + the ledger
-// (D23/D24). Seven tables: duplicate_character_pairs · duplicate_chat_pairs · keyword_cooccurrence ·
+// spec: the domain module (`packages/server/src/domain/discovery/`) + `domains/memory.md` §7 +
+// `core/Tier-1-DB.md` + the ledger (D23/D24). Seven tables: duplicate_character_pairs · duplicate_chat_pairs · keyword_cooccurrence ·
 // character_keyword_profiles · character_summaries · theme_clusters · digest_theme_assignments.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
@@ -282,7 +282,7 @@ export const themeClusters = sqliteTable(
     // vector. Re-normalized by the clusterer so a downstream cosineDistance ranks as the argmin did.
     centroid: vector32("centroid", { dimensions: CENTROID_DIM }).notNull(),
     // The FULL-space member count (the "is this cluster worth naming?" gate uses this, NOT the collapsed
-    // rep count — a fork-of-50 collapsing to one rep should still be named; discovery esoteric #3).
+    // rep count — a fork-of-50 collapsing to one rep should still be named).
     size: integer("size").notNull(),
     model: text("model").notNull(),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -316,7 +316,7 @@ export const digestThemeAssignments = sqliteTable(
       .notNull()
       .references(() => themeClusters.id, { onDelete: "cascade" }),
     // The story-time axis: the createdAt of the position-MEDIAN message in the digest's seq-span (where
-    // the writing happened) — NOT the time-interval midpoint (discovery esoteric #7). Epoch-MS NUMBER.
+    // the writing happened) — NOT the time-interval midpoint. Epoch-MS NUMBER.
     // Backfilled idempotently for all tiers, so nullable until the backfill runs.
     msgMidAt: integer("msg_mid_at"),
     computedAt: integer("computed_at").notNull().default(sql`(unixepoch() * 1000)`),

@@ -19,7 +19,7 @@
 > (`_shared/rate-limit.ts` → `transport/rate-limit`); `domain/workloads` (the worker is
 > transport/jobs, the domain owns the engine, `buildWorkloadsEnv` is `entry/`);
 > `domain/credentials` + `domain/sessions` (the `Principal` is built at the `entry/` seam —
-> transport CARRIES it); `domain/assets` / `domains/import.md` / `domain/connection` (where
+> transport CARRIES it); `domain/assets` / `domain/import` / `domain/connection` (where
 > each route/router delegates).
 
 ---
@@ -79,7 +79,7 @@ ctx.services.<feature>.<verb> → let the typed domain error map to a wire code`
   sideways into features.
 - **The bulk-import driver** — `importCollectedProfile` (store-then-import glue across import+assets)
   is `entry/import/run-profile-import.ts`, shared by the zip route and the `import-st` runner
-  (`import.md`).
+  (`domain/import`).
 - **Business logic of any kind** — the workloads engine (`runWorkload`/dispatch/reaper/progress-bus)
   is the `workloads` DOMAIN; the router-validated verbs are the domains'. Transport sequences and
   delegates.
@@ -174,7 +174,7 @@ entry/app.ts                                             the Hono builder + the 
 | `http/assets.ts` — blob serve + upload registrars                                                      | **→ entry**                               | `entry/http/assets.ts`                                                     | Wires `assetsService` (domain) + `cas`/`variants` (infra) + `resolveOwner` (auth seam) — composition, not a thin driver. (`domain/assets` movement.)                                                                                                                             | resolve-time: `entry/` is the topmost tier (downward imports OK)                                                                         |
 | `http/assets.ts` — the `?w=&f=webp` snap+variant-cache+`sharp` block                                   | **split: policy → domain, sharp → infra** | `domain/assets/verbs/resolve-variant.ts` injecting a `sharp` infra adapter | Width-snap is domain policy; `sharp` is CPU/I/O infra. Keeps the route thin and `sharp` out of `entry/`. (domain/assets open item.)                                                                                                                                              | resolve-time (sharp behind an infra adapter) + lint (no `sharp` in `entry/` if extracted)                                                |
 | `http/import.ts` — `/api/import/{cards,chats,zip}`                                                     | **→ entry**                               | `entry/http/import.ts`                                                     | Wires `domain/import` + `domain/assets` (the card PNG is the avatar) + the auth seam — composition.                                                                                                                                                                          | resolve-time (entry only)                                                                                                                |
-| `http/import.ts` — the zip bulk loop (`collectBundlesFromDir`→`importCollectedProfile`)                | **→ entry, unified**                      | `entry/import/run-profile-import.ts`                                       | The store-then-import glue is shared by the zip route AND the `import-st` runner — one composition helper, not two bulk loops. (import.md "bulk-loop unification".)                                                                                                          | resolve-time (only `entry/` imports two domain front doors)                                                                              |
+| `http/import.ts` — the zip bulk loop (`collectBundlesFromDir`→`importCollectedProfile`)                | **→ entry, unified**                      | `entry/import/run-profile-import.ts`                                       | The store-then-import glue is shared by the zip route AND the `import-st` runner — one composition helper, not two bulk loops. (domain/import "bulk-loop unification".)                                                                                                          | resolve-time (only `entry/` imports two domain front doors)                                                                              |
 | `http/import.ts` — inline `isPng` (3rd copy)                                                           | **→ kit**                                 | `@orb/kit/png-card-chunk`                                                  | Dedupe with the codec's `isPng`. Dissolution §1.                                                                                                                                                                                                                             | resolve-time                                                                                                                             |
 | `http/export.ts` — character PNG / chat JSONL downloads                                                | **→ entry**                               | `entry/http/export.ts`                                                     | One domain (`export`) + the auth seam; safe GET → no CSRF. A thin-ish driver, but the `register<X>Routes` discipline + the auth-seam wiring make it route-tier (entry).                                                                                                      | resolve-time (entry)                                                                                                                     |
 | `http/health.ts` — `/api/healthz`                                                                      | **→ entry**                               | `entry/http/health.ts`                                                     | Readiness probe — reads `isShuttingDown()` (lifecycle) + `allEngineStatuses()` (providers/infra). Route-tier; no domain at all.                                                                                                                                              | resolve-time (entry)                                                                                                                     |
@@ -417,7 +417,7 @@ they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hois
   is above `domain-no-cross-feature` and so cannot be a thin driver. Even the genuinely-thin ones
   (`health`, `export`, blob-serve) live at the route tier (entry) so the `register<X>Routes` discipline +
   the shared auth-seam wiring follow one consistent rule. Consistent with `Core-0-Architecture-and-Structure.md` §3 and every
-  domain doc (`domain/assets`/`domain/sessions`/`import.md`/`export.md`); no conflict remains.
+  domain doc (`domain/assets`/`domain/sessions`/`domain/import`/`domain/export`); no conflict remains.
 
 - **The rate-limit primitive's tier — RESOLVED: keep the primitive in `transport/rate-limit`,
   constructed at `entry/`.** The DB-backed `createRateLimiter`/`RateLimiter`/`RateLimitConfig` IS the

@@ -1,5 +1,5 @@
 // domain/discovery/substrate/collapse — content-hash collapse (pure; zero I/O). The ONE home for the
-// load-bearing pre-pass every all-pairs/clustering computation runs (discovery.md esoteric #3): fork/import
+// load-bearing pre-pass every all-pairs/clustering computation runs (esoteric #3): fork/import
 // copies share a `content_hash`, so N byte-identical vectors would mutually inflate each other's top-K hub
 // mean to ≈1 (and bias a centroid). Collapse picks ONE representative per distinct hash; the pairwise/
 // clustering math runs over the reps, and collapsed members INHERIT their rep's signal (same vector ⇒ same

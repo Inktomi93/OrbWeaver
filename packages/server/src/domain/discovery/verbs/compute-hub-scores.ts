@@ -1,7 +1,7 @@
 // domain/discovery/verbs/compute-hub-scores — the four per-kind CSLS hubness passes (the `csls` workload).
 // Computes `hub_score` (mean cosine to the K nearest SAME-TYPE neighbours) per vector and writes it back
 // THROUGH the injected `embeddings.writeHubScores` seam — discovery computes the VALUES, embeddings owns the
-// WRITE, search reads (discovery.md §1/§8). There is NO `db.update` on a vector table here (invariant #2).
+// WRITE, search reads (the hub_score seam — `domains/memory.md` §8). NO `db.update` on a vector table here.
 //
 // LOAD-BEARING:
 //   • CROSS-TENANT grouping (#5): hubness describes a vector SPACE, not a user — there is NO owner filter.
@@ -12,6 +12,11 @@
 //   • dense-vs-streaming is `hub-math`'s concern (esoteric #1) — `writeHubScores` is a bulk UPDATE that
 //     handles any batch size.
 //   • image hub is image↔image ONLY (#2) — discovery stamps the column; `search` omits it on text→image.
+//   • hub_score is advisory-STALE by design (#4): it is NOT auto-invalidated on a re-embed (a single-row
+//     re-embed would force a full same-(type,model) recompute to be correct); the scheduled `csls` cadence
+//     recomputes, and a stale score still demotes a near-everything vector roughly right. A vector write must
+//     NEVER null it (embeddings owns that). If precise hubness ever becomes load-bearing, wire a
+//     `hubness_dirty` flag + debounce-rebuild (noted, not built).
 //
 // The `compute*HubScores` are standalone `(db, deps, opts?)` exports (deps = `{ writeHubScores }`) so the
 // `csls` runner drives them without the whole service. `CSLS_K` is re-exported for the runner's log line.
@@ -163,8 +168,8 @@ export async function computeImageHubScores(
 
 /** The four hub-score verbs bound over the context — the `service.ts` wiring seam (the standalone functions
  *  above are what the `csls` runner calls directly; this binds them to `ctx.db` + the injected `writeHubScores`
- *  seam). The file hosts the 4 related per-kind passes (discovery.md §the-8-slot-layout: hubness is verbs +
- *  pure substrate, not a subsystem). */
+ *  seam). The file hosts the 4 related per-kind passes (hubness is verbs + pure substrate, not a subsystem —
+ *  it writes a column on EXISTING tables, no table of its own). */
 export function createComputeHubScores(
   ctx: DiscoveryContext,
 ): Pick<
