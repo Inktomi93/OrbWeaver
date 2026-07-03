@@ -3,7 +3,7 @@
 // the ONE place a stored blob is coerced into a trusted shape (the §8.4 parse-at-the-DB-seam model), so
 // a corrupt row degrades to a safe default instead of poisoning a view.
 //
-// The null-vs-[] asymmetry is LOAD-BEARING (db.md movement table — preserve it): `parseStringArray`
+// The null-vs-[] asymmetry is LOAD-BEARING (Tier-1-DB.md movement table — preserve it): `parseStringArray`
 // belongs to a column that is ALWAYS a list (absent ⇒ empty list `[]`); the `*Column`/map/record
 // parsers belong to NULLABLE columns where "absent" and "empty" differ (absent ⇒ `null`). Do not
 // collapse the two — a `[]` where a consumer expects `null` (or vice-versa) is a real semantic bug.

@@ -5,7 +5,7 @@
 //   • `buddy_turns` — the solo user⇄buddy transcript (the agent conversation; the buddy's egocentric view).
 //   • `buddy_quips` — the reaction engine's spoken output (swept to ~20/user; hover-history).
 //
-// DERIVE-DON'T-RESPELL (db.md §7.4): the bones/mood taxonomy has ONE home,
+// DERIVE-DON'T-RESPELL (Tier-1-DB.md §7.4): the bones/mood taxonomy has ONE home,
 // `@orb/contracts/buddy`. The enum columns import the canonical tuples (`RARITIES`/`SPECIES`/`HATS`/
 // `MOODS`) — never re-spelled — and a CHECK built from the SAME tuple enforces it at the SQL level
 // (users.ts pattern); a test-mirror (`tests/db/buddy.int.test.ts`) pins db === contracts.

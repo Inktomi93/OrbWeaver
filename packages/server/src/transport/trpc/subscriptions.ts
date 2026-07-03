@@ -1,4 +1,4 @@
-// transport/trpc/subscriptions — the SSE subscription typed-error wrapper (core/Tier-4-Transport.md §D2 +
+// transport/trpc/subscriptions — the SSE subscription typed-error wrapper (core/Tier-4-Transport.md Esoteric #5 +
 // Esoteric #5). A subscription GENERATOR bypasses `domainErrorMiddleware` (the middleware returned a
 // result long before the generator yields/throws), so a thrown typed `DomainError` — e.g. a `NOT_FOUND`
 // during a draft-tolerant ownership gate — would surface as a spurious 500. `withSubscriptionErrors`

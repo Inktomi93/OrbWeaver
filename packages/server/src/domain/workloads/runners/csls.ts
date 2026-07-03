@@ -1,6 +1,6 @@
 // runner: csls — the hub_score write-back. discovery COMPUTES the CSLS hub scores then calls
 // `embeddings.writeHubScores` (the column owner) internally; workloads sees ONE op
-// (`ctx.env.discovery.computeHubScores`) and never writes the embeddings rows directly (db.md column
+// (`ctx.env.discovery.computeHubScores`) and never writes the embeddings rows directly (Tier-1-DB.md column
 // ownership). Projects into the workload-owned `AnalyticsResult`.
 
 import type { Runner } from "../contract/runner";
