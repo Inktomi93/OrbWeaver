@@ -2,7 +2,7 @@
 //   • PresetContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 / no-context-returntype)
 //   • PresetService   the 6-verb authoritative interface (the front door re-exports the type)
 // preset is a leaf user-scoped CRUD feature: no cross-feature port, no injected guard (it gates by
-// `ownerId === userId` — preset.md §7.1). The context carries only db + the determinism seam + the bound
+// `ownerId === userId`). The context carries only db + the determinism seam + the bound
 // audit writer (assembled at the entry composition root).
 
 import type { Db } from "@orb/db";
@@ -36,7 +36,7 @@ export interface PresetContext {
 }
 
 /**
- * The generation-config library surface (preset.md §"8-slot layout"). All verbs are owner-scoped by the
+ * The generation-config library surface. All verbs are owner-scoped by the
  * `userId` carried in their params (resolved from the request `Principal`): reads return the owner's rows
  * UNION the shared system default; writes touch only the owner's rows (the system default is reached via
  * COW on update and is un-removable). Six verbs:
@@ -49,8 +49,8 @@ export interface PresetService {
   readonly list: (params: ListPresetsParams) => Promise<PresetSummary[]>;
   /** One preset readable by this owner (their own OR the system default); throws `PresetNotFoundError`. */
   readonly get: (params: GetPresetParams) => Promise<PresetDetail>;
-  /** Patch an owned preset; targeting the system default COWs into a new owned fork (NEW id returned —
-   *  preset.md esoteric #2). Throws `PresetNotFoundError` when no owned row matches. Audits the write. */
+  /** Patch an owned preset; targeting the system default COWs into a new owned fork (NEW id
+   *  returned). Throws `PresetNotFoundError` when no owned row matches. Audits the write. */
   readonly update: (params: UpdatePresetParams) => Promise<PresetDetail>;
   /** Delete an owned preset (audits `preset.remove`). Throws `PresetOperationError`
    *  (`cannot_remove_system_default`) for the system default, `PresetNotFoundError` when unowned/missing. */

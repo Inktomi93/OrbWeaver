@@ -11,7 +11,7 @@
 // membership-scoped through the injected chat guards and emit `WiBusEvent` via the injected chat-bus emit.
 // The per-turn POOL builder (the GATHER that unions all scopes + drives the kit keyword/placement
 // resolvers) is a chat-assembly concern and reads these tables as a db-layer consumer — it does NOT go
-// through this front door (world-info.md invariant #8).
+// through this front door (invariant #8).
 
 export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 export { WorldInfoNotFoundError } from "./contract/errors";

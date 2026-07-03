@@ -24,7 +24,7 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
 /** Domain-specific root singletons, sanctioned by that domain's own spec doc:
  *  - chat.md: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set),
  *    `connected-persona.ts` (one-connection-only auto-activate) — none fit verbs/substrate/a subsystem.
- *  - preset.md: `constants.ts` (SYSTEM_DEFAULT_PRESET_ID, domain-internal), `seed.ts` (boot-time
+ *  - preset: `constants.ts` (SYSTEM_DEFAULT_PRESET_ID, domain-internal), `seed.ts` (boot-time
  *    ensureSystemDefaultPreset — too small to be its own subsystem). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts", "connected-persona.ts"],

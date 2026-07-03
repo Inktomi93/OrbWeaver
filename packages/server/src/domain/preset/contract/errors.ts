@@ -1,4 +1,4 @@
-// domain/preset/contract/errors — the feature's typed errors (preset.md 8-slot: contract/errors.ts).
+// domain/preset/contract/errors — the feature's typed errors.
 // They extend the @orb/kit base taxonomy (no `_shared` drawer): `PresetNotFoundError` ← `DomainNotFoundError`
 // (maps to tRPC NOT_FOUND) fixes the entity name to "preset"; `PresetOperationError` ← `DomainOperationError`
 // (maps to BAD_REQUEST) carries a `code` discriminator. This file is the ONE home for those reason codes —
@@ -9,7 +9,7 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 /** The `PresetOperationError.code` discriminators preset verbs throw. One home for the reason strings. */
 export const PRESET_OP_CODES = {
   /** The single system-default row (`ownerId IS NULL`) may never be removed — only the boot seeder owns
-   *  its lifecycle (preset.md: remove "guards system default"). */
+   *  its lifecycle. */
   cannotRemoveSystemDefault: "cannot_remove_system_default",
 } as const;
 

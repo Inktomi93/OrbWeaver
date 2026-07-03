@@ -9,7 +9,7 @@ import type { PresetDetail } from "../contract/views";
 import { insertPreset, readablePreset, updatePresetRow } from "../persistence/queries";
 import { toPresetDetail } from "../substrate/views";
 
-// verb: update — patch an OWNED preset, OR copy-on-write the system default (preset.md esoteric #2). The
+// verb: update — patch an OWNED preset, OR copy-on-write the system default. The
 // COW is a DESIGNED UX, not an error path: when the target is SYSTEM_DEFAULT_PRESET_ID a NEW owned fork is
 // minted from the submission (falling back to the system default's own fields for omitted ones) and its
 // NEW id is returned — the client's onSuccess detects the id change and navigates to the fork. Without this

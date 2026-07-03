@@ -340,7 +340,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 });
 
-describe("startChat — anchor default-seed (persona.md: the starter's active persona)", () => {
+describe("startChat — anchor default-seed (the starter's active persona)", () => {
   /** Insert a personas row (the chats.anchorPersonaId FK target). */
   async function seedPersona(ownerId: UserId, id: string): Promise<PersonaId> {
     const personaId = castId<PersonaId>(id);

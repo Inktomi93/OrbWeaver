@@ -2,7 +2,7 @@
 // home, §7.4). preset is USER-SCOPED: each verb carries the `userId` resolved from the request `Principal`
 // (the injected context model — never a `users` join, the no-direct-users-read chokepoint). `config` is the
 // cross-boundary `PromptConfig` from `@orb/contracts/preset` (CONSUMED, never re-declared). No `principal`
-// field + no guard op: preset has ONE owner per row and gates by `ownerId === userId` (preset.md §7.1 — no
+// field + no guard op: preset has ONE owner per row and gates by `ownerId === userId` (no
 // global-role / roster check), so there is nothing for the `admin` guard to arbitrate here.
 
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -28,8 +28,8 @@ export interface GetPresetParams {
 }
 
 /** `update` input: a partial patch over an owned preset. Targeting `SYSTEM_DEFAULT_PRESET_ID` triggers
- *  copy-on-write — a new owned fork is created from the submission and its NEW id is returned (preset.md
- *  esoteric #2). Omitted fields are left unchanged. */
+ *  copy-on-write — a new owned fork is created from the submission and its NEW id is returned.
+ *  Omitted fields are left unchanged. */
 export interface UpdatePresetParams {
   readonly userId: UserId;
   readonly id: PresetId;

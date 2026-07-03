@@ -30,9 +30,9 @@ const PREFILL_DEPTH = 0;
 // Persona metadata blob (READ shape): load-bearing placement fields + a loose tail (extras a future
 // feature may stash ride through untouched, mirroring `worldEntries.metadata`). `descriptionPosition`
 // drives the in-prompt-vs-at-depth-vs-none decision; `inject` carries the at-depth `{depth, role}`.
-// `sourceCharacterId` + `swapMacros` are the orbweaver non-lossy `createFromCharacter` provenance (D —
-// persona.md Movement): the swap decision is recoverable, so a persona minted from a card can re-derive
-// its description if the card is edited.
+// `sourceCharacterId` + `swapMacros` are the orbweaver non-lossy `createFromCharacter` provenance:
+// the swap decision is recoverable, so a persona minted from a card can re-derive its description if
+// the card is edited.
 export const personaMetadataSchema = z
   .object({
     descriptionPosition: z.enum(PERSONA_DESCRIPTION_POSITIONS).optional(),

@@ -3,7 +3,7 @@
 // types-in-contract).
 //
 // `metadata` is TYPED (`PersonaMetadata`, from `@orb/contracts/persona`) — NOT neo's `Record<string,
-// unknown>` (persona.md Movement: "change from Record to typed, validated at the DB seam"). The
+// unknown>`; the blob is validated at the DB seam. The
 // `persistence/queries.ts` `detailOf` narrows the stored blob through `personaMetadataSchema` at the read
 // seam, so consumers never re-parse the placement fields. `avatarHash` is joined from `assets` (the CAS
 // key — `personas` only carries `avatarAssetId`), null when no avatar is attached.

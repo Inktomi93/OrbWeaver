@@ -2,8 +2,8 @@
 // convertCharacterToPersona). A character's description is written from the chatbot's POV, so `{{char}}`
 // is itself and `{{user}}` is the player. As a PERSONA (the player), those roles invert.
 //
-// LOAD-BEARING two-pass invariant (persona.md §Esoteric — explicitly KEPT, the structural-reference
-// alternative is NOT taken): the swap routes through two intermediate tokens so it can never collide. A
+// LOAD-BEARING two-pass invariant (explicitly KEPT — the structural-reference alternative is NOT
+// taken): the swap routes through two intermediate tokens so it can never collide. A
 // naive one-pass (`{{char}}→{{user}}` then `{{user}}→{{char}}`) would DOUBLE-swap any description
 // containing BOTH macros — the second pass re-hits what the first just wrote. The intermediate tokens make
 // each source macro land exactly once. Pure, zero-I/O (so the invariant is unit-testable in isolation).

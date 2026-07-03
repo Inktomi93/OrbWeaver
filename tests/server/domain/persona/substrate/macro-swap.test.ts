@@ -1,4 +1,4 @@
-// substrate: macro-swap — the load-bearing two-pass collision invariant (persona.md §Esoteric). The
+// substrate: macro-swap — the load-bearing two-pass collision invariant. The
 // critical case is a description containing BOTH macros: a naive one-pass swap would double-hit and corrupt
 // it; the two intermediate tokens guarantee each source macro lands exactly once.
 

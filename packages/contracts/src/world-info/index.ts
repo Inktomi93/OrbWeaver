@@ -173,7 +173,7 @@ export interface BookAttachmentView extends BookView {
 // than overloading this one. The `surface` field is shaped for future expansion but `chat` is the only
 // valid value today. `contracts/chat` embeds this union in `ChatBusEvent`.
 //
-// FLAG[PD-89] (world-info.md movement table): only `wiBookAttached`/`wiBookDetached` are emitted today.
+// FLAG[PD-89]: only `wiBookAttached`/`wiBookDetached` are emitted today.
 // The three entry-level variants are declared but UNWIRED — kept for future per-entry keyword/scope edits
 // that must invalidate a chat's WI pool. Do NOT auto-delete and do NOT pre-wire emitters; the criterion to
 // wire is a per-entry edit needing pool invalidation, emitted from the `entries/` verbs.

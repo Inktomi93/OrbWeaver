@@ -3,7 +3,7 @@
 // player's POV). Reads the FLAT `characters` row directly (D28 — no version table; a SANCTIONED schema read
 // that also gates ownership in one round-trip: a foreign/absent character → `CharacterNotFoundError`).
 //
-// NON-LOSSY (persona.md Movement): the row stores `sourceCharacterId` + `swapMacros` provenance in the
+// NON-LOSSY: the row stores `sourceCharacterId` + `swapMacros` provenance in the
 // typed metadata, so the swap decision is recoverable (a persona minted from a card can re-derive its
 // description if the card is edited). The persona shares the character's avatar asset (both FK the same
 // `assets.id`).

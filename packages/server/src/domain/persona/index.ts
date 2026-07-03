@@ -5,7 +5,7 @@
 //   • createPersonaService (the factory the entry root wires over the assembled PersonaContext)
 //
 // The chat-assembly seam (`resolvePersonaDescriptionPlacement`, the `AssemblePersona` shape) is NOT here —
-// it imports from `@orb/kit/persona` + `@orb/contracts/persona` directly (persona.md §Public surface).
+// it imports from `@orb/kit/persona` + `@orb/contracts/chat` directly.
 
 export { PersonaNotFoundError } from "./contract/errors";
 export type { CreatePersonaInput, UpdatePersonaInput } from "./contract/params";

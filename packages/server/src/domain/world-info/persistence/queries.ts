@@ -7,12 +7,12 @@
 // has no `ownerId`, so an entry is owned iff its `worldBookId` is one of the caller's books. `loadOwnedEntry`
 // joins through `world_books` for reads; the update/remove verbs fold the same gate into their WHERE via
 // `ownedBookIds` (the `inArray(worldEntries.worldBookId, <owned book ids subquery>)` pattern — NEVER a bare
-// `eq(id)`, which would allow a cross-tenant write; world-info.md invariant #4).
+// `eq(id)`, which would allow a cross-tenant write; invariant #4).
 //
 // `toEntryView` parses the stored `metadata` blob through `entryMetadataSchema` at the read seam (§8.4
 // parse-at-the-DB-seam): drizzle hands back whatever `JSON.parse` produced typed as `EntryMetadata` without
 // validating it, so a corrupt row degrades to `null` here (`.catch(null)`) instead of poisoning the typed
-// view (world-info.md invariant #5 — `EntryView.metadata: EntryMetadata | null`, not `unknown`).
+// view (invariant #5 — `EntryView.metadata: EntryMetadata | null`, not `unknown`).
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";

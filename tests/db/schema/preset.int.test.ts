@@ -17,7 +17,7 @@ import { eq, isNull } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
 
-// The system-default sentinel = the NIL TypeID (preset.md esoteric #1). The DOMAIN owns this constant
+// The system-default sentinel = the NIL TypeID. The DOMAIN owns this constant
 // (domain/preset/constants.ts, NOT contracts), so the test mirrors it locally — the schema only needs
 // owner_id to be nullable for the row to exist.
 const SYSTEM_DEFAULT_PRESET_ID = castId<PresetId>("preset_00000000000000000000000000");
