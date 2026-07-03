@@ -4,8 +4,6 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
-// The resolved --color-background token (Hearth) — the theme test pins the ONE mapping site.
-const BACKGROUND_OKLCH = /oklch\(0\.175 0\.012 65\)/u;
 
 // Multi-line so the error and warning diagnostics land on DIFFERENT lines — the lint gutter
 // groups markers per line (worst severity wins), so same-line diagnostics would collapse to one
@@ -82,7 +80,10 @@ test("a non-readOnly editor accepts the same real clipboard paste", async ({ mou
 
 test("the token theme is applied (background resolves the design token)", async ({ mount }) => {
   const component = await mount(<ControlledEditor initialValue={INITIAL_CSS} />);
-  await expect(component.locator(".cm-editor")).toHaveCSS("background-color", BACKGROUND_OKLCH);
+  await expect(component.locator(".cm-editor")).toHaveCSS(
+    "background-color",
+    TOKENS["color.background"].value,
+  );
 });
 
 test("no `diagnostics` prop means no lint gutter at all", async ({ mount }) => {

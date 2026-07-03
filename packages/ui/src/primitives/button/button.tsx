@@ -28,6 +28,7 @@ export function Button({
 }: ButtonProps): ReactElement {
   return (
     <BaseButton
+      data-slot="button"
       aria-busy={loading ? true : undefined}
       className={cn(buttonVariants({ intent, size }), className)}
       disabled={disabled || loading}

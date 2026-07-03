@@ -131,6 +131,19 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "packages/server/src/domain/foo/persistence/p.ts",
     src: "export const m = new Map();\n",
   },
+  "no-untrusted-html-in-main-dom": {
+    path: "packages/client/src/features/x/surfaces/c.tsx",
+    // biome-ignore lint/security/noSecrets: a JSX fixture string (dangerouslySetInnerHTML), not a secret.
+    src: "export const C = (s: string) => <div dangerouslySetInnerHTML={{ __html: s }} />;\n",
+  },
+  "no-external-media-without-gate": {
+    path: "packages/client/src/features/x/surfaces/c.tsx",
+    src: 'export const C = (u: string) => <img src={u} alt="" />;\n',
+  },
+  "theme-override-only-via-scope": {
+    path: "packages/client/src/features/x/surfaces/c.tsx",
+    src: 'export const C = () => <div style={{ "--color-primary": "red" }} />;\n',
+  },
 };
 
 function pluginDiagnostics(file: string, configPath: string): number {

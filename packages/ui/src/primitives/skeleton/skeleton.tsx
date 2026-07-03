@@ -22,6 +22,11 @@ export interface SkeletonProps
  */
 export function Skeleton({ className, variant, ...props }: SkeletonProps): ReactElement {
   return (
-    <div aria-hidden={true} className={cn(skeletonVariants({ variant }), className)} {...props} />
+    <div
+      data-slot="skeleton"
+      aria-hidden={true}
+      className={cn(skeletonVariants({ variant }), className)}
+      {...props}
+    />
   );
 }
