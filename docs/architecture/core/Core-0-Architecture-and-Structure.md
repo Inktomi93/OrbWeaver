@@ -258,3 +258,17 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > `scripts/check/gates/`); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
 > (the single enforcement source of truth; deferred/rejected gates: `Core-Enforcement-Deferred-Dropped.md`).
+
+## 8. Cross-cutting invariants (the laws no single file shows)
+
+Load-bearing rules that span multiple files/domains, enforced by convention + review (not one gate).
+Promoted here from code comments so they are discoverable; the code stays the source of truth.
+
+| Invariant | Home / detail |
+| - | - |
+| **ONE credential-mint site** — a `ResolvedCredential` is constructed ONLY in `credentials/substrate/mint.ts`; the brand is otherwise unforgeable. | `domain/credentials/substrate/mint.ts` |
+| **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
+| **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
+| **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
+| **Settings: one KV primitive, tenant-owned meaning** — `defineVersionedConfig` owns the versioned-blob mechanism; each settings tenant owns its blob's schema/meaning (settings never interprets a tenant blob). | `domain/settings`; detail: `Spine-Config-and-Serialization.md` |
+| **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` + `entry` read the `users` table (every admin read gates first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` (read side: `no-direct-users-read` gate) |

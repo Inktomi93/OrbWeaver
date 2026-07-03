@@ -171,7 +171,9 @@ code-verified; **flip these statuses in the Registry as each is picked up.**
 
 Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previously scattered across agent reports + session notes). These are doc/law relocation + freshness work, not code-symbol PD rows. Do as one consolidated pass.
 
-### Promotes — cross-cutting law carried only in code comments / sibling docs; give it a core/ledger home
+### ~~Promotes~~ — LANDED 2026-07-03
+
+embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-Identity-and-Auth.md`; the other 6 → `Core-0-Architecture-and-Structure.md` §8 (cross-cutting invariants). Originals kept below for provenance.
 
 - **AAD `${userId}|${provider}` byte-identical belt** (credentials) → ledger/Core-0 (carried in `persistence/aad.ts` + `infra/crypto/secrets.ts` + schema header + aad.int pin).
 - **`ResolvedCredential` brand — one construction home** (`substrate/mint.ts`) → ledger.
