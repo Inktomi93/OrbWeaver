@@ -23,6 +23,7 @@ export function Button({
   size,
   loading = false,
   disabled = false,
+  focusableWhenDisabled,
   ...rest
 }: ButtonProps): ReactElement {
   return (
@@ -30,6 +31,9 @@ export function Button({
       aria-busy={loading ? true : undefined}
       className={cn(buttonVariants({ intent, size }), className)}
       disabled={disabled || loading}
+      // Loading is a transient busy state, not a real disablement — stay in the tab sequence for
+      // AT (Base UI docs flag this exact case). A caller-supplied value always wins.
+      focusableWhenDisabled={focusableWhenDisabled ?? loading}
       {...rest}
     />
   );

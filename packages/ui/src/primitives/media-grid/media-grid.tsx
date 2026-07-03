@@ -362,7 +362,11 @@ export function MediaGrid<T extends MediaGridItem>({
       ref={scrollRef}
       role="grid"
     >
-      <div className="relative w-full" ref={rowVirtualizer.containerRef}>
+      <div
+        className="relative w-full"
+        data-slot="media-grid-viewport"
+        ref={rowVirtualizer.containerRef}
+      >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const rowStart = virtualRow.index * columns;
           const rowItems = items.slice(rowStart, rowStart + columns);
@@ -373,6 +377,7 @@ export function MediaGrid<T extends MediaGridItem>({
               aria-rowindex={virtualRow.index + 1}
               className="absolute inset-x-0 grid"
               data-index={virtualRow.index}
+              data-slot="media-grid-row"
               key={virtualRow.key}
               // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
               // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.

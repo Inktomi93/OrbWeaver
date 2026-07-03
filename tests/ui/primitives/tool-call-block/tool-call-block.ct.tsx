@@ -95,6 +95,46 @@ test("malformed arguments JSON falls back to the raw string, never blank", async
   await expect(page.locator("pre").first()).toHaveText("{not valid json");
 });
 
+test("malformed result JSON also falls back to the raw string, never blank", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <ToolCallBlock
+      defaultOpen={true}
+      record={{
+        arguments: "{}",
+        durationMs: 3,
+        isError: false,
+        name: "broken_tool",
+        result: "{not valid json either",
+        toolCallId: "call_6",
+      }}
+    />,
+  );
+  const pres = page.locator("pre");
+  await expect(pres.nth(1)).toHaveText("{not valid json either");
+});
+
+test("the status region announces state via aria-live=polite", async ({ mount, page }) => {
+  await mount(
+    <ToolCallBlock
+      record={{
+        arguments: "{}",
+        durationMs: 1,
+        isError: false,
+        name: "roll_dice",
+        result: "{}",
+        toolCallId: "call_7",
+      }}
+    />,
+  );
+  await expect(page.locator('[data-slot="tool-call-block-status"]')).toHaveAttribute(
+    "aria-live",
+    "polite",
+  );
+});
+
 test("closed by default; clicking the summary reveals the body", async ({ mount, page }) => {
   await mount(
     <ToolCallBlock

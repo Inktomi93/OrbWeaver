@@ -1,9 +1,18 @@
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component } from "react";
 import { Streamdown } from "streamdown";
+import { cn } from "#lib";
 import { TIER_A_UNTRUSTED_ELEMENTS, untrustedUrlTransform } from "./policy";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
+
+// Large-block perf guard (#195, UI-Arch §"Large-code-block perf guard"): Streamdown's Shiki
+// re-highlight can freeze the tab on a pathologically large fenced block. Re-parsing markdown
+// ourselves to isolate one giant fence would re-derive Streamdown's own parser (the thing this seal
+// exists to avoid), so the guard is on the WHOLE input's length instead — in practice a single huge
+// block dominates a message's total length. Above the threshold, skip the Streamdown mount entirely
+// and fall back to a plain, scrollable, un-highlighted `<pre>` (readable, never hangs the tab).
+const MAX_RENDER_LENGTH = 20_000;
 
 export interface MarkdownProps {
   /**
@@ -61,6 +70,16 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  */
 export function Markdown({ trust, children, className }: MarkdownProps): ReactElement {
   const untrusted = trust === "untrusted";
+  if (children.length > MAX_RENDER_LENGTH) {
+    return (
+      <pre
+        className={cn("max-h-[60cqh] overflow-auto whitespace-pre-wrap text-body", className)}
+        data-slot="markdown-oversized"
+      >
+        {children}
+      </pre>
+    );
+  }
   return (
     <MarkdownErrorBoundary>
       <Streamdown

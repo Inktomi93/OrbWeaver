@@ -13,9 +13,11 @@ const twMergeConfig = {
 
 /**
  * Slot classes for the toast system (ui-package-design §5). Viewport is fixed at `--z-toast`;
- * roots animate on `data-starting-style`/`data-ending-style`, track Base UI's swipe CSS vars, and
- * tint the border by `data-type` (error/success/loading intent tokens — never a color calc). The
- * `loading` type (the `promise()` 3-state) gets the primary accent so it reads as in-progress.
+ * roots animate on `data-starting-style`/`data-ending-style`, track Base UI's swipe CSS vars (the
+ * transition is suspended via `data-swiping:transition-none` so a drag tracks 1:1, same fix as
+ * drawer's popup), and tint the border by `data-type` (error/success/loading intent tokens — never
+ * a color calc). The `loading` type (the `promise()` 3-state) gets the primary accent so it reads
+ * as in-progress.
  */
 export const toastVariants = tv(
   {
@@ -26,6 +28,9 @@ export const toastVariants = tv(
         "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg",
         "transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",
         "data-limited:hidden data-starting-style:opacity-0 data-starting-style:translate-y-full data-ending-style:opacity-0",
+        // Suspend the transition while a swipe is in progress so the gesture tracks the pointer 1:1
+        // instead of fighting the enter/exit transition (drawer's popup solved this the same way).
+        "data-swiping:transition-none",
         // Border tint by data-type (Base UI sets it) — error/success/loading intent tokens. Written
         // as the `[&[data-type=…]]:` arbitrary-selector form (equivalent to the `data-[type=…]:`
         // shorthand) because biome's noSecrets heuristic false-positives on the `loading` shorthand.

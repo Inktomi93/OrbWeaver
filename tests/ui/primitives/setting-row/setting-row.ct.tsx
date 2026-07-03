@@ -33,6 +33,5 @@ test("renders a disabled-with-reason note in the muted token", async ({ mount, p
   await mount(<AutoSaveRow disabledReason="Requires an active subscription" />);
   const note = page.getByText("Requires an active subscription");
   await expect(note).toBeVisible();
-  const color = await note.evaluate((el) => getComputedStyle(el).color);
-  expect(color).toContain(TOKENS["color.muted-foreground"].value);
+  await expect(note).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });

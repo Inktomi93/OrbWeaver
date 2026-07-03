@@ -24,7 +24,13 @@ export const autocompleteVariants = tv({
     positioner: "z-(--z-overlay) outline-none",
     popup: [
       "z-(--z-overlay) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
+      // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip/select (the shared
+      // overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
+      "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     ],
+    // Base UI positions the arrow against the anchor and sets data-side; skinned as a `bg-popover`
+    // diamond that continues the popup edge (mirrors PopoverArrow/MenuArrow/SelectArrow).
+    arrow: "size-row rotate-45 border border-border bg-popover",
     list: "flex flex-col gap-field",
     group: "flex flex-col gap-field",
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",

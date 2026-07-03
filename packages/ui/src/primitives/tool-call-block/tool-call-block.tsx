@@ -79,8 +79,10 @@ export function ToolCallBlock({
   return (
     <details className={cn(slots.root(), className)} data-slot="tool-call-block" open={defaultOpen}>
       <summary className={slots.summary()} data-slot="tool-call-block-summary">
-        <span className={slots.name()}>{record.name}</span>
-        <span className={slots.status()} data-slot="tool-call-block-status">
+        <span className={slots.name()} data-slot="tool-call-block-name">
+          {record.name}
+        </span>
+        <span aria-live="polite" className={slots.status()} data-slot="tool-call-block-status">
           {state === "error" ? (
             <Badge intent="danger">
               <Icon icon={AlertTriangle} size="xs" /> Error
@@ -100,14 +102,22 @@ export function ToolCallBlock({
         ) : null}
       </summary>
       <div className={slots.body()} data-slot="tool-call-block-body">
-        <div className={slots.section()}>
-          <h4 className={slots.sectionLabel()}>Arguments</h4>
-          <pre className={slots.pre()}>{argumentsText}</pre>
+        <div className={slots.section()} data-slot="tool-call-block-section">
+          <h4 className={slots.sectionLabel()} data-slot="tool-call-block-section-label">
+            Arguments
+          </h4>
+          <pre className={slots.pre()} data-slot="tool-call-block-pre">
+            {argumentsText}
+          </pre>
         </div>
         {record.result !== null ? (
-          <div className={slots.section()}>
-            <h4 className={slots.sectionLabel()}>{record.isError ? "Error" : "Result"}</h4>
-            <pre className={slots.pre()}>{prettyOrRaw(record.result)}</pre>
+          <div className={slots.section()} data-slot="tool-call-block-section">
+            <h4 className={slots.sectionLabel()} data-slot="tool-call-block-section-label">
+              {record.isError ? "Error" : "Result"}
+            </h4>
+            <pre className={slots.pre()} data-slot="tool-call-block-pre">
+              {prettyOrRaw(record.result)}
+            </pre>
           </div>
         ) : null}
       </div>

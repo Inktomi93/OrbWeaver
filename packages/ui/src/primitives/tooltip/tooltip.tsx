@@ -1,4 +1,5 @@
 import type {
+  TooltipArrowProps as BaseArrowProps,
   TooltipPopupProps as BasePopupProps,
   TooltipPositionerProps as BasePositionerProps,
   TooltipProviderProps as BaseProviderProps,
@@ -78,5 +79,23 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
         </BaseTooltip.Popup>
       </BaseTooltip.Positioner>
     </BaseTooltip.Portal>
+  );
+}
+
+export interface TooltipArrowProps extends Omit<BaseArrowProps, "className"> {
+  className?: string;
+}
+
+/**
+ * An arrow that points at the anchor — place inside `<TooltipPopup>`. Base UI positions it and sets
+ * `data-side`/`data-align`; skinned as a `bg-popover` diamond that continues the popup edge (mirrors
+ * `PopoverArrow`/`MenuArrow`).
+ * `<TooltipPopup><TooltipArrow />Regenerate reply</TooltipPopup>`
+ * Spec: ui-package-design §13 R2 (full native part surface).
+ */
+export function TooltipArrow(props: TooltipArrowProps): ReactElement {
+  const { className, ...rest } = props;
+  return (
+    <BaseTooltip.Arrow className={slots.arrow({ className })} data-slot="tooltip-arrow" {...rest} />
   );
 }

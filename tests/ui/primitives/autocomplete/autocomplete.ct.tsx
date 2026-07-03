@@ -2,9 +2,12 @@
 // highlights an item and Enter selects it (writing it into the input). Typing is driven with
 // pressSequentially (real keystrokes) so Base UI's open-on-type fires; gates use role locators.
 import { Autocomplete } from "@orb/ui/autocomplete";
+import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CustomFilterStory, DerivedItemsStory } from "./autocomplete.fixtures";
+
+const NON_EMPTY = /.+/u;
 
 const TAGS = ["adventure", "mystery", "romance"];
 
@@ -40,12 +43,57 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   const input = page.getByRole("combobox");
   await input.click();
   await input.pressSequentially("r");
-  const list = page.getByRole("listbox");
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
-  // role="listbox" lands on the List part; the styled Popup is its direct parent in the seal.
-  const popup = list.locator("xpath=..");
+  const popup = page.locator('[data-slot="autocomplete-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
   await expect(popup).toHaveCSS("z-index", "40");
+});
+
+test("disabled: the input is inert", async ({ mount, page }) => {
+  await mount(<Autocomplete aria-label="Tag" disabled={true} items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await expect(input).toBeDisabled();
+  await expect(input).toHaveAttribute("data-disabled", "");
+});
+
+test("inside a <Field>, the label associates with the input and aria-describedby is wired", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Field description="Press Enter to add" label="Tag">
+      <Autocomplete items={TAGS} />
+    </Field>,
+  );
+  // getByLabel resolves only if Field's label associates with the input — the R7 shape
+  // (Autocomplete.Input is the field-aware Combobox.Input, auto-registering under Field.Root).
+  const input = page.getByLabel("Tag");
+  await expect(input).toBeVisible();
+  await expect(input).toHaveAttribute("aria-describedby", NON_EMPTY);
+});
+
+test("arrow: renders inside the popup when enabled", async ({ mount, page }) => {
+  await mount(<Autocomplete arrow={true} aria-label="Tag" items={TAGS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("r");
+  await expect(page.locator('[data-slot="autocomplete-arrow"]')).toBeVisible();
+});
+
+test("side: overrides the Positioner's requested placement", async ({ mount, page }) => {
+  await mount(
+    <div style={{ paddingBottom: 300, paddingTop: 300 }}>
+      <Autocomplete aria-label="Tag" items={TAGS} side="top" />
+    </div>,
+  );
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("r");
+  await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
+  await expect(page.locator('[data-slot="autocomplete-positioner"]')).toHaveAttribute(
+    "data-side",
+    "top",
+  );
 });
 
 test("filters correctly when the parent re-renders and passes a freshly-DERIVED items array (the real consumer shape)", async ({

@@ -13,7 +13,7 @@ import {
 } from "@orb/ui/drawer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DrawerHandleHarness } from "./drawer-handle.fixtures";
+import { DrawerHandleHarness, DrawerTriggerPayloadHarness } from "./drawer-handle.fixtures";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(
@@ -163,6 +163,55 @@ test("virtual-keyboard provider mounts inside the drawer and it still opens", as
   await expect(page.locator('[data-slot="drawer-popup"]')).toBeVisible();
 });
 
+// Base UI Drawer defaults `modal={true}` — focus trap + document scroll lock come free. This CT
+// asserts the CONTRACT, not just trusts it: Tab never escapes the popup to the outside siblings, and
+// closing returns focus to the trigger that opened it (menu/select already model this Tab-containment
+// shape; dialog/alert-dialog/drawer previously leaned on "Base UI is free" with no assertion).
+test("focus is trapped inside the popup and returns to the trigger on close", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <>
+      <button type="button">Outside before</button>
+      <Drawer>
+        <DrawerTrigger>Open filters</DrawerTrigger>
+        <DrawerPopup>
+          <DrawerTitle>Filters</DrawerTitle>
+          <button type="button">First field</button>
+          <button type="button">Second field</button>
+          <DrawerClose>Done</DrawerClose>
+        </DrawerPopup>
+      </Drawer>
+      <button type="button">Outside after</button>
+    </>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Open filters" });
+  await trigger.click();
+  const popup = page.locator('[data-slot="drawer-popup"]');
+  await expect(popup).toBeVisible();
+
+  // Tab through more presses than there are focusable items (First/Second/Done = 3) so the cycle
+  // wraps at least once — focus must stay inside the popup at every step. Unrolled (not a loop) —
+  // each Tab depends on the prior one's settled focus, so this is a biome noAwaitInLoops
+  // false-positive to sidestep.
+  await page.keyboard.press("Tab");
+  await expect(popup.locator(":focus")).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(popup.locator(":focus")).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(popup.locator(":focus")).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(popup.locator(":focus")).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(popup.locator(":focus")).toHaveCount(1);
+
+  await page.keyboard.press("Escape");
+  await expect(popup).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 // createHandle: open the drawer imperatively (no trigger) with a payload via handle.openWithPayload;
 // the payload reaches the Root render-function children (harness in ./drawer-handle.fixtures). Base
 // UI drawer re-exports the dialog createHandle mechanism.
@@ -176,4 +225,21 @@ test("opens imperatively via a detached handle and routes the payload to content
   const popup = page.locator('[data-slot="drawer-popup"]');
   await expect(popup).toBeVisible();
   await expect(popup).toContainText("Reached content");
+});
+
+// DrawerTrigger<Payload> generic (real type regression fixed — it was non-generic while
+// Dialog/AlertDialogTrigger both are): two DETACHED triggers, each carrying its own `payload`, wired
+// to ONE handle-driven drawer. Clicking either trigger routes THAT trigger's payload to content —
+// proves the generic actually threads a payload type through the trigger, not just the root.
+test("a detached DrawerTrigger carries its own payload to a handle-driven drawer", async ({
+  mount,
+  page,
+}) => {
+  await mount(<DrawerTriggerPayloadHarness />);
+  const popup = page.locator('[data-slot="drawer-popup"]');
+  await expect(popup).toBeHidden();
+
+  await page.getByRole("button", { name: "Trigger B" }).click();
+  await expect(popup).toBeVisible();
+  await expect(popup).toContainText("From trigger B");
 });

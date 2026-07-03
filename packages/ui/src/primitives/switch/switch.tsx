@@ -26,8 +26,8 @@ export interface SwitchProps extends SwitchRootProps {
 export function Switch({ className, ...rest }: SwitchProps): ReactElement {
   const slots = switchVariants();
   return (
-    <BaseSwitch.Root className={cn(slots.root(), className)} {...rest}>
-      <BaseSwitch.Thumb className={slots.thumb()}>
+    <BaseSwitch.Root className={cn(slots.root(), className)} data-slot="switch-root" {...rest}>
+      <BaseSwitch.Thumb className={slots.thumb()} data-slot="switch-thumb">
         <Icon className={slots.readOnlyIcon()} icon={Lock} size="xs" />
       </BaseSwitch.Thumb>
     </BaseSwitch.Root>

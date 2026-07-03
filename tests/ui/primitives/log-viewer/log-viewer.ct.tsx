@@ -71,6 +71,75 @@ test("appending lines autoscrolls the line region to the new bottom", async ({ m
   await expect(log.getByText("line 0", { exact: true })).not.toBeInViewport();
 });
 
+test("a reader scrolled up is not yanked back to the bottom by an append (pin, not yank)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <div style={{ height: 100 }}>
+      <LogViewer lines={makeLines(20)} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  await expect(log.getByText("line 19", { exact: true })).toBeInViewport();
+
+  await log.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBe(0);
+
+  await component.update(
+    <div style={{ height: 100 }}>
+      <LogViewer lines={makeLines(40)} className="h-full" />
+    </div>,
+  );
+
+  // Still reading from the top — the append below did NOT yank scrollTop back to the bottom.
+  await expect(log.getByText("line 0", { exact: true })).toBeInViewport();
+  await expect(log.getByText("line 39", { exact: true })).not.toBeInViewport();
+});
+
+test("a reader pinned to the bottom stays pinned through an append", async ({ mount }) => {
+  const component = await mount(
+    <div style={{ height: 100 }}>
+      <LogViewer lines={makeLines(20)} className="h-full" />
+    </div>,
+  );
+  const log = component.getByRole("log");
+  // Wait for the mount's own smooth-scroll-to-bottom to SETTLE (not just for the last line to
+  // enter the viewport partway through the animation) before appending, so the append's pin check
+  // reads a stable "already at the bottom", not a mid-flight scroll position.
+  await expect
+    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+    .toBeLessThanOrEqual(4);
+
+  await component.update(
+    <div style={{ height: 100 }}>
+      <LogViewer lines={makeLines(40)} className="h-full" />
+    </div>,
+  );
+
+  await expect
+    .poll(() => log.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight))
+    .toBeLessThanOrEqual(4);
+  await expect(log.getByText("line 39", { exact: true })).toBeInViewport();
+});
+
+test("the line region is keyboard-scrollable (tabIndex=0, WCAG 2.1.1)", async ({ mount, page }) => {
+  await mount(
+    <div style={{ height: 100 }}>
+      <LogViewer lines={makeLines(20)} className="h-full" />
+    </div>,
+  );
+  const log = page.getByRole("log");
+  await expect(log).toHaveAttribute("tabindex", "0");
+  await log.evaluate((el) => {
+    el.scrollTop = 0;
+  });
+  await log.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+});
+
 test("autoscroll is instant (not smooth) under prefers-reduced-motion", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => {

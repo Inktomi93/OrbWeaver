@@ -10,12 +10,16 @@ export const sliderVariants = tv({
     label: "text-label font-medium leading-label text-foreground",
     value: "text-label leading-label text-muted-foreground tabular-nums",
     control: "flex h-control-sm w-full touch-none select-none items-center",
-    track: "relative h-field w-full grow overflow-hidden rounded-full bg-input",
-    indicator: "rounded-full bg-primary",
+    // Base UI sets data-invalid on Track (and Control/Thumb) when wrapped in an invalid <Field>
+    // (FieldRootState) — the track fill is the visible surface, so it carries the destructive skin.
+    track:
+      "relative h-field w-full grow overflow-hidden rounded-full bg-input data-invalid:bg-destructive/20",
+    indicator: "rounded-full bg-primary data-invalid:bg-destructive",
     thumb: [
       "size-section rounded-full border border-border bg-foreground",
       "transition-shadow duration-(--motion-fast) ease-out-expo",
       "outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+      "data-invalid:border-destructive",
     ],
   },
 });

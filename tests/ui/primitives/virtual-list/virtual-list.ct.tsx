@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BoundedList, UnboundedList } from "./virtual-list.fixtures";
+import {
+  BoundedList,
+  CustomRangeExtractorList,
+  DerivedItemsList,
+  LanesList,
+  UnboundedList,
+} from "./virtual-list.fixtures";
 
 const ITEM_COUNT = 1000;
 const ROW_HEIGHT_PX = 40;
@@ -58,4 +64,42 @@ test("the tripwire THROWS when the parent gives no bounded height", async ({ mou
   const alert = page.getByRole("alert");
   await expect(alert).toBeVisible();
   await expect(alert).toContainText("no bounded height");
+});
+
+// R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
+// re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
+test("renders correctly when the parent passes a freshly-derived items array each render", async ({
+  mount,
+}) => {
+  const component = await mount(<DerivedItemsList />);
+  await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
+
+  await component.getByTestId("rerender").click();
+  await expect(component.getByText("Alpha", { exact: true })).toBeVisible();
+  await expect(component.getByText("Bravo", { exact: true })).toBeVisible();
+  await expect(component.getByText("Charlie", { exact: true })).toBeVisible();
+});
+
+test("lanes passthrough: rows carry a data-lane round-robined across the lane count", async ({
+  mount,
+}) => {
+  const component = await mount(<LanesList itemCount={9} lanes={3} />);
+  const lanes = await component
+    .locator("[data-lane]")
+    .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-lane")));
+  expect(lanes.length).toBeGreaterThan(0);
+  expect(new Set(lanes)).toEqual(new Set(["0", "1", "2"]));
+});
+
+test("rangeExtractor passthrough: a custom extractor's forced index stays mounted off-screen", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<CustomRangeExtractorList itemCount={200} />);
+  await expect(component.getByText("Item 0", { exact: true })).toBeVisible();
+  await component.getByText("Item 0", { exact: true }).hover();
+  await page.mouse.wheel(0, 100 * 40);
+  // The normal overscan window has scrolled well past index 0 — only the custom rangeExtractor
+  // forcing it into the range keeps it mounted.
+  await expect(component.getByText("Item 0", { exact: true })).toHaveCount(1);
 });

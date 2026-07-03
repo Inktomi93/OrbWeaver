@@ -2,7 +2,7 @@
 // props (getItemKey/estimateSize/renderItem) live HERE; the tests pass only numbers/strings.
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component } from "react";
+import { Component, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -80,5 +80,94 @@ export function UnboundedList({ itemCount, rowHeightPx }: ListFixtureProps): Rea
         />
       </div>
     </TripwireBoundary>
+  );
+}
+
+const DERIVED_SOURCE: readonly FixtureItem[] = [
+  { id: "a", label: "Alpha" },
+  { id: "b", label: "Bravo" },
+  { id: "c", label: "Charlie" },
+];
+
+/**
+ * R7 (ui-primitive-contract, the systemic virtual-seal gap): the parent re-renders passing a
+ * freshly-DERIVED (filter+map) items array — not a stable module-const reference — proving the
+ * seal doesn't secretly depend on item array identity surviving a render (the sortable.fixtures.tsx
+ * `DerivedItemsList` precedent).
+ */
+export function DerivedItemsList(): ReactElement {
+  const [bump, setBump] = useState(0);
+  // fresh array, derived during render (filter+map) — a different reference each render.
+  const items = DERIVED_SOURCE.filter((entry) => entry.label.length > 0).map((entry) => ({
+    ...entry,
+  }));
+
+  return (
+    <div>
+      <button data-testid="rerender" onClick={(): void => setBump((n) => n + 1)} type="button">
+        rerender {bump}
+      </button>
+      <div style={{ height: 200 }}>
+        <VirtualList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => 40}
+          renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+interface LanesListProps {
+  readonly itemCount: number;
+  readonly lanes: number;
+}
+
+/** Passthrough smoke: `lanes` reaches the virtualizer — every row carries the `data-lane` this
+ *  seal stamps from `virtualItem.lane`, round-robined 0..lanes-1. */
+export function LanesList({ itemCount, lanes }: LanesListProps): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 300 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 20}
+        lanes={lanes}
+        renderItem={(item): ReactElement => <div style={{ height: 20 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
+  );
+}
+
+/** Passthrough smoke: a custom `rangeExtractor` that always force-includes index 0 alongside the
+ *  normal overscan window — proves the option actually reaches `useVirtualizer`, not just typed. */
+export function CustomRangeExtractorList({
+  itemCount,
+}: {
+  readonly itemCount: number;
+}): ReactElement {
+  const items = makeItems(itemCount);
+  return (
+    <div style={{ height: 200 }}>
+      <VirtualList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40}
+        rangeExtractor={(range): number[] => {
+          const base = new Set<number>();
+          for (let i = range.startIndex; i <= range.endIndex; i += 1) {
+            base.add(i);
+          }
+          base.add(0);
+          return Array.from(base).sort((a, b) => a - b);
+        }}
+        renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+        className="h-full"
+      />
+    </div>
   );
 }

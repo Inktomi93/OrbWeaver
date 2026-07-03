@@ -1,8 +1,9 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
 import { useState } from "react";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/Icon/Upload fine.
-import { AlertTriangle, Icon, Upload } from "#primitives/icons";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve AlertTriangle/Check/Icon/Upload fine.
+import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
+import { Spinner } from "#primitives/spinner";
 import { fileDropzoneVariants } from "./variants";
 
 /** A file dropped by the client-side `maxSizeBytes` pre-check (the only rejection reason today). */
@@ -23,6 +24,15 @@ export interface FileDropzoneProps
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
+  /**
+   * Busy state (the 8-state contract, ui-package-design §5): swaps the Upload glyph for a
+   * `<Spinner>` and inerts the input, for a caller uploading the selected batch (e.g. mid-request
+   * to storage). A state, not a variant — caller-driven, same shape as `Button.loading`.
+   */
+  loading?: boolean;
+  /** Momentary success flash (the 8-state contract): a checkmark glyph + the success border
+   *  token. Caller clears it after its own delay — this primitive holds no timer. */
+  success?: boolean;
   /**
    * Client-side pre-check ceiling in bytes. INJECTED by the consumer (databank's 20 MB default,
    * plugin install-from-zip, avatar uploads each pick their own) — never baked into the primitive.
@@ -76,6 +86,27 @@ function rejectionMessage(
   return `${rejected.length} files exceed the ${limit} limit`;
 }
 
+interface FileDropzoneGlyphProps {
+  readonly loading: boolean;
+  readonly success: boolean;
+  readonly slots: ReturnType<typeof fileDropzoneVariants>;
+}
+
+/**
+ * The content-stack glyph dispatch, split out from `FileDropzone` purely to avoid a 3-way nested
+ * ternary in the render tree (biome `noNestedTernary`) and keep `FileDropzone` itself under the
+ * cognitive-complexity ceiling — it carries no state of its own.
+ */
+function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps): ReactElement {
+  if (loading) {
+    return <Spinner label="Uploading…" size="sm" />;
+  }
+  if (success) {
+    return <Icon icon={Check} label="Uploaded" size="lg" />;
+  }
+  return <Icon className={slots.icon()} icon={Upload} size="lg" />;
+}
+
 /**
  * The file uploader — a REAL `<input type="file">` under the hood, rendered through Base UI
  * `Field.Control` exactly like `Textarea` (label association + `aria-describedby` + `data-invalid`
@@ -92,6 +123,10 @@ function rejectionMessage(
  * `maxSizeBytes` is an injected ceiling (no default) checked client-side on every batch — oversized
  * files are reported via `rejected` (never silently dropped) and surfaced inline.
  *
+ * `loading`/`success` (the 8-state contract, ui-package-design §5) swap the Upload glyph for a
+ * `<Spinner>` / a checkmark and inert the input+drop handlers — caller-driven states (the caller
+ * owns the actual upload request); this primitive holds no timer for clearing `success`.
+ *
  * Usage: `<Field label="Avatar"><FileDropzone accept="image/*" maxSizeBytes={20_000_000}
  *   onFilesSelected={({ accepted }) => upload(accepted[0])} /></Field>`
  */
@@ -99,6 +134,8 @@ export function FileDropzone({
   accept,
   multiple = false,
   disabled = false,
+  loading = false,
+  success = false,
   maxSizeBytes,
   onFilesSelected,
   instructions = "Drag and drop, or click to browse",
@@ -109,6 +146,8 @@ export function FileDropzone({
   const [dragOver, setDragOver] = useState(false);
   const [rejected, setRejected] = useState<FileDropzoneRejection[]>([]);
   const slots = fileDropzoneVariants();
+  // biome-ignore lint/nursery/useNullishCoalescing: a real boolean OR — `disabled`/`loading` are both plain `boolean` (defaulted above), so `??` (which only falls through on null/undefined) would silently ignore an explicit `false` and isn't equivalent here.
+  const inert = disabled || loading;
 
   const processFiles = (list: FileList | null): void => {
     if (list === null) {
@@ -167,18 +206,21 @@ export function FileDropzone({
       className={slots.root({ className })}
       data-disabled={disabled ? "" : undefined}
       data-drag-over={dragOver ? "" : undefined}
+      data-loading={loading ? "" : undefined}
       data-slot="file-dropzone"
-      onDragEnter={disabled ? undefined : handleDragEnter}
-      onDragLeave={disabled ? undefined : handleDragLeave}
-      onDragOver={disabled ? undefined : handleDragOver}
-      onDrop={disabled ? undefined : handleDrop}
+      data-success={success ? "" : undefined}
+      onDragEnter={inert ? undefined : handleDragEnter}
+      onDragLeave={inert ? undefined : handleDragLeave}
+      onDragOver={inert ? undefined : handleDragOver}
+      onDrop={inert ? undefined : handleDrop}
     >
       <BaseField.Control
         render={
           <input
             accept={accept}
             className={slots.input()}
-            disabled={disabled}
+            data-slot="file-dropzone-input"
+            disabled={inert}
             multiple={multiple}
             onChange={handleChange}
             type="file"
@@ -187,7 +229,7 @@ export function FileDropzone({
         }
       />
       <div className={slots.content()} data-slot="file-dropzone-content">
-        <Icon className={slots.icon()} icon={Upload} size="lg" />
+        <FileDropzoneGlyph loading={loading} slots={slots} success={success} />
         <p className={slots.instructions()}>{instructions}</p>
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>

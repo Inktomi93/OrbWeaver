@@ -68,3 +68,36 @@ test("hiddenUntilFound renders the closed panel with hidden='until-found'", asyn
   await expect(panel).toBeAttached();
   await expect(panel).toHaveAttribute("hidden", "until-found");
 });
+
+test("the trigger is keyboard-operable (Enter and Space both toggle)", async ({ mount, page }) => {
+  await mount(
+    <Collapsible>
+      <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+      <CollapsiblePanel>Hidden details</CollapsiblePanel>
+    </Collapsible>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Advanced" });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByText("Hidden details")).toBeVisible();
+
+  await page.keyboard.press(" ");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Hidden details")).toBeHidden();
+});
+
+test("disabled on the root disables the trigger and blocks toggling", async ({ mount, page }) => {
+  await mount(
+    <Collapsible disabled={true}>
+      <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+      <CollapsiblePanel>Hidden details</CollapsiblePanel>
+    </Collapsible>,
+  );
+
+  const trigger = page.getByRole("button", { name: "Advanced" });
+  await expect(trigger).toHaveAttribute("data-disabled", "");
+  await expect(trigger).toBeDisabled();
+  await expect(page.getByText("Hidden details")).toBeHidden();
+});

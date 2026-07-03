@@ -97,3 +97,88 @@ export function UnboundedMessageList({ itemCount, rowHeightPx }: UnboundedProps)
     </TripwireBoundary>
   );
 }
+
+const DERIVED_SOURCE: readonly FixtureItem[] = [
+  { id: "a", label: "Alpha" },
+  { id: "b", label: "Bravo" },
+  { id: "c", label: "Charlie" },
+];
+
+/**
+ * R7 (ui-primitive-contract, the systemic gap missing from all 3 virtual seals): the parent
+ * re-renders passing a freshly-DERIVED items array — not a stable module-const reference.
+ */
+export function DerivedItemsMessageList(): ReactElement {
+  const [bump, setBump] = useState(0);
+  const items = DERIVED_SOURCE.filter((entry) => entry.label.length > 0).map((entry) => ({
+    ...entry,
+  }));
+  return (
+    <div>
+      <button data-testid="rerender" onClick={(): void => setBump((n) => n + 1)} type="button">
+        rerender {bump}
+      </button>
+      <div style={{ height: 200 }}>
+        <MessageList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => 40}
+          renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+function makeOlderItems(count: number): FixtureItem[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `older-${index}`,
+    label: `Older ${index}`,
+  }));
+}
+
+interface PrependableListProps {
+  readonly initialCount: number;
+  readonly rowHeightPx: number;
+  readonly listHeightPx: number;
+}
+
+/**
+ * The "load older history" shape: the reader is scrolled to the MIDDLE of the thread (not the
+ * tail), then a batch of older items is PREPENDED — this is what message-list's own doc claims
+ * (`getItemKey` is "id-based... lets the... bottom-anchor survive a prepend") and what R8's
+ * `getItemKey`-keyed measurement cache (verified against the shipped virtual-core source: the
+ * cache is keyed by `getItemKey(index)`, not by index) makes true by construction. The prepend
+ * shifts every existing item's INDEX but not its KEY, so the reader's viewport position (which
+ * message is on screen) must survive untouched.
+ */
+export function PrependableList({
+  initialCount,
+  rowHeightPx,
+  listHeightPx,
+}: PrependableListProps): ReactElement {
+  const [items, setItems] = useState<FixtureItem[]>(() => makeItems(initialCount));
+  return (
+    <div>
+      <button
+        type="button"
+        data-testid="prepend"
+        onClick={(): void => setItems((prev) => [...makeOlderItems(20), ...prev])}
+      >
+        Load older
+      </button>
+      <div style={{ height: listHeightPx }}>
+        <MessageList
+          items={items}
+          getItemKey={(item): string => item.id}
+          estimateSize={(): number => rowHeightPx}
+          renderItem={(item): ReactElement => (
+            <div style={{ height: rowHeightPx }}>{item.label}</div>
+          )}
+          className="h-full"
+        />
+      </div>
+    </div>
+  );
+}

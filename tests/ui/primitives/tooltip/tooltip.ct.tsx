@@ -1,4 +1,4 @@
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
+import { Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { TooltipHandleHarness } from "./tooltip-handle.fixtures";
 
@@ -21,6 +21,21 @@ test("shows on hover and hides when the pointer leaves", async ({ mount, page })
 
   await page.mouse.move(600, 400);
   await expect(page.getByText("Regenerate the last reply")).toBeHidden();
+});
+
+test("renders an arrow inside the popup", async ({ mount, page }) => {
+  await mount(
+    <Tooltip>
+      <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
+      <TooltipPopup>
+        <TooltipArrow />
+        Regenerate the last reply
+      </TooltipPopup>
+    </Tooltip>,
+  );
+
+  await page.getByRole("button", { name: "Regenerate" }).hover();
+  await expect(page.locator('[data-slot="tooltip-arrow"]')).toBeVisible();
 });
 
 test("shows on keyboard focus", async ({ mount, page }) => {

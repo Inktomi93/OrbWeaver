@@ -135,6 +135,67 @@ test("disabled blocks both pointer and keyboard reorder", async ({ mount, page }
   await expect(page.getByTestId("reorder-count")).toHaveText("0");
 });
 
+test("reduced motion: a completed drag produces no perceptible (non-zero-duration) animation", async ({
+  mount,
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(() => {
+    (globalThis as unknown as { __durations: number[] }).__durations = [];
+    const proto = Element.prototype as unknown as {
+      animate: (keyframes: unknown, options?: unknown) => Animation;
+    };
+    const original = proto.animate;
+    // A real `function` (not an arrow) — mirrors the message-list.ct.tsx scrollTo-patch pattern:
+    // `this` must be the actual animating element for the native call to succeed.
+    proto.animate = function patchedAnimate(
+      this: Element,
+      keyframes: unknown,
+      options?: unknown,
+    ): Animation {
+      const duration =
+        typeof options === "object" && options !== null && "duration" in options
+          ? Number((options as { duration?: number }).duration ?? 0)
+          : 0;
+      (globalThis as unknown as { __durations: number[] }).__durations.push(duration);
+      return original.call(this, keyframes, options);
+    };
+  });
+
+  await mount(<ReorderableList handle={true} itemCount={3} />);
+  const handles = page.locator('[data-slot="sortable-handle"]');
+  const rows = page.locator('[data-slot="sortable-item"]');
+
+  const firstHandleBox = await handles.nth(0).boundingBox();
+  const lastRowBox = await rows.nth(2).boundingBox();
+  if (firstHandleBox === null || lastRowBox === null) {
+    throw new Error("sortable CT: missing bounding box for drag geometry");
+  }
+  await page.mouse.move(
+    firstHandleBox.x + firstHandleBox.width / 2,
+    firstHandleBox.y + firstHandleBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(lastRowBox.x + lastRowBox.width / 2, lastRowBox.y + lastRowBox.height - 4, {
+    steps: 10,
+  });
+  await page.mouse.up();
+
+  await expect(rows.nth(0)).toContainText("Item 1");
+  await expect(page.getByTestId("reorder-count")).toHaveText("1");
+
+  const durations = await page.evaluate(
+    () => (globalThis as unknown as { __durations: number[] }).__durations,
+  );
+  // Every WAAPI animation dnd-kit ran during this drag+drop — the sibling FLIP reposition AND
+  // the drop-settle bounce — has ZERO duration under reduced motion: the FLIP reposition via
+  // `useSortable`'s own internal prefers-reduced-motion check, and the drop-settle because this
+  // seal's `Feedback.configure({ dropAnimation: null })` skips it before any WAAPI call runs at
+  // all (so it never even reaches this patched `animate`).
+  expect(durations.length).toBeGreaterThan(0);
+  expect(durations.every((duration) => duration === 0)).toBe(true);
+});
+
 test("reorders correctly when the parent passes a freshly-derived items array each render", async ({
   mount,
   page,
