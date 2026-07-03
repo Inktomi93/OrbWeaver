@@ -6,7 +6,7 @@
 // OWNERSHIP STAMP (ledger D23 — the one-FK-to-an-owned-parent test):
 //   • owner_stats / daily_stats / model_stats KEEP `ownerId` — they are PARENTLESS per-user aggregates
 //     (owner × {— | day | model×provider}); `ownerId` is the row's OWN key, not a redundant mirror.
-//     FK users RESTRICT (a user with a rollup cannot be hard-deleted out from under it; stats.md §7.1).
+//     FK users RESTRICT (a user with a rollup cannot be hard-deleted out from under it).
 //   • character_stats DROPS `ownerId` — it has a single owning parent (the character), so the owner is
 //     reachable by ONE FK (`characterId → characters.ownerId`); per-owner reads scope via
 //     `characterId ∈ {my characters}` (the leaderboard/character verbs JOIN characters). Keyed on
@@ -18,8 +18,8 @@
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
 // (`character`, `(owner, day)`, `(owner, model, provider)`).
 //
-// `model_stats.provider` is `NOT NULL DEFAULT '(unknown)'` — LOAD-BEARING (stats.md esoteric #3 /
-// invariant #5): the `(ownerId, model, provider)` unique-index upsert relies on it. SQLite treats SQL
+// `model_stats.provider` is `NOT NULL DEFAULT '(unknown)'` — LOAD-BEARING (invariant #5): the
+// `(ownerId, model, provider)` unique-index upsert relies on it. SQLite treats SQL
 // NULLs as DISTINCT, so a true-NULL provider would never conflict-match and would accumulate duplicate
 // rows across every recompute. `@orb/kit/stats-tally.modelKey` coalesces `null → '(unknown)'` for BOTH the
 // live delta AND reconcile; this schema default is the third key site that must coalesce identically.
@@ -27,11 +27,11 @@
 // TIMESTAMPS are plain EPOCH-MS NUMBER columns (`integer`), never drizzle `timestamp_ms`/Date — the stats
 // views type every timestamp as `number` and the delta's `now`/`firstAt`/`lastAt` are epoch-ms numbers.
 // `firstChatAt` (MIN) · `lastActivityAt` (MAX) · `maxContextTokens` (MAX) are NON-additive extrema merged
-// by MIN/MAX in the upsert (stats.md esoteric #6), not `col += delta`. `computedAt` (MAX) is freshness.
+// by MIN/MAX in the upsert, not `col += delta`. `computedAt` (MAX) is freshness.
 // NO TTFT/gen percentile columns anywhere — percentiles are computed ON READ, never stored (invariant #6).
 //
-// Cache economics (`cacheReadTokens`/`cacheWriteTokens`) + `maxContextTokens` are OWNER + MODEL grain only
-// (stats.md esoteric #5), NOT per-character — character_stats omits them.
+// Cache economics (`cacheReadTokens`/`cacheWriteTokens`) + `maxContextTokens` are OWNER + MODEL grain only,
+// NOT per-character — character_stats omits them.
 
 import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -97,7 +97,7 @@ export const characterStats = sqliteTable(
   {
     // TypeID PK (`character_stat_…`), minted in domain/stats/write/*; brand is type-only, SQL is TEXT.
     id: text("id").$type<CharacterStatId>().primaryKey(),
-    // The owning character. CASCADE: the rollup dies with its character (stats.md §7.1).
+    // The owning character. CASCADE: the rollup dies with its character.
     characterId: text("character_id")
       .$type<CharacterId>()
       .notNull()

@@ -327,7 +327,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       batchStmt(ctx.db.insert(chatParticipants).values(rosterRows)),
       ...seed.stmts,
     ];
-    // The canon-mutator stats push (stats.md): the chat-created counters + each verbatim greeting's
+    // The canon-mutator stats push: the chat-created counters + each verbatim greeting's
     // contribution ride the SAME creation batch (a `generate` opening's delta is the engine's — its turn
     // pushes per its own persist arm). Owner = the creator (the room host, D19).
     ctx.applyStatsDelta(

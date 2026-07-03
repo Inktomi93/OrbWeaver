@@ -1,12 +1,12 @@
 // domain/chat/substrate/stats-delta — the StatsDelta BUILDERS (chat.md movement table: "stats-delta
 // builders STAY chat; applyStatsDelta injected"). RELOCATED engine/ → substrate/ when the canon-mutator
-// verbs became consumers (stats.md: start-chat/edit/delete/fork push too — the
+// verbs became consumers (start-chat/edit/delete/fork push too — the
 // `domain-substrate-mediates-subsystems` gate homes verb-shared pure helpers HERE, not in a named
 // subsystem). The builders are chat's; the APPLY is the injected
 // `ctx.applyStatsDelta` (the upsert into the four rollup tables — `domain/stats`), pushed into the SAME
 // `db.batch` as the canon write so the rollups stay fresh with no rebuild.
 //
-// THE DRIFT GATE (stats.md inv #3): a builder computes the CHANGE its write makes — an APPEND (a new
+// THE DRIFT GATE: a builder computes the CHANGE its write makes — an APPEND (a new
 // message) emits the new contribution. The SAME `@orb/kit/stats-tally` primitives (`wordCount`/`utcDay`/
 // `modelKey`) run here AND in `reconcileStats`, so the live delta can never drift from a rebuild.
 //
@@ -137,7 +137,7 @@ export function userMessageDelta(params: {
   };
 }
 
-// ═══ Canon-mutator builders (stats.md §"Cross-feature composition": start-chat / edit / delete / fork ═══
+// ═══ Canon-mutator builders (the cross-feature composition: start-chat / edit / delete / fork ═══
 // push their rollup delta into the SAME canon batch). Each mirrors `reconcileStats`'s folds over the D26
 // canon (rebuild-from-canon.ts foldMessage/foldSwipe) with a SIGN so a delete emits the exact negative of
 // the rebuild's contribution — the drift-gate contract (stats inv #3).
@@ -367,6 +367,9 @@ export function chatCreatedDelta(params: {
   readonly forked: boolean;
   readonly now: number;
 }): StatsDelta {
+  // FLAG[PD-96]: this is the first-chat site, but the delta omits `newCharacter`, so live
+  // `owner_stats.characters` never increments — it stays 0 until a reconcile. Wiring it needs a
+  // "first chat for this character?" existence check (here or in start-chat) before setting newCharacter.
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,

@@ -194,7 +194,7 @@ function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
       content: clean,
       editedAt: now,
     });
-    // The canon-mutator stats push (stats.md): the NET word/byte change rides the SAME batch as the edit
+    // The canon-mutator stats push: the NET word/byte change rides the SAME batch as the edit
     // (bucketed on the slot's ORIGINAL day — the rebuild folds by createdAt). Owner = the room host (D19).
     ctx.applyStatsDelta(
       statements,
@@ -317,7 +317,7 @@ function createDeleteMessages(
         chatId,
       );
     }
-    // The canon-mutator stats push (stats.md; the neo delete precedent): each removed slot's SELECTED-
+    // The canon-mutator stats push (the neo delete precedent): each removed slot's SELECTED-
     // variant contribution + each of its NON-selected swipes are subtracted (sign −1 — the exact negative
     // of the rebuild's fold) in the SAME batch as the delete. Rows are read BEFORE the delete lands.
     const now = ctx.now();
