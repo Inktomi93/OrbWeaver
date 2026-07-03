@@ -19,7 +19,10 @@ export type {
   MacroRegisterOptions,
   MacroRegistry,
   TextNode,
+  VarOp,
 } from "./types";
+// D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.
+export { applyVarOp, foldVarOps } from "./variables";
 
 // Defense-in-depth caps. `{{setvar::a::{{a}}}}`-style chains are unbounded in one render pass
 // without these; trivially DoS-able if multi-user is ever turned on. Generous limits — real

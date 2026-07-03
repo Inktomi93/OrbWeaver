@@ -49,8 +49,10 @@ import {
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
+  loadVariableDeltas,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { assistantTurnDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
@@ -158,6 +160,10 @@ function variantPayloadOf(
     terminalReason: e?.terminalReason ?? null,
     params: prep.intent,
     promptSnapshot: result.request.prompt,
+    // D46 runtime plane: the turn's macro op-log (setvars recorded across every section render + regex/guided
+    // context, by-reference) IS this variant's delta — COPIED (the shared per-round array is cleared after each
+    // speaker's commit, so a snapshot must not alias it). Empty ⇒ persisted as null (the "no mutations" contract).
+    variableDelta: [...(prep.assembleContext.opLog ?? [])],
   };
 }
 
@@ -176,6 +182,10 @@ async function commitGeneration(args: {
 }): Promise<MessageView> {
   const { ctx, deps, prep, persist, target, result, nextSeq } = args;
   const variant = variantPayloadOf(prep, result);
+  // D46: a group round REUSES one assembleContext across its speakers (round.ts `buildSpeakerPrep`), so the
+  // by-reference op-log accumulates. `variant.variableDelta` snapshotted THIS turn's ops above; clear the shared
+  // log now so the next speaker's delta starts empty (each variant records only the mutations ITS assembly ran).
+  prep.assembleContext.opLog?.splice(0);
 
   let statements: BatchStmt[];
   let speakerCharacterId: CharacterId | null;
@@ -246,6 +256,21 @@ async function commitGeneration(args: {
     now: ctx.now(),
   });
   ctx.applyStatsDelta(statements, ctx.db, delta);
+
+  // D46 runtime plane: recompute `chats.runtime_variables` reflecting THIS commit's delta, in the SAME atomic
+  // batch as the canon write. The fold source is the CURRENT selected-variant chain (loaded pre-batch) with this
+  // turn's variant folded in: new-slot APPENDS at the tail seq; append-variant/continue OVERRIDE the target
+  // slot's delta (its selected variant is now this turn's). Derive-don't-stamp — a later swipe re-folds (#3263).
+  const turnDelta = variant.variableDelta ?? [];
+  const currentDeltas = await loadVariableDeltas(ctx.db, prep.chatId);
+  const postEntries =
+    persist.mode === "new-slot" || target === null
+      ? [...currentDeltas, { seq: nextSeq, delta: turnDelta }]
+      : currentDeltas.map((e) =>
+          e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e,
+        );
+  statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
+
   await ctx.db.batch(batchMany(statements));
 
   const view = await loadView();

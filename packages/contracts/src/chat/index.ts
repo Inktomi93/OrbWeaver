@@ -40,6 +40,7 @@ import type {
 } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
+import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -268,8 +269,16 @@ export interface AssembleContext {
   compactSummary?: string | null;
   /** Retrieved chat-history memory (the `{{memory}}` marker), pre-formatted by the memory subsystem. */
   memory?: string | null;
-  /** Per-chat ChoiceBlock variable values (`{{get::<name>}}`). */
+  /** Per-chat ChoiceBlock variable values (the `getvar` map). The D46 merged env seed — the resolved config
+   *  picks with the runtime fold cache overlaid — threaded BY REFERENCE so a within-turn `setvar` mutates it in
+   *  place. */
   variableValues?: Record<string, string> | undefined;
+  /** D46 runtime plane — the ORDERED log of variable mutations the macro engine records this turn (setvar /
+   *  incvar / …). Owned per-assembly (one array, threaded BY REFERENCE into every macro context — section
+   *  renders + regex/guided — the `env`-by-reference sibling); after the turn it IS the produced variant's
+   *  `variable_delta`. Absent means mutations are applied to `variableValues` but not recorded (assembly-only
+   *  re-renders / previews / tests). */
+  opLog?: VarOp[] | undefined;
   /** One-turn ephemeral guidance for the `{{guided_instruction}}` marker. NEVER persisted; ALWAYS dynamic. */
   guidedInstruction?: string | null;
   /** Per-speaker group nudge fence — set FRESH per speaker (never accumulates), never persisted/rendered. */
@@ -372,6 +381,23 @@ export interface MessageVariant {
  *  the born-compliant column is typed while the baseline window is open. The rest of T1 (the `HISTORY_ROLES`
  *  `tool` role, tool-call/tool-result `ChatContentPart` members, `tools`/`toolChoice`/`responseFormat` request
  *  fields, the `CHAT_WARNING_CODES` tool codes) + the domain-owned recurse loop remain (registry: PD-54 ready). */
+/** ONE recorded runtime variable mutation (D46) — the read-parse boundary for `message_variants.variable_delta`.
+ *  A discriminated union on `op` MIRRORING the kit {@link VarOp} (`set`/`add` carry a string `value`; `inc`/`dec`/
+ *  `delete` don't). The db column is `$type<readonly VarOp[]>`; every read parses through {@link variableDeltaSchema}
+ *  (the `parseChatMetadata` `.safeParse` pattern — never a cast). `satisfies z.ZodType<VarOp>` keeps this schema
+ *  and the kit union from drifting: change the kit `VarOp` and this stops compiling. */
+export const varOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("set"), key: z.string(), value: z.string() }),
+  z.object({ op: z.literal("add"), key: z.string(), value: z.string() }),
+  z.object({ op: z.literal("inc"), key: z.string() }),
+  z.object({ op: z.literal("dec"), key: z.string() }),
+  z.object({ op: z.literal("delete"), key: z.string() }),
+]) satisfies z.ZodType<VarOp>;
+
+/** The ordered per-variant delta (`message_variants.variable_delta`). Parsed at the read seam; folded along the
+ *  selected-variant chain (`foldVarOps`) into `chats.runtime_variables` (D46 runtime plane). */
+export const variableDeltaSchema = z.array(varOpSchema);
+
 export const toolCallRecordSchema = z.object({
   // biome-ignore lint/plugin/no-raw-id: PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),

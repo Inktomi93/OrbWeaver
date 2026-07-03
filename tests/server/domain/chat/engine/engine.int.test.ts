@@ -8,7 +8,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { messageVariants } from "@orb/db";
+import { chats, messageVariants } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ChatId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -203,6 +203,67 @@ describe("createTurnEngine — happy path", () => {
     await h.engine.runTurn(prepOf(chatId));
     const history = await loadCanonHistory(db, chatId);
     expect(history.map((m) => m.seq)).toEqual([1, 2]);
+  });
+});
+
+describe("createTurnEngine — D46 runtime plane (delta persist + cache recompute)", () => {
+  async function runtimeCache(chatId: ChatId): Promise<Record<string, string> | null> {
+    const [row] = await db
+      .select({ runtimeVariables: chats.runtimeVariables })
+      .from(chats)
+      .where(eq(chats.id, chatId));
+    return row?.runtimeVariables ?? null;
+  }
+
+  test("a turn persists its op-log as the variant delta + folds the runtime cache; the cache survives the next turn", async () => {
+    const chatId = await seedChat(db, "vars");
+    const h = harness(db);
+
+    // Turn 1's assembly recorded a setvar (X=1) on the op-log (the by-reference sink macros push to).
+    const ctxSet: AssembleContext = {
+      ...ASSEMBLE_CTX,
+      opLog: [{ op: "set", key: "hp", value: "1" }],
+    };
+    await h.engine.runTurn(prepOf(chatId, { assembleContext: ctxSet }));
+
+    const history1 = await loadCanonHistory(db, chatId);
+    const [v1] = await db
+      .select({ variableDelta: messageVariants.variableDelta })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, castId(history1[0]?.selectedVariantId ?? "")));
+    expect(v1?.variableDelta).toEqual([{ op: "set", key: "hp", value: "1" }]);
+    expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
+
+    // Turn 2 sets nothing (empty op-log) — the cache SURVIVES (the fold still replays turn 1's delta).
+    await h.engine.runTurn(prepOf(chatId, { assembleContext: { ...ASSEMBLE_CTX, opLog: [] } }));
+    expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
+  });
+
+  test("a group round SHARING one assembleContext clears the op-log per commit (no cross-speaker double-count)", async () => {
+    const chatId = await seedChat(db, "grp");
+    const h = harness(db);
+    // ONE assembleContext reused across sequential speakers (the round.ts `buildSpeakerPrep` pattern) — the
+    // op-log is a by-reference array both speakers push to.
+    const shared: AssembleContext = {
+      ...ASSEMBLE_CTX,
+      opLog: [{ op: "set", key: "hp", value: "1" }],
+    };
+
+    // Speaker 1 commits [set hp=1]; the shared array is cleared after commit.
+    await h.engine.runTurn(prepOf(chatId, { assembleContext: shared }));
+    // Speaker 2's assembly pushes ONE op onto the (now-cleared) shared array.
+    shared.opLog?.push({ op: "inc", key: "hp" });
+    await h.engine.runTurn(prepOf(chatId, { assembleContext: shared }));
+
+    const history = await loadCanonHistory(db, chatId);
+    const [v2] = await db
+      .select({ variableDelta: messageVariants.variableDelta })
+      .from(messageVariants)
+      .where(eq(messageVariants.id, castId(history[1]?.selectedVariantId ?? "")));
+    // Speaker 2's delta is ITS op ONLY — NOT [set hp=1, inc hp] (the double-count the clear prevents).
+    expect(v2?.variableDelta).toEqual([{ op: "inc", key: "hp" }]);
+    // Fold: M1 sets 1, M2 incs → 2 (each op applied exactly once across the chain).
+    expect(await runtimeCache(chatId)).toEqual({ hp: "2" });
   });
 });
 

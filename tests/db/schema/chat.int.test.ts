@@ -48,6 +48,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -137,9 +138,12 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
   const chatId = castId<ChatId>("chat_vars");
   // The per-chat ChoiceBlock variable flush (setVariables writes it; getStoredVariables reads it).
   const variableValues = { a: "1" };
+  // The D46 DERIVED runtime cache — distinct column from the config-plane `variableValues` store.
+  const runtimeVariables = { mood: "happy", turns: "3" };
   await db.insert(chats).values({
     id: chatId,
     variableValues,
+    runtimeVariables,
     importedFrom: "session-2026.jsonl",
     importHash: "sha256-of-import-bytes",
   });
@@ -148,6 +152,9 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
   // The typed read (drizzle hands back the parsed object as-is) + the generic read-seam parser.
   expect(row?.variableValues).toEqual(variableValues);
   expect(parseRecord(row?.variableValues)).toEqual(variableValues);
+  // The runtime cache round-trips independently of the config store (two planes, two columns — D46).
+  expect(row?.runtimeVariables).toEqual(runtimeVariables);
+  expect(parseRecord(row?.runtimeVariables)).toEqual(runtimeVariables);
   expect(row?.importedFrom).toBe("session-2026.jsonl");
   expect(row?.importHash).toBe("sha256-of-import-bytes");
 });
@@ -255,6 +262,12 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
       durationMs: 12,
     },
   ];
+  // The D46 per-variant delta (`variable_delta`) — the ordered ops this variant applied.
+  const variableDelta: readonly VarOp[] = [
+    { op: "set", key: "mood", value: "happy" },
+    { op: "inc", key: "turns" },
+    { op: "delete", key: "stale" },
+  ];
   await db.insert(messageVariants).values({
     id: variantId,
     messageId,
@@ -263,6 +276,7 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
     terminalReason: "api_error",
     apiErrorStatus,
     toolCalls,
+    variableDelta,
   });
 
   const v = (await db.select().from(messageVariants).where(eq(messageVariants.id, variantId)))[0];
@@ -272,6 +286,8 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
   expect(v?.terminalReason).toBe("api_error");
   // The typed json round-trips through the driver as the stored ToolCallRecord[] shape.
   expect(v?.toolCalls).toEqual(toolCalls);
+  // The per-variant delta round-trips as the stored VarOp[] (the runtime-plane fold source — D46).
+  expect(v?.variableDelta).toEqual(variableDelta);
 });
 
 test("deleting a message CASCADEs its variants (D26)", async () => {
