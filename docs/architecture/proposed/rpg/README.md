@@ -1,3 +1,9 @@
+---
+kind: history
+status: superseded
+updated: 2026-07-03
+---
+
 # rpg/ — SUPERSEDED (tombstone)
 
 > The exhaustive marinara RPG research corpus that lived here (state model, endpoint flow spines,

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — The edit seam, avatar references (B3), and the reuse gate (B2)
 
 > **Status: COMMITTED (D49 item 1) — prescriptive design.** The hosted image-EDIT capability gate,

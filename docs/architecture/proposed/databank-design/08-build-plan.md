@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 08 — Build Plan: Chunks, Checkpoints, Test Matrix, the Resolved-Questions Ledger
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** DB1–DB8 shippable chunks, honestly

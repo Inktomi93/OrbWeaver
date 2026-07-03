@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — Actions: the Closed Union, Capabilities, Budgets, and the Cascade Guard
 
 > **Status: COMMITTED (D46) — prescriptive design; the ledger D-entry wins on any conflict.** What a

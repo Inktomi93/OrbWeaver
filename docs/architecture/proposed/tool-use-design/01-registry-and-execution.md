@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 01 — The Registry: Entry Contract, Execution Path, `can()` Gating, Registration
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then

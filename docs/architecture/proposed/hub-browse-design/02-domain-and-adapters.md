@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — The domain shape + the `HubAdapter` model (B5b)
 
 > **Status: COMMITTED (D61, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

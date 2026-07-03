@@ -1,3 +1,9 @@
+---
+kind: history
+status: active
+updated: 2026-07-03
+---
+
 # Marinara Residue — the NON-RPG survivors (ALL ROWS DECIDED — a closed record)
 
 > **Status: DECIDED IN FULL (D58 · D59 · D61).** The RPG system — marinara's largest feature — is

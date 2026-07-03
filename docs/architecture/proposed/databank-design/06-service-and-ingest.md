@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 06 — The `DatabankService` Surface and the Ingest Subsystem
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** Every verb with its params/result zod

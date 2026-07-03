@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Import — the ST-profile waves (PD-77 + PD-78): chats · personas · lorebook · loader · backfill
 
 > **Status: unbuilt design (blocked:later).** Carved out of the gutted `domains/import.md` when the

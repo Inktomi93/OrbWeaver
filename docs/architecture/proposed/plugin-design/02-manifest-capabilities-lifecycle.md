@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — Manifest, Capabilities, and the `domain/plugin` Lifecycle
 
 > **Status: COMMITTED (D46) — prescriptive design; the ledger D-entry wins on any conflict.** The

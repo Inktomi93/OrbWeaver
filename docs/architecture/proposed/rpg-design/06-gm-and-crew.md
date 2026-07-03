@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 06 — The GM: Preset-Owned Voice, the Format Reminder, and the Async Crew
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** How the GM is COMPOSED: (in-turn) the preset-owned

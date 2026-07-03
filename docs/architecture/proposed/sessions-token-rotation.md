@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: session-token rotation on privilege transition (`sessions`)
 
 > **Status: deliberate non-behavior + a trigger condition.** Extracted from the gutted

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 01 — Verdicts and Vision: what the plain-chat crew IS (and what lives elsewhere)
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

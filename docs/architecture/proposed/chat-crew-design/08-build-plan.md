@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 08 — The Build Plan (independently shippable chunks) + Test Plan
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

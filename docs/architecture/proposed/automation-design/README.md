@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Automation Design — the prescriptive plan for `domain/automation` (D46 Tier 1, doc-set index)
 
 > **Status: COMMITTED (D46, 2026-06-28).** This doc set is the authoritative BUILD design for the

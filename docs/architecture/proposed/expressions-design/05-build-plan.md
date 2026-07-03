@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — Build Plan: E1–E5 (sizes, dependencies, checkpoints, tests)
 
 > **Status: COMMITTED (D49 item 4) — prescriptive design; the ledger D-entry wins on any conflict.**

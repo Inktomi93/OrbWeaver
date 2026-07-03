@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — Domain Shape and State: `domain/crew`, its Satellites, and Every Table
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

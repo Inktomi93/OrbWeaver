@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 12 — The GM Seat: Human GM, AI GM, and the Hybrid Table
 
 > **Status: COMMITTED (D58 + Nate's seat directive, 2026-07-01) — prescriptive design; the ledger

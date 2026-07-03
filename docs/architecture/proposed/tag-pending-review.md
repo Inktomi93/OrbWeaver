@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: tag pending-review read surface (the Accept/Reject flow's server half)
 
 > Carved out of `domains/tag.md` at its 2026-07 gutting (the built domain's doc deleted; code is the

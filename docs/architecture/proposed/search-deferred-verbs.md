@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed — `search`: the deferred verb set (PD-35 · PD-36 · PD-37 · PD-38)
 
 > Gap doc from gutting `domains/search.md` (built domain; code is truth). The BUILT surface —

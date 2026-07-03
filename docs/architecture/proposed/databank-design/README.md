@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Databank Design — the prescriptive plan for `domain/databank` (doc-set index)
 
 > **Status: COMMITTED (D49 item 5, 2026-06-28).** Data Bank / document-RAG IS built, as a post-chat

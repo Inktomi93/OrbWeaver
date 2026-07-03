@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — Integration seams: /imagine, chat wiring, workloads, consumers
 
 > **Status: COMMITTED (D49 item 1) — prescriptive design.** Who calls imagery, through what, with

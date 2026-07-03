@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — Schema (full DDL) and Contracts
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design; the ledger D-entry wins on any conflict.**

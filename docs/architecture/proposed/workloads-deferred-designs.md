@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: workloads — deferred designs (per-user authz, DAG scheduler, kind collapse)
 
 > **Status: proposed / deferred-with-criteria.** Salvaged from the gutted `domains/workloads.md`

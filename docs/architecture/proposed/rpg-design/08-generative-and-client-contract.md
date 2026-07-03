@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 08 — The Generative Layer & the Client Contract (server side)
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Two halves: (§1–4) the rpg-owned IMAGERY

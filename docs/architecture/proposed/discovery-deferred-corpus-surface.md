@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed — `discovery`: the deferred corpus surface (PD-40 · PD-39)
 
 > Gap doc from gutting `domains/discovery.md` (partially-built domain; code is truth). The BUILT

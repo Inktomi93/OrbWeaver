@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — State Model & Schema (every table, every contract, every semantic)
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete persistence design for `domain/rpg`.

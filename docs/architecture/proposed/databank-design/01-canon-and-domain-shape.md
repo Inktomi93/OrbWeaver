@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 01 — Canon Resolution, Scope Mapping, the Home in the Cake
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design; the ledger D-entry wins on any conflict.**

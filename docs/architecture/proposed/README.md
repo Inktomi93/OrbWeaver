@@ -1,105 +1,104 @@
-# proposed/ — build-grade design sets + Marinara-derived work (index)
+---
+kind: reference
+status: active
+updated: 2026-07-03
+---
 
-> What lives here after the 2026-07-01 slim + the feature-design hardening round: the **committed
-> RPG design set (D58)**, the **committed plain-chat crew design set (D59)**, the **committed
-> agent-principal design set (D60)**, the **committed hub-browse + saved-rosters designs (D61 —
-> the marinara-borrow adoption, COMPLETE)**, the **eight feature-domain build designs** (each the
-> authoritative expansion of an already-committed ledger decision — its `domains/<x>.md` stays the
-> decision record and carries a banner pointing here), and the **non-RPG residue** doc, now a
-> CLOSED evidence record (every row decided: D58/D59/D61). The original marinara research
-> corpus (five analysis docs + the exhaustive `rpg/` corpus) was fully absorbed into the design set
-> and removed to prevent parallel-prose drift — **full text in git history** (the "archive the
-> marinara research corpus" commit immediately preceding the slim).
+# proposed/ — the in-progress board
 
-## What's here
+> ONE tracker for every in-flight design effort staged here: status, canonical docs, moving parts, graft points, live pivot points. Cross-refs (NOT restated here): decisions = the D-entries in `../core/Core-Laws-and-Precedents.md` (they win on conflict) · phase/PD catalogue = `../core/Core-SillyTavern-Feature-Map.md` §2c–2e + the PD registry `../core/Core-Audits-and-Debt.md` · build cursor = `../core/Core-STATUS.md`. The 2026-07-01 adversarial review of every set (all findings APPLIED in `0d0a7fe`) is [`DESIGN-REVIEW-2026-07-01.md`](DESIGN-REVIEW-2026-07-01.md); its **§7 is the consolidated chat-side obligations sheet** — every "obligation #n" below is a row there.
 
-- **[`rpg-design/`](rpg-design/README.md)** — **COMMITTED (D58).** The authoritative, prescriptive
-  design + build plan for `domain/rpg` (12 docs: vision/loop, domain shape, state+schema, mechanics
-  rulebook, turn integration + tool registry, GM preset + crew, encounters/scenes/party,
-  generative + client contract, seams, R1–R11 build plan, client/UI, the GM seat). The ledger D58
-  entry is the decision record; this set wins on detail.
-- **[`chat-crew-design/`](chat-crew-design/README.md)** — **COMMITTED (D59).** The
-  authoritative, prescriptive design + build plan for `domain/crew` — the plain-chat agent crew
-  (README + 8 docs: verdicts/vision, domain shape + state, the four WorkloadKind members,
-  integration/scheduler/rings, the interconnection map, persistent guides, client/UI, the CW1–CW7
-  build plan). Closes the residue B7/B8 rows; echo-chamber is SUBSUMED BY BUDDY. The ledger D59
-  entry is the decision record; this set wins on detail.
-- **[`agent-principal-design/`](agent-principal-design/README.md)** — **COMMITTED (D60).** The
-  authoritative, prescriptive design for agents as first-class principals — the §8.6/PD-17
-  transition ("buddy gets its own ID") (README + 7 docs: identity + the mint
-  (`users.kind`/`ownerUserId` + `provisionAgentPrincipal`), the roster kind split + live
-  `authorUserId` attribution, the capability ceiling (Principal-unconstructability + the closed
-  `canAgent` union), the buddy firewall inversion, the seats (party/GM/crew bright line),
-  ripples, the AP0–AP4 build plan + containment suite). The ledger D60 entry is the decision
-  record; this set wins on detail.
-- **[`tool-use-design/`](tool-use-design/README.md)** — **COMMITTED (D48).** The ONE tool
-  registry + both wire projections (agent-sdk MCP / OpenAI-wire), the registration API, result
-  serialization for the client chips, the structured-output axis, T1–T7 build plan. Its README
-  carries the verified landed-vs-remaining truth table for the D48 seams (only the
-  `ModelCapability` gates are in the tree). Describes the SAME chat-owned recurse loop as
-  D48/chat.md — never a second design. The ledger D48 entry is the decision record; wins on detail.
-- **[`imagery-design/`](imagery-design/README.md)** — **COMMITTED (D49 #1).** The two-step
-  (extract → hosted generate) with real template text, the `edit`/`ImageEditInput` seam +
-  `input.imageEdit` gate, and the folded residue borrows **B2 pick-before-generate** (+ the
-  `imagery_generations` provenance table — a flagged delta to the decision record's "no DB table"
-  line) and **B3 avatar-reference img2img**. One vocabulary with `rpg-design/08`. I0–I5 build plan.
-- **[`expressions-design/`](expressions-design/README.md)** — **COMMITTED (D49 #4).** The
-  classify shaper + snap-to-label contract, the `character_sprites` model + `"sprite"` AssetKind,
-  the per-turn hook (`expressions.onTurnCompleted`, the rpg signature convention), the client
-  stage, and the folded residue borrow **B1 sprite-sheet generation** (`expressions-sprite-sheet`
-  WorkloadKind injecting `imagery.generatePicture`) — resolves the no-sprites early-out gap.
-  E1–E5 build plan.
-- **[`databank-design/`](databank-design/README.md)** — **COMMITTED (D49 #5).** The `documents`
-  canon producer + 3 scope junctions + `document_chunks` (5th vector table), the full
-  `@orb/kit/chunk` spec, the db-free `infra/extraction` loader (the long pole), the
-  `embeddings.store` 5th arm + `search.documents` lens, the `{{databank}}` GATHER graft
-  (`databank.gatherRetrieval` — the precedent rpg-design/05 §0 cites), scrapers, DB1–DB8 build plan.
-- **[`gallery-design.md`](gallery-design.md)** — **COMMITTED (D49 #2).** Gallery v1 (`listOwned`)
-  / v2 (`"gallery"` kind + `gallery_items`), thumbnails/animated-sniff/token-counter, the folded
-  residue borrow **B4 gif proxy**, §0's consolidated `ASSET_KINDS` roster, and §6 — **the home of
-  the B5a remote-fetch (SSRF) prerequisite paragraph** that databank scrapers, B5, and server-side
-  D44 external-media fetches all cite. G1–G7 build plan. Deliberately small.
-- **[`automation-design/`](automation-design/README.md)** — **COMMITTED (D46, Tier 1).** The
-  closed trigger union (+ the TriggerFact re-read rule), CEL over the bound MacroEnv surface, the
-  closed snake_case action union (`generate_image` imports imagery's schema; reserved
-  `enqueue_crew_workload`/`rpg_verb` arms reconcile the crew/rpg seams), budgets/consent + the
-  runaway guard, rule DDL + dispatch, macro-DX, global variables, the D50 PromptTransform seam.
-  A1–A8 build plan.
-- **[`plugin-design/`](plugin-design/README.md)** — **COMMITTED (D46, Tier 2).** The QuickJS-ng
-  WASM host in `infra/plugin-host`: the frozen `PluginHostV1` membrane (11 namespaces, per-function
-  capability annotations), manifest → `can()`, determinism + DoS budgets, dual-mode installed +
-  inline snippets, plugin-sourced tools into the ONE D48 registry, the carried-verbatim
-  rejected-runtime list. P1–P6 build plan + the permanent membrane-escape suite.
-- **[`themes-design.md`](themes-design.md)** — **COMMITTED (D44 §12.1).** The first-class `themes`
-  entity (settings-adjacent home argued; ownerless seed rows), the `theme`/`appearance`
-  UserSettings namespaces, duplicate-to-customize verbs, boot-idempotent seeding.
-- **[`hub-browse-design/`](hub-browse-design/README.md)** — **COMMITTED (D61, B5a + B5b).** The
-  authoritative design for the hardened-egress guard + remote card-hub browsing (README + 3 docs:
-  the `safeFetch`/`isAllowedImageBuffer` spec — SELF-ENFORCING SSRF posture, required host
-  allowlist, dimension caps, the `@orb/kit/image-sniff` home resolving gallery review-flag 2; the
-  `domain/hub` leaf + the ONE capability-flagged `HubAdapter` contract over sealed
-  `infra/network/hubs/` modules + the liveness-probed v1 roster chub/wyvern/chartavern/pygmalion;
-  the browse→preview-via-import-reader→import-front-door flow, rings/rate-limits/kill switch,
-  avatar proxy, NSFW passthrough, client sketch, H1–H7 build plan). H1 ≡ gallery G6 (one work
-  item); gif search's home migrates here per gallery §5's own criterion. The ledger D61 entry is
-  the decision record; this set wins on detail.
-- **[`saved-rosters-design.md`](saved-rosters-design.md)** — **COMMITTED (D61, B6).** Named party
-  presets over the built roster: the `roster_presets` producer row (D23 stamp argued) +
-  `roster_preset_members` real-FK junction, the optional `GroupConfigInput`/anchor payload, CRUD +
-  the additive/idempotent `applyToChat` driving the EXISTING chat roster verbs by injection
-  (chat stays preset-blind), owner-only `can()`, the new-chat picker + save-as-party client
-  sketch, RP1/RP2 chunks + tests. The ledger D61 entry is the decision record; wins on detail.
-- **[`Marinara-Residue-Non-RPG.md`](Marinara-Residue-Non-RPG.md)** — **DECIDED IN FULL
-  (D58/D59/D61) — a closed evidence record.** The adjudicated borrow list (every B-row now a
-  DECIDED pointer at its owning design set, with the verified marinara cites preserved), the
-  scripting cautionary evidence backing D46's rejected alternatives, the agent-pipeline
-  post-mortem, and the group-system validation record. Nothing here awaits a decision.
-- **[`rpg/`](rpg/README.md)** — tombstone (the corpus location; points to git history).
+**Status legend:** `built` (shipped — code is the doc) · `building` (in flight, + where) · `design-locked` (committed + review-clean, awaiting its build slot) · `decided` (closed record) · `deferred:<why>` / `blocked:<what>` (parked, trigger recorded).
 
-## Ground rules
+**Digest vs design set (read this before opening an effort):** five efforts have BOTH a loose digest (`automation.md` · `databank.md` · `expressions.md` · `gallery.md` · `tool-use.md` — each the promoted committed decision record expanding its D-entry) AND a full build design. **The `*-design/` set (for gallery: `gallery-design.md`) is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter.
 
-- Marinara is an EXTERNAL reference app (`neo-tavern/references/marinara-engine`) — not neo-tavern,
-  not SillyTavern. D49 closed only the ST inventory; the marinara borrow rows were each given
-  their own ledger decision (D58/D59/D61) — the mining is CLOSED.
-- Do NOT re-mine marinara for topics the design sets or the residue doc already adjudicate — the
-  verdicts are recorded; git history holds the evidence.
+## 1. Building NOW — the Phase-5 tail
+
+| Effort | Decision | Status | Canonical spec | Grafts into |
+| - | - | - | - | - |
+| Two-plane variables per-variant delta-fold | D46 | **building** — a separate parked build session (resumes after the docs pass) | `automation.md` §1 (Phase-5 law; the design sets consume it, never reshape it) | `domain/chat` engine + persistence; automation/plugin/rpg all stand on it |
+| OpenAI-path tool recurse loop (= tool-use **T4**) | D48 · PD-54 | **next chunk** — the ONE open Phase-5 seam (`domain/chat/engine/pipeline.ts` marks it) | `tool-use-design/03` | `domain/chat` engine; unblocks rpg R4, automation depth-guard, plugin tools |
+
+**Baseline-window riders (must land while the `0000_baseline` squash is open):** agent-principal AP0 ✓ landed (`users.kind`, `agent_principals`, the participant kind-CHECK swap) · rpg R1's 14 tables — NOT landed · crew CW1's tables (`crew_*` ×4 + `card_evolution_proposals`) + the `crew-*` WORKLOAD\_KINDS widening — NOT landed · expressions E1's `ChatBusEvent` `{type:"expression"}` member + CHECK regen — NOT landed (obligation #7).
+
+## 2. The play systems (D58 · D59 · D60)
+
+### rpg — `domain/rpg` (D58) — `design-locked`
+
+- **What:** a chat becomes a table — GM as a SEAT (AI/human/hybrid), server rules engine, RPG context via GATHER, side-effects as D48 tool calls (26 tools), async GM work as WorkloadKinds, swipe-safe typed state (14 tables).
+- **Docs:** [`rpg-design/`](rpg-design/README.md) — README + 12 parts (canonical; no loose digest — the marinara corpus is git history, [`rpg/`](rpg/README.md) is the tombstone).
+- **Moving parts (10 §):** R1 contracts+schema+substrate goldens (L) → R2 state/snapshots (M) → R3 lifecycle-sans-model (L) → R4 turn integration + tools (the heart, L) → R5 event mirror + dice → R6 crew wave 1 + wizard → R7 crew wave 2 → R8 encounter engine (R8b elements LAST, optional) → R9 generative → R10 scenes → R11 client (doc 11: U1 + C1–C13, incl. the committed C11 polish pass).
+- **Depends on / grafts:** chat P5 tail (T4 loop + obligations #10–13: `presetOverride` consumption, `postNarratorMessage`, `getMembership`, `ChatContext.rpg` ops) · imagery (BUILT) for R9 · `worldInfo.upsertEntries` (first builder of rpg R7 / crew CW2 lands it, obligation #22) · AP3/AP4a re-keys the GM seat for agent principals (needs R3).
+- **Open / pivot:** R1 tables must catch the baseline window (§1) · game chats REQUIRE tool-capable models until the Tier-3b textual-tool-call polyfill ships (backend-internal) · `rpg-director` never runs while a human holds the seat.
+
+### chat-crew — `domain/crew` (D59) — `design-locked`
+
+- **What:** the rpg-crew pattern minus the game: 4 WorkloadKind members (lorebook keeper · card-evolution auditor · story director · prose auditor) + persistent guides (verb-not-workload) + a bus-watching scheduler; every member thinks via the ONE sealed `agentTurn`, writes through its domain-of-affect. Echo-chamber SUBSUMED BY BUDDY.
+- **Docs:** [`chat-crew-design/`](chat-crew-design/README.md) — README + 8 parts (canonical; no loose digest).
+- **Moving parts (08 §):** CW1 contracts+schema+skeleton+stub runners (M) → CW2 keeper + scheduler + `runStructuredAgentTurn` (L) → CW3 card evolution → CW4 director → CW5 prose auditor → CW6 persistent guides → CW7 client (doc 07: U1–U6).
+- **Depends on / grafts:** D48 structured-output axis (tool-use T6 — "lands with first consumer", CW2 is a candidate) · chat obligations #15–17, #21 (injection `audience` field + redaction, `CrewContext.chat` GATHER op, `setChatInjection` return shape, `hasActiveGame` wiring) · `worldInfo.upsertEntries` race with rpg R7 (arbitrated in 08).
+- **Open / pivot:** **CW4 has a MANDATORY pre-build director playtest** (Nate 2026-07-01) · keeper default-OFF stands with a revisit-on-evidence criterion (02 §6) · CW1 tables are baseline riders (§1) · the 4 members never run on a chat with an active rpg game (guides exempt).
+
+### agent-principal (D60 · PD-17) — `building` (AP0–AP2 landed; the seat wave pending)
+
+- **What:** agents as real principals — `users.kind:'agent'` + `ownerUserId`, lazy mint via `sessions.provisionAgentPrincipal`, roster `kind:'agent'`, self-attributed room canon, the two-wall capability ceiling (Principal-unconstructability + closed `canAgent` union), containment = one row flip.
+- **Docs:** [`agent-principal-design/`](agent-principal-design/README.md) — README + 7 parts (canonical, D60-authoritative).
+- **Moving parts (07 §):** AP0 baseline riders ✓ · AP1 identity spine ✓ · AP2 roster + attribution + containment suite ✓ (landed; suite in-tree — see `Core-STATUS.md`) → **AP3 + AP4a THE SEAT WAVE (pending)** — buddy seating + the agent-held RPG GM seat as ONE wave, agent-GM demo is the HEADLINE checkpoint → AP4b crew = NO CODE (a bright-line criterion only).
+- **Depends on / grafts:** AP3 needs chat obligation #18 (`chat.seatAgent` + `resolveAgentSpeaker` + attribution arm) · AP4a needs rpg R3 (the game rows to re-key) · buddy-observer must gain the seated-buddy self-quip drop belt when IT builds (04 §6).
+- **Open / pivot:** the borrowed-owner posture stays the SHIPPING posture until AP3 lands · crew stays principal-less until a member authors canon (the bright line).
+
+## 3. Phase-7 feature grafts — `design-locked`, build after the chat tail
+
+| Effort | Decision · PD | Canonical docs | Moving parts | Depends on / grafts into | Open / pivot |
+| - | - | - | - | - | - |
+| tool-use — `domain/tool-use` | D48 · PD-54 | [`tool-use-design/`](tool-use-design/README.md) (README + 5 parts) + digest `tool-use.md` | T1 wire seams → T2 stream accumulator + translators → T3 the registry leaf → **T4 = the §1 recurse loop** → T5 project-mcp + buddy → T6 structured output (lands with first consumer) → T7 client tool block. README carries the verified landed-vs-remaining truth table (only the `ModelCapability` gates are in-tree) | T4 is chat P5 (obligations #1–2); T5 rides buddy; T6 consumers = crew CW2 / rpg | tools × responseFormat exclusivity is a LEAN; T6's first-consumer race is arbitrated in 05 |
+| databank — `domain/databank` | D49 #5 · PD-57 | [`databank-design/`](databank-design/README.md) (README + 8 parts) + digest `databank.md` | DB1 kit/chunk + contracts → DB2 schema + 5th embeddings arm → DB3 `infra/extraction` (**the long pole**, parallel) → DB4 domain core → DB5 `search.documents` lens → DB6 chat graft → DB7 web scraper → DB8 fast-follows | DB6 needs the `{{databank}}` slot reservation (obligation #9, NOT landed) · DB7 needs hub H1 (the guard) | DB3 pdf loader is the only uncertain-cost item (isolated — DB4–6 run on textlike) · prune-verb vs clear-then-restore (05, default: prune) · host-only v1 vs corpus membership-union (flag 2 — a one-site flip later) |
+| expressions — `domain/expressions` | D49 #4 · PD-56 | [`expressions-design/`](expressions-design/README.md) (README + 5 parts) + digest `expressions.md` | E1 contracts + tuples (**baseline rider**, §1) → E2 schema + CRUD leaf → E3 classify + post-turn hook (obligations #7–8) → E4 sprite-sheet workload (needs imagery — BUILT) → E5 client stage | imagery (built) · chat hook ops · assets ref-registry must gain `character_sprites` | the single-active workload lock serializes sheet jobs deployment-wide (accepted, re-scope criterion in 03 §7) |
+| hub-browse — `domain/hub` + the egress guard | D61 (B5a/B5b) | [`hub-browse-design/`](hub-browse-design/README.md) (README + 3 parts) | H1 **the guard** (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`; ≡ gallery G6, ONE work item — unblocks G7/DB7/D44 fetches) → H2 leaf + chub adapter → H3 wyvern/chartavern/pygmalion → H4 preview + import handoff → H5 avatar proxy → H6 client → H7 gif migration (absorbs gallery G7's home) | import front door (built) · `infra/network/egress.ts` staged seam (zero callers today) | pygmalion flow needs build-verification (drop to deferred if closed) · per-user hub credentials = a named flip criterion, not built |
+| saved-rosters — `domain/roster-preset` | D61 (B6) | [`saved-rosters-design.md`](saved-rosters-design.md) (single doc, canonical) | RP1 server (schema + leaf + `applyToChat`, M) → RP2 client picker (S–M, Phase 6) | drives EXISTING chat roster verbs by injection; chat stays preset-blind | none — review-CLEAN |
+| themes — `themes` entity in `domain/settings` | D44 §12.1 | [`themes-design.md`](themes-design.md) (single doc, canonical) | one server chunk: `themes` table + 6 CRUD verbs + ownerless seed rows + `theme`/`appearance` UserSettings namespaces | client halves (`<ThemeScope>`, editor) are BUILT in `@orb/ui`; server verified UNBUILT 2026-07-03 | none — review-CLEAN |
+
+## 4. Phase-8 scripting (D46) — `design-locked`
+
+| Effort | Canonical docs | Moving parts | Depends on / grafts into | Open / pivot |
+| - | - | - | - | - |
+| automation (Tier 1) — `domain/automation` | [`automation-design/`](automation-design/README.md) (README + 5 parts) + digest `automation.md` | A1 macro-DX → A2 CEL + `{{expr}}` → A3 global variables → A4 contracts + rule store → A5 watcher + dispatch (the L) → A6 action arms → A7 `transform_draft` + the D50 seam → A8 client. A1–A3 are kit-early (buildable NOW) | A5–A7 need chat obligations #3–6 (turn-record `initiator`/`automationDepth`, `variantSelected` ordering, `PromptTransform` points, `applyVariableOps`) — none landed · the variables substrate (§1, building) | reserved `enqueue_crew_workload`/`rpg_verb` arms stay typed-not-built in v1 |
+| plugin (Tier 2) — `infra/plugin-host` + `domain/plugin` | [`plugin-design/`](plugin-design/README.md) (README + 4 parts) + digest `automation.md` §3 | P1 runtime spike + realm → P2 the membrane contract → P3 lifecycle domain → P4 host-function wiring + seams → P5 inline snippets → P6 hardening + the permanent membrane-escape suite | P4 needs automation A5–A7 + the tool-use registry + the D50 seam; tools register as `plugin_<slug'>_<name>` (review PLG-1 resolution) | DoS budget numbers are LEANs with criteria (P6 soak review) · install-widening criterion (02 §4) |
+
+## 5. Shipped from this folder — `built` (code is the doc; only the residue is listed)
+
+| Effort | Decision · PD | State | What remains |
+| - | - | - | - |
+| imagery — `domain/imagery` | D49 #1 · PD-93 | **built** (landed early: leaf + `chat.generateImage` caller + `imagery_generations`) | I5 client (Phase 6). Docs [`imagery-design/`](imagery-design/README.md) (+ digest gone — never had one; the set's README flags record the deltas) |
+| gallery v1/v2 | D49 #2 · PD-55 | **built** (server: `listOwned` + gallery verbs + `gallery_items`) | G2 animated-sniff/thumb rung (unlanded) · G4 grid + G5 token-counter (Phase 6) · G6→hub H1, G7→hub H7 (home migrated per D61). Docs [`gallery-design.md`](gallery-design.md) (canonical) + digest `gallery.md` |
+| `@orb/ui` package | D42/D54 | **built** (waves 0–3 + the carve-out fleet) | the §6.2 client factories (Phase 6). Docs [`ui-package-design.md`](ui-package-design.md) — §-numbers are load-bearing (code cites them); do not renumber |
+| client tooling (ESLint + Vite) | — | **built** except the CSP | §7.5 reference CSP lands with the `entry/http` wave; §9 open flags. Docs [`client-tooling-setup.md`](client-tooling-setup.md) — §7/§9 numbers cited from code |
+
+## 6. Client-slot decide-at-build designs (Phase 6 triggers)
+
+| Effort | Doc | Status | Trigger |
+| - | - | - | - |
+| Descriptor-driven params panel + `quality` dial mapping | [`connection-capability-panel.md`](connection-capability-panel.md) | deferred:no-client-surface | the client params panel build |
+| `PresetFormValues` + mapper elimination | [`preset-form-mapper-elimination.md`](preset-form-mapper-elimination.md) | deferred:no-client-surface | the preset editor build (criterion: TanStack binds every nested path) |
+| Character snapshot-history UX | [`character-snapshot-ux.md`](character-snapshot-ux.md) | deferred:presentation-only | the character-editor build |
+| Tag pending-review read verb | [`tag-pending-review.md`](tag-pending-review.md) | deferred:first-consumer | build WITH the Phase-6 tag/character surfaces |
+
+## 7. Deferred domain surfaces (gap docs carved from gutted `domains/*.md` — each PD-cross-referenced, design preserved)
+
+| Effort | PD rows | One line | Trigger |
+| - | - | - | - |
+| [`assets-maintenance.md`](assets-maintenance.md) | PD-26 · PD-84 | backfill/GC/reap/fsck/rebuild — 5 verbs; seams already inert-wired | blob-store growth OR an ops/admin surface |
+| [`buddy-observer-reaction-engine.md`](buddy-observer-reaction-engine.md) | PD-45 · PD-64 | the `observer/` reaction engine + live SSE bus; pure machine + schema BUILT | buddy's call — the event sources now exist; land the D60 seated-buddy self-quip belt with it |
+| [`discovery-deferred-corpus-surface.md`](discovery-deferred-corpus-surface.md) | PD-40 · PD-39 | 10 corpus verb waves (distill → insights → image analytics → composed views) | per-wave; runner seams inert-wired |
+| [`export-deferred-surfaces.md`](export-deferred-surfaces.md) | PD row pending | **BUG-grade gap:** the HTTP download registrar — both export verbs composed but runtime-UNREACHABLE; + bulk zip (unflagged) | wire with `entry/http`; zip on demand |
+| [`import-st-profile-waves.md`](import-st-profile-waves.md) | PD-77 · PD-78 | chats/personas/lorebook/loader/backfill waves (parser esoterica carried verbatim) | blocked:later; PD-94 zip-bomb belt lands WITH the loader |
+| [`search-deferred-verbs.md`](search-deferred-verbs.md) | PD-35–38 | discover / cross-modal images / lexical fields+suggest / unified dispatch | per-verb demand |
+| [`sessions-token-rotation.md`](sessions-token-rotation.md) | — | deliberate NON-behavior + the rotate-on-privilege-transition design | the first user-driven privilege step (MFA/impersonation/self-grant) |
+| [`stats-discovery-seam.md`](stats-discovery-seam.md) | PD-22 · PD-40 | the economics/semantics disjoint-projection tiers 2–3; the `discovery-no-stats-rollups` lint could land NOW | with the PD-22/PD-40 builds |
+| [`workloads-deferred-designs.md`](workloads-deferred-designs.md) | — | per-user authz · `dependsOn` DAG scheduler · kind collapse | explicit criteria per item in the doc |
+
+## 8. Records (closed — do not re-mine)
+
+- [`Marinara-Residue-Non-RPG.md`](Marinara-Residue-Non-RPG.md) — `decided` (D58/D59/D61 in full). The adjudicated borrow list + the permanent scripting/agent-pipeline/group-system cautionary records. Marinara mining is CLOSED; evidence in git history.
+- [`DESIGN-REVIEW-2026-07-01.md`](DESIGN-REVIEW-2026-07-01.md) — `decided` (all findings applied `0d0a7fe`). Kept live for **§7, the chat-side obligations sheet** — the P5/P6/P7 handoff list this board's "obligation #n" refs point into.
+- [`rpg/`](rpg/README.md) — tombstone for the absorbed marinara RPG corpus (git history).

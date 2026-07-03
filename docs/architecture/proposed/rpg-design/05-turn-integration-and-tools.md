@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — Turn Integration: GATHER, BUILD slots, the Tool Registry, the Bus
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** How a game turn rides chat's ONE pipeline

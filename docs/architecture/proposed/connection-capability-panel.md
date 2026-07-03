@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: the descriptor-driven params panel + the `quality` dial mapping (client)
 
 > **Status: proposed / unbuilt.** Salvaged from the gutted `domains/connection.md` (Part II §3/§5 +

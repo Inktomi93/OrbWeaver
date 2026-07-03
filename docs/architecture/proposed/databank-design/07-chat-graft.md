@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 07 — The Chat Graft: `gatherRetrieval`, the `{{databank}}` Slot, the Byte-Identity Pin
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** How databank rides chat's ONE pipeline

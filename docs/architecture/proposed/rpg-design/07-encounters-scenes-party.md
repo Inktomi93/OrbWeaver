@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 07 — Sub-Engines: the Encounter Engine, Scenes, and Party Play
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Three sealed subsystems. The governing template is

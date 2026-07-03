@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Assets — the maintenance/DR wave (PD-26 + PD-84): backfill · GC · reap · fsck · rebuild
 
 > **Status: unbuilt design (deferred:v2-maintenance).** Carved out of the gutted `domains/assets.md`

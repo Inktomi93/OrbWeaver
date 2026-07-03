@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: the buddy `observer/` reaction engine + live bus (PD-45 / PD-64)
 
 > **Status: designed, deferred build.** Extracted from the gutted `domains/buddy.md` — the one

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Chat-Crew Design — the prescriptive plan for `domain/crew` (doc-set index)
 
 > **Status: COMMITTED (D59, 2026-07-01).** The plain-chat agent crew IS a product goal — the

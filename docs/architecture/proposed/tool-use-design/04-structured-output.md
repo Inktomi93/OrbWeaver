@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — The Structured-Output Axis (`responseFormat`) End-to-End
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then

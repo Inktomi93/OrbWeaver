@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — The Wire Seams + the Two Projections + the Translators
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then

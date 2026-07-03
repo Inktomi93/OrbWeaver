@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — `expressions` domain
 
 > **Status: COMMITTED (D49, full scope). Promoted from `proposed/expression-stage/`. Phase 7.**

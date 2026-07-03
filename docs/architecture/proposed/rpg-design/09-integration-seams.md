@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 09 — Integration Seams (the nine explicit answers + the polyfill)
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** Each seam: the DECISION, the mechanism, the rejected

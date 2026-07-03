@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — Integration: the Chat Graft, the Scheduler, Rings, Consent, and Review Surfaces
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

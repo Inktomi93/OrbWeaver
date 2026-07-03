@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Hub-Browse Design — remote card-hub browsing + the hardened-egress guard (doc-set index)
 
 > **Status: COMMITTED (D61, 2026-07-01).** The Marinara-Residue B5 row is CLOSED (Nate: complete the

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — The Client Stage (v1 single-sprite holder) + Management UI
 
 > **Status: COMMITTED (D49 item 4) — prescriptive design; the ledger D-entry wins on any conflict.**

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Saved Rosters — named party presets over the built roster (B6)
 
 > **Status: COMMITTED (D61, 2026-07-01).** The Marinara-Residue B6 row is CLOSED. The ledger D61

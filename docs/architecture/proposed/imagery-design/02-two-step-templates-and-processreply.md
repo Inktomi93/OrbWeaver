@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — The two-step: verb specs, templates, processReply
 
 > **Status: COMMITTED (D49 item 1) — prescriptive design.** The exact orchestration order of every

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — The `embeddings.store` 5th Arm and the `search.documents` Lens
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** Both arms are written IN THEIR OWNING

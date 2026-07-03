@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — Execution: Dual-Mode, Determinism, DoS Budgets, Bridging, and the Registry Seams
 
 > **Status: COMMITTED (D46) — prescriptive design; the ledger D-entry wins on any conflict.**

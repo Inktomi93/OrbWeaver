@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — Sprite-Sheet Generation (the B1 fold-in — the headline addition)
 
 > **Status: COMMITTED into this domain (Marinara-Residue §1 B1, decided: expressions-owned).**

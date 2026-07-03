@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed — the stats↔discovery economics/semantics seam (unbuilt tiers)
 
 > **Status: proposed.** Salvaged from the 2026-07 `stats.md` gutting audit. The `stats` domain is BUILT

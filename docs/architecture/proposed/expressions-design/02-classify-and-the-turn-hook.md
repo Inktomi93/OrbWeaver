@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — Classify (the chat-role shaper) and the Post-Turn Hook
 
 > **Status: COMMITTED (D49 item 4) — prescriptive design; the ledger D-entry wins on any conflict.**

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — Build Plan: Chunks, Dependencies, Checkpoints, Test Plans
 
 > **Status: COMMITTED (D46) — prescriptive design; the ledger D-entry wins on any conflict.**

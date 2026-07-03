@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — The Recurse Loop (chat-owned), Persistence, and the Client Contract
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then

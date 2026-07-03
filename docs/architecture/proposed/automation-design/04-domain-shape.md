@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — Domain Shape: Storage, Lifecycle Verbs, the Dispatch Engine, the Bus, and the D50 Seam
 
 > **Status: COMMITTED (D46) — prescriptive design; the ledger D-entry wins on any conflict.**

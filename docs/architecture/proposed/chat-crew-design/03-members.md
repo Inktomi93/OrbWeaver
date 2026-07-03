@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — The Members: Kind · Trigger · Input Slice · Schema · Write Path · Failure Posture
 
 > **Status: COMMITTED (D59, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Expressions Design — the prescriptive plan for `domain/expressions` (doc-set index)
 
 > **Status: COMMITTED (D49 item 4, full scope — Nate greenlit; 2026-06-28).** This doc set is the

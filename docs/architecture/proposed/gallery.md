@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — `gallery` (media surfaces)
 
 > **Status: COMMITTED (D49, full scope). Promoted from `proposed/media-surfaces/`. Phase 7 (server) / Phase 6 (client).**

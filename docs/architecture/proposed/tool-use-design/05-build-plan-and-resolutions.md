@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — Open-Question Resolutions, Build Chunks, Test Plans, Review Flags
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then

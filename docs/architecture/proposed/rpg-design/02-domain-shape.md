@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 02 — The Domain Shape: `domain/rpg`, its Satellites, and One Home per Mechanic
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The code geography. ONE new domain (`domain/rpg`,

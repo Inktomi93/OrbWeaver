@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Tool-Use Design — the prescriptive plan for `domain/tool-use` (doc-set index)
 
 > **Status: COMMITTED (D48, 2026-06-28).** Tool/function calling + structured output ARE in scope;

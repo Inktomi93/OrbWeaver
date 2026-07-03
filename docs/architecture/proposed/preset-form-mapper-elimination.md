@@ -1,3 +1,9 @@
+---
+kind: spec
+status: draft
+updated: 2026-07-03
+---
+
 # Proposed: eliminate `PresetFormValues` + the flat-form mapper (client preset editor)
 
 > **Status: proposed / unbuilt.** Salvaged from the gutted `domains/preset.md` movement table

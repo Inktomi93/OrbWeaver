@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Gallery & Media Surfaces — the build design
 
 > **Status: COMMITTED (D49 item 2, full scope; gallery v2 reserved under FLAG[PD-55]).** The ledger

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 03 — `@orb/kit/chunk`: the pure recursive splitter (full spec)
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** A pure ENGINE in the `kit/macro` /

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — `databank` domain (Document-RAG)
 
 > **Status: COMMITTED (D49 closes the D47 OPEN call). Promoted from `proposed/databank/`. Phase 7 — post-chat additive graft.**

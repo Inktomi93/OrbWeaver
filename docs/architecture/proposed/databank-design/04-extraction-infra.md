@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 04 — `infra/extraction`: the vendored text-extraction loader (full spec)
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** A NEW db-free, domain-free infra

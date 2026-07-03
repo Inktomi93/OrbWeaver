@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Imagery Design — the prescriptive plan for `domain/imagery` (doc-set index)
 
 > **Status: COMMITTED (D49 item 1, 2026-06-28).** The `imagery` domain IS committed law; this doc

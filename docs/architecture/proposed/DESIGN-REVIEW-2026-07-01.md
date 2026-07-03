@@ -1,3 +1,9 @@
+---
+kind: history
+status: active
+updated: 2026-07-03
+---
+
 # Adversarial Design Review — `docs/architecture/proposed/` (2026-07-01)
 
 > **RESOLUTION RECORD (2026-07-02, commit `0d0a7fe` — Nate-authorized apply pass):** every finding

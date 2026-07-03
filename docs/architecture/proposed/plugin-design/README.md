@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Plugin Design — the prescriptive plan for `infra/plugin-host` + `domain/plugin` (D46 Tier 2, doc-set index)
 
 > **Status: COMMITTED (D46, 2026-06-28) — a deliverable, not a maybe.** This doc set is the

@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # 05 — Build plan: chunks, checkpoints, test plans
 
 > **Status: COMMITTED (D49 item 1) — prescriptive design.** Honest sizes (S ≈ half a day, M ≈ one

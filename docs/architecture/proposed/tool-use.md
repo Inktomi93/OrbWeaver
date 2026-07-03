@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — `tool-use` domain
 
 > **Status: COMMITTED (D48). Promoted from `proposed/tool-use/`. Phase 7 — ships with the recurse loop.**

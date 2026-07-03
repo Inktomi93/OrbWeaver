@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # Orbweaver — `automation` domain + `plugin` domain (Scripting, Automation, Extensibility)
 
 > **Status: COMMITTED (D46). Promoted from `proposed/scripting-automation-extensibility/`. Phase 8.**

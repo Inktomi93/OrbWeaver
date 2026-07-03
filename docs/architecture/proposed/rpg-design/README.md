@@ -1,3 +1,9 @@
+---
+kind: spec
+status: active
+updated: 2026-07-03
+---
+
 # RPG Design — the prescriptive plan for `domain/rpg` (doc-set index)
 
 > **Status: COMMITTED (D58, 2026-07-01).** RPG mode IS a product goal — the Feature-Slot-Map §2
