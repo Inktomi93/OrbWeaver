@@ -29,7 +29,9 @@ const MODAL = new Set(["dialog", "alert-dialog", "drawer"]);
 const CT_TEST_RE = /\/tests\/ui\/.*\.ct\.tsx$/u;
 const CT_OR_FIXTURE_RE = /\/tests\/ui\/.*\.(?:ct|fixtures)\.tsx$/u;
 const VARIANTS_SPEC_RE = /(?:^|\/)variants$/u;
-const COLOR_LITERAL_RE = /oklch\(|\brgba?\(|#[0-9a-fA-F]{3,8}\b/u;
+// The `\\?` before each `\(` also catches the REGEX form `oklch\(…\)` (an escaped paren in a regex
+// literal) — diff.ct.tsx once smuggled color literals as match-regexes that the bare `oklch(` missed.
+const COLOR_LITERAL_RE = /oklch\\?\(|\brgba?\\?\(|#[0-9a-fA-F]{3,8}\b/u;
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
@@ -306,6 +308,34 @@ function clauseOverlayAnatomy(ctx: CheckContext): Violation[] {
   return out;
 }
 
+/** Clause 9 — every styled primitive's `<name>.tsx` carries at least one `data-slot` locator (§2.3).
+ * The CT-locator surface the audit found drifting: a slot-less part forces xpath/parent-hop tests.
+ * Single-element primitives still tag their root (`data-slot="button"`), so a locator beats matching
+ * by role when several are on screen. variants-exempt sealed wrappers (icons/virtual-list/message-list)
+ * are skipped — their skin is the wrapped lib. */
+function clauseDataSlot(ctx: CheckContext): Violation[] {
+  const out: Violation[] = [];
+  for (const name of primitiveDirs(ctx.root)) {
+    if (VARIANTS_EXEMPT.has(name)) {
+      continue;
+    }
+    const abs = join(ctx.root, PRIMITIVES, name, `${name}.tsx`);
+    const sf = ctx.project.getSourceFile(abs);
+    if (sf === undefined) {
+      continue; // clause 1 already reports the missing .tsx
+    }
+    if (!sf.getFullText().includes("data-slot")) {
+      out.push({
+        file: relPath(ctx.root, abs),
+        line: 1,
+        message:
+          'no data-slot locator — every primitive part carries data-slot="<name>-<part>" (the CT locator surface, contract §2.3).',
+      });
+    }
+  }
+  return out;
+}
+
 export const uiPrimitiveStructure: Check = {
   name: "ui-primitive-structure",
   run: (ctx): Violation[] => [
@@ -317,5 +347,6 @@ export const uiPrimitiveStructure: Check = {
     ...clauseNoInlineProvider(ctx),
     ...clauseNoInlineSvg(ctx),
     ...clauseOverlayAnatomy(ctx),
+    ...clauseDataSlot(ctx),
   ],
 };

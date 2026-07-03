@@ -19,5 +19,11 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
  * Usage: `<ToggleGroup value={align} onValueChange={setAlign}><Toggle value="left">L</Toggle></ToggleGroup>`
  */
 export function ToggleGroup({ className, ...rest }: ToggleGroupProps): ReactElement {
-  return <BaseToggleGroup className={cn(toggleGroupVariants(), className)} {...rest} />;
+  return (
+    <BaseToggleGroup
+      data-slot="toggle-group"
+      className={cn(toggleGroupVariants(), className)}
+      {...rest}
+    />
+  );
 }

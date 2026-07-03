@@ -1,0 +1,30 @@
+// Plugin: no-external-media-without-gate
+// Severity: error
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Raw <img>/<video>/<audio>/<source> elements inside client FEATURES.
+//
+// Rationale:  D44 §12.3 — feature surfaces never render media directly. All media
+//             flows through <MessageMedia> (@orb/ui/content), which does the
+//             asset-vs-external dispatch, gates external sources behind an explicit
+//             opt-in (no silent third-party fetch = no tracking/exfil), forces
+//             autoplay OFF on untrusted media, and adds the broken-media fallback.
+//             A raw <img src={external}> bypasses every one of those controls.
+//
+// Scope:      packages/client/src/features/ ONLY. @orb/ui is the primitive layer —
+//             MessageMedia/avatar/crossfade-image ARE the sanctioned media elements,
+//             so ui is out of scope entirely (not merely allowlisted).
+//
+// Refs:       docs/architecture/core/UI-Gates-and-Lessons.md §12.6 (D44 gates)
+//             packages/ui/src/content/message-media/
+// ──────────────────────────────────────────────────────────────────────────────
+
+language js
+
+or {
+  JsxSelfClosingElement() as $el,
+  JsxOpeningElement() as $el
+} where {
+  $filename <: r".*/packages/client/src/features/.*",
+  $el <: r"^<(?:img|video|audio|source)[\s/>].*$",
+  register_diagnostic(span=$el, message="raw <img>/<video>/<audio> in a feature — media MUST go through <MessageMedia> (@orb/ui/content): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44 §12.3).", severity="error")
+}

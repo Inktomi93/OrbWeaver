@@ -23,6 +23,8 @@ export const TOKENS = {
   "color.success-foreground": { cssVar: "--color-success-foreground", value: "oklch(0.14 0.02 150)" },
   "color.warning": { cssVar: "--color-warning", value: "oklch(0.79 0.13 85)" },
   "color.warning-foreground": { cssVar: "--color-warning-foreground", value: "oklch(0.2 0.03 85)" },
+  "color.highlight": { cssVar: "--color-highlight", value: "oklch(0.82 0.16 100)" },
+  "color.highlight-foreground": { cssVar: "--color-highlight-foreground", value: "oklch(0.22 0.03 100)" },
   "color.border": { cssVar: "--color-border", value: "oklch(0.97 0.01 75 / 0.09)" },
   "color.input": { cssVar: "--color-input", value: "oklch(0.97 0.01 75 / 0.13)" },
   "color.ring": { cssVar: "--color-ring", value: "oklch(0.76 0.145 66)" },

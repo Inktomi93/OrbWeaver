@@ -24,7 +24,7 @@ export interface SpinnerProps {
 export function Spinner({ size = "md", label, className }: SpinnerProps): ReactElement {
   const slots = spinnerVariants();
   return (
-    <span className={slots.root({ className })} role="status">
+    <span data-slot="spinner" className={slots.root({ className })} role="status">
       <Icon icon={Loader2} size={size} className={slots.icon()} />
       <span className={slots.label()}>{label}</span>
     </span>
