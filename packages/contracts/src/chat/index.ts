@@ -243,7 +243,7 @@ export interface AssembleContext {
   /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
    *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
   activeSpeakerCharacterId?: CharacterId | null | undefined;
-  /** Host-level per-room overrides (room > card > preset). Absent ⇒ no room tier. */
+  /** Host-level per-room overrides (`room > card > preset`). Absent ⇒ no room tier. */
   roomOverrides?: RoomOverrides;
   /** Resolved source of the author's-note depth injection ("room override" / "from <Name>"). */
   authorsNoteSource?: string;
@@ -438,7 +438,7 @@ export type ChatDeltaEvent =
  *  discipline). `image.url` is the resolved, model-fetchable URL/data-URI the chat domain produced at the
  *  engine REQUEST seam (asset→CAS URL or a gated external URL); a non-vision model never receives image parts
  *  (the engine drops them, gated by `ModelCapability.input.vision`, + emits a `warning` bus event). This is
- *  the ONE home (D45 "the cross-boundary message DTOs in @orb/contracts/chat carry the same"); the infra
+ *  the ONE home (D45 "the cross-boundary message DTOs in `@orb/contracts/chat` carry the same"); the infra
  *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string }

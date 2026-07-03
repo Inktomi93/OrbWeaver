@@ -35,8 +35,8 @@ interface SelectSpeakersParams {
   readonly policy: GroupConfig["policy"];
   /** The previous speaker (ban-last-speaker, soft); null at round 1 / after a human turn. */
   readonly lastSpeaker: SpeakerRef | null;
-  /** Human-authored forced/@-mention targets — the HARD override (§6); empty ⇒ run the policy. @mention is
-   *  character-only (human text matches cast names to characters; an agent is not @mention-forceable in v1). */
+  /** Human-authored forced/`@-mention` targets — the HARD override (§6); empty ⇒ run the policy. `@mention` is
+   *  character-only (human text matches cast names to characters; an agent is not `@mention-forceable` in v1). */
   readonly forcedIds?: readonly CharacterId[] | undefined;
   /** The injected PRNG (D46) — `() => number` in [0,1). Drives `natural`'s weighted sample. */
   readonly rng: () => number;
@@ -126,7 +126,7 @@ function applyPolicy(
   }
 }
 
-/** Dedupe character ids (first-appearance order) — @mention resolution stays character-keyed. */
+/** Dedupe character ids (first-appearance order) — `@mention` resolution stays character-keyed. */
 function dedupeIds(ids: readonly CharacterId[]): CharacterId[] {
   return [...new Set(ids)];
 }
@@ -150,11 +150,11 @@ function cap(refs: SpeakerRef[], maxSpeakers: number | undefined): SpeakerRef[] 
 }
 
 /**
- * Extract @mention targets from HUMAN-AUTHORED trigger text (only human text drives the override; the caller
+ * Extract `@mention` targets from HUMAN-AUTHORED trigger text (only human text drives the override; the caller
  * MUST pass a human post's body, NEVER an AI reply). Matches `@Name`
  * against the present cast's display names (longest-name-first so `@Aria Stormborn` wins over `@Aria`),
  * word-boundary-anchored, case-insensitive. Returns the matched character ids in first-appearance order.
- * PURE; uses the ONE `escapeRegExp` (@orb/kit/strings — the de-duplicated home, movement table).
+ * PURE; uses the ONE `escapeRegExp` (`@orb/kit/strings` — the de-duplicated home, movement table).
  */
 export function resolveMentions(triggerText: string, cast: readonly CastName[]): CharacterId[] {
   if (triggerText.length === 0 || cast.length === 0) {

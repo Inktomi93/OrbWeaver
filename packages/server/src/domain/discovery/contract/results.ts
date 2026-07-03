@@ -6,7 +6,7 @@ import type { CharacterId, DuplicateCharacterPairId, ThemeClusterId } from "@orb
 import type { ThemeLevel } from "./params";
 
 // ── near-duplicate characters ─────────────────────────────────────────────────
-/** One owner-scoped near-duplicate CHARACTER pair (canonical A<B). `similarity` is the raw card-embedding
+/** One owner-scoped near-duplicate CHARACTER pair (canonical `A<B`). `similarity` is the raw card-embedding
  *  cosine; `cslsScore` is the hub-adjusted rank key (`2·cos − hub_a − hub_b` — a generic/hub card is
  *  deflated). `nameA`/`nameB` are the live card names for display. `model` is the embedding-space tag the
  *  pair was computed in (a pair is only meaningful within one space). No `relation` — characters have no

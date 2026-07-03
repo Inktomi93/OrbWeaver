@@ -53,7 +53,7 @@ export type SubstituteFindRegex = (typeof SubstituteFindRegex)[keyof typeof Subs
 export const MAX_FIND_REGEX_LENGTH = 2048;
 
 /** The minimal structural shape the executor reads off a regex script. The persisted
- *  `RegexScript` (in @orb/contracts) is a superset and is declared to `satisfy` this. */
+ *  `RegexScript` (in `@orb/contracts`) is a superset and is declared to `satisfy` this. */
 export interface RegexScriptInput {
   readonly enabled: boolean;
   /** Placements this script applies to — the executor runs it only when the requested

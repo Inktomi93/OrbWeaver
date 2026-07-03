@@ -62,8 +62,8 @@ export async function createInvite(db: Db, row: typeof chatInvites.$inferInsert)
 
 /**
  * The ATOMIC redeem (Part III §2 — the ONE human participant-insert chokepoint). Step 1 is the TOCTOU-closing
- * conditional `UPDATE chat_invites SET uses=uses+1 (… → 'accepted' once exhausted) WHERE tokenHash AND
- * status='pending' AND remaining>0 AND not-expired RETURNING` — a contended/expired/exhausted invite matches
+ * conditional `UPDATE chat_invites SET uses=uses+1 (… → 'accepted' once exhausted) WHERE tokenHash AND status='pending' AND remaining>0 AND not-expired RETURNING`
+ * — a contended/expired/exhausted invite matches
  * nothing (→ `undefined`). Step 2 stamps the participant via the same {@link upsertMemberOnJoin} re-add upsert
  * (`role` server-forced `member`, `joinSeq`=current canon head — history replays from there AFTER accept).
  * Returns the joined chat id + the participant row, or `undefined` if the invite was not redeemable.

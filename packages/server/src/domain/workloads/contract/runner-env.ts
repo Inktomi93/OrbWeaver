@@ -101,7 +101,7 @@ export interface WorkloadMemoryEnv {
 
 /**
  * character.* (PD-41 cleared): the synthetic group-character backfill — chat's `backfillGroupCharacters`
- * sweep (every >1-character room lacking its shared group character gets one minted under the room HOST;
+ * sweep (every `>1`-character room lacking its shared group character gets one minted under the room HOST;
  * idempotent via the find-first short-circuit).
  */
 export interface WorkloadCharacterEnv {

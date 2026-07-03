@@ -19,7 +19,7 @@ import type { UserId } from "@orb/kit/ids";
 
 /** The generic within-space top-k vector scan over the card embedding space: embed the query → scan
  *  `character_embeddings` (filtered to the active embed model's space) → CSLS hub-adjust → optional
- *  cross-encoder rerank. Returns raw {@link import('./results').SearchHit}s (no display enrichment). */
+ *  cross-encoder rerank. Returns raw `SearchHit`s (no display enrichment). */
 export interface KnnParams {
   /** The resolved `Principal.userId` — the owner whose characters are in scope (scoped at the SQL WHERE,
    *  never post-filtered; search never reads `users`). */
@@ -36,7 +36,7 @@ export interface KnnParams {
 
 /** Character-card vector search with distilled-facet enrichment — the primitive `discovery` (W3) consumes
  *  for similarity browsing / archetype grouping. Same pipeline as {@link KnnParams} plus a
- *  `character_summaries` + avatar JOIN; returns {@link import('./results').CharacterCardHit}s. */
+ *  `character_summaries` + avatar JOIN; returns `CharacterCardHit`s. */
 export interface FindCharactersParams {
   readonly ownerId: UserId;
   readonly query: string;

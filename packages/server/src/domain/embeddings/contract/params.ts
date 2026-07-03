@@ -132,7 +132,7 @@ export interface DigestStoreParams {
   readonly scopedCharacterId: CharacterId;
   /** True when the block is from a group room (drives the egocentric-vs-shared recall split). */
   readonly isGroup: boolean;
-  /** The consolidation tier (0 = a single block; k>0 = a fanOut cross-block synthesis, §5). */
+  /** The consolidation tier (0 = a single block; `k>0` = a fanOut cross-block synthesis, §5). */
   readonly tier: number;
   readonly blockIdx: number;
   /** The distilled digest body — embedded, persisted (`chat_digests.text`), and injected into `{{memory}}`. */

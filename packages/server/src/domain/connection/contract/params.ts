@@ -19,8 +19,8 @@ export interface AgentOverride {
 }
 
 /** `resolveRole(params)` — the one resolver for all 7 roles. Reads `routing.roleDefaults.<role>` for the
- *  principal, applies the optional per-agent override, returns the resolved `{api, model, credential,
- *  capability}`. */
+ *  principal, applies the optional per-agent override, returns the resolved
+ *  `{api, model, credential, capability}`. */
 export interface ResolveRoleParams {
   readonly role: RoutingRoleKey;
   readonly principal: Principal;

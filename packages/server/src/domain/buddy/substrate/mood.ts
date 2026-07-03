@@ -41,7 +41,7 @@ export function moodForSignal(kind: BuddySignalKind): Mood {
   return SIGNAL_MOOD[kind];
 }
 
-/** Lazy decay: a buddy quiet >15min settles back to `content`. Applied at READ time (in `get`) so a
+/** Lazy decay: a buddy quiet \>15min settles back to `content`. Applied at READ time (in `get`) so a
  *  quiet buddy drifts calm with no background write. */
 export const MOOD_DECAY_MS = 900_000; // 15 minutes
 export function decayMood(mood: Mood, lastReactionAt: number | null, now: number): Mood {

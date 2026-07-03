@@ -28,8 +28,8 @@ export async function loadRoster(
 }
 
 /**
- * Build the initial roster rows for a brand-new chat (Part III §1; solo = a roster of {1 host human, N
- * characters}, byte-identical). The host human is `role='host'` (the ONE authority + funding source, D18);
+ * Build the initial roster rows for a brand-new chat (Part III §1; solo = a roster of `{1 host human, N characters}`,
+ * byte-identical). The host human is `role='host'` (the ONE authority + funding source, D18);
  * every character is server-forced `role='member'` (guarded by {@link assertForcedCharacterMember}). All rows
  * share `joinSeq` (0 for a born-here chat) + the caller's clock (`now`) — the ids are caller-minted (the verb
  * owns id minting; determinism). PURE — returns the rows; the verb writes them.

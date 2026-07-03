@@ -51,7 +51,7 @@ export function formatStDate(ms: number | null): string | null {
 /**
  * Serialize a chat's canon to the ST chat-JSONL interchange (the inverse of the chat importer). One header
  * line (user/character names + create_date + the branch/note metadata), then one line per message. Swipe
- * arrays only when a message carries >1 variant (file header). PURE.
+ * arrays only when a message carries `>1` variant (file header). PURE.
  */
 export function buildChatJsonl(meta: ExportChatMeta, messages: readonly ExportMessage[]): string {
   const header = {

@@ -204,7 +204,7 @@ Durable home for the non-PD debt the domain-vs-code gut rollout surfaced (previo
 - `Core-Shared-Dissolution.md` — migration doc: kit-purity law stays core, the symbol map → history/.
 - **AGENTS-1/2/3 trim** — per `docs/Documentation-Law.md` §Evidence, comprehensive overviews hurt agents; make the trio terser/navigational.
 - Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
-- **`tsdoc/syntax` cleanup → flip warn→error** (wired 2026-07-03 at `warn` on server/kit/db/contracts). ~255 pre-existing violations across 45 files. Run `pnpm lint:eslint` to list. Classes + fix: `{...}` prose tokens (macros/generics/object-shapes) → backtick-wrap (188, the bulk — TSDoc ignores code spans); unclosed `` ` `` code spans → close (18); bare `>` in prose → escape/backtick (15); bare `@orb/…` names → `{@link}` or backtick (~5); `tsdoc-unnecessary-backslash`/misc (~20). ~90% of fixes align with the doc law (backticks + `{@link}`). When clean, flip `tsdoc/syntax` → `error` in `eslint.config.js`.
+- ~~`tsdoc/syntax` cleanup → flip warn→error~~ — DONE 2026-07-03: 255 violations across 45 files cleaned, `tsdoc/syntax` is now `error` on server/kit/db/contracts.
 
 <!-- Source: Core-Audits-and-Debt.md -->
 

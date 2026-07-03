@@ -40,7 +40,7 @@ const DEFAULT_PERSON = "first";
 /**
  * Resolve a Guided Generations action template against the user-supplied steering text + the
  * standard macro context. `{{input}}` is overridden to `userInput` (neutralized); the rest of the
- * macro context ({{char}}, {{user}}, {{persona}}, …) flows through `baseMacroOptions` unchanged.
+ * macro context (`{{char}}`, `{{user}}`, `{{persona}}`, …) flows through `baseMacroOptions` unchanged.
  *
  * If the (trimmed) template is empty, the neutralized user input is returned as-is — a defensive
  * floor so a broken/blank template still produces SOMETHING from the user's intent.

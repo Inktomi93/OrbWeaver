@@ -50,7 +50,7 @@ export function dropIncompleteSentence(text: string): string {
 
 /** RECEIVE: collapse the reply to a SINGLE line (ST `single_line`) — keep everything up to the first newline,
  *  dropping the rest. Trailing whitespace on that line is also trimmed. A reply with no newline is returned
- *  unchanged (minus trailing whitespace). Leading blank lines are skipped so a model that opens with "\n\nText"
+ *  unchanged (minus trailing whitespace). Leading blank lines are skipped so a model that opens with `"\n\nText"`
  *  still yields "Text", not "". */
 export function collapseToSingleLine(text: string): string {
   const leadingTrimmed = text.replace(LEADING_BLANK_LINE, "");

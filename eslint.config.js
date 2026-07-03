@@ -152,17 +152,16 @@ export default tseslint.config(
     },
   },
   {
-    // The Documentation-Law doc-comment gates on the typed API surface. `no-deprecated` (type-aware,
-    // rides the parser block above) is a hard gate — 0 violations today, a pure future guardrail so a
-    // `@deprecated` tag can't be silently used. `tsdoc/syntax` (eslint-plugin-tsdoc — the official
-    // parser) is WARN for now: the existing corpus carries ~255 pre-existing violations (mostly `{...}`
-    // prose tokens that want backticks + bare `@orb/...` names that want `{@link}`). A one-time cleanup
-    // is queued; this flips to "error" once clean. See docs/Documentation-Law.md §Enforcement.
+    // The Documentation-Law doc-comment gates on the typed API surface — both hard gates. `no-deprecated`
+    // (type-aware, rides the parser block above) rejects any USE of a `@deprecated` symbol. `tsdoc/syntax`
+    // (eslint-plugin-tsdoc — the official parser) rejects malformed doc comments + non-standard tags: a
+    // `{...}` prose token wants backticks (TSDoc reads `{` as an inline-tag opener), a bare `@orb/...`
+    // package name wants `{@link}`. See docs/Documentation-Law.md §Enforcement.
     files: TSDOC_SURFACE,
     plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
     rules: {
       "@typescript-eslint/no-deprecated": "error",
-      "tsdoc/syntax": "warn",
+      "tsdoc/syntax": "error",
     },
   },
   {

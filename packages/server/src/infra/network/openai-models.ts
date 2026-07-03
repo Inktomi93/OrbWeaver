@@ -21,7 +21,7 @@ export interface FetchOpenAiModelsArgs {
   headers: Record<string, string> | null;
 }
 
-/** GET {baseUrl}/models on an OpenAI-compatible endpoint → the model id list. Best-effort; never throws. */
+/** GET `{baseUrl}/models` on an OpenAI-compatible endpoint → the model id list. Best-effort; never throws. */
 export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<string[]> {
   try {
     const res = await fetch(`${args.baseUrl.replace(TRAILING_SLASH_RE, "")}/models`, {

@@ -109,7 +109,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
 }
 
 /** Resolve the effective opening policy: the explicit param, else by roster size (1 char ⇒ first-message,
- *  >1 ⇒ greet-all, 0 ⇒ none — no cast to greet). */
+ *  \>1 ⇒ greet-all, 0 ⇒ none — no cast to greet). */
 function resolveOpeningPolicy(
   opening: OpeningPolicy | undefined,
   charCount: number,

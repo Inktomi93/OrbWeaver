@@ -22,7 +22,7 @@ export interface ArbiterCandidate {
   readonly leftSeq: number | null;
 }
 
-/** A `{ref, name}` pair — a present speaker's display name (the @mention seam + the per-speaker SHAPE
+/** A `{ref, name}` pair — a present speaker's display name (the `@mention` seam + the per-speaker SHAPE
  *  name-stamp). An agent's name arrives from the doc-04 speaker source (AP3); a character's from its card. */
 export interface CastName {
   readonly ref: SpeakerRef;
