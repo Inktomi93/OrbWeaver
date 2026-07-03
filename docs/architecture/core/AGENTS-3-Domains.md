@@ -277,7 +277,10 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md)
   - [Core-BUILD-PLAN.md](docs/architecture/core/Core-BUILD-PLAN.md)
   - [Core-Laws-and-Precedents.md](docs/architecture/core/Core-Laws-and-Precedents.md)
-  - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md)
+  - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md) _(split index → the 3 below)_
+  - [Core-Shared-Dissolution.md](docs/architecture/core/Core-Shared-Dissolution.md)
+  - [Core-Event-Bus-Parity-Audit.md](docs/architecture/core/Core-Event-Bus-Parity-Audit.md)
+  - [Core-ST-Feature-Gap-Register.md](docs/architecture/core/Core-ST-Feature-Gap-Register.md)
   - [Core-Planning-and-Checklists.md](docs/architecture/core/Core-Planning-and-Checklists.md)
   - [Core-STATUS.md](docs/architecture/core/Core-STATUS.md)
   - [Spine-Config-and-Serialization.md](docs/architecture/core/Spine-Config-and-Serialization.md)
