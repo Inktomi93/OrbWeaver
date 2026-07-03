@@ -276,10 +276,7 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [AGENTS-2-Spine.md](docs/architecture/core/AGENTS-2-Spine.md)
   - [AGENTS-3-Domains.md](docs/architecture/core/AGENTS-3-Domains.md)
   - [Core-0-Architecture-and-Structure.md](docs/architecture/core/Core-0-Architecture-and-Structure.md)
-  - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md) _(live debt registry; archeology split into the 3 below)_
-  - [Core-Doc-Review-Punchlist-2026-06-28.md](docs/architecture/core/Core-Doc-Review-Punchlist-2026-06-28.md)
-  - [Core-Debt-Cleared-Ledger.md](docs/architecture/core/Core-Debt-Cleared-Ledger.md)
-  - [Core-Doc-Inconsistency-Audit-2026-06-26.md](docs/architecture/core/Core-Doc-Inconsistency-Audit-2026-06-26.md)
+  - [Core-Audits-and-Debt.md](docs/architecture/core/Core-Audits-and-Debt.md) _(live debt registry; resolved archeology → history/)_
   - [Core-BUILD-PLAN.md](docs/architecture/core/Core-BUILD-PLAN.md)
   - [Core-Laws-and-Precedents.md](docs/architecture/core/Core-Laws-and-Precedents.md) _(§0–§6 + §7/enforcement redirect index → the 7 below)_
   - [Core-Path-Registry-D1-D34.md](docs/architecture/core/Core-Path-Registry-D1-D34.md)
@@ -289,9 +286,8 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [Core-Path-Registry-D60-D61.md](docs/architecture/core/Core-Path-Registry-D60-D61.md)
   - [Core-Enforcement-Active-Gates.md](docs/architecture/core/Core-Enforcement-Active-Gates.md)
   - [Core-Enforcement-Deferred-Dropped.md](docs/architecture/core/Core-Enforcement-Deferred-Dropped.md)
-  - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md) _(split index → the 3 below)_
+  - [Core-Legacy-Migration-and-Gaps.md](docs/architecture/core/Core-Legacy-Migration-and-Gaps.md) _(split index → Shared-Dissolution + ST-Feature-Gap below; Event-Bus-Parity-Audit → history/)_
   - [Core-Shared-Dissolution.md](docs/architecture/core/Core-Shared-Dissolution.md)
-  - [Core-Event-Bus-Parity-Audit.md](docs/architecture/core/Core-Event-Bus-Parity-Audit.md)
   - [Core-ST-Feature-Gap-Register.md](docs/architecture/core/Core-ST-Feature-Gap-Register.md)
   - [Core-Planning-and-Checklists.md](docs/architecture/core/Core-Planning-and-Checklists.md)
   - [Core-SillyTavern-Feature-Map.md](docs/architecture/core/Core-SillyTavern-Feature-Map.md)
@@ -315,6 +311,11 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [UI-Lib-Zustand.md](docs/architecture/core/UI-Lib-Zustand.md)
   - [UI-Primitives-and-Reuse.md](docs/architecture/core/UI-Primitives-and-Reuse.md)
   - [UI-Theming-and-Content.md](docs/architecture/core/UI-Theming-and-Content.md)
+- **history/** _(resolved audits + cleared ledgers — reference only, not live law)_
+  - [Core-Doc-Review-Punchlist-2026-06-28.md](docs/architecture/history/Core-Doc-Review-Punchlist-2026-06-28.md)
+  - [Core-Doc-Inconsistency-Audit-2026-06-26.md](docs/architecture/history/Core-Doc-Inconsistency-Audit-2026-06-26.md)
+  - [Core-Event-Bus-Parity-Audit.md](docs/architecture/history/Core-Event-Bus-Parity-Audit.md)
+  - [Core-Debt-Cleared-Ledger.md](docs/architecture/history/Core-Debt-Cleared-Ledger.md)
 - **domains/**
   - [admin.md](docs/architecture/domains/admin.md)
   - [assets.md](docs/architecture/domains/assets.md)

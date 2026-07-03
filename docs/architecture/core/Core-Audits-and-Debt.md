@@ -1,6 +1,6 @@
 # Audits-and-Debt (live: Promotion / Relocation Debt Registry)
 
-> **How to read this file.** This is now the LIVE debt registry only: the one open decision, the active `PD-XX` flags to burn down (plus the block recovered from a broken "Cleared" table on 2026-07-01). The resolved archaeology that used to wrap it was split out 2026-07-02 into siblings — [`Core-Doc-Review-Punchlist-2026-06-28.md`](Core-Doc-Review-Punchlist-2026-06-28.md) (the boundary/build-order scan + the 06-28 doc-review punch-list), [`Core-Doc-Inconsistency-Audit-2026-06-26.md`](Core-Doc-Inconsistency-Audit-2026-06-26.md), and [`Core-Debt-Cleared-Ledger.md`](Core-Debt-Cleared-Ledger.md) (the `## Cleared` ledger of done flags). Do not manufacture findings here.
+> **How to read this file.** This is now the LIVE debt registry only: the one open decision, the active `PD-XX` flags to burn down (plus the block recovered from a broken "Cleared" table on 2026-07-01). The resolved archaeology that used to wrap it was split out 2026-07-02 into siblings — [`Core-Doc-Review-Punchlist-2026-06-28.md`](../history/Core-Doc-Review-Punchlist-2026-06-28.md) (the boundary/build-order scan + the 06-28 doc-review punch-list), [`Core-Doc-Inconsistency-Audit-2026-06-26.md`](../history/Core-Doc-Inconsistency-Audit-2026-06-26.md), and [`Core-Debt-Cleared-Ledger.md`](../history/Core-Debt-Cleared-Ledger.md) (the `## Cleared` ledger of done flags). Do not manufacture findings here.
 
 ---
 ## The one OPEN DECISION (not a doc-fix — needs Nate)
