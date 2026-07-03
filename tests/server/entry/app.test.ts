@@ -48,6 +48,12 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     seam: fakeSeam(null),
     services: stub,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },
+    presence: {
+      connect: (): void => {
+        // inert: route tests don't exercise the presence ref-count.
+      },
+      read: (userId) => ({ userId, online: true, lastSeenAt: null }),
+    },
     assets: stub,
     cas: stub,
     character: stub,

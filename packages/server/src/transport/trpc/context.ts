@@ -11,6 +11,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AdminService } from "#domain/admin";
+import type { AssetsService } from "#domain/assets";
 import type { BuddyService } from "#domain/buddy";
 import type { CharacterService } from "#domain/character";
 import type { ChatService } from "#domain/chat";
@@ -26,6 +27,7 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
+import type { PresenceRegistry } from "./presence-registry";
 
 /**
  * The constructed domain services, wired with their db + cross-feature deps at the `entry/` composition
@@ -41,6 +43,7 @@ import type { WorldInfoService } from "#domain/world-info";
  */
 export interface Services {
   readonly admin: AdminService;
+  readonly assets: AssetsService;
   readonly buddy: BuddyService;
   readonly character: CharacterService;
   readonly chat: ChatService;
@@ -93,6 +96,9 @@ export interface Context {
   readonly auth: Principal | null;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
+  /** The transport presence registry (PD-70). SSE subscriptions call `presence.connect(userId, signal)` to
+   *  ref-count device liveness; the read side is injected into chat as `presence.read` at the compose root. */
+  readonly presence: PresenceRegistry;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
 }
@@ -106,6 +112,7 @@ export function createContext(parts: {
   readonly auth: Principal | null;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
+  readonly presence: PresenceRegistry;
   readonly csrfHeaderPresent: boolean;
   readonly clientIp: string | null;
 }): Context {
@@ -113,6 +120,7 @@ export function createContext(parts: {
     auth: parts.auth,
     services: parts.services,
     rateLimit: parts.rateLimit,
+    presence: parts.presence,
     csrfHeaderPresent: parts.csrfHeaderPresent,
     clientIp: parts.clientIp,
   };

@@ -272,6 +272,7 @@ export function createLifecycle(): Lifecycle {
       seam: createAuthSeam({ sessions: built.sessions }),
       services: built.services,
       rateLimit: createRateLimitGate({ db, now }),
+      presence: built.presence,
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,

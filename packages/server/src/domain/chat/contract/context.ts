@@ -21,7 +21,8 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { AgentSourceKind, Can } from "@orb/contracts/identity";
+import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
+import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
@@ -178,6 +179,21 @@ export type ResolveAgentEnabledOp = (agentUserId: UserId) => Promise<boolean>;
  *  presence is a prompt-composition attack). Read once per round for cast-gating (a flip takes next round). */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
+/** `imagery.generatePicture` — the injected image-generation op (imagery-design/04 §2). Chat CANNOT import
+ *  `domain/imagery` (domain-no-cross-feature), so it declares the STRUCTURAL result it consumes (the stored
+ *  asset ids + the warnings) and the composition root maps imagery's `GeneratedPicture` onto it. Chat holds
+ *  message-write authority; imagery is caller-blind (it returns blocks, never posts — §2.3). */
+export type GeneratePictureOp = (p: {
+  readonly caller: Principal;
+  readonly chatId: ChatId;
+  readonly mode: PromptTemplateMode;
+  readonly prompt?: string | undefined;
+  readonly n?: number | undefined;
+}) => Promise<{
+  readonly images: readonly { readonly assetId: string }[];
+  readonly warnings: readonly { readonly code: string; readonly detail: string }[];
+}>;
+
 /** `settings`+`persona` — the starter's USER-LEVEL active persona (`seeds.defaultPersonaId`, validated
  *  owned/alive at the root — stale/unowned collapses to null so a dead id never lands in the
  *  `chats.anchorPersonaId` FK). The `startChat` default-seed source (persona.md: no explicit anchor ⇒ the
@@ -302,6 +318,8 @@ export interface ChatContext {
   readonly provisionAgentPrincipal: ProvisionAgentPrincipalOp;
   readonly resolveAgentEnabled: ResolveAgentEnabledOp;
   readonly readPresence: PresenceReadOp;
+  /** `imagery.generatePicture` — the injected image-generation op (the `chat.generateImage` verb's executor). */
+  readonly generatePicture: GeneratePictureOp;
   /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
   // ── memory substrate (consumed by memory/) ──

@@ -7,7 +7,12 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { Context, RateLimitGate, Services } from "@orb/server/transport/trpc";
+import type {
+  Context,
+  PresenceRegistry,
+  RateLimitGate,
+  Services,
+} from "@orb/server/transport/trpc";
 import { createCaller } from "@orb/server/transport/trpc";
 
 /** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */
@@ -26,6 +31,14 @@ export function principal(role: UserRole, overrides: Partial<Principal> = {}): P
 /** A rate-limit gate that always allows (the default; the rate-limit primitive is a separate slice). */
 export const allowAll: RateLimitGate = { enforce: () => Promise.resolve() };
 
+/** An inert presence registry (the default; presence's ref-count is exercised in its own slice test). */
+export const inertPresence: PresenceRegistry = {
+  connect: (): void => {
+    // inert: the ref-count is exercised in the presence-registry slice test, not the router tests.
+  },
+  read: (userId) => ({ userId, online: true, lastSeenAt: null }),
+};
+
 /** A rate-limit gate that rejects with the given error (to prove the middleware wires the injected gate). */
 export function denyRateLimit(error: Error): RateLimitGate {
   return { enforce: () => Promise.reject(error) };
@@ -37,6 +50,7 @@ export function makeContext(parts: {
   auth?: Principal | null;
   services?: { [K in keyof Services]?: Partial<Services[K]> };
   rateLimit?: RateLimitGate;
+  presence?: PresenceRegistry;
   csrfHeaderPresent?: boolean;
   clientIp?: string | null;
 }): Context {
@@ -45,6 +59,7 @@ export function makeContext(parts: {
     // biome-ignore lint/suspicious/noExplicitAny: a thin router reaches exactly one verb; the rest of the partial Services is never read.
     services: (parts.services ?? {}) as any as Services,
     rateLimit: parts.rateLimit ?? allowAll,
+    presence: parts.presence ?? inertPresence,
     csrfHeaderPresent: parts.csrfHeaderPresent ?? false,
     clientIp: parts.clientIp ?? "127.0.0.1",
   };

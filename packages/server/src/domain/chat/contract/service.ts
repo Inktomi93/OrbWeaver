@@ -42,6 +42,7 @@ import type {
   EditReasoningParams,
   ForceCharacterTurnParams,
   ForkChatParams,
+  GenerateImageParams,
   GenerateParams,
   GetActivePresetConfigParams,
   GetChatLineageParams,
@@ -175,6 +176,9 @@ export interface ChatService {
   readonly compact: (params: CompactParams) => Promise<CompactResult>;
   /** Cancel an in-flight turn (lock-free; turn-owner only — rollback-theft defense). */
   readonly abort: (params: AbortParams) => Promise<void>;
+  /** Generate image(s) via the injected imagery op + persist ONE caller-authored message with `asset:` refs
+   *  (imagery-design/04 §2). Returns the committed message view. */
+  readonly generateImage: (params: GenerateImageParams) => Promise<MessageView>;
 
   // ── canon edits ───────────────────────────────────────────────────────────────
   /** Flip `selectedVariantId` to a sibling swipe (pointer move, zero copy — D26). */

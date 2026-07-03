@@ -19,6 +19,7 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
+import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GuidedActionKind, UserIntent } from "@orb/contracts/preset";
 import type {
   CharacterId,
@@ -211,6 +212,15 @@ export interface CompactParams extends ChatScopedParams {
 
 /** `abort` — cancel an in-flight turn (lock-free; owner-of-the-turn only — rollback-theft defense). */
 export interface AbortParams extends ChatScopedParams {}
+
+/** `generateImage` — generate n image(s) via the injected `imagery.generatePicture` op, then persist ONE
+ *  message (authored by the caller) whose body STRING carries n `asset:` refs (imagery-design/04 §2). P5
+ *  drives `mode:"free"` with a required `prompt` (mirrors the `generatePictureRequestSchema` wire). */
+export interface GenerateImageParams extends ChatScopedParams {
+  readonly mode: PromptTemplateMode;
+  readonly prompt?: string | undefined;
+  readonly n?: number | undefined;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // canon edits
