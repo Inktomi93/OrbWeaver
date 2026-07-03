@@ -15,7 +15,6 @@ export function reasoningRate(reasoningGenerations: number, gens: number): numbe
   return div(reasoningGenerations, gens);
 }
 
-// Milliseconds per second — gen-time columns are ms, throughput is tokens/sec.
 const MS_PER_SEC = 1000;
 
 /** Output tokens per second across all generations (gen-time is ms). */

@@ -130,8 +130,8 @@ function normalizeCardJson(card: RawCard): RawCard {
 // ST default for the Character's Note depth when absent / non-numeric.
 const ST_DEFAULT_DEPTH = 4;
 
-// ST `data.extensions.depth_prompt = { prompt, depth, role }`. Empty/whitespace prompt ⇒ null (no note);
-// depth defaults to ST's 4; role via the canonical ST bimap, defaulting to system (neo card behaviour).
+// ST `data.extensions.depth_prompt = { prompt, depth, role }`. Role defaults to `system` (via the ST
+// bimap) to match neo card behaviour.
 function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     return null;
@@ -309,7 +309,7 @@ export interface ExportWorldEntry {
 // world-info-at-depth encoding). 4 is ST's WORLD_INFO_POSITION.atDepth.
 const ST_POSITION_AT_DEPTH = 4;
 
-// The ST card spec_version this emitter writes. V3 spec, version "3.0".
+// The ST card spec_version this emitter writes.
 const SPEC_VERSION = "3.0";
 
 /**

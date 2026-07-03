@@ -1,9 +1,9 @@
-// domain/preset/substrate/views — the PURE row → view mappers (zero I/O). The ONE home for the read seam's
-// two load-bearing projections: (1) `config` is run through `parsePromptConfig` (LENIENT — a malformed or
-// older blob is lifted forward / bounded to DEFAULT rather than throwing mid-load;
-// the db schema's "parsed at the read seam" note), and (2) `isSystemDefault` is derived from `ownerId IS
-// NULL` so the client identifies the un-owned row without the domain-internal sentinel. Verbs map through
-// here instead of re-spelling the projection at five call sites.
+// The PURE row → view mappers (zero I/O). The ONE home for the read seam's two load-bearing
+// projections: (1) `config` is run through `parsePromptConfig` (lenient — a malformed or older blob is
+// lifted forward / bounded to DEFAULT rather than throwing mid-load; the db schema's "parsed at the
+// read seam" note), and (2) `isSystemDefault` is derived from `ownerId IS NULL` so the client
+// identifies the un-owned row without the domain-internal sentinel. Verbs map through here instead of
+// re-spelling the projection at five call sites.
 
 import { parsePromptConfig } from "@orb/contracts/preset";
 import type { presets } from "@orb/db";
@@ -23,7 +23,6 @@ export function toPresetSummary(row: PresetRow): PresetSummary {
   };
 }
 
-/** The full projection — the summary PLUS the lifted `PromptConfig` blob + its mirrored version. */
 export function toPresetDetail(row: PresetRow): PresetDetail {
   return {
     ...toPresetSummary(row),

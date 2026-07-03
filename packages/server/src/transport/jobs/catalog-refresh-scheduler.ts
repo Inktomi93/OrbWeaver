@@ -26,7 +26,6 @@ const LOG_COMPONENT = "catalog-refresh-scheduler";
 const MS_PER_HOUR = 3_600_000;
 const MS_PER_DAY = 86_400_000;
 
-/** Hourly decision tick. */
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_HOUR;
 /** Refresh cadence after a success — once a day. */
 const REFRESH_EVERY_MS = MS_PER_DAY;
@@ -57,7 +56,6 @@ export interface CatalogRefreshSchedulerDeps {
   readonly ownerId: UserId | null;
   /** The injected clock — the staleness comparison reads it (no ambient `Date.now`). */
   readonly now: () => number;
-  /** The injected interval timer. */
   readonly scheduleInterval: ScheduleOp;
   readonly checkIntervalMs?: number;
 }

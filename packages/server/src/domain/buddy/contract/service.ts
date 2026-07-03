@@ -96,11 +96,10 @@ export interface BuddyService {
   readonly confirm: (params: ConfirmBuddyParams) => Promise<ConfirmBuddyResult>;
   /** The caller's persisted transcript, oldest-first (for hydration on load). */
   readonly history: (params: BuddyHistoryParams) => Promise<BuddyTurnView[]>;
-  /** Wipe the caller's buddy-chat transcript. */
   readonly clearChat: (params: ClearBuddyChatParams) => Promise<ClearBuddyChatResult>;
-  /** Toggle whether the buddy reacts to app events (the observer toggle). Returns the updated view. */
+  /** The observer toggle. */
   readonly setReactions: (params: SetReactionsParams) => Promise<BuddyView>;
-  /** Toggle the buddy's "hands" (the capability-ceiling kill switch). Returns the updated view. */
+  /** The capability-ceiling kill switch for the "hands". */
   readonly setAgency: (params: SetAgencyParams) => Promise<BuddyView>;
   /** Resolve the owner's buddy SOUL as an agent-speaker identity (D60, doc 04 §5) — the RESOLVE-phase product
    *  chat voices a seated buddy with (`displayName`←soul name, `systemPrompt`←`buildBuddySystemPrompt`). An

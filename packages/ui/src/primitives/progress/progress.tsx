@@ -15,7 +15,7 @@ export interface ProgressProps extends Omit<BaseRootProps, "className"> {
   trackClassName?: string;
   /** Visible, auto-associated label — renders `Progress.Label`. */
   label?: ReactNode;
-  /** Render the formatted "72%" readout (`Progress.Value`); hidden while indeterminate. @default false */
+  /** Render the formatted "72%" readout (`Progress.Value`); hidden while indeterminate. @defaultValue false */
   showValue?: boolean;
   /** Custom formatter for `Progress.Value` (receives Base UI's formatted string + raw value). */
   formatValue?: (formattedValue: string | null, value: number | null) => ReactNode;

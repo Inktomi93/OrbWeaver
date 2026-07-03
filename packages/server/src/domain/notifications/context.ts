@@ -1,10 +1,8 @@
-// domain/notifications — DI BUNDLE: the ctx the verbs close over (db + the injected clock + the one D60
-// recipient belt). The bundle TYPE is the explicit `NotificationsContext` interface in `contract/service.ts`
-// (no `ReturnType<>` — `no-context-returntype`); this file is the BUILDER. notifications is a thin durable
-// surface — the `emit` op flows the OTHER way (this domain PROVIDES `record`, the entry root composes it into
-// `emit` for producers). The lone injected read is `isAgentRecipient` (agent-principal-design/06 §3): an
-// inline `users.kind` check the entry root — the sanctioned `users` reader — supplies so `record` can refuse
-// an agent recipient without notifications reaching into `users` (`no-direct-users-read`).
+// domain/notifications — the ctx BUILDER: assembles `NotificationsContext` (db + injected clock + the
+// D60 `isAgentRecipient` belt) for the verbs to close over. Excludes `emit` — that op flows the OTHER
+// way (this domain PROVIDES `record`; the entry root composes `emit` for producers). The bundle's TYPE
+// is the explicit interface in `contract/service.ts` (no `ReturnType<>` — `no-context-returntype`; see
+// that file for the full D60 belt rationale and the `no-direct-users-read` gate this builder satisfies).
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";

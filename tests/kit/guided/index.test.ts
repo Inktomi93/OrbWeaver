@@ -42,11 +42,9 @@ test("ZWSP defense: a {{char}} in user input is neutralized and never macro-eval
 
 test("ZWSP defense: the inserted codepoint is exactly U+200B and sits BETWEEN the braces", () => {
   const out = resolveGuidedInstruction("{{input}}", "{{char}}", macroOpts());
-  // index 0 = "{", index 1 = the wedge, index 2 = "{".
   expect(out[0]).toBe("{");
   expect(out.charCodeAt(1)).toBe(ZWSP_CODEPOINT);
   expect(out[2]).toBe("{");
-  // Closing pair: "}" <ZWSP> "}" at the tail.
   expect(out.charCodeAt(out.length - 2)).toBe(ZWSP_CODEPOINT);
   expect(out.at(-1)).toBe("}");
 });
@@ -80,11 +78,9 @@ test("ZWSP is exactly one char and codepoint U+200B", () => {
 
 test("neutralizeMacros wedges U+200B BETWEEN each brace pair", () => {
   const out = neutralizeMacros("{{char}}");
-  // Opening pair: "{" <ZWSP> "{".
   expect(out[0]).toBe("{");
   expect(out.charCodeAt(1)).toBe(ZWSP_CODEPOINT);
   expect(out[2]).toBe("{");
-  // Closing pair at the tail: "}" <ZWSP> "}".
   expect(out.charCodeAt(out.length - 2)).toBe(ZWSP_CODEPOINT);
   expect(out.at(-1)).toBe("}");
 });

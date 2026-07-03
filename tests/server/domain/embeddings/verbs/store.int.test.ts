@@ -449,7 +449,6 @@ describe("store — chat-block lenses (segment / digest)", () => {
       return s.map((x) => x.characterId).sort();
     };
 
-    // first build: two speakers.
     await svc.store({ ...base, speakerCharacterIds: [aria, bram], contentHash: "h1" });
     expect(await speakerSet()).toEqual([aria, bram].sort());
 

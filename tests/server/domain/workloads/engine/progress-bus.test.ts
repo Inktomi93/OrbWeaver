@@ -59,6 +59,6 @@ describe("progress-bus", () => {
     expect(wakes).toBe(2);
     unsubscribe();
     emitWorkloadEvent({ type: "started", workloadId: id, kind: "reconcile-stats", at: T0 + 2 });
-    expect(wakes).toBe(2); // no further wake after unsubscribe
+    expect(wakes).toBe(2);
   });
 });

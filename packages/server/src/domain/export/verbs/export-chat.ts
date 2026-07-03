@@ -25,7 +25,7 @@ import { slug } from "../substrate/download-slug";
 type ChatRow = typeof chats.$inferSelect;
 type VariantRow = typeof messageVariants.$inferSelect;
 
-/** Map a D26 variant row → the builder's swipe shape. */
+// Map a D26 variant row → the builder's swipe shape.
 function toExportVariant(v: VariantRow): ExportVariant {
   return {
     content: v.content,
@@ -40,9 +40,9 @@ function toExportVariant(v: VariantRow): ExportVariant {
 
 type MessageRow = typeof messages.$inferSelect;
 
-/** The per-chat speaker-name maps (D18/Part III — a room has MANY characters + personas): characterId → card
- *  name (every voicing character), personaId → persona name (every human author). Built ONCE from the canon's
- *  distinct ids so each turn resolves to its OWN speaker, not the header primary. */
+// The per-chat speaker-name maps (D18/Part III — a room has MANY characters + personas): characterId → card
+// name (every voicing character), personaId → persona name (every human author). Built ONCE from the canon's
+// distinct ids so each turn resolves to its OWN speaker, not the header primary.
 async function loadSpeakerNames(
   ctx: ExportContext,
   slots: readonly MessageRow[],
@@ -73,11 +73,11 @@ async function loadSpeakerNames(
   };
 }
 
-/** Resolve THIS turn's speaker display name (Part III — the per-message speaker, never the header primary):
- *  a human turn is its authoring persona; an assistant turn is its voicing character. FLAG[PD-17]: an
- *  agent-authored assistant row (`characterId` NULL, `authorUserId` set — AP3) has no name source here yet
- *  (its soul name needs `resolveAgentSpeaker`, doc 04 §5) → it degrades to the header character name; the
- *  `agent_author` provenance (doc 06 §6) lands with the seat wave. */
+// Resolve THIS turn's speaker display name (Part III — the per-message speaker, never the header primary):
+// a human turn is its authoring persona; an assistant turn is its voicing character. FLAG[PD-17]: an
+// agent-authored assistant row (`characterId` NULL, `authorUserId` set — AP3) has no name source here yet
+// (its soul name needs `resolveAgentSpeaker`, doc 04 §5) → it degrades to the header character name; the
+// `agent_author` provenance (doc 06 §6) lands with the seat wave.
 function resolveSpeakerName(
   m: MessageRow,
   names: { char: Map<string, string>; persona: Map<string, string> },
@@ -93,9 +93,9 @@ function resolveSpeakerName(
   return fallback.characterName;
 }
 
-/** Load the canon (slots ⋈ their variant sets, seq order) → the builder inputs. The SELECTED variant is the
- *  message's primary contribution (D26); a slot whose pointer is null degrades to variant 0 (the insert-time
- *  window) — never a throw. Each row carries its OWN resolved speaker name (Part III group fidelity). */
+// Load the canon (slots ⋈ their variant sets, seq order) → the builder inputs. The SELECTED variant is the
+// message's primary contribution (D26); a slot whose pointer is null degrades to variant 0 (the insert-time
+// window) — never a throw. Each row carries its OWN resolved speaker name (Part III group fidelity).
 async function loadExportMessages(
   ctx: ExportContext,
   chatId: ChatId,
@@ -145,8 +145,8 @@ async function loadExportMessages(
   });
 }
 
-/** The chat-level header facts: the primary character's name (D28 flat row, join order — inv #5), the
- *  anchor persona's name, and the branch round-trip ref. Every miss degrades (never a throw). */
+// The chat-level header facts: the primary character's name (D28 flat row, join order — inv #5), the
+// anchor persona's name, and the branch round-trip ref. Every miss degrades (never a throw).
 async function loadExportMeta(
   ctx: ExportContext,
   chat: ChatRow,

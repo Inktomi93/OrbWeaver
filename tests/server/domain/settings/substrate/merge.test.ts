@@ -14,8 +14,8 @@ describe("deepMergeAppSettings", () => {
   test("undefined skips, null clears a top-level override", () => {
     const base: AppSettings = { logLevel: "info", corpusAutoindex: true };
     const merged = deepMergeAppSettings(base, { logLevel: undefined, corpusAutoindex: null });
-    expect(merged.logLevel).toBe("info"); // undefined = don't touch
-    expect(merged.corpusAutoindex).toBeNull(); // null = clear
+    expect(merged.logLevel).toBe("info");
+    expect(merged.corpusAutoindex).toBeNull();
   });
 
   test("nested plain objects recurse (siblings survive)", () => {

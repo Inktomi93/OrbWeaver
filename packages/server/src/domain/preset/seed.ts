@@ -1,9 +1,9 @@
-// domain/preset/seed — the boot seeder (lives at the domain root, not a subsystem folder — a sanctioned
-// root singleton in the feature-structure gate). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
-// exist, and is `schemaVersion`-GATED on reseed: when the stored row's version is BELOW
-// `DEFAULT_PROMPT_CONFIG.schemaVersion`, the row is overwritten with the current default — a version bump is
-// the ONLY reseed trigger (a direct DB config edit that doesn't bump the version survives; a version bump
-// overwrites it on the next boot). The clock is INJECTED for determinism (entry passes the real clock).
+// The boot seeder (lives at the domain root, not a subsystem folder — a sanctioned root singleton in
+// the feature-structure gate). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
+// exist, and is `schemaVersion`-gated on reseed: when the stored row's version is below
+// `DEFAULT_PROMPT_CONFIG.schemaVersion`, the row is overwritten with the current default — a version
+// bump is the ONLY reseed trigger (a direct DB config edit that doesn't bump the version survives). The
+// clock is injected for determinism (entry passes the real clock).
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -34,7 +34,6 @@ export async function ensureSystemDefaultPreset(db: Db, now: () => number): Prom
     return;
   }
 
-  // Version-gated reseed: a bump to DEFAULT_PROMPT_CONFIG.schemaVersion forces an overwrite on next boot.
   if (existing.schemaVersion < DEFAULT_PROMPT_CONFIG.schemaVersion) {
     await reseedSystemDefault(
       db,

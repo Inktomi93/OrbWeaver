@@ -42,7 +42,6 @@ const CLOCK_RADIUS = CLOCK_CENTER - CLOCK_STROKE / 2;
 const CENTER_DOT_RADIUS = 5;
 /** The hidden-lock glyph's top-left offset, centering an ICON_XS square on CLOCK_CENTER. */
 const HIDDEN_ICON_OFFSET = CLOCK_CENTER - ICON_XS / 2;
-/** Angular gap between segments, degrees. */
 const SEGMENT_GAP_DEG = 6;
 const FULL_TURN_DEG = 360;
 const HALF_TURN_DEG = 180;
@@ -71,8 +70,15 @@ function segmentPath(index: number, count: number): string {
  * text-primary; empty segments drop to text-muted). Pure count display: knows nothing of fronts or
  * consequences (rpg-design/11 §2; the D58 spec).
  *
- * Usage: `<SegmentedClock segments={6} filled={clock.filled} completed={clock.completed} label="Doom" />`.
- * GM-eyes redaction: `<SegmentedClock segments={6} filled={2} hidden label="Twist clock" />`.
+ * @example
+ * ```tsx
+ * <SegmentedClock segments={6} filled={clock.filled} completed={clock.completed} label="Doom" />
+ * ```
+ *
+ * @example GM-eyes redaction
+ * ```tsx
+ * <SegmentedClock segments={6} filled={2} hidden label="Twist clock" />
+ * ```
  */
 export function SegmentedClock({
   segments,

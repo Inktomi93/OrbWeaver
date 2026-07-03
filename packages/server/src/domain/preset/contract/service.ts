@@ -1,9 +1,8 @@
-// domain/preset/contract/service — the typed API surface (read THIS to know everything preset does). Holds:
+// The typed API surface (read THIS to know everything preset does). Holds:
 //   • PresetContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 / no-context-returntype)
 //   • PresetService   the 6-verb authoritative interface (the front door re-exports the type)
 // preset is a leaf user-scoped CRUD feature: no cross-feature port, no injected guard (it gates by
-// `ownerId === userId`). The context carries only db + the determinism seam + the bound
-// audit writer (assembled at the entry composition root).
+// `ownerId === userId`). The context carries only db + the determinism seam + the bound audit writer.
 
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";

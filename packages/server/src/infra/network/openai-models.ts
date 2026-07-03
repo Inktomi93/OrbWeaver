@@ -14,7 +14,7 @@ const modelsResponseSchema = z.object({
 /** Trailing-slash trimmer (hoisted — useTopLevelRegex). */
 const TRAILING_SLASH_RE = /\/$/;
 
-/** @public — the args for fetchOpenAiModels (the injected fetch-models op). */
+/** Args for `fetchOpenAiModels`, the op `domain/credentials/verbs/fetch-models` injects. */
 export interface FetchOpenAiModelsArgs {
   baseUrl: string;
   apiKey: string | null;

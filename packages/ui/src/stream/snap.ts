@@ -58,8 +58,7 @@ export function snapToGraphemeBoundary(text: string, index: number): number {
  * without hitting whitespace, the tail is a word still being emitted — reveal only back to the last
  * whitespace boundary in the prefix so a fragment never mounts. The next chunk brings the whitespace
  * that completes the word, or the stream finishes (`enabled` flips off, the strict passthrough
- * returns the full text). The `WORD_SNAP_LOOKAHEAD` cap still lets a genuinely unbroken run (a long
- * URL, CJK prose with no whitespace in the window) flow rather than stall forever.
+ * returns the full text).
  */
 export function snapToWordBoundary(text: string, from: number): number {
   if (from >= text.length) {

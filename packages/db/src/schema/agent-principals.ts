@@ -29,7 +29,7 @@ export const agentPrincipals = sqliteTable(
       .$type<UserId>()
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    // WHAT kind of agent — the speaker-source registry's dispatch key (AP3). `buddy` only in v1.
+    // The speaker-source registry's dispatch key (AP3). `buddy` only in v1.
     sourceKind: text("source_kind", { enum: AGENT_SOURCE_KINDS }).notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

@@ -55,7 +55,6 @@ function hostOf(url: string): string {
  * placeholder by default (`allowExternal` defaults false). Untrusted A/V is ALWAYS `controls` +
  * NEVER `autoplay` (non-overridable — an autoplaying untrusted `<audio>` is a tracking beacon).
  *
- * Usage: `<MessageMedia src={{ kind:"external", url }} media="image" alt="" />`.
  * Spec: UI-Theming §12.3 (D44) — the media trust boundary.
  */
 export function MessageMedia({

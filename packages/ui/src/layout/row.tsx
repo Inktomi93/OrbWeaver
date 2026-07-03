@@ -5,8 +5,7 @@ import { rowVariants } from "./variants";
 export interface RowProps extends ComponentProps<"div">, VariantProps<typeof rowVariants> {}
 
 /**
- * Horizontal flex row, items centered by default, on the intent-token spacing scale
- * (UI-Arch §4; ui-package-design §6.1).
+ * Horizontal flex row on the intent-token spacing scale (UI-Arch §4; ui-package-design §6.1).
  *
  * Usage: `<Row gap="field" justify="between">…</Row>`.
  */

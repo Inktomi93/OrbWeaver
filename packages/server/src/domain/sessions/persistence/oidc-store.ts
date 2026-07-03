@@ -8,13 +8,9 @@ interface DomainOidcStore {
   consume: (state: string) => Promise<OidcTransaction | null>;
 }
 
-/** The TTL for an OIDC transaction in milliseconds (10 minutes). */
 const OIDC_TX_TTL_MS = 600_000;
 
-/**
- * Creates the DB-backed OIDC transaction store.
- * Satisfies `OidcTransactionStore` (for infra/auth verify) and `OidcMintStore` (for entry authorize-redirect).
- */
+/** Satisfies `OidcTransactionStore` (for infra/auth verify) and `OidcMintStore` (for entry authorize-redirect). */
 export function createOidcStore(db: Db): DomainOidcStore {
   return {
     async mint(tx: OidcTransaction): Promise<void> {
@@ -44,7 +40,6 @@ export function createOidcStore(db: Db): DomainOidcStore {
         return null;
       }
 
-      // Strict mapping back to OidcTransaction.
       // Nonce and redirectUri are nullable in schema but string in contract.
       return {
         state: row.state,

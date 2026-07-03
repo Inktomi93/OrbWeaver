@@ -23,24 +23,20 @@ async function getMetadata(
   principal: GetMetadataParams["principal"],
   hash: string,
 ): Promise<AssetMetadata | undefined> {
-  // 1. Happy path: caller owns the blob.
   const owned = await metadataForOwnedHash(ctx.db, principal.userId, hash);
   if (owned !== undefined) {
     return owned;
   }
 
-  // 2. PD-28 roster-avatar exception: caller is a co-participant of the owner.
   if (ctx.loadCoParticipantOwner !== undefined) {
     const coOwnerId = await ctx.loadCoParticipantOwner(principal.userId, hash);
     if (coOwnerId !== undefined) {
       const coMeta = await metadataForOwnerAndHash(ctx.db, coOwnerId, hash);
-      // Carry ownerId so the blob route reads from the correct CAS partition.
       if (coMeta !== undefined) {
         return { mime: coMeta.mime, size: coMeta.size, ownerId: coOwnerId };
       }
     }
   }
 
-  // Not found / not accessible — collapse both to undefined (no foreign-existence leak).
   return undefined as AssetMetadata | undefined;
 }

@@ -79,7 +79,7 @@ export interface RateLimitDecision {
  * limiter PRIMITIVE (`transport/rate-limit.ts`) and the bucket policy are constructed at `entry/` (db is
  * required at construction) and threaded onto `ctx`; transport declares only this port and calls
  * `enforce` from the ladder. `enforce` rejects with `DomainRateLimitError` when over cap (mapped to
- * `TOO_MANY_REQUESTS` + `Retry-After` downstream). FLAG(entry): wire this from the limiter primitive.
+ * `TOO_MANY_REQUESTS` + `Retry-After` downstream).
  */
 export interface RateLimitGate {
   readonly enforce: (decision: RateLimitDecision) => Promise<void>;

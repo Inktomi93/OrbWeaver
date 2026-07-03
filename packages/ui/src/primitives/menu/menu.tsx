@@ -47,11 +47,11 @@ export function MenuTrigger(props: BaseTriggerProps): ReactElement {
 
 export interface MenuPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Placement side, forwarded to the explicit Positioner. @default "bottom" (Base UI default) */
+  /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" (Base UI default) */
   side?: BasePositionerProps["side"];
-  /** Alignment on the side. @default "start" */
+  /** Alignment on the side. @defaultValue "start" */
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @default 8 (= --spacing-row) */
+  /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
 }
 

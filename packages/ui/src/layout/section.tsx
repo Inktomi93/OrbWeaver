@@ -2,13 +2,12 @@ import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { sectionVariants } from "./variants";
 
 export interface SectionProps extends ComponentProps<"section"> {
-  /** Optional heading rendered above the content in the section's heading slot. */
+  /** Heading rendered above the section's content. */
   heading?: ReactNode;
 }
 
 /**
- * Block-spacing wrapper — a `py-section` region with an optional heading slot
- * (ui-package-design §6.1). Groups a block of content on the section rhythm.
+ * Block-spacing wrapper with an optional heading slot (ui-package-design §6.1).
  *
  * Usage: `<Section heading="Sampling">…fields…</Section>`.
  */

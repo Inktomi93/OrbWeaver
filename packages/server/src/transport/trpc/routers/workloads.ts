@@ -92,7 +92,7 @@ export const workloadsRouter = t.router({
     ),
 });
 
-/** Replay the recent progress ring, then live-tail the bus filtered to this `workloadId`. */
+// Replay the recent progress ring, then live-tail the bus filtered to this `workloadId`.
 async function* workloadEvents(
   service: WorkloadService,
   workloadId: WorkloadId,

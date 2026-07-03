@@ -1,14 +1,10 @@
-// entry/boot/migrate — boot step 3 (core/Tier-5-Entry.md §"Boot order"): back up the db file, run the drizzle
-// migrations on the FK-OFF connection (the @orb/db front door owns the dance), then assert referential
-// integrity — ABORT (throw) on any failure so a corrupting migration stays restorable from the backup.
+// entry/boot/migrate — boot step 3 (core/Tier-5-Entry.md §"Boot order"). See `runBootMigrations` for the
+// sequence and `resolveMigrationsFolder` for how the migrations dir is located.
 //
-// The migrations folder is resolved from the @orb/db PACKAGE's own location (the generated `0000_baseline`),
-// NOT from the process cwd: `require.resolve("@orb/db")` (via `createRequire`) yields the package entry
-// (`src/index.ts`) and the baseline lives in the sibling `migrations/` dir. (`createRequire`, not
-// `import.meta.resolve`, because the latter is unsupported under the vitest module runner.) entry MAY import
-// `@orb/db` directly (a lower package) — the migrate/backfill boot steps legitimately do. The `db` handle +
-// the database URL are INJECTED (env is read once at the top boot seam and passed down; this step never
-// touches `process.env`).
+// `createRequire`, not `import.meta.resolve`, because the latter is unsupported under the vitest module
+// runner. entry MAY import `@orb/db` directly (a lower package) — the migrate/backfill boot steps
+// legitimately do. The `db` handle + the database URL are INJECTED (env is read once at the top boot seam
+// and passed down; this step never touches `process.env`).
 
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";

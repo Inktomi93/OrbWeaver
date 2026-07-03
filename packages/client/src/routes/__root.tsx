@@ -2,7 +2,7 @@ import { Stack } from "@orb/ui/layout";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
-// The root route. UPGRADE PATH (task #15 — the data layer): swap createRootRoute() for
+// UPGRADE PATH (task #15 — the data layer): swap createRootRoute() for
 // createRootRouteWithContext<{ queryClient; trpc; auth }>() and forward those singletons from the
 // composition root at the RouterProvider seam — that context is the home for the beforeLoad auth gate on
 // /login + /admin/* (UI-Lib-TanStack-Router.md steal-list #1/#2). Not wired now: none of those singletons

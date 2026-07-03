@@ -38,17 +38,17 @@ export function PopoverTrigger<Payload = unknown>(props: BaseTriggerProps<Payloa
 
 export interface PopoverPopupProps extends Omit<BasePopupProps, "className"> {
   className?: string;
-  /** Placement side, forwarded to the explicit Positioner. @default "bottom" */
+  /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" */
   side?: BasePositionerProps["side"];
-  /** Alignment on the side, forwarded to the Positioner. @default "center" */
+  /** Alignment on the side, forwarded to the Positioner. @defaultValue "center" */
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @default 8 (= --spacing-row) */
+  /** Anchor gap in px. @defaultValue 8 (= --spacing-row) */
   sideOffset?: BasePositionerProps["sideOffset"];
   alignOffset?: BasePositionerProps["alignOffset"];
   /**
    * Render a dismissable `bg-scrim` backdrop behind the popup (for a modal-style popover). The
    * backdrop lives inside the bundled Portal, before the Positioner (Base UI's required placement).
-   * Pair with `<Popover modal>` for focus/scroll containment. @default false
+   * Pair with `<Popover modal>` for focus/scroll containment. @defaultValue false
    */
   backdrop?: boolean;
 }

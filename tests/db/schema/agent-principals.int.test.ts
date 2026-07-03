@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";
 
-/** Seed a human owner + an owned `kind='agent'` users row (the satellite's FK target; the agent-shape CHECK). */
+// Seed a human owner + an owned `kind='agent'` users row (the satellite's FK target; the agent-shape CHECK).
 async function seedAgentUser(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
   const ownerId = castId<UserId>("user_owner");
   await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner") });

@@ -7,7 +7,6 @@
 
 import { DomainOperationError } from "@orb/kit/errors";
 
-/** The card import-read failure code axis. */
 export type ImportCardErrorCode = "card_unreadable" | "card_invalid";
 
 /** The supplied bytes are not a readable/valid character card (see header for the `code` split). */

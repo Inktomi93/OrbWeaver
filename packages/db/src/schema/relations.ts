@@ -9,6 +9,5 @@
 import { relations } from "drizzle-orm";
 import { users } from "./users";
 
-// The owner root. Outgoing `many(...)` relations to the owned tables are added in Phase 4 alongside the
-// first reader that joins them (FKs already enforce ownership at the DB level regardless).
+// The owner root.
 export const usersRelations = relations(users, () => ({}));

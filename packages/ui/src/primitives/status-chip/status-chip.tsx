@@ -46,7 +46,7 @@ export interface StatusChipProps
   timestamp?: string;
   /** Renders a real `<Button>` retry affordance on the failed state. Omit for no retry affordance. */
   onRetry?: () => void;
-  /** @default "Retry" */
+  /** @defaultValue "Retry" */
   retryLabel?: string;
 }
 

@@ -30,7 +30,7 @@ import { dirname, join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 
-/** @public — the return shape of {@link Cas.putBytes}; consumed by `domain/assets`'s `storeBlob`. The
+/** The return shape of {@link Cas.putBytes}; consumed by `domain/assets`'s `storeBlob`. The
  *  infra layer knows nothing of the `assets` row, so this carries NO `assetId` (the domain mints that). */
 export interface PutResult {
   /** The sha-256 hex of the stored bytes (the CAS key). */
@@ -41,7 +41,7 @@ export interface PutResult {
   created: boolean;
 }
 
-/** @public — the per-user content-addressed blob store. `entry/` wires `createCas(env.ASSETS_DIR)` once
+/** The per-user content-addressed blob store. `entry/` wires `createCas(env.ASSETS_DIR)` once
  *  and injects this handle into `domain/assets` + `domain/export`. Every op is scoped to an `ownerId`
  *  (D21): a blob written under one owner is invisible to another. */
 export interface Cas {

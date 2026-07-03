@@ -27,7 +27,7 @@ import { seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;
 
-/** Insert a raw `user_settings` row with a crafted (possibly legacy/corrupt) blob + version column. */
+// Insert a raw `user_settings` row with a crafted (possibly legacy/corrupt) blob + version column.
 async function insertRaw(
   db: Db,
   userId: UserId,
@@ -78,8 +78,8 @@ describe("readUserSettings", () => {
     // worldInfo.scanDepth is out of range (max 200) → per-field `.catch` heals it; memory.enabled is valid.
     await insertRaw(db, u, 2, { memory: { enabled: true }, worldInfo: { scanDepth: 99_999 } });
     const { config } = await readUserSettings(db, u);
-    expect(config.worldInfo.scanDepth).not.toBe(99_999); // healed, not nuked
-    expect(config.memory.enabled).toBe(true); // valid sibling survived
+    expect(config.worldInfo.scanDepth).not.toBe(99_999);
+    expect(config.memory.enabled).toBe(true);
   });
 });
 

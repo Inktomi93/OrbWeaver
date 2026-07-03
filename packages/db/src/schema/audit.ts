@@ -18,16 +18,14 @@ export const auditLogs = sqliteTable(
     id: text("id").$type<AuditLogId>().primaryKey(),
     // The verb/event recorded (e.g. "character.delete", "owner.grant-admin"). Free-form by design.
     action: text("action").notNull(),
-    // The acting principal — a REAL FK with SET NULL: write-time referential integrity, and the log
-    // outlives the actor (a deleted user's row goes null, not gone). Nullable for SET NULL (and global
-    // actor-less actions).
+    // The acting principal — the D24 counter-case (see header). Nullable for SET NULL and for global
+    // actor-less actions.
     actorUserId: text("actor_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
     // The kind of entity acted on (paired with the soft entity_id below). Nullable for global actions.
     entityType: text("entity_type"),
-    // The D24 SOLE soft-ref: plain TEXT, no FK, no cascade — the record outlives the entity. Polymorphic
-    // by entity_type.
+    // The D24 sole soft-ref (see header). Polymorphic by entity_type.
     entityId: text("entity_id"),
     // Structured context for the event (free JSON; parsed at the read seam if ever surfaced).
     metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),

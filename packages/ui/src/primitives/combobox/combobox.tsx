@@ -56,13 +56,13 @@ export interface ComboboxProps extends ComboboxPassthrough {
   /** Applied to the input (the in-flow element). */
   className?: string;
   id?: string;
-  /** Render an arrow pointing at the input inside the popup. @default false */
+  /** Render an arrow pointing at the input inside the popup. @defaultValue false */
   arrow?: boolean;
-  /** Placement side, forwarded to the explicit Positioner. @default "bottom" (Base UI default) */
+  /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" (Base UI default) */
   side?: BasePositionerProps["side"];
-  /** Alignment on the side. @default "start" */
+  /** Alignment on the side. @defaultValue "start" */
   align?: BasePositionerProps["align"];
-  /** Anchor gap in px. @default 4 */
+  /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: BasePositionerProps["sideOffset"];
 }
 

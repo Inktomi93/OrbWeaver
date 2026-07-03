@@ -52,9 +52,8 @@ const ROW_COLS = {
   createdAt: notifications.createdAt,
 } as const;
 
-// Build the durable-first INSERT…RETURNING (unexecuted). `seq` is the per-recipient `MAX(seq)+1` scalar
-// subquery, evaluated against the pre-insert table state (db-driven; no JS clock). File-local — the two
-// executors below own the run.
+// Build the durable-first INSERT…RETURNING (unexecuted); `seq` per the file-header PHYSICS above.
+// File-local — the two executors below own the run.
 function buildInsertNotification(db: Db, row: NotificationInsert): BatchStmt {
   return db
     .insert(notifications)
@@ -64,16 +63,12 @@ function buildInsertNotification(db: Db, row: NotificationInsert): BatchStmt {
       type: row.type,
       payload: row.payload,
       createdAt: row.createdAt,
-      // Per-recipient monotonic cursor — evaluated against the pre-insert table state (db-driven; no JS clock).
       seq: sql<number>`(select coalesce(max(${notifications.seq}), 0) + 1 from ${notifications} where ${notifications.recipientUserId} = ${row.recipientUserId})`,
     })
     .returning(ROW_COLS);
 }
 
-/**
- * Durable-first INSERT: persist the closed event for its recipient with a db-driven monotonic `seq`
- * (`MAX(seq)+1` scoped to the recipient, atomic in the one statement). RETURNS the stored row.
- */
+/** Durable-first INSERT (db-driven monotonic `seq` — see file header); RETURNS the stored row. */
 export async function insertNotification(
   db: Db,
   row: NotificationInsert,
@@ -103,7 +98,7 @@ export async function insertNotificationWith(
 
 /**
  * The caller's active inbox page — recipient-scoped, dismissed excluded, newest-first by `seq`, paged with
- * `seq < cursor` when a cursor is given. Fetches `limit` rows. Recipient-scope is in the WHERE clause.
+ * `seq < cursor` when a cursor is given. Fetches `limit` rows.
  */
 export async function selectInbox(
   db: Db,

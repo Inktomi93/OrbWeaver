@@ -77,7 +77,6 @@ describe("onAssetCreated", () => {
 
     expect(ih.loadAssetBytes).toHaveBeenCalledWith(assetId);
     expect(storeH.roleClients.summarize).toHaveBeenCalledTimes(1);
-    // Two imageEmbed calls (raw + multimodal), two rows.
     expect(storeH.roleClients.imageEmbed).toHaveBeenCalledTimes(2);
     const rows = await db
       .select()

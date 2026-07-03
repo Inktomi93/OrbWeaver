@@ -12,9 +12,7 @@ export interface ContainerProps
 /**
  * THE containment provider — the anchor tier of the 4-tier container model (UI-Arch §4).
  * layout/ OWNS `container-type`: feature code never writes raw containment; it wraps a surface in
- * `<Container>` and the surface's `@container` queries resolve. Applies the Tailwind v4
- * `@container` utility (`container-type: inline-size`); `size` constrains width to the
- * `--container-cq-*` token scale.
+ * `<Container>` and the surface's `@container` queries resolve.
  *
  * WHY `name` is a style attr, not a class: the named-container utility would be `@container/${name}`
  * — a dynamic class Tailwind's static scanner cannot see, so it would never be generated. Setting

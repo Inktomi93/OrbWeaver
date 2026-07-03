@@ -29,7 +29,6 @@ describe("loadAssetBytes", () => {
       mime: PNG,
     });
 
-    // No principal — the indexer re-reads by id alone (D20); the owner is derived from the row to key CAS.
     const read = await svc.loadAssetBytes(stored.assetId);
 
     expect(read).not.toBeNull();

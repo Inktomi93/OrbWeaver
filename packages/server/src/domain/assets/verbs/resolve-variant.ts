@@ -33,7 +33,6 @@ export function createResolveVariant(ctx: AssetsContext): AssetsService["resolve
       return cached;
     }
 
-    // Cache miss — recompute from the owner's CAS original. A non-owner's id can't resolve it (404).
     if (!(await ctx.cas.exists(ownerId, hash))) {
       return;
     }

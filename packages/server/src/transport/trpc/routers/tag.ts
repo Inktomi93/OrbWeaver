@@ -1,6 +1,6 @@
-// transport/trpc/routers/tag â the descriptive-label surface (core/Tier-4-Transport.md). authed; owner-scoped
-// (tags are personal labels, no resource-role). Thin: validate â `ctx.services.tag.<verb>` â map errors.
-// Wire input shapes + axes derive from `@orb/contracts/tag` (no inline re-spell â Â§7.4).
+// transport/trpc/routers/tag — the descriptive-label surface (core/Tier-4-Transport.md). authed; owner-scoped
+// (tags are personal labels, no resource-role). Thin: validate → `ctx.services.tag.<verb>` → map errors.
+// Wire input shapes + axes derive from `@orb/contracts/tag` (no inline re-spell — §7.4).
 
 import {
   createTagSchema,

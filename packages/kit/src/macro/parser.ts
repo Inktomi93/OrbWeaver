@@ -139,7 +139,6 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
     pos += 1;
   }
 
-  // Read identifier
   const idMatch = text.slice(pos).match(MACRO_IDENT);
   if (!idMatch) {
     // Invalid macro, treat the prefix as text
@@ -252,7 +251,6 @@ function parseArgs(argStr: string): string[] {
     return splitArgs(trimmedArgStr.slice(DOUBLE_COLON_PREFIX_LEN), "::");
   }
   if (trimmedArgStr.startsWith(":")) {
-    // Single colon: comma-separated rest
     return splitArgs(trimmedArgStr.slice(1), ",");
   }
   // Legacy whitespace-separated form (`{{macro foo=bar baz=qux}}`). Split on whitespace so each
@@ -262,7 +260,6 @@ function parseArgs(argStr: string): string[] {
   return splitArgs(trimmedArgStr, " ").filter((s) => s.length > 0);
 }
 
-// Push a new block frame onto the stack (and into its parent's children).
 function openBlock(stack: StackFrame[], node: FlatBlockOpen): void {
   const blockNode: MacroBlockNode = {
     type: "block",

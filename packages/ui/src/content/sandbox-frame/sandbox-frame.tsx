@@ -44,7 +44,6 @@ export interface SandboxFrameProps {
  * caller-controlled `heightPx` (default a card height). Auto-height returns WITH the doored
  * `allow-scripts` flip for trusted cards (origin-checked listener), not before.
  *
- * Usage: `<SandboxFrame html={card.html} css={card.css} title="Character stat block" />`.
  * Spec: UI-Theming §12.2 (D44) — the untrusted-HTML boundary.
  */
 export function SandboxFrame({

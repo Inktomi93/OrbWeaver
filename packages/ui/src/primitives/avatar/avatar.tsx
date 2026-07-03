@@ -18,7 +18,7 @@ export interface AvatarProps
   alt?: string;
   /**
    * Delay in ms before the fallback appears — set a small value (e.g. 600) to avoid an
-   * initials-flash on a fast image load (Base UI `Avatar.Fallback` `delay`). @default 0
+   * initials-flash on a fast image load (Base UI `Avatar.Fallback` `delay`). @defaultValue 0
    */
   fallbackDelay?: BaseFallbackProps["delay"];
   /** Notified as the image moves through idle → loading → loaded → error (Base UI `Avatar.Image`). */

@@ -47,7 +47,7 @@ export interface ImageInfo {
   height: number;
 }
 
-/** @public — the sharp image adapter. `entry/` constructs it once and injects `transform` into
+/** The sharp image adapter. `entry/` constructs it once and injects `transform` into
  *  `domain/assets`. Stateless (sharp holds no per-instance state) — the factory exists only to keep the
  *  injection seam uniform with the other infra handles. */
 export interface ImageAdapter {

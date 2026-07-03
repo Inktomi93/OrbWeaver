@@ -1,11 +1,11 @@
-// domain/preset/persistence/queries — ALL `presets`-table access (queries only; the verbs hold the
-// business logic). USER-SCOPED: reads are the two-armed "owner's row OR the system default" (`ownerId =
-// userId OR ownerId IS NULL`); owned writes scope on `ownerId = userId` so a caller can never touch another
-// owner's row NOR the system default (its `ownerId IS NULL` never matches `= userId`). The system default's
-// own lifecycle (seed + reseed) has its dedicated key-on-sentinel queries. Every timestamp arrives as a
-// PARAM (the verb passes its injected clock) — no ambient `Date.now()` here (determinism).
+// ALL `presets`-table access (queries only; the verbs hold the business logic). User-scoped: reads are
+// the two-armed "owner's row OR the system default" (`ownerId = userId OR ownerId IS NULL`); owned
+// writes scope on `ownerId = userId` so a caller can never touch another owner's row nor the system
+// default (its `ownerId IS NULL` never matches `= userId`). The system default's own lifecycle (seed +
+// reseed) has its dedicated key-on-sentinel queries. Every timestamp arrives as a param (the verb passes
+// its injected clock) — no ambient `Date.now()` here (determinism).
 //
-// The query SHAPES are file-local (NOT exported — persistence is not a type home, §7.4): callers pass
+// The query shapes are file-local (NOT exported — persistence is not a type home, §7.4): callers pass
 // object literals + read the inferred row, so no feature type leaks out of `persistence/`.
 
 import type { PromptConfig } from "@orb/contracts/preset";

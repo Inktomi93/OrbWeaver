@@ -115,8 +115,8 @@ function collectErrors(limit: number): Record<string, unknown>[] {
 
 /**
  * Asset-store health port — structural-injection so foundation accepts `domain/assets`'s `fsck` without
- * importing it (assets is UP-stack). `object` return so no domain type crosses the boundary.
- * @public — `entry/` wires `assetsService.fsck` as the impl.
+ * importing it (assets is UP-stack). `object` return so no domain type crosses the boundary. `entry/`
+ * wires `assetsService.fsck` as the impl.
  */
 export interface AssetInspector {
   fsck: () => Promise<object>;
@@ -126,7 +126,7 @@ export interface AssetInspector {
  * Admin-auth gate — structural-injection so foundation accepts the entry auth resolver without importing it
  * (auth is UP-stack). Consulted BEFORE the token check: an admin browser session is through, no token. The
  * token path is the headless fallback. `isAdmin` MUST never throw (a transport/db error resolves to `false`
- * so a misbehaving seam can't open the gate). @public — `entry/` adapts the resolver into this.
+ * so a misbehaving seam can't open the gate). `entry/` adapts the resolver into this.
  */
 export interface AdminAuthChecker {
   isAdmin: (headers: Headers) => Promise<boolean>;
@@ -176,7 +176,7 @@ export function createDebugAuthMiddleware(
 }
 
 /** Prod middleware — closes over env.DEBUG_TOKEN at module load (token-only; the cookie path is wired by
- *  `registerDebugRoutes` where the auth resolver is available). @public */
+ *  `registerDebugRoutes` where the auth resolver is available). */
 export const debugAuthMiddleware: MiddlewareHandler = createDebugAuthMiddleware(env.DEBUG_TOKEN);
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */

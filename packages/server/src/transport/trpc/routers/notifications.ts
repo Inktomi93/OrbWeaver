@@ -74,7 +74,7 @@ export const notificationsRouter = t.router({
     }),
 });
 
-/** The durable-first per-user notification generator. */
+// The durable-first per-user notification generator.
 async function* notificationStream(
   service: NotificationsService,
   principal: Principal,
@@ -103,7 +103,7 @@ async function* notificationStream(
   }
 }
 
-/** Page the durable inbox (newest-first) for rows newer than `resumeSeq`, returned ASCENDING for replay. */
+// Page the durable inbox (newest-first) for rows newer than `resumeSeq`, returned ASCENDING for replay.
 async function collectSince(
   service: NotificationsService,
   principal: Principal,
@@ -133,7 +133,7 @@ async function collectSince(
   return missed;
 }
 
-/** A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id). */
+// A finite, non-error resume cursor, or `null` (first subscribe / a malformed or sentinel id).
 function parseResumeSeq(lastEventId: string | null): number | null {
   if (lastEventId === null) {
     return null;

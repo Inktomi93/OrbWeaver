@@ -41,9 +41,9 @@ export async function insertSession(db: Db, row: SessionInsert): Promise<void> {
   await db.insert(sessions).values(row);
 }
 
-/** The per-request validate read: join the session to its user, keyed on the peppered token hash. Returns
- *  the session's live-state columns + the owning user's resolution fields (incl. `userId`/`role`/`enabled`,
- *  the Route-A payload — D40), branded straight off the schema's `$type<>` columns. */
+/** The per-request validate read: the session's live-state columns + the owning user's resolution fields
+ *  (incl. `userId`/`role`/`enabled` — the Route-A payload, D40), branded straight off the schema's
+ *  `$type<>` columns. */
 export async function selectForValidation(
   db: Db,
   tokenHash: string,
@@ -70,7 +70,7 @@ export async function selectForValidation(
   return rows.at(0);
 }
 
-/** The throttled activity slide — bump `lastSeenAt` + `expiresAt` together. */
+/** The throttled activity slide (throttle enforced by the calling verb). */
 export async function slideExpiry(
   db: Db,
   sessionId: SessionId,

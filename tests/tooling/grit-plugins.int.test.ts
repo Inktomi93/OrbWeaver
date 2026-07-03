@@ -27,25 +27,23 @@ const BIOME = join(ROOT, "node_modules", ".bin", "biome");
 const GRIT_EXT_RE = /\.grit$/u;
 const LEADING_PATH_RE = /^.*\//u;
 
-/** Every grit plugin on disk (basename, no extension) — the source of truth for "what grits exist". */
+// Every grit plugin on disk (basename, no extension) — the source of truth for "what grits exist".
 const GRITS: string[] = readdirSync(GRIT_DIR)
   .filter((f) => f.endsWith(".grit"))
   .map((f) => f.replace(GRIT_EXT_RE, ""))
   .sort();
 
-/** The plugins biome.json actually registers (basenames). */
+// The plugins biome.json actually registers (basenames).
 function readBiomePlugins(): string[] {
   const cfg = JSON.parse(readFileSync(join(ROOT, "biome.json"), "utf8")) as { plugins?: string[] };
   return (cfg.plugins ?? []).map((p) => p.replace(LEADING_PATH_RE, "").replace(GRIT_EXT_RE, ""));
 }
 const BIOME_PLUGINS: string[] = readBiomePlugins();
 
-/**
- * A known-violating fixture per grit, written at a path that satisfies the grit's `$filename` guard.
- * Several deliberately exercise the FRAGILE arm: `no-inline-types` uses an `export interface` (the form
- * that silently no-matched before the fix), `no-if-is-group` uses `if (isGroup) {…}` (likewise). If those
- * arms regress to a dead snippet, this fixture stops firing and the test goes red.
- */
+// A known-violating fixture per grit, written at a path that satisfies the grit's $filename guard.
+// Several deliberately exercise the FRAGILE arm: no-inline-types uses an `export interface` (the form
+// that silently no-matched before the fix), no-if-is-group uses `if (isGroup) {…}` (likewise). If those
+// arms regress to a dead snippet, this fixture stops firing and the test goes red.
 const FIXTURES: Record<string, { path: string; src: string }> = {
   "no-await-db-in-loop": {
     path: "f.ts",

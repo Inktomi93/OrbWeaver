@@ -33,7 +33,6 @@ describe("probeKeyDecrypt", () => {
 
   test("returns false when the first credential was encrypted with a DIFFERENT key (simulated rotation)", async () => {
     const db = await freshDb();
-    // Seed with the harness key (all-7s).
     const harnessA = makeHarness(db);
     const svcA = createCredentialsService(harnessA.ctx);
     const owner = await seedUser(db, { id: "user_probe_rot", role: "user" });

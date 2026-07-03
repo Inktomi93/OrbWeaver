@@ -1,9 +1,6 @@
-// domain/notifications — COMPOSITION ROOT: wires the 4 verbs over the DI bundle (zero logic). The per-user
-// DURABLE inbox (D16): record (durable-first producer write) · markRead · dismiss · list
-// (the caller's own inbox). The clock is injected for determinism (no ambient `Date.now()` in a verb); the
-// monotonic `seq` is db-driven (persistence). The producer-facing `emit` op is NOT minted here — it is
-// composed at the entry root from this service's `record` + transport's per-user bus (see `EmitNotification`
-// in contract/service.ts); this domain never imports a producer (chat) — the edge is one-directional.
+// domain/notifications — COMPOSITION ROOT: wires the 4 verbs (record/markRead/dismiss/list) over one
+// shared `NotificationsContext` (zero logic of its own — see contract/service.ts for the domain's D16
+// durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";

@@ -15,7 +15,6 @@ import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
 
-/** Common to every persona verb: the acting principal whose `userId` scopes ownership. */
 export interface PersonaActorParams {
   readonly principal: Principal;
 }

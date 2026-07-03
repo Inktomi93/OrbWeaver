@@ -31,7 +31,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "../../../../packages/server/src/domain/discovery/index.ts";
 
-/** The injected `writeHubScores` op type (not re-exported from the front door — derive it from the ctx). */
+// The injected writeHubScores op type (not re-exported from the front door — derive it from the ctx).
 type WriteHubScores = DiscoveryContext["writeHubScores"];
 
 /** A fixed epoch-ms (the frozen clock instant — stable timestamp assertions). */
@@ -93,7 +93,7 @@ export function makeSummarizeRecorder(names: readonly string[] = []): SummarizeR
   return { op, calls };
 }
 
-/** A seeded id minter (counter-backed; deterministic) for a given prefix. */
+// A seeded id minter (counter-backed; deterministic) for a given prefix.
 function seededMinter<T extends string>(prefix: string): () => T {
   let n = 0;
   return (): T => {
@@ -213,7 +213,7 @@ export async function seedHostedChat(db: Db, id: string, ownerId: UserId): Promi
 export const GROUP_CHAR = castId<CharacterId>("character_group");
 const DIGEST_OWNER = castId<UserId>("user_digest_owner");
 
-/** Idempotently ensure the synthetic group char (+ its owner) exists for the digest `scopedCharacterId` FK. */
+// Idempotently ensure the synthetic group char (+ its owner) exists for the digest scopedCharacterId FK.
 async function ensureGroupChar(db: Db): Promise<void> {
   await db
     .insert(users)

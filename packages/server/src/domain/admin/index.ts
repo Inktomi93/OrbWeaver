@@ -20,5 +20,4 @@ export type { AdminUserView } from "./contract/views";
 // is the agent arm of the same seam; its injection into chat (the engine's `speak` gate) is AP2 — exported
 // here now for the AP1 unit tests + the AP2 wiring (same posture as `can`).
 export { can, canAgent, requireAdmin, requireOwner } from "./guard";
-// Factory.
 export { createAdminService } from "./service";

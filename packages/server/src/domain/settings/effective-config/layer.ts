@@ -29,7 +29,6 @@ const VLLM_SUMMARIZE_CONCURRENCY_FLOOR = 32;
 // (a positive int) caps it.
 const NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR: number | null = null;
 
-/** Split a comma-separated env list into trimmed, non-empty tokens (the `importSkipCharacters` floor). */
 function splitCsv(raw: string): string[] {
   return raw
     .split(",")
@@ -37,8 +36,7 @@ function splitCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
-/** Rate-limit budgets: env floor KEPT (they stay boot-env; the limiter reads these), admin override
- *  layers on top. */
+// Env floor KEPT here (rate limits stay boot-env; the limiter reads these), admin override layers on top.
 function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits {
   return {
     general: o?.general ?? env.RATE_LIMIT_GENERAL,
@@ -48,7 +46,7 @@ function resolveRateLimits(o: RateLimits | null | undefined): ResolvedRateLimits
   };
 }
 
-/** vLLM batch concurrency: born-in-DB code floor (no env var), admin override layers on top. */
+// Born-in-DB code floor (no env var), admin override layers on top.
 function resolveVllmConcurrency(o: VllmConcurrency | null | undefined): ResolvedVllmConcurrency {
   return {
     embed: o?.embed ?? VLLM_EMBED_CONCURRENCY_FLOOR,

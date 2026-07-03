@@ -16,8 +16,6 @@ describe("resolveModelCapability — curated arm (wins first)", () => {
   });
 
   test("a Claude-via-OR version-only id resolves to the curated profile, NOT synthesis", () => {
-    // `claude-haiku-4-5` on the OR path → curated Haiku (reasoning off), proving curated lookup beats the
-    // openrouter synthesis arm.
     const cap = resolveModelCapability("claude-haiku-4-5", "openrouter");
     expect(cap.reasoning.mode).toBe("none");
     expect(cap.reasoning.enabled).toBe(false);

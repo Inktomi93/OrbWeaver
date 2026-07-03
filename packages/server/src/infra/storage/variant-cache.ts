@@ -23,7 +23,7 @@ import { join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 
-/** @public — the derived-variant cache handle; `entry/` wires `createVariantCache` into the blob route +
+/** The derived-variant cache handle; `entry/` wires `createVariantCache` into the blob route +
  *  the assets service's GC/reap paths (the sibling seam to `Cas` in `./cas`). Per-user (D21). */
 export interface VariantCache {
   /** Cached webp bytes for `(owner, hash, width)`, or undefined on miss (or unreadable — recompute). */

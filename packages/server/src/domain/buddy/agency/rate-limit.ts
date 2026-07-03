@@ -15,8 +15,7 @@ const WINDOW_MS = 3_600_000; // 1 hour
 
 const hits = new Map<UserId, number[]>();
 
-/** Record + check a mutation for `userId`. Returns false when the hourly budget is exhausted (and does
- *  NOT consume a slot in that case). */
+/** Returns false when the hourly budget is exhausted (does not consume a slot in that case). */
 export function allowMutation(userId: UserId, now: number): boolean {
   const recent = (hits.get(userId) ?? []).filter((t) => now - t < WINDOW_MS);
   if (recent.length >= MAX_MUTATIONS_PER_HOUR) {

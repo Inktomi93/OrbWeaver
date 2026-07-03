@@ -58,7 +58,6 @@ export function DerivedSuggestionsStory(): ReactElement {
   const [value, setValue] = useState("");
   const [bump, setBump] = useState(0);
   const rerender = (): void => setBump((n) => n + 1);
-  // fresh array, derived during render (filter+map) — a different reference each render.
   const suggestions = MACROS.filter((m) => m.name.length > 0).map((m) => ({ ...m }));
   return (
     <div>

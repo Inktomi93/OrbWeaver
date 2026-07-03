@@ -48,7 +48,6 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
     });
     expect(await existingCharacterHash(db, characterId, EMBED_MODEL)).toBe("hash-1");
 
-    // Re-upsert the same key with a new hash/vector — updates in place, no second row.
     await upsertCharacterEmbedding(db, {
       id: castId<CharacterEmbeddingId>("character_embedding_b"),
       characterId,

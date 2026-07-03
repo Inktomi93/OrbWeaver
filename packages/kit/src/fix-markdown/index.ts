@@ -38,7 +38,7 @@ const EVEN = 2;
 // Sentinel for "no `<speaker` open tag found" — distinct from a real index ≥ 0.
 const NOT_FOUND = -1;
 
-/** Repair LLM markdown artifacts. Returns the cleaned string. */
+/** Repair LLM markdown artifacts. */
 export function fixMarkdown(text: string, forDisplay: boolean): string {
   // 1. Strip adjacent whitespace inside paired markers. Always runs (settled + display paths).
   const stripped = stripInnerWhitespace(text);

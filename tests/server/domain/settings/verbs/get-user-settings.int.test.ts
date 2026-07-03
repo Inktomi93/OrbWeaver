@@ -17,7 +17,6 @@ describe("getUserSettings", () => {
     expect(view.userId).toBe(u);
     expect(view.updatedAt).toBe(0);
     expect(view.config.memory.enabled).toBe(false);
-    // A pure read must NOT materialize the row.
     const rows = await db.select().from(userSettings).where(eq(userSettings.userId, u));
     expect(rows).toHaveLength(0);
   });

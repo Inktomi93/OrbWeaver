@@ -18,7 +18,6 @@ export function createRefreshCatalog(ctx: ConnectionContext): ConnectionService[
     try {
       models = await ctx.fetchOrCatalog({ signal: params.signal });
     } catch (err) {
-      // Fetch failed — serve a persisted snapshot if any (stale but usable), else surface the gap.
       const existing = await readCatalogSnapshot(ctx.db);
       if (existing !== null) {
         return existing;

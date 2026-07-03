@@ -4,7 +4,6 @@
 // rollups (`discovery`, `stats`) chunk their rows through `chunkRows` first. A db-layer primitive (the
 // cap is a libSQL fact, cross-feature) — NOT a domain helper.
 
-// libSQL/SQLite bind a maximum of 32766 host parameters per statement.
 const SQLITE_MAX_BOUND_VARS = 32_766;
 // A row needs at least one column; guard against a divide that would yield Infinity/0.
 const MIN_COLUMNS_PER_ROW = 1;

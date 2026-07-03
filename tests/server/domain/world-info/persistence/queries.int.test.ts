@@ -133,7 +133,6 @@ describe("scan / activation selection over stored entries (kit resolvers)", () =
     const haystack = buildKeywordHaystack(["We rode toward the CASTLE gates."], ["Knight"]);
     expect(matchEntryKeys(view.keys ?? [], haystack)).toEqual(["castle"]);
 
-    // Stored metadata selects keyword scope + the at-depth placement.
     expect(resolveEntryScope(view.metadata, hasKeys)).toBe("keyword");
     expect(resolveEntryInjection(view.metadata)).toEqual({ depth: 4, role: "assistant" });
   });

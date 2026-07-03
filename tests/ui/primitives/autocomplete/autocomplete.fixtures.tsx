@@ -15,7 +15,6 @@ const SOURCE = ["adventure", "mystery", "romance", "horror", "comedy"];
 export function DerivedItemsStory(): ReactElement {
   const [bump, setBump] = useState(0);
   const rerender = (): void => setBump((n) => n + 1);
-  // fresh array, derived during render (filter+map) — a different reference each render.
   const items = SOURCE.filter((s) => s.length > 0).map((s) => s.toLowerCase());
   return (
     <div>

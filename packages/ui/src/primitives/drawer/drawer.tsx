@@ -60,9 +60,9 @@ export interface DrawerPopupProps
   className?: string;
   /** Portal target — render the drawer into a specific container (default: document.body). */
   container?: BasePortalProps["container"];
-  /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @default false */
+  /** Keep the portal mounted while the drawer is closed (preserve DOM/animations). @defaultValue false */
   keepMounted?: BasePortalProps["keepMounted"];
-  /** Force-render the backdrop even when Base UI would suppress it (nested drawers). @default false */
+  /** Force-render the backdrop even when Base UI would suppress it (nested drawers). @defaultValue false */
   forceRender?: boolean;
 }
 

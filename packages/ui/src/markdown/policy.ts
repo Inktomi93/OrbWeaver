@@ -63,7 +63,7 @@ export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filt
   (tag) => tag !== "img",
 );
 
-/** Protocols an untrusted link may use — everything else (javascript:, data:, vbscript:, …) is blocked. */
+// Protocols an untrusted link may use — everything else (javascript:, data:, vbscript:, …) is blocked.
 const SAFE_PROTOCOLS: readonly string[] = ["http:", "https:", "mailto:"];
 
 /**

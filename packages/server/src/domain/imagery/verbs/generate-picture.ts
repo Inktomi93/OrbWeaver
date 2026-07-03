@@ -151,7 +151,6 @@ function buildDelta(args: {
   };
 }
 
-/** Resolve the generateImage connection, mapping any resolution failure to `ImageryNotConfiguredError`. */
 async function resolveConnection(
   ctx: ImageryContext,
   caller: Principal,
@@ -192,7 +191,7 @@ export function createGeneratePicture(ctx: ImageryContext): ImageryService["gene
     const images: GeneratedPictureImage[] = [];
     for (const img of decoded) {
       images.push(
-        // biome-ignore lint/performance/noAwaitInLoops: store-then-provenance is sequential per image (a mid-loop crash must leave a benign orphan blob, never a dangling provenance row).
+        // biome-ignore lint/performance/noAwaitInLoops: intentionally sequential — store-then-provenance ordering (step 10 above).
         await persistImage(ctx, {
           caller: p.caller,
           chatId: p.chatId ?? null,

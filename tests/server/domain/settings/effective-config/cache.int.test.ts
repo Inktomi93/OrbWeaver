@@ -43,7 +43,6 @@ describe("effective-config cache", () => {
     await writeAppOverride(db, { logLevel: "debug", schemaVersion: 2 }, AT);
     const cfg = await reloadEffectiveConfig(db);
     expect(cfg.logLevel).toBe("debug");
-    // The sync cache + the pino singleton both reflect the write.
     expect(getEffectiveConfig().logLevel).toBe("debug");
     expect(logger.level).toBe("debug");
   });

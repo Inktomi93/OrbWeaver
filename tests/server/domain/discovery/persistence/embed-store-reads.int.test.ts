@@ -65,11 +65,9 @@ describe("readOwnedDigestVectors", () => {
   test("drops digests whose chat has no human host", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
-    // A chat with NO host participant — its digest has no derivable owner.
     const chat = await seedHostedChat(db, "chat_hosted", owner);
     await seedChatDigest(db, { id: "chat_digest_ok", chatId: chat, embedding: vec(1, 0) });
-    // Insert a digest via a freshly seeded chat lacking a host is covered by the inner join; here we assert
-    // the hosted one is present.
+    // The no-host drop itself is the inner join (untested here); this asserts the hosted digest passes through.
     const rows = await readOwnedDigestVectors(db);
     expect(rows.map((r) => r.digestId)).toContain("chat_digest_ok");
   });

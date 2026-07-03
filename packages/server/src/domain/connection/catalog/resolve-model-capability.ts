@@ -64,7 +64,6 @@ function synthesizeReasoning(family: Family): ModelCapability["reasoning"] {
   const caps = FAMILY_REASONING[family];
   const displayModes = caps.display ? (["summarized", "omitted"] as const) : undefined;
   if (caps.effort) {
-    // anthropic gets the [low..max] ladder; other effort families get the OpenAI-style ladder.
     const effortLevels =
       family === "anthropic"
         ? (["low", "medium", "high", "xhigh", "max"] as const)

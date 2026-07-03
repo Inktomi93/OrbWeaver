@@ -23,7 +23,7 @@ export interface NumberFieldProps extends NumberFieldRootProps {
    * hide the affordance.
    */
   scrubLabel?: ReactNode;
-  /** Scrub cursor axis. @default "horizontal" */
+  /** Scrub cursor axis. @defaultValue "horizontal" */
   scrubDirection?: "horizontal" | "vertical";
 }
 

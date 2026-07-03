@@ -18,7 +18,6 @@ export function createResolveChat(
   resolveRole: ConnectionService["resolveRole"],
 ): ConnectionService["resolveChat"] {
   return (params: ResolveChatParams): Promise<ResolvedConnection> => {
-    // The chat row's fields become the override that beats the UserSettings roleDefaults.chat base.
     const agentOverride: AgentOverride = {
       api: params.routableChat.api,
       source: params.routableChat.source,

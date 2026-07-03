@@ -20,7 +20,7 @@ async function seedUser(db: Awaited<ReturnType<typeof freshDb>>, raw: string): P
   return id;
 }
 
-/** A valid `invite` event for the given recipient (real TypeIDs so it also parses via the contract). */
+// A valid `invite` event for the given recipient (real TypeIDs so it also parses via the contract).
 function inviteEvent(recipientUserId: UserId): NotificationEvent {
   return {
     type: "invite",

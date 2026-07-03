@@ -31,7 +31,6 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
     if (owned === undefined) {
       throw new AssetNotFoundError(assetId);
     }
-    // Owner gate the subject character (when given + when the injected op is present).
     if (subjectCharacterId !== undefined && ctx.assertCharacterOwned !== undefined) {
       const characterOwned = await ctx.assertCharacterOwned(principal.userId, subjectCharacterId);
       if (!characterOwned) {

@@ -23,10 +23,10 @@ interface KeptInput {
 }
 
 /** Apply an instruction prefix when the request carried one. Instruction-aware embedders (e5 / BGE /
- *  Instructor) consume a literal textual prefix; the symmetric default (MiniLM) gets identity when no
- *  instruction is supplied. `inputType` (query|document) is intentionally a NO-OP for the symmetric
- *  default family — there is no model-agnostic prefix to apply without per-model config (the no-op knob
- *  doctrine); an instruction-aware connection passes the prefix explicitly via `instruction`. */
+ *  Instructor) consume a literal textual prefix; the symmetric default here (jina-clip-v2) gets identity
+ *  when no instruction is supplied. `inputType` (query|document) is intentionally a NO-OP for the
+ *  symmetric default — there is no model-agnostic prefix to apply without per-model config (the no-op
+ *  knob doctrine); an instruction-aware connection passes the prefix explicitly via `instruction`. */
 function applyInstruction(text: string, instruction: string | undefined): string {
   return instruction === undefined || instruction.length === 0 ? text : `${instruction} ${text}`;
 }

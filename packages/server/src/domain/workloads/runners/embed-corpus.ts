@@ -1,6 +1,6 @@
-// runner: embed-corpus — the embeddings TEXT pass (the ONE vector write path). Resumable: `force` re-embeds
-// matched rows, else it skips already-embedded ones (a resumable pass). Wraps the injected
-// `ctx.env.embeddings.embedCorpus` op and PROJECTS its counts into the workload-owned `EmbedPassResult`.
+// runner: embed-corpus — the embeddings TEXT pass (the ONE vector write path). `force` re-embeds matched
+// rows; else it skips already-embedded ones (resumable). Wraps the injected `ctx.env.embeddings.embedCorpus`
+// op and PROJECTS its counts into the workload-owned `EmbedPassResult`.
 
 import type { Runner } from "../contract/runner";
 

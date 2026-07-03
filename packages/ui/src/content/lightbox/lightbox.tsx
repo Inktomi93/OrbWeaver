@@ -22,7 +22,6 @@ export interface LightboxProps {
  * `MessageMedia` so its gates compose (an external image opened in the lightbox is still gated —
  * `allowExternal` flows through). Images/video only.
  *
- * Usage: `<Lightbox open={open} onOpenChange={setOpen} src={src} media="image" alt="" />`.
  * Spec: ui-package-design §6.1 — the sealed viewer over Dialog + MessageMedia.
  */
 export function Lightbox({

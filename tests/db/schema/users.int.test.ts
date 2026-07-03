@@ -124,7 +124,7 @@ test("kind defaults to 'human' and a human carries no owner link", async () => {
   expect(row?.ownerUserId).toBeNull();
 });
 
-/** Seed a human owner (the `ownerUserId` FK target for an agent row). */
+// Seed a human owner (the `ownerUserId` FK target for an agent row).
 async function seedOwner(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
   const ownerId = castId<UserId>("user_agent_owner");
   await db.insert(users).values({ id: ownerId, handle: castId<Handle>("agent_owner") });

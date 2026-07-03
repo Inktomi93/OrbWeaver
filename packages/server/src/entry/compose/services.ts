@@ -293,7 +293,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // Resolves in two queries: (1) find the candidate owner of the hash, (2) confirm both users share
     // a present-membership (`leftSeq IS NULL`) chat. Returns the co-owning userId or undefined.
     loadCoParticipantOwner: async (callerId, hash) => {
-      // 1. Find the ownerId of the asset by hash (any owner; we validate co-participation next).
       const assetRows = await db
         .select({ ownerId: assetsTable.ownerId })
         .from(assetsTable)
@@ -303,7 +302,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       if (candidateOwner === undefined || candidateOwner === callerId) {
         return; // Same owner → handled by the owner path; or no match at all.
       }
-      // 2. Confirm both are present members of at least one shared chat (set intersection).
       const ownerChatRows = await db
         .select({ chatId: chatParticipants.chatId })
         .from(chatParticipants)

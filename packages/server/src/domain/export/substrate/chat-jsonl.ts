@@ -113,8 +113,8 @@ export function buildChatJsonl(meta: ExportChatMeta, messages: readonly ExportMe
   return `${lines.join("\n")}\n`;
 }
 
-/** Speaker label for the plain-text transcript: the per-message speaker name (Part III group fidelity — the
- *  authoring persona / voicing character of THIS turn), with "System" reserved for system turns. */
+// Speaker label for the plain-text transcript: the per-message speaker name (Part III group fidelity — the
+// authoring persona / voicing character of THIS turn), with "System" reserved for system turns.
 function txtAuthor(m: ExportMessage): string {
   return m.role === "system" ? "System" : m.speakerName;
 }

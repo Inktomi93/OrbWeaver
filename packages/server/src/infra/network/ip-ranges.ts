@@ -188,7 +188,6 @@ export function isInRanges(ip: string, ranges: readonly string[]): boolean {
 // The built-in "trusted private" set: loopback, RFC1918, Tailscale/CGNAT (100.64.0.0/10), link-local,
 // plus IPv6 loopback / ULA / link-local. Docker's default bridges live in 172.16.0.0/12 (RFC1918) so
 // they're already covered. Callers EXTEND this via env (TRUSTED_PRIVATE_RANGES), never mutate it.
-/** @public — the built-in private/loopback range set the egress firewall + ingress belt block on. */
 export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
   "127.0.0.0/8", // IPv4 loopback
   "10.0.0.0/8", // RFC1918

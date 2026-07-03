@@ -1,7 +1,8 @@
 // domain/persona/contract/service — the typed API surface (read THIS to know everything the domain does).
 // Holds:
 //   • PersonaContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 /
-//                      no-context-returntype; the BUILDER is context.ts)
+//                      no-context-returntype; re-exported via context.ts, assembled at
+//                      `entry/compose/services.ts`)
 //   • PersonaService   the verb interface (the front door re-exports the type)
 //
 // The human's persona cards — owner-scoped CRUD + the character⇄persona junction + the non-lossy
@@ -67,18 +68,18 @@ export interface PersonaService {
   readonly create: (params: CreatePersonaParams) => Promise<PersonaDetail>;
   /** The caller's personas, newest first. Empty array when they have none. */
   readonly list: (params: ListPersonasParams) => Promise<PersonaDetail[]>;
-  /** One owned persona by id. Throws `PersonaNotFoundError` when it doesn't exist OR isn't the caller's
-   *  (the two collapse into one answer — no foreign-existence leak). */
+  /** One owned persona by id. Throws {@link PersonaNotFoundError} when it doesn't exist OR isn't the
+   *  caller's (the two collapse into one answer — no foreign-existence leak). */
   readonly get: (params: GetPersonaParams) => Promise<PersonaDetail>;
   /** Patch an owned persona (whitelisted fields; undefined skips). Returns the fresh detail. Throws
-   *  `PersonaNotFoundError` when not owned/found. A no-op edit re-reads without writing. */
+   *  {@link PersonaNotFoundError} when not owned/found. A no-op edit re-reads without writing. */
   readonly update: (params: UpdatePersonaParams) => Promise<PersonaDetail>;
   /** Delete an owned persona (the junction CASCADEs; `messages.personaId` SET NULL). Throws
-   *  `PersonaNotFoundError` when not owned/found. */
+   *  {@link PersonaNotFoundError} when not owned/found. */
   readonly remove: (params: RemovePersonaParams) => Promise<RemovePersonaResult>;
   /** Mint a persona from an owned character's card (copies name/description/avatar). When `swapMacros`,
    *  the description's `{{char}}`/`{{user}}` invert (persona POV). Stores `sourceCharacterId`/`swapMacros`
-   *  provenance (non-lossy). Throws `CharacterNotFoundError` when the character isn't owned/found. */
+   *  provenance (non-lossy). Throws {@link CharacterNotFoundError} when the character isn't owned/found. */
   readonly createFromCharacter: (params: CreateFromCharacterParams) => Promise<PersonaDetail>;
   /** Connect a persona to a character (idempotent). Both must be owned by the caller. */
   readonly connectToCharacter: (params: ConnectParams) => Promise<void>;

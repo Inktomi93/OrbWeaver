@@ -20,11 +20,11 @@
 // `text` (the embed input AND the stored body). There is NO `principal`/ownership check — the substrate FKs
 // to its producer and never re-checks ownership (D20).
 //
-// `chat_digest_speakers` (the §4 "which characters this digest CONTAINS" join) IS written here:
+// `chat_digest_speakers` (the §4 "which characters this digest CONTAINS" join, added PD-41) IS written here:
 // `DigestStoreParams.speakerCharacterIds` carries the set, and `storeDigest` writes the join (via
-// `replaceDigestSpeakers`) against the persisted digest id after the upsert. digest speakers updated
-// (PD-41). The chat-side `StoreDigestParams` (chat/contract/context) already carries them; the compose root's
-// chat→embeddings adapter forwards them into this `DigestStoreParams`.
+// `replaceDigestSpeakers`) against the persisted digest id after the upsert. The chat-side `StoreDigestParams`
+// (chat/contract/context) already carries them; the compose root's chat→embeddings adapter forwards them
+// into this `DigestStoreParams`.
 
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
 import type {

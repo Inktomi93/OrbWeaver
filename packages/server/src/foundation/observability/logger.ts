@@ -201,8 +201,7 @@ export function getRequestUserId(): string | undefined {
 /** Security-relevant events. One consistently-tagged pino line so the whole security trail is greppable as
  *  `security:true` and filterable by `event`. Emitted at warn (rejections/blocks, not errors). The
  *  auth/network/transport seams (SSRF block, rate-limit, CSRF reject, auth fail, JWKS reject) call this.
- *  DELIBERATELY pino-only — for a single-operator deploy the log stream + the ring IS the audit surface.
- *  @public — consumed across auth/network/transport. */
+ *  DELIBERATELY pino-only — for a single-operator deploy the log stream + the ring IS the audit surface. */
 export function securityEvent(
   event: string,
   fields: Record<string, unknown> = {},
