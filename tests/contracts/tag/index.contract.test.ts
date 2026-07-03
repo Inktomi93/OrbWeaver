@@ -63,7 +63,6 @@ test("tagSourceSchema round-trips manual|auto|card and rejects facet-ish values"
   expect(tagSourceSchema.safeParse("facet").success).toBe(false);
 });
 
-// ── Folder axis ───────────────────────────────────────────────────────────────────────────────────
 test("tagFolderTypeSchema round-trips NONE|OPEN|CLOSED and rejects others", () => {
   for (const f of TAG_FOLDER_TYPES) {
     expect(tagFolderTypeSchema.parse(f)).toBe(f);
@@ -83,7 +82,6 @@ test("tagStatusSchema round-trips the one-surface pending|accepted axis and reje
   expect(tagStatusSchema.safeParse("rejected").success).toBe(false);
 });
 
-// ── createTagSchema ───────────────────────────────────────────────────────────────────────────────
 test("createTagSchema accepts a valid tag, round-trips, and defaults source to optional", () => {
   const full = { name: "Romance", color: "#c0ffee", source: "card" as const };
   expect(createTagSchema.parse(full)).toEqual(full);
@@ -97,7 +95,6 @@ test("createTagSchema accepts a valid tag, round-trips, and defaults source to o
   expect(createTagSchema.safeParse({ name: "X", source: "theme" }).success).toBe(false);
 });
 
-// ── updateTagSchema ───────────────────────────────────────────────────────────────────────────────
 test("updateTagSchema is a partial patch; null color clears, undefined leaves untouched", () => {
   const patch = {
     name: "Romance",
@@ -116,7 +113,6 @@ test("updateTagSchema is a partial patch; null color clears, undefined leaves un
   expect(updateTagSchema.safeParse({ folderType: "open" }).success).toBe(false);
 });
 
-// ── View shape pins ─────────────────────────────────────────────────────────────────────────────────
 test("TagView pins the row shape (theme-default + unordered nulls)", () => {
   const view: TagView = {
     id: SAMPLE_TAG_ID,

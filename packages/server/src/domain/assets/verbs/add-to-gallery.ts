@@ -26,7 +26,7 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
     assetId,
     subjectCharacterId,
   }: GalleryAddParams): Promise<GalleryItemView> => {
-    // Owner gate the asset (leak-free: missing / not-yours collapse into NOT_FOUND).
+    // Leak-free: missing / not-yours collapse into NOT_FOUND.
     const owned = await ownedAssetForGallery(ctx.db, principal.userId, assetId);
     if (owned === undefined) {
       throw new AssetNotFoundError(assetId);

@@ -1,5 +1,3 @@
-// verb: list — the owner's library PLUS the shared system default, as summaries; never another owner's.
-
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";

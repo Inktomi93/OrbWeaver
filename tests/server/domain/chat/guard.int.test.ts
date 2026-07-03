@@ -55,7 +55,6 @@ describe("requireParticipant — present membership", () => {
   test("a non-member is denied with a leak-free not-found", async () => {
     const outsider = await seedUser(db, "outsider");
     const chatId = await seedChat(db, "a");
-    // outsider has NO chat_participants row.
     await expect(requireParticipant(ctx(), principal(outsider), chatId)).rejects.toBeInstanceOf(
       ChatNotFoundError,
     );

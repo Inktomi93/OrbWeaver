@@ -63,7 +63,6 @@ test("cells reserve an identical square box whether or not media has loaded (no 
   if (imagedBox === null || placeholderBox === null) {
     throw new Error("expected both cells to have a bounding box");
   }
-  // Square: width === height on each cell.
   expect(Math.abs(imagedBox.width - imagedBox.height)).toBeLessThan(1);
   expect(Math.abs(placeholderBox.width - placeholderBox.height)).toBeLessThan(1);
   // Identical reserved size regardless of whether the cell has an image.

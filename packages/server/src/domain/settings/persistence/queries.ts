@@ -20,8 +20,6 @@ import { eq } from "drizzle-orm";
 import { APP_SETTINGS_KEY } from "../contract/keys";
 import type { GlobalSettingView, UserSettingsView } from "../contract/views";
 
-// ── UserSettings (per-user tier) ─────────────────────────────────────────────────────────────────────
-
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns the parsed defaults
  *  synthesized from `{}` with NO write (`updatedAt: 0`) — materializing the row is `ensureUserSettings`. */
 export async function readUserSettings(db: Db, ownerId: UserId): Promise<UserSettingsView> {
@@ -79,8 +77,6 @@ export async function writeUserConfig(
     .where(eq(userSettings.userId, ownerId));
 }
 
-// ── Raw global KV (the `settings` table) ─────────────────────────────────────────────────────────────
-
 function toView(row: { key: string; value: JsonValue; updatedAt: number }): GlobalSettingView {
   return {
     key: row.key,
@@ -115,8 +111,6 @@ export async function upsertGlobalSetting(
   }
   return toView(row);
 }
-
-// ── AppSettings override row (the reserved `"app"` key) ──────────────────────────────────────────────
 
 /** Read the raw stored AppSettings override blob (or `undefined` if never written). The caller parses it
  *  via `parseAppSettings` (the in-blob `schemaVersion` probe is authoritative — no version column here). */

@@ -40,8 +40,6 @@ const LIMIT_ONE = 1;
 type BookRow = typeof worldBooks.$inferSelect;
 type EntryRow = typeof worldEntries.$inferSelect;
 
-// ── Projections (pure — no DB) ───────────────────────────────────────────────
-
 /** A stored book row → the client view (drops `ownerId`). */
 export function toBookView(row: BookRow): BookView {
   return {
@@ -75,8 +73,6 @@ export function toAttachmentView(row: BookRow, role: WorldBookRole | null): Book
   return { ...toBookView(row), role };
 }
 
-// ── Ownership-scoped loads ───────────────────────────────────────────────────
-
 /** One owned book, or undefined when not found / not the caller's. */
 export async function loadOwnedBook(
   db: Db,
@@ -107,7 +103,6 @@ export async function loadOwnedEntry(
   return rows[0]?.entry;
 }
 
-// ── Owner-scoped lists ───────────────────────────────────────────────────────
 // The entry update/remove ownership gate (the `inArray(worldEntries.worldBookId, <owned book ids subquery>)`
 // pattern — invariant #4) is built inline in those verbs, where the mutation lives: the subquery
 // `db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId))` folds straight
@@ -134,7 +129,7 @@ export async function listBookEntries(db: Db, bookId: WorldBookId): Promise<Entr
   return rows;
 }
 
-// ── Attachment lists (each re-applies the owner predicate as a symmetric belt) ──
+// Each list below re-applies the owner predicate as a symmetric belt.
 
 /** Books attached to a character, primary first then newest, owner-scoped via the book. Carries the role. */
 export async function listCharacterBooks(

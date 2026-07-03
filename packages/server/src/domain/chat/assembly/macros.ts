@@ -109,7 +109,6 @@ function macroOptionsFor(
     compactSummary: u(ctx.compactSummary),
     memory: u(ctx.memory),
     guidedInstruction: u(ctx.guidedInstruction),
-    // Run-environment + determinism seams.
     timezone: ctx.timezone,
     nowMs: ctx.nowMs,
     random: extras.random,

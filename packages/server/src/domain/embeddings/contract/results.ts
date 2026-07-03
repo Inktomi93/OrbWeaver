@@ -1,5 +1,3 @@
-// domain/embeddings/contract/results — the verb output shapes.
-
 /** The outcome of a `store` call. `noop` = the `content_hash` for this `(key, model)` was unchanged, so no
  *  re-embed + no write happened (the staleness gate short-circuited BEFORE the expensive embed). `written` =
  *  a fresh insert or a hash-changed update landed. `contentHash` is the computed hash either way (the caller

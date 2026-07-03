@@ -124,7 +124,6 @@ test("grouped: renders group labels and selects a grouped option", async ({ moun
   await mount(<Select items={GROUPED} placeholder="Pick a shade" />);
   await page.getByRole("combobox").click();
   await expect(page.getByRole("listbox")).toBeVisible();
-  // Both group labels render, associated with their groups.
   await expect(page.getByRole("group").filter({ hasText: "Warm" })).toBeVisible();
   await expect(page.getByRole("group").filter({ hasText: "Cool" })).toBeVisible();
   await page.getByRole("option", { name: "Slate" }).click();

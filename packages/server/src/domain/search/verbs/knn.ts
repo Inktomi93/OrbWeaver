@@ -38,8 +38,7 @@ export function createKnn(ctx: SearchContext): SearchService["knn"] {
       limit: OWNER_OVERFETCH * topN,
     });
 
-    // CSLS hub-adjust, then ascending sort (LOWER = closer). `id` is added for the rerank seam (its
-    // documents/hits key on a caller id, stable across reordering).
+    // `id` is added for the rerank seam (its documents/hits key on a caller id, stable across reordering).
     const ranked = pool
       .map((c) => ({
         id: c.characterId,

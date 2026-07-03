@@ -22,7 +22,6 @@ interface AuditCall {
   readonly at: number;
 }
 
-/** The harness: the AdminContext + the recorders the fakes write to. */
 export interface AdminHarness {
   readonly ctx: AdminContext;
   readonly audits: AuditCall[];
@@ -89,7 +88,6 @@ export function principal(userId: UserId, role: UserRole, handle: string = userI
   };
 }
 
-/** Build the AdminContext over a real db with deterministic + recording fakes. */
 export function makeHarness(db: Db): AdminHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();

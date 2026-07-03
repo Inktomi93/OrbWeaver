@@ -54,7 +54,6 @@ describe("list — ordering + paging", () => {
     }
     const second = await svc.list({ principal: principal(ALICE), limit: 2, cursor });
     expect(second.items.map((i) => i.seq)).toEqual([a.seq]);
-    // A short page means the inbox is exhausted.
     expect(second.nextCursor).toBeNull();
   });
 

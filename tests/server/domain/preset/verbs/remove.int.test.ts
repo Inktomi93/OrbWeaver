@@ -1,5 +1,3 @@
-// verb: remove — deletes an OWNED preset; GUARDS the system default; scoped to the owner.
-
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {

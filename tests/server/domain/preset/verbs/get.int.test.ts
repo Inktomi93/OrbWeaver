@@ -1,5 +1,3 @@
-// verb: get — read one readable preset (own OR system default); PresetNotFoundError otherwise.
-
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {

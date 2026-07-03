@@ -85,7 +85,7 @@ describe("presence-registry — SSE ref-count → server-derived liveness", () =
     first.abort();
 
     advance(1000); // still within grace
-    registry.connect(ALICE, new AbortController().signal); // reconnect
+    registry.connect(ALICE, new AbortController().signal);
     expect(registry.read(ALICE)).toEqual({ userId: ALICE, online: true, lastSeenAt: null });
   });
 

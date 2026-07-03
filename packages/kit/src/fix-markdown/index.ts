@@ -38,7 +38,6 @@ const EVEN = 2;
 // Sentinel for "no `<speaker` open tag found" — distinct from a real index ≥ 0.
 const NOT_FOUND = -1;
 
-/** Repair LLM markdown artifacts. */
 export function fixMarkdown(text: string, forDisplay: boolean): string {
   // 1. Strip adjacent whitespace inside paired markers. Always runs (settled + display paths).
   const stripped = stripInnerWhitespace(text);
@@ -96,7 +95,6 @@ function closeUnpairedMarkers(line: string): string {
 // downstream, rendering the text link-styled but inert until the real URL finishes. The hand-rolled
 // repairs remend replaced are pinned in the test as behavior locks against remend upgrades.
 
-/** Repair partial markdown constructs at the live tail of a streaming reveal. */
 export function repairStreamingTail(text: string): string {
   return holdTornSpeaker(remend(text));
 }

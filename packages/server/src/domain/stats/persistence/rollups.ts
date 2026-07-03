@@ -311,7 +311,6 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
   }));
 }
 
-// ── Temporal: streaks / active days / busiest day / day-of-week, from daily_stats ──────────────────
 function temporalFrom(days: { day: string; count: number }[]): TemporalStats {
   const active = days.filter((d) => d.count > 0);
   let busiest: { day: string; count: number } | null = null;

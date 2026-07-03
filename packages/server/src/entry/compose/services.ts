@@ -427,7 +427,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     });
   }
 
-  // ── Leaf + remaining services ─────────────────────────────────────────────────────────────────────────
   const persona = createPersonaService({
     db,
     now,

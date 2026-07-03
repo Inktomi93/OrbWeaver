@@ -15,7 +15,6 @@ test("linear renders from plain props with correct ARIA meter values", async ({ 
   await expect(component).toHaveAttribute("aria-valuemax", "60");
   await expect(component).toHaveAttribute("aria-valuenow", "30");
   await expect(component).toHaveAttribute("aria-label", "HP");
-  // 30/60 → the fill spans half the track.
   const style = await component.locator('[data-slot="fill"]').getAttribute("style");
   expect(style).toContain("width: 50%");
 });

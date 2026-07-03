@@ -27,7 +27,6 @@ describe("loadRoster", () => {
     const member = await seedUser(db, "member");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinSeq: 1 });
-    // A departed member — excluded from the present roster.
     const gone = await seedUser(db, "gone");
     await seedParticipant(db, {
       chatId,

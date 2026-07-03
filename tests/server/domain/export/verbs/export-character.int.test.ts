@@ -32,7 +32,6 @@ import {
 
 const AVATAR_HASH = "avatar_hash";
 
-// Decode the V3 card JSON embedded in an exported PNG (the `ccv3` chunk).
 function readCard(bytes: Uint8Array): unknown {
   const json = readCardChunk(bytes, "ccv3");
   if (json === null) {
@@ -67,7 +66,6 @@ describe("exportCharacter", () => {
     expect(result.filename).toBe("Aria.png");
     expect(isPng(result.bytes)).toBe(true);
     const card = readCard(result.bytes);
-    // valid V3 wire + a clean re-parse through the shared IN adapter.
     expect(() => characterCardV3Schema.parse(card)).not.toThrow();
     const back = cardFromJson(card, "fallback");
     expect(back.name).toBe("Aria");
@@ -138,11 +136,8 @@ describe("exportCharacter", () => {
       characterId: withoutAvatar,
     });
 
-    // a single cas.read for the avatar (TOCTOU-safe); no transcode for an already-PNG avatar.
     expect(harness.reads).toEqual([`${owner}:${AVATAR_HASH}`]);
     expect(harness.transforms).toHaveLength(0);
-    // the avatar-based artifact differs from the placeholder-based one (proves the avatar was the base),
-    // yet both carry a readable card.
     expect(a?.bytes).not.toEqual(b?.bytes);
     expect(readCardChunk(a?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();
     expect(readCardChunk(b?.bytes ?? new Uint8Array(), "ccv3")).not.toBeNull();

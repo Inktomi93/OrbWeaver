@@ -80,7 +80,6 @@ describe("compact — the manual lever (host)", () => {
     expect(row?.compactSummary).toBe("THE SUMMARY");
     expect(row?.compactedAtSeq).toBe(2);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
-    // The summarizer saw the full transcript.
     const userPrompt = summarizeCalls.at(0)?.at(0)?.userPrompt ?? "";
     expect(userPrompt).toContain("hello");
     expect(userPrompt).toContain("hi there");
@@ -106,7 +105,6 @@ describe("runCompaction — the injected core (resume math)", () => {
     const first = await compaction.runCompaction({ chatId });
     expect(first.compactedAtSeq).toBe(1);
 
-    // A new turn after the checkpoint, then a fresh summarizer.
     await seedMessage(db, chatId, 2, { role: "assistant", content: "second" });
     const compaction2 = createCompaction(ctxWithSummarizer("SUMMARY-B"), { emit });
     const second = await compaction2.runCompaction({ chatId });

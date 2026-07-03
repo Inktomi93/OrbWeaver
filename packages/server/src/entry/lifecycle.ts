@@ -93,7 +93,6 @@ export function createLifecycle(): Lifecycle {
     }
     booted = true;
 
-    // 1. db.
     db = await createDb(env.DATABASE_URL);
 
     // 2. SecretBox key (boot crypto): resolve the key buffer; the box itself is built inside compose.
@@ -166,7 +165,6 @@ export function createLifecycle(): Lifecycle {
       via: "fallback",
     };
 
-    // 7. seed the env OpenRouter key (once, into the owner's credentials).
     await seedCredentialFromEnv({
       credentials: built.services.credentials,
       owner,
@@ -179,7 +177,6 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await reclaimLocksOnBoot({ db, now, holder });
 
-    // 9. supervisors.
     //   • vLLM engine: null when VLLM_DISABLED — start it + keep its (synchronous) drain-closer for shutdown.
     if (built.vllmEngine !== null) {
       drainVllm = built.vllmEngine.start();

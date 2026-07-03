@@ -14,7 +14,6 @@
 
 import { z } from "zod";
 
-// ── Rarity ────────────────────────────────────────────────────────────────────
 export const RARITIES = ["common", "uncommon", "rare", "epic", "legendary"] as const;
 export type Rarity = (typeof RARITIES)[number];
 export const raritySchema = z.enum(RARITIES);
@@ -47,7 +46,6 @@ export const RARITY_STARS: Record<Rarity, string> = {
   legendary: "★★★★★",
 };
 
-// ── Species ─────────────────────────────────────────────────────────────────────
 export const SPECIES = ["mote", "scribe", "ember", "loom", "pixel", "wisp"] as const;
 export type Species = (typeof SPECIES)[number];
 export const speciesSchema = z.enum(SPECIES);
@@ -57,7 +55,6 @@ export const EYES = ["●", "•", "◉", "✦", "°", "×"] as const;
 export type Eye = (typeof EYES)[number];
 export const eyeSchema = z.enum(EYES);
 
-// ── Hat ──────────────────────────────────────────────────────────────────────────
 export const HATS = [
   "none",
   "crown",
@@ -71,7 +68,6 @@ export const HATS = [
 export type Hat = (typeof HATS)[number];
 export const hatSchema = z.enum(HATS);
 
-// ── Stats ──────────────────────────────────────────────────────────────────────
 /** Tavern-flavoured disposition stats (1–100). One peaks, one dumps, the rest scatter. */
 export const STAT_NAMES = ["LORE", "WIT", "WARMTH", "MISCHIEF", "FOCUS"] as const;
 export type StatName = (typeof STAT_NAMES)[number];
@@ -86,7 +82,6 @@ export const companionStatsSchema = z.record(
 );
 export type CompanionStats = z.infer<typeof companionStatsSchema>;
 
-// ── Mood ─────────────────────────────────────────────────────────────────────────
 // The expressive mood set. The sprite (client) shows eyes+mouth per mood; the reactor (domain) maps each
 // signal to one of these and resolves conflicts by `MOOD_PRIORITY`.
 export const MOODS = [
@@ -119,7 +114,6 @@ export const MOOD_PRIORITY: Record<Mood, number> = {
   sleepy: 1,
 };
 
-// ── Relationship (bond) tier ─────────────────────────────────────────────────────
 export const BOND_TIERS = ["stranger", "acquaintance", "friend", "bestie"] as const;
 export type BondTier = (typeof BOND_TIERS)[number];
 export const bondTierSchema = z.enum(BOND_TIERS);

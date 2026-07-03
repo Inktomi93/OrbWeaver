@@ -173,8 +173,6 @@ export async function storeBlob(db: Db, cas: Cas, input: StoreBlobInput): Promis
   return { assetId, hash: put.hash, size: put.size, created: put.created };
 }
 
-// ── Gallery reads/writes (gallery-design §1.2/§1.3) ────────────────────────────────────────────────────
-
 // File-local (not exported — types-in-contract): the keyset-paged owned-asset list args.
 interface ListOwnedInput {
   readonly ownerId: UserId;

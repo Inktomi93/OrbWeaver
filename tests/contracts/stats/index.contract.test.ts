@@ -38,7 +38,6 @@ test("a MESSAGE delta carries the scalar + daily + model slices together and rou
     model: "claude-opus-4",
     provider: "anthropic",
     now: NOW_MS,
-    // scalar
     assistantTurns: 1,
     assistantWords: 42,
     tokensIn: 1200,
@@ -46,7 +45,6 @@ test("a MESSAGE delta carries the scalar + daily + model slices together and rou
     // daily slice — a message credits the daily timeseries
     dailyTokensIn: 1200,
     dailyTokensOut: 800,
-    // model slice
     modelGenerations: 1,
     modelTokensIn: 1200,
     modelTokensOut: 800,

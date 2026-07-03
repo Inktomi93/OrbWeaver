@@ -64,7 +64,6 @@ export function frameInjection(
   if (role === "system" || role === "assistant") {
     return trimmed;
   }
-  // role === "user"
   if (originalRole === "system") {
     return `[Note from system: ${trimmed}]`;
   }

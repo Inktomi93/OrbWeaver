@@ -86,8 +86,6 @@ export function statForSignal(kind: BuddySignalKind): StatName | null {
   return SIGNAL_STAT[kind] ?? null;
 }
 
-// --- Derived facets (relationship / maturity / archetype) --------------------
-
 export function bondTierOf(bondXp: number): BondTier {
   if (bondXp >= BOND_THRESHOLDS.bestie) {
     return "bestie";

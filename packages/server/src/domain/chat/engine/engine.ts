@@ -391,7 +391,7 @@ async function executeTurn(
           ),
         );
       } catch {
-        // fire-and-forget post-turn memory build failed
+        // Swallowed: fire-and-forget per §3a above — a memory-build failure must never surface to the caller.
       }
     });
 

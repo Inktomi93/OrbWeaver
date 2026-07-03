@@ -101,7 +101,7 @@ export function makeConnHarness(db: Db): ConnHarness {
     fetchOrCatalog: () => Promise.resolve([...orCatalog]),
     loadUserSettings: () =>
       Promise.resolve({ ...DEFAULT_USER_SETTINGS, routing: { roleDefaults } }),
-    // The testClaudeAuth diagnostic fake: records the call, answers healthy (host login active).
+    // apiKeySource: "none" signals host login active (contract/service.ts).
     verifyClaudeAuth: ({ credential, model }) => {
       verifyCalls.push({ source: credential.source, model });
       return Promise.resolve({
@@ -113,7 +113,6 @@ export function makeConnHarness(db: Db): ConnHarness {
         costUsd: 0.0001,
       });
     },
-    // The OpenRouter account-read fakes (getOrCredits / getGenerationCost): fixed healthy answers.
     accountCredits: () => Promise.resolve({ total: 25, used: 7.5 }),
     generationCost: ({ generationId }) =>
       Promise.resolve({

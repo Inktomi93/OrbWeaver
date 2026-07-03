@@ -60,11 +60,9 @@ describe("generateImage", () => {
       n: 2,
     });
 
-    // The op was invoked with the caller + chat scope.
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ chatId, mode: "free", prompt: "a dragon", n: 2 });
 
-    // ONE user message, authored by the caller.
     expect(view.role).toBe("user");
     expect(view.authorUserId).toBe(host);
 
@@ -82,7 +80,6 @@ describe("generateImage", () => {
     expect(body).toContain("![generated image](asset:asset_one)");
     expect(body).toContain("![generated image](asset:asset_two)");
 
-    // The durable-first bus emit fired for the committed message.
     expect(emitted).toHaveLength(1);
     expect(emitted[0]).toMatchObject({ type: "messageCommitted", chatId, messageId: view.id });
   });

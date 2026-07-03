@@ -11,7 +11,6 @@
  *  carries none) and the `importedFrom` provenance stamp. */
 export interface ImportCardInput {
   readonly bytes: Uint8Array;
-  /** The source filename/label (e.g. `"Aria.png"`) — provenance + name fallback. */
   readonly filename?: string;
 }
 

@@ -47,7 +47,6 @@ export const WORLD_INFO_SCOPES = ["always", "keyword"] as const;
 export const worldInfoScopeSchema = z.enum(WORLD_INFO_SCOPES);
 export type WorldInfoScope = z.infer<typeof worldInfoScopeSchema>;
 
-// ── Book CRUD wire schemas ─────────────────────────────────────────────────
 export const createBookSchema = z.object({
   name: z.string().min(1).max(NAME_MAX),
   description: z.string().max(DESCRIPTION_MAX).optional(),
@@ -60,7 +59,6 @@ export const updateBookSchema = z.object({
 });
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
-// ── Entry metadata ─────────────────────────────────────────────────────────
 // The typed read shape carried in `EntryView.metadata`. Loose: unknown keys (e.g. preserved ST entry
 // fields from import) ride through untouched, but the three load-bearing fields are typed. `inject` is the
 // shared `{depth, role?}` directive from `@orb/kit/injection` (role = `MessageRole`, D32); `scopeMode` and
@@ -103,7 +101,6 @@ export const entryMetadataWriteSchema = z
     }
   });
 
-// ── Entry CRUD wire schemas ────────────────────────────────────────────────
 export const createEntrySchema = z.object({
   title: z.string().min(1).max(NAME_MAX),
   /** Author-facing memo (= ST's `comment`). Optional; rendered in the entry list. NEVER prompt. */

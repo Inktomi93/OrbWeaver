@@ -44,14 +44,13 @@ export const DAY = 86_400_000;
 
 let msgCounter = 0;
 
-/** Insert a `users` row (FK parent for owner-scoped rows). */
+/** FK parent for owner-scoped rows. */
 export async function seedUser(db: Db, id = "user_owner"): Promise<UserId> {
   const uid = castId<UserId>(id);
   await db.insert(users).values({ id: uid, handle: castId<Handle>(id), role: "owner" });
   return uid;
 }
 
-/** Insert a `characters` row owned by `ownerId`. */
 export async function seedCharacter(
   db: Db,
   ownerId: UserId,
@@ -68,7 +67,6 @@ export async function seedCharacter(
   return id;
 }
 
-/** Insert a `personas` row owned by `ownerId`. */
 export async function seedPersona(
   db: Db,
   ownerId: UserId,
@@ -86,7 +84,7 @@ export async function seedPersona(
   return id;
 }
 
-/** Insert a `chats` row + a character participant (the D18 membership that owner-scopes the chat). */
+/** The D18 membership that owner-scopes the chat. */
 export async function seedChat(
   db: Db,
   characterId: CharacterId,

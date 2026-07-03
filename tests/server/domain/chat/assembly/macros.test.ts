@@ -64,7 +64,6 @@ describe("renderMacros", () => {
 
   test("{{original}} threads the preset text into the overridable render", () => {
     expect(renderMacros("CARD {{original}}", ctxOf(), null, "PRESET")).toBe("CARD PRESET");
-    // Absent → empty.
     expect(renderMacros("X {{original}} Y", ctxOf(), null)).toBe("X  Y");
   });
 

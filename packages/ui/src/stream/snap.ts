@@ -9,8 +9,8 @@
 // chunk ("re-pin or retire... by whether orbweaver's chat keeps neo's `<speaker>`-span wire format"),
 // not something this domain-agnostic primitive should bake in.
 
-const WORD_SNAP_LOOKAHEAD = 24; // max chars to scan for the next whitespace boundary
-const GRAPHEME_WINDOW = 256; // how far back to anchor the segmenter when snapping a cut point
+const WORD_SNAP_LOOKAHEAD = 24;
+const GRAPHEME_WINDOW = 256;
 // Segment a little PAST `index` too — a cluster straddling the cut needs its closing code units in
 // view for the segmenter to resolve the boundary correctly.
 const GRAPHEME_LOOKAHEAD_PADDING = 16;
@@ -36,7 +36,6 @@ export function snapToGraphemeBoundary(text: string, index: number): number {
     anchor >= 0 && index - anchor <= GRAPHEME_WINDOW
       ? anchor + 1
       : Math.max(0, index - GRAPHEME_WINDOW);
-  // Walk boundaries inside the window; the greatest boundary ≤ index is the cut.
   let boundary = start;
   for (const seg of graphemeSegmenter.segment(
     text.slice(start, index + GRAPHEME_LOOKAHEAD_PADDING),

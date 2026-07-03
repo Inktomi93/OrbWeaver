@@ -242,7 +242,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               signal: req.signal,
             };
 
-      // Ensure that we don't accidentally swallow the promise
       void input
         .runChatTurn(chatReq)
         .then((result) => {

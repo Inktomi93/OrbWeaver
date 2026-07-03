@@ -44,7 +44,6 @@ const FROZEN_AT = 1_750_000_000_000;
 // biome-ignore lint/security/noSecrets: a base64-encoded 8×8 PNG, not a credential.
 const AVATAR_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAEUlEQVR4nGM4ISeHFTEMLQkAkL9BAbKfPiIAAAAASUVORK5CYII=";
 
-/** A real 8×8 PNG used as a stand-in avatar blob in tests. */
 export const AVATAR_PNG: Uint8Array = new Uint8Array(Buffer.from(AVATAR_PNG_BASE64, "base64"));
 
 interface TransformCall {
@@ -54,7 +53,6 @@ interface TransformCall {
 
 export interface ExportHarness {
   readonly ctx: ExportContext;
-  /** Seed a blob into the in-memory CAS under `(ownerId, hash)`. */
   readonly putBlob: (ownerId: UserId, hash: string, bytes: Uint8Array) => void;
   /** The `(ownerId:hash)` keys `cas.read` was called with — asserts the single-read TOCTOU pattern. */
   readonly reads: string[];
@@ -67,7 +65,6 @@ const unused = (): never => {
   throw new Error("export tests do not exercise this CAS method");
 };
 
-/** Build the ExportContext over a real db with an in-memory CAS + a recording imageTransform fake. */
 export function makeHarness(db: Db): ExportHarness {
   const blobs = new Map<string, Uint8Array>();
   const reads: string[] = [];
@@ -91,7 +88,7 @@ export function makeHarness(db: Db): ExportHarness {
 
   const imageTransform: ExportContext["imageTransform"] = (bytes, opts) => {
     transforms.push({ bytes, format: opts?.format });
-    // Return a real PNG (the 1×1) so the transcoded result is a valid base for writeCardChunk.
+    // Return a real PNG so the transcoded result is a valid base for writeCardChunk.
     return Promise.resolve(AVATAR_PNG);
   };
 
@@ -110,7 +107,6 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row with deterministic defaults; returns its branded id. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const handle = overrides.handle ?? "x";
   const id = castId<UserId>(`user_${handle}`);
@@ -204,7 +200,6 @@ export async function seedCharacter(
   return id;
 }
 
-/** Insert a `world_books` row owned by `ownerId`; returns its branded id. */
 export async function seedWorldBook(
   db: Db,
   ownerId: UserId,
@@ -233,7 +228,6 @@ interface SeedEntryOverrides {
   readonly metadata?: EntryMetadata | null;
 }
 
-/** Insert a `world_entries` row in a book; returns its branded id. */
 export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Promise<WorldEntryId> {
   const id = castId<WorldEntryId>(overrides.id ?? "world_entry_e");
   await db.insert(worldEntries).values({
@@ -252,7 +246,6 @@ export async function seedWorldEntry(db: Db, overrides: SeedEntryOverrides): Pro
   return id;
 }
 
-/** Attach a book to a character (`character_books`). */
 export async function seedCharacterBook(
   db: Db,
   characterId: CharacterId,
@@ -261,14 +254,12 @@ export async function seedCharacterBook(
   await db.insert(characterBooks).values({ characterId, worldBookId, createdAt: FROZEN_AT });
 }
 
-/** Insert a `tags` row owned by `ownerId`; returns its branded id. */
 export async function seedTag(db: Db, ownerId: UserId, name: string): Promise<TagId> {
   const id = castId<TagId>(`tag_${name}`);
   await db.insert(tags).values({ id, ownerId, name, createdAt: FROZEN_AT });
   return id;
 }
 
-/** Attach a tag to a character (`character_tags`) at a given status (default pending). */
 export async function seedCharacterTag(
   db: Db,
   characterId: CharacterId,
@@ -278,7 +269,6 @@ export async function seedCharacterTag(
   await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT });
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
 export function principal(userId: UserId, role: UserRole = "user"): Principal {
   return {
     userId,

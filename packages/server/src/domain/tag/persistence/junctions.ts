@@ -48,8 +48,6 @@ import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { RequireParticipant } from "../contract/service";
 
-// ── target-access guard (ownership for the four target-derived types; injected membership for chat) ───────
-
 interface TargetGuardArgs {
   readonly db: Db;
   readonly principal: Principal;
@@ -119,8 +117,6 @@ export function ensureTargetAccessible(args: {
 }): Promise<void> {
   return TARGET_GUARDS[args.targetType](args);
 }
-
-// ── single attach (idempotent) ───────────────────────────────────────────────────────────────────────────
 
 interface AttachArgs {
   readonly db: Db;
@@ -200,8 +196,6 @@ export async function attachCharacterTag(args: {
   return inserted.length > 0;
 }
 
-// ── bulk attach (many tags → one target, single multi-row insert) ────────────────────────────────────────
-
 interface BulkAttachArgs {
   readonly db: Db;
   readonly targetId: string;
@@ -258,8 +252,6 @@ export async function bulkInsertJunctionRows(args: {
 }): Promise<void> {
   await BULK_INSERTERS[args.targetType](args);
 }
-
-// ── detach ───────────────────────────────────────────────────────────────────────────────────────────────
 
 interface DetachArgs {
   readonly db: Db;

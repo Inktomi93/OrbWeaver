@@ -92,8 +92,6 @@ async function seedMessageWithVariant(
   return { messageId, variantId };
 }
 
-// ── chats ──────────────────────────────────────────────────────────────────
-
 test("chats insert→select round-trips (defaults; NO ownerId — D18)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_rt");
@@ -324,7 +322,6 @@ test("a human participant (userId only) and a character participant (characterId
   const human = rows.find((r) => r.kind === "human");
   expect(human?.userId).toBe(ownerId);
   expect(human?.characterId).toBeNull();
-  // Lifecycle defaults.
   expect(human?.talkativeness).toBeCloseTo(0.5);
   expect(human?.disabled).toBe(false);
   expect(human?.leftSeq).toBeNull();

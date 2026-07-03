@@ -48,7 +48,6 @@ type VerbAuthority = ChatAuthority | NonChatScoped;
  * and the per-verb contract notes). `satisfies Record<keyof ChatService, …>` makes this exhaustive.
  */
 export const CHAT_VERB_AUTHORITY = {
-  // ── reads / lifecycle ──
   startChat: "non-chat-scoped", // creation: MINTS the caller's host membership (authedProcedure + AUTH_MODE gate)
   listChats: "non-chat-scoped", // cross-chat: pure-membership list (each row already membership-filtered in the query)
   listForks: "member", // the parent chatId — a member may list its forks (children filtered to the caller's own memberships)
@@ -96,14 +95,12 @@ export const CHAT_VERB_AUTHORITY = {
   getStoredVariables: "member",
   setVariables: "member",
   clearVariables: "member",
-  // ── chat-row ──
   delete: "host", // host-only
   reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats
   updateTitle: "host", // shared chats-row config (no per-participant column exists today) — see FLAG
   star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
   archive: "host", // archiving removes the room from every member's active list — host
   reattributeMessages: "host", // host-only (self-heal hash-diff re-attribution)
-  // ── group / roster (all host-only) ──
   setGroupConfig: "host",
   addCharacterToChat: "host",
   seatAgent: "host",
@@ -112,13 +109,11 @@ export const CHAT_VERB_AUTHORITY = {
   getRoomOverridesForChat: "member",
   setParticipantDisabled: "host",
   setParticipantTalkativeness: "host",
-  // ── invites ──
   createInvite: "host",
   previewInvite: "non-chat-scoped", // token-authenticated, PRE-membership (the accept = preview-then-confirm flow)
   redeemInvite: "non-chat-scoped", // the join chokepoint: token-gated, PRE-membership (role server-forced `member`)
   revokeInvite: "host",
   declineInvite: "non-chat-scoped", // self/token: the invited user (may not be a member yet)
-  // ── membership lifecycle ──
   kick: "host", // host-only
   selfLeave: "member", // self: you must be a present member to leave your own membership
   nominateHostHandoff: "host", // host-only (step 1)

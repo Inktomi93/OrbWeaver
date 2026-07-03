@@ -62,7 +62,6 @@ export function applyNamesBehavior(
     if (mode === "content") {
       return { role: m.role, content: `${author}: ${m.content}` };
     }
-    // "completion"
     return { role: m.role, content: m.content, name: author };
   });
 }

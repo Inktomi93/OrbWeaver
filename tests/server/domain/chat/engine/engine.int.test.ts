@@ -262,7 +262,6 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
 
   test("a turn already in flight (held lock) → locked", async () => {
     const chatId = await seedChat(db, "a");
-    // Another holder owns a FRESH lock.
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",
@@ -415,7 +414,6 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
     const aborted = h.events.find((e) => e.type === "turnAborted");
     expect(aborted?.type === "turnAborted" && aborted.reason).toBe("user");
     expect(types(h.events)).not.toContain("turnCompleted");
-    // Nothing committed.
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 });

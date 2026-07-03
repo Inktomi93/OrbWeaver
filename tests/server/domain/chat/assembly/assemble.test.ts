@@ -72,7 +72,6 @@ describe("assemblePrompt — section walk", () => {
 
   test("{{original}}: a card override recovers the preset; a room override recovers the card-resolved value", () => {
     const config = configOf([marker({ marker: "main_prompt", template: "PRESET" })]);
-    // Card override wraps the preset.
     const carded = ctxOf({
       character: { name: "Aria", description: "", systemPrompt: "CARD {{original}}" },
     });

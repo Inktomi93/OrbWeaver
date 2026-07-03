@@ -53,7 +53,6 @@ test("scrub area is present and labeled; steppers still clamp to min/max", async
   page,
 }) => {
   await mount(<NumberField defaultValue={0} max={10} min={0} scrubLabel="Weight" />);
-  // The drag-to-scrub label renders (Base UI ScrubArea).
   await expect(page.getByText("Weight")).toBeVisible();
   // Steppers keep their clamp: decrement disabled at the floor, increment steps within range.
   const decrement = page.getByLabel("Decrease");

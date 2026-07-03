@@ -16,7 +16,6 @@ import { z } from "zod";
 // domain DERIVE from it (no inline role-union re-spelling — `no-inline-union-redecl`).
 export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
-/** The wire schema for the role axis — `z.enum` over the canonical tuple (consumed by tRPC + forms). */
 export const userRoleSchema = z.enum(USER_ROLES);
 
 // The ONE principal-KIND axis (D60; agent-principal-design/01 §1) — `human | agent`. Orthogonal to `role`
@@ -32,7 +31,6 @@ export const userRoleSchema = z.enum(USER_ROLES);
 // as a dead branch (Orbweaver credo).
 export const USER_KINDS = ["human", "agent"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
-/** The wire schema for the principal-kind axis — `z.enum` over the canonical tuple (the `userRoleSchema` twin). */
 export const userKindSchema = z.enum(USER_KINDS);
 
 // WHAT kind of agent a principal is — the `agent_principals.sourceKind` dispatch axis (agent-principal-design/01
@@ -40,7 +38,6 @@ export const userKindSchema = z.enum(USER_KINDS);
 // FLAG[PD-17]: born as the satellite's enum at AP0; the speaker-source registry that dispatches on it is AP3.
 export const AGENT_SOURCE_KINDS = ["buddy"] as const;
 export type AgentSourceKind = (typeof AGENT_SOURCE_KINDS)[number];
-/** The wire schema for the agent-source axis — `z.enum` over the canonical tuple. */
 export const agentSourceKindSchema = z.enum(AGENT_SOURCE_KINDS);
 
 /** The reserved handle namespace for agent principals (agent-principal-design/01 §3/§4). An agent's handle is
@@ -61,7 +58,6 @@ export function isReservedAgentHandle(handle: string): boolean {
 // DERIVE from it — no inline re-spell anywhere.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
-/** The env/wire schema for the auth-mode axis — `z.enum` over the canonical tuple. */
 export const authModeSchema = z.enum(AUTH_MODES);
 
 /**

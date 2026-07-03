@@ -72,7 +72,6 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
     const chatId = await seedChat(db, "mixc");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, topicAnchor: "[s0]", keywords: ["a"] });
     await seedDigest(db, { chatId, tier: 0, blockIdx: 1, topicAnchor: "[s1]", keywords: ["b"] });
-    // search returns block 1 ranked ABOVE block 0.
     const ranked: BlockKey[] = [
       { chatId, tier: 0, blockIdx: 1, scopedCharacterId: GROUP_CHAR },
       { chatId, tier: 0, blockIdx: 0, scopedCharacterId: GROUP_CHAR },

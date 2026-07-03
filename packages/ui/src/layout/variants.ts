@@ -79,7 +79,6 @@ export const toolbarButtonVariants = tv({
   base: "inline-flex h-control-sm min-w-control-sm select-none items-center justify-center gap-field rounded-control text-foreground text-label hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
 });
 
-/** `<ToolbarSeparator>` skin. */
 export const toolbarSeparatorVariants = tv({
   base: "w-px self-stretch bg-border",
 });

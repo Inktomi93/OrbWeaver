@@ -112,6 +112,6 @@ export function startCatalogRefreshScheduler(deps: CatalogRefreshSchedulerDeps):
     });
   };
 
-  safeCheck(); // boot check
+  safeCheck();
   return deps.scheduleInterval(safeCheck, checkMs);
 }

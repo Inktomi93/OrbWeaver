@@ -41,7 +41,6 @@ const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly
 
 // The poison-tolerance window: how many queue-head rows `nextRunnableWorkload` scans past unrecognized kinds.
 const QUEUE_HEAD_WINDOW = 10;
-// `list` hard cap.
 const LIST_HARD_CAP = 500;
 
 /** A new queued row (file-local; the verb mints `id`, parses `params`, passes its injected clock). */

@@ -91,7 +91,6 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
     }
   }
 
-  // 4. POLICY — order/subset the pool.
   const ordered = applyPolicy(pool, params.policy, params.rng);
   return cap(
     ordered.map((c) => c.ref),

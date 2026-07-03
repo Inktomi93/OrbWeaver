@@ -42,7 +42,6 @@ describe("tag persistence/queries", () => {
     await seedTag(db, owner, { id: "tag_m", name: "mid", sortOrder: 0 });
 
     const names = (await listOwnedTags(db, owner)).map((t) => t.name);
-    // mid (sortOrder 0) first; then the unordered pair by name (alpha, zeta).
     expect(names).toEqual(["mid", "alpha", "zeta"]);
   });
 

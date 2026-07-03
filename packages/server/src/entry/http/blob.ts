@@ -66,13 +66,11 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
     }
     const hash = c.req.param("hash");
 
-    // Variant path: `?w=<px>` → the resized-webp pipeline (snap→cache→transform behind the front door).
     const widthRaw = c.req.query("w");
     if (widthRaw !== undefined) {
       return serveVariant(deps, principal, hash, widthRaw);
     }
 
-    // Original path: gate on ownership + read the stored mime, THEN read the per-user CAS original.
     const meta = await deps.assets.getMetadata({ principal, hash });
     if (meta === undefined) {
       return c.body(null, NOT_FOUND);

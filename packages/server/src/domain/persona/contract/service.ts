@@ -50,7 +50,6 @@ export interface PersonaContext {
   readonly newPersonaId: () => PersonaId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
 
-  // ── chat operations ──
   readonly requireChatAuthorOrHost: (
     principal: Principal,
     chatId: ChatId,

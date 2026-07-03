@@ -1,5 +1,3 @@
-// domain/embeddings/contract/errors — the typed domain errors the store path throws.
-
 /** The injected embed/imageEmbed op produced no usable vector for the input (a `null` entry — the family
  *  filtered an empty/whitespace input — or an empty vectors array). A genuine producer failure: the caller
  *  (the indexer / a re-index workload) decides retry vs skip; `store` never silently writes a null vector. */

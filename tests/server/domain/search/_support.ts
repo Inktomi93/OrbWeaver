@@ -117,8 +117,6 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls): SearchSer
   return createSearchService(ctx);
 }
 
-// ── Seeders (insert the rows the verbs read directly) ────────────────────────────────────────────────
-
 interface SeedUserOverrides {
   readonly id?: string;
   readonly handle?: string;

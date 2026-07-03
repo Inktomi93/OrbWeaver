@@ -374,7 +374,6 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const member = await seedUser(db, "member");
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
-    // A turn owned by the host is in flight.
     h.activeTurns.register(chatId, host);
 
     await expect(h.turn.abort({ principal: principal(member), chatId })).rejects.toMatchObject({
@@ -450,7 +449,6 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
     expect(outcome.messages[0]?.selectedVariantIdx).toBe(1);
     expect(outcome.messages[0]?.content).toBe("Hi there");
     expect(outcome.messages[0]?.characterId).toBe(chars[0]);
-    // No new slot — the canon length is unchanged.
     expect(await loadCanonHistory(db, chatId)).toHaveLength(2);
   });
 
@@ -522,7 +520,6 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
   test("commits while a foreign lock is held; a locked send is refused on the same chat", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
-    // A concurrent (foreign) turn holds the per-chat lock.
     await tryAcquireLock(db, {
       chatId,
       holder: "other-replica",

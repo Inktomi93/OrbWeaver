@@ -19,8 +19,6 @@
 
 import { z } from "zod";
 
-// ── The IMAGE-lens axis (ONE home; the db `image_embeddings.lens` enum + CHECK derive from this tuple) ──
-
 /** The two complementary lenses through which an avatar IMAGE is embedded, both in the one 1024-dim space
  *  (Qwen3-VL, text↔image cosine-comparable):
  *  - `image-raw` — pure visual signal, NO caption/text influence (image↔image visual similarity / dedupe).
@@ -30,10 +28,6 @@ import { z } from "zod";
  *  `card-text`/`segment`/`digest` are routed to other tables, not a column — see header). */
 export const IMAGE_LENSES = ["image-raw", "image-captioned"] as const;
 
-/** The image-lens union — `image-raw | image-captioned`. The single source of truth for the
- *  `image_embeddings.lens` axis (db enum + CHECK + test-mirror all derive from {@link IMAGE_LENSES}). */
 export type ImageLens = (typeof IMAGE_LENSES)[number];
 
-/** The wire schema for the image-lens axis — `z.enum` over {@link IMAGE_LENSES} (the single source of
- *  truth; `no-inline-union-redecl`). */
 export const imageLensSchema = z.enum(IMAGE_LENSES);

@@ -15,7 +15,6 @@ export interface ScrollAreaViewportProps extends Omit<BaseViewportProps, "classN
 
 export interface ScrollAreaProps extends Omit<BaseRootProps, "className"> {
   className?: string;
-  /** Class for the inner scrollable viewport. */
   viewportClassName?: string;
   /** Class for the sized `Content` wrapper (where `children` live). */
   contentClassName?: string;

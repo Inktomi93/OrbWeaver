@@ -69,7 +69,6 @@ export function inviteEvent(recipientUserId: UserId): NotificationEvent {
   };
 }
 
-/** A valid `kicked` event addressed to `recipientUserId`. */
 export function kickedEvent(recipientUserId: UserId): NotificationEvent {
   return { type: "kicked", recipientUserId, chatId: mintTypeId(ID_PREFIX.chat) };
 }

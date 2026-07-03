@@ -140,8 +140,6 @@ export async function growBond(db: Db, userId: UserId, amount: number, now: numb
     .where(eq(buddies.userId, userId));
 }
 
-// --- Buddy-chat transcript (the agent conversation; the buddy's egocentric view) ---
-
 /** Append one transcript turn. Id + `createdAt` come from the injected determinism seam (the verb). */
 export async function appendTurn(
   db: Db,

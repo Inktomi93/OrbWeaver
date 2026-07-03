@@ -34,7 +34,7 @@ interface AuditCall {
 export interface WorldInfoHarness {
   readonly ctx: WorldInfoContext;
   readonly audits: AuditCall[];
-  /** The recorded `emitWiEvent` calls (the chat-scope verbs' bus emissions — PD-30). */
+  /** Chat-scope verbs' bus emissions (PD-30). */
   readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
@@ -47,7 +47,6 @@ interface HarnessOverrides {
   readonly requireChatMember?: WorldInfoContext["requireChatMember"];
 }
 
-/** Build the WorldInfoContext over a real db with deterministic + recording fakes. */
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfoHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
@@ -81,7 +80,6 @@ interface SeedUserOverrides {
   readonly role?: UserRole;
 }
 
-/** Insert a `users` row with deterministic defaults; returns its branded id. */
 export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promise<UserId> {
   const id = castId<UserId>(overrides.id ?? `user_${overrides.handle ?? "x"}`);
   await db.insert(users).values({
@@ -103,7 +101,7 @@ interface SeedCharacterOverrides {
   readonly handle?: string;
 }
 
-/** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
+/** D28 — flat row, no version table. */
 export async function seedCharacter(
   db: Db,
   overrides: SeedCharacterOverrides,
@@ -122,8 +120,7 @@ export async function seedCharacter(
   return id;
 }
 
-/** Insert a bare `chats` row (membership-scoped, D18 — no owner column; the chat-scope tests gate via the
- *  injected fake guards, so no roster rows are needed). Returns its branded id. */
+/** D18 — no owner column; chat-scope tests gate via the injected fake guards, so no roster rows are needed. */
 export async function seedChat(db: Db, key = "c"): Promise<ChatId> {
   const id = castId<ChatId>(`chat_${key}`);
   await db.insert(chats).values({ id, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
@@ -136,7 +133,6 @@ interface SeedPersonaOverrides {
   readonly name?: string;
 }
 
-/** Insert a `personas` row; returns its branded id. */
 export async function seedPersona(db: Db, overrides: SeedPersonaOverrides): Promise<PersonaId> {
   const id = castId<PersonaId>(overrides.id ?? "persona_p");
   await db.insert(personas).values({
@@ -152,7 +148,6 @@ export async function seedPersona(db: Db, overrides: SeedPersonaOverrides): Prom
   return id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
 export function principal(
   userId: UserId,
   role: UserRole = "user",

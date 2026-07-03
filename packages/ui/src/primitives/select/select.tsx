@@ -21,7 +21,6 @@ const CHECK_ICON: ReactElement = <Icon icon={Check} size="xs" />;
 export interface SelectOption<Value = string> {
   label: string;
   value: Value;
-  /** Whether this option is non-selectable. */
   disabled?: boolean;
 }
 
@@ -36,7 +35,6 @@ export type SelectItems<Value = string> =
   | readonly SelectOption<Value>[]
   | readonly SelectOptionGroup<Value>[];
 
-// A group carries an `items` array; a flat option carries a `value`. Narrows the union at render.
 function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOptionGroup<Value>[] {
   const first = items[0];
   return typeof first === "object" && first !== null && "items" in first;

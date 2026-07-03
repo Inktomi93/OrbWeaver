@@ -57,13 +57,11 @@ test("workloads.ownerId FKs users and survives a null owner", async () => {
   const ownerId = castId<UserId>("user_owner");
   await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner"), role: "admin" });
 
-  // Owned row
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_owned"),
     kind: "reconcile-stats",
     ownerId,
   });
-  // System row (null owner)
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_system"),
     kind: "refresh-model-catalog",

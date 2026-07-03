@@ -315,7 +315,6 @@ describe("startChat — lazy room creation + opening", () => {
         characterIds: [castId<CharacterId>("character_foreign")],
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
-    // NOTHING was minted — no chat row, no roster ghost seat.
     expect(await db.select().from(chats)).toHaveLength(0);
     expect(await db.select().from(chatParticipants)).toHaveLength(0);
   });

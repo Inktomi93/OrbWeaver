@@ -107,7 +107,7 @@ describe("catalog-refresh-scheduler loop", () => {
     await Promise.resolve();
 
     expect(scheduleInterval).toHaveBeenCalledTimes(1);
-    expect(deps.service.list).toHaveBeenCalled(); // boot check ran
+    expect(deps.service.list).toHaveBeenCalled();
     clear();
     expect(clearInterval).toHaveBeenCalledTimes(1);
   });
@@ -116,7 +116,6 @@ describe("catalog-refresh-scheduler loop", () => {
     const list = vi.fn(() => Promise.reject(new Error("list failed")));
     const deps = makeSchedulerDeps({ service: { ...makeSchedulerDeps().service, list } });
 
-    // startCatalogRefreshScheduler must return synchronously without throwing.
     expect(() => startCatalogRefreshScheduler(deps)).not.toThrow();
     await Promise.resolve();
     await Promise.resolve();

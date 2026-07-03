@@ -26,8 +26,6 @@ const GUIDED_ACTION_COUNT = 6;
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
 
-// ── PromptConfig round-trip ───────────────────────────────────────────────────────────────────────
-
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
   expect(parsePromptConfig(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -148,8 +146,6 @@ test("a clean params blob parses through unchanged (the catch only fires on fail
 test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds hold)", () => {
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
 });
-
-// ── Guided actions ──────────────────────────────────────────────────────────────────────────────
 
 test("guidedActionsSchema round-trips DEFAULT_GUIDED_ACTIONS over all six actions", () => {
   const parsed = guidedActionsSchema.parse(DEFAULT_GUIDED_ACTIONS);

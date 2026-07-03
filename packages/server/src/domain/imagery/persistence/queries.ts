@@ -24,7 +24,6 @@ interface InsertGenerationInput {
   readonly createdAt: number;
 }
 
-/** INSERT one `imagery_generations` row — the sole write path for the provenance index. */
 export async function insertGeneration(db: Db, input: InsertGenerationInput): Promise<void> {
   await db.insert(imageryGenerations).values({
     id: input.id,

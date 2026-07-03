@@ -40,7 +40,6 @@ test("workloadKindSchema round-trips every valid kind and rejects non-members", 
   expect(workloadKindSchema.safeParse("").success).toBe(false);
 });
 
-// ── The `WorkloadStatus` lifecycle axis ──────────────────────────────────────────────────────────────
 test("WORKLOAD_STATUSES is exactly the 7-member lifecycle tuple", () => {
   expect(WORKLOAD_STATUSES).toEqual([
     "queued",
