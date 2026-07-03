@@ -10,7 +10,7 @@
 > `assembly` 2.4k · `memory` 1.6k · `persistence` 1.6k · `contract`+top 1k). Upstream:
 > `core/Spine-Identity-and-Auth.md` (§7.1), `core/Spine-Config-and-Serialization.md` (§7.3), `core/Spine-TypeScript-and-Patterns.md` (§7.4),
 > `core/Spine-TypeScript-and-Patterns.md` (§7.5), `domains/memory.md` (memory), `core/Tier-3b-Providers.md` (the agent-sdk
-> backend), `domains/connection.md` (routing), `core/Core-Legacy-Migration-and-Gaps.md` (kit/contracts homes).
+> backend), `domain/connection` (routing), `core/Core-Legacy-Migration-and-Gaps.md` (kit/contracts homes).
 > **Build path: greenfield, gated by a cross-repo differential oracle against running neo-tavern**
 > (diff SEND/ASSEMBLE/RECEIVE outputs + cache-token counts) — chat + memory are the highest-risk port.
 

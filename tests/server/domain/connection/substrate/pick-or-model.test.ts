@@ -1,4 +1,4 @@
-// pickOrModel — the OpenRouter dual guard (connection.md Esoteric §4/§5, invariant 7). Asserts both arms:
+// pickOrModel — the OpenRouter dual guard. Asserts both arms:
 // (1) a Claude shortlist id is rejected on the OR path; (2) the catalog guard fires when WARM but is
 // SKIPPED on a cold cache (the deliberate cold-skip, not a blanket reject).
 

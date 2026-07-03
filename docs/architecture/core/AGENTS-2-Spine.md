@@ -3,7 +3,7 @@
 Some concerns aren't owned by one domain — they thread through many, and a per-domain reader must check
 its slice against them rather than re-decide them. Each gets a **spine doc** (written before/with the
 fanout); the fanout's readers + adversary treat these as fixed targets. (These join the existing cluster
-docs — `domains/chat.md`, `domains/connection.md`, `core/Tier-3b-Providers.md`, `participants-agents-identity.md`,
+docs — `domains/chat.md`, `domain/connection`, `core/Tier-3b-Providers.md`, `participants-agents-identity.md`,
 `domains/memory.md` — as the checkable target surface.)
 
 > **De-dup (2026-07-03):** §7.1–§7.4 used to carry full copies of the per-thread Spine docs, and the
@@ -162,7 +162,7 @@ that's userId-backed yet AI-arbitrated, and the `buddies.userId` owner-link-vs-o
 an agent inherit the owner's `max-pro-sub` tier?) is a flagged decision, not mechanical.
 
 **8.7 Doc-claim verification round (the detail docs are now re-grounded).** Four agents re-checked every
-un-verified assertion in `domains/connection.md`/`core/Tier-3b-Providers.md`/`participants-agents-identity.md`/
+un-verified assertion in `domain/connection`/`core/Tier-3b-Providers.md`/`participants-agents-identity.md`/
 `domains/chat.md` against the AST. Most CONFIRMED; **6 corrected** (docs patched): (1) providers role dispatchers
 are NOT vLLM-hard-pinned — they `switch (credential.source)`; the lock is a boot-binder default → the
 multi-backend target is a one-site rebind, not a dispatcher rewrite; (2) `character_books`-on-cv vs

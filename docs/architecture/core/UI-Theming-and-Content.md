@@ -263,7 +263,7 @@ running the other direction:
 **Model-vision is ALSO committed — ledger D45 (sending an image TO the model).** Separate from display:
 this is the **provider-send** reshape — `ChatHistoryMessage.content`: `string` → content-part array (`text`
 | `image` parts), gated by a new `ModelCapability.vision` axis. It is **server-side**, so it is NOT a
-client-doc concern to spec — the authoritative homes are **`domains/connection.md`** (the
+client-doc concern to spec — the authoritative homes are **`domain/connection`** (the
 `ModelCapability.vision` axis — the gate) + **`core/Tier-3b-Providers.md`** (the sealed translators map image parts
 to each backend's wire) + **`@orb/contracts/chat`** (the message DTOs); this § only records the render↔send
 distinction. **Born-compliant before Phase 5:** that `content:string` field is consumed by all three sealed

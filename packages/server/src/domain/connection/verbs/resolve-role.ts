@@ -1,4 +1,4 @@
-// verb: resolveRole — the ONE resolver for all 7 inference roles (connection.md §1, PD-9). Reads the
+// verb: resolveRole — the ONE resolver for all 7 inference roles (PD-9). Reads the
 // principal's `routing.roleDefaults.<role>`, applies the optional per-agent override, validates `(api,
 // source)` coherence, heals the model id, and returns the resolved `{api, model, credential, capability}`.
 // NO per-role hard-pin — every role reads its roleDefault, so a role can resolve to ANY source it supports
@@ -7,7 +7,7 @@
 //
 // The catalog subsystem is reached ONLY through `substrate/` (domain-substrate-mediates-subsystems):
 // `healToChatDefault` / `pickOrModel` / `resolveCapability` / `getCachedOrModels` are the substrate seams.
-// `runner`/`family` never appear (sealed in infra; invariants 1 & 6). `agentOverride` BEATS the role
+// `runner`/`family` never appear (sealed in infra). `agentOverride` BEATS the role
 // default (participants-agents-identity.md §2 — a character/buddy on its own backend/model).
 
 import type { ChatApi, ChatSource, ResolvedConnection } from "@orb/contracts/connection";

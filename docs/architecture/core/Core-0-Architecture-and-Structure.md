@@ -259,7 +259,7 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 
 > The first six are the original constitution; the next five were promoted from the spine docs
 > (`core/Spine-TypeScript-and-Patterns.md` §7.4, `core/Spine-TypeScript-and-Patterns.md` §7.5, the persistence rules in
-> `domains/credentials.md`) during the 2026-06-25 reconciliation; `test-presence` + `test-determinism`
+> `domain/credentials`) during the 2026-06-25 reconciliation; `test-presence` + `test-determinism`
 > were added with `core/Spine-Testing.md` (2026-06-26). They are gate _candidates_ — implemented as
 > dep-cruiser/biome rules + `tsc` patterns at scaffold time. (`no-internal-mocks` stays advisory in
 > `core/Spine-Testing.md §3`, not a hard gate.) **This table is the constitution; the full implemented-gate

@@ -208,7 +208,7 @@ searched by the one cosine engine in `search`.
 
 ## Connection ↔ providers boundary (verified)
 
-> **Authoritative detail: [`domains/connection.md`](./domains/connection.md)** (selection + the capability descriptor)
+> **Authoritative detail: [`domain/connection`](./domain/connection)** (selection + the capability descriptor)
 > and [`core/Tier-3b-Providers.md`](./core/Tier-3b-Providers.md) (execution). Headline: ONE capability
 > descriptor per `(model, backend)` with **distinct reasoning/sampling/verbosity axes** drives **both**
 > the per-runner translation AND the samplers panel — replacing the two-capability-system,
@@ -321,8 +321,6 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
   - [assets.md](docs/architecture/domains/assets.md)
   - [character.md](docs/architecture/domains/character.md)
   - [chat.md](docs/architecture/domains/chat.md)
-  - [connection.md](docs/architecture/domains/connection.md)
-  - [credentials.md](docs/architecture/domains/credentials.md)
   - [discovery.md](docs/architecture/domains/discovery.md)
   - [domains.md](docs/architecture/domains/domains.md)
   - [embeddings.md](docs/architecture/domains/embeddings.md)
@@ -345,5 +343,4 @@ The same "infra is a sealed executor; the domain owns selection" rule applies to
       - [scripting-automation-extensibility.md](docs/architecture/domains/proposed/scripting-automation-extensibility/scripting-automation-extensibility.md)
     - **tool-use/**
       - [tool-use.md](docs/architecture/proposed/tool-use.md)
-  - [settings.md](docs/architecture/domains/settings.md)
   - stats — BUILT; doc gutted 2026-07, code is source (`packages/server/src/domain/stats/`); seam design: [stats-discovery-seam.md](docs/architecture/proposed/stats-discovery-seam.md)

@@ -1,4 +1,4 @@
-// getChatModel's 3-stage prefix-match (connection.md Esoteric §6) + isChatModelId — the load-bearing
+// getChatModel's 3-stage prefix-match + isChatModelId — the load-bearing
 // curated lookup. The OR version-only → dated-id prefix match (stage 3) with its boundary check is the
 // headline assertion: simplifying it silently mis-profiles Haiku.
 

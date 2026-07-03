@@ -1,6 +1,6 @@
 // domain/settings — DI BUNDLE builder. Beyond passing through the injected deps, it OWNS the per-user
-// write serializer (one instance shared by BOTH user-settings write verbs → it lives here, not in a verb;
-// esoteric #5) and binds the `effective-config/` subsystem read side (context.ts is a composition surface,
+// write serializer (one instance shared by BOTH user-settings write verbs → it lives here, not in a verb)
+// and binds the `effective-config/` subsystem read side (context.ts is a composition surface,
 // the one place allowed to reach a named subsystem — `domain-substrate-mediates-subsystems` exempts
 // service/index/context). The explicit `SettingsContext` interface is homed in `contract/service.ts`
 // (`no-context-returntype`); this file is the BUILDER.

@@ -1,6 +1,6 @@
 // domain/connection/contract/results — verb result shapes. `CatalogSnapshot` is the get/refresh result;
 // its entries are `ModelCatalogEntry` (the cross-boundary entry, @orb/contracts/connection). The schema is
-// the TIGHTENED read-seam parse — connection.md Esoteric §7: neo's blind `value as ModelCatalogSnapshot`
+// the TIGHTENED read-seam parse: neo's blind `value as ModelCatalogSnapshot`
 // after a `.loose()` parse is REPLACED by an explicit `z.object` whose inferred type IS `CatalogSnapshot`,
 // so a new required field is a compile error at the producer, not a silent pass.
 

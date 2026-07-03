@@ -1,5 +1,5 @@
-// domain/credentials/substrate/parse-metadata — the read-seam metadata helpers (credentials.md movement
-// table: the schema + `parseProviderMetadata` live in `@orb/contracts/credentials`; the PARSE CALL is a
+// domain/credentials/substrate/parse-metadata — the read-seam metadata helpers (the schema +
+// `parseProviderMetadata` live in `@orb/contracts/credentials`; the PARSE CALL is a
 // domain substrate concern). Drizzle hands `metadata` back as `unknown`; `parseProviderMetadata`
 // (contracts) safe-parses it to the typed shape or `null`. This file narrows that to the custom_openai
 // arm in ONE place — resolve / inspect-endpoint / fetch-models all need "the endpoint's baseUrl/headers

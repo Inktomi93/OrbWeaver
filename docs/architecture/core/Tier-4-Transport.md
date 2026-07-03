@@ -18,8 +18,8 @@
 > deep imports, zero domain→transport edges); `core/Core-Legacy-Migration-and-Gaps.md` §6
 > (`_shared/rate-limit.ts` → `transport/rate-limit`); `domain/workloads` (the worker is
 > transport/jobs, the domain owns the engine, `buildWorkloadsEnv` is `entry/`);
-> `domains/credentials.md` + `domain/sessions` (the `Principal` is built at the `entry/` seam —
-> transport CARRIES it); `domains/assets.md` / `domains/import.md` / `domains/connection.md` (where
+> `domain/credentials` + `domain/sessions` (the `Principal` is built at the `entry/` seam —
+> transport CARRIES it); `domains/assets.md` / `domains/import.md` / `domain/connection` (where
 > each route/router delegates).
 
 ---
@@ -306,7 +306,7 @@ they belong next to the worker (`workloads-env`, `buddy-env`) are correctly hois
    **credential 400-not-404** asymmetry is intentional and lives in the DOMAIN: `CredentialsNotFoundError`
    extends `DomainOperationError` (→ 400), NOT `DomainNotFoundError` (→ 404), so not-found and
    not-owned collapse — no existence leak; the discriminator for clients is the `code` field, not the
-   HTTP status (credentials.md). `DomainRateLimitError` → `TOO_MANY_REQUESTS` carrying
+   HTTP status (domain/credentials). `DomainRateLimitError` → `TOO_MANY_REQUESTS` carrying
    `msBeforeNext`/`remainingPoints`, surfaced as `Retry-After` (seconds) + `X-RateLimit-Remaining`
    via the `responseMeta` hook at the entry/app mount.
 

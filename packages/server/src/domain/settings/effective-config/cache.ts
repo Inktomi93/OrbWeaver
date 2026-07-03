@@ -4,7 +4,7 @@
 // write and rebuilds the cache from the stored override. The `logger.level` rebind on reload is LOAD-
 // BEARING: Pino captures `level` at construction, so without it the `AppSettings.logLevel` override would
 // be a docs-only knob (effective only at restart). This is the ONE sanctioned higher-tier write into a
-// foundation singleton (settings-and-config §b; domain → foundation is downward, legal).
+// foundation singleton (domain → foundation is downward, legal).
 //
 // ASSUMES(single-replica): the cache is module-scope, per-process — an admin write busts only THIS
 // process's copy (true per the one-image deploy invariant). The DB `"app"` row is the documented

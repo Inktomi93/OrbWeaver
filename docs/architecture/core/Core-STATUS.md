@@ -39,7 +39,7 @@ sins. Keep the per-feature template (it's good); rebuild so the **file tree is s
 - **`core/Tier-3b-Providers.md`** — roles as the firewall; sealed backends; vLLM as its own multi-role
   engine; custom/BYO fully user-declared; hardware tiers (local-light transformers.js / local-heavy
   vLLM / hosted); the space invariant (verified the OpenRouter SDK `dimensions` param).
-- **`domains/connection.md`** — selection conductor (`resolveRole`) + the ONE capability descriptor
+- **`domain/connection`** — selection conductor (`resolveRole`) + the ONE capability descriptor
   (distinct reasoning/sampling/verbosity axes) that drives BOTH translation AND the samplers panel.
 - **`domains/chat.md`** — the resolution ORDER as the artifact (one explicit stage list per context); the 8
   load-bearing rules; one injection list + one budget; two-phase assemble; render-once; guided model;

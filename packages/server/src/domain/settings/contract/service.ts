@@ -35,7 +35,7 @@ import type { GlobalSettingView, UserSettingsView } from "./views";
  *     AppSettings verbs (owner ∪ admin); `requireOwner` additionally gates an AppSettings PATCH that
  *     touches a D17 owner-box governance field (owner-only — the box-governance split).
  *   - `serializeUserWrite` — the per-user write serializer (one instance shared by BOTH user-settings
- *     write verbs → it lives here, not in a verb; esoteric #5). ASSUMES(single-replica).
+ *     write verbs → it lives here, not in a verb). ASSUMES(single-replica).
  */
 export interface SettingsContext {
   readonly db: Db;
@@ -67,7 +67,7 @@ export interface SettingsServiceDeps {
 }
 
 /**
- * The settings API surface (settings.md §"Verbs"). UserSettings verbs scope by `principal.userId`;
+ * The settings API surface. UserSettings verbs scope by `principal.userId`;
  * AppSettings verbs gate on the injected guard; the raw KV pair is admin-gated at the router. The
  * floor-merge read side (`getEffectiveConfig` SYNC / `reloadEffectiveConfig`) is surfaced here so hot
  * paths inject the sync getter and the entry boot warms the cache.

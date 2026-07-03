@@ -2,8 +2,8 @@
 // SYNC routing-guard seam). `pickOrModel`'s catalog guard + `resolveModelCapability`'s OR synthesis read
 // the snapshot WITHOUT awaiting a db/HTTP round-trip on the hot path. Migrated from neo-tavern's
 // `providers/openrouter/catalog.ts` (the cache half; the live fetch stays infra). The warm-on-read seam
-// (`persistence/catalog-snapshot.ts` calls `seedOrModelCache` after a snapshot read — connection.md
-// Esoteric §3) keeps the cold-boot guard correct: without it the first request's catalog guard finds null
+// (`persistence/catalog-snapshot.ts` calls `seedOrModelCache` after a snapshot read)
+// keeps the cold-boot guard correct: without it the first request's catalog guard finds null
 // and skips for every id.
 //
 // DETERMINISM: the TTL clock is INJECTED — `getCachedOrModels(now)` takes the caller's clock (the verb's

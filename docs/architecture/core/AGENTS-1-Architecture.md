@@ -221,7 +221,7 @@ misses (those feed the adversary).
   scattered `derive*Profile` dispatchers (three, not four); the params panel has only **coarse
   source-level knob gating** (a build-on point, not capability-driven); roles **hard-pinned in the
   binder** instead of reading settings. Target: ONE capability descriptor (distinct reasoning/sampling/
-  verbosity axes) drives translation AND panel; `resolveRole`. (Authoritative: `domains/connection.md`.)
+  verbosity axes) drives translation AND panel; `resolveRole`. (Authoritative: `domain/connection`.)
 - **providers** (infra): the pipeline knows each backend's guts (`dispatchAgentSdk`, seed-frames,
   per-runner name-stamping/cache); **custom-openai hardcodes** window/tier/thinking + assumes OpenAI
   response shape (despite a "user owns the truth" comment); embed/rerank/summarize/imageEmbed

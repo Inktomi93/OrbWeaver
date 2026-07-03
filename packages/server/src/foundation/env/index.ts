@@ -184,9 +184,9 @@ const envSchema = z
     FORWARD_AUTH_JWT_AUDIENCE: z.string().optional(),
 
     // Per-user credential encryption key — 32 random bytes for AES-256-GCM, hex or base64 (infra/crypto
-    // decodes both). UNSET ⇒ per-user creds OFF (the store rejects writes; resolve falls back to the host
-    // key). Validated for length in infra/crypto, NOT here — a missing/short key must DEGRADE, never crash
-    // boot (core/Tier-2-Foundation.md "does NOT own" / credentials.md §7.2).
+    // decodes both). UNSET ⇒ per-user creds OFF (the store rejects writes; resolve throws the typed
+    // no-credential error — there is NO host-key fallback). Validated for length in infra/crypto, NOT
+    // here — a missing/short key must DEGRADE, never crash boot (core/Tier-2-Foundation.md "does NOT own").
     CREDENTIALS_KEY: z.string().optional(),
     // Opt-in auto-key: when CREDENTIALS_KEY is unset, infra/crypto auto-generates + persists a 32-byte key
     // to `<dirname(DATABASE_URL)>/.credentials-key` (mode 0o600) on first boot. Default off. env only

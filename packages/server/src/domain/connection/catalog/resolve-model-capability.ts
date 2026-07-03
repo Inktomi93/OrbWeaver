@@ -1,10 +1,10 @@
-// domain/connection/catalog/resolve-model-capability — the ONE capability descriptor factory
-// (connection.md §2, invariant 2). Replaces neo-tavern's `ChatModel` + `FAMILY_CAPS` duality + the three
+// domain/connection/catalog/resolve-model-capability — the ONE capability descriptor factory.
+// Replaces neo-tavern's `ChatModel` + `FAMILY_CAPS` duality + the three
 // `derive*Profile` functions (OR / vLLM / custom-openai). Produces a `ModelCapability` per resolved
 // `(model, source)`:
 //   • CURATED  — a Claude-shortlist id (getChatModel's 3-stage match): return the curated descriptor
 //                verbatim. This runs FIRST so a Claude-via-OR version-only id gets the dated curated
-//                profile, never synthesis (connection.md Esoteric §6).
+//                profile, never synthesis (the getChatModel 3-stage match — chat-models.ts header).
 //   • openrouter — SYNTHESIZE from the catalog entry's `supportedParameters` + the family (the dissolved
 //                FAMILY_CAPS reasoning facts); a cold/missing entry yields the permissive baseline.
 //   • vllm / local-light — STATIC profiles (the local engine tiers; window is engine-served).
@@ -12,7 +12,7 @@
 //
 // `infra/providers` NEVER imports this — the funnel reads the `ModelCapability` handed in on the request
 // (infra→domain is illegal upward). Reasoning/sampling/verbosity/output/context are DISTINCT axes; nothing
-// here collapses them into a cascade (connection.md §4) and `effortLevels` never carries a `'none'` member.
+// here collapses them into a cascade, and `effortLevels` never carries a `'none'` member.
 
 import type { ChatSource, ModelCapability, Range } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
@@ -20,8 +20,8 @@ import { getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
 
-// ── Named bounds (noMagicNumbers). DEFER(promotion): the exact synthesized ranges are the connection.md
-//    "quality → axes mapping — DEFERRED (per-model tuning)" item — the SHAPE (per-knob ranges, distinct
+// ── Named bounds (noMagicNumbers). DEFER(promotion): the exact synthesized ranges are the "quality →
+//    axes mapping" deferred item (proposed/connection-capability-panel.md) — the SHAPE (per-knob ranges, distinct
 //    axes) is settled; the numbers are tuned when the shortlist is verified live. ──────────────────────
 const TEMP_RANGE: Range = { min: 0, max: 2 };
 const TOP_P_RANGE: Range = { min: 0, max: 1 };

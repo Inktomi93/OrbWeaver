@@ -62,7 +62,7 @@ test("parseProviderRouting keeps unknown fields and heals non-objects to undefin
 
 // --- ModelCapability — distinct axes; EffortLevel excludes 'none' -------------
 
-test("EFFORT_LEVELS excludes the off-switch 'none' (connection.md invariant 3)", () => {
+test("EFFORT_LEVELS excludes the off-switch 'none' (reasoning.enabled is the off axis)", () => {
   expect((EFFORT_LEVELS as readonly string[]).includes("none")).toBe(false);
   expect(effortLevelSchema.safeParse("none").success).toBe(false);
   // The off-switch lives on its OWN axis: 'none' is a reasoning MODE, never an effort LEVEL.

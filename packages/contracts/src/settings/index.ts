@@ -4,11 +4,10 @@
 // (`AppSettings`) config tiers: their zod schemas + inferred types + lenient parsers, both built on the
 // ONE `defineVersionedConfig` primitive (`#versioned-config`). The client's settings forms validate
 // against these; the server + other domains import them. The DOMAIN (`domain/settings`) owns the verbs,
-// the floor-merge resolver, and the write serializers — NOT this node (settings.md §"What this domain
-// does not own"). The agent-sdk runtime config (nature c, D8) and the misfiled chat blobs
+// the floor-merge resolver, and the write serializers — NOT this node. The agent-sdk runtime config (nature c, D8) and the misfiled chat blobs
 // (room-overrides / group-config / opening-policy → `#chat`) are explicitly NOT here.
 //
-// Load-bearing invariants preserved here (settings.md / settings-and-config.md):
+// Load-bearing invariants preserved here:
 //   • `storedVersion` (the DB column) BEATS the in-blob `schemaVersion` probe — threaded through
 //     `defineVersionedConfig.parse` (the corruption guard; a non-idempotent lift must not re-run).
 //   • Lenient parse: a non-object / corrupt / null blob degrades to the `default`, never throws.
@@ -133,10 +132,10 @@ export const memorySummarizerSchema = z.object({
 });
 export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
 
-/** Per-window rate-limit budgets (points per 60s) — DB-born (no env var; admin-tunable). Decoupled axes:
+/** Per-window rate-limit budgets (points per 60s) — env-floored (`RATE_LIMIT_*`), admin-tunable. Decoupled axes:
  *  `publicIp` caps ANONYMOUS per-IP traffic; `authed` is the per-user budget; `general` the authed
- *  backstop; `aiTurn` the GPU/$-spending verbs. (May stay boot-env per settings-and-config Open
- *  decisions — kept as a faithful AppSettings field; promotion is a wiring choice the resolver makes.) */
+ *  backstop; `aiTurn` the GPU/$-spending verbs. (Env floor kept — the budgets stay boot-env; the admin
+ *  override layers on top in the resolver.) */
 export const rateLimitsSchema = z.object({
   general: z.number().int().positive().optional(),
   aiTurn: z.number().int().positive().optional(),
@@ -145,8 +144,8 @@ export const rateLimitsSchema = z.object({
 });
 export type RateLimits = z.infer<typeof rateLimitsSchema>;
 
-/** vLLM client-side batch concurrency (the promoted `VLLM_*_CONCURRENCY` knobs — settings-and-config
- *  §b: env floor preserved, admin override added). `embed` bounds the embed + image-embed runners
+/** vLLM client-side batch concurrency (the promoted `VLLM_*_CONCURRENCY` knobs — born-in-DB code floor,
+ *  admin override added). `embed` bounds the embed + image-embed runners
  *  (shared engine); `summarize` the gen-engine summarize batch. */
 export const vllmConcurrencySchema = z.object({
   embed: z.number().int().positive().optional(),
@@ -504,7 +503,7 @@ export function parseUserSettings(raw: unknown, storedVersion?: number): UserSet
 // client reads the resolved app settings; the server hot paths (engine/embedder/runners) read it sync.
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// The asymmetry with `AppSettings` is deliberate (settings.md §"Public surface"): the admin EDITS the
+// The asymmetry with `AppSettings` is deliberate: the admin EDITS the
 // override blob (`AppSettings` — every field optional/nullable), but always READS BACK the fully-resolved
 // floor⊕override config (this shape — every field present). The resolver (`domain/settings/effective-
 // config/layer.ts`) is the ONLY producer; the override-shaped sub-types (`RateLimits`/`VllmConcurrency`)
@@ -526,7 +525,7 @@ export interface ResolvedVllmConcurrency {
 
 /**
  * The fully-resolved runtime config (every field present) — what `getEffectiveConfig()` returns and the
- * admin AppSettings verbs read back. Two default ORIGINS, kept legible (settings-and-config §b — "env is
+ * admin AppSettings verbs read back. Two default ORIGINS, kept legible ("env is
  * the floor" is only half-true): env-mirrored fields (`corpusAutoindex`/`importSkipCharacters`/`logLevel`,
  * + the kept `rateLimits` env vars) read the env floor; born-in-DB fields (`forbidExternalMedia`,
  * `memoryDefaults`, `memorySummarizer`, `vllmConcurrency`, the D17 governance toggles) read a code floor
@@ -541,7 +540,7 @@ export interface EffectiveAppConfig {
   /** Within-chat memory subsystem tuning. Empty = the baked-in resolver defaults at the consumer. */
   memoryDefaults: MemoryDefaults;
   memorySummarizer: MemorySummarizerConfig;
-  /** Per-window rate-limit budgets (env floor kept — settings-and-config §b; the limiter reads these). */
+  /** Per-window rate-limit budgets (env floor kept; the limiter reads these). */
   rateLimits: ResolvedRateLimits;
   /** vLLM batch concurrency (born-in-DB; the embed/image-embed/summarize runners read it per-batch). */
   vllmConcurrency: ResolvedVllmConcurrency;

@@ -8,7 +8,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 //
 // The AAD belt: encrypt/decrypt CARRY the `aad` parameter and bind it into the GCM tag; this box NEVER
 // derives the value — `domain/credentials` supplies `${userId}|${provider}` from its single aadFor()
-// site (credentials.md). A row lifted into another (userId, provider) slot fails tag verification — a
+// site. A row lifted into another (userId, provider) slot fails tag verification — a
 // loud GCM error, not a silent wrong decrypt. The string MUST stay byte-identical across any refactor;
 // this box is the wrong place to "normalize" it. A fresh 12-byte IV is generated per encrypt (never
 // reuse an IV with a key).

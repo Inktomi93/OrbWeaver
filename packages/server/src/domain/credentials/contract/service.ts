@@ -1,5 +1,5 @@
 // domain/credentials/contract/service — the typed API surface (read THIS to know everything the domain
-// does; credentials.md §"Verbs"). Holds:
+// does). Holds:
 //   • CredentialContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • CredentialsServiceDeps  the deps the entry root supplies (identical to the context — no transform)
 //   • CredentialsService      the 15-verb authoritative interface (the front door re-exports the type)
@@ -86,7 +86,7 @@ export interface CredentialContext {
 export type CredentialsServiceDeps = CredentialContext;
 
 /**
- * The credential surface (credentials.md §"Verbs"). The turn-time `resolve` is the ONLY consumer-facing
+ * The credential surface. The turn-time `resolve` is the ONLY consumer-facing
  * construction of a `ResolvedCredential`; CRUD is ownership-scoped (rows by `principal.userId`); health
  * has the runner-internal (`markRevoked`, no ownership check) vs user-facing (`markRevokedByUser`) split
  * (invariant #6 — MUST NOT merge); the boot/connection mints return brand-protected markers, not views.

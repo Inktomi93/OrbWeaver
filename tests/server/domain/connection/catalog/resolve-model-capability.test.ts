@@ -1,4 +1,4 @@
-// resolveModelCapability — the ONE descriptor factory, per arm (connection.md §2, invariant 2). Asserts:
+// resolveModelCapability — the ONE descriptor factory, per arm. Asserts:
 // curated wins first (incl. a Claude-via-OR id), OR synthesis reads supportedParameters + family, vLLM /
 // custom / local-light static arms, and the distinct-axes shape (reasoning.mode ≠ on/off; no `none` level).
 
@@ -17,7 +17,7 @@ describe("resolveModelCapability — curated arm (wins first)", () => {
 
   test("a Claude-via-OR version-only id resolves to the curated profile, NOT synthesis", () => {
     // `claude-haiku-4-5` on the OR path → curated Haiku (reasoning off), proving curated lookup beats the
-    // openrouter synthesis arm (connection.md Esoteric §6).
+    // openrouter synthesis arm.
     const cap = resolveModelCapability("claude-haiku-4-5", "openrouter");
     expect(cap.reasoning.mode).toBe("none");
     expect(cap.reasoning.enabled).toBe(false);

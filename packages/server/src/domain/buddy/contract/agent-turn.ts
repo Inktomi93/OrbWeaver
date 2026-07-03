@@ -44,7 +44,7 @@ export interface BuddyToolSpec {
  * The buddy's agent-turn request — THE FIREWALL. NO `chatId` (see file header): the buddy writes
  * `buddy_turns`, never chat `messages`. `credential`/`model` come from the resolved agent connection
  * (the owner gate already enforced inside credential resolution, D17). `maxContextTokens` is DERIVED
- * from the connection capability descriptor (`domains/connection.md` §2 `context.window`), not a buddy
+ * from the connection capability descriptor (`ModelCapability.context.window`), not a buddy
  * literal — the local-engine non-fail-fast-500-on-overflow discipline (the vLLM window discipline).
  */
 export interface BuddyAgentRequest {

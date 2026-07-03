@@ -1,5 +1,5 @@
 // verb: maybeRevokeOnAuthFailed — the post-turn `auth_failed` side-effect (chat engine + compaction inject
-// this; credentials.md §"Cross-feature composition"). Centralizes the policy so every turn path follows it
+// this at the composition root). Centralizes the policy so every turn path follows it
 // without duplicating the conditional: if the turn failed with `auth_failed` AND a BYO credential
 // authenticated it (`credentialId !== null` — keyless host/vllm/local-light have no row to revoke), mark
 // that credential revoked. Best-effort: a revoke-write failure is logged but never breaks the verb's own

@@ -1,6 +1,6 @@
 // effective-config/cache — the resolved-config cache + reload seam. Asserts: the sync read is the env
 // floor before the first reload; reload rebuilds from the stored override; and the LOAD-BEARING
-// `logger.level` rebind on reload (settings-and-config invariant #10 — without it AppSettings.logLevel is a
+// `logger.level` rebind on reload (without it AppSettings.logLevel is a
 // docs-only knob effective only at restart). ASSUMES(single-replica): the cache is module-scope, reset per
 // test here.
 

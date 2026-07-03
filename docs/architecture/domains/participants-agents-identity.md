@@ -146,8 +146,8 @@ content (full-card JSON), label?, createdAt}` — append-only, **nothing FKs it*
   optional.** Routing/credential resolution becomes per-agent, resolved in
   `connection.resolveRole` (the agent is a role — `agent` for buddy, the `chat` role default for
   a character — with an identity). A participant's own `{backend, model}` override wins over the role
-  default when present; absent, it inherits the default. Aligns with `domains/connection.md §1` +
-  `domains/connection.md §"Per-agent capability"`.
+  default when present; absent, it inherits the default. Aligns with `domain/connection §1` +
+  `domain/connection §"Per-agent capability"`.
 - **Stateless-first vs the Max-sub cache — RESOLVED: backend owns the cache, no upward leak.** The
   agent-sdk session cache (the prompt-cache survival that makes Max-sub cheap) lives **backend-internal**
   in `infra/providers/backends/agent-sdk/session/`; it reseeds-from-canon when stale. Stateless-first is the domain

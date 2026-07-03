@@ -222,7 +222,7 @@ function buildMessages(
 // `customParameters` overlaid (user wins — the one request-body overlay decided + present today).
 //
 // FLAG[PD-13]: the per-endpoint `includeBody`/`excludeBody` transforms (§1a request mappings) have NO
-// contract home yet (credentials.md v1 deferral: the metadata carries only baseUrl/model/headers). When
+// contract home yet (v1 deferral: the credential metadata carries only baseUrl/model/headers). When
 // they land on the credential/metadata they apply here as the second `applyIncludeExclude` layer; the
 // `customParameters` overlay is shallow because the deep-merge proto-pollution defense
 // (`server/kit/custom-parameters.deepMergeRequestBody`) is itself a separate scaffold target, not built.

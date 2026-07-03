@@ -255,6 +255,6 @@ compose-time mode picker, render (reuses `MessageMedia`).
 - **D49** — adjudication: imagery is a server orchestrator leaf, hosted-only, Phase 7
 - `domains/assets.md` — store/CAS
 - `domains/character.md` — `getCard` for `{{char}}` in templates
-- `domains/connection.md` — `resolveRole`
+- `domain/connection` — `resolveRole`
 - `domains/automation.md` — the action surface
 - `proposed/image-studio/image-studio.md` — the full evidence base (ST source audit, neo findings)

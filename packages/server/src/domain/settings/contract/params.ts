@@ -4,7 +4,7 @@
 // carries its fresh-per-request `role`, so the guard needs no db SELECT and no caller-supplied role to
 // distrust). UserSettings verbs scope by `principal.userId` (a user reads/writes ONLY its own row — the PK
 // is `userId`; settings NEVER reads/joins `users`). `getGlobalSetting`/`setGlobalSetting` take the raw KV
-// pair (they are admin-gated at the ROUTER, not the verb — settings.md §7.1).
+// pair (they are admin-gated at the ROUTER, not the verb).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contracts/settings";

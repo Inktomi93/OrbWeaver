@@ -1,4 +1,4 @@
-// domain/settings/contract/errors — NO custom error class (by design; settings.md §"Open decisions"). The
+// domain/settings/contract/errors — NO custom error class (by design). The
 // only failures are `DomainOperationError(reserved_key)` (the generic KV setter refusing a reserved key)
 // and the INJECTED `requireAdmin`/`requireOwner` throw (`DomainForbiddenError`, owned by the guard). A
 // missing user-settings row is DEFAULTS not an error; a missing global key is `null`. This file is the ONE

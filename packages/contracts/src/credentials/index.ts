@@ -3,7 +3,7 @@
 // `credentials` DOMAIN (which mints the values) and the runners (which read them) sit DOWN from this
 // node: contracts is the one place both consumers can reach without an infra→domain edge.
 //
-// TWO distinct axes live here — never conflate them (credentials.md §7.5):
+// TWO distinct axes live here — never conflate them:
 //   • CredentialSource (CRED_SOURCES) — the DISPATCH axis. The 5 sources the turn-time resolver has a
 //     runner arm for: `max-pro-sub | openrouter | vllm | local-light | custom_openai`. THE
 //     provider-source axis (D31/D39); `@orb/contracts/connection` re-exports it verbatim as
@@ -15,12 +15,12 @@
 //     `anthropic`/`openai`/`google_vertex` members are forward-compat storage slots with NO resolver
 //     arm yet — storable, never dispatched. The two axes overlap only on `openrouter` + `custom_openai`.
 //
-// AAD invariant (credentials.md "AES-256-GCM AAD invariant"): the at-rest ciphertext is bound to
+// AES-256-GCM AAD invariant: the at-rest ciphertext is bound to
 // `${userId}|${provider}` where `provider` is a CredentialProvider. No wire shape in THIS node carries the
 // AAD — it is a domain `persistence/aad.ts` concern — but the storage axis defined here is the
 // `provider` half of that binding, so the CRED_PROVIDERS tuple must stay byte-stable.
 //
-// v1 deferral (shared-dissolution §1.3 cycle break + credentials.md Open decisions): the metadata
+// v1 deferral (shared-dissolution §1.3 cycle break): the metadata
 // schema is `baseUrl`/`headers` (custom_openai) + project/region (google_vertex) only. The BYO
 // `modelProfile?: CustomModelProfile` is FLAG[PD-12] — defining it here would tempt importing
 // `connection.ModelCapability` and invert the D31 `connection → credentials` edge into a cycle. When
@@ -52,8 +52,10 @@ export const credentialSourceSchema = z.enum(CRED_SOURCES);
 // --- The provider-STORAGE axis -----------------------------------------------
 // The broader storable set (the `user_credentials.provider` enum derives from this tuple). Distinct
 // from CredentialSource: `anthropic`/`openai`/`google_vertex` are storable with no resolver arm yet —
-// a row with one is persisted but never reached at turn time (do NOT add a partial runner; see
-// credentials.md Open decisions). The neo `CredProvider` re-export collapses (now `CredentialProvider`) to this one home.
+// a row with one is persisted but never reached at turn time (do NOT add a partial runner — a DB row
+// with no runner is a stranded credential that shows as "revoked / not found" to the user; adding a
+// provider means the union member + the resolver arm + the `infra/providers` runner land TOGETHER).
+// The neo `CredProvider` re-export collapses (now `CredentialProvider`) to this one home.
 export const CRED_PROVIDERS = [
   "openrouter",
   "anthropic",

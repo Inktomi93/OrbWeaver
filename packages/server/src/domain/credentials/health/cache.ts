@@ -1,5 +1,5 @@
-// domain/credentials/health/cache — the in-memory health-probe throttle + circuit-breaker state
-// (credentials.md §"The 8-slot layout" + invariant #8). A NAMED subsystem, NOT `persistence/`: these are
+// domain/credentials/health/cache — the in-memory health-probe throttle + circuit-breaker state.
+// A NAMED subsystem, NOT `persistence/`: these are
 // module-scope Maps (per-credentialId throttle window + strike counter), and `persistence-no-in-memory-
 // state` forbids a Map in a `persistence/` dir — in-memory state lives in a named subsystem with the
 // single-replica marker. The test-health verb reaches these ONLY through `substrate/health-throttle.ts`
@@ -7,7 +7,7 @@
 //
 // ASSUMES(single-replica): the throttle window + strike counters are module-scope, per-process — an
 // admin status-poll on a multi-replica deploy hits whichever replica answered, and a restart resets a
-// credential mid-strike-streak (acceptable; credentials.md Open decisions). The seam to externalize if
+// credential mid-strike-streak (an accepted single-replica design choice). The seam to externalize if
 // that is ever reversed is THIS subsystem (the `rate_limit_buckets` row pattern is the model to copy).
 //
 // `now` is the INJECTED clock (testing §3) — these functions take the epoch-ms VALUE, never call a

@@ -2,9 +2,9 @@
 // role runs as) plus the capability DESCRIPTOR that drives both the per-runner translator and the
 // client params panel. `connection` is selection, not execution: nothing here carries the sealed
 // `runner`/`family` vocab (it stays inside `infra/providers`); the contract speaks only the user
-// vocab `{api, source, model}` + the `ModelCapability` descriptor (connection.md invariants 1 & 6).
+// vocab `{api, source, model}` + the `ModelCapability` descriptor.
 //
-// TWO axes live at the top of this node — keep them distinct (connection.md §7.5):
+// TWO axes live at the top of this node — keep them distinct:
 //   • ChatApi (CHAT_APIS) — the PROTOCOL axis: `agent-sdk | chat-completions | responses`. CANONICAL
 //     HERE — its own tuple + schema, declared once so the 18 inline re-spellings in neo-tavern become
 //     RED under `no-inline-union-redecl`.
@@ -30,7 +30,7 @@ import type { CredentialSource, ResolvedCredential } from "#credentials";
 // --- The protocol axis (CANONICAL home) --------------------------------------
 // The chat-completion machinery a turn is addressed by. A separate axis from `ChatSource`: one source
 // (e.g. openrouter) can serve several apis. Every dispatch switch over `api` uses `assertNever` for
-// exhaustiveness; a new api is a member here + a runner arm, nowhere else (connection.md §7.5).
+// exhaustiveness; a new api is a member here + a runner arm, nowhere else.
 export const CHAT_APIS = ["agent-sdk", "chat-completions", "responses"] as const;
 export type ChatApi = (typeof CHAT_APIS)[number];
 export const chatApiSchema = z.enum(CHAT_APIS);
@@ -90,17 +90,17 @@ export function parseProviderRouting(value: unknown): OpenRouterProviderRouting 
 // Replaces neo-tavern's two cross-merged capability systems (`ChatModel` + `FAMILY_CAPS`). Reasoning,
 // sampling, verbosity, output and context are SEPARATE axes; produced once per `(model, backend)` by
 // the connection domain's `resolveModelCapability`, consumed by BOTH the infra translator and the
-// client panel so they can't drift (connection.md §2-§3).
+// client panel so they can't drift.
 
 /** How a model reasons. A distinct axis from on/off (`reasoning.enabled`) — `effort:'none'` is NOT
- *  the off-switch (connection.md invariant 3); `EFFORT_LEVELS` below has no `'none'` member. */
+ *  the off-switch; `EFFORT_LEVELS` below has no `'none'` member. */
 export const REASONING_MODES = ["none", "effort", "budget", "adaptive"] as const;
 export type ReasoningMode = (typeof REASONING_MODES)[number];
 export const reasoningModeSchema = z.enum(REASONING_MODES);
 
 /** The model's REAL effort levels. Deliberately EXCLUDES `'none'` (the neo `EFFORT_LEVELS` carried it
  *  as a doubled-up off-switch): the on/off decision is `reasoning.enabled`, so a level is never also a
- *  kill-switch (connection.md invariant 3). */
+ *  kill-switch. */
 export const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export const effortLevelSchema = z.enum(EFFORT_LEVELS);
@@ -116,7 +116,7 @@ export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
 export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES);
 
 /** An inclusive numeric range. The ONE place a knob's bounds live — the client panel reads these for
- *  slider min/max and never re-hardcodes them (connection.md §5). */
+ *  slider min/max and never re-hardcodes them. */
 export const rangeSchema = z.object({ min: z.number(), max: z.number() });
 export type Range = z.infer<typeof rangeSchema>;
 
@@ -124,7 +124,7 @@ export type Range = z.infer<typeof rangeSchema>;
  * The capability descriptor for a resolved `(model, backend)`. The ONE source of truth for "what
  * knobs this model honors": a knob the model doesn't list is simply absent (no silent no-ops), and the
  * panel renders by iterating the descriptor (no static slider stack). Reasoning / sampling / verbosity
- * / output / context are distinct axes — never a merged cascade (connection.md §2, §4).
+ * / output / context are distinct axes — never a merged cascade.
  */
 export const modelCapabilitySchema = z.object({
   reasoning: z.object({
@@ -176,7 +176,7 @@ export type ModelCapability = z.infer<typeof modelCapabilitySchema>;
 /**
  * One normalized OpenRouter catalog model — the cross-boundary entry the client model picker reads and
  * the connection domain persists in its catalog snapshot. The EXPLICIT shape that replaces neo-tavern's
- * `CatalogModels = Awaited<ReturnType<typeof catalog.rawModels>>` leak (connection.md §7.4): a new
+ * `CatalogModels = Awaited<ReturnType<typeof catalog.rawModels>>` leak (§7.4 one-home): a new
  * required field here is a compile error at every producer, not a silent drift. `id` is a plain string
  * (OR ids like `anthropic/claude-sonnet-4.6` are free-form; only the curated shortlist carries a brand,
  * which lives on the catalog's curated entries — out of scope for this node).
@@ -204,7 +204,7 @@ export type ModelCatalogEntry = z.infer<typeof modelCatalogEntrySchema>;
  * The resolved `{api, model, credential, capability}` a turn or role runs as — replaces neo-tavern's
  * `TurnRouting` (which was keyed on the infra-internal `runner`). The provider-SOURCE axis is carried
  * by `credential.source` (a `ChatSource`/`CredentialSource`), so it is not duplicated as a separate
- * field; `runner`/`family` never appear (sealed in `infra/providers` — connection.md invariants 1 & 6).
+ * field; `runner`/`family` never appear (sealed in `infra/providers`).
  * NOT a Zod schema: `credential` is the brand-protected {@link ResolvedCredential} (constructed only
  * inside the credentials domain), which cannot be parsed from a wire literal.
  */
@@ -224,7 +224,7 @@ export interface ResolvedConnection {
  * The 7 inference roles `connection.resolveRole` resolves a connection for. NEW union: in neo-tavern roles
  * were hard-pinned functions, not a typed axis. ONE importable tuple here (no inline re-spell —
  * `no-inline-union-redecl`); `resolveRole`'s dispatch is a `{ [K in RoutingRoleKey]: … }` mapped Record so
- * a new role missing its resolver is a `tsc` error (connection.md invariant 5 — `exhaustive-dispatch`).
+ * a new role missing its resolver is a `tsc` error (`exhaustive-dispatch`).
  * `summarize` is a chat-turn shaper; `agent` is the chat turn + tools (buddy's role). Consumed by the
  * server (resolveRole) AND the client settings panel — cross-boundary, so it lives here.
  */
@@ -266,7 +266,7 @@ export type RoutableChat = RouteChatAssignment;
 // `domain/connection/catalog/`). The brand ENDS at the shortlist: OpenRouter ids (`anthropic/claude-…`)
 // are plain strings in `ModelCatalogEntry.id`; only curated entries carry this brand. `pickOrModel`'s
 // guard (1) uses the runtime `isChatModelId` (catalog) as the discriminator — a brand match means
-// "shortlist id → agent-sdk-only, reject on the OR path" (connection.md Decisions; Esoteric §5).
+// "shortlist id → agent-sdk-only, reject on the OR path".
 declare const chatModelBrand: unique symbol;
 export type ChatModelId = ModelId & { readonly [chatModelBrand]: true };
 

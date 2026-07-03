@@ -1,5 +1,5 @@
-// verb: updateUserSettingsSection — deep-merge ONE namespace + re-validate. The load-bearing invariant
-// (esoteric #5): two concurrent patches on SIBLING sections of the SAME user both land (the per-user
+// verb: updateUserSettingsSection — deep-merge ONE namespace + re-validate. The load-bearing invariant:
+// two concurrent patches on SIBLING sections of the SAME user both land (the per-user
 // serializer makes the read-merge-write atomic w.r.t. other same-user writes — without it last-write-wins
 // would silently drop one). Plus: a section patch deep-merges (doesn't clobber sibling sections/keys).
 

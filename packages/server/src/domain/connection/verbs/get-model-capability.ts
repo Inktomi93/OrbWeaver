@@ -1,5 +1,5 @@
-// verb: getModelCapability — resolve the ONE capability descriptor for a `(model, source)` (connection.md
-// §"getModelCapability"). Feeds the params panel (iterate the descriptor) + an active request. Goes through
+// verb: getModelCapability — resolve the ONE capability descriptor for a `(model, source)`.
+// Feeds the params panel (iterate the descriptor) + an active request. Goes through
 // the `substrate/capability` mediator (the catalog subsystem is substrate-mediated); the OR synthesis arm
 // reads the cached catalog the (injected-clock) cache holds. Sync under the hood — wrapped in a resolved
 // promise for the async service surface.

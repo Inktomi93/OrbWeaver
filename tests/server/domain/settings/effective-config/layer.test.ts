@@ -1,5 +1,5 @@
-// effective-config/layer — the floor-merge resolver (pure). Asserts the floor rule (settings-and-config
-// invariant #6): `layer({})` reads the env floor for env-mirrored fields; an override field WINS; a
+// effective-config/layer — the floor-merge resolver (pure). Asserts the floor rule:
+// `layer({})` reads the env floor for env-mirrored fields; an override field WINS; a
 // `null`/absent override falls through to the floor (the null=CLEAR sentinel). Plus the D17 governance
 // floors (born-in-DB: local-compute ON, max-pro-sub OFF, budget null).
 

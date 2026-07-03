@@ -1,5 +1,5 @@
 // domain/connection/contract/service — the typed API surface (read THIS to know everything the domain
-// does; connection.md §"Verbs"). Holds:
+// does). Holds:
 //   • ConnectionContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • ConnectionServiceDeps   what the entry root supplies (identical to the context — no transform)
 //   • ConnectionService       the 5-verb authoritative interface (the front door re-exports the type)
@@ -38,7 +38,7 @@ import type {
 import type { CatalogSnapshot } from "./results";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. The
- *  `max-pro-sub` owner gate lives in credentials; connection never re-checks it (connection.md §7.1). */
+ *  `max-pro-sub` owner gate lives in credentials; connection never re-checks it. */
 export type ResolveCredentialOp = (params: {
   readonly principal: Principal;
   readonly source: ChatSource;
@@ -51,13 +51,13 @@ export type FetchOrCatalogOp = (req: {
 }) => Promise<ModelCatalogEntry[]>;
 
 /** settings.loadUserSettings — the parsed per-user UserSettings (the `routing.roleDefaults.*` source).
- *  Connection is a CONSUMER of settings, not an owner (connection.md §7.2). */
+ *  Connection is a CONSUMER of settings, not an owner. */
 export type LoadUserSettingsOp = (userId: UserId) => Promise<UserSettings>;
 
 /** infra/providers.verifyAuth — the host-Claude auth-verify diagnostic (a tiny SDK turn through the
  *  credential firewall reporting which credential the spawned runtime used). The credential is the
  *  owner-gated `max-pro-sub` mint this domain resolves FIRST (D17 lives in credentials — connection
- *  never re-checks it, §7.1); `model` is the probe model the verb picks (the cheapest curated tier). */
+ *  never re-checks it); `model` is the probe model the verb picks (the cheapest curated tier). */
 export type VerifyClaudeAuthOp = (req: {
   readonly credential: ResolvedCredential;
   readonly model: string;
@@ -105,11 +105,11 @@ export interface ConnectionContext {
 export type ConnectionServiceDeps = ConnectionContext;
 
 /**
- * The connection surface — SELECTION, not execution (connection.md §0). `resolveRole` is the generic
+ * The connection surface — SELECTION, not execution. `resolveRole` is the generic
  * 7-role resolver; `resolveChat` is the chat-specific overlay (chat row beats UserSettings beats system
  * default, then heal) delegating to `resolveRole('chat')`; `getModelCapability` produces the ONE descriptor
  * for the panel/translator; `getCatalog`/`refreshCatalog` own the OR snapshot. NONE carry `runner`/`family`
- * (sealed in infra — connection.md invariants 1 & 6).
+ * (sealed in infra).
  */
 export interface ConnectionService {
   readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;

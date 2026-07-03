@@ -1,4 +1,4 @@
-// persistence/aad — the load-bearing AES-256-GCM AAD invariant (credentials.md "AAD invariant"). The
+// persistence/aad — the load-bearing AES-256-GCM AAD invariant. The
 // byte-string `${userId}|${provider}` MUST stay byte-identical: any change to the separator/order/
 // stringification silently breaks decryption for every stored credential. This test PINS the exact format
 // AND proves the belt end-to-end against the real SecretBox: a row decrypts only under its own

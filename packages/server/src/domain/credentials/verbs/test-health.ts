@@ -1,5 +1,5 @@
 // verb: testHealth — probe a credential against its provider's health endpoint + run the throttle and
-// circuit-breaker side-effects (credentials.md §"Health"; invariant #5: probes by `credentialId`, NOT by
+// circuit-breaker side-effects (INVARIANT: probes by `credentialId`, NOT by
 // `active=true`, so the health UI can probe INACTIVE owned credentials too). Flow:
 //   1. owner check + load (any owned row, active or not).
 //   2. throttle: one probe per 60s window — within it, return the last observed state (no second probe).

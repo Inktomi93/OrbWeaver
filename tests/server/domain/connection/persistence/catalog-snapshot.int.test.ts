@@ -1,4 +1,4 @@
-// catalog-snapshot persistence (connection.md Esoteric §3/§7, invariant 8). Asserts: the write→read
+// catalog-snapshot persistence. Asserts: the write→read
 // round-trip; the warm-on-read side-effect (a read seeds the in-memory TTL cache — no cold-boot null hole);
 // and the tightened parse (a malformed stored blob degrades to null, replacing neo's blind cast).
 

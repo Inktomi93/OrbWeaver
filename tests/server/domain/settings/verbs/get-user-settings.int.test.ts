@@ -1,5 +1,5 @@
 // verb: getUserSettings — a never-touched account reads the parsed defaults with `updatedAt: 0` and NO
-// row written (the read/write asymmetry, esoteric #8); a written account reads back its stored config.
+// row written (the read/write asymmetry); a written account reads back its stored config.
 
 import { userSettings } from "@orb/db";
 import { eq } from "drizzle-orm";

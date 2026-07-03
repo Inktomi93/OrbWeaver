@@ -13,8 +13,8 @@
 | **persona**                          | `packages/server/src/domain/persona/` (gutted — code is the doc)                                           | 4                                  |
 | **preset**                           | `packages/server/src/domain/preset/` (gutted — code is the doc)                                             | 4                                  |
 | **world-info**                       | `packages/server/src/domain/world-info/` (gutted — code is the doc)                                     | 4                                  |
-| **connection**                       | [connection.md](connection.md)                                     | 4 — NEW; absorbs `models`          |
-| **credentials**                      | [credentials.md](credentials.md)                                   | 4                                  |
+| **connection**                       | `packages/server/src/domain/connection/` (gutted — code is the doc)                                     | 4 — NEW; absorbs `models`          |
+| **credentials**                      | `packages/server/src/domain/credentials/` (gutted — code is the doc)                                   | 4                                  |
 | **tag**                              | `packages/server/src/domain/tag/` (gutted — code is the doc)                                                   | 4                                  |
 | **embeddings**                       | [embeddings.md](embeddings.md)                                     | 4 — NEW; the ONE vector write path |
 | **search**                           | `packages/server/src/domain/search/` (gutted — code is the doc)                                             | 4                                  |
@@ -22,7 +22,7 @@
 | **memory**                           | [memory.md](memory.md)                                             | 5 (subsystem of chat)              |
 | **stats**                            | BUILT — code is source: `packages/server/src/domain/stats/`; seam: [stats-discovery-seam.md](../proposed/stats-discovery-seam.md) | 4 — doc gutted 2026-07 (code truth) |
 | **buddy**                            | `packages/server/src/domain/buddy/` (gutted — code is the doc)                                               | 5                                  |
-| **settings**                         | [settings.md](settings.md)                                         | 3                                  |
+| **settings**                         | `packages/server/src/domain/settings/` (gutted — code is the doc)                                         | 3                                  |
 | **sessions**                         | `packages/server/src/domain/sessions/` (gutted — code is the doc)                                         | 3                                  |
 | **admin**                            | `packages/server/src/domain/admin/` (gutted — code is the doc)                                               | 3                                  |
 | **import**                           | [import.md](import.md)                                             | 4                                  |

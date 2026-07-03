@@ -1,7 +1,7 @@
 // domain/connection/contract/views — the client-facing read-models. Both are ALIASES of the cross-boundary
 // contracts shapes (no re-spell, one home): the catalog endpoint ships `ModelCatalogView[]` (the OR catalog
 // entries) and the params panel iterates `ModelCapabilityView` (the descriptor) — the panel renders FROM
-// the descriptor, never a static knob list (connection.md invariant 10).
+// the descriptor, never a static knob list (proposed/connection-capability-panel.md).
 
 import type { ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
 

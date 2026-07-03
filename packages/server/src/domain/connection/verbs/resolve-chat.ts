@@ -1,4 +1,4 @@
-// verb: resolveChat — the chat-specific overlay (connection.md §"resolveRole vs resolveChat"). The chat
+// verb: resolveChat — the chat-specific overlay (`resolveRole` is the generic 7-role path). The chat
 // row's routing fields (`routableChat`) BEAT the per-user `roleDefaults.chat` overlay, which beats the
 // system default. The precedence falls out of the layering: this verb passes the row's fields as the
 // `agentOverride`, and `resolveRole('chat')` reads `roleDefaults.chat` as the base BENEATH the override and

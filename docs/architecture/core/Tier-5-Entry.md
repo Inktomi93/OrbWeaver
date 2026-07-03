@@ -90,7 +90,7 @@ foundation's pino), versions confirm-latest at build:
 | `createVllmRoleClients` / the role-client binder                                                                               | shared-dissolution + providers         | mints credentials + wires role dispatchers at boot                                       |
 | `lifecycle.ts` (a root entry file: `entry/lifecycle.ts`, per Core-Laws-and-Precedents.md §7 D5)                                           | foundation.md (ruled here)             | boot protocol + injected deps; read by entry only                                        |
 | the event-bus instance + indexer subscriptions                                                                                 | embeddings.md / assets.md              | the bus shape is an entry concern (in-process typed bus)                                 |
-| `getEffectiveConfig` reload wiring                                                                                             | settings.md                            | the sync getter is injected from here into chat/workloads                                |
+| `getEffectiveConfig` reload wiring                                                                                             | domain/settings                            | the sync getter is injected from here into chat/workloads                                |
 
 ---
 

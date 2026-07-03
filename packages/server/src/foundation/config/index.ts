@@ -1,5 +1,5 @@
 // foundation/config — what genuinely remains of the config tier after the AppSettings floor-merge folded
-// into the settings DOMAIN (settings.md / core/Tier-2-Foundation.md "does NOT own"): constants. The lone
+// into the settings DOMAIN (core/Tier-2-Foundation.md "does NOT own"): constants. The lone
 // resident is `version` (`APP_VERSION`), read DOWN by `observability/tracing` (the service.version resource
 // attr) + `observability/debug` (/api/_debug/info). NO `app-config.ts` / `layer()` / `EffectiveAppConfig`
 // lives here — that resolver is the settings domain's `effective-config/` subsystem.

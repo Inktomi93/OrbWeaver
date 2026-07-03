@@ -1,4 +1,4 @@
-// catalogSnapshotSchema — the tightened read-seam parse (connection.md Esoteric §7). Round-trips a valid
+// catalogSnapshotSchema — the tightened read-seam parse. Round-trips a valid
 // snapshot and rejects a malformed one (a missing required field is a parse failure, not a silent pass —
 // the replacement for neo's `.loose()` blind cast).
 
