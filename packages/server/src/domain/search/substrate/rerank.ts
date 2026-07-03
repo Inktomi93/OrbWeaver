@@ -1,9 +1,9 @@
-// domain/search/substrate/rerank — `applyRerank`, the cross-verb rerank orchestration (search.md
-// §"Cross-encoder rerank orchestration" + §"Cross-verb injection"). PURE orchestration: the actual
+// domain/search/substrate/rerank — `applyRerank`, the cross-verb rerank orchestration. PURE
+// orchestration: the actual
 // `RoleClients.rerank` call is passed in as a function ARG (no I/O of its own), so it is substrate, not an
 // injected dep — each verb imports it DOWN directly.
 //
-// Three behaviours the doc pins:
+// Three pinned behaviours:
 //   1. UNSCORABLE PASSTHROUGH — a candidate with no `sourceText` (a card with no searchable text) can't be
 //      cross-encoded; it is kept and placed AFTER the ranked ones (preserving recall, never dropped).
 //   2. STABLE IDS — documents carry the caller's id (not an array index), so the reorder maps back by id

@@ -6,7 +6,7 @@
 // ASSUMES(single-replica): the emitter + replay ring are MODULE-SCOPE, per-process — a multi-replica deploy
 // would NOT fan events across replicas (the partial unique index handles CLAIM correctness, but the bus does
 // not handle cross-replica OBSERVABILITY). This is the documented seam to replace with a shared pub/sub
-// (Redis/Postgres LISTEN) iff multi-replica ever ships (workloads.md invariant #9 / esoteric #4).
+// (Redis/Postgres LISTEN) iff multi-replica ever ships.
 //
 // DETERMINISM: the replay TTL clock is the EVENT-TIME domain — `() => busClock`, the max `at` an emitted
 // event carried (the engine stamps `at` from the INJECTED clock). So the bus uses NO ambient `Date.now()`;
@@ -35,7 +35,7 @@ const replay = createReplayBuffer<WorkloadId, WorkloadEvent>(REPLAY_TTL_MS, () =
 
 /**
  * Record + fan out one lifecycle event. THROWS on an empty `workloadId` (the subscription filters on it; an
- * empty id silently drops client-side — workloads.md invariant #10). Advances the event-time clock (the
+ * empty id silently drops client-side). Advances the event-time clock (the
  * replay TTL domain) before recording, so the ring evicts relative to the latest event, not a wall clock.
  */
 export function emitWorkloadEvent(event: WorkloadEvent): void {

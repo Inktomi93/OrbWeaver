@@ -9,9 +9,9 @@ import {
 import { expect, test } from "../../support/fixtures";
 
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
-// The ONE home for the union (§7.5). Members are verbatim from domains/workloads.md L96–104; a drift here
+// The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the 14-member kind axis from domains/workloads.md (incl. reserved reconcile-world-state)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 14-member kind axis (incl. reserved reconcile-world-state)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "embed-corpus",
     "embed-assets",
@@ -74,7 +74,7 @@ test("every ACTIVE_WORKLOAD_STATUSES member is a real WORKLOAD_STATUSES member (
   for (const status of ACTIVE_WORKLOAD_STATUSES) {
     expect(WORKLOAD_STATUSES).toContain(status);
   }
-  // `cancelling` MUST stay active — a row mid-cancel holds the slot until it terminates (esoteric #1).
+  // `cancelling` MUST stay active — a row mid-cancel holds the slot until it terminates.
   expect(ACTIVE_WORKLOAD_STATUSES).toContain("cancelling");
 });
 

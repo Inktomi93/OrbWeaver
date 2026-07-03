@@ -5,7 +5,7 @@
 //   • `buddy_turns` — the solo user⇄buddy transcript (the agent conversation; the buddy's egocentric view).
 //   • `buddy_quips` — the reaction engine's spoken output (swept to ~20/user; hover-history).
 //
-// DERIVE-DON'T-RESPELL (db.md §7.4 + buddy.md invariant #7): the bones/mood taxonomy has ONE home,
+// DERIVE-DON'T-RESPELL (db.md §7.4): the bones/mood taxonomy has ONE home,
 // `@orb/contracts/buddy`. The enum columns import the canonical tuples (`RARITIES`/`SPECIES`/`HATS`/
 // `MOODS`) — never re-spelled — and a CHECK built from the SAME tuple enforces it at the SQL level
 // (users.ts pattern); a test-mirror (`tests/db/buddy.int.test.ts`) pins db === contracts.
@@ -14,7 +14,7 @@
 // annotation ("Eye (a typed-text column in db, not an enum, but a closed taxonomy axis here)") and the
 // neo-tavern precedent. It still carries the `.$type<Eye>()` brand (schema-branding) from the one home.
 //
-// DERIVED, NEVER STORED (buddy.md): `bondTier`/`stage`/`form` are computed from `bondXp`/`stats` at read
+// DERIVED, NEVER STORED: `bondTier`/`stage`/`form` are computed from `bondXp`/`stats` at read
 // time — there is NO `bond_tier` column (so `BOND_TIERS`/`STAT_NAMES` are NOT db enum columns; `stats`
 // is a JSON `CompanionStats` whose keys ARE the `STAT_NAMES` axis, validated at the read seam, not in SQL).
 
@@ -76,12 +76,12 @@ export const buddies = sqliteTable(
     // ── agency / bond ──
     // relationship XP → `bondTierOf` (derived, never stored). Server-side `sql` increment in the reactor.
     bondXp: integer("bond_xp").notNull().default(0),
-    // the "hands" kill switch (the capability ceiling — buddy.md invariant #3).
+    // the "hands" kill switch (the capability ceiling — pairs with the propose/confirm gate).
     agencyEnabled: integer("agency_enabled", { mode: "boolean" }).notNull().default(true),
 
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // LOAD-BEARING: the reactor's optimistic-CAS write gates the UPDATE on the loaded `updatedAt`
-    // (0 rows ⇒ reload + recompute). buddy.md "Esoteric / load-bearing".
+    // (0 rows ⇒ reload + recompute; the deferred observer — proposed/buddy-observer-reaction-engine.md).
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   () => [

@@ -1,4 +1,4 @@
-// domain/search/contract/errors — the typed domain errors (search.md §8-slot contract/errors.ts).
+// domain/search/contract/errors — the typed domain errors (the 8-slot contract/errors.ts slot).
 //   • SearchError — a coded operational failure (the `code` discriminates). Extends the kit
 //     `DomainOperationError` (maps to BAD_REQUEST at the transport seam) so callers/tests discriminate
 //     via the code. The one code in the W2 core is `empty_query`: the query embedded to NO usable vector

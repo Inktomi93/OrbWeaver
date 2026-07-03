@@ -12,8 +12,8 @@
 // and imports these tuples DOWN — this namespace owns ONLY the two bare string-union axes a db column needs
 // plus the active-status subset the partial-unique index keys on.
 //
-// Members are VERBATIM from `docs/architecture/domains/workloads.md` (the `WorkloadKind` union L96–104 —
-// including the reserved v2 `reconcile-world-state` — and the `WorkloadStatus` lifecycle tuple).
+// These tuples ARE the canonical member lists (including the reserved v2 `reconcile-world-state`) —
+// every other spelling (db enum, RUNNERS Record, tRPC wire) derives from here.
 
 import { z } from "zod";
 
@@ -23,7 +23,7 @@ import { z } from "zod";
  *  the `RUNNERS: { [K in WorkloadKind]: Runner<K> }` exhaustiveness pin, and the tRPC wire enum all derive
  *  from it — no inline re-spelling). `reconcile-world-state` is a RESERVED v2 seam (council 2026-06-25):
  *  it ships now as a no-op stub runner so `exhaustive-dispatch` stays green, the feature is v2. Copied
- *  verbatim from `domains/workloads.md` L96–104 — do NOT invent or reorder members. */
+ *  This tuple is the ONE canonical member list — do NOT invent or reorder members. */
 export const WORKLOAD_KINDS = [
   "embed-corpus",
   "embed-assets",

@@ -2,7 +2,7 @@
 // these on the verb files but `no-inline-types` forbids exported types outside a type home, so they live
 // here and `verbs/*` import them). `userId`/`ownerId` is threaded for audit + the F3 per-user hook but is
 // NOT yet an authorization input (every verb is `adminProcedure`-gated; workloads are deployment-global —
-// workloads.md §7.1). `null` ownerId = a scheduler/system trigger.
+// §7.1). `null` ownerId = a scheduler/system trigger.
 
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";

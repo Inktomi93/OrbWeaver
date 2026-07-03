@@ -5,7 +5,7 @@
 // the DEFERRED observer subsystem — kept here as the ONE home of the machine, with the exhaustiveness
 // invariant (#8) enforced today by a unit test.
 //
-// §7.5 / invariant #8: `SIGNAL_MOOD` is a `Record<BuddySignalKind, Mood>` (full — a new signal kind
+// §7.5 exhaustive-dispatch: `SIGNAL_MOOD` is a `Record<BuddySignalKind, Mood>` (full — a new signal kind
 // fails `tsc`); `SIGNAL_STAT` is an INTENTIONAL `Partial<Record<…>>` (not every signal grows a stat),
 // asserted on the consumer side.
 
@@ -20,7 +20,7 @@ import type {
 import { BOND_THRESHOLDS, FORMS, MOOD_PRIORITY, STAGE_THRESHOLDS } from "@orb/contracts/buddy";
 import type { BuddySignalKind } from "../contract/signals";
 
-// The mood a signal induces. Full Record over BuddySignalKind — exhaustive (invariant #8).
+// The mood a signal induces. Full Record over BuddySignalKind — exhaustive (a new kind fails tsc).
 const SIGNAL_MOOD: Record<BuddySignalKind, Mood> = {
   "workload:started": "working",
   "workload:completed": "excited",

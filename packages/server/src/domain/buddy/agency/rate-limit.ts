@@ -1,9 +1,9 @@
 // domain/buddy/agency/rate-limit — a per-user hourly cap on the buddy's CONFIRMED mutations (the
-// "hands"). Pairs with the `agencyEnabled` kill switch as the capability ceiling (buddy.md invariant #3):
+// "hands"). Pairs with the `agencyEnabled` kill switch as the capability ceiling:
 // even a confirmed action is refused once the hourly budget is spent.
 //
 // ASSUMES(single-replica): the `hits` map is module-scope in-memory state (a sliding window per userId) —
-// correct for our ONE replica (buddy.md "Esoteric": a locked NOTE, not a bug). IF reversed, the hourly
+// correct for our ONE replica (a locked NOTE, not a bug). IF reversed, the hourly
 // budget would multiply by replica count behind a load balancer; the DB-backed replacement seam is then a
 // `buddy_rate_limits` table (or a JSON column on `buddies`), checked atomically at confirm. Lives in
 // `agency/` (NOT `persistence/`) because it is per-process state, not a query.

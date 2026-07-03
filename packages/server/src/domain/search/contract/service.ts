@@ -1,5 +1,5 @@
-// domain/search/contract/service — the typed API surface (read THIS to know everything the domain does;
-// search.md §"Verbs"). Holds:
+// domain/search/contract/service — the typed API surface (read THIS to know everything the domain does).
+// Holds:
 //   • SearchContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • SearchServiceDeps   what the entry root supplies (identical to the context — no transform)
 //   • SearchService       the authoritative verb interface (the front door re-exports the type)
@@ -13,7 +13,7 @@
 //   - `roleClients.embedModel`                            → the active embed model = the space tag; the
 //     scan filters `character_embeddings.model = embedModel` so a query NEVER compares across spaces
 //     (providers.md §2b/§11 embedding-space invariant; the rerank pairs with the same embed space).
-// `roleClients` is a REQUIRED dep (search.md invariant 7): `createSearchService(ctx)` is typed so a
+// `roleClients` is a REQUIRED dep: `createSearchService(ctx)` is typed so a
 // missing wire is a `tsc` error, not a silent `createDefaultRoleClients` fallback (that drawer is DELETED
 // in orbweaver — the entry root fills the bundle via `connection.resolveRole(role)` per role, Esoteric §2).
 //
@@ -35,7 +35,7 @@
 //   `digests` (verbatimWindow shapes memory's pre-call query; recencyBias needs a formula); `corpus` drops a
 //   segment-only block (no matching digest ⇒ unkeyable). See each verb header.
 // FLAG[PD-36]: the cross-modal `images` verb → a later wave when the `imageEmbed` text→image path +
-//   the cross-modal-CSLS-skip exception are wired (search.md §"Cross-modal image search CSLS exception").
+//   the cross-modal-CSLS-skip exception are wired (proposed/search-deferred-verbs.md §PD-36).
 // FLAG[PD-37]: the lexical BM25 `fields`/`suggest` engine → a later wave (needs the `minisearch`
 //   dependency, not in the workspace — a separate engine, not vector retrieval).
 // FLAG[PD-38]: the unified `search(UnifiedSearchParams)` dispatch + `SearchScope` axis → when the
@@ -76,8 +76,8 @@ export interface SearchContext {
 export type SearchServiceDeps = SearchContext;
 
 /**
- * The search surface — the one parameterized retrieval engine (search.md §0). W2 CORE: `knn` (the generic
- * within-space card scan → raw hits) + `findCharacters` (the same pipeline + distilled-facet enrichment,
+ * The search surface — the one parameterized retrieval engine (knowledge-cluster invariant #4).
+ * W2 CORE: `knn` (the generic within-space card scan → raw hits) + `findCharacters` (the same pipeline + distilled-facet enrichment,
  * the primitive `discovery` consumes). The memory/discover/image/lexical verbs join as they land (see the
  * deferral ledger above).
  */

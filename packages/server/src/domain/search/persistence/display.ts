@@ -1,10 +1,10 @@
-// domain/search/persistence/display — the display-enrichment JOINs (search.md movement table:
-// "resolveCharacterDisplay → persistence/display.ts"). Queries ONLY (returns rows; the verb keys them).
+// domain/search/persistence/display — the display-enrichment JOINs. Queries ONLY (returns rows; the
+// verb keys them).
 //
 // `resolveCharacterDisplay` enriches character-card hits with the distilled facets `discovery` writes to
 // `character_summaries` (genre / tone / elevatorPitch — D28: read off the FLAT character row's summary,
 // no version join) + the avatar CAS hash. Reading `discovery`'s output table via `@orb/db` is a DOWNWARD
-// schema dep (allowed — search.md §"character_summaries FK ownership"); it is NOT a sideways domain import.
+// schema dep (allowed — reading discovery's output TABLE, not its module); it is NOT a sideways domain import.
 // Owner-scoped in the WHERE (the hits are already owner-scoped, but the enrichment re-asserts it so a
 // crafted id list can never read across owners). Never reads the `users` table.
 

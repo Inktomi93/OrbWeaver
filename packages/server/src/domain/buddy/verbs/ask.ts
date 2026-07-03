@@ -1,8 +1,8 @@
-// verb: ask — the agent-mode composition (the ONE turn path via the injected `agentTurn`; buddy.md
-// invariant #1, "no second agent system"). Resolves the agent connection (the brain + the owner-gated
+// verb: ask — the agent-mode composition (the ONE turn path via the injected `agentTurn`; "no second
+// agent system"). Resolves the agent connection (the brain + the owner-gated
 // credential + the capability window), builds the soul system-prompt + the egocentric view (recent turns,
 // budget-trimmed), builds the in-process tool server, and runs the injected agent turn. THE FIREWALL: the
-// request carries NO `chatId` — the buddy writes `buddy_turns`, never chat `messages` (invariant #2). The
+// request carries NO `chatId` — the buddy writes `buddy_turns`, never chat `messages`. The
 // kill switch (`agencyEnabled`) short-circuits BEFORE any turn. Owner-scoped by `principal.userId`.
 
 import type { AskBuddyParams } from "../contract/params";
@@ -15,7 +15,7 @@ import { buildPromptWithMemory, fitSeedToBudget, MEMORY_TURNS } from "../substra
 
 // Talking grows the relationship faster than passive reactions.
 const BOND_PER_CHAT = 3;
-// Window discipline (DERIVED from the connection capability window, NOT a literal — buddy.md): the seed
+// Window discipline (DERIVED from the connection capability window, NOT a literal): the seed
 // transcript may use this share of the window; the SDK working set is soft-capped at this share.
 const SEED_FRACTION = 0.4;
 const CONTEXT_FRACTION = 0.85;

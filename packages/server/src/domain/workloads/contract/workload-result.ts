@@ -7,7 +7,7 @@
 // The shapes are deliberately small count/summary objects (what the admin UI shows + the row's `result`
 // column stores). A maintenance/backfill kind reports `{ scanned, changed }`; an embed pass reports
 // `{ embedded, skipped }`; analytics report `{ written }`; the catalog refresh reports counts ONLY (no
-// provider shapes leak — the adapter discipline, workloads.md §runner-env). The P5/v2 stub kinds carry a
+// provider shapes leak — the adapter discipline). The P5/v2 stub kinds carry a
 // `{ deferred: true }` marker so a consumer can tell an inert run apart from a zero-work real run.
 
 /** An embeddings pass outcome (text or image) — resumable, so it reports both halves. */

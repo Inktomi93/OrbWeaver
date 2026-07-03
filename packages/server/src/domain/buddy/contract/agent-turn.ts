@@ -1,5 +1,5 @@
-// domain/buddy/contract/agent-turn — THE FIREWALL HOME + the injected agent-turn seam (buddy.md
-// invariants #1-#3; participants-agents-identity.md §8.6 "the firewall inversion"). This is the seam
+// domain/buddy/contract/agent-turn — THE FIREWALL HOME + the injected agent-turn seam
+// (participants-agents-identity.md §8.6 "the firewall inversion"). This is the seam
 // chat (P5, D38) reuses: buddy builds BEFORE chat precisely so the agent-mode injection pattern is
 // proven here first.
 //
@@ -45,7 +45,7 @@ export interface BuddyToolSpec {
  * `buddy_turns`, never chat `messages`. `credential`/`model` come from the resolved agent connection
  * (the owner gate already enforced inside credential resolution, D17). `maxContextTokens` is DERIVED
  * from the connection capability descriptor (`domains/connection.md` §2 `context.window`), not a buddy
- * literal — the local-engine non-fail-fast-500-on-overflow discipline (buddy.md "vLLM window discipline").
+ * literal — the local-engine non-fail-fast-500-on-overflow discipline (the vLLM window discipline).
  */
 export interface BuddyAgentRequest {
   readonly credential: ResolvedCredential;

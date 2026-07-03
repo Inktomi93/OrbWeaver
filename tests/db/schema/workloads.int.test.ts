@@ -25,7 +25,7 @@ test("workloads.status enum mirrors WORKLOAD_STATUSES (db derives the contracts 
 });
 
 // The index WHERE list is derived from ACTIVE_WORKLOAD_STATUSES — assert the active subset is what the
-// behavioral lock test below relies on (the named mirror of the partial-index predicate, esoteric #1).
+// behavioral lock test below relies on (the named mirror of the partial-index predicate).
 test("ACTIVE_WORKLOAD_STATUSES is the [queued, running, cancelling] slot-holder set the index keys on", () => {
   expect([...ACTIVE_WORKLOAD_STATUSES]).toEqual(["queued", "running", "cancelling"]);
 });

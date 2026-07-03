@@ -1,18 +1,18 @@
 // domain/buddy/contract/signals — the reaction engine's normalized event vocab (the observer maps raw
 // app events → ONE `BuddySignal` the reactor consumes). DOMAIN-INTERNAL (not cross-boundary): the type
 // lives here per §7.4. The pure signal BUILDERS (`workloadSignal`/`chatSignal`/…) belong with the
-// subsystem that uses them (`observer/signals.ts`, buddy.md movement table) — FLAG[PD-64].
+// subsystem that uses them (`observer/signals.ts`, proposed/buddy-observer-reaction-engine.md) — FLAG[PD-64].
 //
 // §7.5: `BuddySignalKind` is the ONE importable canonical union (12 members). The mood/stat maps in
-// `substrate/mood.ts` are `Record<BuddySignalKind, …>` so a new kind fails `tsc` (exhaustive-dispatch,
-// invariant #8). Consumed today by the pure mood machine; the live reactor that emits these is the
+// `substrate/mood.ts` are `Record<BuddySignalKind, …>` so a new kind fails `tsc`
+// (exhaustive-dispatch). Consumed today by the pure mood machine; the live reactor that emits these is the
 // DEFERRED observer subsystem (FLAG[PD-45, PD-64]) (it reacts to chat/workload buses that do not exist before chat, D38).
 
 import type { UserId } from "@orb/kit/ids";
 
 /** The buddy's event kinds — the ONE canonical tuple (the axis declared once; the type derives it, per
  *  §7.5 `no-inline-union-redecl`). The mood/stat maps in `substrate/mood.ts` are `Record<BuddySignalKind,…>`
- *  so a new member fails `tsc` (exhaustive-dispatch, invariant #8). */
+ *  so a new member fails `tsc` (exhaustive-dispatch). */
 export const BUDDY_SIGNAL_KINDS = [
   "workload:started",
   "workload:completed",

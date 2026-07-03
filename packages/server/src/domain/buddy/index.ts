@@ -9,7 +9,7 @@
 //   • createBuddyService (the factory the entry root wires).
 //
 // The taxonomy (`CompanionBones`, `Mood`, `Rarity`, …) is NOT re-exported here — it lives in
-// `@orb/contracts/buddy` (buddy.md invariant #7); db/client/this domain import it from there directly.
+// `@orb/contracts/buddy` (the ONE cross-boundary home); db/client/this domain import it from there directly.
 //
 // DEFERRED (FLAG[PD-45, PD-64], NOT exported yet): the live reaction feed (`bus.ts`), `BuddyObserverEnv`,
 // `createBuddyObserverReads`, `startBuddyObserver` — the observer reaction engine reacts to chat/workload

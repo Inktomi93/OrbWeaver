@@ -3,10 +3,10 @@
 // next `start()` of that kind can proceed. This is what unwedges a kind after a worker crash — the partial
 // unique index holds the slot for an orphaned in-flight row until the reaper releases it.
 //
-// SAFETY (workloads.md esoteric #3): each stamp goes through the status-guarded `markTerminal` (guarded on
+// SAFETY: each stamp goes through the status-guarded `markTerminal` (guarded on
 // the in-flight states), so a row a returning zombie or a fresh claim already moved is NOT double-reaped —
 // `markTerminal` returns `false` and the reaper skips it. The stale threshold defaults to 15s (3× the 5s
-// heartbeat cadence) so a brief GC/DB blip can't falsely reap a live worker (esoteric #2).
+// heartbeat cadence) so a brief GC/DB blip can't falsely reap a live worker.
 //
 // DETERMINISM: `now` + the threshold are passed in (the worker supplies its injected clock + tuning); no
 // ambient `Date.now()`.

@@ -1,19 +1,19 @@
-// domain/workloads/contract/runner-env — THE one true cross-feature composition seam (workloads.md §8.1;
-// _FANOUT-BRIEF §8.1 "the one true cross-feature hub — model it, keep it"). It is the TYPED bundle of every
+// domain/workloads/contract/runner-env — THE one true cross-feature composition seam (§8.1: "the one true
+// cross-feature hub — model it, keep it"). It is the TYPED bundle of every
 // cross-feature op the runners depend on; the runtime VALUE is built ONCE at the `entry/` composition root
 // (the only tier above `domain-no-cross-feature`) and threaded through the worker into every dispatch.
-// Runners reach in via `ctx.env.<feature>.<op>` — NEVER a sideways import (invariant #4). It is a STRUCTURED,
+// Runners reach in via `ctx.env.<feature>.<op>` — NEVER a sideways import. It is a STRUCTURED,
 // NAMED bundle (NOT a junk drawer): each sub-interface is the MINIMAL op subset that feature's runners use,
 // so a feature's full service surface never leaks into workloads.
 //
-// PARTITION (workloads.md §"the orbweaver re-partition" — RESOLVED/locked): the embed passes (text+image,
+// PARTITION (locked): the embed passes (text+image,
 // the ONE write path) → `embeddings`; themes/distill/cooccurrence/duplicates/hub-scores → `discovery`;
 // digest/segment gen → `memory`; the group mint → `character`; the catalog snapshot → `connection` (counts
 // only — no provider shapes leak); import/assets/stats unchanged in spirit. `cas` stays top-level (an infra
 // adapter the image-embed pass consumes, NOT feature-owned).
 //
-// NOTE (born-compliant vs doc): `Cas` is imported from `#infra/storage` (its actual home — the `assets`
-// contract does the same), not `@orb/contracts` as workloads.md §7.4 sketched; reality/gate wins. The op
+// NOTE: `Cas` is imported from `#infra/storage` (its actual home — the `assets` contract does the same),
+// not `@orb/contracts`. The op
 // result types are workload-OWNED (`contract/workload-result`) on BOTH sides of the seam — the runner still
 // PROJECTS into `ResultByKind` (it does not re-export a sibling's internal result type; invariant intact).
 

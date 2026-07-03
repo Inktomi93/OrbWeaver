@@ -5,8 +5,8 @@
 //   • `cancelled`   — the run was aborted (admin cancel or SIGTERM); produced where the abort is observed.
 //   • `worker_died` — an in-flight row's lease went stale; produced ONLY by the reaper (engine/reaper.ts).
 // The removed `dependency_failed` arm is deliberately ABSENT: `dependsOn` is persisted-not-enforced (no
-// producer), so an arm for it would be dead — re-add it only when the DAG scheduler lands (workloads.md
-// "Still open"). The `kind` axis is the canonical `WORKLOAD_ERROR_KINDS` tuple.
+// producer), so an arm for it would be dead — re-add it only when a DAG scheduler lands
+// (proposed/workloads-deferred-designs.md). The `kind` axis is the canonical `WORKLOAD_ERROR_KINDS` tuple.
 
 /** The error-kind axis — ONE home (§7.5; the `WorkloadError.kind` discriminant + any tRPC wire schema
  *  derive from this tuple, no inline re-spell). */

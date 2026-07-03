@@ -1,7 +1,7 @@
-// verb: confirm — the ONLY place a proposed action executes (buddy.md invariant #3). The agent only
+// verb: confirm — the ONLY place a proposed action executes (the propose/confirm gate). The agent only
 // STASHES proposals (the propose_* tools); nothing mutates until the user confirms here. Every mutation
 // passes the capability ceiling: the `agencyEnabled` kill switch + the hourly rate-limit. The
-// `proposal.kind` switch is `assertNever`-exhaustive (§7.5 / invariant #8) — a new kind needs a member +
+// `proposal.kind` switch is `assertNever`-exhaustive (§7.5 exhaustive-dispatch) — a new kind needs a member +
 // an arm + a tool, or `tsc` red. Cross-feature actions go through the injected `agentEnv` (buddy imports
 // no sibling domain). Owner-scoped by `principal.userId`.
 

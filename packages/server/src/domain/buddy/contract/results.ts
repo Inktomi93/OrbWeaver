@@ -30,7 +30,7 @@ export interface BuddyProposal {
 
 /** The internal proposal the agency Map stashes — carries the action payload `confirm` executes. A plain
  *  discriminated union over {@link BuddyProposalKind} (NOT an intersection — a clean discriminant the
- *  `confirm` switch narrows + `assertNever`-exhausts; §7.5 / invariant #8). */
+ *  `confirm` switch narrows + `assertNever`-exhausts; §7.5 exhaustive-dispatch). */
 export type Proposal =
   | {
       readonly id: string;

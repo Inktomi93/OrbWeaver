@@ -1,7 +1,7 @@
 // domain/workloads/contract/workload-events — the `WorkloadEvent` bus union (§7.5: one importable union;
 // the SSE subscription + the buddy observer fan out from `engine/progress-bus`). EVERY event carries a
 // non-empty `workloadId` (the subscription filters on it — `emitWorkloadEvent` throws defensively on an
-// empty id; workloads.md esoteric #4/invariant #10) plus `kind` and `at` (the injected-clock epoch-ms the
+// empty id) plus `kind` and `at` (the injected-clock epoch-ms the
 // event was stamped — NOT `Date.now()`; the replay buffer's TTL is measured in this same event-time domain,
 // so the bus needs no ambient clock).
 //

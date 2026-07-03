@@ -1,5 +1,5 @@
-// domain/search/verbs/find-characters — character-card vector search with distilled-facet enrichment
-// (search.md §"Verbs"): the primitive `discovery` (W3) consumes for similarity browsing / archetype
+// domain/search/verbs/find-characters — character-card vector search with distilled-facet enrichment:
+// the primitive `discovery` (W3) consumes for similarity browsing / archetype
 // grouping. It is `knn` (the within-space card scan + CSLS + optional rerank) PLUS a `character_summaries`
 // + avatar JOIN — so the retrieval pipeline has ONE home (`knn`) and this verb only layers display.
 //

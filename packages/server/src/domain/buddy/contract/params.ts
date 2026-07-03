@@ -1,7 +1,8 @@
 // domain/buddy/contract/params — every verb's *Params, declared ONCE (§7.4). Under the Principal model
 // every buddy verb is OWNER-SCOPED: the acting `principal` (resolved at the entry seam) carries the
 // owner identity; a verb scopes its rows by `principal.userId` and NEVER reads the `users` table (the
-// borrowed-owner posture, buddy.md §"the §8.6 first-class-principal (FLAG[PD-17]) transition"; PD-17 DEFER). There is
+// borrowed-owner posture; the first-class-principal transition is FLAG[PD-17],
+// `proposed/agent-principal-design/04-buddy-transition.md` — solo stays byte-identical). There is
 // exactly one buddy per user (PK = userId), so no per-entity id is ever passed except the ephemeral
 // `proposalId` for `confirm`.
 
@@ -22,7 +23,7 @@ export interface AskBuddyParams extends BuddyActorParams {
 }
 
 /** Confirm or cancel a proposal the buddy made during an ask. Only `confirmed: true` executes it — and
- *  `confirm` is the SOLE executor (buddy.md invariant #3). `proposalId` is the ephemeral in-memory id. */
+ *  `confirm` is the SOLE executor. `proposalId` is the ephemeral in-memory id. */
 export interface ConfirmBuddyParams extends BuddyActorParams {
   readonly proposalId: string;
   readonly confirmed: boolean;
@@ -37,7 +38,7 @@ export interface SetReactionsParams extends BuddyActorParams {
 }
 
 /** Toggle the buddy's "hands" — tool-using turns + confirmed mutations (the capability-ceiling kill
- *  switch, buddy.md invariant #3). */
+ *  switch). */
 export interface SetAgencyParams extends BuddyActorParams {
   readonly enabled: boolean;
 }

@@ -9,7 +9,7 @@
 // BOUNDARIES (domain-no-cross-feature): workloads sideways-imports NO sibling runtime. Every cross-feature
 // capability arrives as an injected op — the runner ops via `env` (the `WorkloadRunnerEnv` hub), plus the
 // per-dispatch `bindRoleClients` binder + the `loadUserSettings` reader, ALL wired at the `entry/` root.
-// `createDefaultRoleClients` is DELETED — the binder is a REQUIRED dep (invariant #7; omitting it is `tsc`-red).
+// `createDefaultRoleClients` is DELETED — the binder is a REQUIRED dep (omitting it is `tsc`-red).
 
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
@@ -34,7 +34,7 @@ export type NewWorkloadId = () => WorkloadId;
 /** Bind a `RoleClients` bundle for a specific acting user. ASYNC — the per-role `{credential, model}` pins
  *  resolve off the workload's `ownerId` via `connection.resolveRole` (honoring the user's per-role
  *  `routing.roleDefaults`, with eager `*Model` provenance), so the bind itself awaits. REQUIRED — there is no
- *  `createDefaultRoleClients` fallback and no sync vLLM floor (invariant #6 / #7). */
+ *  `createDefaultRoleClients` fallback and no sync vLLM floor. */
 export type BindRoleClients = (ownerId: UserId) => Promise<RoleClients>;
 
 /** Read a user's parsed `UserSettings` (the §7.2 runner tunable-precedence source). Injected from `settings`. */
@@ -93,7 +93,7 @@ export interface WorkloadRunnerContext {
 // ── the service interface (the front door re-exports the type; the tRPC router's delegation target) ──────
 
 /**
- * The `WorkloadService` surface (workloads.md §"Verbs"). `start` enqueues (catching the kind-active conflict
+ * The `WorkloadService` surface. `start` enqueues (catching the kind-active conflict
  * → `DomainConflictError`); `cancel` is race-safe + idempotent (returns the transition, aborts async);
  * `retry` clones (never mutates the audit row); `get`/`list` project typed rows. Every verb threads the
  * acting user for audit + the F3 hook, but it is NOT an authorization input yet (the procedure gate is).

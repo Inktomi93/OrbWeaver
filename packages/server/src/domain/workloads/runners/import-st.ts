@@ -1,7 +1,7 @@
 // runner: import-st — the ST bulk import loop + the post-import stats settle. Wraps `ctx.env.import.importAll`
 // (collect → import each, idempotent via importHash); on a real (non-dry) run that changed rows it then
-// reconciles the stats rollups from the freshly-imported canon (workloads.md runner table — "post-import
-// reconcile"). Projects into the workload-owned `MaintenanceResult`.
+// reconciles the stats rollups from the freshly-imported canon (the post-import settle). Projects into the
+// workload-owned `MaintenanceResult`.
 
 import type { Runner } from "../contract/runner";
 

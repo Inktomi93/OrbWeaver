@@ -2,7 +2,7 @@
 // `zod` only. This is the ONE cross-boundary home for the buddy's gacha vocabulary: `@orb/db` imports
 // the tuples for its enum columns (`buddies.rarity/species/hat/mood`), `domain/buddy` rolls + reacts
 // against them, and `@orb/client` renders sprites from them — all import from HERE, never re-exported
-// through `@orb/server` (buddy.md invariant #7; Legacy-Migration-and-Gaps.md §4).
+// through `@orb/server` (Legacy-Migration-and-Gaps.md §4).
 //
 // §7.5 tuple→derived-union discipline: every string axis is an `as const` TUPLE (the one importable
 // canonical home — `no-inline-union-redecl`), its `type` is `(typeof TUPLE)[number]`, and the wire
@@ -38,7 +38,7 @@ export const RARITY_FLOOR: Record<Rarity, number> = {
 };
 
 /** Unwired display intent (no current consumer) — KEEP (`Core-0-Architecture-and-Structure.md` "unwired ≠ worthless").
- *  A rarity→stars map; travels with the taxonomy (buddy.md "Esoteric / load-bearing"). */
+ *  A rarity→stars map; travels with the taxonomy. */
 export const RARITY_STARS: Record<Rarity, string> = {
   common: "★",
   uncommon: "★★",
@@ -132,7 +132,7 @@ export const BOND_THRESHOLDS: Record<BondTier, number> = {
   bestie: 200,
 };
 
-// ── Maturity (stage) — DERIVED from the sum of stats; never stored (buddy.md). ───
+// ── Maturity (stage) — DERIVED from the sum of stats; never stored. ───
 export type Stage = 0 | 1 | 2;
 /** Lower bound of total stat-sum (max 500) for stages 1 and 2. Below `stage1` = stage 0. */
 export const STAGE_THRESHOLDS = { stage1: 200, stage2: 350 } as const;

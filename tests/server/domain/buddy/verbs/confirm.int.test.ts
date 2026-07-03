@@ -1,4 +1,4 @@
-// verb: confirm — the SOLE executor of a proposed action (buddy.md invariant #3). Pins: a propose tool
+// verb: confirm — the SOLE executor of a proposed action (the propose/confirm gate). Pins: a propose tool
 // alone mutates NOTHING (only confirm does); confirm executes both proposal kinds (rename → row write,
 // workload → injected env op); the agencyEnabled kill switch + the hourly rate-limit gate every mutation;
 // cancel/expiry apply nothing. The propose path runs through the real `ask` (the harness simulates the

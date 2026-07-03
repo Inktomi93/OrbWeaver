@@ -3,10 +3,10 @@
 // place does the narrowing (`persistence/toView`), so no consumer casts the JSON blobs; same pattern as
 // chat's `LoadedChat`. The row is `@public` on the front door (tRPC get/list + the worker project it).
 //
-// HOME NOTE (born-compliant vs doc): workloads.md sketches this type living in `persistence/queries.ts`, but
-// the `no-inline-types` grit flags ANY `export type` outside a type home — a persistence file is not one. So
-// the TYPE homes here in `contract/` (the gate wins, core/Core-0-Architecture-and-Structure.md §7.4) and `persistence/` imports it; the
-// front door re-exports it. The PROJECTION FUNCTION (`toView`) stays in `persistence/` (it touches the row).
+// HOME NOTE: the `no-inline-types` grit flags ANY `export type` outside a type home — a persistence file is
+// not one. So the TYPE homes here in `contract/` (core/Core-0-Architecture-and-Structure.md §7.4) and
+// `persistence/` imports it; the front door re-exports it. The PROJECTION FUNCTION (`toView`) stays in
+// `persistence/` (it touches the row).
 
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
@@ -21,7 +21,7 @@ export interface WorkloadRowBase {
    *  SET NULL on user delete so the never-deleted audit row outlives the user. */
   readonly ownerId: UserId | null;
   /** Forward-compat DAG hint — PERSISTED but NOT ENFORCED (dispatch is `(status='queued', scheduledAt)`
-   *  order; `start`/`retry` warn at the seam). `null` when no deps were supplied (esoteric #8). */
+   *  order; `start`/`retry` warn at the seam). `null` when no deps were supplied. */
   readonly dependsOn: readonly WorkloadId[] | null;
   /** A human-readable terminal-failure reason (failed/worker_died); `null` otherwise. */
   readonly error: string | null;

@@ -1,7 +1,7 @@
 // domain/buddy/agent/tools — the buddy's curated HANDS as SDK-free tool SPECS. The handlers close over
 // (db, userId), so a tool can NEVER act as another user (owner-scoped reads). READ tools return status +
 // owned-entity counts; PROPOSE tools are read-only — they STASH a proposal (agency/proposals) and ask the
-// user to confirm; only `buddy.confirm` executes (buddy.md invariant #3). Buddy returns plain
+// user to confirm; only `buddy.confirm` executes (the propose/confirm gate). Buddy returns plain
 // {@link BuddyToolSpec}[]; the entry root's injected `buildToolServer` wires them to the sealed agent-sdk
 // server (buddy imports NO SDK / provider — `domain-no-cross-feature`).
 

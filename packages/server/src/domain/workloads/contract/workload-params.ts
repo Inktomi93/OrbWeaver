@@ -1,7 +1,7 @@
 // domain/workloads/contract/workload-params — the per-kind PARAMS vocabulary: one Zod schema per
 // `WorkloadKind`, the `PARAMS_SCHEMAS` exhaustive Record (the §7.5 pin — a new kind missing its schema is a
 // `tsc` error here), the derived `ParamsByKind` map, and the `startWorkloadInput` discriminated union the
-// `start` verb re-parses (defense-in-depth — workloads.md "start re-parses").
+// `start` verb re-parses (defense in depth).
 //
 // §7.2 settings precedence: tunables are OPTIONAL (NO Zod `.default()`) — the per-run param is just the top
 // of the precedence chain (param → user `UserSettings.workloads.<knob>` → the runner floor const), resolved
@@ -56,7 +56,7 @@ export type ParamsByKind = { [K in WorkloadKind]: z.infer<(typeof PARAMS_SCHEMAS
 /**
  * The `start` input the verb re-parses — a discriminated union on `kind` carrying the kind's params. tRPC
  * derives its wire schema from this; `start` re-runs it even after the wire validated (mocked-procedure
- * tests bypass the transport validator — workloads.md). Built explicitly per kind (Zod needs static literal
+ * tests bypass the transport validator). Built explicitly per kind (Zod needs static literal
  * discriminants); {@link PARAMS_SCHEMAS} is the exhaustiveness backstop that catches a forgotten kind.
  */
 export const startWorkloadInput = z.discriminatedUnion("kind", [

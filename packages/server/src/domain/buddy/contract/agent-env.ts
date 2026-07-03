@@ -1,7 +1,7 @@
 // domain/buddy/contract/agent-env — the buddy's cross-feature HANDS seam (mirrors `WorkloadRunnerEnv`).
 // `domain/buddy` must NOT import `domain/workloads` (`domain-no-cross-feature`), so the composition root
 // (`entry/`) assembles this typed bundle from the workloads front door and injects it. Uses only
-// LOCAL/kit types — no cross-feature type import — so the coupling stays type-thin (buddy.md "lite shapes").
+// LOCAL/kit types — no cross-feature type import — so the coupling stays type-thin ("lite shapes").
 
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 
