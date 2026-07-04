@@ -1,8 +1,8 @@
-// Gate: test-presence-client — DORMANT (the @orb/client + non-primitive @orb/ui reach test-presence
-// lacks — that gate scans server/contracts only). docs/architecture/core/Spine-Testing.md §5: a test
-// is REQUIRED "on exactly the surfaces where an untested change silently breaks behavior — no blanket
-// per-file coverage (that breeds assertion-free filler)". This gate encodes the CONSERVATIVE client/ui
-// surface — the behavioral factories + logic modules, never every leaf component:
+// Gate: test-presence-client — LIVE (activated W1-1). The @orb/client + non-primitive @orb/ui reach
+// test-presence lacks (that gate scans server/contracts only). docs/architecture/core/Spine-Testing.md
+// §5: a test is REQUIRED "on exactly the surfaces where an untested change silently breaks behavior —
+// no blanket per-file coverage (that breeds assertion-free filler)". This gate encodes the CONSERVATIVE
+// client/ui surface — the behavioral factories + logic modules, never every leaf component:
 //
 //   A. client data/forms/state primitives — a DIRECT child of packages/client/src/{data,forms,state}
 //      with a callable export (an exported function/class, or a const bound to an arrow/fn) needs a
@@ -25,20 +25,20 @@
 //      WHY the client tier (A) is STRICTER (per-file): each client factory is INDEPENDENTLY composed by
 //      features, so each needs its own behavioral test; a ui-logic group ships + is tested together.
 //
-// DORMANT BY DECISION (W1-0c, 2026-07-04, scratch/dev-tooling-support-kit-plan.md) — NOT in `ALL_CHECKS`.
-// It finds REAL debt that would block the W1-0 wave from committing (green-to-commit):
-//   FINDINGS (W1-1 backfill — 8 client files; the ui side (dir-level clause B) is already covered = 0):
+// W1-0c (2026-07-04, scratch/dev-tooling-support-kit-plan.md) built this DORMANT because it found REAL
+// debt that would have blocked the W1-0 wave from committing (green-to-commit):
+//   FINDINGS AT DISCOVERY (8 client files; the ui side — dir-level clause B — was already covered = 0):
 //     data/trpc.ts · data/query-client.ts · data/invalidation.ts · data/use-gated-query.ts ·
 //     data/create-entity-mutation.ts · data/create-collection-surface.ts ·
 //     forms/create-autosave-entity-form.ts · state/chat-handle.ts
-// W1-1 decides per file: the behavioral primitives (createEntityMutation / createCollectionSurface /
-// useGatedQuery / invalidation / chat-handle / create-autosave) clearly need behavioral tests; the
-// pure-wiring ones (trpc.ts, query-client.ts — thin factory over the tRPC/Query client) may warrant a
-// NARROWER exclusion (a callable-export that only constructs a library client asserts little). That
-// tuning + the backfill lands with W1-1, which THEN flips this gate live.
-// ACTIVATE by adding, verbatim:
-//   import { testPresenceClient } from "./gates/test-presence-client.ts";
-// and a `testPresenceClient,` entry to the `ALL_CHECKS` array in scripts/check/report.ts.
+// W1-1 (2026-07-04) resolved every finding and flipped this gate LIVE (`report.ts` ALL_CHECKS):
+//   behavioral tests added — invalidation.test.ts, use-gated-query.ct.tsx,
+//   create-collection-surface.ct.tsx, create-entity-mutation.ct.tsx (extended), chat-handle.test.ts,
+//   query-client.test.ts (the bespoke staleTime/onError-toast policy IS behavior worth pinning);
+//   create-autosave-entity-form.ct.tsx already existed. `data/trpc.ts` got the OTHER outcome the
+//   header always flagged as possible — a narrow per-file exclusion (CLIENT_EXCLUDE_FILES below),
+//   because its two exports are thin `@trpc/client` constructors with no bespoke logic of their own
+//   (`query-client.ts`'s bespoke onError/staleTime policy is what earned IT a real test instead).
 //
 // Self-tested: tests/tooling/test-presence-client.int.test.ts drives it over an in-memory ts-morph
 // project (fixtures with/without a callable export, with/without a mirror test) proving fire AND
@@ -55,6 +55,19 @@ const EXT_RE = /\.tsx?$/u;
 // The client tiers this gate reaches, and (for A) the nested buckets it deliberately does NOT.
 const CLIENT_TIERS = ["data/", "forms/", "state/"];
 const CLIENT_EXCLUDE_NESTED = ["data/bus/", "forms/bound-fields/"];
+// W1-1 per-file exclusion (narrower than a nested-bucket exclusion — this is ONE file, not a
+// directory): `data/trpc.ts`'s two callable exports (`createTrpcClient`/`createTrpcProxy`) are thin
+// factories that only construct the `@trpc/client`/`@trpc/tanstack-react-query` library objects —
+// exactly the "a callable-export that only constructs a library client asserts little" case this
+// gate's own header calls out for `trpc.ts`/`query-client.ts`. `query-client.ts` got the OTHER
+// answer (a real behavioral test — `tests/client/data/query-client.test.ts`) because it encodes
+// bespoke, load-bearing policy (staleTime Infinity not 'static', the onError→toast wiring); `trpc.ts`
+// has no such bespoke logic of its own to assert on in isolation — its wire behavior (the CSRF
+// header, the query/subscription splitLink routing) is exercised END-TO-END by every `.ct.tsx` that
+// mounts through `CtDataProviders` (which calls `createTrpcClient()` for the real network path every
+// CT test drives), so an isolated unit test here would just re-assert "the library was called with
+// these args" — the exact tautology Spine-Testing.md §5 warns against.
+const CLIENT_EXCLUDE_FILES = ["data/trpc.ts"];
 // Non-primitive @orb/ui logic groups (primitives/ are covered by ui-primitive-structure's CT clause).
 const UI_LOGIC_GROUPS = [
   "charts/",
@@ -119,10 +132,15 @@ function hasDirTest(root: string, pkg: string, rel: string): boolean {
   );
 }
 
-// Clause A — a DIRECT child of a client tier (data/x.ts), excluding the nested buckets.
+// Clause A — a DIRECT child of a client tier (data/x.ts), excluding the nested buckets + the named
+// per-file exclusions (CLIENT_EXCLUDE_FILES — see its own comment for why each one is there).
 function clientTierRel(rel: string): string | undefined {
   const tier = CLIENT_TIERS.find((t) => rel.startsWith(t));
-  if (tier === undefined || CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n))) {
+  if (
+    tier === undefined ||
+    CLIENT_EXCLUDE_NESTED.some((n) => rel.startsWith(n)) ||
+    CLIENT_EXCLUDE_FILES.includes(rel)
+  ) {
     return;
   }
   // Direct child only: `data/x.ts` (one segment after the tier), not `data/sub/x.ts`.

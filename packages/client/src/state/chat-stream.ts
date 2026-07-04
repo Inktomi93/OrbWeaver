@@ -3,12 +3,19 @@
 // turn per chat as a discriminated-union state machine. Slot lifecycle is owned by the TERMINAL turn
 // events (Stop stays live across the whole turn incl. TTFT); transitions are `set(next, true)`
 // REPLACE (Zustand v5 strict replace — a dropped field is a typecheck error, no stale field can
-// bleed across phases, UI-Lib-Zustand.md D-5). Writes come ONLY from `applyChatBusEvent` (the one
-// cache-surgery site); components read via the narrow hooks below. Token churn stays isolated: only
-// a component subscribed to THAT chat's slot re-renders on a delta — chrome subscribes to phase.
+// bleed across phases, UI-Lib-Zustand.md D-5). Token churn stays isolated: only a component
+// subscribed to THAT chat's slot re-renders on a delta — chrome subscribes to phase.
 // `subscribeWithSelector` exposes the transient (render-free) seam the smooth-text pacer feeds from
 // (baked into `createGatedStore`, which also owns the devtools middleware + the REQUIRED
 // action-label discipline — every transition below is named on the DU timeline).
+//
+// WRITE OWNERSHIP: every action here is bus-only (called ONLY from `applyChatBusEvent`, data/bus) —
+// EXCEPT `markStopping`, the ONE action a component may call directly. The composer's Stop button
+// calls it FIRST, before the abort round-trip even starts, so the UI reflects "stopping" the instant
+// the user clicks (immediate feedback) and a second click is a no-op (the phase guard below makes
+// double-abort impossible at the store level, belt-and-suspenders under the composer's own guard).
+// The slot does NOT close here — `stopping` is not a terminal phase; it closes only when the bus
+// delivers the server's `turnAborted` (or a race-won `turnCompleted`), same as every other phase.
 
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -25,6 +32,18 @@ export type TurnSlot =
     }
   | {
       readonly phase: "streaming";
+      readonly intent: TurnIntent;
+      readonly speakerCharacterId: CharacterId | null;
+      readonly targetMessageId: MessageId | null;
+      readonly text: string;
+      readonly reasoning: string;
+    }
+  | {
+      // The user hit Stop — `markStopping` fired BEFORE the abort round-trip so feedback is instant;
+      // the server's turn may still legitimately emit deltas until it observes the cancellation, so
+      // this carries the SAME accumulated text/reasoning fields as `streaming` (appendDelta keeps
+      // writing into them) — only the phase differs. Terminal ONLY on turnCompleted/turnAborted.
+      readonly phase: "stopping";
       readonly intent: TurnIntent;
       readonly speakerCharacterId: CharacterId | null;
       readonly targetMessageId: MessageId | null;
@@ -65,7 +84,8 @@ function setSlot(chatId: ChatId, next: TurnSlot | undefined, action: string): vo
   useChatStreamStore.setState({ turns }, true, action);
 }
 
-/** The write API — consumed ONLY by `applyChatBusEvent` (data/bus); never call from a component. */
+/** The write API — every action but `markStopping` is consumed ONLY by `applyChatBusEvent` (data/bus);
+ *  see the header WRITE OWNERSHIP note for the one sanctioned component-callable exception. */
 export interface ChatStreamApi {
   readonly beginTurn: (
     chatId: ChatId,
@@ -79,6 +99,10 @@ export interface ChatStreamApi {
   readonly completeTurn: (chatId: ChatId, messageId: MessageId | null) => void;
   readonly abortTurn: (chatId: ChatId, reason: TurnAbortReason) => void;
   readonly clearTurn: (chatId: ChatId) => void;
+  /** Component-callable (see header WRITE OWNERSHIP note): `pending`/`streaming` → `stopping`,
+   *  preserving whatever text/reasoning had already accumulated. Idempotent no-op from any other
+   *  phase (already stopping / idle / terminal) — the store-level half of the double-abort guard. */
+  readonly markStopping: (chatId: ChatId) => void;
 }
 
 export const chatStream: ChatStreamApi = {
@@ -104,7 +128,9 @@ export const chatStream: ChatStreamApi = {
       );
       return;
     }
-    if (slot.phase === "streaming") {
+    // A delta legitimately keeps arriving mid-stop (the server hasn't observed the cancel yet) — it
+    // accumulates the same way `streaming` does, without leaving `stopping`.
+    if (slot.phase === "streaming" || slot.phase === "stopping") {
       setSlot(
         delta.chatId,
         {
@@ -118,18 +144,40 @@ export const chatStream: ChatStreamApi = {
   },
   completeTurn: (chatId, messageId) => {
     const slot = slotOf(chatId);
-    if (slot.phase === "pending" || slot.phase === "streaming") {
+    if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
     }
   },
   abortTurn: (chatId, reason) => {
     const slot = slotOf(chatId);
-    if (slot.phase === "pending" || slot.phase === "streaming") {
+    if (slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping") {
       setSlot(chatId, { phase: "aborted", intent: slot.intent, reason }, "turn/abort");
     }
   },
   clearTurn: (chatId) => {
     setSlot(chatId, undefined, "turn/clear");
+  },
+  markStopping: (chatId) => {
+    const slot = slotOf(chatId);
+    if (slot.phase === "pending") {
+      setSlot(
+        chatId,
+        {
+          phase: "stopping",
+          intent: slot.intent,
+          speakerCharacterId: slot.speakerCharacterId,
+          targetMessageId: slot.targetMessageId,
+          text: "",
+          reasoning: "",
+        },
+        "turn/stopping",
+      );
+      return;
+    }
+    if (slot.phase === "streaming") {
+      setSlot(chatId, { ...slot, phase: "stopping" }, "turn/stopping");
+    }
+    // idle / stopping / completed / aborted: idempotent no-op (the double-abort guard).
   },
 };
 

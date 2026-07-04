@@ -8,6 +8,9 @@ import { castId } from "@orb/kit/ids";
 
 /** The fixed chat the stories address — the CT's routeTrpc/routeChatStream key off this id. */
 export const CHAT_ID = castId<ChatId>("chat_ct_keystone");
+/** The chat a committed `ComposerStory` addresses — its own id (distinct from `CHAT_ID`) so the
+ *  composer suite's turn slots never collide with the message-list suite's in the shared store. */
+export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
 const FROZEN_AT = 1_750_000_000_000;
 
 /** A fully-valid `MessageView` literal (the client read model — slot ⋈ selected variant). */

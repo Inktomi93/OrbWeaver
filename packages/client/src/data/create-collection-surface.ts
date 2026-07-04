@@ -13,23 +13,38 @@
 // The hook is the logic half (node-reasoned, feature-agnostic); the feature renders `items` through
 // `<VirtualList>`/`<MediaGrid>` with the returned `listProps`.
 
-import type { InfiniteData, UseInfiniteQueryOptions } from "@tanstack/react-query";
+import type { InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import type { Trpc } from "./trpc";
 
-/** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled. */
-type BaseInfiniteOptions<TPage, TPageParam> = UseInfiniteQueryOptions<
+/** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
+ *  `TKey`/`TError` (W1-1, same fix as `use-gated-query.ts`) are the CALLER's real key/error types,
+ *  not a bare `readonly unknown[]`/`Error` — the proxy's actual return is DataTag-keyed (a branded
+ *  TRPCQueryKey tuple) with a TRPCClientErrorLike error (which doesn't structurally satisfy `Error`
+ *  — no `name` field), and a fixed `readonly unknown[]`/`Error` rejects it (`queryFn`/`retry` embed
+ *  those types contravariantly). Defaulted to `QueryKey`/`Error` so a caller that isn't wrapping a
+ *  real tRPC options call still infers cleanly. */
+type BaseInfiniteOptions<
   TPage,
-  Error,
-  InfiniteData<TPage, TPageParam>,
-  readonly unknown[],
-  TPageParam
->;
+  TPageParam,
+  TError = Error,
+  TKey extends QueryKey = QueryKey,
+> = UseInfiniteQueryOptions<TPage, TError, InfiniteData<TPage, TPageParam>, TKey, TPageParam>;
 
-export interface CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam> {
+export interface CollectionSurfaceConfig<
+  TItem,
+  TPage,
+  TParams,
+  TPageParam,
+  TError = Error,
+  TKey extends QueryKey = QueryKey,
+> {
   /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam, maxPages })`. */
-  readonly query: (trpc: Trpc, params: TParams) => BaseInfiniteOptions<TPage, TPageParam>;
+  readonly query: (
+    trpc: Trpc,
+    params: TParams,
+  ) => BaseInfiniteOptions<TPage, TPageParam, TError, TKey>;
   /** Flatten one page into rows. */
   readonly itemsOf: (page: TPage) => readonly TItem[];
   /** Stable id per row (selection + the virtualizer key — id-based, NEVER the index). */
@@ -66,8 +81,15 @@ export interface CollectionSurface<TItem> {
 
 const DEFAULT_END_APPROACH_ROWS = 12;
 
-export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unknown>(
-  config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam>,
+export function createCollectionSurface<
+  TItem,
+  TPage,
+  TParams,
+  TPageParam = unknown,
+  TError = Error,
+  TKey extends QueryKey = QueryKey,
+>(
+  config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,
 ): (deps: { trpc: Trpc }, params: TParams) => CollectionSurface<TItem> {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterList = createCollectionSurface(...)), so the returned hook has a stable identity (see forms/create-saved-entity-form.ts).
   return function useCollectionSurface({ trpc }, params): CollectionSurface<TItem> {

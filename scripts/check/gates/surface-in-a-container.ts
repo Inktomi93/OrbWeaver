@@ -1,28 +1,22 @@
-// Gate: surface-in-a-container — DORMANT (deferred-with-construct, the check:registry-pairing class).
+// Gate: surface-in-a-container — LIVE (activated W1-1, 2026-07-04; first real consumer:
+// features/chat/anchors/message-thread-anchor.tsx wraps features/chat/surfaces/message-list-surface.tsx).
 // docs/architecture/core/UI-Architecture-and-Layout.md §4: a SURFACE is the containment CONSUMER —
 // pure content that queries `@container` variants — and a surface is placed inside a `<Container>` /
 // `<Section container>` that OWNS `container-type`. Feature code never writes raw containment; it wraps
 // a surface in a layout container. This gate flags a surfaces/*.tsx that renders structural JSX but
-// references NO `@orb/ui/layout` container (`<Container>` / `<Section>`).
+// references NO `@orb/ui/layout` container (`<Container>` / `<Section>`) EITHER in the surface itself OR
+// in any file under its feature's `anchors/` dir (the calibrated cross-file exemption below).
 //
-// WHY DORMANT (two reasons, both recorded so activation isn't guesswork):
-//   1. NO CONSUMER-SURFACE CONSTRUCT YET. The only surface on the tree today is the app-shell FIRST-BOOT
-//      placeholder (packages/client/src/features/app-shell/surfaces/app-shell.tsx), which is the SHELL
-//      tier — the top-level container PROVIDER / the sole viewport-@media frame (§4.1), structurally
-//      EXEMPT from "must sit in a Container" (it establishes the containers). So there is no real
-//      consumer surface to bite — identical status to check:registry-pairing (ships WITH its construct).
-//      FINDING (informational): app-shell/surfaces/app-shell.tsx renders `<Stack>` at root, no Container
-//      — correct for the shell frame; when activated, app-shell surfaces need an explicit exemption.
-//   2. CONTAINMENT IS ANCHOR-PROVIDED (cross-file). §4's realized shape is anchor-wraps-surface: the
-//      `<Container>` frequently lives in the surface's ANCHOR (a different file), not the surface
-//      itself. Verifying "this surface renders UNDER a Container" therefore needs cross-file render-tree
-//      tracing (which anchor mounts which surface) that the pure-AST ts-morph project (harness.ts loads
-//      NO type graph) can't do reliably — a within-file "does this file mention Container?" heuristic
-//      OVER-FIRES on every legit surface whose anchor provides the box. W1-1/the first real surfaces+
-//      anchors calibrate the anchor-provided exemption before this goes live.
-// ACTIVATE (once surfaces/anchors exist + the app-shell/anchor-provided exemptions are encoded), verbatim:
-//   import { surfaceInAContainer } from "./gates/surface-in-a-container.ts";
-// and a `surfaceInAContainer,` entry to the `ALL_CHECKS` array in scripts/check/report.ts.
+// Dormant-era reason #1 (no consumer) is resolved by the chat pair above. Reason #2 — CONTAINMENT IS
+// ANCHOR-PROVIDED (cross-file: §4's realized shape is anchor-wraps-surface, the `<Container>` often
+// lives in the surface's ANCHOR, a different file) — is resolved HERE, calibrated against that first
+// real pair: a surface with no Container of its own is NOT a violation if ANY `.tsx` file in its
+// feature's `anchors/` directory renders one (`anchorHasContainer`). This is a per-FEATURE match (not
+// per-surface-to-specific-anchor render-tree tracing, which needs a type graph harness.ts doesn't load)
+// — acceptable at today's scale (one anchor dir per feature); a feature that grows multiple anchors
+// wrapping different surfaces would need per-file cross-referencing, revisit then.
+// ACTIVATED, verbatim, in scripts/check/report.ts: `import { surfaceInAContainer } from
+// "./gates/surface-in-a-container.ts";` + a `surfaceInAContainer,` entry in `ALL_CHECKS`.
 //
 // Self-tested: tests/tooling/surface-in-a-container.int.test.ts drives it over a temp-dir fixture tree
 // (real fs — the gate reads surface files) proving fire (a surface with a raw `<div>` structural root
@@ -50,6 +44,19 @@ function surfaceFiles(dir: string): string[] {
     .map((e) => e.name);
 }
 
+// The calibrated cross-file exemption: does ANY `.tsx` file under this feature's `anchors/` dir render
+// a layout container? (the anchor-wraps-surface shape §4 mandates — message-thread-anchor.tsx is the
+// first real instance). No anchors dir, or none of its files mention Container/Section → false.
+function anchorHasContainer(dir: string): boolean {
+  const anchors = join(dir, "anchors");
+  if (!existsSync(anchors)) {
+    return false;
+  }
+  return readdirSync(anchors, { withFileTypes: true })
+    .filter((e) => e.isFile() && e.name.endsWith(".tsx"))
+    .some((e) => CONTAINER_RE.test(readFileSync(join(anchors, e.name), "utf8")));
+}
+
 export const surfaceInAContainer: Check = {
   name: "surface-in-a-container",
   run: (ctx: CheckContext): Violation[] => {
@@ -65,7 +72,7 @@ export const surfaceInAContainer: Check = {
       const dir = join(base, feat.name);
       for (const f of surfaceFiles(dir)) {
         const src = readFileSync(join(dir, "surfaces", f), "utf8");
-        if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src)) {
+        if (STRUCTURAL_RE.test(src) && !CONTAINER_RE.test(src) && !anchorHasContainer(dir)) {
           out.push({
             file: `${FEATURES}/${feat.name}/surfaces/${f}`,
             line: 0,

@@ -176,6 +176,17 @@ function writeFixtures(): void {
   // diagnostic-legibility: a grit diagnostic string carrying no doc/code-home pointer (the meta-gate
   // reads tools/grit + scripts/check/gates source, so its fixture lives there, not under packages/).
   fx("tools/grit/__g_diaglegi.grit", 'message="a bare diagnostic with no home"\n');
+  // test-presence-client: a client data/ file with a callable export and no tests/client mirror.
+  fx(
+    "packages/client/src/data/__g_presclient.ts",
+    "export function gPresClient(): number {\n  return 1;\n}\n",
+  );
+  // surface-in-a-container: a surface with raw structural JSX, no Container, no anchors/ dir under
+  // its (stray) feature — the anchor-provided exemption has nothing to exempt it with.
+  fx(
+    "packages/client/src/features/__g_surfacefeat/surfaces/__g_thing-surface.tsx",
+    "export function gThingSurface() {\n  return <div>hi</div>;\n}\n",
+  );
 }
 
 let registry = new Set<string>();
@@ -214,12 +225,14 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 const DORMANT_GATES = new Set([
   "monotonic-tests",
   "audit-client-tests",
-  // W1-0c (2026-07-04): built + self-tested, deliberately unregistered — each finds real debt whose
-  // backfill+activation rides W1-1 (component-size-ui/test-presence-client) or has no construct yet
-  // (surface-in-a-container). Each has its own tests/tooling self-test driving it directly.
+  // W1-0c (2026-07-04): built + self-tested, deliberately unregistered pending its own future
+  // consumer — `table.tsx` stays at 461 lines by the owner's decision until a table consumer lands and
+  // the primitive naturally splits under the 450-line cap (UI-Primitives-and-Reuse.md §13.9).
+  // `test-presence-client` and `surface-in-a-container` were the OTHER two W1-0c gates in this set;
+  // W1-1 (2026-07-04) backfilled test-presence-client's findings + calibrated
+  // surface-in-a-container's anchor-provided exemption against the chat feature's first real
+  // anchor+surface pair, and flipped BOTH live in `ALL_CHECKS` — they are no longer here.
   "component-size-ui",
-  "test-presence-client",
-  "surface-in-a-container",
 ]);
 
 test("every gate file in scripts/check/gates is registered in report.ts (anti-drift)", () => {
