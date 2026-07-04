@@ -82,7 +82,6 @@ import type {
   SetParticipantTalkativenessParams,
   SetRoomOverridesParams,
   SetVariablesParams,
-  SimpleSendParams,
   StarChatParams,
   StartChatParams,
   StreamEventBoundsParams,
@@ -162,8 +161,6 @@ export interface ChatService {
   readonly impersonate: (params: ImpersonateParams) => Promise<TurnOutcome>;
   /** A lock-free auxiliary generation (runs concurrent with a locked send; active-turns Set). */
   readonly generate: (params: GenerateParams) => Promise<TurnOutcome>;
-  /** The lightweight single-message send (no group machinery). */
-  readonly simpleSend: (params: SimpleSendParams) => Promise<TurnOutcome>;
   /** Extend the tail assistant message in place (continue snapshot per-variant, D26). */
   readonly continueTurn: (params: ContinueTurnParams) => Promise<TurnOutcome>;
   /** Revert the last continuation on a variant (restores `preContinue*`). */
@@ -183,8 +180,8 @@ export interface ChatService {
   // ── canon edits ───────────────────────────────────────────────────────────────
   /** Flip `selectedVariantId` to a sibling swipe (pointer move, zero copy — D26). */
   readonly selectVariant: (params: SelectVariantParams) => Promise<MessageView>;
-  /** Edit the selected variant's content (author-or-host; self-label purify only — NO `runOnEdit`
-   *  regex re-applies yet, FLAG[PD-110]). */
+  /** Edit the selected variant's content (author-or-host; self-label purify, then the `runOnEdit`
+   *  host-tier regex re-applies before persist — assistant slot ⇒ AI_OUTPUT, user slot ⇒ USER_INPUT). */
   readonly editMessage: (params: EditMessageParams) => Promise<MessageView>;
   /** Toggle `excludedFromPrompt` (held out of assembly; the row survives). */
   readonly setMessageHidden: (params: SetMessageHiddenParams) => Promise<MessageView>;

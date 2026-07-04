@@ -157,7 +157,15 @@ function pushForkStatsDeltas(
   ctx.applyStatsDelta(
     stmts,
     ctx.db,
-    chatCreatedDelta({ ownerId, characterId: args.primaryCharacterId, forked: true, now }),
+    // newCharacter false BY CONSTRUCTION (PD-96): a fork copies an existing room's cast, so the parent
+    // chat already seats every character — a fork is never a character's first chat.
+    chatCreatedDelta({
+      ownerId,
+      characterId: args.primaryCharacterId,
+      forked: true,
+      newCharacter: false,
+      now,
+    }),
   );
   const variantsByMessage = new Map<string, (typeof messageVariants.$inferSelect)[]>();
   for (const v of args.variants) {

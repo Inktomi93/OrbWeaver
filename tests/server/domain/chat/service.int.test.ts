@@ -1,6 +1,6 @@
 // service — the chat domain COMPOSITION ROOT (`createChatService`). Proves the assembly: the factory returns
 // ONE object exposing every `ChatService` verb (spot-checked across all groups), and the internally-built
-// engine + `loadParticipantViews` are wired (a real `simpleSend` smoke runs a scripted turn end-to-end against
+// engine + `loadParticipantViews` are wired (a real solo `send` smoke runs a scripted turn end-to-end against
 // a real libSQL db, and the returned roster carries the host + the `getCard`-resolved character name).
 // Determinism: frozen clock + seeded prng + no-op delay (D46) — no ambient clock / RNG.
 
@@ -141,7 +141,6 @@ describe("createChatService — assembly", () => {
     "getChat",
     "send",
     "swipe",
-    "simpleSend",
     "compact",
     "editMessage",
     "forkChat",
@@ -162,11 +161,11 @@ describe("createChatService — assembly", () => {
     }
   });
 
-  test("a simpleSend smoke runs the engine end-to-end + commits the canon", async () => {
+  test("a solo send smoke runs the engine end-to-end + commits the canon", async () => {
     const { host, chatId, names } = await seedRoom();
     const { service, events } = makeService(names);
 
-    const outcome = await service.simpleSend({
+    const outcome = await service.send({
       principal: principal(host),
       chatId,
       content: "yo",

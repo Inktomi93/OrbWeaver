@@ -116,11 +116,13 @@ beforeEach(async () => {
 
 /** The live-writer replay of the seeded canon: the exact deltas the production builders emit for these
  *  rows, in write order. `canonMessageDelta`/`swipeVariantDelta` are the declared mirrors of the rebuild's
- *  `foldMessage`/`foldSwipe`; `chatCreatedDelta` + `newCharacter` supplies the chat/character library counts
- *  the message folds don't own (reconcile derives them from the character/chat tables — esoteric #10). */
+ *  `foldMessage`/`foldSwipe`; `chatCreatedDelta({newCharacter: true})` supplies the chat/character library
+ *  counts the message folds don't own (reconcile derives them from the character/chat tables — esoteric
+ *  #10). PD-96: `newCharacter` is the REAL builder output (the `start-chat` first-chat probe sets it) —
+ *  no hand-spread masking the wiring. */
 function liveDeltas(): StatsDelta[] {
   return [
-    { ...chatCreatedDelta({ ownerId, characterId, forked: false, now: T0 }), newCharacter: true },
+    chatCreatedDelta({ ownerId, characterId, forked: false, newCharacter: true, now: T0 }),
     // The user turn — no character grain (drift gate: user rows carry characterId null).
     canonMessageDelta({
       ownerId,

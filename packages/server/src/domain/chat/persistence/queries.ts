@@ -166,17 +166,25 @@ export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<Use
 /**
  * The membership-scoped chat read (D18 — replaces neo's `loadOwnedChat`): the chat row joined to the CALLER's
  * PRESENT participant row (`leftSeq IS NULL`), returning the row (metadata parsed) + the caller's `role`
- * (`host|member`). `undefined` ⇒ no such chat OR the caller is not a present member — the two collapse into one
- * leak-free answer (the verb maps it to `ChatNotFoundError`). The host is just a
- * participant with `role='host'`, so this also yields the authority bit with no extra query.
+ * (`host|member`) + the caller's `activePersonaId` (the PD-100 attribution fallback — a user-message persist
+ * with no explicit `personaId` stamps the acting participant's active persona). `undefined` ⇒ no such chat OR
+ * the caller is not a present member — the two collapse into one leak-free answer (the verb maps it to
+ * `ChatNotFoundError`). The host is just a participant with `role='host'`, so this also yields the authority
+ * bit with no extra query.
  */
 export async function loadMemberChat(
   db: Db,
   chatId: ChatId,
   userId: UserId,
-): Promise<{ chat: ChatRow; role: ParticipantRole } | undefined> {
+): Promise<
+  { chat: ChatRow; role: ParticipantRole; activePersonaId: PersonaId | null } | undefined
+> {
   const rows = await db
-    .select({ ...chatRowSelection, role: chatParticipants.role })
+    .select({
+      ...chatRowSelection,
+      role: chatParticipants.role,
+      activePersonaId: chatParticipants.activePersonaId,
+    })
     .from(chats)
     .innerJoin(
       chatParticipants,
@@ -192,8 +200,8 @@ export async function loadMemberChat(
   if (r === undefined) {
     return;
   }
-  const { role, ...rest } = r;
-  return { chat: toChatRow(rest), role };
+  const { role, activePersonaId, ...rest } = r;
+  return { chat: toChatRow(rest), role, activePersonaId };
 }
 
 /** The membership-scoped library list (listChats) — every chat the user is a PRESENT member of (host or

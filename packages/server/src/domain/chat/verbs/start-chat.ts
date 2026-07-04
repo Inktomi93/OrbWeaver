@@ -51,10 +51,10 @@ import {
   insertCanonMessageStatements,
 } from "../persistence/canon-write";
 import { loadChatRow } from "../persistence/queries";
-import { buildInitialRosterRows } from "../persistence/roster";
+import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { resolveGuidedActionText } from "../substrate/assembly-access";
-import { canonMessageDelta, chatCreatedDelta } from "../substrate/stats-delta";
+import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the `fork.ts`/`turn.ts` precedent). `emit`
  *  is the chat bus; `loadParticipantViews` resolves the returned `ChatDetail` roster (the root resolves `users`
@@ -210,6 +210,73 @@ function buildGreetingSeed(
   return { stmts, views };
 }
 
+/** The creation-batch stats push: the chat-created counters (+ the PD-96 first-chat character bumps) and
+ *  each verbatim greeting's contribution, all riding the SAME atomic creation batch. The primary's
+ *  first-chat flag rides the created delta; every ADDITIONAL first-chat founding character gets its own
+ *  owner-grain `newCharacterDelta` (the contract's `newCharacter` bumps by 1 per delta). Owner = the
+ *  creator (the room host, D19). A `generate` opening's delta is the engine's — its turn pushes per its
+ *  own persist arm. */
+function pushCreationStatsDeltas(
+  ctx: ChatContext,
+  stmts: BatchStmt[],
+  args: {
+    readonly hostUserId: UserId;
+    readonly characterIds: readonly CharacterId[];
+    readonly firstChat: readonly boolean[];
+    readonly greetings: readonly MessageViewSeed[];
+    readonly now: number;
+  },
+): void {
+  const { hostUserId, now } = args;
+  ctx.applyStatsDelta(
+    stmts,
+    ctx.db,
+    chatCreatedDelta({
+      ownerId: hostUserId,
+      characterId: args.characterIds[0] ?? null,
+      forked: false,
+      newCharacter: args.firstChat[0] === true,
+      now,
+    }),
+  );
+  for (const isFirst of args.firstChat.slice(1)) {
+    if (isFirst) {
+      ctx.applyStatsDelta(stmts, ctx.db, newCharacterDelta({ ownerId: hostUserId, now }));
+    }
+  }
+  for (const g of args.greetings) {
+    ctx.applyStatsDelta(
+      stmts,
+      ctx.db,
+      canonMessageDelta({
+        ownerId: hostUserId,
+        row: {
+          characterId: g.characterId,
+          role: "assistant",
+          createdAt: now,
+          content: g.content,
+          tokensIn: null,
+          tokensOut: null,
+          costUsd: null,
+          cacheReadTokens: null,
+          cacheWriteTokens: null,
+          contextWindow: null,
+          genStartedAt: null,
+          genFinishedAt: null,
+          model: null,
+          provider: null,
+          reasoning: null,
+          metadata: null,
+          selectedIdx: 0,
+          variantCount: 1,
+        },
+        sign: 1,
+        now,
+      }),
+    );
+  }
+}
+
 /** The `generate` opening — delegate a single `kind:"opening"` turn to the engine.
  *  The creator IS the host of a brand-new room, so the D19 triple collapses (`triggeredBy` =
  *  `runAsUserId` = the caller). Builds the ONE immutable assemble ctx through the substrate bridge, then runs
@@ -291,6 +358,15 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     // PD-21: every founding character must be the HOST's (owner-scoped read) — no foreign ghost seats.
     await requireFoundingCast(ctx, hostUserId, characterIds);
 
+    // PD-96 first-chat probe, per founding character, BEFORE the roster rows commit (so "another chat"
+    // cannot see this one): a character seated in NO other chat makes this its first chat → the live
+    // `owner_stats.characters` bump (`newCharacter`) rides the creation batch below.
+    const firstChat = await Promise.all(
+      characterIds.map(
+        async (characterId) => !(await characterSeatedInAnotherChat(ctx.db, characterId, chatId)),
+      ),
+    );
+
     // The roster (D28 live identity): the caller as host, the founding characters as server-forced members.
     const rosterRows = buildInitialRosterRows({
       chatId,
@@ -327,50 +403,15 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       batchStmt(ctx.db.insert(chatParticipants).values(rosterRows)),
       ...seed.stmts,
     ];
-    // The canon-mutator stats push: the chat-created counters + each verbatim greeting's
-    // contribution ride the SAME creation batch (a `generate` opening's delta is the engine's — its turn
-    // pushes per its own persist arm). Owner = the creator (the room host, D19).
-    ctx.applyStatsDelta(
-      stmts,
-      ctx.db,
-      chatCreatedDelta({
-        ownerId: hostUserId,
-        characterId: characterIds[0] ?? null,
-        forked: false,
-        now,
-      }),
-    );
-    for (const g of seed.views) {
-      ctx.applyStatsDelta(
-        stmts,
-        ctx.db,
-        canonMessageDelta({
-          ownerId: hostUserId,
-          row: {
-            characterId: g.characterId,
-            role: "assistant",
-            createdAt: now,
-            content: g.content,
-            tokensIn: null,
-            tokensOut: null,
-            costUsd: null,
-            cacheReadTokens: null,
-            cacheWriteTokens: null,
-            contextWindow: null,
-            genStartedAt: null,
-            genFinishedAt: null,
-            model: null,
-            provider: null,
-            reasoning: null,
-            metadata: null,
-            selectedIdx: 0,
-            variantCount: 1,
-          },
-          sign: 1,
-          now,
-        }),
-      );
-    }
+    // The canon-mutator stats push (see the helper) — the created counters, the PD-96 first-chat bumps,
+    // and each verbatim greeting's contribution ride the SAME atomic creation batch.
+    pushCreationStatsDeltas(ctx, stmts, {
+      hostUserId,
+      characterIds,
+      firstChat,
+      greetings: seed.views,
+      now,
+    });
     await ctx.db.batch(batchMany(stmts));
 
     await deps.emit({ type: "chatCreated", chatId });

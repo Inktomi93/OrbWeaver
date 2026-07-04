@@ -7,8 +7,8 @@
 // human (the caller for a direct send; the chain-starter for an auto-mode turn).
 //
 // THE BUNDLE (the `verb-naming` gate — ONE `createTurn(ctx, deps)` factory; `deps` is the second arg): the
-// round-driving / control verbs `send` (+ the group round + auto-mode chain), `simpleSend` (the byte-identical
-// solo path), `forceCharacterTurn` (host-only), `abort` (the active-turns registry); PLUS the auxiliary
+// round-driving / control verbs `send` (+ the group round + auto-mode chain; solo IS a send — a roster-of-1
+// round, D16), `forceCharacterTurn` (host-only), `abort` (the active-turns registry); PLUS the auxiliary
 // single-speaker turns the engine MODES (D26) now back: `swipe`/regenerate (append-variant), `continueTurn`
 // (+ `undoContinue`/`revertContinue` restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE
 // generate`. Every generating verb threads the active-turns abort signal into the engine (abort propagation).
@@ -57,7 +57,6 @@ import type {
   ImpersonateParams,
   RevertContinueParams,
   SendParams,
-  SimpleSendParams,
   SwipeParams,
   UndoContinueParams,
 } from "../contract/params";
@@ -119,7 +118,6 @@ interface TurnDeps {
 type TurnVerbs = Pick<
   ChatService,
   | "send"
-  | "simpleSend"
   | "forceCharacterTurn"
   | "abort"
   | "swipe"
@@ -497,7 +495,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
       // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
       content: sendOut.sendUserText ?? content,
       authorUserId: principal.userId,
-      personaId: personaId ?? null,
+      // PD-100 attribution fallback: an OMITTED personaId stamps the acting participant's active persona
+      // (the membership row assembly already reads); an explicit id — or an explicit null — wins.
+      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
+      personaId: personaId !== undefined ? personaId : membership.activePersonaId,
       hostUserId: room.hostUserId,
     });
 
@@ -557,73 +558,6 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
         committed.push(...auto.messages);
       }
       return { messages: committed, aborted: false };
-    } finally {
-      handle.release();
-    }
-  };
-}
-
-// ── simpleSend (the byte-identical solo path — no group machinery) ───────────────────────────────────────────
-/** `simpleSend` — persist the user message then run ONE turn for the primary character (a roster-of-1 path; no
- *  arbitration / narrator). Byte-identical to a solo `send` (the engine's pinned per-speaker/merged default). */
-function createSimpleSend(ctx: ChatContext, deps: TurnDeps): ChatService["simpleSend"] {
-  return async ({
-    principal,
-    chatId,
-    content,
-    personaId,
-    intent,
-  }: SimpleSendParams): Promise<TurnOutcome> => {
-    const membership = await requireParticipant(ctx, principal, chatId);
-    const room = await loadRoom(ctx, chatId);
-    const identity = resolveTurnIdentityVia({
-      principalUserId: principal.userId,
-      hostUserId: room.hostUserId,
-    });
-    const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });
-    const sendOut: SendRegexSink = {};
-    const assembleContext = await buildTurnContext(
-      ctx,
-      deps,
-      {
-        chatId,
-        runAsUserId: identity.runAsUserId,
-        model: connection.model,
-        castCharacterIds: room.castCharacterIds,
-        personaIds: room.personaIds,
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        pendingUserText: content,
-      },
-      sendOut,
-    );
-    const seq = await loadMaxMessageSeq(ctx.db, chatId);
-    const userView = await persistUserMessage(ctx, deps.emit, {
-      chatId,
-      seq: seq + 1,
-      // The POST-USER_INPUT-regex text (canon-mutating at write — §7); raw `content` when no host script fired.
-      content: sendOut.sendUserText ?? content,
-      authorUserId: principal.userId,
-      personaId: personaId ?? null,
-      hostUserId: room.hostUserId,
-    });
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
-    try {
-      const outcome = await deps.engine.runTurn({
-        chatId,
-        assembleContext,
-        connection,
-        triggeredBy: identity.triggeredBy,
-        runAsUserId: identity.runAsUserId,
-        kind: "simple-send",
-        intent: intent ?? {},
-        speakerCharacterId: primaryCharacterId(room),
-        signal: handle.signal,
-      });
-      return {
-        messages: [userView, ...outcome.messages],
-        aborted: outcome.aborted,
-        ...(outcome.abortReason !== undefined ? { abortReason: outcome.abortReason } : {}),
-      };
     } finally {
       handle.release();
     }
@@ -917,7 +851,9 @@ function createImpersonate(ctx: ChatContext, deps: TurnDeps): ChatService["imper
         mode: "new-slot",
         role: "user",
         authorUserId: identity.triggeredBy,
-        personaId: personaId ?? null,
+        // PD-100 attribution fallback: omitted → the acting participant's active persona; explicit wins.
+        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
+        personaId: personaId !== undefined ? personaId : membership.activePersonaId,
       },
     });
   };
@@ -1023,8 +959,9 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
  * The turn-running verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). The root
  * spreads it into the full service. The single-speaker engine MODES (D26) the engine now exposes back the
  * auxiliary turns: `swipe`/regenerate (append-variant), `continueTurn` (+ `undoContinue`/`revertContinue`
- * restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE `generate`. `send`/`simpleSend`/
- * `forceCharacterTurn`/`abort` are the round-driving / control verbs.
+ * restore), `impersonate` (a `role:"user"` slot), and the LOCK-FREE `generate`. `send`/
+ * `forceCharacterTurn`/`abort` are the round-driving / control verbs (solo is a `send` — a roster-of-1
+ * round, D16; the deleted arbitration-skipping `simpleSend` was byte-identical to it, PD-95).
  *
  * `opening`/`generateOpening` stays INTERNAL (injected into `startChat`, not on `ChatService`) — its home is
  * the `start-chat.ts` chunk; the engine path is a `kind:"opening"` `runTurn` with the opening instruction on
@@ -1037,7 +974,6 @@ function createRevertContinue(ctx: ChatContext, deps: TurnDeps): ChatService["re
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
   return {
     send: createSend(ctx, deps),
-    simpleSend: createSimpleSend(ctx, deps),
     forceCharacterTurn: createForceCharacterTurn(ctx, deps),
     abort: createAbort(ctx, deps),
     swipe: createSwipe(ctx, deps),

@@ -75,7 +75,6 @@ export const TURN_KINDS = [
   "opening",
   "auto",
   "force",
-  "simple-send",
 ] as const;
 export type TurnKind = (typeof TURN_KINDS)[number];
 

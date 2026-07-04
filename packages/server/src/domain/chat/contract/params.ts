@@ -157,13 +157,6 @@ export interface SendParams extends ChatScopedParams {
   readonly guided?: GuidedSteer | undefined;
 }
 
-/** `simpleSend` — the lightweight single-message send (no roster arbitration / group machinery). */
-export interface SimpleSendParams extends ChatScopedParams {
-  readonly content: string;
-  readonly personaId?: PersonaId | null | undefined;
-  readonly intent?: UserIntent | undefined;
-}
-
 /** `swipe` — append a fresh variant to an assistant slot (a reroll; D26 — slot attribution unchanged). */
 export interface SwipeParams extends MessageScopedParams {
   readonly intent?: UserIntent | undefined;
@@ -231,8 +224,8 @@ export interface SelectVariantParams extends MessageScopedParams {
   readonly variantId: MessageVariantId;
 }
 
-/** `editMessage` — edit the SELECTED variant's content in place (self-label purify only; NO `runOnEdit`
- *  regex re-applies yet — FLAG[PD-110]). */
+/** `editMessage` — edit the SELECTED variant's content in place (self-label purify, then the `runOnEdit`
+ *  host-tier regex re-applies before persist — canon-mutating at write). */
 export interface EditMessageParams extends MessageScopedParams {
   readonly content: string;
 }

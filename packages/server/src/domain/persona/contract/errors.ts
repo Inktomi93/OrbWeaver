@@ -8,7 +8,7 @@
 // persistence/queries.ts `ensureCharacterOwned`). "not yours" and "doesn't exist" collapse into one
 // answer (no foreign-existence leak), mirroring the owner-scoped persona reads.
 
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
 export class PersonaNotFoundError extends DomainNotFoundError {
@@ -25,6 +25,21 @@ export class CharacterNotFoundError extends DomainNotFoundError {
   constructor(characterId: CharacterId) {
     super("character", characterId);
     this.characterId = characterId;
+    this.name = this.constructor.name;
+  }
+}
+
+/**
+ * `remove` refuses to delete the caller's LAST persona (code `last_persona` → BAD_REQUEST). The
+ * always-one-persona invariant (PD-100 rider): setup forces a persona, and chat attribution now falls back
+ * to the participant's active persona — deleting the final one would strand every future user line at
+ * `personaId: null`.
+ */
+export class LastPersonaError extends DomainOperationError {
+  public readonly personaId: PersonaId;
+  constructor(personaId: PersonaId) {
+    super("last_persona", `persona ${personaId}: cannot delete the last persona`);
+    this.personaId = personaId;
     this.name = this.constructor.name;
   }
 }

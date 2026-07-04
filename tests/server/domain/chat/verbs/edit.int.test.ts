@@ -1,10 +1,15 @@
 // The canon-EDIT verbs (chat.md Part III per-verb specs + §11 the auth matrix; D26). Proves against a real
 // libSQL db: an edit mutates the VARIANT (content/reasoning) or the SLOT (selection/hidden/seq/attribution)
 // and NEVER doubles content (the slot stays one row, variantCount unchanged); the author-or-host gate; the FK
-// cascade on delete; and the emitted bus event. The verbs are reached through the BUNDLE `createEdit(ctx, {emit})`.
+// cascade on delete; the emitted bus event; and the PD-110 runOnEdit regex re-apply on `editMessage`. The
+// verbs are reached through the BUNDLE `createEdit(ctx, {emit, resolveForeignInputs})`.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { RegexScript } from "@orb/contracts/regex";
+import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
@@ -33,16 +38,29 @@ import {
 
 let db: Db;
 let emitted: ChatBusEvent[];
+/** The host-global regex source the fake FOREIGN resolver serves (per-test scripts; reset empty). */
+let globalScripts: RegexScript[];
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
+  globalScripts = [];
 });
 
 const emit = (event: ChatBusEvent): Promise<void> => {
   emitted.push(event);
   return Promise.resolve();
 };
+
+/** The FOREIGN-half fake (the PD-110 runOnEdit sources) — DEFAULT config + the per-test `globalScripts`. */
+const resolveForeignInputs: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = () =>
+  Promise.resolve({
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    personas: { anchor: null, active: null },
+    globalRegexScripts: globalScripts,
+    scanDepth: 6,
+    injectionTokenBudget: 0,
+  });
 
 function principal(userId: UserId): Principal {
   return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
@@ -73,7 +91,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       authorUserId: member,
       content: "orig",
     });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const view = await edit.editMessage({
       principal: principal(member),
@@ -100,7 +118,7 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const err = await edit
       .editMessage({ principal: principal(member), chatId, messageId, content: "x" })
@@ -124,9 +142,10 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       characterId: charA,
     });
     const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null } as never),
+      getCard: () =>
+        Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as never),
     });
-    const edit = createEdit(ctx, { emit });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     const view = await edit.editMessage({
       principal: principal(host),
@@ -135,6 +154,111 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       content: "Aria: hello there",
     });
     expect(view.content).toBe("hello there");
+  });
+});
+
+describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
+  /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the cast tier). */
+  const card = (name: string, regexScripts: RegexScript[] = []): CharacterCard =>
+    ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
+
+  const script = (over: Record<string, unknown>): RegexScript =>
+    regexScriptSchema.parse({
+      id: "s1",
+      name: "s1",
+      findRegex: "badword",
+      replaceString: "****",
+      ...over,
+    });
+
+  test("a runOnEdit AI_OUTPUT script transforms an assistant edit before persist", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+    });
+    globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: true })];
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+
+    const view = await edit.editMessage({
+      principal: principal(host),
+      chatId,
+      messageId,
+      content: "she said badword twice",
+    });
+
+    // Canon-mutating at write: the STORED row is the post-regex text.
+    expect(view.content).toBe("she said **** twice");
+    const [variant] = await db
+      .select()
+      .from(messageVariants)
+      .where(eq(messageVariants.messageId, messageId));
+    expect(variant?.content).toBe("she said **** twice");
+  });
+
+  test("a runOnEdit:false script does NOT re-apply on edit", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+    });
+    globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: false })];
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+
+    const view = await edit.editMessage({
+      principal: principal(host),
+      chatId,
+      messageId,
+      content: "badword survives",
+    });
+
+    expect(view.content).toBe("badword survives");
+  });
+
+  test("a USER_INPUT runOnEdit script fires on a user-slot edit", async () => {
+    const { member, chatId } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
+    globalScripts = [script({ placement: ["USER_INPUT"], runOnEdit: true })];
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+
+    const view = await edit.editMessage({
+      principal: principal(member),
+      chatId,
+      messageId,
+      content: "i typed badword",
+    });
+
+    expect(view.content).toBe("i typed ****");
+  });
+
+  test("the D53 watchdog path: a throwing applyRegexReplace skips the script, the content survives", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const { messageId } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+    });
+    globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: true })];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(card("Aria")),
+      // The node:vm watchdog seam: a pathological pattern throws instead of hanging — the executor's
+      // per-script catch skips it and the next transform runs on the text as-is.
+      applyRegexReplace: () => {
+        throw new Error("regex timeout (watchdog)");
+      },
+    });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
+
+    const view = await edit.editMessage({
+      principal: principal(host),
+      chatId,
+      messageId,
+      content: "badword stays because the script was skipped",
+    });
+
+    expect(view.content).toBe("badword stays because the script was skipped");
   });
 });
 
@@ -148,7 +272,7 @@ describe("selectVariant — flip the pointer to a sibling swipe (D26 zero-copy)"
     });
     const swipe1 = await addVariant(db, messageId, 1, "swipe1");
     const other = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const view = await edit.selectVariant({
       principal: principal(host),
@@ -202,7 +326,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
     const v1 = await addVariant(db, messageId, 1, "nothing about X");
     await db.update(messageVariants).set({ variableDelta: [] }).where(eq(messageVariants.id, v1));
 
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     // Swipe to v1 → X REWINDS (the fold of the new selected chain has no X). ST #3263 cannot occur.
     await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: v1 });
@@ -230,7 +354,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
       .set({ runtimeVariables: { hp: "2" } })
       .where(eq(chats.id, chatId));
 
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
     // Delete the later message → the fold rewinds to the earlier delta (X=1).
     await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [b.messageId] });
     expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
@@ -244,7 +368,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const view = await edit.setMessageHidden({
       principal: principal(host),
@@ -265,7 +389,7 @@ describe("setMessageHidden / editReasoning / clearReasoning", () => {
       role: "assistant",
       characterId: charA,
     });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const edited = await edit.editReasoning({
       principal: principal(host),
@@ -289,7 +413,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
     const { host, chatId, charA } = await seedRoom();
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
     const b = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     await edit.deleteMessages({
       principal: principal(host),
@@ -312,7 +436,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
   test("a member cannot delete another member's slot (not_author)", async () => {
     const { member, chatId, charA } = await seedRoom();
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const err = await edit
       .deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] })
@@ -332,7 +456,7 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
           return Promise.resolve();
         },
       }),
-      { emit },
+      { emit, resolveForeignInputs },
     );
 
     // Refused first (member ≠ author) — existence-before-audit: NO phantom row for a delete that never ran.
@@ -369,7 +493,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
         deltas.push(delta as StatsDelta);
       },
     });
-    const edit = createEdit(ctx, { emit });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [a.messageId] });
 
@@ -399,7 +523,7 @@ describe("canon-mutator stats deltas (stats.md — the delete/edit push)", () =>
         deltas.push(delta as StatsDelta);
       },
     });
-    const edit = createEdit(ctx, { emit });
+    const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     await edit.editMessage({
       principal: principal(member),
@@ -426,7 +550,7 @@ describe("moveMessage — host-only re-sequence", () => {
     });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "two" });
     await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA, content: "three" });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     await edit.moveMessage({
       principal: principal(host),
@@ -448,7 +572,7 @@ describe("moveMessage — host-only re-sequence", () => {
   test("a member is refused (not_host)", async () => {
     const { member, chatId } = await seedRoom();
     const m1 = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
     const err = await edit
       .moveMessage({ principal: principal(member), chatId, messageId: m1.messageId, toSeq: 2 })
       .catch((e: unknown) => e);
@@ -464,7 +588,7 @@ describe("duplicateMessage / reattributeMessages", () => {
       characterId: charA,
       content: "echo",
     });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     const dup = await edit.duplicateMessage({ principal: principal(host), chatId, messageId });
     expect(dup.content).toBe("echo");
@@ -479,7 +603,7 @@ describe("duplicateMessage / reattributeMessages", () => {
     const { host, chatId, charA } = await seedRoom();
     const charB = await seedCharacter(db, host, "borg");
     const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
-    const edit = createEdit(makeChatContext(db), { emit });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
 
     await edit.reattributeMessages({
       principal: principal(host),

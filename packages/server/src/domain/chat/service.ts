@@ -101,7 +101,11 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
   });
-  const edit = createEdit(ctx, { emit: deps.emit });
+  // `resolveForeignInputs` backs the PD-110 runOnEdit re-apply on `editMessage` (the same seam the turn uses).
+  const edit = createEdit(ctx, {
+    emit: deps.emit,
+    resolveForeignInputs: deps.resolveForeignInputs,
+  });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
   const imageGen = createGenerateImage(ctx, { emit: deps.emit });
   const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews });

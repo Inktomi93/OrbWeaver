@@ -90,10 +90,9 @@ interface EngineDeps {
 }
 
 /** Map the engine's 8-kind turn axis → the public 5-member bus `TurnIntent` (one home; no inline re-spell).
- *  `opening`/`auto`/`force`/`simple-send` all surface as their nearest public lifecycle intent. */
+ *  `opening`/`auto`/`force` all surface as their nearest public lifecycle intent. */
 const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
   send: "send",
-  "simple-send": "send",
   swipe: "swipe",
   continue: "continue",
   generate: "generate",
