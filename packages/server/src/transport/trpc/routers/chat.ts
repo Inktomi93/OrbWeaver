@@ -15,7 +15,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -52,6 +52,18 @@ const swipeSchema = z.object({
   messageId: brandedId<MessageId>(),
   intent: z.any().optional(),
   guided: z.any().optional(),
+});
+
+// The step-BACK verb (task #19 — swipe-strip's left chevron): `ChatService.selectVariant`
+// (domain/chat/verbs/edit.ts createSelectVariant) was already fully implemented — author-or-host gate,
+// sibling-ownership belt, the runtime-variables re-fold for the newly-selected pointer, `variantSelected`
+// emit — but had never been exposed on this router (the same MISSING-API shape `abort` was in before
+// 2026-07-04c; swept via grep before this addition, no call site referenced `chat.selectVariant`). Thin
+// pass-through, same shape as `swipe` + an explicit `variantId` (a pointer move, not a generation).
+const selectVariantSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+  variantId: brandedId<MessageVariantId>(),
 });
 
 // The Stop verb (task #18 — the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
@@ -92,6 +104,11 @@ export const chatRouter = t.router({
   swipe: authedProcedure
     .input(swipeSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
+  selectVariant: authedProcedure
+    .input(selectVariantSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.selectVariant({ principal: ctx.auth, ...input }),
+    ),
   abort: authedProcedure
     .input(abortSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
