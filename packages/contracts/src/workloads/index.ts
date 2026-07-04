@@ -22,7 +22,9 @@ import { z } from "zod";
 /** Every kind of bulk-work the durable queue drives. ONE canonical tuple (the db `workloads.kind` enum,
  *  the `RUNNERS: { [K in WorkloadKind]: Runner<K> }` exhaustiveness pin, and the tRPC wire enum all derive
  *  from it — no inline re-spelling). `reconcile-world-state` is a RESERVED v2 seam (council 2026-06-25):
- *  it ships now as a no-op stub runner so `exhaustive-dispatch` stays green, the feature is v2.
+ *  it ships now as a no-op stub runner so `exhaustive-dispatch` stays green, the feature is v2. The four
+ *  `crew-*` members are the chat-crew kinds (D59), born into the `0000_baseline` kind CHECK with STUB
+ *  runners (chat-crew-design/08 CW1 — the decide-before-launch economics); CW2–CW5 land the real runners.
  *  This tuple is the ONE canonical member list — do NOT invent or reorder members. */
 export const WORKLOAD_KINDS = [
   "embed-corpus",
@@ -40,6 +42,11 @@ export const WORKLOAD_KINDS = [
   "refresh-model-catalog",
   // Seam reservation (reserve now, build v2 — ledger §5, domains/memory.md §9).
   "reconcile-world-state",
+  // The chat-crew members (D59) — stubs until CW2–CW5 (chat-crew-design/03 §0).
+  "crew-lorebook-keeper",
+  "crew-card-evolution",
+  "crew-director",
+  "crew-prose-audit",
 ] as const;
 
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];

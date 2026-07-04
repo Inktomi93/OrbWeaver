@@ -47,6 +47,12 @@ export const PARAMS_SCHEMAS = {
   "reconcile-stats": noParams,
   "refresh-model-catalog": noParams,
   "reconcile-world-state": noParams,
+  // The chat-crew CW1 stubs (D59) keep the same real-empty-schema posture as the stubs above; the
+  // committed `{chatId}` (+`variantId`) params land with each kind's real runner (chat-crew-design/03 §0).
+  "crew-lorebook-keeper": noParams,
+  "crew-card-evolution": noParams,
+  "crew-director": noParams,
+  "crew-prose-audit": noParams,
 } as const satisfies { [K in WorkloadKind]: z.ZodType };
 
 /** The per-kind params payload type — derived from {@link PARAMS_SCHEMAS} (one home; the runner's
@@ -86,6 +92,16 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
     kind: z.literal("reconcile-world-state"),
     params: PARAMS_SCHEMAS["reconcile-world-state"],
   }),
+  z.object({
+    kind: z.literal("crew-lorebook-keeper"),
+    params: PARAMS_SCHEMAS["crew-lorebook-keeper"],
+  }),
+  z.object({
+    kind: z.literal("crew-card-evolution"),
+    params: PARAMS_SCHEMAS["crew-card-evolution"],
+  }),
+  z.object({ kind: z.literal("crew-director"), params: PARAMS_SCHEMAS["crew-director"] }),
+  z.object({ kind: z.literal("crew-prose-audit"), params: PARAMS_SCHEMAS["crew-prose-audit"] }),
 ]);
 
 /** The parsed `start` input (the wire/verb shape). The `kind`-keyed `params` is narrowed by the union. */

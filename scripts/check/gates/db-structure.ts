@@ -39,10 +39,53 @@ const NON_DOMAIN_PRODUCERS: Readonly<Record<string, string>> = {
   // gallery_items — producer = domain/assets (gallery is NOT a domain, D49 item 2 / gallery-design §0; the
   // addToGallery/removeFromGallery/listGallery verbs live in domain/assets). Curated per-character media (v2).
   gallery: "packages/server/src/domain/assets",
+  // card_evolution_proposals — producer = domain/character (D59; chat-crew-design/02 §5: the proposal
+  // lifecycle verbs are character's — the crew only FILES through the injected op). A sibling file, not a
+  // character.ts resident, because its `chats` FK would cycle character.ts ↔ chat.ts (noImportCycles).
+  "character-proposals": "packages/server/src/domain/character",
+};
+
+/** Decide-before-launch BASELINE RIDERS: schema born while the `0000_baseline` window is open for a
+ *  COMMITTED domain that lands later (the D58 economics — DDL rides the squash, code follows). Each
+ *  entry names its future producer; the moment that dir exists the entry is STALE and this gate says
+ *  so — the exemption cannot outlive its reason. */
+const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
+  // crew_chats/crew_plots/crew_edit_proposals/crew_guides — producer = domain/crew (D59; lands at
+  // chat-crew-design/08 CW1).
+  crew: "packages/server/src/domain/crew",
+  // automation_rules/automation_budgets/automation_fires/global_variables — producer =
+  // domain/automation (D46; lands Phase 8, automation-design/04).
+  automation: "packages/server/src/domain/automation",
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {
   return ctx.project.getSourceFiles().find((sf) => sf.getFilePath().endsWith(BARREL_SUFFIX));
+}
+
+/** Arm 2 for ONE schema file: the producer-mirror verdict (rider staleness / missing producer). */
+function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation | undefined {
+  const riderProducer = BASELINE_RIDER_PRODUCERS[name];
+  if (riderProducer !== undefined) {
+    return existsSync(join(ctx.root, riderProducer))
+      ? {
+          file: `${SCHEMA_REL}/${f}`,
+          line: 0,
+          message: `the ${name} producer (${riderProducer}) now EXISTS — its BASELINE_RIDER_PRODUCERS entry is stale; remove it so the normal producer mirror applies.`,
+        }
+      : undefined;
+  }
+  const nonDomainProducer = NON_DOMAIN_PRODUCERS[name];
+  const producerPath =
+    nonDomainProducer === undefined
+      ? join(ctx.root, DOMAIN_REL, name)
+      : join(ctx.root, nonDomainProducer);
+  return existsSync(producerPath)
+    ? undefined
+    : {
+        file: `${SCHEMA_REL}/${f}`,
+        line: 0,
+        message: `schema file has NO producer (${nonDomainProducer ?? `${DOMAIN_REL}/${name}/`} does not exist) — a schema file is named for the domain that PRODUCES its rows, never a consumer (Tier-1-DB.md producer-names-the-schema; PD-92). Rename it to its producer, or add it to the documented reserved/non-domain sets in this gate.`,
+      };
 }
 
 export const dbStructure: Check = {
@@ -91,17 +134,9 @@ export const dbStructure: Check = {
       if (!checkMirror || RESERVED_CROSS_CUTTING.has(name)) {
         continue;
       }
-      const nonDomainProducer = NON_DOMAIN_PRODUCERS[name];
-      const producerPath =
-        nonDomainProducer === undefined
-          ? join(domainRoot, name)
-          : join(ctx.root, nonDomainProducer);
-      if (!existsSync(producerPath)) {
-        violations.push({
-          file: `${SCHEMA_REL}/${f}`,
-          line: 0,
-          message: `schema file has NO producer (${nonDomainProducer ?? `${DOMAIN_REL}/${name}/`} does not exist) — a schema file is named for the domain that PRODUCES its rows, never a consumer (Tier-1-DB.md producer-names-the-schema; PD-92). Rename it to its producer, or add it to the documented reserved/non-domain sets in this gate.`,
-        });
+      const mirror = mirrorViolation(ctx, f, name);
+      if (mirror !== undefined) {
+        violations.push(mirror);
       }
     }
     return violations;
