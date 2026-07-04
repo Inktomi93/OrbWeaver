@@ -2,7 +2,7 @@
 // does). Holds:
 //   • CredentialContext       the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4)
 //   • CredentialsServiceDeps  the deps the entry root supplies (identical to the context — no transform)
-//   • CredentialsService      the 15-verb authoritative interface (the front door re-exports the type)
+//   • CredentialsService      the 13-verb authoritative interface (the front door re-exports the type)
 //
 // Every cross-feature/infra dep arrives as an INJECTED op (credentials sideways-imports NO sibling
 // runtime; the SecretBox + the provider probes + the owner guard are wired at the composition root):
@@ -14,13 +14,7 @@
 // db steps stay in `persistence/`; `now`/`newCredentialId` are the injected determinism seam (no ambient
 // clock/id — testing §3).
 
-import type {
-  CredentialHealth,
-  LocalLightCredential,
-  OpenRouterCredential,
-  ResolvedCredential,
-  VllmCredential,
-} from "@orb/contracts/credentials";
+import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { EndpointInspection } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import type { UserCredentialId } from "@orb/kit/ids";
@@ -89,7 +83,7 @@ export type CredentialsServiceDeps = CredentialContext;
  * The credential surface. The turn-time `resolve` is the ONLY consumer-facing
  * construction of a `ResolvedCredential`; CRUD is ownership-scoped (rows by `principal.userId`); health
  * has the runner-internal (`markRevoked`, no ownership check) vs user-facing (`markRevokedByUser`) split
- * (invariant #6 — MUST NOT merge); the boot/connection mints return brand-protected markers, not views.
+ * (invariant #6 — MUST NOT merge).
  */
 export interface CredentialsService {
   // Turn-time
@@ -114,9 +108,4 @@ export interface CredentialsService {
   // Custom endpoint
   readonly fetchModels: (params: FetchModelsParams) => Promise<string[]>;
   readonly inspectEndpoint: (params: InspectEndpointParams) => Promise<EndpointInspection>;
-
-  // Boot / connection helpers (injected cross-domain; not exposed to tRPC)
-  readonly mintVllmCredential: () => VllmCredential;
-  readonly mintLocalLightCredential: () => LocalLightCredential;
-  readonly buildKeylessCatalogCredential: () => OpenRouterCredential;
 }

@@ -154,6 +154,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
+          // The PD-106 multi-human capability belt keys on this flag (derived HERE from the frozen env —
+          // transport reads no env; `multiHumanProcedure` 404s its surfaces while it is set).
+          singleUserMode: env.AUTH_MODE === "single-user",
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
         }),
