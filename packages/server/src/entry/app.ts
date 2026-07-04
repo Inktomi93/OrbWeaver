@@ -8,14 +8,16 @@
 // stashes it on the context. Every downstream consumer (the tRPC ctx, the blob/upload routes, the debug
 // gate) re-reads that one resolved principal — nothing re-resolves identity. `csrfHeaderPresent` + the
 // derived `clientIp` are PURE header reads (header-presence + peer/XFF), recomputed at the tRPC mount from
-// the same request — not a second identity resolution (the "resolve once" invariant holds).
+// the same request — not a second identity resolution (the "resolve once" invariant holds). `observability`
+// (PD-118) is mounted immediately after auth, wrapping the tRPC mount + every registrar below in its
+// request-root span.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Hono } from "hono";
 import { env } from "#foundation/env";
-import { registerDebugRoutes } from "#foundation/observability";
+import { observability, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
@@ -119,13 +121,6 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     app.use("*", ipAllowlistMiddleware(allowlist));
   }
 
-  // FLAG[PD-118]: the `observability` per-request middleware (foundation/observability/middleware.ts —
-  // X-Request-Id + request-root span + request-ring record) is BUILT + exported and doc-claimed "Mounted
-  // by entry/app" (its header + Tier-2-Foundation §16), but is NOT in this chain — so the /api/_debug
-  // traces ring stays empty and no response carries X-Request-Id. Mount it here (ordering call: after
-  // auth so getRequestUserId resolves, root span still wrapping the request); mounting makes both claims
-  // true. Surfaced by the T6 trace probes.
-
   // ── Auth middleware: resolve the ONE Principal per request + refresh a slid cookie session ────────────
   app.use("*", async (c, next) => {
     const token = readSessionToken(c.req.raw.headers);
@@ -148,6 +143,15 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     }
     await next();
   });
+
+  // ── Observability (foundation/observability/middleware.ts — PD-118): X-Request-Id + the request-root
+  // tracing span + the request-ring record. Mounted AFTER auth (per the PD's ordering call) so
+  // `getRequestUserId` — read at the END of this middleware, once `next()` resolves — sees the caller the
+  // auth middleware (and, downstream, the tRPC context) already resolved for THIS request; mounting any
+  // earlier would only widen the wrapped span to include auth's own resolvePrincipal latency, which is not
+  // the request work being traced. The span still wraps everything that matters: the tRPC mount, the
+  // context build, and every registrar below, because `next()` is the ENTIRE remaining chain from here.
+  app.use("*", observability);
 
   // ── tRPC mount: read the already-resolved principal; csrf/clientIp are pure per-request derivations ────
   app.all(TRPC_MOUNT, (c) =>

@@ -8,6 +8,7 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
+import { recentRequests } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp } from "../../../packages/server/src/entry/app.ts";
@@ -121,5 +122,24 @@ describe("createApp", () => {
     );
     await app.fetch(new Request("http://localhost/healthz"));
     expect(seeded).toHaveLength(0);
+  });
+
+  // PD-118: `observability` is mounted in the chain — every response carries X-Request-Id, and the
+  // request ring records the request. A unique injected id (mirroring the middleware's own reuse-from-
+  // header test) makes the ring lookup deterministic without touching module-singleton ring state.
+  test("PD-118: a response carries X-Request-Id and the request ring records the request", async () => {
+    const requestId = "pd-118-app-mount-req-1";
+    const app = createApp(deps({}));
+    const res = await app.fetch(
+      new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }),
+    );
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("X-Request-Id")).toBe(requestId);
+
+    const record = recentRequests(500).find((r) => r.id === requestId);
+    expect(record).toBeDefined();
+    expect(record?.method).toBe("GET");
+    expect(record?.path).toBe("/healthz");
+    expect(record?.status).toBe(OK);
   });
 });
