@@ -64,6 +64,7 @@ import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
 import { publishChatEvent, publishNotification } from "../../transport/trpc";
+import { resolveImageRefToUrl } from "./resolve-image-ref";
 
 /** Per-chat turn-lock TTL (ms), sized for one turn — the lock auto-expires so a crashed holder's lock is
  *  takeover-eligible (the steady-state recovery; boot reclaim handles this replica's own orphans). */
@@ -414,28 +415,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         avatarAssetId,
       };
     },
-    // D45 asset→URL resolution using CAS bytes and data-URI.
-    resolveImageUrl: async ({ ownerId, ref }) => {
-      if (ref.kind === "external") {
-        return ref.url;
-      }
-      if (ref.kind === "asset") {
-        const meta = await input.assets.getMetadata({
-          principal: await realHostPrincipal(ownerId),
-          hash: ref.assetId,
-        });
-        if (!meta) {
-          return null;
-        }
-        const bytes = await input.assets.loadAssetBytes(castId(ref.assetId));
-        if (!bytes) {
-          return null;
-        }
-        const base64 = Buffer.from(bytes).toString("base64");
-        return `data:${meta.mime};base64,${base64}`;
-      }
-      return null;
-    },
+    // D45 asset→URL resolution → CAS bytes as a data-URI (see `resolve-image-ref` for the by-id resolve +
+    // co-participant gate). Extracted so the gate wiring is unit-tested apart from the compose root.
+    resolveImageUrl: (params) => resolveImageRefToUrl(input.assets, realHostPrincipal, params),
     // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
     // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {

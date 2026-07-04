@@ -314,7 +314,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
         await db.batch(batchMany(coStatements as BatchStmt[]));
       }
     },
-    readPresence: notStubbed,
+    // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn — PD-70). This keeps the
+    // no-multi-human-presence tests byte-identical (no persona drops); a cast-gating test overrides with a
+    // fake that returns `online:false` for the away member.
+    readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     // The imagery op (chat.generateImage) — a throwing stub; the generate-image verb test overrides it.
     generatePicture: notStubbed,
     resolveHandle: notStubbed,
