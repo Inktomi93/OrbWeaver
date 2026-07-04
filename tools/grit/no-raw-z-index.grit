@@ -14,10 +14,11 @@
 //               z-tooltip · z-toast
 //
 // Scope:      Fires ONLY inside packages/{client,ui}/src and SKIPS
-//             the allowlist (features/_shared/layout/, _shared/form/contexts.ts,
-//             components/ui/ — the shadcn portal floor that OWNS the tokens —,
-//             components/markdown.tsx) via the in-rule `$filename` guard, NOT
-//             per-line suppressions. Mirrors substrate-clean.ts exactly. (See
+//             the allowlist (packages/ui/src/layout/ — the layer that OWNS the
+//             z-index tokens; packages/ui/src/markdown/ — the prose carve-out) via
+//             the in-rule `$filename` guard, NOT per-line suppressions. No
+//             components/ui/ or features/_shared/ drawer exists in orb (D43 §11.0:
+//             no directory is exempt from a boundary rule). (See
 //             no-raw-spacing-in-features.grit for the guard rationale + the
 //             retired biome #6851 note.)
 //
@@ -38,17 +39,15 @@
 language js
 
 // Shared guard: substrate-gated client path AND not allowlisted. $filename is
-// auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
+// auto-bound by biome. Self-contained (no scripts/check/substrate-clean.ts in orb —
+// Deferred-Dropped backlog item; this predicate IS the ratchet).
 predicate in_substrate_scope() {
   // D43 §11.4: the token gates cover ALL feature + ui TSX (no components/ui-style exemption).
   // @orb/ui is in scope; its layout/ primitives are allowlisted below (they DEFINE the tokens).
   $filename <: r".*/packages/(?:client|ui)/src/.*",
   $filename <: not or {
-    r".*/features/_shared/layout/.*",
-    r".*/features/_shared/form/contexts\.ts$",
-    r".*/packages/client/src/shared/ui/.*",
     r".*/packages/ui/src/layout/.*",
-    r".*/components/markdown\.tsx$"
+    r".*/packages/ui/src/markdown/.*"
   }
 }
 

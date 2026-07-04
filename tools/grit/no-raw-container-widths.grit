@@ -1,0 +1,95 @@
+// Plugin: no-raw-container-widths
+// Severity: error
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Raw content-width utilities in className strings —
+//               • ANY arbitrary-bracket length on w-/min-w-/max-w-  (`w-[600px]`,
+//                 `max-w-[48rem]`, `min-w-[900px]`) — a hardcoded CSS length
+//               • fixed numeric `w-N` / `max-w-N` (`w-64`, `max-w-96`, `w-1.5`) — a
+//                 fixed content width / content cap
+//             inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` / `tv(...)` call-arg strings
+//
+// Rationale:  Content width + width caps ride the container-query token scale, never
+//             a raw length. `<Container size="sm|md|lg">` maps to `max-w-cq-*`
+//             (--container-cq-sm/md/lg, theme.css); a surface adapts to its container,
+//             so a hardcoded pixel/rem width or an off-scale `max-w-N` freezes it at
+//             one size and defeats the container model (UI-Arch §4; the gate is named
+//             in layout/variants.ts:58 — "`size` must stay on the `--container-cq-*`
+//             token scale, never raw widths").
+//
+//               ❌ <div className="max-w-[48rem]">          ✅ <Container size="lg">
+//               ❌ <Panel className="w-96">                 ✅ size="md" on the Container
+//
+// Allowed:    • The container tokens themselves: `max-w-cq-sm|md|lg` (contain no digit
+//               after `w-`, so never matched).
+//             • Keyword widths: `w-full`/`w-px`/`w-auto`/`w-screen`/`w-fit`/`w-min`/
+//               `w-max` and CSS-var widths `w-(--anchor-width)` (no digit → skipped).
+//             • Fractions `w-1/2`, `w-2/3` (relative flex/grid sizing, not a fixed
+//               length — the trailing `/` fails the numeric arm's boundary).
+//             • Numeric `min-w-N` FLOORS (`min-w-24` on an input to guard collapse) —
+//               a minimum is a control constraint, not a container width; only
+//               arbitrary-bracket min-w (`min-w-[900px]`, a hardcoded length) fires.
+//             • The layout/ + markdown/ seals (they DEFINE the width scale / own prose).
+//
+// Scope:      packages/{client,ui}/src minus the layout/ + markdown/ seals, via the
+//             in-rule `$filename` guard, NOT per-line suppressions.
+//
+// Refs:       docs/architecture/core/UI-Architecture-and-Layout.md §4 (the container model)
+//             packages/ui/src/layout/variants.ts (containerVariants → max-w-cq-*)
+//             packages/ui/src/styles/theme.css §--container-cq-* tokens
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: same className-string shape as the raw-value trio. Two branches share
+// the `(?:[^\"]* )?` token-boundary prefix (variant sits after a space or the opening
+// quote): the bracket branch fires on all three prefixes (arbitrary length = always
+// raw); the numeric branch allows `(?:max-)?` but NOT `min-`, so a `min-w-N` floor is
+// skipped while `w-N`/`max-w-N` fire. `[1-9]\d*` skips a bare `w-0`; `\d+\.\d+` catches
+// `w-1.5`. The trailing `(?: [^\"]*)?` before `\"$` lets fractions (`w-1/2`) fall
+// through (a `/` after the number is neither a space nor the closing quote).
+
+language js
+
+predicate in_substrate_scope() {
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
+  $filename <: not or {
+    r".*/packages/ui/src/layout/.*",
+    r".*/packages/ui/src/markdown/.*"
+  }
+}
+
+or {
+  JsxAttribute() as $attr where {
+    in_substrate_scope(),
+    $attr <: r"^className=\"(?:[^\"]* )?(?:(?:max-|min-)?w-\[[^\]]+\][^\"]*|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+)(?: [^\"]*)?)\"$",
+    register_diagnostic(span=$attr, message="raw content width in className (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size=\"sm|md|lg\">` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.", severity="error")
+  },
+  `cn($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?w-\[[^\]]+\][^\"]*|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+)(?: [^\"]*)?)\"$",
+      register_diagnostic(span=$lit, message="raw content width in cn() (w-N / max-w-N / w-[len]) — content widths ride the container scale: use `<Container size>` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.", severity="error")
+    }
+  },
+  `clsx($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?w-\[[^\]]+\][^\"]*|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+)(?: [^\"]*)?)\"$",
+      register_diagnostic(span=$lit, message="raw content width in clsx() (w-N / max-w-N / w-[len]) — content widths ride the container scale: use `<Container size>` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.", severity="error")
+    }
+  },
+  `cva($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?w-\[[^\]]+\][^\"]*|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+)(?: [^\"]*)?)\"$",
+      register_diagnostic(span=$lit, message="raw content width in cva() (w-N / max-w-N / w-[len]) — content widths ride the container scale: use `<Container size>` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?w-\[[^\]]+\][^\"]*|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+)(?: [^\"]*)?)\"$",
+      register_diagnostic(span=$lit, message="raw content width in tv() (w-N / max-w-N / w-[len]) — content widths ride the container scale: use `<Container size>` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.", severity="error")
+    }
+  }
+}

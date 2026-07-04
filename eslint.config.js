@@ -171,6 +171,32 @@ export default tseslint.config(
     },
   },
   {
+    // ASYNC-SAFETY (type-aware — rides the projectService programs the two parser blocks above build for
+    // SHIPPED_SRC + TSDOC_SURFACE). These are the genuine eslint-only category: Biome is syntactic and
+    // structurally cannot see a dropped/misused Promise. Uniform across the WHOLE type-aware surface
+    // (server/kit/db/contracts AND ui/client) — an unawaited server db-write/bus-emit is the highest-value
+    // catch, not just a frontend concern. Measured 2026-07-04 on the current tree: no-floating-promises 0,
+    // no-misused-promises 0, require-await 0 (zero false-positive cost). NOT reached by the CT_SURFACE
+    // blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info, so these skip
+    // test files, which is correct. (`await-thenable` is DEFERRED — its 3 current-tree hits are a real
+    // db-layer type-tension on `BatchStmt` bare-awaits, orchestrator-tracked; adopt after that seam fix.)
+    files: [...SHIPPED_SRC, ...TSDOC_SURFACE],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: {
+      // A dropped Promise silently swallows the error/race — the standout catch Biome can't structurally see.
+      "@typescript-eslint/no-floating-promises": "error",
+      // A Promise where a void/boolean is expected. `checksVoidReturn.attributes: false` is load-bearing:
+      // without it this nags idiomatic `onClick={async …}` (TanStack `mutateAsync`) JSX handlers — forward-
+      // necessary once chat wires those, kept even though the current tree has zero such sites.
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        { checksVoidReturn: { attributes: false } },
+      ],
+      // An `async` fn with no `await` is a mis-signaled sync fn (a caller may skip awaiting it). 0 FP today.
+      "@typescript-eslint/require-await": "error",
+    },
+  },
+  {
     // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we
     // want — every rule is a correctness check, not a style pick. `recommended-latest` is v7's
     // flat-config bundle. Gated on @orb/ui NOW: a rules-of-hooks/Compiler flag here is a real fix.

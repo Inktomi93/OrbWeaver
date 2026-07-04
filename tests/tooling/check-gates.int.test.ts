@@ -137,6 +137,11 @@ function writeFixtures(): void {
   fx("packages/ui/src/primitives/__g_uiprim/index.ts", "export const x = 1;\n");
   // client-structure: a BUILT feature (has code) with a stray root file + no index.ts front door.
   fx("packages/client/src/features/__g_cfeat/stray.ts", "export const x = 1;\n");
+  // state-files: a flat state/ file exporting the minted store handle (rule 3 — no exported handle).
+  fx(
+    "packages/client/src/state/__g_state.ts",
+    'export const useGStore = createGatedStore("g", () => ({ n: 0 }));\n',
+  );
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
@@ -203,7 +208,16 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
 // drive them directly, never through report.ts). This is the ONE sanctioned exemption from the
 // anti-drift check below — a gate added here without ALSO getting a self-test is still a bug; the
 // exemption is for the ALL_CHECKS registration only, not for having no test at all.
-const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests"]);
+const DORMANT_GATES = new Set([
+  "monotonic-tests",
+  "audit-client-tests",
+  // W1-0c (2026-07-04): built + self-tested, deliberately unregistered — each finds real debt whose
+  // backfill+activation rides W1-1 (component-size-ui/test-presence-client) or has no construct yet
+  // (surface-in-a-container). Each has its own tests/tooling self-test driving it directly.
+  "component-size-ui",
+  "test-presence-client",
+  "surface-in-a-container",
+]);
 
 test("every gate file in scripts/check/gates is registered in report.ts (anti-drift)", () => {
   // A gate file that exists but is never listed in report.ts silently does nothing — it never runs,
