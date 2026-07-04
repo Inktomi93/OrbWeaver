@@ -15,6 +15,19 @@ type TextElement = keyof typeof TEXT_ELEMENTS;
 const HEADING_ELEMENTS = { 1: "h1", 2: "h2", 3: "h3", 4: "h4", 5: "h5", 6: "h6" } as const;
 type HeadingLevel = keyof typeof HEADING_ELEMENTS;
 
+// The heading level → DEFAULT size. The design direction is a deliberate ~1.2 type-scale (Marinara +
+// the orb design corpus agree: display 1.5rem / headline 1.25rem / title 1rem, semibold) — hierarchy is
+// via SCALE + weight, NOT flat. h1 is the workhorse section title (headline); h2+ step down to title;
+// Display (1.5rem) stays opt-in for the rare hero moment (`size="display"`). An explicit `size` wins.
+const HEADING_SIZE_BY_LEVEL = {
+  1: "headline",
+  2: "title",
+  3: "title",
+  4: "title",
+  5: "title",
+  6: "title",
+} as const;
+
 // ComponentProps<"p"> is the passthrough base for the polymorphic body element (R5 — never a hand-picked
 // subset). The p/span/div attribute surfaces are effectively identical (global HTML attrs), so one base
 // covers all three `as` targets without a per-tag generic.
@@ -56,16 +69,17 @@ export interface HeadingProps extends ComponentProps<"h1">, VariantProps<typeof 
 
 /**
  * Heading — the heading seal: renders a REAL h1-h6 (chosen by `level`, no default) with the type-scale
- * skin. Defaults `size="title" weight="semibold"` — the design direction is a deliberately understated
- * flat size scale with hierarchy carried BY WEIGHT (UI-Architecture §4.1), so levels read similarly by
- * intent; override `size` for the rare display case.
+ * skin. `size` DEFAULTS from `level` via HEADING_SIZE_BY_LEVEL (h1 → headline 1.25rem, h2+ → title 1rem,
+ * semibold) — the understated ~1.2 scale the design corpus + Marinara share, so h1 reads visibly above
+ * h2 without ever getting shouty (the opposite of ST's browser-default heading sprawl). Override `size`
+ * for the rare hero (`size="display"`) or to flatten.
  *
- * Usage: `<Heading level={1}>admin</Heading>` · `<Heading level={2} size="headline">Section</Heading>`
+ * Usage: `<Heading level={1}>admin</Heading>` · `<Heading level={2} size="display">Hero</Heading>`
  */
 export function Heading({
   className,
   level,
-  size = "title",
+  size,
   weight = "semibold",
   tone,
   ...rest
@@ -74,7 +88,10 @@ export function Heading({
   return (
     <Component
       data-slot="heading"
-      className={cn(textVariants({ size, weight, tone }), className)}
+      className={cn(
+        textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone }),
+        className,
+      )}
       {...rest}
     />
   );

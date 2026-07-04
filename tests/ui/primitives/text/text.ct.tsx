@@ -10,8 +10,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // expected px straight from the TOKENS value (root = 16px — the stack.ct gap-token precedent) so the
 // assertion stays token-driven, never a hardcoded rem/px literal (contract §4.2 spirit).
 const ROOT_PX = 16;
-const sizePx = (path: "text.body" | "text.label" | "text.title" | "text.code"): string =>
-  `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
+const sizePx = (
+  path: "text.body" | "text.label" | "text.title" | "text.headline" | "text.code",
+): string => `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
 
 test("Text body default lands the body size + foreground tone tokens on a <p>", async ({
   mount,
@@ -62,15 +63,18 @@ test("Heading level renders the matching REAL h1-h6 tag", async ({ mount, page }
   expect(tags).toEqual([1, 1, 1, 1, 1, 1]);
 });
 
-test("Heading defaults ride the title size token (the flat hierarchy-by-weight scale)", async ({
+test("Heading level drives the default size — h1 headline steps down to h2 title (the ~1.2 scale)", async ({
   mount,
 }) => {
-  const heading = await mount(<Heading level={1}>admin</Heading>);
-  await expect(heading).toHaveCSS("font-size", sizePx("text.title"));
-  await expect(heading).toHaveCSS("color", TOKENS["color.foreground"].value);
-  // Default weight is semibold — heavier than a body <Text>'s regular (hierarchy carried by weight).
-  const weight = await heading.evaluate((el) => getComputedStyle(el).fontWeight);
-  expect(Number(weight)).toBe(600);
+  const h1 = await mount(<Heading level={1}>admin</Heading>);
+  await expect(h1).toHaveCSS("font-size", sizePx("text.headline"));
+  await expect(h1).toHaveCSS("color", TOKENS["color.foreground"].value);
+  // Default weight is semibold — heavier than a body <Text>'s regular.
+  expect(Number(await h1.evaluate((el) => getComputedStyle(el).fontWeight))).toBe(600);
+  await h1.unmount();
+  // h2 steps down to title — a REAL size hierarchy (headline 1.25rem > title 1rem), not flat.
+  const h2 = await mount(<Heading level={2}>section</Heading>);
+  await expect(h2).toHaveCSS("font-size", sizePx("text.title"));
 });
 
 test("Heading accent tone swaps to the primary token", async ({ mount }) => {
