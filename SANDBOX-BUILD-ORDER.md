@@ -85,6 +85,23 @@ must fire AFTER the swipe path's variable re-fold (automation-design/05 review f
 - **Local-light/vLLM suites self-skip in here** (`VLLM_DISABLED=1`, no `.models/`); that is
   expected, not a failure. The firewall blocks everything but npm/GitHub/Anthropic/VS Code.
 
+## The `/reference/` corpus (gitignored, read-only)
+
+The docs cite neo/ST evidence one-line (e.g. "`tool-calling.js:565`"). Those targets are
+mirrored INSIDE the repo so container sessions can verify them (only this folder is mounted):
+
+- `reference/neo-tavern/` — neo's source (src/docs/tests/tools/scripts + root configs).
+- `reference/upstream/` — neo's evidence base: **sillytavern** (the `tool-calling.js`/
+  `openai.js` cites), **marinara-engine**, **guided-generations**, stmp, cardshark,
+  card-curator, card-refinery.
+- `reference/design/` — Nate's design-goal set (DESIGN.md, design-system/, brand/voice HTML).
+
+READ-ONLY provenance — never edit, never import from, never copy wholesale (the
+carry-a-neo-pattern reflex is the documented failure mode; port DECISIONS, not code).
+It is gitignored, so ignore-respecting tools skip it: search with `/usr/bin/grep -a` or
+`sg --no-ignore`; Glob/Read work normally. Refresh by re-running the rsync from the host
+(it is a frozen snapshot, 2026-07-04).
+
 ## Quick commands
 
 - `pnpm check` (biome+eslint+tsc+types+31 gates+depcruise) · `pnpm test` (full) ·
