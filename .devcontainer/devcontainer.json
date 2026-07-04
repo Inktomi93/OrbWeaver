@@ -1,0 +1,103 @@
+{
+  "name": "Claude Code Sandbox — orbweaver",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "TZ": "${localEnv:TZ:America/Los_Angeles}",
+      "CLAUDE_CODE_VERSION": "latest",
+      "GIT_DELTA_VERSION": "0.18.2",
+      "ZSH_IN_DOCKER_VERSION": "1.2.0"
+    }
+  },
+  // NET_ADMIN/NET_RAW let init-firewall.sh manage iptables. no-new-privileges=false
+  // overrides this host's daemon.json default (which is true) FOR THIS CONTAINER ONLY,
+  // so the firewall's `sudo` can escalate. Host-wide hardening is unaffected.
+  "runArgs": [
+    "--cap-add=NET_ADMIN",
+    "--cap-add=NET_RAW",
+    "--security-opt",
+    "no-new-privileges=false"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "biomejs.biome",
+        "dbaeumer.vscode-eslint",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        // Editor/formatter/TS settings live in the committed .vscode/settings.json,
+        // which VS Code also reads inside the container — single source of truth.
+        // Below: container-only settings (never applied to the host VS Code).
+        //
+        // Run the Claude Code EXTENSION in permissive/bypass mode by default. The
+        // extension defaults to "default" mode + a disabled dangerous-skip gate, so
+        // it prompts even though this is a sandbox. These two keys flip both. Safe
+        // here because the firewall + container isolation are the real boundary; the
+        // host keeps prompting (these are not in the committed .vscode/settings.json).
+        "claudeCode.allowDangerouslySkipPermissions": true,
+        "claudeCode.initialPermissionMode": "bypassPermissions",
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "bash",
+            "icon": "terminal-bash"
+          },
+          "zsh": {
+            "path": "zsh"
+          }
+        }
+      }
+    }
+  },
+  "remoteUser": "node",
+  "mounts": [
+    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
+    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
+    // Give the container its OWN node_modules (not the host's) so pnpm's store-path
+    // metadata doesn't clash between host and container. Avoids the purge prompt and
+    // the host<->container reinstall ping-pong. Named per-project for portability.
+    // Orbweaver is a 6-package pnpm workspace: the ROOT virtual store + every
+    // packages/*/node_modules symlink farm each get a volume, so nothing pnpm writes
+    // lands on the bind-mounted host folder.
+    "source=${localWorkspaceFolderBasename}-node_modules,target=/workspace/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-kit-node_modules,target=/workspace/packages/kit/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-contracts-node_modules,target=/workspace/packages/contracts/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-db-node_modules,target=/workspace/packages/db/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-server-node_modules,target=/workspace/packages/server/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-ui-node_modules,target=/workspace/packages/ui/node_modules,type=volume",
+    "source=${localWorkspaceFolderBasename}-client-node_modules,target=/workspace/packages/client/node_modules,type=volume",
+    // pnpm's content-addressable store, persisted on a volume (so it survives rebuilds
+    // and stays off the bind-mounted host folder). The Dockerfile's pnpm wrapper points
+    // --store-dir here. Same device as the node_modules volumes, so hardlinks work.
+    "source=${localWorkspaceFolderBasename}-pnpm-store,target=/home/node/.local/share/pnpm,type=volume"
+  ],
+  "containerEnv": {
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
+    // THE store fix — and the whole reason neo's /usr/local/sbin pnpm wrapper does NOT
+    // exist here. pnpm 11 ignores npm_config_store_dir / ~/.npmrc / ~/.config/pnpm/rc for
+    // store-dir (settings live in the committed pnpm-workspace.yaml, shared with the host),
+    // but it DOES honor the pnpm-prefixed env var (verified empirically on pnpm 11.5.1).
+    // Without this, pnpm's per-device fallback probes the bind-mounted /workspace and dumps
+    // a .pnpm-store into the host folder. This points it at the pnpm-store volume, which
+    // shares a device with the node_modules volumes, so hardlinks work. Env config never
+    // trips the "Unknown option" CLI validation that made a global --store-dir flag break
+    // run/exec (the trap neo's per-subcommand wrapper existed to dodge).
+    "pnpm_config_store_dir": "/home/node/.local/share/pnpm/store",
+    // The vLLM/local-light model stack runs on the HOST (scripts/dev; .models/ weights).
+    // In-container runs must not try to spawn it — the local-light suites already skip
+    // when the weights are absent, and the firewall blocks HF downloads by design.
+    "VLLM_DISABLED": "1"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
+  "workspaceFolder": "/workspace",
+  "onCreateCommand": "CI=1 pnpm install --frozen-lockfile || CI=1 pnpm install",
+  // Default the terminal CLI to bypass-permissions too (matches the extension settings
+  // above). Writes to the container-only .claude volume; merges, never clobbers creds.
+  "postCreateCommand": "node -e \"const fs=require('fs'),p=process.env.CLAUDE_CONFIG_DIR+'/settings.json';let s={};try{s=JSON.parse(fs.readFileSync(p,'utf8'))}catch(e){};s.permissions=Object.assign({},s.permissions,{defaultMode:'bypassPermissions'});fs.writeFileSync(p,JSON.stringify(s,null,2))\"",
+  "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
+  "waitFor": "postStartCommand"
+}
