@@ -26,5 +26,5 @@ or {
 } where {
   $filename <: r".*/packages/client/src/features/.*",
   $el <: r"^<(?:img|video|audio|source)[\s/>].*$",
-  register_diagnostic(span=$el, message="raw <img>/<video>/<audio> in a feature — media MUST go through <MessageMedia> (@orb/ui/content): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44 §12.3).", severity="error")
+  register_diagnostic(span=$el, message="raw <img>/<video>/<audio> in a feature — media MUST go through <MessageMedia> (@orb/ui/content): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44 — UI-Theming-and-Content.md §12.3).", severity="error")
 }

@@ -123,7 +123,7 @@ function scanForbiddenSkips(sf: SourceFile, rel: string, out: Violation[]): void
     out.push({
       file: rel,
       line,
-      message: `\`${root}.${modifier}\` disables a test unconditionally — the suite can't go green by skipping. Gate it with \`.skipIf(cond)\` / Playwright's \`test.skip(cond, "reason")\` if it needs an env/engine, or add \`// allow-skip: <reason>\` above the line if it's truly justified.`,
+      message: `\`${root}.${modifier}\` disables a test unconditionally — the suite can't go green by skipping. Gate it with \`.skipIf(cond)\` / Playwright's \`test.skip(cond, "reason")\` if it needs an env/engine, or add \`// allow-skip: <reason>\` above the line if it's truly justified (Spine-Testing.md §5).`,
     });
   }
 }
@@ -154,7 +154,7 @@ function scanDeletedTestFiles(root: string, out: Violation[]): void {
         file: f,
         line: 0,
         message:
-          "test file in the committed baseline manifest no longer exists — a spec can't be deleted to go green. If the deletion/rename is intended, regenerate and commit the manifest diff.",
+          "test file in the committed baseline manifest no longer exists — a spec can't be deleted to go green. If the deletion/rename is intended, regenerate and commit the manifest diff (Spine-Testing.md §5).",
       });
     }
   }

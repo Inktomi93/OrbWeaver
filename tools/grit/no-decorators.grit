@@ -3,9 +3,9 @@
 // decorator runtime, so a decorator throws at runtime. Critically, the `erasableSyntaxOnly` tsc flag
 // is SILENT on decorators — the compiler will not catch this, so the lint IS the gate. Use function
 // composition / zod validation, never decorator-based DI or `reflect-metadata`.
-// Refs: spine/typescript-style.md §5 (erasableSyntaxOnly forbidden set).
+// Refs: Spine-TypeScript-and-Patterns.md §5 (erasableSyntaxOnly forbidden set).
 language js
 
 JsDecorator() as $node where {
-  register_diagnostic(span=$node, message="decorators are not erasable — tsx/node type-stripping has no decorator runtime (runtime error), and the erasableSyntaxOnly compiler flag does NOT catch them. Use function composition / zod, not decorators. See spine/typescript-style.md §5.")
+  register_diagnostic(span=$node, message="decorators are not erasable — tsx/node type-stripping has no decorator runtime (runtime error), and the erasableSyntaxOnly compiler flag does NOT catch them. Use function composition / zod, not decorators. See Spine-TypeScript-and-Patterns.md §5.")
 }

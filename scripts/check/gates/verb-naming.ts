@@ -37,7 +37,7 @@ export const verbNaming: Check = {
         violations.push({
           file: relPath(root, path),
           line: 0,
-          message: `verb file must export ${expected}(ctx, deps?) — one verb per file, named for the file (§4/§7). Exports found: ${found.length > 0 ? found : "(none)"}.`,
+          message: `verb file must export ${expected}(ctx, deps?) — one verb per file, named for the file (Core-0-Architecture-and-Structure.md §4/§7). Exports found: ${found.length > 0 ? found : "(none)"}.`,
         });
       }
     }

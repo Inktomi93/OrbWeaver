@@ -126,7 +126,7 @@ export const schemaBranding: Check = {
         violations.push({
           file: c.file,
           line: c.line,
-          message: `${c.table}.${c.prop} is a FK to branded ${c.refTarget}.id but unbranded — the brand must flow across the FK. Add .$type<…Id>() (the target's brand), or // plain-id: <reason>.`,
+          message: `${c.table}.${c.prop} is a FK to branded ${c.refTarget}.id but unbranded — the brand must flow across the FK. Add .$type<…Id>() (the target's brand, from @orb/kit/ids), or // plain-id: <reason>.`,
         });
       }
     }

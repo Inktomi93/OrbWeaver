@@ -31,7 +31,7 @@ function checkTestCall(call: CallExpression, filePath: string): Violation | null
   return {
     file: filePath,
     line: call.getStartLineNumber(),
-    message: `stub test '${testName}' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules.`,
+    message: `stub test '${testName}' contains no assertions (expect/expectTypeOf). Tests must assert behavior, not just satisfy presence rules (Spine-Testing.md §5).`,
   };
 }
 

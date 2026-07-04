@@ -23,7 +23,7 @@ export const noCallerUserId: Check = {
           file: abs.startsWith(root) ? abs.slice(root.length + 1) : abs,
           line: id.getStartLineNumber(),
           message:
-            "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution.",
+            "`callerUserId` is forbidden (D19): the caller is `Principal.userId`; use `triggeredBy` (the responsible human) / `runAsUserId` (the funded identity). Never route the caller's id into credential/settings resolution. See Spine-Identity-and-Auth.md (turn-identity: triggeredBy vs runAsUserId; D19).",
         });
       }
     }

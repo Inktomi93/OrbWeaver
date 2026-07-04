@@ -70,7 +70,7 @@ function mirrorViolation(ctx: CheckContext, f: string, name: string): Violation 
       ? {
           file: `${SCHEMA_REL}/${f}`,
           line: 0,
-          message: `the ${name} producer (${riderProducer}) now EXISTS — its BASELINE_RIDER_PRODUCERS entry is stale; remove it so the normal producer mirror applies.`,
+          message: `the ${name} producer (${riderProducer}) now EXISTS — its BASELINE_RIDER_PRODUCERS entry is stale; remove it so the normal producer mirror applies (Tier-1-DB.md producer-names-the-schema).`,
         }
       : undefined;
   }
@@ -108,7 +108,7 @@ export const dbStructure: Check = {
           file: `${SCHEMA_REL}/${BARREL_FILE}`,
           line: 0,
           message:
-            "the schema barrel index.ts is missing — every schema file must be re-exported from it.",
+            "the schema barrel index.ts is missing — every schema file must be re-exported from it (Tier-1-DB.md).",
         },
       ];
     }

@@ -2,10 +2,10 @@
 // The DI bundle (`ctx`) type must be an EXPLICIT, hand-written interface you can read to know every
 // dep a feature closes over — NOT reflected off a builder function via `ReturnType<typeof makeCtx>`
 // (brittle, opaque, and the gateway to implicit cross-feature coupling). §7.4.
-// Refs: spine/types-and-schemas.md §7.4, spine/typescript-style.md §2.
+// Refs: Spine-TypeScript-and-Patterns.md §7.4, Spine-TypeScript-and-Patterns.md §2.
 language js
 
 `ReturnType` as $node where {
   $filename <: r".*/context\.ts$",
-  register_diagnostic(span=$node, message="`ReturnType<>` in context.ts — the DI bundle type must be an explicit, hand-written interface (read it to know the feature's deps), never reflected off a builder. Write the interface. See spine/types-and-schemas.md §7.4.")
+  register_diagnostic(span=$node, message="`ReturnType<>` in context.ts — the DI bundle type must be an explicit, hand-written interface (read it to know the feature's deps), never reflected off a builder. Write the interface. See Spine-TypeScript-and-Patterns.md §7.4.")
 }

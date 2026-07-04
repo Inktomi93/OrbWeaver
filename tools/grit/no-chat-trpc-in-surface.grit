@@ -22,7 +22,7 @@
 //             call(s) it owns. Every OTHER file mentioning the pattern is a
 //             regression — push the verb into a hook or use an existing one.
 //
-// Rationale:  docs/architecture/domains/chat.md (chat verb dispatch): "The chat
+// Rationale:  features/chat/hooks/ (chat verb dispatch — the code is the doc): "The chat
 //             surface NEVER calls trpc.chat.<verb>.
 //             mutate directly. … Adding a verb = one function in the bundle
 //             hook + one entry in the returned object." Without the lint, a
@@ -33,7 +33,7 @@
 //             (Used in the sanctioned verb-hook homes listed above; per-line
 //             with a path/justification comment.)
 //
-// Refs:       docs/architecture/domains/chat.md (chat verb dispatch).
+// Refs:       features/chat/hooks/use-chat-verbs.ts (chat verb dispatch — the code is the doc).
 // ──────────────────────────────────────────────────────────────────────────────
 //
 // GritQL note: matches the member-access path `trpc.chat.<verb>.mutationOptions`
@@ -48,5 +48,5 @@ language js
   // exactly where it belongs. Fire only on surface files (biome-2.4 $filename guard)
   // so the verb-hook homes aren't false-flagged.
   $filename <: r".*/features/[^/]+/surfaces/.*",
-  register_diagnostic(span=$node, message="trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See docs/architecture/domains/chat.md (chat verb dispatch).")
+  register_diagnostic(span=$node, message="trpc.chat.<verb>.mutationOptions outside the sanctioned verb-hook home — push the verb into features/chat/hooks/use-chat-verbs.ts (or use-chat-injection-verbs.ts / use-draft-chat-actions.ts / use-recent-chats-actions.ts depending on scope), and call the verb from this surface. See UI-Architecture-and-Layout.md §2.1 (surfaces compose; verb dispatch lives in hooks/).")
 }

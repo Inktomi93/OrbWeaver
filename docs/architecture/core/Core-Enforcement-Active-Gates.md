@@ -47,18 +47,30 @@ interfaces — matches structure §7.4), `noExcessiveCognitiveComplexity: 15`, `
 for `packages/client/**` (`info/warn/error` ok in the browser until a client logger lands) and turned
 off for `scripts/**` + `tests/**` (console is their output channel).
 
-## Layer 2 — GritQL plugins (`tools/grit/`, 23 active)
+## Layer 2 — GritQL plugins (`tools/grit/`, 35 active)
 
 AST patterns Biome rules can't express. Node matchers are **PascalCase** (`JsDecorator()`,
-`JsxAttribute()`). Full list + rationale in `tools/grit/README.md`. Server: no-raw-id,
-no-loose-id-cast, no-mint-via-cast, no-await-db-in-loop, no-raw-intl-time, no-raw-clock,
-no-if-is-group, no-context-returntype, no-decorators, no-inline-types,
-persistence-no-in-memory-state. (`no-if-is-group` flags an `if (isGroup)` / group-vs-solo branch — group-ness
-is DATA, not a branch; solo is the roster-of-1 degenerate case, byte-identical — ledger D16.) Client (live now, fire when client code lands): no-color-literals,
-no-raw-z-index, no-raw-spacing-in-features, no-raw-typography-in-features, no-chat-trpc-in-surface,
-no-direct-useform, no-form-state-in-useeffect, no-inline-optimistic-in-surface, no-layout-context-props
-(D42), plus the D44 containment trio no-untrusted-html-in-main-dom, no-external-media-without-gate,
-theme-override-only-via-scope.
+`JsxAttribute()`). The count is the `biome.json` `plugins` array (the `!**/*.grit` ignore entry is not a
+plugin); full list + rationale in `tools/grit/README.md`.
+
+- **Server / determinism / types / ids (12):** no-raw-id, no-loose-id-cast, no-mint-via-cast,
+  no-await-db-in-loop, no-raw-intl-time, no-raw-clock, no-raw-random, no-if-is-group,
+  no-context-returntype, no-decorators, no-inline-types, persistence-no-in-memory-state.
+  (`no-if-is-group` flags an `if (isGroup)` / group-vs-solo branch — group-ness is DATA, not a branch;
+  solo is the roster-of-1 degenerate case, byte-identical — ledger D16.) The determinism grits
+  (no-raw-clock, no-raw-random, no-raw-intl-time) scope over `packages/(server|client|ui)`.
+- **Client tokens / layout (7):** no-color-literals, no-raw-z-index, no-raw-spacing-in-features,
+  no-raw-typography-in-features, no-media-queries-in-features, no-raw-container-widths,
+  no-layout-context-props (D42).
+- **Client data / forms / state discipline (12):** no-chat-trpc-in-surface, no-direct-useform,
+  no-form-state-in-useeffect, no-inline-optimistic-in-surface, client-cache-surgery-only-in-data,
+  no-raw-zustand-persist, no-static-staletime, no-fake-disabled-id, chat-stream-writes-in-bus-only,
+  no-multiplexed-mutation-error, zustand-selector-stability, testid-typed-only.
+- **D44 containment trio (3):** no-untrusted-html-in-main-dom, no-external-media-without-gate,
+  theme-override-only-via-scope.
+- **kit (1):** no-manual-token-estimate (`.length / 4` hand-rolled token estimates → `@orb/kit/tokens`).
+
+Client belts are LIVE now but fire only once client code lands.
 
 ## Layer 3 — Structural gates (`scripts/check/`, ts-morph + fs)
 
@@ -85,7 +97,8 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (non-literal-seed) carries `ASSUMES(single-replica)` in its file | new (4a) |
 | `providers-runner-seal` | no `domain`/`transport`/`entry` imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — `Tier-3b-Providers.md` inv #3 | new (4b) |
 | `ui-primitive-structure` | `@orb/ui` primitive dir shape — front-door `index.ts` + the `<name>.tsx`/`variants.ts` trio + a colocated test; per BUILT primitive | new |
-| `client-structure` | `@orb/client` §2.1 feature-slice layout — front-door `index.ts` + known buckets (surfaces/anchors/components/hooks/lib; app-shell +registry/store) + no-stray-root; per BUILT feature | new |
+| `client-structure` | `@orb/client` §2.1 feature-slice layout — front-door `index.ts` + known buckets (surfaces/anchors/components/hooks/lib; app-shell +registry/store) + no-stray-root, PLUS neo rules 2/6/7: feature-name↔domain mirror (or RESERVED), per-bucket file naming (`-surface.tsx` / `use-` / anchor container-suffix), and **surface-purity** (a surface renders no outer Dialog/Sheet/Drawer — the anchor's job); per BUILT feature | new |
+| `state-files` | `@orb/client` `state/` Zustand discipline (UI-Arch §5) — a per-store top-level field cap, one store minted per file, and no exported raw store handle (intent-named actions + narrow read hooks only) | new (W1-0c) |
 | `component-size` | `@orb/client` hard file-size cap (450 default / 500 route shells); gates `.ts` + `.tsx`, exempts tests/gen/`.d.ts` — god-component sprawl can't survive a check run | neo (ported) |
 | `no-direct-users-read` | the `users` table is read/written ONLY by `sessions` + `admin`; any other domain importing the `users` symbol from `@orb/db` is RED (identity comes from the Principal — resolve-once) | new |
 | `pd-citation-integrity` | every in-code `FLAG[PD-n]` resolves to a `Core-Audits-and-Debt.md` registry row; no duplicate PD ids (the concurrent-append collision) | new |
@@ -101,14 +114,36 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `owner-role-split` | no `role === "owner"\|"admin"` comparison outside `domain/admin/guard.ts` — `can()` is the ONE privilege seam; owner ⊇ admin lives inside it (D17; the gate's founding catch fixed the auth seam's inline `isAdmin`) | new (PD-116) |
 | `bus-coverage` | every `CHAT_BUS_EVENT_TYPES` member has a server emit site OR a cited `DEFERRED` entry — a self-cleaning two-direction ratchet (missing emit RED; stale allowlist RED). Founding census: 8/26 unwired → PD-89 + PD-117 (D50) | new (PD-116) |
 | `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the PD-111-deleted `getRosterCardView` stays dead (D22) | new (PD-116/PD-111) |
+| `diagnostic-legibility` | every custom-gate + grit diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate that makes the W1-D message normalization permanent; a new gate/grit cannot regress to a bare/pointerless message | new (W1-D) |
 
-The table mirrors `scripts/check/report.ts` (31 registered gates); `report.ts` is the runtime truth.
+The table mirrors `scripts/check/report.ts` (33 registered gates); `report.ts` is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
 identically-shaped roster-of-one chats (untouched-solo config vs fully group-configured) drive ONE
 round each through the REAL engine and the wire request + persisted canon must be BYTE-identical
 (D16 "solo is a group of one"; the behavioral half of the `no-if-is-group` grit).
+
+### Layer 3 — DORMANT structural gates (built + self-tested, deliberately NOT in `ALL_CHECKS`)
+
+These gate files exist in `scripts/check/gates/` and each carries its own `tests/tooling/` self-test
+proving it fires, but are held out of `report.ts`'s `ALL_CHECKS` by decision (each finds real debt whose
+backfill rides a later wave, or gates a construct that doesn't exist yet — keeping them off preserves
+green-to-commit without hiding the debt). Activation is a one-line `ALL_CHECKS` add. **Ground truth:** the
+`DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts` (a gate is DORMANT iff it's there / absent
+from `ALL_CHECKS`).
+
+| Gate | Enforces | Activation trigger |
+| - | - | - |
+| `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | W1-1 splits `table.tsx` (461 > 450), then registers it |
+| `test-presence-client` | client `data`/`forms`/`state` primitives + non-primitive `@orb/ui` logic modules carry a test | W1-1 backfills the 8 untested client primitives, then registers it |
+| `surface-in-a-container` | a `surfaces/*.tsx` that establishes raw layout must sit in an `@orb/ui/layout` container (UI-Arch §4) | ships WITH the first real consumer surface (deferred-with-construct; app-shell shell-tier is exempt) |
+| `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
+| `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
+
+**Stale-name follow-up (`client-structure` RESERVED):** `features/corpus` mirrors no domain — the domain
+map renamed corpus→discovery (AGENTS §6). The `.gitkeep` stub should rename to `discovery` (or justify
+keeping `corpus`); tracked inline in `client-structure.ts`'s `RESERVED` comment as a doc/PD follow-up.
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 

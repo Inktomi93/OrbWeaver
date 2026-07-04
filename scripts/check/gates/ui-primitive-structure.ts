@@ -65,7 +65,7 @@ function clauseTrio(root: string): Violation[] {
         out.push({
           file: `${PRIMITIVES}/${name}/`,
           line: 0,
-          message: `missing ${required} — a styled primitive is EXACTLY {name}.tsx + index.ts + variants.ts (contract §2), or add it to the §2.4 variants-exempt allowlist.`,
+          message: `missing ${required} — a styled primitive is EXACTLY {name}.tsx + index.ts + variants.ts (UI-Primitives-and-Reuse.md §13.7), or add it to the variants-exempt allowlist.`,
         });
       }
     }
@@ -85,7 +85,7 @@ function clauseTest(root: string): Violation[] {
       out.push({
         file: `${PRIMITIVES}/${name}/`,
         line: 0,
-        message: `no co-located CT — expected tests/ui/primitives/${name}/${name}.ct.tsx (contract §4.1).`,
+        message: `no co-located CT — expected tests/ui/primitives/${name}/${name}.ct.tsx (UI-Primitives-and-Reuse.md §13.7).`,
       });
     }
   }
@@ -118,7 +118,7 @@ function clauseVariantsNaming(ctx: CheckContext): Violation[] {
       out.push({
         file: relPath(ctx.root, abs),
         line: 1,
-        message: `variants.ts must export exactly one tv() const (found ${tvExports.length}); the one styled primitive per dir owns one styling contract named ${expected} (contract §2.1).`,
+        message: `variants.ts must export exactly one tv() const (found ${tvExports.length}); the one styled primitive per dir owns one styling contract named ${expected} (UI-Primitives-and-Reuse.md §13.7).`,
       });
       continue;
     }
@@ -127,7 +127,7 @@ function clauseVariantsNaming(ctx: CheckContext): Violation[] {
       out.push({
         file: relPath(ctx.root, abs),
         line: only.getStartLineNumber(),
-        message: `tv export is '${actual}' — must be '${expected}' ({camelName}Variants, contract §2.1).`,
+        message: `tv export is '${actual}' — must be '${expected}' ({camelName}Variants, UI-Primitives-and-Reuse.md §13.7).`,
       });
     }
   }
@@ -152,7 +152,7 @@ function clauseNoLeak(ctx: CheckContext): Violation[] {
           file: relPath(ctx.root, path),
           line: exp.getStartLineNumber(),
           message:
-            "index.ts re-exports './variants' — the cva is internal; never leak it through the public front door (contract §2.2).",
+            "index.ts re-exports './variants' — the cva is internal; never leak it through the public front door (UI-Primitives-and-Reuse.md §13.7).",
         });
       }
     }
@@ -192,7 +192,7 @@ function clauseNoColorLiterals(ctx: CheckContext): Violation[] {
             file: relPath(ctx.root, path),
             line: i + 1,
             message:
-              "hardcoded color literal in a .ct.tsx — assert toHaveCSS(prop, TOKENS[path].value) instead (contract §4.2).",
+              "hardcoded color literal in a .ct.tsx — assert toHaveCSS(prop, TOKENS[path].value) instead (UI-Primitives-and-Reuse.md §13.7).",
           });
         }
       });
@@ -221,7 +221,7 @@ function clauseNoInlineProvider(ctx: CheckContext): Violation[] {
         out.push({
           file: relPath(ctx.root, sf.getFilePath()),
           line,
-          message: `inline <${tag}> in a test — global providers live in CtProviders (beforeMount); only drawer-local providers are allowlisted (contract §4.3).`,
+          message: `inline <${tag}> in a test — global providers live in CtProviders (beforeMount); only drawer-local providers are allowlisted (UI-Primitives-and-Reuse.md §13.7).`,
         });
       }
     }
@@ -249,7 +249,7 @@ function clauseNoInlineSvg(ctx: CheckContext): Violation[] {
           file: relPath(ctx.root, path),
           line,
           message:
-            "inline <svg> glyph — use the lucide seal via <Icon> from @orb/ui/icons; raw SVG is legal only in charts/** (contract §3).",
+            "inline <svg> glyph — use the lucide seal via <Icon> from @orb/ui/icons; raw SVG is legal only in charts/** (UI-Primitives-and-Reuse.md §13.7).",
         });
       }
     }
@@ -264,14 +264,14 @@ function checkModal(name: string, rel: string, has: (part: string) => boolean): 
     out.push({
       file: rel,
       line: 1,
-      message: `modal overlay '${name}' must use .Backdrop + .Popup (contract clause 8).`,
+      message: `modal overlay '${name}' must use .Backdrop + .Popup (UI-Primitives-and-Reuse.md §13.7).`,
     });
   }
   if (has("Positioner")) {
     out.push({
       file: rel,
       line: 1,
-      message: `modal overlay '${name}' must NOT have a .Positioner — modals are centered/edge-docked, not anchored (contract clause 8).`,
+      message: `modal overlay '${name}' must NOT have a .Positioner — modals are centered/edge-docked, not anchored (UI-Primitives-and-Reuse.md §13.7).`,
     });
   }
   return out;
@@ -298,7 +298,7 @@ function clauseOverlayAnatomy(ctx: CheckContext): Violation[] {
       out.push({
         file: rel,
         line: 1,
-        message: `anchored overlay '${name}' has a .Popup but no .Positioner — trigger-anchored floats need Portal→Positioner→Popup (contract clause 8).`,
+        message: `anchored overlay '${name}' has a .Popup but no .Positioner — trigger-anchored floats need Portal→Positioner→Popup (UI-Primitives-and-Reuse.md §13.7).`,
       });
     }
     if (modal) {
@@ -329,7 +329,7 @@ function clauseDataSlot(ctx: CheckContext): Violation[] {
         file: relPath(ctx.root, abs),
         line: 1,
         message:
-          'no data-slot locator — every primitive part carries data-slot="<name>-<part>" (the CT locator surface, contract §2.3).',
+          'no data-slot locator — every primitive part carries data-slot="<name>-<part>" (the CT locator surface, UI-Primitives-and-Reuse.md §13.7).',
       });
     }
   }

@@ -3,7 +3,7 @@
 // shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...])
 // for multi-statement writes, .values([...]) for bulk inserts. Skips test files (seed loops are fine).
 // Suppress WITH a reason for a deliberate serial loop (heartbeats, backpressure, per-row FK errors).
-// Refs: spine/typescript-style.md (the .d.ts/db do's), domains/* persistence notes.
+// Refs: Spine-TypeScript-and-Patterns.md §8 (the .d.ts/db do's), the domain persistence code headers.
 language js
 
 or {
@@ -22,7 +22,7 @@ or {
     $q <: r"(?s).*\b(?:db|tx)\.(?:query\.|select\b|insert\b|update\b|delete\b|run\b|execute\b|executeMultiple\b|batch\b|transaction\b).*",
     register_diagnostic(
       span = $hit,
-      message = "await on a db/tx query inside a loop — N+1 shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...]) for multi-statement writes, .values([...]) for bulk inserts. If the serialization is deliberate (heartbeats, backpressure, per-row error observation), suppress WITH the reason."
+      message = "await on a db/tx query inside a loop — N+1 shape: one round-trip per iteration. Batch it: inArray() for per-id reads, a JOIN, db.batch([...]) for multi-statement writes, .values([...]) for bulk inserts. If the serialization is deliberate (heartbeats, backpressure, per-row error observation), suppress WITH the reason. See Spine-TypeScript-and-Patterns.md §8."
     )
   }
 }

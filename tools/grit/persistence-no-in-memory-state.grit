@@ -2,7 +2,7 @@
 // file. persistence/ is QUERIES ONLY; in-memory state (caches, registries, rate-limiter maps) lives in
 // a NAMED subsystem, never smuggled into the query layer (§7 — persistence-no-in-memory-state).
 // Skips tests. Suppress only for a genuine query-local lookup table.
-// Refs: structure.md §7, domains/* persistence notes.
+// Refs: Core-0-Architecture-and-Structure.md §7, the domain persistence code headers.
 language js
 
 or {
@@ -13,5 +13,5 @@ or {
 } as $node where {
   $filename <: r".*/persistence/.*",
   $filename <: not or { r".*\.test\.tsx?$", r".*/tests/.*" },
-  register_diagnostic(span=$node, message="Map/Set constructed in a persistence/ file — persistence is queries-only; in-memory state (caches, registries) belongs in a named subsystem, not the query layer (§7). Suppress only for a genuine query-local lookup.")
+  register_diagnostic(span=$node, message="Map/Set constructed in a persistence/ file — persistence is queries-only; in-memory state (caches, registries) belongs in a named subsystem, not the query layer (Core-0-Architecture-and-Structure.md §7). Suppress only for a genuine query-local lookup.")
 }

@@ -24,7 +24,7 @@ const OWNER_ID = "ownerId";
 const EQUALITY_OPS = new Set(["==", "===", "!=", "!=="]);
 
 const COMPARE_MESSAGE =
-  "owner-equality comparison in the chat scope — chats are MEMBERSHIP-scoped (D18: chats.ownerId is DROPPED; authority = chat_participants via assertParticipant → the can() seam). The host, when needed, is LOOKED UP from the loaded roster, never compared as an owner.";
+  "owner-equality comparison in the chat scope — chats are MEMBERSHIP-scoped (D18: chats.ownerId is DROPPED; authority = chat_participants via assertParticipant → the can() seam). The host, when needed, is LOOKED UP from the loaded roster, never compared as an owner (D18 — Spine-Identity-and-Auth.md).";
 const IMPORT_MESSAGE =
   "fetchOwned/OwnedTable imported in domain/chat — chats are the MEMBERSHIP-scoped ownership category (D18's two-category split); the single-owned helpers structurally do not apply to a chat.";
 

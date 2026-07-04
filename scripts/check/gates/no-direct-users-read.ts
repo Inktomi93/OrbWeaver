@@ -1,4 +1,4 @@
-// Gate: no-direct-users-read (admin.md §"the no-direct-users-read chokepoint") — `users` is the identity
+// Gate: no-direct-users-read (Spine-Identity-and-Auth.md — resolve-once Principal; the no-direct-users-read chokepoint) — `users` is the identity
 // root every single-owned table FKs. It is read/written through exactly TWO sanctioned domains: `sessions`
 // (the resolution-path writer — validate / provisionIdentity / ensureUser) and `admin` (the user-management
 // surface). EVERY OTHER domain takes `userId` from the resolved `Principal` (via the injected context) and
@@ -14,7 +14,7 @@ const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
 const DOMAIN = /\/packages\/server\/src\/domain\//u;
 const EXEMPT = /\/packages\/server\/src\/domain\/(?:sessions|admin)\//u;
 const MESSAGE =
-  "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint, admin.md §317). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
+  "the 'users' table is read/written ONLY by domain/sessions + domain/admin (the no-direct-users-read chokepoint — Spine-Identity-and-Auth.md). Every other domain takes userId from the resolved Principal (the injected context) — never query users directly.";
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

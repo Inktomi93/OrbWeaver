@@ -115,7 +115,7 @@ function checkAliases(sf: SourceFile, rel: string, out: Violation[]): void {
     out.push({
       file: rel,
       line: alias.getStartLineNumber(),
-      message: `inline string-literal union '${alias.getName()}' (${members.length} members) — declare the axis once as a tuple (export const X = [...] as const) and derive ((typeof X)[number]). §7.5`,
+      message: `inline string-literal union '${alias.getName()}' (${members.length} members) — declare the axis once as a tuple (export const X = [...] as const) and derive ((typeof X)[number]). Spine-TypeScript-and-Patterns.md §7.5`,
     });
   }
 }
@@ -136,7 +136,7 @@ function checkRespells(
       out.push({
         file: rel,
         line: union.getStartLineNumber(),
-        message: `inline union re-spells the canonical tuple '${name}' — derive ((typeof ${name})[number]) instead of re-spelling its members. §7.5`,
+        message: `inline union re-spells the canonical tuple '${name}' — derive ((typeof ${name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`,
       });
     }
   }
@@ -147,7 +147,7 @@ function checkRespells(
       out.push({
         file: rel,
         line: call.getStartLineNumber(),
-        message: `z.enum([...]) re-spells the canonical tuple '${name}' — use z.enum(${name}). §7.5`,
+        message: `z.enum([...]) re-spells the canonical tuple '${name}' — use z.enum(${name}). Spine-TypeScript-and-Patterns.md §7.5`,
       });
     }
   }

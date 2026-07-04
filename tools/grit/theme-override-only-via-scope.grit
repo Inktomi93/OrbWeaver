@@ -4,7 +4,7 @@
 // Catches:    An inline `style={{ ... }}` that sets a `--color-*` design-token CSS
 //             variable, in packages/{client,ui}/src.
 //
-// Rationale:  D44 §12.1 — per-message/per-entity theming overrides tokens ONLY through
+// Rationale:  D44 (UI-Theming-and-Content.md §12.1) — per-message/per-entity theming overrides tokens ONLY through
 //             <ThemeScope>, which CLAMPS every value at the boundary (parse-as-color,
 //             reject url()/expression()/@import, cap length). A raw
 //             style={{ "--color-primary": userValue }} smuggles an unclamped value
@@ -28,5 +28,5 @@ JsxAttribute() as $attr where {
     r".*/packages/ui/src/content/sandbox-frame/.*"
   },
   $attr <: r"^style=.*--color-.*$",
-  register_diagnostic(span=$attr, message="inline style overriding a --color-* design token — token overrides go through <ThemeScope> (values clamped at the boundary: parse-as-color, reject url()/expression()/@import; D44 §12.1). Never set --color-* in a raw style prop.", severity="error")
+  register_diagnostic(span=$attr, message="inline style overriding a --color-* design token — token overrides go through <ThemeScope> (values clamped at the boundary: parse-as-color, reject url()/expression()/@import; D44 — UI-Theming-and-Content.md §12.1). Never set --color-* in a raw style prop.", severity="error")
 }
