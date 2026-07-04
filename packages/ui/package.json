@@ -70,6 +70,7 @@
     "./switch": "./src/primitives/switch/index.ts",
     "./table": "./src/primitives/table/index.ts",
     "./tabs": "./src/primitives/tabs/index.ts",
+    "./text": "./src/primitives/text/index.ts",
     "./textarea": "./src/primitives/textarea/index.ts",
     "./theme-scope": "./src/content/theme-scope/index.ts",
     "./toast": "./src/primitives/toast/index.ts",
