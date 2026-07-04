@@ -34,7 +34,7 @@ function fx(rel: string, content: string): void {
 function cleanFixtures(): void {
   execFileSync(
     "find",
-    ["packages", "tests", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"],
+    ["packages", "tests", "tools", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"],
     {
       cwd: ROOT,
     },
@@ -173,6 +173,9 @@ function writeFixtures(): void {
     `${D}/character/__g_mcv.ts`,
     "export interface MemberCardView {\n  readonly name: string;\n}\n",
   );
+  // diagnostic-legibility: a grit diagnostic string carrying no doc/code-home pointer (the meta-gate
+  // reads tools/grit + scripts/check/gates source, so its fixture lives there, not under packages/).
+  fx("tools/grit/__g_diaglegi.grit", 'message="a bare diagnostic with no home"\n');
 }
 
 let registry = new Set<string>();

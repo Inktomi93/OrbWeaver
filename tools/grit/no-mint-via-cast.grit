@@ -4,7 +4,7 @@
 // Mint with `mintTypeId(ID_PREFIX.x)` (TypeID) or `newId<T>()` (nanoid) from `@orb/kit/ids` so the
 // value matches its `typeIdSchema` at the wire (a raw UUID is rejected by the prefix check).
 // PRODUCTION only (tests/tooling/scripts skipped). Template-literal placeholders are NOT matched.
-// Refs: spine/typescript-style.md, the no-loose-id-cast + no-raw-id companions.
+// Refs: Spine-TypeScript-and-Patterns.md, the no-loose-id-cast + no-raw-id companions.
 language js
 
 or {
@@ -23,5 +23,5 @@ or {
     `uuidV4()`,
     `uuid()`
   },
-  register_diagnostic(span=$cast, message="castId(<generator>) MINTS an id by laundering a fresh value through the RE-BRAND helper — castId is for re-branding a value that already IS an id, NEVER for minting. Mint with mintTypeId(ID_PREFIX.x) (TypeID) or newId<T>() (nanoid) from @orb/kit/ids so the value matches typeIdSchema at the wire. See spine/typescript-style.md.", severity="error")
+  register_diagnostic(span=$cast, message="castId(<generator>) MINTS an id by laundering a fresh value through the RE-BRAND helper — castId is for re-branding a value that already IS an id, NEVER for minting. Mint with mintTypeId(ID_PREFIX.x) (TypeID) or newId<T>() (nanoid) from @orb/kit/ids so the value matches typeIdSchema at the wire. See Spine-TypeScript-and-Patterns.md.", severity="error")
 }

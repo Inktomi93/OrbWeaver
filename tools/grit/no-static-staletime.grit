@@ -8,5 +8,5 @@ language js
 
 `staleTime: "static"` as $node where {
   $filename <: not r".*\.test\.tsx?$",
-  register_diagnostic(span=$node, message="staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See UI-Lib-TanStack-Query.md §F-2 / UI-Arch §6.1.")
+  register_diagnostic(span=$node, message="staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See UI-Lib-TanStack-Query.md §F-2 / UI-Architecture-and-Layout.md §6.1.")
 }

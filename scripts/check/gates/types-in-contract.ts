@@ -27,7 +27,7 @@ export const typesInContract: Check = {
           file: relPath(root, path),
           line: 0,
           message:
-            "contract/service.ts must declare the exported <Feature>Service interface (the feature's typed API surface, §7.4).",
+            "contract/service.ts must declare the exported <Feature>Service interface (the feature's typed API surface, Spine-TypeScript-and-Patterns.md §7.4).",
         });
       }
     }

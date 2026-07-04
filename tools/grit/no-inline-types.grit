@@ -20,7 +20,7 @@
 // `if ($x) $_` arm fixed in no-if-is-group.grit — structured statements need the Js*/Ts* node primitive.
 //
 // Skips tests/tooling/scripts. Non-exported, file-local types are fine (not matched).
-// Refs: spine/types-and-schemas.md §7.4.
+// Refs: Spine-TypeScript-and-Patterns.md §7.4.
 language js
 
 or {
@@ -48,12 +48,12 @@ or {
       r".*/scripts/.*",
       r".*/tools/.*"
     },
-    register_diagnostic(span=$node, message="exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
+    register_diagnostic(span=$node, message="exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/component. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.")
   },
   TsInterfaceDeclaration() as $node where {
     $filename <: r".*/packages/server/src/domain/.*",
     $filename <: not or { r".*/contract/.*", r".*\.test\.tsx?$", r".*/tests/.*" },
     $node <: within JsExport(),
-    register_diagnostic(span=$node, message="exported interface in a domain feature outside contract/ — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/substrate. Move it to contract/ and import it. See spine/types-and-schemas.md §7.4.")
+    register_diagnostic(span=$node, message="exported interface in a domain feature outside contract/ — feature types live in the feature's contract/ (or @orb/contracts), not in a verb/service/substrate. Move it to contract/ and import it. See Spine-TypeScript-and-Patterns.md §7.4.")
   }
 }

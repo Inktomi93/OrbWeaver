@@ -59,7 +59,7 @@ export const componentSize: Check = {
         out.push({
           file: rel,
           line: cap + 1,
-          message: `${lines} lines (cap ${cap}) — split into sub-files under a bucket or extract pure logic to a hook/lib. A god-component is a §2.1 smell.`,
+          message: `${lines} lines (cap ${cap}) — split into sub-files under a bucket or extract pure logic to a hook/lib. A god-component is a UI-Architecture-and-Layout.md §2.1 smell.`,
         });
       }
     }

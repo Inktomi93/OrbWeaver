@@ -182,7 +182,7 @@ function checkFeature(dir: string, name: string, domains: Set<string>): Violatio
     out.push({
       file: rel,
       line: 0,
-      message: `'${name}' is neither a reserved UI-only slice (${[...RESERVED].join("/")}) nor a mirror of a real packages/server/src/domain/<name>. Rename it to the domain it serves, or add it to RESERVED if it's UI-only (UI-Architecture-and-Layout.md §2.1 + AGENTS §6).`,
+      message: `'${name}' is neither a reserved UI-only slice (${[...RESERVED].join("/")}) nor a mirror of a real packages/server/src/domain/<name>. Rename it to the domain it serves, or add it to RESERVED if it's UI-only (UI-Architecture-and-Layout.md §2.1 + AGENTS.md §6).`,
     });
   }
   for (const e of readdirSync(dir, { withFileTypes: true })) {

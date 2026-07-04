@@ -3,7 +3,7 @@
 // injection seam tests use for determinism. `new Date(ms)` (parsing a KNOWN timestamp) is allowed
 // (it takes an arg, so it isn't matched). Exempt: the seam (`@orb/kit/time`), the composition root
 // (`entry/`, which builds the clock), and tests/tooling/scripts.
-// Refs: spine/typescript-style.md §3, spine/testing.md §3 (determinism), tiers/entry.md (injection).
+// Refs: Spine-Testing.md §3 (determinism), Tier-5-Entry.md (injection).
 language js
 
 or {
@@ -18,5 +18,5 @@ or {
     r".*/scripts/.*",
     r".*/tools/.*"
   },
-  register_diagnostic(span=$node, message="raw Date.now() / new Date() — production reads time from the injected clock (@orb/kit/time), never ambient now (determinism: the same seam tests use). `new Date(ms)` to parse a known timestamp is fine. See spine/typescript-style.md §3.")
+  register_diagnostic(span=$node, message="raw Date.now() / new Date() — production reads time from the injected clock (@orb/kit/time), never ambient now (determinism: the same seam tests use). `new Date(ms)` to parse a known timestamp is fine. See Spine-Testing.md §3.")
 }

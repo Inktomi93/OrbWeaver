@@ -49,7 +49,7 @@ function checkRequiredSlots(featureDir: string, feature: string): Violation[] {
       violations.push({
         file: `${DOMAIN_REL}/${feature}/${file}`,
         line: 0,
-        message: `missing template file '${file}' (8-slot per-feature template)`,
+        message: `missing template file '${file}' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4)`,
       });
     }
   }
@@ -58,7 +58,7 @@ function checkRequiredSlots(featureDir: string, feature: string): Violation[] {
       violations.push({
         file: `${DOMAIN_REL}/${feature}/${dir}/`,
         line: 0,
-        message: `missing template dir '${dir}/' (8-slot per-feature template)`,
+        message: `missing template dir '${dir}/' (8-slot per-feature template, Core-0-Architecture-and-Structure.md §4)`,
       });
     }
   }
@@ -72,7 +72,7 @@ function checkLooseFiles(featureDir: string, feature: string): Violation[] {
       violations.push({
         file: `${DOMAIN_REL}/${feature}/${entry.name}`,
         line: 0,
-        message: `loose file '${entry.name}' not allowed at feature root (must be index.ts, service.ts, context.ts, guard.ts, or a domain-specific documented root file)`,
+        message: `loose file '${entry.name}' not allowed at feature root (must be index.ts, service.ts, context.ts, guard.ts, or a domain-specific documented root file — Core-0-Architecture-and-Structure.md §4)`,
       });
     }
   }

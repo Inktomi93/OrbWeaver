@@ -2,7 +2,7 @@
 // All time storage + display flows through ONE seam: `@orb/kit/time` (epoch-ms UTC everywhere,
 // rendered through one helper). Scattering Intl call sites silently drifts timezone/locale resolution.
 // Skips the seam module itself (packages/kit/src/time.ts). Suppress only by raising the seam.
-// Refs: spine/typescript-style.md, @orb/kit/time.
+// Refs: Spine-TypeScript-and-Patterns.md, @orb/kit/time.
 language js
 
 or {
@@ -10,5 +10,5 @@ or {
   `Intl.RelativeTimeFormat`
 } as $call where {
   $filename <: not r".*/packages/kit/src/time/.*",
-  register_diagnostic(span=$call, message="raw Intl.{DateTimeFormat,RelativeTimeFormat} — use @orb/kit/time (the one seam for time display + zone resolution). Time is epoch-ms UTC everywhere, rendered through one helper. See spine/typescript-style.md.")
+  register_diagnostic(span=$call, message="raw Intl.{DateTimeFormat,RelativeTimeFormat} — use @orb/kit/time (the one seam for time display + zone resolution). Time is epoch-ms UTC everywhere, rendered through one helper. See Spine-TypeScript-and-Patterns.md.")
 }

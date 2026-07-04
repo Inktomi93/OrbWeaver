@@ -282,7 +282,7 @@ function auditDescribe(call: TsMorphNode, rel: string, out: Violation[]): void {
     out.push({
       file: rel,
       line: call.getStartLineNumber(),
-      message: "describe() block has no nested test()/it() descendant",
+      message: "describe() block has no nested test()/it() descendant (Spine-Testing.md §5)",
     });
   }
 }
@@ -295,7 +295,7 @@ function auditLifecycleHook(call: TsMorphNode, rel: string, out: Violation[]): v
   out.push({
     file: rel,
     line: call.getStartLineNumber(),
-    message: `${getCalleeName(call)}() hook has empty body — delete the hook`,
+    message: `${getCalleeName(call)}() hook has empty body — delete the hook (Spine-Testing.md §5)`,
   });
 }
 
@@ -309,14 +309,14 @@ function auditTestCallback(call: TsMorphNode, rel: string, out: Violation[]): vo
     out.push({
       file: rel,
       line: call.getStartLineNumber(),
-      message: `test ${title}: no descendant expect(...).<matcher>() call — pure "doesn't throw" is not a test`,
+      message: `test ${title}: no descendant expect(...).<matcher>() call — pure "doesn't throw" is not a test (Spine-Testing.md §5)`,
     });
   }
   if (cb.isAsync() && !hasDescendantAwait(cb)) {
     out.push({
       file: rel,
       line: call.getStartLineNumber(),
-      message: `test ${title}: async callback has no AwaitExpression — drop async OR add an await`,
+      message: `test ${title}: async callback has no AwaitExpression — drop async OR add an await (Spine-Testing.md §5)`,
     });
   }
 }
@@ -352,7 +352,8 @@ export const auditClientTests: Check = {
         violations.push({
           file: rel,
           line: stmt.getStartLineNumber(),
-          message: "bare `expect(x);` with no matcher chain — assertion incomplete",
+          message:
+            "bare `expect(x);` with no matcher chain — assertion incomplete (Spine-Testing.md §5)",
         });
       }
     }

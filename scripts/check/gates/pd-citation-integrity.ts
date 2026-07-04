@@ -58,7 +58,7 @@ function orphanCitesIn(sf: SourceFile, root: string, ids: Set<string>): Violatio
       out.push({
         file: relPath(root, sf.getFilePath()),
         line: sf.getLineAndColumnAtPos(m.index).line,
-        message: `FLAG[PD-${id}] cites a Promotion-Debt id with no row in the PD registry (${REGISTRY_LABEL}) — add the row, or fix the id.`,
+        message: `FLAG[PD-${id}] cites a Promotion-Debt id with no row in the PD registry (${REGISTRY_LABEL}) — add the row in Core-Audits-and-Debt.md, or fix the id.`,
       });
     }
   }
@@ -74,7 +74,7 @@ export const pdCitationIntegrity: Check = {
       violations.push({
         file: ACTIVE_REGISTRY,
         line: 1,
-        message: `PD-${id} appears ${n}× across the PD registry (${REGISTRY_LABEL}) — each PD id is unique (active XOR cleared; renumber or de-dupe).`,
+        message: `PD-${id} appears ${n}× across the PD registry (${REGISTRY_LABEL}) — each PD id is unique (active XOR cleared; renumber or de-dupe). See Core-Audits-and-Debt.md.`,
       });
     }
     for (const sf of project.getSourceFiles()) {

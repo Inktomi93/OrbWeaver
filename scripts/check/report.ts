@@ -14,6 +14,7 @@ import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { componentSize } from "./gates/component-size.ts";
 import { dbStructure } from "./gates/db-structure.ts";
+import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
@@ -79,6 +80,7 @@ export const ALL_CHECKS: readonly Check[] = [
   ownerRoleSplit,
   busCoverage,
   memberCardClamped,
+  diagnosticLegibility,
 ];
 
 /** Per-gate JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact

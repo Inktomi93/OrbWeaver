@@ -47,7 +47,7 @@ function scanFile(rel: string, abs: string): Violation[] {
         out.push({
           file: `tests/${rel}`,
           line: index + 1,
-          message: `ambient nondeterminism: ${what}`,
+          message: `ambient nondeterminism: ${what} — inject the frozen clock / seeded ids via the fixture seam (Spine-Testing.md §3).`,
         });
       }
     }

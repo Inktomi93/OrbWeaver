@@ -24,5 +24,5 @@ JsxAttribute() as $attr where {
     r".*/packages/ui/src/content/sandbox-frame/.*"
   },
   $attr <: r"^dangerouslySetInnerHTML(?:=.*)?$",
-  register_diagnostic(span=$attr, message="dangerouslySetInnerHTML in the app DOM — untrusted HTML MUST go through <SandboxFrame> (sandboxed iframe + per-frame CSP) or the sanitized @orb/ui/markdown seal (D44 §12.2). Never inject raw HTML into the main document.", severity="error")
+  register_diagnostic(span=$attr, message="dangerouslySetInnerHTML in the app DOM — untrusted HTML MUST go through <SandboxFrame> (sandboxed iframe + per-frame CSP) or the sanitized @orb/ui/markdown seal (D44 — UI-Theming-and-Content.md §12.2). Never inject raw HTML into the main document.", severity="error")
 }

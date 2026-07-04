@@ -30,7 +30,7 @@ const TYPE_MESSAGE =
 const CLAMP_MESSAGE =
   "clamp symbol declared outside domain/chat/substrate/auth/ — clampMemberCard/resolveCardVisibility are the ONE D22 decision site (PD-111): a second clamp re-spells the visibility lattice.";
 const VERB_MESSAGE =
-  "getRosterCardView resurrected — PD-111 deleted this duplicate clamp; the sanctioned surface is the matrix's non-verb roster-card-read, served by chat over clampMemberCard.";
+  "getRosterCardView resurrected — PD-111 deleted this duplicate clamp; the sanctioned surface is the matrix's non-verb roster-card-read, served by chat over clampMemberCard (D22 — Core-Laws-and-Precedents.md §7 D22).";
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;

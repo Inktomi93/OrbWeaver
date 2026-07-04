@@ -21,7 +21,7 @@ export const commentedCode: Check = {
             file: relPath(root, sf.getFilePath()),
             line: index + 1,
             message:
-              "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code.",
+              "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (Documentation-Law.md §Code comments).",
           });
         }
       }
