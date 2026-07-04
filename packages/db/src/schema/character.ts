@@ -11,6 +11,11 @@
 // `@orb/db/kit` parse-seam. `greetings`/`regexScripts` are ALWAYS-A-LIST columns (default `[]`, never null —
 // the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file, re-import dedup) is
 // DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
+//
+// `card_evolution_proposals` (D59 — character-owned) lives in the SIBLING file
+// `character-proposals.ts`: its `chats` FK would make this file import chat.ts, which imports
+// `characters` back — the `noImportCycles` gate forbids the cycle, so the table homes in a
+// character-named leaf both can't cycle through. Ownership is unchanged (producer: domain/character).
 
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";

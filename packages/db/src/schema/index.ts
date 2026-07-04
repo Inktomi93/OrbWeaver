@@ -5,16 +5,19 @@
 //
 // `client.ts` imports this as `* as schema` to type `Db = LibSQLDatabase<typeof schema>`; the test
 // freshDb helper imports it to push the DDL. The list is ALPHABETICAL (biome's import-organize sorts it)
-// and MUST stay complete — all 20 schema files + relations. Reserved cross-cutting: users, audit,
+// and MUST stay complete — every schema file + relations. Reserved cross-cutting: users, audit,
 // relations. Wave-1 producers: everything else (currently stubs).
 
 export * from "./agent-principals";
 export * from "./assets";
 export * from "./audit";
+export * from "./automation";
 export * from "./buddy";
 export * from "./character";
+export * from "./character-proposals";
 export * from "./chat";
 export * from "./credentials";
+export * from "./crew";
 export * from "./discovery";
 export * from "./embeddings";
 export * from "./gallery";
