@@ -53,7 +53,8 @@ export const CHAT_OP_CODES = {
   /** The per-member turn/request COUNT budget is exhausted (debited in-lock). */
   budgetExceeded: "budget_exceeded",
   /** A multi-human / membership surface was reached while the deployment is in `single-user` AUTH_MODE
-   *  (the capability gate). */
+   *  (the capability gate). The DOMAIN-side (LAYER-2) discriminator — transport's LAYER-1 belt
+   *  (`multiHumanProcedure`, PD-106) refuses the documented procedures as a leak-free NOT_FOUND. */
   singleUserMode: "single_user_mode",
   /** `seatAgent` targeted an owner who is not a PRESENT human member of the room (D60, doc 04 §3 — an agent
    *  may only be seated by/for a present member; host-only surface, so a coded refusal leaks nothing). */

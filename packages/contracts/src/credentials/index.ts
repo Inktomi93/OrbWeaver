@@ -174,8 +174,8 @@ export type CustomOpenAiCredential = CredentialBrand & {
 
 /**
  * The decrypted-credential shape every provider runner consumes, discriminated by `source` and
- * brand-protected. Constructed ONLY inside `domain/credentials/verbs/resolve.ts` (+ the boot helpers
- * `mint-vllm` / `mint-local-light` / `build-keyless-catalog`). One credential = one backend = N roles.
+ * brand-protected. Constructed ONLY through the `domain/credentials/substrate/mint` factories (the
+ * turn-time `resolve` is the consumer-facing chokepoint). One credential = one backend = N roles.
  */
 export type ResolvedCredential =
   | MaxProSubCredential
