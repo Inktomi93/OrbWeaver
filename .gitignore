@@ -12,7 +12,9 @@
 *.db-wal
 *.sqlite
 *.sqlite3
-data/
+# Root-anchored: the runtime db dir ONLY. Unanchored `data/` silently ate the client's
+# `src/data/` source layer at commit time (git add skipped it; the tree shipped without it).
+/data/
 
 # --- node / pnpm ---
 node_modules/

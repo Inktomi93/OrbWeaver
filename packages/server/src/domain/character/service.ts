@@ -19,7 +19,6 @@ import { createFindByImportHash } from "./verbs/find-by-import-hash";
 import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
 import { createGet } from "./verbs/get";
 import { createGetCard } from "./verbs/get-card";
-import { createGetRosterCardView } from "./verbs/get-roster-card-view";
 import { createList } from "./verbs/list";
 import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids";
 import { createListSnapshots } from "./verbs/list-snapshots";
@@ -34,7 +33,6 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
   return {
     create: createCreate(ctx),
     get: createGet(ctx),
-    getRosterCardView: createGetRosterCardView(ctx),
     list: createList(ctx),
     update: createUpdate(ctx),
     remove: createRemove(ctx),

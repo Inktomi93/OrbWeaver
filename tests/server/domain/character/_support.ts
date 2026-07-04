@@ -6,7 +6,6 @@
 // called per owned character). Seeds the rows the verbs read (users / assets / characters) directly — a test
 // fixture may read `users`; the `no-direct-users-read` gate scopes only `packages/server/src/domain`.
 
-import type { MemberCardVisibility } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -46,7 +45,6 @@ export interface CharacterHarness {
   readonly advance: (ms: number) => void;
   /** Override the tag-attach port result (default: every call returns `true` = newly attached). */
   setTagAttachResult: (result: boolean) => void;
-  setChatMemberCardVisibility: (visibility: MemberCardVisibility) => void;
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
@@ -58,7 +56,6 @@ export function makeHarness(db: Db): CharacterHarness {
   const reaps: AssetId[][] = [];
   const tagAttaches: TagAttachArgs[] = [];
   let tagAttachResult = true;
-  let chatMemberCardVisibility: MemberCardVisibility = "sheet";
 
   const ctx: CharacterContext = {
     db,
@@ -81,9 +78,6 @@ export function makeHarness(db: Db): CharacterHarness {
       tagAttaches.push(args);
       return Promise.resolve(tagAttachResult);
     },
-    requireParticipant: (): Promise<void> => Promise.resolve(),
-    getChatMemberCardVisibility: (): Promise<MemberCardVisibility> =>
-      Promise.resolve(chatMemberCardVisibility),
   };
 
   return {
@@ -95,9 +89,6 @@ export function makeHarness(db: Db): CharacterHarness {
     advance: (ms: number): void => clock.advance(ms),
     setTagAttachResult: (result: boolean): void => {
       tagAttachResult = result;
-    },
-    setChatMemberCardVisibility: (visibility: MemberCardVisibility): void => {
-      chatMemberCardVisibility = visibility;
     },
   };
 }

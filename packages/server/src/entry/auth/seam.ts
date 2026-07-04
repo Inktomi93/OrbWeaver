@@ -26,6 +26,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { requireAdmin } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
 import type {
   AuthConfig,
@@ -208,7 +209,13 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   async function isAdmin(headers: Headers): Promise<boolean> {
     try {
       const { principal } = await resolvePrincipal(headers);
-      return principal !== null && (principal.role === "owner" || principal.role === "admin");
+      if (principal === null) {
+        return false;
+      }
+      // Route the verdict through the ONE privilege seam (spine invariant #6 — `can()` is the only
+      // role-comparison site; owner ⊇ admin lives inside it, never re-spelled here). Throw = deny.
+      requireAdmin(principal);
+      return true;
     } catch {
       // Never throw upward from the debug gate — a resolver/db error fails closed (not admin).
       return false;

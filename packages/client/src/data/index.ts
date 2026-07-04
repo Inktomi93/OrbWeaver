@@ -1,0 +1,23 @@
+// data/ front door — the Query/tRPC layer (UI-Arch §2.1): the typed client + options proxy, the
+// pinned QueryClient, the central invalidation seam, the bus reducer + adapter, and the three
+// factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
+
+export type { ChatBusDeps } from "./bus/index";
+export { applyChatBusEvent, useChatBus } from "./bus/index";
+export type {
+  CollectionSelection,
+  CollectionSurface,
+  CollectionSurfaceConfig,
+} from "./create-collection-surface";
+export { createCollectionSurface } from "./create-collection-surface";
+export type { EntityMutationConfig, EntityMutationResult } from "./create-entity-mutation";
+export { createEntityMutation } from "./create-entity-mutation";
+export type { InvalidateFilter, Invalidation } from "./invalidation";
+export { createInvalidation } from "./invalidation";
+export type { QueryBoundaryProps } from "./query-boundary";
+export { QueryBoundary } from "./query-boundary";
+export type { AppMeta } from "./query-client";
+export { createAppQueryClient } from "./query-client";
+export type { Trpc } from "./trpc";
+export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc";
+export { useGatedQuery } from "./use-gated-query";

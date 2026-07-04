@@ -101,11 +101,6 @@ export interface FindGroupCharParams {
   readonly chatId: ChatId;
 }
 
-export interface GetRosterCardViewParams extends CharacterActorParams {
-  readonly chatId: ChatId;
-  readonly characterId: CharacterId;
-}
-
 /** Re-import dedup lookup (import-injected, internal): the owner's character already carrying `importHash`,
  *  acting on the resolved `ownerId` (not a request principal — the synthetic-find precedent). */
 export interface FindByImportHashParams {
