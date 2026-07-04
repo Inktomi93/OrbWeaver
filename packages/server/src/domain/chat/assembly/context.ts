@@ -387,6 +387,10 @@ function buildBaseContext(
     speaker: { kind: "single", character },
     recentMessages: [...input.recentMessages],
     variableValues: input.variableValues,
+    // D46 runtime plane: ONE fresh op-log per assembly, threaded BY REFERENCE (like `variableValues`) into every
+    // macro context so a `{{setvar}}` in ANY section / regex template / guided template this turn is recorded.
+    // After the turn the engine flushes it to the produced variant's `variable_delta`.
+    opLog: [],
     generationType: input.generationType ?? "normal",
   };
   setIf(base, "roomOverrides", input.roomOverrides);

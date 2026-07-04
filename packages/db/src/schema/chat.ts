@@ -66,6 +66,7 @@ import type {
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
@@ -147,6 +148,11 @@ export const chats = sqliteTable(
     // `getStoredVariables` reads it. A `{{var}}`→value map; typed JSON, parsed at the `@orb/db/kit` read
     // seam. Nullable (no variables flushed yet).
     variableValues: text("variable_values", { mode: "json" }).$type<Record<string, string>>(),
+    // DERIVED RUNTIME CACHE (D46 runtime plane): the O(1) materialization of `foldVarOps` over the selected-
+    // variant chain's `message_variants.variable_delta`. Recomputed on every mutating event (turn commit / swipe
+    // select / delete / fork); NOT authored directly. Distinct from `variableValues` (the config-plane store) —
+    // the assembly env seed overlays THIS over the resolved config picks. Typed JSON; nullable (nothing folded yet).
+    runtimeVariables: text("runtime_variables", { mode: "json" }).$type<Record<string, string>>(),
     // Import provenance: the source `.jsonl` filename a chat was imported from (null for a born-here chat).
     importedFrom: text("imported_from"),
     // SHA-256 of the import bytes — the idempotent re-import key (a re-import of identical bytes is a
@@ -259,6 +265,11 @@ export const messageVariants = sqliteTable(
     // window is open; the wire seams + the domain-owned recurse loop that WRITE it remain (registry: PD-54
     // ready). Nullable JSON, parsed at the read seam with `toolCallRecordSchema` (never cast).
     toolCalls: text("tool_calls", { mode: "json" }).$type<readonly ToolCallRecord[]>(),
+    // D46 runtime plane — the ordered variable ops THIS variant applied (`{{setvar}}`/`{{incvar}}`/…). The chat
+    // domain folds these along the selected-variant chain (`foldVarOps`) into `chats.runtime_variables`, so a
+    // swipe/fork rewinds by re-folding (derive-don't-stamp — avoids the ST swipe-clobber issue #3263). Nullable JSON,
+    // parsed at the read seam with `variableDeltaSchema` (never cast); absent/null ⇒ this variant mutated no vars.
+    variableDelta: text("variable_delta", { mode: "json" }).$type<readonly VarOp[]>(),
     // The recorded generation params (D26 `params (UserIntent)`) — typed JSON, parsed at the read seam.
     params: text("params", { mode: "json" }).$type<UserIntent>(),
     // The per-variant assembled-prompt snapshot (D26 — now works per swipe).

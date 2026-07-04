@@ -18,7 +18,11 @@
 //     null — a truncated fork must not carry a summary covering trimmed-away turns).
 
 import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import {
+  DEFAULT_GROUP_CONFIG,
+  DEFAULT_ROOM_OVERRIDES,
+  variableDeltaSchema,
+} from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -40,6 +44,7 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
 /** The collaborators not on `ChatContext` (the second factory arg — the invites.ts precedent). `emit` is the
@@ -222,6 +227,17 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       source.compactedAtSeq !== null &&
       (throughSeq === undefined || source.compactedAtSeq <= throughSeq);
 
+    // D46 runtime plane: the fork's runtime cache = the FOLD of the COPIED selected-variant chain (recomputed
+    // from the possibly-TRUNCATED `slots` — a partial fork must not claim the source's full-chain cache). The
+    // config picks copy via `variableValues` above; the runtime state re-derives here (derive-don't-stamp).
+    const forkRuntimeCache = foldChain(
+      slots.map((s) => {
+        const selected = variants.find((v) => v.id === s.selectedVariantId);
+        const parsed = variableDeltaSchema.safeParse(selected?.variableDelta);
+        return { seq: s.seq, delta: parsed.success ? parsed.data : [] };
+      }),
+    );
+
     const forker = roster.find((r) => r.userId === principal.userId);
     const participantRows: (typeof chatParticipants.$inferInsert)[] = [
       {
@@ -265,6 +281,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           compactedAtSeq: keepCheckpoint ? source.compactedAtSeq : null,
           metadata: source.metadata,
           variableValues: variables,
+          runtimeVariables: Object.keys(forkRuntimeCache).length > 0 ? forkRuntimeCache : null,
           createdAt: now,
           updatedAt: now,
         }),

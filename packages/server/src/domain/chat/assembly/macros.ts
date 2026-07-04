@@ -120,6 +120,10 @@ function macroOptionsFor(
   setIf(opts, "model", extras.model);
   setIf(opts, "chatId", extras.chatId);
   setIf(opts, "onWarn", extras.onWarn);
+  // D46 runtime plane: thread the SAME per-assembly op-log (by reference) into every macro context so the
+  // mutation handlers record this turn's `{{setvar}}`/`{{incvar}}` ops onto it. Absent ⇒ no recording (a
+  // preview/hand-built ctx with no opLog just mutates `env`).
+  setIf(opts, "opLog", ctx.opLog);
   return opts;
 }
 
