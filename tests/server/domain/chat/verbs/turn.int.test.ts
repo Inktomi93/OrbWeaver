@@ -1,8 +1,8 @@
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL
 // engine via `createTurnEngine`). Proves the wiring: identity triple → connection → ONE assemble ctx →
-// arbitrate → driveRound; the group round (N speakers), @mention force, auto-mode chaining, simpleSend's solo
-// path, host-only force, abort's owner-only refusal, and the `can()` default-deny. Determinism: frozen clock,
-// seeded prng, no-op delay (D46) — no ambient clock / RNG.
+// arbitrate → driveRound; the group round (N speakers), @mention force, auto-mode chaining, send's solo
+// (roster-of-1) path, host-only force, abort's owner-only refusal, and the `can()` default-deny. Determinism:
+// frozen clock, seeded prng, no-op delay (D46) — no ambient clock / RNG.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
@@ -300,6 +300,67 @@ describe("send — presence cast-gating (PD-70)", () => {
   });
 });
 
+describe("send / impersonate — persona attribution fallback (PD-100)", () => {
+  /** Seed a solo room whose host carries an ACTIVE persona (+ a spare persona for the explicit-wins arm). */
+  async function seedPersonaRoom(): Promise<{
+    host: UserId;
+    chatId: ChatId;
+    hostPersona: PersonaId;
+    spare: PersonaId;
+    names: Record<string, string>;
+  }> {
+    const host = await seedUser(db, "host");
+    const hostPersona = await seedPersona(host, "host_pov");
+    const spare = await seedPersona(host, "spare_pov");
+    const chatId = await seedChat(db, "a", {
+      metadata: { group: { output: "per-speaker", policy: "natural" } },
+    });
+    await seedParticipant(db, {
+      chatId,
+      key: "h",
+      userId: host,
+      role: "host",
+      activePersonaId: hostPersona,
+    });
+    const cid = await seedCharacter(db, host, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: cid, joinSeq: 0 });
+    return { host, chatId, hostPersona, spare, names: { [cid]: "aria" } };
+  }
+
+  test("an OMITTED personaId stamps the participant's activePersonaId (send + impersonate)", async () => {
+    const { host, chatId, hostPersona, names } = await seedPersonaRoom();
+    const h = harness(db, names);
+
+    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    expect(sent.messages[0]?.personaId).toBe(hostPersona);
+
+    const imp = await h.turn.impersonate({ principal: principal(host), chatId });
+    expect(imp.messages[0]?.role).toBe("user");
+    expect(imp.messages[0]?.personaId).toBe(hostPersona);
+  });
+
+  test("an EXPLICIT personaId wins over the active persona; an explicit null stays null", async () => {
+    const { host, chatId, spare, names } = await seedPersonaRoom();
+    const h = harness(db, names);
+
+    const explicit = await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "hi",
+      personaId: spare,
+    });
+    expect(explicit.messages[0]?.personaId).toBe(spare);
+
+    const nulled = await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "again",
+      personaId: null,
+    });
+    expect(nulled.messages[0]?.personaId).toBeNull();
+  });
+});
+
 describe("send — the group round (N speakers via driveRound)", () => {
   test("a list-policy 2-character room commits one assistant per speaker, in order", async () => {
     const { host, chatId, chars, names } = await seedRoom("list", ["aria", "bryn"]);
@@ -393,12 +454,12 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
   });
 });
 
-describe("simpleSend — the byte-identical solo path", () => {
+describe("send — a solo room drives exactly ONE speaker (PD-95: the deleted simpleSend was byte-identical)", () => {
   test("commits the user row + one assistant for the primary character", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.simpleSend({ principal: principal(host), chatId, content: "yo" });
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "yo" });
 
     expect(outcome.messages).toHaveLength(2);
     expect(outcome.messages[1]?.role).toBe("assistant");
@@ -600,7 +661,7 @@ describe("impersonate — a model-generated role:user slot (D26)", () => {
 });
 
 describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () => {
-  test("commits while a foreign lock is held; a locked send is refused on the same chat", async () => {
+  test("commits while a foreign lock is held; a locked send yields its round on the same chat", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
     await tryAcquireLock(db, {
@@ -610,10 +671,13 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
       expiresAt: FROZEN_AT + 60_000,
     });
 
-    // A locked path (simpleSend → the engine acquires the lock) is refused…
-    await expect(
-      h.turn.simpleSend({ principal: principal(host), chatId, content: "blocked" }),
-    ).rejects.toMatchObject({ code: "locked" });
+    // A locked round path (send → the engine acquires the per-speaker lock) YIELDS the round (§6 — a
+    // human send interleaved): the user row commits, the speaker turn is refused by the lock, driveRound
+    // stops with what committed so far. (The deleted simpleSend hit the engine directly and REJECTED
+    // `locked` — the round path's yield is the production behavior; PD-95.)
+    const locked = await h.turn.send({ principal: principal(host), chatId, content: "blocked" });
+    expect(locked.messages).toHaveLength(1);
+    expect(locked.messages[0]?.role).toBe("user");
 
     // …but the lock-free generate commits concurrently.
     const outcome = await h.turn.generate({ principal: principal(host), chatId });

@@ -7,8 +7,11 @@
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, ne } from "drizzle-orm";
 import { assertForcedCharacterMember } from "./participant";
+
+/** How many rows an existence probe needs. */
+const LIMIT_ONE = 1;
 
 type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
@@ -25,6 +28,32 @@ export async function loadRoster(
     ? base.where(eq(chatParticipants.chatId, chatId))
     : base.where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
   return await scoped.orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+}
+
+/**
+ * Does this character hold a `chat_participants` seat in any OTHER chat? The PD-96 first-chat existence
+ * probe: `startChat` asks it BEFORE the new room's roster rows commit, so `false` ⇒ this creation is the
+ * character's FIRST chat (`StatsDelta.newCharacter`). PAST seats count (`leftSeq` is NOT filtered) — the
+ * stats rebuild's per-character chat aggregation joins `chat_participants` without a presence filter, and
+ * the live delta must mirror the rebuild (the drift-gate contract). `excludeChatId` is a belt: at the
+ * `startChat` call site the new room's rows are not yet inserted.
+ */
+export async function characterSeatedInAnotherChat(
+  db: Db,
+  characterId: CharacterId,
+  excludeChatId: ChatId,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: chatParticipants.id })
+    .from(chatParticipants)
+    .where(
+      and(
+        eq(chatParticipants.characterId, characterId),
+        ne(chatParticipants.chatId, excludeChatId),
+      ),
+    )
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
 }
 
 /**

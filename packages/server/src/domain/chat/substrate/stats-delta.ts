@@ -360,16 +360,20 @@ export function swipeVariantDelta(params: {
  * owner/day grains are exact either way (one delta cannot bump per-char chats for N characters without
  * over-bumping the owner's — the same field drives both grains). Owner-attribution itself is exact: v1
  * enforces single-owner-per-chat (roster characters are host-owned — see rebuild-from-canon.ts header).
+ *
+ * @remarks `newCharacter` (PD-96) is `true` when this creation is the PRIMARY character's FIRST chat
+ *  (the `characterSeatedInAnotherChat` existence probe): bumps `owner_stats.characters` by 1. A fork is
+ *  never a first chat (the parent seats the same cast) — it passes `false`. Additional first-chat
+ *  founding characters ride one {@link newCharacterDelta} each (the contract's `newCharacter` is a
+ *  boolean, so N first-timers need N deltas).
  */
 export function chatCreatedDelta(params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId | null;
   readonly forked: boolean;
+  readonly newCharacter: boolean;
   readonly now: number;
 }): StatsDelta {
-  // FLAG[PD-96]: this is the first-chat site, but the delta omits `newCharacter`, so live
-  // `owner_stats.characters` never increments — it stays 0 until a reconcile. Wiring it needs a
-  // "first chat for this character?" existence check (here or in start-chat) before setting newCharacter.
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
@@ -379,8 +383,32 @@ export function chatCreatedDelta(params: {
     chats: 1,
     chatsCreated: 1,
     ...(params.forked ? { forkedChats: 1 } : {}),
+    ...(params.newCharacter ? { newCharacter: true } : {}),
     firstAt: params.now,
     lastAt: params.now,
+    now: params.now,
+  };
+}
+
+/**
+ * The first-chat contribution of ONE additional founding character beyond the primary (PD-96): a pure
+ * `owner_stats.characters` +1 rider on the creation batch. `characterId` is deliberately null — the
+ * rebuild mints a `character_stats` row only for characters with canon messages, so a per-char zero row
+ * here would be manufactured drift; the owner grain is the only live-counted surface (`newCharacter` —
+ * stats esoteric #10). The rebuild's `owner_stats.characters` counts ALL owned characters, so a
+ * chat-less character stays live-uncounted until a reconcile (the documented, accepted caveat).
+ */
+export function newCharacterDelta(params: {
+  readonly ownerId: UserId;
+  readonly now: number;
+}): StatsDelta {
+  return {
+    ownerId: params.ownerId,
+    characterId: null,
+    day: utcDay(params.now),
+    model: null,
+    provider: null,
+    newCharacter: true,
     now: params.now,
   };
 }

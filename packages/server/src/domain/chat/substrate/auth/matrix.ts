@@ -68,7 +68,6 @@ export const CHAT_VERB_AUTHORITY = {
   swipe: "member",
   impersonate: "member",
   generate: "member",
-  simpleSend: "member",
   continueTurn: "member",
   undoContinue: "member",
   revertContinue: "member",

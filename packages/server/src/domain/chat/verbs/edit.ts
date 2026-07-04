@@ -22,10 +22,13 @@
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { RegexPlacement } from "@orb/kit/regex";
+import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
+import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   ClearReasoningParams,
   DeleteMessagesParams,
@@ -62,16 +65,22 @@ import {
   loadVariantMessageId,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { gatherAssembleContext } from "../substrate/assemble-gather";
+import { buildTurnMacroContext } from "../substrate/assembly-access";
 import { assertAuthorOrHost } from "../substrate/auth";
+import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
 /** The emit op the edit verbs close over (inlined — the file header `types-in-contract` note). */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 
-/** The collaborators not on `ChatContext` (the second factory arg — the roster.ts/turn.ts precedent). */
+/** The collaborators not on `ChatContext` (the second factory arg — the roster.ts/turn.ts precedent).
+ *  `resolveForeignInputs` (the SAME seam the turn path uses — contract/foreign.ts) backs the PD-110
+ *  runOnEdit re-apply ONLY: `editMessage` needs the host-global + chat-preset regex sources. */
 interface EditDeps {
   readonly emit: EmitChatEvent;
+  readonly resolveForeignInputs: ResolveForeignInputsOp;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns (the bundle the root spreads in). */
@@ -116,38 +125,105 @@ async function reloadSlot(
   return view;
 }
 
-/** Resolve the speaking character's name for the canon-purity strip (the trusted `Name:` label is
- *  out-of-band; a manual edit must not bake a leaked self-label into canon). The card reads under the room
- *  HOST's ownership (D28/D16); a hostless room / null card degrades to `""` (the strip becomes a tag-only
- *  no-op — never an error, never a wrong-name strip). */
-async function resolveSpeakerName(
-  ctx: ChatContext,
-  chatId: ChatId,
-  characterId: CharacterId,
-): Promise<string> {
-  const roster = await loadRoster(ctx.db, chatId);
-  const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
-  if (hostUserId === null) {
-    return "";
-  }
-  const card = await ctx.getCard({ ownerId: hostUserId, characterId });
-  return card?.name ?? "";
-}
-
 /** The D26 canon-purity strip at persist: a per-speaker assistant edit drops a leaked leading
- *  `<speaker>`/`Name:` self-label so stored canon stays the spoken text only. Applied ONLY to a character-
- *  voiced slot; a user/system row (no `characterId`) keeps its content verbatim. */
+ *  `<speaker>`/`Name:` self-label so stored canon stays the spoken text only (the trusted `Name:` label is
+ *  out-of-band). Applied ONLY to a character-voiced slot; a user/system row (no `characterId`) keeps its
+ *  content verbatim. The card reads under the caller-resolved room HOST (D28/D16); a hostless room / null
+ *  card degrades to `""` (the strip becomes a tag-only no-op — never an error, never a wrong-name strip). */
 async function purifyEditedContent(
   ctx: ChatContext,
-  chatId: ChatId,
-  slot: MessageView,
-  content: string,
+  args: {
+    readonly hostUserId: UserId | null;
+    readonly slot: MessageView;
+    readonly content: string;
+  },
 ): Promise<string> {
-  if (slot.characterId === null) {
-    return content;
+  if (args.slot.characterId === null || args.hostUserId === null) {
+    return args.content;
   }
-  const name = await resolveSpeakerName(ctx, chatId, slot.characterId);
-  return stripSelfSpeakerLabel(content, name);
+  const card = await ctx.getCard({
+    ownerId: args.hostUserId,
+    characterId: args.slot.characterId,
+  });
+  return stripSelfSpeakerLabel(args.content, card?.name ?? "");
+}
+
+/** The RECEIVE-tier placement an edited slot's role re-runs (ST semantics — PD-110): an assistant edit
+ *  re-applies AI_OUTPUT, a user edit USER_INPUT. A system slot has no edit-tier leg (null ⇒ no re-apply). */
+function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
+  if (role === "assistant") {
+    return "AI_OUTPUT";
+  }
+  return role === "user" ? "USER_INPUT" : null;
+}
+
+/**
+ * PD-110 (runOnEdit): re-run the host-tier RECEIVE regex, filtered to `runOnEdit === true`, on an edited
+ * slot's content BEFORE persist. The script set is the SAME D53 union a turn resolves — host-global ∪
+ * chat-preset ∪ present cast (`resolveHostTierRegexScripts`), sourced through the turn seams: the FOREIGN
+ * half via `deps.resolveForeignInputs` under the room HOST (D19 — host-tier means the HOST's scripts) and
+ * the cast cards via roster + `ctx.getCard` (the assemble-gather cast source). Two-phase so the no-script
+ * common case stays cheap: only when a `runOnEdit` script exists is the full assemble ctx gathered
+ * (`gatherAssembleContext` — the HONEST replace-template macro env: real character/cast/canon/variables,
+ * never an empty lying ctx). Edit-path macro notes: `{{model}}` = the slot's recorded generation model
+ * (`""` for a never-generated user slot — an edit resolves no connection); `{{user}}` = the EDITOR's active
+ * persona; no PRNG is threaded (stable resolution, the preview posture — an edit must not draw `randomPick`).
+ * Execution rides `ctx.applyRegexReplace` (the D53 node:vm ReDoS watchdog); a throwing/over-complex script
+ * is skipped by the engine's per-script catch and the content survives unchanged.
+ */
+async function applyRunOnEditRegex(
+  ctx: ChatContext,
+  deps: EditDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly slot: MessageView;
+    readonly roster: Awaited<ReturnType<typeof loadRoster>>;
+    readonly hostUserId: UserId | null;
+    readonly anchorPersonaId: PersonaId | null;
+    readonly editorPersonaId: PersonaId | null;
+    readonly content: string;
+  },
+): Promise<string> {
+  const placement = editPlacementFor(args.slot.role);
+  if (placement === null || args.hostUserId === null) {
+    return args.content;
+  }
+  const { chatId, hostUserId } = args;
+  const model = args.slot.model ?? "";
+  const castCharacterIds = args.roster.flatMap((r) =>
+    r.kind === "character" && r.characterId !== null ? [r.characterId] : [],
+  );
+  const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
+  const foreign = await deps.resolveForeignInputs({
+    chatId,
+    runAsUserId: hostUserId,
+    model,
+    anchorPersonaId: args.anchorPersonaId,
+    personaIds,
+  });
+  const cards = await Promise.all(
+    castCharacterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })),
+  );
+  const scripts = resolveHostTierRegexScripts({
+    hostGlobal: foreign.globalRegexScripts,
+    preset: foreign.promptConfig.regexScripts,
+    cast: cards.flatMap((card) => (card !== null ? [card] : [])),
+  }).filter((script) => script.runOnEdit === true);
+  if (scripts.length === 0) {
+    return args.content;
+  }
+  const assembleContext = await gatherAssembleContext(
+    ctx,
+    { chatId, runAsUserId: hostUserId, model, castCharacterIds, personaIds },
+    foreign,
+  );
+  return executeRegexScripts({
+    text: args.content,
+    scripts,
+    placement,
+    ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId }),
+    applyReplace: ctx.applyRegexReplace,
+  });
 }
 
 /** The stats OWNER for a canon mutation — the room HOST (D19: the host's box funds/owns the canon; the
@@ -199,14 +275,28 @@ function createSelectVariant(ctx: ChatContext, emit: EmitChatEvent): ChatService
 
 // ── editMessage (D26 — mutate the SELECTED variant's content; the slot is unchanged) ─────────────────────────
 /** `editMessage` — author-or-host. Overwrite the SELECTED variant's content in place (D26 — never doubles
- *  content) + stamp `editedAt`; the per-speaker canon-purity strip runs first. Emits `messageEdited`.
- *  FLAG[PD-110]: `runOnEdit` regex-on-edit is unwired here — only `purifyEditedContent` (the self-label
- *  strip) runs before the verbatim write; the edited content never re-applies a `runOnEdit` regex. */
-function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["editMessage"] {
+ *  content) + stamp `editedAt`. Persist order: the per-speaker canon-purity strip, THEN the PD-110
+ *  `runOnEdit` RECEIVE-tier regex re-apply ({@link applyRunOnEditRegex} — assistant slot ⇒ AI_OUTPUT, user
+ *  slot ⇒ USER_INPUT), then the write — canon-mutating at write, so the stored row IS the post-regex text.
+ *  Emits `messageEdited`. */
+function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editMessage"] {
   return async ({ principal, chatId, messageId, content }: EditMessageParams) => {
     const slot = await loadSlotInChat(ctx, chatId, messageId);
-    await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
-    const clean = await purifyEditedContent(ctx, chatId, slot, content);
+    const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
+    // ONE roster read feeds the purify card lookup, the runOnEdit cast/host resolution, AND the stats
+    // owner (D19 — the host; a hostless archived orphan degrades to the caller so the delta never drops).
+    const roster = await loadRoster(ctx.db, chatId);
+    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
+    const clean = await applyRunOnEditRegex(ctx, deps, {
+      chatId,
+      slot,
+      roster,
+      hostUserId,
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      editorPersonaId: membership.activePersonaId,
+      content: purified,
+    });
     const now = ctx.now();
     const statements = editMessageContentStatements(ctx.db, {
       messageId,
@@ -220,7 +310,7 @@ function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
       statements,
       ctx.db,
       editMessageDelta({
-        ownerId: await resolveStatsOwner(ctx, chatId, principal.userId),
+        ownerId: hostUserId ?? principal.userId,
         characterId: slot.characterId,
         role: slot.role,
         createdAt: slot.createdAt,
@@ -231,7 +321,7 @@ function createEditMessage(ctx: ChatContext, emit: EmitChatEvent): ChatService["
     );
     await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
-    await emit({ type: "messageEdited", chatId, messageId, view });
+    await deps.emit({ type: "messageEdited", chatId, messageId, view });
     return view;
   };
 }
@@ -551,7 +641,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   const { emit } = deps;
   return {
     selectVariant: createSelectVariant(ctx, emit),
-    editMessage: createEditMessage(ctx, emit),
+    editMessage: createEditMessage(ctx, deps),
     setMessageHidden: createSetMessageHidden(ctx, emit),
     deleteMessages: createDeleteMessages(ctx, emit),
     editReasoning: createEditReasoning(ctx, emit),

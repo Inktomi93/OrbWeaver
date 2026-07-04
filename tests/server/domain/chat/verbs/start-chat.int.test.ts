@@ -140,10 +140,42 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     const created = deltas.find((d) => d.chats === 1);
     expect(created?.chatsCreated).toBe(1);
     expect(created?.characterId).toBe(aria);
+    // PD-96: the character's FIRST chat live-counts it (owner_stats.characters bumps via newCharacter).
+    expect(created?.newCharacter).toBe(true);
     const greeting = deltas.find((d) => d.assistantTurns === 1);
     expect(greeting?.characterId).toBe(aria);
     expect(greeting?.assistantWords).toBe(3);
     expect(new Set(deltas.map((d) => d.ownerId))).toEqual(new Set([host]));
+  });
+
+  test("PD-96: a SECOND chat with the same character does NOT re-count it; a fresh co-founder rides its own newCharacter delta", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const bryn = await seedCharacter(db, host, "bryn");
+    const deltas: StatsDelta[] = [];
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "")),
+      applyStatsDelta: (_b, _d, delta) => {
+        deltas.push(delta as StatsDelta);
+      },
+    });
+    const { startChat } = createStartChat(ctx, makeDeps());
+
+    // Chat 1 seats aria (her first chat — asserted above); chat 2 re-seats her + founds bryn.
+    await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+    deltas.length = 0;
+    await startChat({ principal: principal(host), characterIds: [aria, bryn], opening: "none" });
+
+    // The created delta (primary = aria, already chatted) carries NO newCharacter; bryn's first chat
+    // rides one owner-grain newCharacterDelta (characterId null — no manufactured character_stats row).
+    expect(deltas).toHaveLength(2);
+    const created = deltas.find((d) => d.chats === 1);
+    expect(created?.characterId).toBe(aria);
+    expect(created?.newCharacter).toBeUndefined();
+    const brynFirst = deltas.find((d) => d.newCharacter === true);
+    expect(brynFirst?.characterId).toBeNull();
+    expect(brynFirst?.chats).toBeUndefined();
+    expect(brynFirst?.ownerId).toBe(host);
   });
 });
 
