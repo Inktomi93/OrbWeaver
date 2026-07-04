@@ -152,9 +152,12 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: strin
   return value;
 }
 
-/** transformers.js `RawImage.read` accepts a path/URL string or a `Blob`; wrap raw bytes in a `Blob`. */
+/** transformers.js `RawImage.read` accepts a path/URL string or a `Blob`; wrap raw bytes in a `Blob`.
+ *  `Uint8Array.from` re-allocates onto a plain `ArrayBuffer` — the DOM lib's `BlobPart` rejects a
+ *  `SharedArrayBuffer`-backed view, and this file is type-traversed under the client's DOM libs too
+ *  (a type-only AppRouter chain), so the copy keeps both lib worlds green. */
 function toImageSource(image: ImageInput): string | Blob {
-  return typeof image === "string" ? image : new Blob([image]);
+  return typeof image === "string" ? image : new Blob([Uint8Array.from(image)]);
 }
 
 /** Try `build(device)`; on failure with a non-CPU device, warn and retry once on CPU — the GPU-less

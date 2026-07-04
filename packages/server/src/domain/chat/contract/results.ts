@@ -21,9 +21,11 @@ import type {
   TurnAbortReason,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
+import type { ChatRoster } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
 import type { ChatDetail, ChatVariables } from "./views";
 
 // The public lifecycle-intent axis (5; bus events) + the abort-reason axis stay their ONE home in
@@ -112,7 +114,10 @@ export type TurnPersist =
  *  → content-parts) is NOT yet homed cross-package — this is the pre-D45 text shape; the engine chunk
  *  extends it to content-parts when D45 lands (FLAGGED). */
 export interface TurnMessage {
-  readonly role: MessageRole;
+  /** The WIRE role axis (`user|assistant|tool` — the infra `HistoryRole`, one home): `tool` exists only
+   *  on a materialized tool-exchange row the D48 loop appends (tool-use-design/03 §2); persisted slot
+   *  roles never carry it. */
+  readonly role: HistoryRole;
   /** The send-path content (D45): a content-part array produced ONCE at the engine REQUEST seam by tokenizing
    *  the shaped string body + resolving embedded image refs (asset→CAS URL, external→gated). A text-only turn
    *  is a one-element `[{type:"text"}]` (byte-identical to the pre-D45 string path); a non-vision model never
@@ -143,6 +148,11 @@ export interface TurnRequest {
   /** The §8 rolling-pair cache breakpoint offset from the tail (computed in SHAPE; the runner only PLACES
    *  the `cache_control` tag here). Null ⇒ no safe boundary this round. */
   readonly cacheBreakpointFromEnd: number | null;
+  /** The D48 wire tools — ABSENT (never `[]`) on a tool-less turn, so the request stays byte-identical
+   *  to pre-D48 (the loop sets these from the resolved set; tool-use-design/02 §2). */
+  readonly tools?: readonly WireTool[] | undefined;
+  /** Set WITH `tools` by the loop (`{mode:"auto"}` is the LOOP's default — 02 §2, never a translator's). */
+  readonly toolChoice?: ToolChoice | undefined;
   readonly signal?: AbortSignal | undefined;
 }
 
@@ -171,6 +181,9 @@ export interface TurnEconomics {
   readonly finishReason?: string | null;
   readonly stopReason?: string | null;
   readonly terminalReason?: string | null;
+  /** The reducer-assembled model-emitted calls (D48) — the loop pivots on `finishReason === "tool"`
+   *  and reads these. ABSENT on a tool-less turn (the compose adapter threads `ChatResult.toolCalls`). */
+  readonly toolCalls?: readonly ToolCallInput[] | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -207,6 +220,16 @@ export interface TurnPrep {
   /** The Step-6b group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round (the
    *  arbitration chunk's seam); null for the single-speaker core. */
   readonly groupNudge?: string | null | undefined;
+  /** The D48 attachment axis (tool-use-design/03 §2.3): the union of GATHER contributions of tool NAMES
+   *  (rpg's gather op, when it lands). ABSENT/empty ⇒ no tools ride and the loop degenerates to one
+   *  `runChatTurn` call (byte-identical pre-D48). Chat stays registrant-blind — names only. */
+  readonly attachedToolNames?: readonly string[] | undefined;
+  /** The caller's loaded membership for chat-scoped tool ceilings (the exec frame's `roster` — chat
+   *  loads, `can()` decides). ABSENT until a chat-scoped registrant exists (rpg supplies it). */
+  readonly toolRoster?: ChatRoster | undefined;
+  /** The chat-level D48 recurse cap (the verb reads `getToolRecurseLimit(chat.metadata)`); ABSENT ⇒
+   *  the engine applies the seed default (5). */
+  readonly toolRecurseLimit?: number | undefined;
   /** The per-speaker two-axis SHAPE (output × cardScope × scopedTarget × name), set by
    *  the group round driver. ABSENT ⇒ the single-speaker core's pinned default (per-speaker/merged/primary
    *  name); solo stays byte-identical (D16). */

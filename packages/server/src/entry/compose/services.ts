@@ -65,6 +65,7 @@ import { createSessionsService } from "#domain/sessions";
 import { createSettingsService } from "#domain/settings";
 import { applyStatsDelta, createStatsService } from "#domain/stats";
 import { createTagService } from "#domain/tag";
+import { createToolUseService } from "#domain/tool-use";
 import type { StartWorkloadInput, WorkloadRunnerEnv } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import { createWorldInfoService } from "#domain/world-info";
@@ -576,7 +577,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   //    notifications/settings/roleClients, all built above). The widest DI bundle in the system; its op
   //    graph + the flagged inert/permissive stubs live in `./chat` (entry-local). `holder` is the per-replica
   //    lock tag the boot reclaim must match (defaulted for non-turn tests). ───────────────────────────────
+  // D48: the ONE tool registry — composed EMPTY today (registrants arrive with rpg/buddy; the chat ops
+  // are live so the recurse loop is real; a plain chat attaches nothing → byte-identical requests).
+  const toolUse = createToolUseService({ can, clock: now });
+
   const chatCompose = buildChatService({
+    toolUse,
     db,
     now,
     holder: deps.holder ?? "replica-default",

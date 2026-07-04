@@ -43,7 +43,7 @@ streamed-then-parsed — with validation + ONE bounded retry owned by the CALLER
 | [`04-structured-output.md`](04-structured-output.md) | the `responseFormat` lifecycle end-to-end, validation ownership (caller + `runStructuredAgentTurn`), streaming-stays-on, per-backend realization, the tools × responseFormat exclusivity LEAN |
 | [`05-build-plan-and-resolutions.md`](05-build-plan-and-resolutions.md) | the committed doc's §8 open questions → verdicts/LEANs, build chunks T1–T7 (sizes, dependencies, checkpoints, per-chunk test plans), review flags |
 
-## Landed vs remaining (verified against the tree, 2026-07-03 — the T1 landing)
+## Landed vs remaining (verified against the tree, 2026-07-04 — PD-54 cleared; T5/T6/T7 consumer-gated)
 
 The committed doc's §1 "born-compliant callout" is a MIXED list — part landed, part
 deferred-blessed. The truth (PD-54's row is the running record):
@@ -59,7 +59,7 @@ deferred-blessed. The truth (PD-54's row is the running record):
 | `NormalizedFinishReason` `"tool"` + `FINISH_REASON_MAP` | **LANDED** (pre-existing) | `infra/providers/contract/chat.ts` |
 | T2 (translator mappings + the stream accumulator + `ChatResult.toolCalls`) | **LANDED** (2026-07-03) — accumulator fixtures + per-dialect builder goldens + tool-exchange history tests pinned; the `assertMappedHistoryRole` bridge deleted at all three sites | translators + `openai-compat/{stream,body}.ts` |
 | T3 (the `domain/tool-use` leaf) | **LANDED** (2026-07-03) — register/resolve/execute/project-wire + capability + json-schema substrates, contract-suite pinned (collision, resolve-vs-execute unknown split, errors-as-data matrix, ONE-stringify pin, sequential order, projection goldens). Deviations from the 01 sketch, argued in-file: verb FILES named for their factories (the verb-naming gate outranks the sketch), `register<A>` generic + the fused run-closure erasure (handler contravariance makes `ToolDefinition<unknown>` unassignable — 01's `register(def: ToolDefinition)` literal doesn't compile against a typed def). NOT composed at entry yet — composes with its first registrant/consumer (T4's chat ops or rpg). `project-mcp` is T5. | `domain/tool-use/` |
-| The recurse loop | **ABSENT** (T4 — coordinated behind the AP3 engine work; this set describes THAT loop, not a second one) | `domain/chat/engine/` |
+| The recurse loop | **LANDED** (T4, 2026-07-04) — `engine/pipeline.ts` (`attachTools` gate + `runRecurseLoop`); `ChatContext.tools` ops + `ChatToolExecFrame` (Principal-blind; entry resolves the host); `toolRecurseLimit` metadata knob (seed 5); `tools_unsupported` in `CHAT_WARNING_CODES` with its emit site; records persist once at commit (the argued micro-call — no variant row exists mid-generation under D26). PD-54 CLEARED. Remaining: T5 `project-mcp` (buddy), T6 `runStructuredAgentTurn` + `structured_output_unsupported` (crew CW2), T7 client block. | `domain/chat/engine/pipeline.ts` |
 
 ## Standing decisions a cold agent must not re-litigate
 

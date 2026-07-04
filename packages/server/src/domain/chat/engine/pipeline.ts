@@ -27,6 +27,7 @@ import type {
   ChatDeltaEvent,
   ChatInjection,
   MessageView,
+  ToolCallRecord,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -37,7 +38,14 @@ import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
-import type { ApplyRegexReplaceOp, RunChatTurnOp } from "../contract/context";
+import type { ToolCallInput } from "#infra/providers";
+import type {
+  ApplyRegexReplaceOp,
+  ChatToolExecFrame,
+  ChatToolOps,
+  ChatToolSet,
+  RunChatTurnOp,
+} from "../contract/context";
 import type {
   TurnEconomics,
   TurnKind,
@@ -92,6 +100,16 @@ interface RunTurnPipelineArgs {
    *  reducer (the per-delta emit is NOT on the durable-await path — that is the lifecycle events). */
   readonly onDelta: (delta: ChatDeltaEvent) => void;
   readonly signal?: AbortSignal | undefined;
+  // ── The D48 recurse-loop axis (tool-use-design/03 §2; all engine-threaded from prep/ctx) ──────────
+  /** The injected tool ops (`ctx.tools`); null = tool-use unwired (the byte-identical no-op). */
+  readonly tools: ChatToolOps | null;
+  /** The GATHER-contributed attachment names (03 §2.3); empty = no tools ride (plain chats, today). */
+  readonly attachedToolNames: readonly string[];
+  /** The chat-level recurse-depth cap (03 §2.1; the verb reads the metadata knob, seed 5). */
+  readonly toolRecurseLimit: number;
+  /** The Principal-blind identity frame `executeToolCalls` receives (the entry adapter resolves the
+   *  host Principal from `runAsUserId` — the turn-identity gate keeps principals out of this tier). */
+  readonly toolExecFrame: ChatToolExecFrame;
 }
 
 /** The pipeline product the engine persists — the reduced generation + the request (for `promptSnapshot`) +
@@ -108,6 +126,12 @@ interface TurnPipelineResult {
   /** True when ≥1 image part was dropped because the model lacks `input.vision` (D45) — the engine emits a
    *  `warning` bus event (`image_dropped`) once per turn when set. */
   readonly imageDropped: boolean;
+  /** The turn's cumulative tool exchange across every recursion depth (emission/execution order — D48;
+   *  empty on a tool-less turn; the engine persists it on the variant). */
+  readonly toolRecords: readonly ToolCallRecord[];
+  /** True when tools were ATTACHED but `capability.tools` is absent — dropped, the turn ran tool-less
+   *  (the engine emits the `tools_unsupported` warning once; D48/D51's domain-side gate). */
+  readonly toolsUnsupported: boolean;
 }
 
 /** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
@@ -327,7 +351,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   );
   const history: TurnMessage[] = built.map((b) => b.row);
   const imageDropped = built.some((b) => b.dropped);
-  const request: TurnRequest = {
+  const baseRequest: TurnRequest = {
     connection: args.connection,
     prompt: assembled,
     history,
@@ -337,18 +361,200 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     signal: args.signal,
   };
 
-  const reduced = await reduceStream(args.runChatTurn(request), args);
+  // 5. REDUCE + the D48 recurse loop (tool-use-design/03 §2).
+  const attach = attachTools(args, baseRequest);
+  const loop = await runRecurseLoop({ args, request: attach.request, set: attach.set });
   // 6. RECEIVE — <think>-demux → AI_OUTPUT regex → post-process → REASONING regex (canon-mutating
-  //    at write — the engine persists THIS post-regex {content, reasoning}). The reduced economics are unchanged.
-  const received = applyReceiveTransforms(reduced, args);
+  //    at write — the engine persists THIS post-regex {content, reasoning}), applied ONCE over the
+  //    depth-cumulative text (prose flows across recursion depths into the ONE variant — 03 §2).
+  const received = applyReceiveTransforms(
+    { content: loop.content, reasoning: loop.reasoning },
+    args,
+  );
   return {
-    request,
+    request: attach.request,
     content: received.content,
     reasoning: received.reasoning,
-    economics: reduced.economics,
-    cacheBreakpointFromEnd: request.cacheBreakpointFromEnd,
+    economics: loop.economics,
+    cacheBreakpointFromEnd: attach.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
     imageDropped,
+    toolRecords: loop.records,
+    toolsUnsupported: attach.unsupported,
+  };
+}
+
+// The D48 attach gate (03 §1 + 02 §2): tools ride only when names were GATHER-contributed AND the ops
+// are wired AND `capability.tools` declares support — attached-but-unsupported DROPS them (the turn runs
+// tool-less) and flags `tools_unsupported` (the engine emits the domain warning; D51's rule). A tool-less
+// request carries NO tools field: byte-identical to pre-D48, wired or null (the 05 §T4 pin).
+function attachTools(
+  args: RunTurnPipelineArgs,
+  baseRequest: TurnRequest,
+): { request: TurnRequest; set: ChatToolSet | null; unsupported: boolean } {
+  const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
+  const toolsSupported = args.connection.capability.tools !== undefined;
+  if (!wantTools || args.tools === null) {
+    return { request: baseRequest, set: null, unsupported: false };
+  }
+  if (!toolsSupported) {
+    return { request: baseRequest, set: null, unsupported: true };
+  }
+  const set = args.tools.resolveTools(args.attachedToolNames);
+  return {
+    request: {
+      ...baseRequest,
+      tools: args.tools.toWireTools(set),
+      // The LOOP's default when tools ride (02 §2) — a caller default, never a translator constant.
+      toolChoice: { mode: "auto" },
+    },
+    set,
+    unsupported: false,
+  };
+}
+
+// ── The D48 recurse loop (03 §2 — normative rules each pinned by the loop goldens) ────────────────
+// `finishReason:"tool"` is the ONLY pivot (never text-sniffing); the exchange is materialized from the
+// RECORDS (arguments/result verbatim — provenance = replay); streaming is continuous across depths on
+// the one variant; usage aggregates into one economics row; at the limit, pending calls are RECORDED
+// NOT EXECUTED (result:null — side effects the model can't narrate are worse than none). MICRO-CALL
+// (03's header delegates): records accumulate in-loop and persist ONCE at commit — our D26 flow mints
+// the variant row at commit, so there is no row to flush per-depth against; a crash mid-loop loses the
+// records WITH the generation (nothing half-persisted). Revisit criterion: handlers with real external
+// side effects wanting crash provenance.
+async function runRecurseLoop(input: {
+  readonly args: RunTurnPipelineArgs;
+  readonly request: TurnRequest;
+  readonly set: ChatToolSet | null;
+}): Promise<{
+  content: string;
+  reasoning: string | null;
+  economics: TurnEconomics | null;
+  records: readonly ToolCallRecord[];
+}> {
+  const { args, set } = input;
+  let history = input.request.history;
+  let content = "";
+  let reasoning: string | null = null;
+  let economics: TurnEconomics | null = null;
+  const records: ToolCallRecord[] = [];
+  let depth = 0;
+  for (;;) {
+    // SEQUENTIAL BY DESIGN: each recursion depends on the previous depth's executed results.
+    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
+    const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
+    content += reduced.content;
+    if (reduced.reasoning !== null && reduced.reasoning.length > 0) {
+      reasoning = (reasoning ?? "") + reduced.reasoning;
+    }
+    economics = aggregateEconomics(economics, reduced.economics);
+    const calls = pivotCalls(set, args.tools, reduced.economics);
+    if (calls === null || args.tools === null) {
+      break;
+    }
+    if (depth >= args.toolRecurseLimit) {
+      records.push(...calls.map(asUnexecutedRecord));
+      break;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
+    const batch = await args.tools.executeToolCalls(set, calls, args.toolExecFrame);
+    records.push(...batch);
+    history = [...history, ...toolExchangeMessages(reduced.content, batch)];
+    depth += 1;
+  }
+  return { content, reasoning, economics, records };
+}
+
+/** The recurse pivot (03 §2): recurse ONLY when tools rode this request AND the normalized finish
+ *  reason says "tool" AND the reducer assembled ≥1 call — `null` means "the turn is done". Never
+ *  text-sniffing; a provider that says stop is done. */
+function pivotCalls(
+  set: ChatToolSet | null,
+  tools: ChatToolOps | null,
+  economics: TurnEconomics | null,
+): readonly ToolCallInput[] | null {
+  if (set === null || tools === null || economics?.finishReason !== "tool") {
+    return null;
+  }
+  const calls = economics.toolCalls;
+  return calls !== undefined && calls.length > 0 ? calls : null;
+}
+
+/** A limit-hit pending call → the recorded-but-unexecuted record (03 §2.2: `result:null`,
+ *  `isError:false` — full provenance, "requested, not run"; the host can regenerate). */
+function asUnexecutedRecord(call: ToolCallInput): ToolCallRecord {
+  return {
+    toolCallId: call.toolCallId,
+    name: call.name,
+    arguments: call.arguments,
+    result: null,
+    isError: false,
+    durationMs: null,
+  };
+}
+
+/** Materialize one depth's exchange into wire rows FROM THE RECORDS (03 §2 — the model reads exactly
+ *  what was persisted, so a swipe-replay reassembles the identical wire history): ONE assistant row
+ *  carrying that depth's prose (if any) + its tool-call parts, then ONE `tool` row per record. */
+function toolExchangeMessages(depthText: string, batch: readonly ToolCallRecord[]): TurnMessage[] {
+  const assistantParts: ChatContentPart[] = [
+    ...(depthText.length > 0 ? [{ type: "text", text: depthText } as const] : []),
+    ...batch.map(
+      (record) =>
+        ({
+          type: "tool-call",
+          toolCallId: record.toolCallId,
+          name: record.name,
+          arguments: record.arguments,
+        }) as const,
+    ),
+  ];
+  const results: TurnMessage[] = batch.map((record) => ({
+    role: "tool",
+    content: [
+      {
+        type: "tool-result",
+        toolCallId: record.toolCallId,
+        // An executed record's result is ALWAYS a JSON document (the ONE stringify site); null cannot
+        // occur here (unexecuted records end the turn, they never re-enter the wire).
+        content: record.result ?? "",
+        ...(record.isError ? { isError: true } : {}),
+      },
+    ],
+  }));
+  return [{ role: "assistant", content: assistantParts }, ...results];
+}
+
+/** Fold one depth's economics into the turn aggregate (ONE economics row per user-visible turn —
+ *  03 §2): counts/costs SUM (absent stays absent — never a fabricated zero), `ttftMs` is the FIRST
+ *  depth's, the terminal reasons/model/window are the LAST depth's, `toolCalls` never aggregates
+ *  (per-depth wire data — the records are the durable form). */
+function aggregateEconomics(
+  acc: TurnEconomics | null,
+  next: TurnEconomics | null,
+): TurnEconomics | null {
+  if (acc === null) {
+    return next;
+  }
+  if (next === null) {
+    return acc;
+  }
+  const sum = (a: number | null | undefined, b: number | null | undefined): number | null => {
+    if (a === null || a === undefined) {
+      return b ?? null;
+    }
+    return b === null || b === undefined ? a : a + b;
+  };
+  return {
+    ...next,
+    content: acc.content + next.content,
+    reasoning: [acc.reasoning ?? "", next.reasoning ?? ""].join("") || null,
+    tokensIn: sum(acc.tokensIn, next.tokensIn),
+    tokensOut: sum(acc.tokensOut, next.tokensOut),
+    cacheReadTokens: sum(acc.cacheReadTokens, next.cacheReadTokens),
+    cacheWriteTokens: sum(acc.cacheWriteTokens, next.cacheWriteTokens),
+    costUsd: sum(acc.costUsd, next.costUsd),
+    ttftMs: acc.ttftMs ?? next.ttftMs ?? null,
   };
 }
 
