@@ -30,8 +30,10 @@ export default defineConfig({
     // local-light jina embed (multi-GB model load) on the fire-and-forget bus. OFF keeps unit/integration
     // boots clean + deterministic; the compose-gate test flips it ON via a per-test AppSettings override.
     // We also silence the application logger (Pino) to prevent raw JSON logs from destroying the TTY
-    // reporter console or blowing up CI/Agent logs.
-    env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent" },
+    // reporter console or blowing up CI/Agent logs. VLLM_DISABLED is pinned "true" so the suite is
+    // ambient-env-proof: the env floor is a strict z.enum(["true","false"]) and a stray host/container
+    // value (the dev-container once shipped "1") otherwise kills every server suite at module load.
+    env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", VLLM_DISABLED: "true" },
 
     // --- rigor defaults (inherited via `extends: true`) ---
     restoreMocks: true, // spies → original impl between tests (fake-at-edges, never-mock-internals doctrine)

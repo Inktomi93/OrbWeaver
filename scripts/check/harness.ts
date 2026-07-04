@@ -39,7 +39,10 @@ export function getProject(root: string): Project {
   return project;
 }
 
-export function runChecks(checks: readonly Check[]): void {
+/** Runs the given gates and prints per-gate results + the summary footer. Returns the violation
+ *  total — the CALLER owns the exit code (report.ts exits 1 on any violation, byte-identical to
+ *  when this function exited itself; file.ts folds the count into its own step ledger). */
+export function runChecks(checks: readonly Check[]): number {
   const root = process.cwd();
   const ctx: CheckContext = { root, project: getProject(root) };
   let total = 0;
@@ -58,7 +61,8 @@ export function runChecks(checks: readonly Check[]): void {
   }
   if (total > 0) {
     process.stdout.write(`\nstructure check: ${total} violation(s)\n`);
-    process.exit(1);
+    return total;
   }
   process.stdout.write("\nstructure check: clean\n");
+  return 0;
 }

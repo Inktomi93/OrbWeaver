@@ -13,12 +13,17 @@
 // Shape: a VANILLA `createStore` per factory call, read through the top-level `useStore` hook —
 // the docs-blessed DI pattern for dynamically-created stores (UI-Lib-Zustand.md §A "initialize-
 // with-props"); no hook is minted inside the factory. Storage is injectable (tests pin an
-// in-memory Map; production defaults to localStorage).
+// in-memory Map; production defaults to localStorage). Devtools: `devtools(persist(...))` —
+// devtools OUTERMOST (UI-Lib-Zustand.md "devtools last" typing note), gated by the shared
+// STORE_DEVTOOLS_ENABLED (DEV + extension present — warning-clean in the node lane), every
+// internal write action-labeled. This factory is the persist-shaped sibling of
+// `createGatedStore` (hook-shaped stores) — the ONLY two ways client state is minted.
 
 import type { StateStorage } from "zustand/middleware";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
 import { createStore } from "zustand/vanilla";
+import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
 
 /** The stable no-draft reference — see the header. One frozen constant serves every store. */
 const EMPTY: Readonly<Record<string, never>> = Object.freeze({});
@@ -84,17 +89,21 @@ export function createEntityDraftStore<TInput>(
   const empty = EMPTY as Readonly<Partial<TInput>>;
 
   const store = createStore<DraftsState<TInput>>()(
-    persist((): DraftsState<TInput> => ({ drafts: {} }), {
-      name: `${STORAGE_KEY_PREFIX}${config.name}`,
-      version: config.version ?? DEFAULT_VERSION,
-      // ONLY the draft map persists (see header). The default shallow `merge` is then safe by
-      // construction: `drafts` is the single persisted top-level key (UI-Lib-Zustand.md D-4).
-      partialize: (s): DraftsState<TInput> => ({ drafts: s.drafts }),
-      migrate: migrateDrafts<TInput>,
-      ...(config.storage === undefined
-        ? {}
-        : { storage: createJSONStorage(() => config.storage as StateStorage) }),
-    }),
+    devtools(
+      persist((): DraftsState<TInput> => ({ drafts: {} }), {
+        name: `${STORAGE_KEY_PREFIX}${config.name}`,
+        version: config.version ?? DEFAULT_VERSION,
+        // ONLY the draft map persists (see header). The default shallow `merge` is then safe by
+        // construction: `drafts` is the single persisted top-level key (UI-Lib-Zustand.md D-4).
+        partialize: (s): DraftsState<TInput> => ({ drafts: s.drafts }),
+        migrate: migrateDrafts<TInput>,
+        ...(config.storage === undefined
+          ? {}
+          : { storage: createJSONStorage(() => config.storage as StateStorage) }),
+      }),
+      // The devtools connection label reuses the (registry-unique) storage key.
+      { name: `${STORAGE_KEY_PREFIX}${config.name}`, enabled: STORE_DEVTOOLS_ENABLED },
+    ),
   );
 
   const readDraft = (id: string): Readonly<Partial<TInput>> | undefined =>
@@ -102,7 +111,11 @@ export function createEntityDraftStore<TInput>(
 
   const setDraft = (id: string, patch: Partial<TInput>): void => {
     const drafts = store.getState().drafts;
-    store.setState({ drafts: { ...drafts, [id]: { ...drafts[id], ...patch } } });
+    store.setState(
+      { drafts: { ...drafts, [id]: { ...drafts[id], ...patch } } },
+      false,
+      "draft/set",
+    );
   };
 
   return {
@@ -118,7 +131,7 @@ export function createEntityDraftStore<TInput>(
     clearDraft: (id): void => {
       const drafts = { ...store.getState().drafts };
       delete drafts[id];
-      store.setState({ drafts }, true);
+      store.setState({ drafts }, true, "draft/clear");
     },
     hasDraft: (id): boolean => readDraft(id) !== undefined,
   };

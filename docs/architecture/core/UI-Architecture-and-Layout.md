@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-04
 ---
 
 # UI-Architecture-and-Layout
@@ -198,16 +198,20 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 **USE:**
 
 - **The React Compiler is ON — stop hand-writing `useMemo`/`useCallback`/`React.memo`.** The ONE blind spot is `useVirtualizer` (interior mutability) → sealed in `@orb/ui/virtual-list` with **`directDomUpdates: true` + `containerRef`** (TanStack Virtual 3.14+, Compiler-E2E-tested, **NOT `"use no memo"`**) — BUILT; features never wire it by hand.
-- **`<Activity>` (19.2, stable) for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1). Replaces unmount/remount.
+- **`<Activity>` (19.2, stable) for the single-route panes.** Keep a pane mounted-but-hidden on flip-away (chat ⇄ library) so returning is instant with scroll + form state intact (§5.1). Replaces unmount/remount. Two companion rules (2026-07-04 audit): (1) a hidden pane cannot hold focus — focus dies silently on hide; on `hidden→visible` restore focus to the pane's stable anchor (its header) — a WCAG keyboard-operability obligation, not polish; (2) hide-coupled DOM work (scroll-position capture, media pause) runs in `useLayoutEffect` — Activity unmounts effects synchronously with the visual hide, and a passive `useEffect` cleanup runs too late.
 - **`useEffectEvent` (19.2, stable) is THE fix for the effect footguns** — separates an effect's non-reactive part from its deps. The correct tool for the seam effects neo hand-rolled with `prevRef` bookkeeping (§7); prefer it over ref-juggling.
-- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT never fires in our shell — §6.1 trap 2). Pairs with `<Activity>`; utilities live in `@orb/ui` styles.
+- **`useDeferredValue` for every search/filter-over-collection surface** (library grid · corpus search · tag/world-info filters): the input stays responsive while the filtered list lags a frame behind. Pass `initialValue` so the first render has a defined deferred value. Division of labor: `startTransition` wraps pane *switches*; `useDeferredValue` absorbs derived-*list* churn; neither is a debounce hack. (§13.2 row.)
+- **View Transitions API for single-route navigation** — hand-rolled `document.startViewTransition()` (the router's built-in VT never fires in our shell — §6.1 trap 2; React's own `<ViewTransition>` component is STILL canary-only, re-verified 2026-07-04 — the hand-rolled call stands). Pairs with `<Activity>`; utilities live in `@orb/ui` styles. A dynamic `view-transition-name` must be a valid CSS custom-ident: `useId` output is safe since 19.2 (`_r_` prefix exists for exactly this); an entity-id-derived name must be sanitized.
 - **`ref` as a prop (no `forwardRef`)** — biome-enforced (`noReactForwardRef`).
+- **Resource preloading (`preload`/`preinit`) where the need is predictable** — preinit the palette CSS on theme switch (kills the FOUC), preload the code-editor/Shiki chunk when a code block is likely. Sparingly: measured wins only, never speculative sprays.
+- **19.2 Chrome Performance Tracks (Scheduler + Components lanes) are the verification tool for this doc's priority claims** — e.g. confirm a pane switch actually renders in the Transition lane (not Blocking) and Stop stays responsive mid-stream. Use at the Phase-6 chat checkpoints alongside the §6.3.1 golden tests.
 
 **SKIP (redundant with TanStack — do NOT bolt on):**
 
 - **React 19 form Actions / `useActionState` / `useFormStatus`** — TanStack Form owns form state (§6.1).
 - **`useOptimistic`** — TanStack Query's optimistic flow owns it (§13.1). No second path.
 - **`<form action>` / server actions** — orbweaver is tRPC + Query.
+- **`use()` on raw promises** — `useSuspenseQuery`/`useSuspenseQueries` (§13.1) own suspend-on-async; `use()` over a hand-made fetch promise reinvents Query's cache with none of its invalidation. (Conditional `use(Context)` is legal React but rarely needed here.)
 
 **BASELINE (non-negotiable):** WCAG 2.2 AA (4.5:1 body contrast · visible focus · keyboard-operable · persistent labels — much of it free from Base UI), and `prefers-reduced-motion` respected on every transition/animation.
 
@@ -250,6 +254,8 @@ The URL stays `/` (entity ids never in the address bar; multi-device sync is DB-
 > surfaces own their own state · selecting a thing ≠ a cascade of side effects · NO effect making the right panel chase the active chat (no `this_chid` re-coupling).
 
 If "open the library beside a live chat without it yanking the chat" is possible, the jank is gone. If real deep-links/back-forward ever become wanted, routes are a localized bolt-on (TanStack Router for the chat id only) — NOT a rewrite.
+
+The tab title still tracks the active entity even with the URL pinned to `/`: render React 19's native `<title>` from the active pane (metadata hoists to `<head>`) — never a `document.title =` effect.
 
 ### 6. The stack — keep / dump
 

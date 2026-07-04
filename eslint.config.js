@@ -53,12 +53,15 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 // @orb/client is skeletal but wired so the gate is live the moment code lands.
 const UI_SRC = "packages/ui/src/**/*.{ts,tsx}";
 const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
-// Browser component tests (the ones @orb/ui's tsconfig owns — real components + hooks). The node
-// `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — they hold no hooks/components.
+// Browser component tests (the ones @orb/ui's / @orb/client's tsconfigs own — real components +
+// hooks). The node `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — no hooks/components.
 const UI_CT = "tests/ui/**/*.ct.tsx";
 const UI_FIXTURES = "tests/ui/**/*.fixtures.tsx";
+const CLIENT_CT = "tests/client/**/*.ct.tsx";
+const CLIENT_STORIES = "tests/client/**/_ct-stories.tsx";
+const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES];
 
-const REACT_SURFACE = [UI_SRC, CLIENT_SRC, UI_CT, UI_FIXTURES];
+const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
 // The feature slices — the compose-only surface (UI-Arch §2.1). app-shell is the SHELL-tier layout owner
 // (the one legal @media site, §4.1) and is exempt from the keystone below.
@@ -125,11 +128,11 @@ export default tseslint.config(
     },
   },
   {
-    // Syntactic parser for the browser component tests. These live under tests/ (owned by @orb/ui's
-    // tsconfig via a reach-back include), so projectService's upward search lands on the root tsconfig
-    // — which EXCLUDES them. react-hooks rules are syntactic (no type info needed), so parse without
-    // projectService. (no-deprecated stays off here — it's shipped-source-only above.)
-    files: [UI_CT, UI_FIXTURES],
+    // Syntactic parser for the browser component tests. These live under tests/ (owned by the ui /
+    // client package tsconfigs via reach-back includes), so projectService's upward search lands on
+    // the root tsconfig — which EXCLUDES them. react-hooks rules are syntactic (no type info needed),
+    // so parse without projectService. (no-deprecated stays off here — shipped-source-only above.)
+    files: CT_SURFACE,
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" },

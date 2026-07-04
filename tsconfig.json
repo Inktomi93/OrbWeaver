@@ -21,15 +21,18 @@
   // NODE-side `tests/ui/tokens/*.test.ts` (which imports the node `tokens.build.ts`) stays in here.
   "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true, "jsx": "react-jsx" },
   "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"],
-  // Browser tsx (the `.ct.tsx` specs, their `.fixtures.tsx`/story helpers, the `tests/support/ct`
-  // shared CT bits) import `@orb/ui` and would drag dom-only source into this node program — exclude
-  // every browser tsx; the node `tests/ui/tokens/*.test.ts` (a plain `.test.ts`) is kept.
+  // Browser tsx (the `.ct.tsx` specs, their `.fixtures.tsx`/story/`_ct-stories.tsx` helpers, the
+  // `tests/support/ct` shared CT COMPONENTS) import `@orb/ui`/`@orb/client` and would drag dom-only
+  // source into this node program — exclude every browser tsx. The node-side CT plumbing
+  // (`tests/support/ct/*.ts`, e.g. route-trpc.ts) STAYS in here (the `.tsx`-only glob), as does the
+  // node `tests/ui/tokens/*.test.ts`.
   "exclude": [
     "packages/ui/src",
     "packages/client/src",
     "tests/**/*.ct.tsx",
     "tests/**/*.fixtures.tsx",
-    "tests/support/ct",
+    "tests/**/_ct-stories.tsx",
+    "tests/support/ct/**/*.tsx",
     "playwright"
   ]
 }

@@ -6,10 +6,11 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-// biome mis-enumerates react's conditional-CJS export map and misses StrictMode specifically
-// (useState/Component/etc. resolve fine); tsc resolves it and the client typechecks clean.
+// biome mis-enumerates react's conditional-CJS export map and misses StrictMode/lazy/Suspense
+// specifically (useState/Component/etc. resolve fine); tsc resolves them and the client
+// typechecks clean.
 // biome-ignore lint/correctness/noUnresolvedImports: tsc-verified false positive (see above).
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import {
   createAppQueryClient,
@@ -20,6 +21,23 @@ import {
 } from "#data";
 import { router } from "./routes/router";
 import "./styles/globals.css";
+
+// ── Dev instrumentation (T5) — both arms behind the LITERAL `import.meta.env.DEV`, which the
+// bundler constant-folds so NEITHER module (nor the devtools packages) lands in the prod output.
+// [perf] main-thread half: dynamic import keeps the tracer out of the entry chunk even in dev.
+if (import.meta.env.DEV) {
+  void import("./lib/long-task-tracer").then(({ installLongTaskTracer }) => {
+    installLongTaskTracer();
+  });
+}
+// Framework devtools shell (Query + Router panels): lazy + dead-branch. Deep import ON PURPOSE —
+// dev-tools must never ride a barrel that also exports prod code (the barrel-leak failure mode).
+const DevTools = import.meta.env.DEV
+  ? lazy(async () => {
+      const mod = await import("./lib/dev-tools");
+      return { default: mod.DevTools };
+    })
+  : null;
 
 // vite:preloadError recovery (client-tooling-setup §9). A redeploy rotates hashed chunk names; an old
 // tab that then lazy-imports a route (e.g. /admin/*) requests a hash that no longer exists → a failed
@@ -51,6 +69,11 @@ createRoot(rootEl).render(
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
         <RouterProvider router={router} />
+        {DevTools === null ? null : (
+          <Suspense fallback={null}>
+            <DevTools queryClient={queryClient} router={router} />
+          </Suspense>
+        )}
       </TRPCProvider>
     </QueryClientProvider>
   </StrictMode>,

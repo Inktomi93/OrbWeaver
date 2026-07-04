@@ -9,9 +9,16 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppRouter } from "@orb/server";
 import type { QueryClient } from "@tanstack/react-query";
 import type { TRPCClient } from "@trpc/client";
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpBatchLink,
+  httpSubscriptionLink,
+  loggerLink,
+  splitLink,
+} from "@trpc/client";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
+import { formatTrpcOp, IS_DEV } from "#lib";
 
 /** The one mount path (mirrors `entry/app.ts` TRPC_ENDPOINT). */
 const TRPC_URL = "/api/trpc";
@@ -27,6 +34,14 @@ export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRou
  * Tier-4 §7.1), everything else batches over HTTP with the custom CSRF header on EVERY request
  * (`SameSite=Lax` + this header is the whole CSRF story — the server gate 403s a cookie-authed
  * mutation without it).
+ *
+ * The `[trpc]` console channel (the loggerLink) sits in the query/mutation branch ONLY — the
+ * splitLink routes subscriptions AWAY from it BY DESIGN: their per-data-event lines (one per
+ * streaming delta, hundreds per turn) would bury everything else, and StrictMode's dev
+ * double-mount would double-log every chat-stream subscribe. Consequence: subscription ERRORS
+ * never reach the console either — `useSubscription` `onError` surfaces (toast/reconnect) own
+ * those. Enabled: every op in DEV; in PROD only error settlements log (via `formatTrpcOp`'s
+ * console.error red-badge line). `colorMode:'css'` matches the formatter's `%c` styling.
  */
 export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> {
   return createTRPCClient<AppRouter>({
@@ -34,7 +49,14 @@ export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> 
       splitLink({
         condition: (op) => op.type === "subscription",
         true: httpSubscriptionLink({ url }),
-        false: httpBatchLink({ url, headers: () => ({ [CSRF_HEADER]: "1" }) }),
+        false: [
+          loggerLink({
+            enabled: (op) => IS_DEV || (op.direction === "down" && op.result instanceof Error),
+            logger: formatTrpcOp,
+            colorMode: "css",
+          }),
+          httpBatchLink({ url, headers: () => ({ [CSRF_HEADER]: "1" }) }),
+        ],
       }),
     ],
   });

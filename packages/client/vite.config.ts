@@ -1,5 +1,6 @@
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig, searchForWorkspaceRoot } from "vite";
 import checker from "vite-plugin-checker";
@@ -21,6 +22,20 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
   },
   plugins: [
+    // TanStack devtools bridge (T5). FIRST in the array — its transforms want raw source (it also
+    // owns `removeDevtoolsOnBuild`, default true: the belt that strips a <TanStackDevtools> usage
+    // from prod builds; main.tsx's literal `import.meta.env.DEV` dead-branch is the primary strip).
+    // Does NOT touch the react()/babel() Compiler arrangement below — plugin-react's compiler pass
+    // is `enforce:"pre"` and position-independent (see that comment).
+    // Two sub-features OFF by design:
+    //   • consolePiping — server.forwardConsole below already forwards browser console → terminal
+    //     (PD-58); both on would double every line.
+    //   • enhancedLogs — prefixes console lines with source locations, which would mangle the
+    //     one-line `%c`-styled [trpc]/[perf] channels (lib/trpc-devlog.ts, lib/long-task-tracer.ts).
+    devtools({
+      consolePiping: { enabled: false },
+      enhancedLogs: { enabled: false },
+    }),
     // React Compiler (stable 1.0, FULL-compile per D54) runs as a @rolldown/plugin-babel preset —
     // plugin-react v6 dropped internal Babel, so the compiler needs its own Babel pass. Order matches
     // the canonical react.dev / plugin-react snippet (`react()` then `babel()`) and is COSMETIC here:

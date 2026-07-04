@@ -9,16 +9,17 @@
     "jsx": "react-jsx"
   },
   // Also typecheck the BROWSER tests the root aggregator excludes (it's node-only — dom-BodyInit
-  // would break server there): the `.ct.tsx` + `.fixtures.tsx` mirror under tests/ui, the shared
-  // CT bits in tests/support/ct, and the CT harness in playwright/. This is the one program with
-  // dom that owns @orb/ui, so it is the right home for its browser tests — no blind spot. (The
-  // node `tests/ui/tokens/*.test.ts` stays in the aggregator; it is a `.test.ts`, not matched here.)
+  // would break server there): the `.ct.tsx` + `.fixtures.tsx` mirror under tests/ui, the ui-owned
+  // CT provider stack (ONLY ct-providers.tsx — ct-data-providers.tsx is CLIENT-owned and typechecked
+  // by packages/client/tsconfig.json; sweeping it here would drag @orb/client→@orb/server types into
+  // this program, upward-cake), and the CT harness in playwright/. This is the program with dom that
+  // owns @orb/ui — no blind spot. (The node `tests/ui/tokens/*.test.ts` stays in the aggregator.)
   "include": [
     "src",
     "../../reset.d.ts",
     "../../tests/ui/**/*.ct.tsx",
     "../../tests/ui/**/*.fixtures.tsx",
-    "../../tests/support/ct/**/*.tsx",
+    "../../tests/support/ct/ct-providers.tsx",
     "../../playwright/**/*.tsx",
     "../../playwright/**/*.d.ts"
   ]

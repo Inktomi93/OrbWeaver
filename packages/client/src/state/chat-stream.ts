@@ -6,12 +6,13 @@
 // bleed across phases, UI-Lib-Zustand.md D-5). Writes come ONLY from `applyChatBusEvent` (the one
 // cache-surgery site); components read via the narrow hooks below. Token churn stays isolated: only
 // a component subscribed to THAT chat's slot re-renders on a delta — chrome subscribes to phase.
-// `subscribeWithSelector` exposes the transient (render-free) seam the smooth-text pacer feeds from.
+// `subscribeWithSelector` exposes the transient (render-free) seam the smooth-text pacer feeds from
+// (baked into `createGatedStore`, which also owns the devtools middleware + the REQUIRED
+// action-label discipline — every transition below is named on the DU timeline).
 
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
-import { create } from "zustand";
-import { subscribeWithSelector } from "zustand/middleware";
+import { createGatedStore } from "./create-gated-store";
 
 /** The per-chat turn slot — one phase at a time, fields per phase (never optional-field soup). */
 export type TurnSlot =
@@ -45,22 +46,23 @@ interface ChatStreamState {
  *  fresh object per render (the v5 `Object.is` infinite-loop footgun, UI-Lib-Zustand.md C-1). */
 export const IDLE_TURN: TurnSlot = Object.freeze({ phase: "idle" as const });
 
-const useChatStreamStore = create<ChatStreamState>()(
-  subscribeWithSelector((): ChatStreamState => ({ turns: {} })),
+const useChatStreamStore = createGatedStore<ChatStreamState>(
+  "chat-stream",
+  (): ChatStreamState => ({ turns: {} }),
 );
 
 function slotOf(chatId: ChatId): TurnSlot {
   return useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN;
 }
 
-function setSlot(chatId: ChatId, next: TurnSlot | undefined): void {
+function setSlot(chatId: ChatId, next: TurnSlot | undefined, action: string): void {
   const turns = { ...useChatStreamStore.getState().turns };
   if (next === undefined) {
     delete turns[chatId];
   } else {
     turns[chatId] = next;
   }
-  useChatStreamStore.setState({ turns }, true);
+  useChatStreamStore.setState({ turns }, true, action);
 }
 
 /** The write API — consumed ONLY by `applyChatBusEvent` (data/bus); never call from a component. */
@@ -81,45 +83,53 @@ export interface ChatStreamApi {
 
 export const chatStream: ChatStreamApi = {
   beginTurn: (chatId, turn) => {
-    setSlot(chatId, { phase: "pending", ...turn });
+    setSlot(chatId, { phase: "pending", ...turn }, "turn/begin");
   },
   appendDelta: (delta) => {
     const slot = slotOf(delta.chatId);
     // A delta with no live turn (raced past a terminal event / replay edge) is dropped — the durable
     // canon is the truth and the invalidation path already refetched it.
     if (slot.phase === "pending") {
-      setSlot(delta.chatId, {
-        phase: "streaming",
-        intent: slot.intent,
-        speakerCharacterId: slot.speakerCharacterId,
-        targetMessageId: slot.targetMessageId,
-        text: delta.kind === "text" ? delta.text : "",
-        reasoning: delta.kind === "reasoning" ? delta.text : "",
-      });
+      setSlot(
+        delta.chatId,
+        {
+          phase: "streaming",
+          intent: slot.intent,
+          speakerCharacterId: slot.speakerCharacterId,
+          targetMessageId: slot.targetMessageId,
+          text: delta.kind === "text" ? delta.text : "",
+          reasoning: delta.kind === "reasoning" ? delta.text : "",
+        },
+        "turn/delta",
+      );
       return;
     }
     if (slot.phase === "streaming") {
-      setSlot(delta.chatId, {
-        ...slot,
-        text: delta.kind === "text" ? slot.text + delta.text : slot.text,
-        reasoning: delta.kind === "reasoning" ? slot.reasoning + delta.text : slot.reasoning,
-      });
+      setSlot(
+        delta.chatId,
+        {
+          ...slot,
+          text: delta.kind === "text" ? slot.text + delta.text : slot.text,
+          reasoning: delta.kind === "reasoning" ? slot.reasoning + delta.text : slot.reasoning,
+        },
+        "turn/delta",
+      );
     }
   },
   completeTurn: (chatId, messageId) => {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming") {
-      setSlot(chatId, { phase: "completed", intent: slot.intent, messageId });
+      setSlot(chatId, { phase: "completed", intent: slot.intent, messageId }, "turn/complete");
     }
   },
   abortTurn: (chatId, reason) => {
     const slot = slotOf(chatId);
     if (slot.phase === "pending" || slot.phase === "streaming") {
-      setSlot(chatId, { phase: "aborted", intent: slot.intent, reason });
+      setSlot(chatId, { phase: "aborted", intent: slot.intent, reason }, "turn/abort");
     }
   },
   clearTurn: (chatId) => {
-    setSlot(chatId, undefined);
+    setSlot(chatId, undefined, "turn/clear");
   },
 };
 
