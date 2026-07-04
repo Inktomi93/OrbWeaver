@@ -44,6 +44,12 @@ export interface MessageListHandle {
   readonly scrollToEnd: () => void;
 }
 
+// FLAG[PD-119]: this seal is pure WINDOWED virtualization — rows mount/unmount on scroll, and a
+// stable `getItemKey` does NOT keep an off-screen row mounted. There is NO no-recycle / keep-mounted
+// path for stateful rows (a Tier-B `sandbox-frame` iframe reloads on scroll-back; edit-in-place local
+// state drops — neo's virtualizer footgun). UI-Gates §11.3 / UI-Theming §12.2 over-claimed this as
+// built; the docs were corrected 2026-07-04c. Until the keep-mounted capability lands (PD-119),
+// stateful-row consumers MUST hoist row state to an external store keyed by message id.
 export interface MessageListProps<T> {
   readonly items: readonly T[];
   /**
