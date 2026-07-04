@@ -7,18 +7,22 @@
 
 import type {
   ChatContentText,
+  ChatFormatJsonSchemaConfig,
+  ChatFunctionTool,
   ChatMessages,
   ChatRequest,
   ChatStreamChunk,
   ChatSystemMessage,
+  ChatToolCall,
+  ChatToolChoice,
   ProviderPreferences,
   ReasoningDetailUnion,
 } from "@openrouter/sdk/models";
+import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
 import {
-  assertMappedHistoryRole,
   cacheControlBlock,
   chatHistoryText,
   effectiveProviderRouting,
@@ -30,6 +34,9 @@ import type {
   ResolvedReasoning,
   ResolvedSampling,
   ResolvedWarning,
+  ResponseFormat,
+  ToolChoice,
+  WireTool,
 } from "../../../../contract";
 
 /** The clock + jitter seams the composition root injects (no ambient `Date.now`/`Math.random`). `random`
@@ -84,23 +91,107 @@ export function joinSystemPrompt(systemPrompt: {
 }
 
 // ── History assembly ───────────────────────────────────────────────────────────────────────────────
+// The tool-call parts of one turn → the SDK's assistant `toolCalls[]` (D48/T2 — the materialized
+// exchange rides the wire exactly as the model emitted it; `arguments` stays the RAW string).
+function historyToolCalls(content: readonly ChatContentPart[]): ChatToolCall[] | undefined {
+  const calls: ChatToolCall[] = [];
+  for (const part of content) {
+    if (part.type === "tool-call") {
+      calls.push({
+        id: part.toolCallId,
+        type: "function",
+        function: { name: part.name, arguments: part.arguments },
+      });
+    }
+  }
+  return calls.length > 0 ? calls : undefined;
+}
+
+// A `tool`-role turn → ONE `{role:"tool"}` SDK message PER `tool-result` part (`toolCallId` joins).
+function toolResultMessages(content: readonly ChatContentPart[]): ChatMessages[] {
+  const out: ChatMessages[] = [];
+  for (const part of content) {
+    if (part.type === "tool-result") {
+      out.push({ role: "tool", toolCallId: part.toolCallId, content: part.content });
+    }
+  }
+  return out;
+}
+
+// A user/assistant turn → its SDK message, or `null` when empty. A text-less assistant tool-call
+// turn is KEPT (the calls ARE its content).
+function nonToolMessage(turn: ChatHistoryMessage): ChatMessages | null {
+  const text = chatHistoryText(turn.content);
+  const toolCalls = turn.role === "assistant" ? historyToolCalls(turn.content) : undefined;
+  if (text.trim().length === 0 && toolCalls === undefined) {
+    return null;
+  }
+  const name = turn.name !== undefined ? { name: turn.name } : {};
+  return turn.role === "assistant"
+    ? {
+        role: "assistant",
+        content: text,
+        ...(toolCalls !== undefined ? { toolCalls } : {}),
+        ...name,
+      }
+    : { role: "user", content: text, ...name };
+}
+
 /** Map the assembled view turns → SDK chat messages, filtering empty-content turns FIRST (so the
  *  cache-breakpoint offset-from-end the chat pipeline computed still lines up). The per-participant `name`
- *  rides through (COMPLETION names behaviour). */
+ *  rides through (COMPLETION names behaviour). A materialized tool exchange (D48/T2) maps per the OpenAI
+ *  wire: assistant `tool-call` parts → `toolCalls[]`; a `tool`-role turn → per-result `{role:"tool"}`
+ *  messages. */
 export function buildHistoryMessages(history: readonly ChatHistoryMessage[]): ChatMessages[] {
   const messages: ChatMessages[] = [];
   for (const turn of history) {
-    const text = chatHistoryText(turn.content);
-    if (text.trim().length === 0) {
+    if (turn.role === "tool") {
+      messages.push(...toolResultMessages(turn.content));
       continue;
     }
-    messages.push({
-      role: assertMappedHistoryRole(turn.role),
-      content: text,
-      ...(turn.name !== undefined ? { name: turn.name } : {}),
-    });
+    const message = nonToolMessage(turn);
+    if (message !== null) {
+      messages.push(message);
+    }
   }
   return messages;
+}
+
+// ── The D48 request-field builders (tool-use-design/02 §4 — the chat-completions dialect) ──────────
+/** WireTool[] → the SDK's `tools` (`{type:"function", function:{…}}`). Order preserved (byte-stable
+ *  request bodies — the prompt cache cares). */
+export function buildWireTools(tools: readonly WireTool[]): ChatFunctionTool[] {
+  return tools.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: { ...tool.parameters },
+    },
+  }));
+}
+
+/** The contract `ToolChoice` → the SDK dialect. Mapped ONLY when the caller set it — the `auto`
+ *  default is the CALLER's, never a translator constant (the committed §9 rejection). */
+export function buildToolChoice(choice: ToolChoice): ChatToolChoice {
+  if (choice.mode === "tool") {
+    return { type: "function", function: { name: choice.name } };
+  }
+  return choice.mode;
+}
+
+/** The contract `ResponseFormat` → chat-completions `response_format` (`json_schema` dialect;
+ *  tool-use-design/04 §3). `strict` defaults true. */
+export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonSchemaConfig {
+  return {
+    type: "json_schema",
+    jsonSchema: {
+      name: format.name,
+      schema: { ...format.schema },
+      strict: format.strict ?? true,
+      ...(format.description !== undefined ? { description: format.description } : {}),
+    },
+  };
 }
 
 // ── Sampling projection ──────────────────────────────────────────────────────────────────────────

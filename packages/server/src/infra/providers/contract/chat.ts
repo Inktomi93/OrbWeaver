@@ -52,6 +52,16 @@ export type ToolChoice =
   | { readonly mode: "required" }
   | { readonly mode: "tool"; readonly name: string };
 
+/** One assembled model-emitted call off the stream (the reducer's terminal product; tool-use-design/01 §3
+ *  declares the same shape — the T3 domain leaf imports THIS one down, per the D47 dependency direction).
+ *  `arguments` is the RAW JSON string exactly as emitted — parsed exactly once, inside execute. */
+export interface ToolCallInput {
+  // biome-ignore lint/plugin/no-raw-id: PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, joins the call to its result on the wire; never an orbweaver brand.
+  readonly toolCallId: string;
+  readonly name: string;
+  readonly arguments: string;
+}
+
 /** The structured-output request (D48's SECOND axis — never rides `toolChoice`; tool-use-design/04 §1).
  *  `schema` is projected from the caller's zod payload schema by the SAME rule as tool args — the zod
  *  schema stays the caller's runtime validator (validation + ONE bounded retry are the CALLER's). */
@@ -202,6 +212,9 @@ export interface ChatUsage {
 /** The result EVERY chat/agent backend returns. No `sessionId` (the session is backend-internal). */
 export interface ChatResult {
   readonly reply: string;
+  /** The reducer-assembled model-emitted tool calls (D48; tool-use-design/02 §6) — the T4 loop reads
+   *  these off the normal turn result. ABSENT on a tool-less turn (never `[]`). */
+  readonly toolCalls?: readonly ToolCallInput[] | undefined;
   /** Accumulated CoT / thinking text, separate from `reply`. Empty when reasoning is off/none. */
   readonly reasoning: string;
   /** Raw provider stop string — provenance for `stopReason`/`finishReason`. */

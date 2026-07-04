@@ -26,9 +26,12 @@ import {
 import { withContextCompressionPlugin } from "./context-compression";
 import type { OpenRouterChatDeps } from "./shared";
 import {
+  buildChatResponseFormat,
   buildHistoryMessages,
   buildReasoningRequest,
   buildSystemMessage,
+  buildToolChoice,
+  buildWireTools,
   chatSamplingFields,
   isMandatoryReasoningRejection,
   mergeCustomParameters,
@@ -111,6 +114,13 @@ function buildChatBody(
       ? { reasoning: effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning)) }
       : {}),
     ...(provider !== undefined ? { provider } : {}),
+    // D48/T2: absent means ABSENT (never []/defaults) — a tool-less/format-less request stays
+    // byte-identical to pre-D48; the `auto` toolChoice default is the CALLER's, never hardwired here.
+    ...(req.tools !== undefined ? { tools: buildWireTools(req.tools) } : {}),
+    ...(req.toolChoice !== undefined ? { toolChoice: buildToolChoice(req.toolChoice) } : {}),
+    ...(req.responseFormat !== undefined
+      ? { responseFormat: buildChatResponseFormat(req.responseFormat) }
+      : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
   return mergeCustomParameters(owned, req.customParameters);

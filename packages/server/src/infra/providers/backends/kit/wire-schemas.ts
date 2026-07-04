@@ -36,6 +36,16 @@ const chatCompletionResultSchema = z
                 content: z.unknown(),
                 reasoning: z.string().nullable().optional(),
                 reasoningDetails: z.array(chatReasoningDetailSchema).nullable().optional(),
+                toolCalls: z
+                  .array(
+                    z
+                      .object({
+                        id: z.string(),
+                        function: z.object({ name: z.string(), arguments: z.string() }).loose(),
+                      })
+                      .loose(),
+                  )
+                  .optional(),
               })
               .loose()
               .optional(),
@@ -157,11 +167,20 @@ export interface ChatCompletionUsage {
   readonly isByok?: boolean | undefined;
 }
 
+/** One COMPLETE model-emitted tool call on an assembled message (the wire's `tool_calls[i]` — SDK
+ *  camelCase). The stream reducer assembles these from {@link ChatToolCallDelta} fragments; a one-shot
+ *  body carries them whole (D48; tool-use-design/02 §6). */
+export interface ChatMessageToolCall {
+  readonly id: string;
+  readonly function: { readonly name: string; readonly arguments: string };
+}
+
 /** The assistant message on a chat-completions choice. `content` is `unknown` (string OR content-parts). */
 export interface ChatCompletionMessage {
   readonly content?: unknown;
   readonly reasoning?: string | null | undefined;
   readonly reasoningDetails?: readonly ChatReasoningDetail[] | null | undefined;
+  readonly toolCalls?: readonly ChatMessageToolCall[] | undefined;
 }
 
 /** One choice on a chat-completions view. */
@@ -212,6 +231,17 @@ export interface ResponsesResult {
 
 // ── Stream chunk/event shapes — TS-only structural types (never runtime-parsed) ────────────────────
 
+/** One tool-call FRAGMENT on a stream delta (`delta.tool_calls[i]` — SDK camelCase). The JSON `arguments`
+ *  arrive sliced mid-token across fragments keyed by `index`; the reducer latches `id`/`name` on first
+ *  sight and string-CONCATENATES `arguments` — never an incremental JSON parse (tool-use-design/02 §6). */
+export interface ChatToolCallDelta {
+  readonly index: number;
+  readonly id?: string | undefined;
+  readonly function?:
+    | { readonly name?: string | undefined; readonly arguments?: string | undefined }
+    | undefined;
+}
+
 /** Per-token chat-completions stream delta. `reasoning` (legacy flat string, OpenAI-style + older
  *  Anthropic routes) vs `reasoningDetails` (typed array, newer Anthropic routes: text-bearing CoT +
  *  opaque `reasoning.encrypted` continuity blocks). The reducer reads both so CoT surfaces either way. */
@@ -219,6 +249,7 @@ export interface ChatCompletionStreamDelta {
   readonly content?: string | null | undefined;
   readonly reasoning?: string | null | undefined;
   readonly reasoningDetails?: readonly ChatReasoningDetail[] | null | undefined;
+  readonly toolCalls?: readonly ChatToolCallDelta[] | undefined;
 }
 export interface ChatCompletionStreamChoice {
   readonly delta?: ChatCompletionStreamDelta | undefined;

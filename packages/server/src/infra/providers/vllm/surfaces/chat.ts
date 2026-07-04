@@ -10,21 +10,24 @@
 // default Instruct checkpoint has no thinking — but `reasoning_content` deltas ARE forwarded if a future
 // Thinking model emits them). DETERMINISM: turn timing is an injected `now()` (no perf/Date clock).
 
+import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit";
 import {
-  assertMappedHistoryRole,
   buildOpenAiSamplingFields,
   chatHistoryText,
   IDLE_TIMEOUT_MS,
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
+  rawResponseFormat,
+  rawToolCallDeltas,
+  rawToolChoice,
+  rawWireTools,
   reduceChatCompletionStream,
   turnAbortSignal,
 } from "../../backends/kit";
-import type { ChatRequest, ChatResult } from "../../contract";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { VllmEngineClient } from "../engine";
 
@@ -47,26 +50,76 @@ export interface VllmChatDeps {
 type VllmChatTurn = ChatRequest & { readonly api: "chat-completions" | "responses" };
 
 // One wire message (vision is not used on this streaming text path; the domain assembled plain history).
-// `role` is the canonical `MessageRole` (one home — no inline re-spell of the MESSAGE_ROLES tuple).
+// `role` is the wire axis (`HistoryRole`, one home) plus the local `system` fold; the D48/T2 tool fields
+// carry a materialized exchange (raw snake wire names, biome-exempted at the build sites).
 interface WireMessage {
-  readonly role: MessageRole;
+  readonly role: HistoryRole | "system";
   readonly content: string;
   readonly name?: string;
+  // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+  readonly tool_calls?: readonly Record<string, unknown>[];
+  // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+  readonly tool_call_id?: string;
+}
+
+// The materialized tool exchange, raw-wire form (D48/T2 — same mapping as custom-byo's).
+function wireToolCalls(content: readonly ChatContentPart[]): Record<string, unknown>[] {
+  const calls: Record<string, unknown>[] = [];
+  for (const part of content) {
+    if (part.type === "tool-call") {
+      calls.push({
+        id: part.toolCallId,
+        type: "function",
+        function: { name: part.name, arguments: part.arguments },
+      });
+    }
+  }
+  return calls;
+}
+
+function wireToolResults(content: readonly ChatContentPart[]): WireMessage[] {
+  const out: WireMessage[] = [];
+  for (const part of content) {
+    if (part.type === "tool-result") {
+      // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+      out.push({ role: "tool", tool_call_id: part.toolCallId, content: part.content });
+    }
+  }
+  return out;
+}
+
+// One user/assistant turn → its wire message, or null when empty (a text-less assistant tool-call turn
+// is KEPT — the calls ARE its content).
+function wireTurnMessage(turn: ChatHistoryMessage): WireMessage | null {
+  const text = chatHistoryText(turn.content);
+  const toolCalls = turn.role === "assistant" ? wireToolCalls(turn.content) : [];
+  if (text.trim().length === 0 && toolCalls.length === 0) {
+    return null;
+  }
+  return {
+    role: turn.role,
+    content: text,
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+    ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+    ...(turn.name !== undefined ? { name: turn.name } : {}),
+  };
 }
 
 function toMessages(req: VllmChatTurn): WireMessage[] {
   const system = [req.systemPrompt.static, req.systemPrompt.dynamic]
     .filter((s) => s.trim().length > 0)
     .join("\n\n");
-  const history: WireMessage[] = req.history.map((h) =>
-    h.name === undefined
-      ? { role: assertMappedHistoryRole(h.role), content: chatHistoryText(h.content) }
-      : {
-          role: assertMappedHistoryRole(h.role),
-          content: chatHistoryText(h.content),
-          name: h.name,
-        },
-  );
+  const history: WireMessage[] = [];
+  for (const turn of req.history) {
+    if (turn.role === "tool") {
+      history.push(...wireToolResults(turn.content));
+      continue;
+    }
+    const message = wireTurnMessage(turn);
+    if (message !== null) {
+      history.push(message);
+    }
+  }
   return system.length > 0 ? [{ role: "system", content: system }, ...history] : history;
 }
 
@@ -90,6 +143,15 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
     stream_options: { include_usage: true },
     messages: toMessages(req),
     ...sampling,
+    // D48/T2: absent means ABSENT — a tool-less/format-less body stays byte-identical to pre-D48; the
+    // `auto` toolChoice default is the CALLER's, never hardwired here (04 §3's vLLM json_schema row).
+    ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
+    ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
+    ...(req.responseFormat !== undefined
+      ? { response_format: rawResponseFormat(req.responseFormat) }
+      : {}),
   };
 }
 
@@ -99,6 +161,7 @@ function buildBody(req: VllmChatTurn): Record<string, unknown> {
 interface RawDelta {
   readonly content?: string | null;
   readonly reasoning_content?: string | null;
+  readonly tool_calls?: unknown;
 }
 interface RawChoice {
   readonly delta?: RawDelta;
@@ -120,12 +183,14 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
             promptTokens: chunk.usage.prompt_tokens,
             completionTokens: chunk.usage.completion_tokens,
           };
+    const toolCalls = rawToolCallDeltas(choice?.delta?.tool_calls);
     yield {
       choices: [
         {
           delta: {
             content: choice?.delta?.content,
             reasoning: choice?.delta?.reasoning_content,
+            ...(toolCalls !== undefined ? { toolCalls } : {}),
           },
           finishReason: choice?.finish_reason,
         },

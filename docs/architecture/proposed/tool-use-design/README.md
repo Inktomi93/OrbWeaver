@@ -57,7 +57,7 @@ deferred-blessed. The truth (PD-54's row is the running record):
 | `tools?`/`toolChoice?`/`responseFormat?` request fields (+ `WireTool`/`ToolChoice`/`ResponseFormat`) | **LANDED** (T1, 2026-07-03) — both wire arms; the agent-sdk arm carries NONE (type-pinned in `chat.test-d.ts`) | `infra/providers/contract/chat.ts` `ChatRequest` arms |
 | `tools_unsupported` + `structured_output_unsupported` warning codes | **NOT landed** — deliberately: a code lands in the SAME PR as its first emit site (05 §T1 checkpoint); the emit sites are T4/T6's gates. Home stays `CHAT_WARNING_CODES` per D51 (02 §5) | `@orb/contracts/chat` |
 | `NormalizedFinishReason` `"tool"` + `FINISH_REASON_MAP` | **LANDED** (pre-existing) | `infra/providers/contract/chat.ts` |
-| T2 (translator mappings + the stream accumulator + `ChatResult.toolCalls`) | **NOT landed** — next chunk; deletes the three `assertMappedHistoryRole` call sites as each mapping lands | translators + `openai-compat/stream.ts` |
+| T2 (translator mappings + the stream accumulator + `ChatResult.toolCalls`) | **LANDED** (2026-07-03) — accumulator fixtures + per-dialect builder goldens + tool-exchange history tests pinned; the `assertMappedHistoryRole` bridge deleted at all three sites | translators + `openai-compat/{stream,body}.ts` |
 | The recurse loop | **ABSENT** (T4 — coordinated behind the AP3 engine work; this set describes THAT loop, not a second one) | `domain/chat/engine/` |
 
 ## Standing decisions a cold agent must not re-litigate

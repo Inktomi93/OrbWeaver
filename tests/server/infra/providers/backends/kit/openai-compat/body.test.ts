@@ -7,6 +7,10 @@
 import {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
+  rawResponseFormat,
+  rawToolCallDeltas,
+  rawToolChoice,
+  rawWireTools,
   redactHeaders,
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
@@ -83,5 +87,61 @@ describe("applyIncludeExclude", () => {
   test("no transforms → the base, merged", () => {
     expect(applyIncludeExclude({ a: 1 }, null, null)).toEqual({ a: 1 });
     expect(applyIncludeExclude({ a: 1 }, null, [])).toEqual({ a: 1 });
+  });
+});
+
+describe("the D48 raw-wire builders (T2 — custom-byo + vLLM share these)", () => {
+  test("rawWireTools wraps each WireTool in the {type:'function'} envelope, order preserved", () => {
+    expect(
+      rawWireTools([
+        { name: "a", description: "da", parameters: { type: "object" } },
+        { name: "b", description: "db", parameters: { type: "object" } },
+      ]),
+    ).toEqual([
+      {
+        type: "function",
+        function: { name: "a", description: "da", parameters: { type: "object" } },
+      },
+      {
+        type: "function",
+        function: { name: "b", description: "db", parameters: { type: "object" } },
+      },
+    ]);
+  });
+
+  test("rawToolChoice: the three string modes pass through; the named form is the function object", () => {
+    expect(rawToolChoice({ mode: "auto" })).toBe("auto");
+    expect(rawToolChoice({ mode: "none" })).toBe("none");
+    expect(rawToolChoice({ mode: "required" })).toBe("required");
+    expect(rawToolChoice({ mode: "tool", name: "tick" })).toEqual({
+      type: "function",
+      function: { name: "tick" },
+    });
+  });
+
+  test("rawResponseFormat: json_schema dialect, strict defaults true, description only when set", () => {
+    expect(rawResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
+      type: "json_schema",
+      json_schema: { name: "s", schema: { type: "object" }, strict: true },
+    });
+    expect(rawResponseFormat({ name: "s", schema: {}, strict: false, description: "d" })).toEqual({
+      type: "json_schema",
+      json_schema: { name: "s", schema: {}, strict: false, description: "d" },
+    });
+  });
+
+  test("rawToolCallDeltas: fragments keep their wire index; one-shot entries (no index) use position", () => {
+    expect(
+      rawToolCallDeltas([
+        { index: 2, id: "c2", function: { name: "n2", arguments: "{}" } },
+        { id: "c0", function: { name: "n0", arguments: "{}" } },
+      ]),
+    ).toEqual([
+      { index: 2, id: "c2", function: { name: "n2", arguments: "{}" } },
+      { index: 1, id: "c0", function: { name: "n0", arguments: "{}" } },
+    ]);
+    expect(rawToolCallDeltas([])).toBeUndefined();
+    expect(rawToolCallDeltas("not-an-array")).toBeUndefined();
+    expect(rawToolCallDeltas(undefined)).toBeUndefined();
   });
 });

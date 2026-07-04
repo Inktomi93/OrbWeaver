@@ -9,10 +9,15 @@
 import { createHash } from "node:crypto";
 import type {
   EasyInputMessage,
+  FunctionCallItem,
+  FunctionCallOutputItem,
+  OpenAIResponsesToolChoiceUnion,
   OpenResponsesResult,
   ResponsesRequest,
+  ResponsesRequestToolFunction,
   StreamEvents,
 } from "@openrouter/sdk/models";
+import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type {
@@ -21,12 +26,15 @@ import type {
   ChatUsage,
   OpenRouterChatRequest,
   ResolvedChatKnobs,
+  ResponseFormat,
+  ToolCallInput,
+  ToolChoice,
+  WireTool,
 } from "../../../../contract";
 import { normalizeFinishReason, ProviderError } from "../../../../contract";
 import { resolveChat } from "../../../../resolve-chat";
 import {
   ANTHROPIC_CACHE_5M,
-  assertMappedHistoryRole,
   chatHistoryText,
   effortToResponsesReasoning,
   isAnthropicModel,
@@ -70,22 +78,85 @@ interface OpenRouterResponsesClient {
   };
 }
 
+// One Responses input item (the D48/T2 union this runner emits: plain messages + the tool exchange).
+type ResponsesInputItem = EasyInputMessage | FunctionCallItem | FunctionCallOutputItem;
+
+// The materialized tool exchange → responses-dialect items: an assistant `tool-call` part becomes a
+// `function_call` item (the input replay reuses `toolCallId` for the item `id` — OpenRouter accepts a
+// replayed call keyed by `callId`); a `tool-result` part becomes a `function_call_output` item.
+function toolExchangeItems(content: readonly ChatContentPart[]): ResponsesInputItem[] {
+  const items: ResponsesInputItem[] = [];
+  for (const part of content) {
+    if (part.type === "tool-call") {
+      items.push({
+        type: "function_call",
+        id: part.toolCallId,
+        callId: part.toolCallId,
+        name: part.name,
+        arguments: part.arguments,
+      });
+    } else if (part.type === "tool-result") {
+      items.push({ type: "function_call_output", callId: part.toolCallId, output: part.content });
+    }
+  }
+  return items;
+}
+
 // Assemble the Responses `input` from the assembled view. The SDK's `EasyInputMessage` carries no per-
 // participant `name` (unlike chat-completions), so the completion-name label is dropped on this path — see
-// the FLAG in index.ts. An assistant-first view gets a placeholder user turn prepended.
-function buildResponsesInput(history: readonly ChatHistoryMessage[]): EasyInputMessage[] {
-  const items: EasyInputMessage[] = [];
+// the FLAG in index.ts. An assistant-first view gets a placeholder user turn prepended. A materialized
+// tool exchange (D48/T2) rides as `function_call`/`function_call_output` items in turn order.
+function buildResponsesInput(history: readonly ChatHistoryMessage[]): ResponsesInputItem[] {
+  const items: ResponsesInputItem[] = [];
   for (const turn of history) {
+    const exchange = toolExchangeItems(turn.content);
+    if (exchange.length > 0) {
+      items.push(...exchange);
+    }
+    if (turn.role === "tool") {
+      continue; // its results already rode above; a tool turn has no message body
+    }
     const text = chatHistoryText(turn.content);
     if (text.trim().length === 0) {
       continue;
     }
-    items.push({ role: assertMappedHistoryRole(turn.role), content: text });
+    items.push({ role: turn.role, content: text });
   }
-  if (items[0]?.role === "assistant") {
+  const first = items[0];
+  if (first !== undefined && "role" in first && first.role === "assistant") {
     items.unshift({ role: USER_ROLE, content: ASSISTANT_FIRST_PLACEHOLDER });
   }
   return items;
+}
+
+// ── The D48 request-field builders (responses dialect — flat tools, responses toolChoice spelling) ──
+function buildResponsesTools(tools: readonly WireTool[]): ResponsesRequestToolFunction[] {
+  return tools.map((tool) => ({
+    type: "function",
+    name: tool.name,
+    description: tool.description,
+    parameters: { ...tool.parameters },
+  }));
+}
+
+function buildResponsesToolChoice(choice: ToolChoice): OpenAIResponsesToolChoiceUnion {
+  if (choice.mode === "tool") {
+    return { type: "function", name: choice.name };
+  }
+  return choice.mode;
+}
+
+// `responseFormat` → the responses `text.format` json_schema spelling (tool-use-design/04 §3).
+function buildResponsesTextFormat(format: ResponseFormat): ResponsesRequest["text"] {
+  return {
+    format: {
+      type: "json_schema",
+      name: format.name,
+      schema: { ...format.schema },
+      strict: format.strict ?? true,
+      ...(format.description !== undefined ? { description: format.description } : {}),
+    },
+  };
 }
 
 function promptCacheKey(model: string, instructions: string): string {
@@ -127,6 +198,15 @@ function buildResponsesBody(
       : {}),
     ...(includeReasoning ? { reasoning: { ...reasoningBlock, summary: REASONING_SUMMARY } } : {}),
     ...(provider !== undefined ? { provider } : {}),
+    // D48/T2: absent means ABSENT (byte-identical pre-D48 request without tools/format); the `auto`
+    // toolChoice default is the CALLER's, never hardwired here.
+    ...(req.tools !== undefined ? { tools: buildResponsesTools(req.tools) } : {}),
+    ...(req.toolChoice !== undefined
+      ? { toolChoice: buildResponsesToolChoice(req.toolChoice) }
+      : {}),
+    ...(req.responseFormat !== undefined
+      ? { text: buildResponsesTextFormat(req.responseFormat) }
+      : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
   return mergeCustomParameters(owned, req.customParameters);
@@ -260,6 +340,21 @@ function flattenResponsesOutput(final: OpenResponsesResult | undefined): string 
   return out;
 }
 
+// D48/T2: the completed calls off the TERMINAL response's `output[]` (`function_call` items carry the
+// FULL arguments there — no fragment reassembly needed on this path; the `…arguments.delta` events are
+// protocol noise the reducer deliberately ignores, 03 §5). Absent, never [], on a tool-less turn.
+function extractResponsesToolCalls(
+  final: OpenResponsesResult | undefined,
+): readonly ToolCallInput[] | undefined {
+  const calls: ToolCallInput[] = [];
+  for (const item of final?.output ?? []) {
+    if (item.type === "function_call" && "callId" in item) {
+      calls.push({ toolCallId: item.callId, name: item.name, arguments: item.arguments });
+    }
+  }
+  return calls.length > 0 ? calls : undefined;
+}
+
 function mapResponsesToTurnResult(
   drain: ResponsesDrain,
   ctx: {
@@ -272,8 +367,10 @@ function mapResponsesToTurnResult(
 ): ChatResult {
   const { final } = drain;
   const rawFinish = final?.incompleteDetails?.reason ?? final?.status ?? null;
+  const toolCalls = extractResponsesToolCalls(final);
   return {
     reply: drain.reply.length > 0 ? drain.reply : flattenResponsesOutput(final),
+    ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning: drain.reasoning,
     stopReason: rawFinish,
     terminalReason: null,

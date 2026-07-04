@@ -6,7 +6,15 @@
 // backend reaches into another's folder; cross-backend wire work goes through here.
 
 export type { OpenAiSamplingInput } from "./body";
-export { applyIncludeExclude, buildOpenAiSamplingFields, redactHeaders } from "./body";
+export {
+  applyIncludeExclude,
+  buildOpenAiSamplingFields,
+  rawResponseFormat,
+  rawToolCallDeltas,
+  rawToolChoice,
+  rawWireTools,
+  redactHeaders,
+} from "./body";
 export type { MapTurnContext, StreamDelta, StreamReduceOptions } from "./stream";
 export {
   mapChatCompletionToTurnResult,

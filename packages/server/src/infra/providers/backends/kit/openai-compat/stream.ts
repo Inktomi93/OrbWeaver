@@ -5,13 +5,15 @@
 //
 // DETERMINISM: the mapper takes the settled-at time as an injected `now` value (no `Date.now()` here).
 
-import type { ChatResult, ChatUsage } from "../../../contract";
+import type { ChatResult, ChatUsage, ToolCallInput } from "../../../contract";
 import { normalizeFinishReason } from "../../../contract";
 import type {
   ChatCompletionResult,
   ChatCompletionStreamChunk,
   ChatCompletionStreamDelta,
   ChatCompletionUsage,
+  ChatMessageToolCall,
+  ChatToolCallDelta,
 } from "../wire-schemas";
 import {
   collectReasoningDetailsText,
@@ -63,6 +65,7 @@ export async function reduceChatCompletionStream(
   let replyText = "";
   let usage: ChatCompletionUsage | undefined;
   let finishReason: string | null = null;
+  const toolCalls = new Map<number, ToolCallAccumulator>();
   for await (const chunk of stream) {
     opts.onChunk?.();
     if (chunk.error !== null && chunk.error !== undefined) {
@@ -73,6 +76,7 @@ export async function reduceChatCompletionStream(
     const delta = chunk.choices[0]?.delta;
     if (delta !== undefined) {
       replyText += dispatchDelta(delta, opts.onDelta);
+      accumulateToolCallDeltas(toolCalls, delta.toolCalls);
     }
     if (chunk.usage !== undefined) {
       usage = chunk.usage;
@@ -82,10 +86,61 @@ export async function reduceChatCompletionStream(
       finishReason = chunkFinish;
     }
   }
+  const assembled = assembleToolCalls(toolCalls);
   return {
-    choices: [{ message: { content: replyText }, finishReason }],
+    choices: [
+      {
+        message: {
+          content: replyText,
+          ...(assembled.length > 0 ? { toolCalls: assembled } : {}),
+        },
+        finishReason,
+      },
+    ],
     ...(usage !== undefined ? { usage } : {}),
   };
+}
+
+// ── The D48 tool-call delta accumulator (tool-use-design/02 §6 — ST's proven index-keyed model) ────
+// The JSON `arguments` arrive SLICED MID-TOKEN across fragments; only string concatenation is correct
+// (never an incremental JSON parse). `id`/`name` LATCH on first sight — later fragments repeat or omit
+// them. NO per-fragment delta events reach the caller (03 §5): tool fragments are protocol, not prose.
+interface ToolCallAccumulator {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+function accumulateToolCallDeltas(
+  acc: Map<number, ToolCallAccumulator>,
+  fragments: readonly ChatToolCallDelta[] | undefined,
+): void {
+  if (fragments === undefined) {
+    return;
+  }
+  for (const fragment of fragments) {
+    const entry = acc.get(fragment.index) ?? { id: "", name: "", arguments: "" };
+    if (entry.id.length === 0 && fragment.id !== undefined) {
+      entry.id = fragment.id;
+    }
+    if (entry.name.length === 0 && fragment.function?.name !== undefined) {
+      entry.name = fragment.function.name;
+    }
+    if (fragment.function?.arguments !== undefined) {
+      entry.arguments += fragment.function.arguments;
+    }
+    acc.set(fragment.index, entry);
+  }
+}
+
+// Emission order = ascending wire index (deterministic — the loop executes in emission order, 02 §7).
+function assembleToolCalls(acc: Map<number, ToolCallAccumulator>): ChatMessageToolCall[] {
+  return [...acc.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([, entry]) => ({
+      id: entry.id,
+      function: { name: entry.name, arguments: entry.arguments },
+    }));
 }
 
 // Emit the text + reasoning deltas for one chunk and return the reply text it appended (kept separate so
@@ -155,8 +210,10 @@ export function mapChatCompletionToTurnResult(
     ctx.reasoning !== undefined && ctx.reasoning.length > 0
       ? ctx.reasoning
       : extractChatReasoning(view);
+  const toolCalls = mapToolCalls(view.choices?.[0]?.message?.toolCalls);
   return {
     reply: extractChatReply(view),
+    ...(toolCalls !== undefined ? { toolCalls } : {}),
     reasoning,
     stopReason: chatFinish,
     terminalReason: null,
@@ -169,6 +226,21 @@ export function mapChatCompletionToTurnResult(
     events: [],
     rateLimit: null,
   };
+}
+
+// Wire tool-calls → the contract's ToolCallInput (absent, never [], on a tool-less turn — the T4 loop
+// pivots on `finishReason === "tool"` and reads these; 03 §2).
+function mapToolCalls(
+  calls: readonly ChatMessageToolCall[] | undefined,
+): readonly ToolCallInput[] | undefined {
+  if (calls === undefined || calls.length === 0) {
+    return;
+  }
+  return calls.map((call) => ({
+    toolCallId: call.id,
+    name: call.function.name,
+    arguments: call.function.arguments,
+  }));
 }
 
 const SSE_DATA_PREFIX = "data:";
