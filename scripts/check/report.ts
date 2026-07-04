@@ -4,6 +4,8 @@
 // docs/architecture/core/Core-Enforcement-Active-Gates.md; the deferred backlog in
 // Core-Enforcement-Deferred-Dropped.md.
 
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
@@ -37,8 +39,8 @@ import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
-import type { Check } from "./harness.ts";
-import { runChecks } from "./harness.ts";
+import type { Check, CheckContext, Violation } from "./harness.ts";
+import { getProject, runChecks } from "./harness.ts";
 
 /** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which
  *  filters this list by touched-path zone — importing this module does NOT run anything (the
@@ -77,14 +79,47 @@ export const ALL_CHECKS: readonly Check[] = [
   memberCardClamped,
 ];
 
+/** Per-gate JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact
+ *  `scripts/check/show.ts` renders. */
+interface GateReport {
+  readonly name: string;
+  readonly ok: boolean;
+  readonly violations: readonly Violation[];
+}
+
+interface StructureReport {
+  readonly gates: readonly GateReport[];
+  readonly total: number;
+  readonly ok: boolean;
+}
+
+/** Additive JSON companion to the stdout report — written UNCONDITIONALLY (clean or dirty run
+ *  alike), strictly AFTER `runChecks` has already printed, so it can never change stdout or the
+ *  exit code (verified: `diff` of a captured `pnpm check:structure` run before vs after this
+ *  function existed is empty). Re-runs each gate over the SAME cached ts-morph project
+ *  `runChecks` just warmed (`getProject` caches by root — no re-parse, just re-walking already-
+ *  loaded ASTs) purely to capture the per-gate violation list the printed report doesn't retain. */
+function writeStructureReport(root: string, checks: readonly Check[]): void {
+  const ctx: CheckContext = { root, project: getProject(root) };
+  const gates: GateReport[] = checks.map((check) => {
+    const violations = check.run(ctx);
+    return { name: check.name, ok: violations.length === 0, violations };
+  });
+  const total = gates.reduce((sum, g) => sum + g.violations.length, 0);
+  const report: StructureReport = { gates, total, ok: total === 0 };
+  const reportsDir = join(root, "reports");
+  mkdirSync(reportsDir, { recursive: true });
+  writeFileSync(join(reportsDir, "check-structure.json"), `${JSON.stringify(report, null, 2)}\n`);
+}
+
 // Direct-run guard: `pnpm check:structure` (tsx runs this file as the entrypoint) executes every
 // gate exactly as before — same output, same exit(1)-on-violation; an import (file.ts) gets the
 // list only. argv[1] is the tsx entry script, so the URL comparison is the ESM "is main" idiom.
 const entry = process.argv[1];
-if (
-  entry !== undefined &&
-  import.meta.url === pathToFileURL(entry).href &&
-  runChecks(ALL_CHECKS) > 0
-) {
-  process.exit(1);
+if (entry !== undefined && import.meta.url === pathToFileURL(entry).href) {
+  const violationTotal = runChecks(ALL_CHECKS);
+  writeStructureReport(process.cwd(), ALL_CHECKS);
+  if (violationTotal > 0) {
+    process.exit(1);
+  }
 }

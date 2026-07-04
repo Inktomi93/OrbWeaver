@@ -197,10 +197,19 @@ test("every registered structural gate fires on its fixture (anti-drift)", () =>
   expect(unfired).toEqual([]);
 });
 
+// Gates DELIBERATELY not wired into `ALL_CHECKS` — written but DORMANT by decision (Nate 2026-07-04,
+// scratch/dev-tooling-support-kit-plan.md), each with its own header explaining why + its own
+// self-test proving it actually fires (tests/tooling/{monotonic-tests,audit-client-tests}.int.test.ts
+// drive them directly, never through report.ts). This is the ONE sanctioned exemption from the
+// anti-drift check below — a gate added here without ALSO getting a self-test is still a bug; the
+// exemption is for the ALL_CHECKS registration only, not for having no test at all.
+const DORMANT_GATES = new Set(["monotonic-tests", "audit-client-tests"]);
+
 test("every gate file in scripts/check/gates is registered in report.ts (anti-drift)", () => {
   // A gate file that exists but is never listed in report.ts silently does nothing — it never runs,
   // so the "fires on its fixture" test above can't catch it (it's not in the registry). This closes
-  // that hole: the gate file's basename (kebab) must equal a gate name report.ts prints.
-  const unregistered = GATE_FILES.filter((g) => !registry.has(g));
+  // that hole: the gate file's basename (kebab) must equal a gate name report.ts prints — UNLESS it's
+  // an explicitly DORMANT gate (see DORMANT_GATES above), which is deliberately unregistered.
+  const unregistered = GATE_FILES.filter((g) => !(registry.has(g) || DORMANT_GATES.has(g)));
   expect(unregistered).toEqual([]);
 });
