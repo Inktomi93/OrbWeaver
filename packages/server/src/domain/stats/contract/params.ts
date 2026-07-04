@@ -2,8 +2,8 @@
 // inline `{ sort?; limit? }` / `{ from?; to? }` opts off the verb signatures into here). Two string-union
 // axes live here too: `LeaderboardSort` (the `readLeaderboard` `sortCols` mapped-Record is the gold-standard
 // exhaustive-dispatch pattern — a new member is a `tsc` error if its Record arm is missing) and
-// `LatencyScope` (a discriminated union; the `readLatency` chain SHOULD carry an `assertNever` default —
-// FLAG[PD-97]: it does NOT yet, so an unhandled kind falls through to owner-scope; a TODO to add the guard).
+// `LatencyScope` (a discriminated union; the `readLatency` switch carries an `assertNever` default, so an
+// unhandled kind fails `tsc` instead of falling through to owner-scope).
 
 import type { CharacterId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -20,8 +20,8 @@ export const LEADERBOARD_SORTS = [
 ] as const;
 export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
 
-/** The entity a latency percentile scan is scoped to (discriminated union; SHOULD be `assertNever`-
- *  dispatched — FLAG[PD-97], the `readLatency` chain lacks the guard today). The
+/** The entity a latency percentile scan is scoped to (discriminated union; `assertNever`-dispatched in
+ *  `readLatency`, §7.5). The
  *  Zod schema is the ONE home (§7.5; the tRPC router re-parses it directly, deriving — not re-spelling — the
  *  wire shape); `LatencyScope` derives via `z.infer`. */
 export const latencyScopeSchema = z.discriminatedUnion("kind", [

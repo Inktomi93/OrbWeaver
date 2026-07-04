@@ -57,6 +57,7 @@ export function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): Wor
     env: {} as WorkloadRunnerEnv,
     bindRoleClients: () => Promise.resolve({} as RoleClients),
     loadUserSettings: () => Promise.resolve({} as UserSettings),
+    audit: () => Promise.resolve(),
     now: () => T0,
     ...overrides,
   };

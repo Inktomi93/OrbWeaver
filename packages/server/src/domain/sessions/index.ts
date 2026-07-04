@@ -8,4 +8,7 @@ export type { SessionView } from "@orb/contracts/session";
 export type { SessionsService } from "./contract/service";
 export { createOidcStore } from "./persistence/oidc-store";
 export { createSessionsService } from "./service";
+// The ONE owner-handle predicate (D17 role policy) — exported so entry's boot owner-seed and the
+// login-derived role path can never fork (PD-98: entry must call this, not re-implement the comma-split).
+export { ownerHandles } from "./substrate/role-policy";
 export { createTokenHasher } from "./tokens/tokens";

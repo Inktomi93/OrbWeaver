@@ -3,7 +3,7 @@
 // derive from `@orb/contracts/persona`.
 
 import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
@@ -37,6 +37,25 @@ export const personaRouter = t.router({
     .input(z.object({ personaId: brandedId<PersonaId>() }))
     .mutation(({ ctx, input }) =>
       ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId }),
+    ),
+
+  // PD-99: the per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
+  // Auth lives in the verb (`requireChatAuthorOrHost` — self or host); `personaId: null` clears the slot.
+  setActivePersona: authedProcedure
+    .input(
+      z.object({
+        chatId: brandedId<ChatId>(),
+        targetUserId: brandedId<UserId>(),
+        personaId: brandedId<PersonaId>().nullable(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.setActivePersona({
+        principal: ctx.auth,
+        chatId: input.chatId,
+        targetUserId: input.targetUserId,
+        personaId: input.personaId,
+      }),
     ),
 
   createFromCharacter: authedProcedure

@@ -20,6 +20,10 @@ import { percentiles } from "../substrate/percentiles";
 // model_stats `(unknown)` bucket (invariant #5; mirrors @orb/kit/stats-tally.modelKey + the schema default).
 const UNKNOWN_PROVIDER = "(unknown)";
 
+function assertNever(value: never): never {
+  throw new Error(`readLatency: unhandled latency scope ${String(value)}`);
+}
+
 /** Build a `LatencyStats` from a ttft list + a gen-duration list (the on-read percentile spread). */
 function statsOf(ttft: number[], gen: number[]): LatencyStats {
   const t = percentiles(ttft);
@@ -45,14 +49,15 @@ export async function readLatency(
 ): Promise<LatencyStats> {
   // Narrowing predicate per scope (owner = no extra filter). The model provider coalesces to the sentinel
   // so a scope provider of '(unknown)'/null matches a null-provider variant (invariant #5).
-  // FLAG[PD-97]: this chain has NO `assertNever` default — an unhandled scope.kind silently falls through
-  // to owner-scope instead of failing `tsc`. A new LatencyScope member would read as owner-scope. Add the
-  // exhaustive-dispatch guard (§7.5 discipline the union is meant to carry).
+  // The dispatch is `assertNever`-exhaustive over `LatencyScope` (§7.5) — a new scope kind fails `tsc`
+  // until its arm exists.
   let narrow = sql``;
   if (scope.kind === "character") {
     narrow = sql`AND m.character_id = ${scope.characterId}`;
   } else if (scope.kind === "model") {
     narrow = sql`AND v.model = ${scope.model} AND COALESCE(v.provider, ${UNKNOWN_PROVIDER}) = ${scope.provider ?? UNKNOWN_PROVIDER}`;
+  } else if (scope.kind !== "owner") {
+    assertNever(scope);
   }
   const rows = await db.all<{
     ttft: number | null;

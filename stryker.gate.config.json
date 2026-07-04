@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "GATED mutation lane (Core-Laws-and-Precedents.md). Pinned to the highest-stakes pure modules — turn routing, credential resolution, prompt assembly — where a surviving mutant means a test asserts presence-of-behavior without asserting correctness (the `isVllmBackend`-lying-gate class neo founded this on). Unlike the exploratory stryker.config.json (break:null), this FAILS the build below `thresholds.break` — a ratchet-down regression guard. NOT in `pnpm check` (mutation runs are minutes; the check budget is structural-fast) — run on demand via `pnpm test:mutation:gate` + from CI. SCHEDULED: skeleton until the three target files + their tests exist (Phase 4c/5); `break` stays null until then.",
+  "_comment": "GATED mutation lane (Core-Laws-and-Precedents.md). Pinned to the highest-stakes pure modules — prompt assembly + credential resolution — where a surviving mutant means a test asserts presence-of-behavior without asserting correctness (the `isVllmBackend`-lying-gate class neo founded this on). Unlike the exploratory stryker.config.json (break:null), this FAILS the build below `thresholds.break` — a ratchet-down regression guard. NOT in `pnpm check` (mutation runs are minutes; the check budget is structural-fast) — run on demand via `pnpm test:mutation:gate` + from CI. RUNNABLE (PD-114): both target files + their tests exist; `break` stays null until calibrated from a measured run.",
 
   "packageManager": "pnpm",
   "testRunner": "vitest",
@@ -15,9 +15,8 @@
   "reporters": ["html", "clear-text"],
   "htmlReporter": { "fileName": "reports/mutation/gate.html" },
 
-  "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. orbweaver targets (Phase 4c/5 — do not exist yet).",
+  "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. (PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts.)",
   "mutate": [
-    "packages/server/src/domain/chat/routing.ts",
     "packages/server/src/domain/chat/assembly/assemble.ts",
     "packages/server/src/domain/credentials/verbs/resolve.ts",
     "!packages/**/*.d.ts"
@@ -49,6 +48,6 @@
   "incremental": true,
   "incrementalFile": "reports/stryker-gate-incremental.json",
 
-  "_thresholds_comment": "break is the GATE — Stryker exits non-zero when the AGGREGATE score across the pinned files drops below it. CALIBRATE at Phase 4c/5: measure the aggregate, set break ~6pts under it, then ratchet UP as suites gain real assertions (neo's history: aggregate climbed 55.41%→66.31% over a hardening pass; break sat at 60). Stays null until the targets exist — a null break never fails, so the skeleton is safe to commit.",
+  "_thresholds_comment": "break is the GATE — Stryker exits non-zero when the AGGREGATE score across the pinned files drops below it. CALIBRATE now that the targets exist: measure the aggregate, set break ~6pts under it, then ratchet UP as suites gain real assertions (neo's history: aggregate climbed 55.41%→66.31% over a hardening pass; break sat at 60). Stays null until calibrated — a null break never fails.",
   "thresholds": { "high": 80, "low": 60, "break": null }
 }

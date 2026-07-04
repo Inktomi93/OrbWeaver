@@ -15,6 +15,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
+import type { AuditEntry } from "#foundation/observability";
 import type {
   CancelWorkloadParams,
   CancelWorkloadResult,
@@ -70,6 +71,9 @@ export interface WorkloadRunnerDeps {
   readonly env: WorkloadRunnerEnv;
   readonly bindRoleClients: BindRoleClients;
   readonly loadUserSettings: LoadUserSettings;
+  /** The bound foundation `logAudit` writer (suppress-and-drop; never the primary channel) — the engine
+   *  emits `WORKLOAD_FAILED` on a terminal runtime failure (PD-113, the D1 audit-surface condition). */
+  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: () => number;
   readonly heartbeatMs?: number;
   readonly cancelPollMs?: number;
