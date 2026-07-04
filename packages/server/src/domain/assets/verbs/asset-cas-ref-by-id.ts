@@ -1,9 +1,9 @@
-// verb: assetCasRefById — resolve an asset's `(ownerId, hash)` CAS coordinates from its ROW ID alone.
-// UN-PRINCIPAL by design (D20 — the `loadAssetBytes` posture): a pure coordinate lookup that returns NO
-// bytes and applies NO owner gate. Its one caller is the chat image-resolution seam (`resolveImageUrl`),
-// which turns a canon `asset:<id>` ref into the content hash that `getMetadata` needs — and `getMetadata`
-// (owner-scope + the PD-28 co-participant fallback) is the actual permission gate. Compose-root-internal;
-// never routed to a user-facing surface. `undefined` when the row is gone.
+// verb: assetCasRefById — resolve an asset's `(ownerId, hash, mime)` from its ROW ID alone. UN-PRINCIPAL by
+// design (D20 — the `loadAssetBytes` posture): a pure row lookup that returns NO bytes and applies NO owner
+// gate. Its one caller is the chat image-resolution seam (`resolveImageRefToUrl`), which gates the ref by
+// OWNER — a chat-scoped REFERENCE-CHECK (is the owner a present participant of the referencing chat? — the
+// D21 in-room shared-fiction scope, never a bare hash→owner oracle) — and builds the data-URI from `mime`.
+// Compose-root-internal; never a user-facing surface. `undefined` when the row is gone.
 
 import type { AssetId } from "@orb/kit/ids";
 import type { AssetCasRef } from "../contract/results";

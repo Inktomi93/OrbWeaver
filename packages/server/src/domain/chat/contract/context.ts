@@ -109,11 +109,14 @@ export type ResolveUserPublicsOp = (
 } | null>;
 
 /** `assets.resolveImageUrl` — resolve a parsed message-image ref (D45) to a model-fetchable URL/data-URI at
- *  the engine REQUEST seam: an `asset` ref → the owner's CAS object URL; an `external` ref → itself, or `null`
- *  when blocked by `forbidExternalMedia` (D44 §12.3) or the asset is gone. `null` ⇒ the engine drops that
- *  image part. Owner-scoped like {@link GetCardOp} (the host's CAS, D16 host-only-corpus). */
+ *  the engine REQUEST seam: an `asset` ref → the owning participant's CAS object; an `external` ref → itself,
+ *  or `null` when blocked by `forbidExternalMedia` (D44 §12.3) or the asset is gone. `null` ⇒ the engine drops
+ *  that image part. `ownerId` is the turn HOST; the ref is read from `chatId`'s canon by construction, so the
+ *  asset resolves only when its owner is the host OR a PRESENT participant of `chatId` — the D21 in-room
+ *  shared-fiction reference-check (a group member's own upload renders; a stranger's asset never does). */
 export type ResolveImageUrlOp = (params: {
   readonly ownerId: UserId;
+  readonly chatId: ChatId;
   readonly ref: ContentImageRef;
 }) => Promise<string | null>;
 

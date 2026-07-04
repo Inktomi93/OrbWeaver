@@ -15,13 +15,15 @@ import type { UserId } from "@orb/kit/ids";
 
 export type { StoredAsset } from "@orb/contracts/assets";
 
-/** The `(ownerId, hash)` CAS coordinates of an asset resolved by ROW ID alone (D20 — un-principal, like
- *  `loadAssetBytes`). A pure coordinate lookup: no bytes, no gate. The chat image-resolution seam uses it to
- *  turn a canon `asset:<id>` ref into the hash `getMetadata` needs (the actual permission gate). `undefined`
- *  when no such row. */
+/** An asset's owner + CAS hash + mime resolved by ROW ID alone (D20 — un-principal, like `loadAssetBytes`).
+ *  A pure row lookup: no bytes, no gate. The chat image-resolution seam (`resolveImageRefToUrl`) reads it to
+ *  gate a canon `asset:<id>` ref by OWNER (a chat-scoped reference-check — is the owner a present participant
+ *  of the referencing chat?) and to build the data-URI `mime`; `hash` is the CAS coordinate its sibling
+ *  `loadAssetBytes` keys the per-user store on. `undefined` when no such row. */
 export interface AssetCasRef {
   readonly ownerId: UserId;
   readonly hash: string;
+  readonly mime: string;
 }
 
 /** The blob-serve gate answer: enough to set response headers for an owned blob. `undefined` (not this
