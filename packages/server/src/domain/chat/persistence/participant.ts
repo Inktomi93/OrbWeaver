@@ -15,7 +15,7 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
@@ -208,12 +208,7 @@ export async function markUserLeft(
   userId: UserId,
   leftSeq: number,
 ): Promise<typeof chatParticipants.$inferSelect | undefined> {
-  const rows = (await markUserLeftStatement(
-    db,
-    chatId,
-    userId,
-    leftSeq,
-  )) as unknown as (typeof chatParticipants.$inferSelect)[];
+  const rows = await markUserLeftStatement(db, chatId, userId, leftSeq);
   return rows.at(0);
 }
 
@@ -224,7 +219,7 @@ export function markUserLeftStatement(
   chatId: ChatId,
   userId: UserId,
   leftSeq: number,
-): BatchStmt {
+): AwaitableBatchStmt<(typeof chatParticipants.$inferSelect)[]> {
   return db
     .update(chatParticipants)
     .set({ leftSeq })
@@ -288,7 +283,7 @@ export function setPendingHostStatement(
   chatId: ChatId,
   nomineeUserId: UserId,
   now: number,
-): BatchStmt {
+): AwaitableBatchStmt<unknown> {
   return db
     .update(chats)
     .set({ pendingHostUserId: nomineeUserId, updatedAt: now })

@@ -12,6 +12,18 @@ export type DbBatchInput = Parameters<Db["batch"]>[0];
 /** One statement within a {@link DbBatchInput} (a query builder / prepared statement `batch()` accepts). */
 export type BatchStmt = DbBatchInput[number];
 
+/**
+ * A single statement that is BOTH batchable (assignable to {@link BatchStmt}, so it can ride a `db.batch`)
+ * AND directly awaitable to its concrete RETURNING rows `TResult` — the honest type of a drizzle query
+ * builder handed to a caller UNEXECUTED yet also runnable standalone. `BatchStmt` alone erases the
+ * builder's thenability + result (drizzle types a batch item as the tag-only `RunnableQuery`, so a bare
+ * `await` of it trips `await-thenable`); this names the dual nature the PD-24 seam relies on
+ * (markUserLeftStatement/setPendingHostStatement/buildInsertNotification: awaited inline OR handed to a
+ * batch). `BatchStmt` itself stays the erased multi-table batch-INPUT type — modelling thenability THERE
+ * would lie for the heterogeneous-array case.
+ */
+export type AwaitableBatchStmt<TResult> = BatchStmt & PromiseLike<TResult>;
+
 /** Identity-typed pass-through that pins a single statement to {@link BatchStmt} at the build site. */
 export function batchStmt(stmt: BatchStmt): BatchStmt {
   return stmt;
