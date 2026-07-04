@@ -416,8 +416,28 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       };
     },
     // D45 asset→URL resolution → CAS bytes as a data-URI (see `resolve-image-ref` for the by-id resolve +
-    // co-participant gate). Extracted so the gate wiring is unit-tested apart from the compose root.
-    resolveImageUrl: (params) => resolveImageRefToUrl(input.assets, realHostPrincipal, params),
+    // the D21 chat-scoped reference gate). The gate reader answers "is this asset's owner a PRESENT member of
+    // the referencing chat?" — a scoped `chat_participants` read (never `loadCoParticipantOwner`'s cross-chat
+    // hash→owner oracle, PD-107). Extracted so the gate wiring is unit-tested apart from the compose root.
+    resolveImageUrl: (params) =>
+      resolveImageRefToUrl(
+        input.assets,
+        async (userId, forChatId) => {
+          const rows = await db
+            .select({ id: chatParticipants.id })
+            .from(chatParticipants)
+            .where(
+              and(
+                eq(chatParticipants.userId, userId),
+                eq(chatParticipants.chatId, forChatId),
+                isNull(chatParticipants.leftSeq),
+              ),
+            )
+            .limit(1);
+          return rows.length > 0;
+        },
+        params,
+      ),
     // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
     // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {

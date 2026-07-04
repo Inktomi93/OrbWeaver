@@ -1,6 +1,6 @@
-// verb: assetCasRefById — the un-principal by-id `(ownerId, hash)` coordinate lookup (D20). Feeds the chat
-// image-resolution gate: turn a canon `asset:<id>` ref into the content hash `getMetadata` gates on. It reads
-// the row by id ALONE (no owner scope), returns the stored owner + hash, and returns undefined for a gone id.
+// verb: assetCasRefById — the un-principal by-id `(ownerId, hash, mime)` lookup (D20). Feeds the chat
+// image-resolution gate: `ownerId` drives the chat-scoped reference-check, `mime` the data-URI. It reads the
+// row by id ALONE (no owner scope), returns owner + hash + mime, and returns undefined for a gone id.
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -30,7 +30,7 @@ describe("assetCasRefById", () => {
 
     const coords = await svc.assetCasRefById(stored.assetId);
 
-    expect(coords).toEqual({ ownerId: owner, hash: stored.hash });
+    expect(coords).toEqual({ ownerId: owner, hash: stored.hash, mime: PNG });
   });
 
   test("a missing asset id is undefined (never throws)", async () => {

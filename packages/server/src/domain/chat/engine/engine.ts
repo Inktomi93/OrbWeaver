@@ -351,7 +351,8 @@ async function executeTurn(
       // The injected node:vm ReDoS watchdog (D53) — the RECEIVE AI_OUTPUT/REASONING regex passes run under it.
       applyRegexReplace: ctx.applyRegexReplace,
       // Resolve image refs under the host's CAS (runAsUserId — the funded owner, like getCard's host scope).
-      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, ref }),
+      resolveImageUrl: (ref) =>
+        ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: prep.assembleContext,
       // The canon scoped to the turn's context per persist mode (full / before-target / through-target).
       canon: scopeCanon(canonAll, persist, target),
