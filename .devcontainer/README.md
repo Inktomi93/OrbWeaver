@@ -6,7 +6,7 @@ non-root user + a default-deny egress firewall mean an agent with no prompts sti
 can't escape the box or phone home.
 
 This is **only a coding sandbox**. The GPU/vLLM + local-light model stack runs on the
-**host** (the `.models/` weights + `scripts/dev`); the container sets `VLLM_DISABLED=1`
+**host** (the `.models/` weights + `scripts/dev`); the container sets `VLLM_DISABLED=true`
 and the local-light suites skip when weights are absent — by design (the firewall also
 blocks HuggingFace downloads).
 
@@ -44,7 +44,7 @@ Or attach to a running container directly: `docker exec -it <id> zsh`
 - **`git push` from the HOST**, not the container. No SSH keys are mounted inside (by
   design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
-- **Models/vLLM run on the HOST.** In-container, `VLLM_DISABLED=1` and the local-light
+- **Models/vLLM run on the HOST.** In-container, `VLLM_DISABLED=true` and the local-light
   int suites self-skip. The firewall allows traffic to the host network, so a service
   the host exposes on its LAN address is reachable if you ever need it.
 - **After editing any file in this folder**, rebuild:
@@ -105,5 +105,5 @@ Plus the per-container `claude-code-config-*` (login/settings) and
 
 | Purpose | Where Claude writes code | How orbweaver's model stack runs |
 |---------|--------------------------|----------------------------------|
-| Sandbox (this folder) | in the container, firewalled | not here — `VLLM_DISABLED=1` |
+| Sandbox (this folder) | in the container, firewalled | not here — `VLLM_DISABLED=true` |
 | GPU/vLLM + local-light | — | on the host (`scripts/dev`, `.models/`) |

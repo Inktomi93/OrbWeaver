@@ -90,7 +90,10 @@
     // The vLLM/local-light model stack runs on the HOST (scripts/dev; .models/ weights).
     // In-container runs must not try to spawn it — the local-light suites already skip
     // when the weights are absent, and the firewall blocks HF downloads by design.
-    "VLLM_DISABLED": "1"
+    // MUST be the literal "true" — the env floor is a strict z.enum(["true","false"])
+    // (packages/server/src/foundation/env/index.ts) and "1" throws at module load,
+    // killing every server test suite that transitively imports the env.
+    "VLLM_DISABLED": "true"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
