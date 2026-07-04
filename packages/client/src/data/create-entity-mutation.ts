@@ -15,7 +15,7 @@
 // Callback property order is onMutate → onError → onSettled (type-inference-sensitive — the
 // @tanstack/query/mutation-property-order lint).
 
-import type { DefaultError, QueryKey } from "@tanstack/react-query";
+import type { DefaultError, MutationFunction, QueryKey } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import type { InvalidateFilter, Invalidation } from "./invalidation";
 import type { Trpc } from "./trpc";
@@ -23,7 +23,9 @@ import type { Trpc } from "./trpc";
 /** What the tRPC proxy's `.mutationOptions()` provides — the key + fn pair the factory wraps. */
 interface BaseMutationOptions<TVars, TData> {
   readonly mutationKey: readonly unknown[];
-  readonly mutationFn?: (vars: TVars) => Promise<TData>;
+  // v5.101 `MutationFunction` is 2-arg `(vars, context)` — the tRPC proxy's `.mutationOptions()`
+  // provides exactly that shape; a 1-arg fn (e.g. a test double) still assigns (fewer params OK).
+  readonly mutationFn?: MutationFunction<TData, TVars>;
 }
 
 export interface EntityMutationConfig<TVars, TData, TRead> {
