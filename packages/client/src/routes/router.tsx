@@ -1,7 +1,7 @@
 import { createRoute, createRouter } from "@tanstack/react-router";
-import { AppShell } from "#features/app-shell";
 import { rootRoute } from "./__root";
 import { AdminPage } from "./admin-page";
+import { HomePage } from "./home-page";
 import { LoginPage } from "./login-page";
 
 // The HAND-WRITTEN code-based route tree (UI-Arch §6.1) — ~3 routes, no file-based codegen. Type-safety
@@ -12,7 +12,7 @@ import { LoginPage } from "./login-page";
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: AppShell,
+  component: HomePage,
 });
 
 const loginRoute = createRoute({
