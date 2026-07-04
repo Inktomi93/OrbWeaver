@@ -18,10 +18,12 @@
 // member must not delete a shared room). Bulk DELETE rides the same FK CASCADE as `delete`; deliberately NO
 // bus event (neo parity — expired ephemera nobody is watching; a durable `chat_events` emit would also FK
 // against the just-dropped chat row).
-// FLAG[effective-variables]: `getVariables` (the EFFECTIVE next-turn variables) returns the config-plane stored
-// values only. D46's runtime plane (per-variant `setvar`/`incvar` deltas folded over the selected chain) has
-// NO schema home yet (`message_variants` carries no variable-delta column) and the preset ChoiceBlock defaults
-// are not an injected op on `ChatContext` — so the effective fold collapses to the stored config plane for now.
+// D46 config plane: `getVariables` returns the EFFECTIVE config-plane view — the chat's stored ChoiceBlock picks
+// MERGED over the active preset's declared defaults (the same `resolveChoiceVariables` the assembly seed runs,
+// but with `withRandomPick: false` so the read is STABLE — a random draw would make the picker flicker per poll).
+// The preset's declared variables arrive via the injected `resolvePromptVariables` op (host-scoped). The RUNTIME
+// plane (folded `setvar` deltas) is materialized separately on `chats.runtime_variables`; `getStoredVariables`
+// stays the RAW picks (the picker's "user chose this" vs "preset default" split).
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
@@ -47,6 +49,7 @@ import type { ChatService } from "../contract/service";
 import type { ChatInjectionView } from "../contract/views";
 import { requireHost, requireParticipant } from "../guard";
 import { loadChatInjections, loadStoredVariables } from "../persistence/queries";
+import { resolveChoiceVariables } from "../substrate/variables";
 
 /** The emit op the lifecycle verbs close over (inlined — the `types-in-contract` note). */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
@@ -183,11 +186,18 @@ function createReapTemporaryChats(ctx: ChatContext): ChatService["reapTemporaryC
 }
 
 // ── variables (the D46 two-plane config writes — member) ─────────────────────────────────────────────────────
-/** `getVariables` — member. The EFFECTIVE next-turn variables (the config plane — FLAG[effective-variables]). */
+/** `getVariables` — member. The EFFECTIVE config-plane view: the stored ChoiceBlock picks MERGED over the active
+ *  preset's declared defaults (`resolveChoiceVariables`, `withRandomPick: false` — a STABLE read, no per-poll
+ *  random draw). Mirrors the assembly env seed's config resolution so the picker shows what the next turn sees. */
 function createGetVariables(ctx: ChatContext): ChatService["getVariables"] {
   return async ({ principal, chatId }: GetVariablesParams): Promise<VariablesResult> => {
     await requireParticipant(ctx, principal, chatId);
-    return (await loadStoredVariables(ctx.db, chatId)) ?? {};
+    const [stored, specs] = await Promise.all([
+      loadStoredVariables(ctx.db, chatId),
+      ctx.resolvePromptVariables(chatId),
+    ]);
+    // withRandomPick:false ⇒ prng is never invoked; a no-op stub keeps the eval path off ambient entropy (D46).
+    return resolveChoiceVariables(specs, stored ?? {}, () => 0, { withRandomPick: false });
   };
 }
 

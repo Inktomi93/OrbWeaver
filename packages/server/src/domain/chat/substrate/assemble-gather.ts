@@ -35,8 +35,11 @@ import {
   loadChatInjections,
   loadChatRow,
   loadStoredVariables,
+  loadVariableDeltas,
 } from "../persistence/queries";
 import { resolveHostTierRegexScripts } from "./regex-tier";
+import { foldChain } from "./runtime-variables";
+import { resolveChoiceVariables } from "./variables";
 
 /** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user
  *  text here so the verb persists THAT. Structural + file-local (the `types-in-contract` gate; the verb passes a
@@ -152,19 +155,37 @@ export async function gatherAssembleContext(
     /** The one-turn typed steer (PD-63) — threaded to the BUILD, which resolves the action
      *  template ONCE and delivers it via its placement (system-marker / depth-0 injection). */
     readonly guided?: GuidedSteer | undefined;
+    /** The SEEDED turn PRNG (D46 — never ambient `Math.random`). Supplied by the turn path so the config-plane
+     *  `randomPick` draw is deterministic + replayable; ABSENT (preview / opening) ⇒ stable resolution (no
+     *  randomPick — the merged-read posture), so a preview never varies per poll. */
+    readonly prng?: (() => number) | undefined;
   },
   foreign: ForeignInputs,
   out?: SendRegexSink,
 ): Promise<AssembleContext> {
   const { chatId, runAsUserId, model, castCharacterIds, personaIds } = args;
 
-  const [chatRow, canon, injectionRows, storedVariables, cast] = await Promise.all([
+  const [chatRow, canon, injectionRows, storedVariables, variableDeltas, cast] = await Promise.all([
     loadChatRow(ctx.db, chatId),
     loadCanonHistory(ctx.db, chatId),
     loadChatInjections(ctx.db, chatId),
     loadStoredVariables(ctx.db, chatId),
+    loadVariableDeltas(ctx.db, chatId),
     loadCastCards(ctx, runAsUserId, castCharacterIds),
   ]);
+
+  // D46 two-plane env seed: (1) resolve the CONFIG plane (ChoiceBlock picks → concrete map; the turn's seeded
+  // PRNG drives `randomPick`, resolved ONCE here before assembly), then (2) OVERLAY the RUNTIME fold cache so a
+  // played `{{setvar}}` wins over the config default for that key. The single merged object is handed to the
+  // macro env BY REFERENCE (D46) — within-turn setvars mutate it in place; the turn flushes the delta at commit.
+  const resolvedConfig = resolveChoiceVariables(
+    foreign.promptConfig.variables,
+    storedVariables ?? {},
+    args.prng ?? ((): number => 0),
+    { withRandomPick: args.prng !== undefined },
+  );
+  const runtimeCache = foldChain(variableDeltas);
+  const mergedVariables: Record<string, string> = { ...resolvedConfig, ...runtimeCache };
 
   // The prompt-eligible canon (hidden rows excluded) — the WI haystack + the {{lastMessage}}-family inputs.
   const eligible: CanonRow[] = canon
@@ -217,7 +238,7 @@ export async function gatherAssembleContext(
       userInjections: injectionRows.map(toChatInjection),
       memory,
       compactSummary: chatRow?.compactSummary ?? null,
-      variableValues: storedVariables ?? {},
+      variableValues: mergedVariables,
       injectionTokenBudget: foreign.injectionTokenBudget,
       hostTierRegexScripts,
       model,

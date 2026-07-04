@@ -36,6 +36,7 @@ import type {
   PersonaId,
   UserId,
 } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
@@ -59,6 +60,9 @@ interface CanonVariantInput {
   readonly terminalReason?: string | null | undefined;
   readonly params?: UserIntent | null | undefined;
   readonly promptSnapshot?: AssembledPrompt | null | undefined;
+  /** D46 runtime plane — the ordered variable ops this variant applied (the turn's macro op-log). Absent/[] ⇒
+   *  no variable mutations; persisted as-is and folded (`foldVarOps`) into `chats.runtime_variables`. */
+  readonly variableDelta?: readonly VarOp[] | null | undefined;
 }
 
 /** The slot attribution (D26 — SLOT-level; a swipe never re-voices). All nullable per role. */
@@ -134,6 +138,7 @@ function variantColumns(args: {
     ...variantEconomics(args.variant),
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
+    variableDelta: args.variant.variableDelta ?? null,
     createdAt: args.now,
   };
 }
@@ -254,6 +259,9 @@ export function continueVariantStatements(
           ...variantEconomics(params.variant),
           params: params.variant.params ?? null,
           promptSnapshot: params.variant.promptSnapshot ?? null,
+          // A continue re-runs assembly (macros fire again) → its op-log REPLACES this variant's delta (the
+          // variant keeps its identity; its recorded mutations are the latest run's — D46).
+          variableDelta: params.variant.variableDelta ?? null,
           preContinueContent: params.preContinueContent,
           preContinueReasoning: params.preContinueReasoning,
           lastContinuationContent: params.lastContinuationContent,

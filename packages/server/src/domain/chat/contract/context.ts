@@ -24,6 +24,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
+import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
@@ -257,6 +258,14 @@ export type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly Bl
  *  domain. Same query seam; host-only scope is enforced by the caller. */
 export type SearchCorpusOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
 
+/** `preset.resolvePromptVariables` — the chat's active preset's declared ChoiceBlock variables (D46 config
+ *  plane), resolved under the chat's HOST settings (the composition root reads the host off the roster, then the
+ *  host's default preset — the `resolveForeignInputs` preset-resolution, narrowed to `promptConfig.variables`).
+ *  `getVariables` needs these to MERGE the stored picks with the preset defaults (the effective next-turn view);
+ *  chat imports no `→ preset`/`→ settings` edge, so it declares the resolved DATA it consumes. Empty ⇒ no
+ *  declared variables (or a hostless/stale room). */
+export type ResolvePromptVariablesOp = (chatId: ChatId) => Promise<readonly ChoiceBlockSpec[]>;
+
 // ── The effective room-behavior readers (parse seam injected, so verbs don't re-import the parser) ──
 /** Parse a chat's raw `metadata` blob → its effective {@link GroupConfig} (default-applied, fault-isolated).
  *  A thin convenience the root binds to `contract/metadata.getGroupConfig`. */
@@ -326,6 +335,8 @@ export interface ChatContext {
   readonly log: MemoryLog;
   readonly getGroupConfig: GetGroupConfigOp;
   readonly getRoomOverrides: GetRoomOverridesOp;
+  /** The active preset's ChoiceBlock variables (D46 config plane) — `getVariables` merges stored picks over them. */
+  readonly resolvePromptVariables: ResolvePromptVariablesOp;
 }
 
 // ── Engine deps (the §9 security belts — injected, NOT on ctx; see engine/engine.ts header) ──

@@ -5,7 +5,9 @@ import type {
   MacroHandler,
   MacroRegisterOptions,
   MacroRegistry,
+  VarOp,
 } from "./types";
+import { applyVarOp } from "./variables";
 
 // Base-10 radix for the var-counter / dice integer parses.
 const DECIMAL_RADIX = 10;
@@ -288,13 +290,16 @@ const readVar: MacroHandler = (args, ctx) => {
   return String(ctx.env[key] ?? "");
 };
 
-// {{setvar::name::value}} — side-effect: write `value` to ctx.env[name], render "".
+// {{setvar::name::value}} — side-effect: write `value` to ctx.env[name], render "". Routes through
+// `applyVarOp` (the shared mutation home) + records the op on `ctx.opLog` for the D46 per-variant delta.
 const setVar: MacroHandler = (args, ctx) => {
   const key = args[0]?.trim();
   if (!key) {
     return "";
   }
-  ctx.env[key] = args[1] ?? "";
+  const op: VarOp = { op: "set", key, value: args[1] ?? "" };
+  applyVarOp(ctx.env, op);
+  ctx.opLog?.push(op);
   return "";
 };
 
@@ -304,8 +309,9 @@ const addVar: MacroHandler = (args, ctx) => {
   if (!key) {
     return "";
   }
-  const current = String(ctx.env[key] ?? "");
-  ctx.env[key] = `${current}${args[1] ?? ""}`;
+  const op: VarOp = { op: "add", key, value: args[1] ?? "" };
+  applyVarOp(ctx.env, op);
+  ctx.opLog?.push(op);
   return "";
 };
 
@@ -316,9 +322,10 @@ const incVar: MacroHandler = (args, ctx) => {
   if (!key) {
     return "";
   }
-  const next = (Number.parseInt(String(ctx.env[key] ?? "0"), DECIMAL_RADIX) || 0) + 1;
-  ctx.env[key] = String(next);
-  return String(next);
+  const op: VarOp = { op: "inc", key };
+  applyVarOp(ctx.env, op);
+  ctx.opLog?.push(op);
+  return String(ctx.env[key] ?? "");
 };
 
 // {{decvar::name}} — parse-or-zero −1 on the stored string.
@@ -327,9 +334,10 @@ const decVar: MacroHandler = (args, ctx) => {
   if (!key) {
     return "";
   }
-  const next = (Number.parseInt(String(ctx.env[key] ?? "0"), DECIMAL_RADIX) || 0) - 1;
-  ctx.env[key] = String(next);
-  return String(next);
+  const op: VarOp = { op: "dec", key };
+  applyVarOp(ctx.env, op);
+  ctx.opLog?.push(op);
+  return String(ctx.env[key] ?? "");
 };
 
 // {{hasvar::name}} — "true" / "" so it composes with `{{#if hasvar::flag}}`. Semantics: "exists" is
@@ -348,8 +356,9 @@ const deleteVar: MacroHandler = (args, ctx) => {
   if (!key) {
     return "";
   }
-  // `Reflect.deleteProperty` removes the own property (`delete` operator is banned by house style).
-  Reflect.deleteProperty(ctx.env, key);
+  const op: VarOp = { op: "delete", key };
+  applyVarOp(ctx.env, op);
+  ctx.opLog?.push(op);
   return "";
 };
 

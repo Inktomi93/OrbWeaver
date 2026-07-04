@@ -7,9 +7,10 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { messages, messageVariants } from "@orb/db";
+import { chats, messages, messageVariants } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { VarOp } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -164,6 +165,75 @@ describe("selectVariant — flip the pointer to a sibling swipe (D26 zero-copy)"
       .selectVariant({ principal: principal(host), chatId, messageId, variantId: other.variantId })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
+  });
+});
+
+describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
+  const setX = (v: string): VarOp[] => [{ op: "set", key: "hp", value: v }];
+
+  /** Read the chat's materialized runtime cache. */
+  async function runtimeCache(chatId: string): Promise<Record<string, string> | null> {
+    const [row] = await db
+      .select({ runtimeVariables: chats.runtimeVariables })
+      .from(chats)
+      .where(eq(chats.id, castId(chatId)));
+    return row?.runtimeVariables ?? null;
+  }
+
+  test("selecting an alternate variant re-folds the cache — a played setvar rewinds", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    // A committed turn whose SELECTED variant set X=1 (the delta persisted on the variant).
+    const { messageId, variantId: v0 } = await seedMessage(db, chatId, 1, {
+      role: "assistant",
+      characterId: charA,
+      content: "X is now 1",
+    });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("1") })
+      .where(eq(messageVariants.id, v0));
+    // Simulate the prior commit's materialized cache (what a real turn would have folded).
+    await db
+      .update(chats)
+      .set({ runtimeVariables: { hp: "1" } })
+      .where(eq(chats.id, chatId));
+
+    // An ALTERNATE swipe that set nothing (empty delta) — the classic swipe target.
+    const v1 = await addVariant(db, messageId, 1, "nothing about X");
+    await db.update(messageVariants).set({ variableDelta: [] }).where(eq(messageVariants.id, v1));
+
+    const edit = createEdit(makeChatContext(db), { emit });
+
+    // Swipe to v1 → X REWINDS (the fold of the new selected chain has no X). ST #3263 cannot occur.
+    await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: v1 });
+    expect(await runtimeCache(chatId)).toBeNull();
+
+    // Swipe BACK to v0 → X returns (re-fold, not a clobber).
+    await edit.selectVariant({ principal: principal(host), chatId, messageId, variantId: v0 });
+    expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
+  });
+
+  test("deleteMessages re-folds the cache over the remaining chain", async () => {
+    const { host, chatId, charA } = await seedRoom();
+    const a = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("1") })
+      .where(eq(messageVariants.id, a.variantId));
+    const b = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA });
+    await db
+      .update(messageVariants)
+      .set({ variableDelta: setX("2") })
+      .where(eq(messageVariants.id, b.variantId));
+    await db
+      .update(chats)
+      .set({ runtimeVariables: { hp: "2" } })
+      .where(eq(chats.id, chatId));
+
+    const edit = createEdit(makeChatContext(db), { emit });
+    // Delete the later message → the fold rewinds to the earlier delta (X=1).
+    await edit.deleteMessages({ principal: principal(host), chatId, messageIds: [b.messageId] });
+    expect(await runtimeCache(chatId)).toEqual({ hp: "1" });
   });
 });
 

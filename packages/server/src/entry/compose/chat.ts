@@ -18,13 +18,14 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
+import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
-import { chats, personas, users } from "@orb/db";
-import type { Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import { chatParticipants, chats, personas, users } from "@orb/db";
+import type { ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type {
@@ -170,6 +171,52 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       principal: await realHostPrincipal(userId),
       routableChat: routable,
     });
+
+  // The host's active preset config (its `promptConfig`), given the host's already-loaded default preset id. A
+  // stale/unowned/missing id degrades to the system default (settings/index.ts:317). Shared by
+  // `resolveForeignInputs` (the turn assemble) + `resolvePromptVariables` (the D46 `getVariables` merge) so the
+  // resolution can't drift. Takes the id (not the whole settings read) so a caller that already loaded settings
+  // doesn't double-read.
+  const resolvePromptConfigFor = async (
+    runAsUserId: UserId,
+    defaultPresetId: string | null,
+  ): Promise<PromptConfig> => {
+    if (defaultPresetId === null) {
+      return DEFAULT_PROMPT_CONFIG;
+    }
+    try {
+      const detail = await input.preset.get({
+        userId: runAsUserId,
+        id: castId<PresetId>(defaultPresetId),
+      });
+      return detail.config;
+    } catch {
+      return DEFAULT_PROMPT_CONFIG; // stale/unowned preset id → the system default.
+    }
+  };
+
+  // D46 config plane: the chat's active preset's ChoiceBlock variables, resolved under the chat's HOST (read off
+  // the roster). `getVariables` merges the stored picks over these. Hostless/stale room ⇒ no declared variables.
+  const resolvePromptVariables = async (chatId: ChatId): Promise<readonly ChoiceBlockSpec[]> => {
+    const hostRows = await db
+      .select({ userId: chatParticipants.userId })
+      .from(chatParticipants)
+      .where(
+        and(
+          eq(chatParticipants.chatId, chatId),
+          eq(chatParticipants.role, "host"),
+          isNull(chatParticipants.leftSeq),
+        ),
+      )
+      .limit(1);
+    const hostUserId = hostRows.at(0)?.userId ?? null;
+    if (hostUserId === null) {
+      return [];
+    }
+    const us = await input.settings.loadUserSettings(hostUserId);
+    const config = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
+    return config.variables;
+  };
 
   const chatCtx: ChatContext = {
     db,
@@ -508,6 +555,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
+    resolvePromptVariables,
   };
 
   const bus = createChatBus({ db, now, newEventId: chatCtx.newEventId });
@@ -546,20 +594,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const us = await input.settings.loadUserSettings(runAsUserId);
       const principal = hostPrincipal(runAsUserId);
 
-      // The chat's active preset under the host's settings; a stale/unowned/missing id degrades to the
-      // system-default config (settings/index.ts:317 — "stale id degrades to system-default").
-      let promptConfig = DEFAULT_PROMPT_CONFIG;
-      if (us.seeds.defaultPresetId !== null) {
-        try {
-          const detail = await input.preset.get({
-            userId: runAsUserId,
-            id: castId<PresetId>(us.seeds.defaultPresetId),
-          });
-          promptConfig = detail.config;
-        } catch {
-          // stale/unowned preset id → keep the system default.
-        }
-      }
+      // The chat's active preset under the host's settings (shared with `resolvePromptVariables` — the D46
+      // config-plane merge); a stale/unowned/missing id degrades to the system-default config.
+      const promptConfig = await resolvePromptConfigFor(runAsUserId, us.seeds.defaultPresetId);
 
       // anchor = the chat-open `{{user}}`; active = the speaking participant's persona (first present).
       const loadPersona = async (
