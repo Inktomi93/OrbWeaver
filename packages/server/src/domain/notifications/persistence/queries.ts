@@ -16,7 +16,7 @@
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
-import type { BatchStmt } from "@orb/db/kit";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { NotificationId } from "@orb/kit/ids";
 import { and, desc, eq, isNull, lt, sql } from "drizzle-orm";
@@ -54,7 +54,10 @@ const ROW_COLS = {
 
 // Build the durable-first INSERT…RETURNING (unexecuted); `seq` per the file-header PHYSICS above.
 // File-local — the two executors below own the run.
-function buildInsertNotification(db: Db, row: NotificationInsert): BatchStmt {
+function buildInsertNotification(
+  db: Db,
+  row: NotificationInsert,
+): AwaitableBatchStmt<NotificationRow[]> {
   return db
     .insert(notifications)
     .values({
@@ -73,8 +76,8 @@ export async function insertNotification(
   db: Db,
   row: NotificationInsert,
 ): Promise<NotificationRow> {
-  // BatchStmt erases the builder's row typing; the executed RETURNING rows are re-typed at this read seam.
-  const inserted = (await buildInsertNotification(db, row)) as unknown as NotificationRow[];
+  // The builder's honest RETURNING type is `NotificationRow[]` (payload branded `$type<NotificationEvent>`).
+  const inserted = await buildInsertNotification(db, row);
   // The INSERT always yields exactly one row.
   return inserted[0] as NotificationRow;
 }

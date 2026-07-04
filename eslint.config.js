@@ -173,10 +173,12 @@ export default tseslint.config(
     // structurally cannot see a dropped/misused Promise. Uniform across the WHOLE type-aware surface
     // (server/kit/db/contracts AND ui/client) — an unawaited server db-write/bus-emit is the highest-value
     // catch, not just a frontend concern. Measured 2026-07-04 on the current tree: no-floating-promises 0,
-    // no-misused-promises 0, require-await 0 (zero false-positive cost). NOT reached by the CT_SURFACE
-    // blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info, so these skip
-    // test files, which is correct. (`await-thenable` is DEFERRED — its 3 current-tree hits are a real
-    // db-layer type-tension on `BatchStmt` bare-awaits, orchestrator-tracked; adopt after that seam fix.)
+    // no-misused-promises 0, require-await 0, await-thenable 0 (zero false-positive cost). NOT reached by
+    // the CT_SURFACE blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info,
+    // so these skip test files, which is correct. (`await-thenable` was adopted once the db-layer seam was
+    // fixed: the 3 standalone-run sites returning `BatchStmt` — which erases the drizzle builder's
+    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/kit`: `BatchStmt & PromiseLike<T>`), so the
+    // bare `await` is type-honest; `BatchStmt` stays the erased multi-table batch-INPUT type.)
     files: [...SHIPPED_SRC, ...TSDOC_SURFACE],
     plugins: { "@typescript-eslint": tseslint.plugin },
     rules: {
@@ -191,6 +193,9 @@ export default tseslint.config(
       ],
       // An `async` fn with no `await` is a mis-signaled sync fn (a caller may skip awaiting it). 0 FP today.
       "@typescript-eslint/require-await": "error",
+      // `await`-ing a non-Thenable is a no-op that reads like it blocks — a type-honesty catch. 0 FP today
+      // (the db-layer `AwaitableBatchStmt<T>` seam fix cleared the 3 `BatchStmt` bare-await hits).
+      "@typescript-eslint/await-thenable": "error",
     },
   },
   {
