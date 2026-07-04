@@ -1,9 +1,10 @@
 // transport/trpc/trpc — the single `initTRPC` init + the procedure ladder (core/Tier-4-Transport.md
 // §"trpc.ts"). Lives apart from `router.ts` so sub-routers import `t`/the procedures without a cycle
 // through the root router. The ladder is built ONCE: `publicProcedure → authedProcedure → adminProcedure`,
-// each rung adding a stricter gate. Middleware stack order (Esoteric #8 — tracing FIRST so a 401/429 from
+// each rung adding a stricter gate (plus the `multiHumanProcedure` side-rung — the PD-106 single-user
+// capability belt). Middleware stack order (Esoteric #8 — tracing FIRST so a 401/429 from
 // a gate below still shows the procedure name + outcome):
-//   tracing span → domain-error map → rate-limit gate → auth + CSRF gate → admin gate.
+//   tracing span → domain-error map → rate-limit gate → [multi-human belt] → auth + CSRF gate → admin gate.
 //
 // The gates read the seam-resolved `ctx.auth` (`Principal`) and gate on plain fields — NO db round-trip
 // (the role was resolved ONCE at `entry/auth/seam.ts`; spine §1). `adminMiddleware` is transport's
@@ -97,6 +98,28 @@ const authMiddleware = t.middleware(({ ctx, type, path, next }) => {
 });
 
 export const authedProcedure = publicProcedure.use(authMiddleware);
+
+// multiHumanProcedure: the AUTH_MODE capability belt (PD-106; Tier-4 §"multi-human surface"). Every
+// multi-human procedure (the invites/roster/notifications surfaces + the notifications subscription)
+// rides this rung: in a `single-user` deployment the surface is refused AS NONEXISTENT — a uniform
+// NOT_FOUND ("404 in single-user"), never a FORBIDDEN/coded 400 that would advertise the capability. The
+// belt fires BEFORE the auth gate so even an anonymous probe sees the same shape tRPC gives an unmounted
+// procedure. `ctx.singleUserMode` is derived ONCE at the entry mount from the frozen env (transport reads
+// no env). The chat `single_user_mode` op-code (CHAT_OP_CODES) stays the DOMAIN-side discriminator for
+// verb-level refusals inside chat; the transport shape is deliberately the leak-free 404.
+const multiHumanMiddleware = t.middleware(({ ctx, path, next }) => {
+  if (ctx.singleUserMode) {
+    securityEvent(
+      "single_user_mode",
+      { path },
+      "security: multi-human surface refused in single-user mode",
+    );
+    throw new TRPCError({ code: "NOT_FOUND", message: `No procedure found on path "${path}"` });
+  }
+  return next();
+});
+
+export const multiHumanProcedure = publicProcedure.use(multiHumanMiddleware).use(authMiddleware);
 
 // adminProcedure (LAYER-1): authed + the global-role gate. `requireAdmin` (the `can()` seam, owner ∪
 // admin — D17) reads the seam-resolved `Principal.role`; NO db round-trip. A deny is audited then surfaced
