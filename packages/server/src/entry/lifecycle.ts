@@ -20,7 +20,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
-import { createOidcStore, createSessionsService } from "#domain/sessions";
+import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import {
   loadWorkload,
   nextRunnableWorkload,
@@ -58,15 +58,6 @@ const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;
 export interface Lifecycle {
   readonly boot: () => Promise<void>;
   readonly shutdown: () => Promise<void>;
-}
-
-/** Parse OWNER_HANDLES (comma list) → the resolved owner handles, defaulting to [DEFAULT_USER_HANDLE]. */
-function ownerHandles(): readonly string[] {
-  const parsed = (env.OWNER_HANDLES ?? "")
-    .split(",")
-    .map((handle) => handle.trim())
-    .filter((handle) => handle.length > 0);
-  return parsed.length > 0 ? parsed : [env.DEFAULT_USER_HANDLE];
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -213,6 +204,9 @@ export function createLifecycle(): Lifecycle {
         env: built.runnerEnv,
         bindRoleClients: built.bindRoleClients,
         loadUserSettings: built.services.settings.loadUserSettings,
+        // PD-113: the engine audits WORKLOAD_FAILED on a terminal runtime failure through compose's ONE
+        // bound logAudit writer (the same closure every domain audit op is wired from).
+        audit: built.audit,
         now,
       },
       signal: workerAbort.signal,

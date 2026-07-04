@@ -1,9 +1,11 @@
 // Engine test: runWorkload — the per-row state machine. Pins the success lifecycle (claim → succeeded +
-// result + bus events), failure (→ failed), the claim-loser early-return, the cancelling→cancelled PIN (an
-// aborted run that returned normally), and the reaper-vs-zombie guard (a row reaped mid-run is not
-// resurrected). Timers are disabled (makeRunnerDeps `*Ms: 0`) so the run is synchronous + deterministic.
+// result + bus events), failure (→ failed + the PD-113 WORKLOAD_FAILED audit through the injected op),
+// the claim-loser early-return, the cancelling→cancelled PIN (an aborted run that returned normally), and
+// the reaper-vs-zombie guard (a row reaped mid-run is not resurrected). Timers are disabled
+// (makeRunnerDeps `*Ms: 0`) so the run is synchronous + deterministic.
 
 import { describe, vi } from "vitest";
+import type { WorkloadRunnerDeps } from "../../../../../packages/server/src/domain/workloads/contract/service.ts";
 import { getRecentWorkloadEvents } from "../../../../../packages/server/src/domain/workloads/engine/progress-bus.ts";
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import {
@@ -39,7 +41,7 @@ describe("runWorkload", () => {
     expect(types).toContain("succeeded");
   });
 
-  test("a thrown runner fails the row + emits failed", async () => {
+  test("a thrown runner fails the row + emits failed + audits WORKLOAD_FAILED", async () => {
     const db = await freshDb();
     // The env op is readonly — build the double with the throwing op set at construction (no mutation).
     const env = {
@@ -50,6 +52,7 @@ describe("runWorkload", () => {
         ),
       },
     };
+    const audit = vi.fn<WorkloadRunnerDeps["audit"]>(() => Promise.resolve());
     const id = await seedWorkloadRow(db, {
       id: "wl_fail",
       kind: "reconcile-stats",
@@ -59,10 +62,21 @@ describe("runWorkload", () => {
     if (row === null) {
       throw new Error("seed failed");
     }
-    await runWorkload(makeRunnerDeps(db, env), row, sig());
+    await runWorkload(makeRunnerDeps(db, env, { audit }), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("failed");
     expect((await loadWorkload(db, id))?.error).toContain("boom");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).toContain("failed");
+    // PD-113: the terminal runtime failure lands exactly ONE audit through the injected op.
+    expect(audit).toHaveBeenCalledExactlyOnceWith(
+      {
+        actorUserId: row.ownerId,
+        action: "WORKLOAD_FAILED",
+        entityType: "workload",
+        entityId: id,
+        metadata: { kind: "reconcile-stats", error: "boom" },
+      },
+      T0,
+    );
   });
 
   test("the claim loser returns silently (a non-queued row is not re-run)", async () => {

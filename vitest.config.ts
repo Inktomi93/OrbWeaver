@@ -41,9 +41,9 @@ export default defineConfig({
     allowOnly: false, // a stray `.only` FAILS the run (not just in CI)
     expect: { requireAssertions: true }, // every test must assert ≥1 — kills silent no-op tests
     chaiConfig: { truncateThreshold: 0 }, // full, untruncated diffs (branded ids / large frozen objects)
-    // true so the opt-in/empty lanes (contract/types/parity have no files yet) don't exit 1 — vitest 4
-    // defaults this to false. Flip to false once every lane has tests (then a typo'd include FAILS).
-    passWithNoTests: true,
+    // false (PD-115): every lane (unit/integration/contract/types/parity) has matching files now, so a
+    // lane whose include glob matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing.
+    passWithNoTests: false,
 
     // --- coverage: REPORT-ONLY (no `thresholds` → never gates; runs only via `pnpm test:coverage`) ---
     coverage: {

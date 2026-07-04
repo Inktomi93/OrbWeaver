@@ -38,6 +38,7 @@ system, layout primitives, TanStack Form (`_shared/form`), and a `surfaces/`↔`
 | `no-direct-useform` | TanStack `useForm`/`createFormHook` outside `_shared/form` |
 | `no-form-state-in-useeffect` | `useEffect` dep-array reading `form.state.values`/`store` |
 | `no-inline-optimistic-in-surface` | `cancelQueries`/`setQueryData` in a `surfaces/` file |
+| `no-layout-context-props` | layout-context props on JSX (`compact`/`inDrawer`/`isSheet`/`density`) — a surface adapts to its `@container`, never a mount-location prop (D43 §11.2) |
 
 These fire zero times today (no client code) but are armed. Their diagnostic *messages* and `Refs:` now
 point at the real orbweaver homes — the token set in `packages/ui/src/styles/theme.css` and the
@@ -60,6 +61,9 @@ fixture-verified firing at add time. Plus the D44 containment trio (`no-untruste
 | `zustand-selector-stability` | a selector returning a fresh `{}`/`[]` literal | the zustand-selector gate |
 | `no-raw-random` | ambient `Math.random()` in shipped source | client-determinism (random half; clock half = `no-raw-clock`) |
 | `testid-typed-only` | freeform `data-testid="…"` string literals in client | the typed-`testId` gate |
+| `no-untrusted-html-in-main-dom` | `dangerouslySetInnerHTML` outside the markdown/sandbox-frame seals | D44 §12.2 (untrusted HTML → `SandboxFrame` / sanitized markdown only) |
+| `no-external-media-without-gate` | raw `<img>`/`<video>`/`<audio>`/`<source>` in `client/src/features/` | D44 §12.3 (all media through `MessageMedia`) |
+| `theme-override-only-via-scope` | inline `style={{ "--color-*": … }}` outside theme-scope/sandbox-frame | D44 §12.1 (token overrides only via the `ThemeScope` clamp) |
 
 ## Intentionally NOT a gate
 

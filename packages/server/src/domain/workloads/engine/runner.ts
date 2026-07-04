@@ -40,6 +40,10 @@ const SYSTEM_OWNER_ID = castId<UserId>("system");
 const DEFAULT_HEARTBEAT_MS = 5000;
 const DEFAULT_CANCEL_POLL_MS = 5000;
 
+// The audit action for a terminal runtime failure (PD-113) — SCREAMING_SNAKE per the system-event audit
+// convention (AUTH_LOGIN / AGENT_PRINCIPAL_MINTED precedent).
+const WORKLOAD_FAILED = "WORKLOAD_FAILED";
+
 /**
  * The two-cast bridge — the ONE sanctioned escape where the static `{ [K]: Runner<K> }` guarantee meets the
  * runtime row. Indexing `RUNNERS` by the row's union-typed `kind` yields a union of runners TS can't call,
@@ -182,6 +186,18 @@ async function finalizeFailure(
       at: deps.now(),
       error,
     });
+    // PD-113: the D1 audit-surface condition — a terminal runtime failure leaves an audit row, not just
+    // pino + the failed row. Best-effort (logAudit suppress-and-drop); `ownerId` null = system-triggered.
+    await deps.audit(
+      {
+        actorUserId: row.ownerId,
+        action: WORKLOAD_FAILED,
+        entityType: "workload",
+        entityId: row.id,
+        metadata: { kind: row.kind, error: message },
+      },
+      deps.now(),
+    );
   }
 }
 

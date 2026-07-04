@@ -144,6 +144,9 @@ export interface ServicesResult {
    *  resolves each role's `{credential, model}` via `connection.resolveRole`). The workloads worker's
    *  `WorkloadRunnerDeps.bindRoleClients` is wired from this; entry never touches the raw executor. */
   readonly bindRoleClients: (ownerId: UserId) => Promise<RoleClients>;
+  /** The ONE bound `logAudit` writer (suppress-and-drop) — the same closure every domain's `audit` op is
+   *  wired from; surfaced so the lifecycle can hand it to `WorkloadRunnerDeps.audit` (PD-113). */
+  readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
   readonly vllmEngine: VllmEngineHandle | null;
@@ -669,6 +672,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     runnerEnv,
     roleClients,
     bindRoleClients,
+    audit,
     effectiveConfig,
     secretBox,
     vllmEngine: registry.vllmEngine,

@@ -145,6 +145,7 @@ export function makeRunnerDeps(
     env,
     bindRoleClients: () => Promise.resolve({} as RoleClients),
     loadUserSettings: () => Promise.resolve({} as UserSettings),
+    audit: () => Promise.resolve(),
     now: () => T0,
     heartbeatMs: 0,
     cancelPollMs: 0,
