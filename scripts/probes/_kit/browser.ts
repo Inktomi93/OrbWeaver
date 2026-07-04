@@ -54,6 +54,9 @@ export type ProbeLaunchOptions = {
   readonly reducedMotion: boolean;
   /** Seeded BEFORE any page script runs (addInitScript) — the only reliable moment. */
   readonly localStorage: readonly LocalStorageSeed[];
+  /** When set, the context records video into this dir at the viewport size (record.ts).
+   *  Read the handle via `page.video()` BEFORE `context.close()`, resolve `.path()` after. */
+  readonly recordVideoDir?: string;
 };
 
 export type CapturedRequest = {
@@ -79,7 +82,12 @@ export type ProbeSession = {
 
 export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<ProbeSession> {
   const browser = await chromium.launch({ headless: opts.headless });
-  const context = await browser.newContext({ viewport: opts.viewport });
+  const context = await browser.newContext({
+    viewport: opts.viewport,
+    ...(opts.recordVideoDir === undefined
+      ? {}
+      : { recordVideo: { dir: opts.recordVideoDir, size: opts.viewport } }),
+  });
 
   if (opts.localStorage.length > 0) {
     // JSON.stringify output is a valid JS array literal — the pairs ride into the raw
