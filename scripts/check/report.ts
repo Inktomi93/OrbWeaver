@@ -5,14 +5,18 @@
 // Core-Enforcement-Deferred-Dropped.md.
 
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
+import { busCoverage } from "./gates/bus-coverage.ts";
 import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { componentSize } from "./gates/component-size.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
+import { memberCardClamped } from "./gates/member-card-clamped.ts";
+import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
+import { ownerRoleSplit } from "./gates/owner-role-split.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
@@ -26,8 +30,10 @@ import { testLayout } from "./gates/test-layout.ts";
 import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
 import { testNoStubs } from "./gates/test-no-stubs.ts";
 import { testPresence } from "./gates/test-presence.ts";
+import { turnIdentity } from "./gates/turn-identity.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
+import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
 import { runChecks } from "./harness.ts";
 
@@ -57,4 +63,10 @@ runChecks([
   uiPrimitiveStructure,
   clientStructure,
   componentSize,
+  vectorScopeDerived,
+  turnIdentity,
+  membershipEnforcer,
+  ownerRoleSplit,
+  busCoverage,
+  memberCardClamped,
 ]);

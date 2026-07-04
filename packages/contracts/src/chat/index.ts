@@ -776,8 +776,9 @@ export interface ParticipantView {
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
- *  effective `visibility` level are `null` (the producer clamps `getRosterCardView` to
- *  `chatMetadata.group.memberCardVisibility`; the owner/host always gets `full`). Read-only +
+ *  effective `visibility` level are `null` (the ONE producer is chat's `clampMemberCard` —
+ *  substrate/auth/clamp.ts, PD-111 — keyed to `chatMetadata.group.memberCardVisibility`; the host always
+ *  gets `full`). Read-only +
  *  while-present; viewing ≠ owning (edit/clone/export stay owner-only). Self-contained — it is a clamped
  *  PROJECTION, not the full `CharacterCard`, so `chat` needs no `→ character` edge for it. */
 export interface MemberCardView {

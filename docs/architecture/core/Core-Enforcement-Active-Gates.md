@@ -95,8 +95,20 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `test-no-stubs` | every test block carries ≥1 assertion (`expect`/`expectTypeOf`) — anti-gaming for `test-presence` | new |
 | `server-layout` | `packages/server/src` root = the 6 tier dirs + `index.ts` only (§3) | new |
 | `package-layout` | kit/contracts/db/ui/client: every module is a directory with `index.ts`; no loose root files except `index.ts` (D15) | new |
+| `vector-scope-derived` | the vector tables (`character/image_embeddings`, `chat_digests/segments/digest_speakers`) are IMPORTED only by their sanctioned homes (embeddings/search/chat-memory/discovery/debug), WRITTEN only by `embeddings/persistence`, and cosine-ranked (`vector_distance_cos`) only in `search/persistence` — scope is derived from the producer, never stamped (D20) | new (PD-116) |
+| `turn-identity` | the chat ENGINE is `Principal`-blind: no `Principal` import and no `principal` identifier under `domain/chat/engine/` — the turn triple is `runAsUserId`/`triggeredBy`/caller-resolved-upstream (D16/D17/D19) | new (PD-116) |
+| `membership-enforcer` | no owner-equality comparison (`x.ownerId ===`) and no `fetchOwned`/`OwnedTable` import in `domain/chat` + the chat transport — chats are MEMBERSHIP-scoped (`assertParticipant` → `can()`); the host is looked up from the roster, never compared as an owner (D16/D18) | new (PD-116) |
+| `owner-role-split` | no `role === "owner"\|"admin"` comparison outside `domain/admin/guard.ts` — `can()` is the ONE privilege seam; owner ⊇ admin lives inside it (D17; the gate's founding catch fixed the auth seam's inline `isAdmin`) | new (PD-116) |
+| `bus-coverage` | every `CHAT_BUS_EVENT_TYPES` member has a server emit site OR a cited `DEFERRED` entry — a self-cleaning two-direction ratchet (missing emit RED; stale allowlist RED). Founding census: 8/26 unwired → PD-89 + PD-117 (D50) | new (PD-116) |
+| `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the PD-111-deleted `getRosterCardView` stays dead (D22) | new (PD-116/PD-111) |
 
-The table mirrors `scripts/check/report.ts` (25 registered gates); `report.ts` is the runtime truth.
+The table mirrors `scripts/check/report.ts` (31 registered gates); `report.ts` is the runtime truth.
+
+The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
+cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
+identically-shaped roster-of-one chats (untouched-solo config vs fully group-configured) drive ONE
+round each through the REAL engine and the wire request + persisted canon must be BYTE-identical
+(D16 "solo is a group of one"; the behavioral half of the `no-if-is-group` grit).
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — **ACTIVE**
 

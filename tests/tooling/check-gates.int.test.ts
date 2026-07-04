@@ -140,6 +140,34 @@ function writeFixtures(): void {
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
+  // vector-scope-derived: a domain OUTSIDE the sanctioned set importing a vector-table symbol (D20).
+  fx(
+    `${D}/__g_vec/persistence/x.ts`,
+    `import { chatDigests } from "@orb/db";\nexport const x = chatDigests;\n`,
+  );
+  // turn-identity: a `principal` identifier inside the Principal-blind chat engine (D19).
+  fx(
+    `${D}/chat/engine/__g_ti.ts`,
+    "export function leak(principal: { userId: string }): string {\n  return principal.userId;\n}\n",
+  );
+  // membership-enforcer: an owner-equality comparison inside domain/chat (D18).
+  fx(
+    `${D}/chat/verbs/__g_me.ts`,
+    "export const isOwner = (c: { ownerId: string }, u: string): boolean => c.ownerId === u;\n",
+  );
+  // owner-role-split: a global-role literal comparison outside admin/guard.ts (D17).
+  fx(
+    "packages/server/src/domain/__g_role.ts",
+    'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n',
+  );
+  // bus-coverage: a DEFERRED-allowlisted member gaining an emit-site literal → the STALE arm fires
+  // (proves the contracts-parse + corpus scan + both ratchet directions are alive).
+  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "personaSwitched";\n');
+  // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
+  fx(
+    `${D}/character/__g_mcv.ts`,
+    "export interface MemberCardView {\n  readonly name: string;\n}\n",
+  );
 }
 
 let registry = new Set<string>();

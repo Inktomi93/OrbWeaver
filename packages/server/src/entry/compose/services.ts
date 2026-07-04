@@ -35,7 +35,6 @@ import {
   assets as assetsTable,
   characters as charactersTable,
   chatParticipants,
-  chats,
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -85,12 +84,7 @@ import {
   createProviderExecutor,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
-import {
-  getGroupConfig,
-  requireAuthorOrHost,
-  requireHost,
-  requireParticipant,
-} from "../../domain/chat";
+import { requireAuthorOrHost, requireHost, requireParticipant } from "../../domain/chat";
 import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
@@ -327,18 +321,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
     // 1:1 ({ ownerId, characterId, tagName } → Promise<boolean>); ownership is pre-gated by bulkAddCardTag.
     attachCardTag: tag.attachCardTagByName,
-    requireParticipant: (principal, chatId) =>
-      requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
-    getChatMemberCardVisibility: async (chatId) => {
-      const rows = await db
-        .select({ metadata: chats.metadata })
-        .from(chats)
-        .where(eq(chats.id, chatId))
-        .limit(1);
-      return rows[0] !== undefined
-        ? getGroupConfig(rows[0].metadata).memberCardVisibility
-        : "sheet";
-    },
   });
 
   // ── The default-card seeder (PD-32): the ONE idempotent instance boot + the app first-request hook share.

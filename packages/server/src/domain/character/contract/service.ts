@@ -17,11 +17,9 @@
 //   ops are wired at the composition root), NOT a character verb, so no tier collapse here.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { MemberCardVisibility } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   BulkAddCardTagParams,
@@ -34,7 +32,6 @@ import type {
   FindGroupCharParams,
   GetCardParams,
   GetCharacterParams,
-  GetRosterCardViewParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
@@ -44,7 +41,7 @@ import type {
   UpdateCharacterParams,
 } from "./params";
 import type { CharacterRef, SnapshotRef, SnapshotSummary } from "./results";
-import type { CharacterDetail, CharacterSummary, MemberCardView } from "./views";
+import type { CharacterDetail, CharacterSummary } from "./views";
 
 /**
  * Best-effort reap of avatar assets that a deleted character may have orphaned. The avatar FK is
@@ -89,8 +86,6 @@ export interface CharacterContext {
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
-  readonly requireParticipant: (principal: Principal, chatId: ChatId) => Promise<void>;
-  readonly getChatMemberCardVisibility: (chatId: ChatId) => Promise<MemberCardVisibility>;
 }
 
 export interface CharacterService {
@@ -134,9 +129,6 @@ export interface CharacterService {
   /** The live card for an owned character, or `null` for not-owned / mid-delete (contract invariant —
    *  callers treat `null` as "skip, not an error"; it NEVER throws). */
   readonly getCard: (params: GetCardParams) => Promise<CharacterCard | null>;
-
-  /** The membership-gated, level-clamped card view for a roster member (D22). */
-  readonly getRosterCardView: (params: GetRosterCardViewParams) => Promise<MemberCardView>;
 
   // ── Card-text projection (embeddings indexer injects this — UN-PRINCIPAL, D20) ──
   /** The card-text embed PROJECTION for a character, keyed by id ALONE (NO owner scope — D20: the vector
