@@ -63,9 +63,6 @@ const CT_SURFACE = [UI_CT, UI_FIXTURES, CLIENT_CT, CLIENT_STORIES];
 
 const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
 const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
-// The feature slices — the compose-only surface (UI-Arch §2.1). app-shell is the SHELL-tier layout owner
-// (the one legal @media site, §4.1) and is exempt from the keystone below.
-const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
 
 // The typed exported-API packages governed by the Documentation-Law doc-comment gates
 // (tsdoc/syntax + no-deprecated). server/kit/db/contracts — where the contract surface + its TSDoc
@@ -277,14 +274,22 @@ export default tseslint.config(
     },
   },
   {
-    // COMPOSE-ONLY KEYSTONE — the "features can't invent UI" gate. A feature ASSEMBLES @orb/ui
-    // primitives + the layout kit; it never PAINTS: no className/style on a raw intrinsic element.
-    // Re-lists NO_STORE_STATICS because flat-config REPLACES no-restricted-syntax per file (no merge)
-    // and this block wins over the CLIENT_SRC zustand block for feature files. app-shell (SHELL-tier
-    // layout owner + the one legal @media site, §4.1) is exempt — it paints the frame and keeps the
-    // zustand guard via the CLIENT_SRC block above. Dormant until features/ code lands.
-    files: [CLIENT_FEATURES],
-    ignores: ["packages/client/src/features/app-shell/**", "**/*.test.{ts,tsx}"],
+    // COMPOSE-ONLY KEYSTONE — the "client code can't invent UI" gate, CLIENT_SRC-wide (routes/data/
+    // forms/state/lib/features — UI-Arch §2.1). Client code ASSEMBLES @orb/ui primitives + the layout
+    // kit; it never PAINTS: no className/style on a raw intrinsic element. Re-lists NO_STORE_STATICS
+    // because flat-config REPLACES no-restricted-syntax per file (no merge) and this block wins over
+    // the CLIENT_SRC zustand block above for every file it matches. Two ignores: app-shell (SHELL-tier
+    // layout owner + the one legal @media site, §4.1) paints the frame and keeps only the zustand guard
+    // via the CLIENT_SRC block above; state/** is exempt from THIS block's NO_STORE_STATICS re-list for
+    // the same reason the zustand block above exempts it — a store's own file legitimately calls its
+    // internal setState/getState, and without this ignore the keystone's re-listed NO_STORE_STATICS
+    // would false-fire on that legitimate internal use (W1-0a, measured 3 FPs without the ignore).
+    files: [CLIENT_SRC],
+    ignores: [
+      "packages/client/src/features/app-shell/**",
+      "packages/client/src/state/**",
+      "**/*.test.{ts,tsx}",
+    ],
     rules: {
       "no-restricted-syntax": [
         "error",

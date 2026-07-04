@@ -1,4 +1,5 @@
 import { Stack } from "@orb/ui/layout";
+import { Heading, Text } from "@orb/ui/text";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
@@ -16,8 +17,10 @@ function NotFound(): ReactElement {
       gap="block"
       className="min-h-dvh bg-background text-foreground"
     >
-      <h1 className="font-semibold text-foreground text-title">not found</h1>
-      <p className="text-label text-muted-foreground">that route doesn’t exist.</p>
+      <Heading level={1}>not found</Heading>
+      <Text size="label" tone="muted">
+        that route doesn’t exist.
+      </Text>
     </Stack>
   );
 }
