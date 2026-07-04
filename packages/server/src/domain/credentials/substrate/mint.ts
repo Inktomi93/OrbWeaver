@@ -3,8 +3,8 @@
 // encapsulates the ONE `as <Brand>` cast for its arm; nothing else in the codebase produces a value
 // satisfying the brand. It lives in `substrate/` (not `verbs/resolve.ts`) for ONE reason that is physics,
 // not preference: `domain-no-cross-verb` forbids a verb importing another verb's value, so `resolve` +
-// the boot-helper verbs (`mint-vllm`/`mint-local-light`/`build-keyless-catalog`) + `test-health` could
-// not share a factory homed in `resolve.ts`. Homing them in substrate keeps the casts in ONE auditable
+// `test-health` + `inspect-endpoint` could not share a factory homed in `resolve.ts`. Homing them in
+// substrate keeps the casts in ONE auditable
 // file AND lets every construction site reach them through the DI seam (substrate mediates).
 //
 // The `max-pro-sub` factory is the load-bearing gate (D17): it is unconstructable except AFTER
@@ -38,8 +38,8 @@ export function mintMaxProSub(
   return { source: "max-pro-sub", credentialId: null } as MaxProSubCredential;
 }
 
-/** Mint an OpenRouter credential. `credentialId` is the row id (or `null` for the keyless catalog/env
- *  paths); `apiKey` is the decrypted key (or `""` for the public catalog fetch). Any authenticated user. */
+/** Mint an OpenRouter credential. `credentialId` is the row id (`null` is allowed by the contract shape
+ *  but every live path passes a row id); `apiKey` is the decrypted key. Any authenticated user. */
 export function mintOpenRouter(
   apiKey: string,
   credentialId: UserCredentialId | null,

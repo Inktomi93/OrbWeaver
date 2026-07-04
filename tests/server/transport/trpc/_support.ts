@@ -51,6 +51,8 @@ export function makeContext(parts: {
   services?: { [K in keyof Services]?: Partial<Services[K]> };
   rateLimit?: RateLimitGate;
   presence?: PresenceRegistry;
+  /** Defaults FALSE (multi-user) so the multi-human surfaces stay reachable; the PD-106 belt tests set it. */
+  singleUserMode?: boolean;
   csrfHeaderPresent?: boolean;
   clientIp?: string | null;
 }): Context {
@@ -60,6 +62,7 @@ export function makeContext(parts: {
     services: (parts.services ?? {}) as any as Services,
     rateLimit: parts.rateLimit ?? allowAll,
     presence: parts.presence ?? inertPresence,
+    singleUserMode: parts.singleUserMode ?? false,
     csrfHeaderPresent: parts.csrfHeaderPresent ?? false,
     clientIp: parts.clientIp ?? "127.0.0.1",
   };
