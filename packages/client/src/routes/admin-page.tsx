@@ -1,4 +1,5 @@
 import { Stack } from "@orb/ui/layout";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
 // STUB — the /admin/* surfaces (features/user-admin) land behind a beforeLoad requireOwner gate.
@@ -12,8 +13,10 @@ export function AdminPage(): ReactElement {
       gap="block"
       className="min-h-dvh bg-background text-foreground"
     >
-      <h1 className="font-semibold text-foreground text-title">admin</h1>
-      <p className="text-label text-muted-foreground">admin surfaces aren’t built yet.</p>
+      <Heading level={1}>admin</Heading>
+      <Text size="label" tone="muted">
+        admin surfaces aren’t built yet.
+      </Text>
     </Stack>
   );
 }

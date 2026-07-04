@@ -1,4 +1,5 @@
 import { Stack } from "@orb/ui/layout";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
 // STUB — the /login surface moves to features/auth once that feature is built; the beforeLoad
@@ -11,8 +12,10 @@ export function LoginPage(): ReactElement {
       gap="block"
       className="min-h-dvh bg-background text-foreground"
     >
-      <h1 className="font-semibold text-foreground text-title">sign in</h1>
-      <p className="text-label text-muted-foreground">auth isn’t wired yet.</p>
+      <Heading level={1}>sign in</Heading>
+      <Text size="label" tone="muted">
+        auth isn’t wired yet.
+      </Text>
     </Stack>
   );
 }
