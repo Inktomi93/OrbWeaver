@@ -26,6 +26,7 @@ import { normalizeFinishReason, ProviderError } from "../../../../contract";
 import { resolveChat } from "../../../../resolve-chat";
 import {
   ANTHROPIC_CACHE_5M,
+  assertMappedHistoryRole,
   chatHistoryText,
   effortToResponsesReasoning,
   isAnthropicModel,
@@ -79,7 +80,7 @@ function buildResponsesInput(history: readonly ChatHistoryMessage[]): EasyInputM
     if (text.trim().length === 0) {
       continue;
     }
-    items.push({ role: turn.role, content: text });
+    items.push({ role: assertMappedHistoryRole(turn.role), content: text });
   }
   if (items[0]?.role === "assistant") {
     items.unshift({ role: USER_ROLE, content: ASSISTANT_FIRST_PLACEHOLDER });

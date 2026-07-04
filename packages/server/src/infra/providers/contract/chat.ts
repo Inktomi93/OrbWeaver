@@ -18,12 +18,51 @@ import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ModelId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
 
+/** The WIRE-axis role vocabulary (D48; tool-use-design/02 §1) — deliberately NOT kit `MESSAGE_ROLES`:
+ *  `tool` exists only between the engine REQUEST seam and a translator (a materialized tool-result
+ *  message), never as a persisted slot role, and `system` is carried by `systemPrompt`, not history. */
+export const HISTORY_ROLES = ["user", "assistant", "tool"] as const;
+export type HistoryRole = (typeof HISTORY_ROLES)[number];
+
 /** One assembled history turn (OpenAI-spec shape) the stateless backends consume. `content` is a
- *  content-part array (D45); `name` carries the per-participant label the egocentric view-builder stamped. */
+ *  content-part array (D45); `name` carries the per-participant label the egocentric view-builder stamped.
+ *  A `tool`-role message carries only `tool-result` parts (assembly materializes a recorded exchange —
+ *  D48; the persisted form stays `ToolCallRecord[]` on the variant). */
 export interface ChatHistoryMessage {
-  readonly role: "user" | "assistant";
+  readonly role: HistoryRole;
   readonly content: readonly ChatContentPart[];
   readonly name?: string | undefined;
+}
+
+/** One wire-projected tool (registry → `tools[]`, tool-use-design/02 §2). `parameters` is the JSON-Schema
+ *  projection cached at registration (`additionalProperties:false`, descriptions survive) — the domain
+ *  builds these via `project-wire`, never hand-rolls. */
+export interface WireTool {
+  readonly name: string;
+  readonly description: string;
+  readonly parameters: Record<string, unknown>;
+}
+
+/** The caller's tool-choice intent; each translator spells it in its own dialect. The loop's default when
+ *  tools are attached is `{mode:"auto"}` — a CALLER default, never a translator constant (D48 rejected
+ *  ST's hardwired `'auto'`). */
+export type ToolChoice =
+  | { readonly mode: "auto" }
+  | { readonly mode: "none" }
+  | { readonly mode: "required" }
+  | { readonly mode: "tool"; readonly name: string };
+
+/** The structured-output request (D48's SECOND axis — never rides `toolChoice`; tool-use-design/04 §1).
+ *  `schema` is projected from the caller's zod payload schema by the SAME rule as tool args — the zod
+ *  schema stays the caller's runtime validator (validation + ONE bounded retry are the CALLER's). */
+export interface ResponseFormat {
+  /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
+  readonly name: string;
+  /** JSON Schema — projected by the same rule as tools (`additionalProperties:false`). */
+  readonly schema: Record<string, unknown>;
+  /** Default true. */
+  readonly strict?: boolean | undefined;
+  readonly description?: string | undefined;
 }
 
 /** Fields every chat call carries regardless of which sealed backend runs it. `ownerConsented` is the
@@ -66,14 +105,25 @@ export type ChatRequest = ChatRequestCommon &
         readonly historyCacheBreakpointFromEnd?: number | undefined;
         readonly providerRouting?: OpenRouterProviderRouting | undefined;
         readonly customParameters?: CustomParameters | undefined;
+        /** ABSENT (never `[]`) on a tool-less turn — the request stays byte-identical to pre-D48. */
+        readonly tools?: readonly WireTool[] | undefined;
+        readonly toolChoice?: ToolChoice | undefined;
+        readonly responseFormat?: ResponseFormat | undefined;
       }
     | {
         readonly api: "responses";
         readonly history: readonly ChatHistoryMessage[];
         readonly providerRouting?: OpenRouterProviderRouting | undefined;
         readonly customParameters?: CustomParameters | undefined;
+        /** ABSENT (never `[]`) on a tool-less turn — the request stays byte-identical to pre-D48. */
+        readonly tools?: readonly WireTool[] | undefined;
+        readonly toolChoice?: ToolChoice | undefined;
+        readonly responseFormat?: ResponseFormat | undefined;
       }
   );
+// The `agent-sdk` arm carries NO tools/toolChoice/responseFormat by design: tools ride `mcpServers`
+// via `project-mcp` (the SDK owns its loop — D47/D8), and no committed agent-sdk consumer requests
+// structured output (the field lands on that arm WITH its first consumer — tool-use-design/04 §1).
 
 /** Narrowed per-api shapes the sealed backends consume — a backend takes its own arm directly. */
 export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
