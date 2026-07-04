@@ -80,7 +80,7 @@ export interface TableProps<TData> {
   /** Controlled pagination state. Omit to run uncontrolled off `defaultPagination`. Pagination is
    * always applied client-side over `data`; the footer controls self-suppress when everything
    * fits on one page (the Select `scrollArrows` self-suppress precedent). To opt out entirely,
-   * pass a `pageSize` >= `data.length`. */
+   * pass a `pageSize` \>= `data.length`. */
   readonly pagination?: TablePagination;
   readonly defaultPagination?: TablePagination;
   readonly onPaginationChange?: (pagination: TablePagination) => void;

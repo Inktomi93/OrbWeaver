@@ -26,9 +26,12 @@ export interface SettingRowProps {
  * domain-agnostic across every settings surface (themes, automation budget, crew knobs,
  * plugin/admin).
  *
- * Usage: `<SettingRow id="auto-save" label="Auto-save" hint="Saves drafts every 30s">
+ * Usage:
+ * ```tsx
+ * <SettingRow id="auto-save" label="Auto-save" hint="Saves drafts every 30s">
  *   <Switch id="auto-save" checked={enabled} onCheckedChange={setEnabled} />
- * </SettingRow>`
+ * </SettingRow>
+ * ```
  */
 export function SettingRow({
   id,

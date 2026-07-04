@@ -43,3 +43,85 @@ export function utcFormatToMs(value: string, format: string): number | null {
   const dt = DateTime.fromFormat(value, format, { zone: "utc" });
   return dt.isValid ? dt.toMillis() : null;
 }
+
+// ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
+// Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —
+// the timezone pipeline): the wire stays epoch-ms UTC; the viewer's locale/timezone applies here and
+// nowhere else. `now` is INJECTED (client-determinism — relative-time is snapshot-testable); this
+// module is the raw-`Intl`/ambient-clock exemption zone (no-raw-intl-time / no-raw-clock), so the
+// ambient defaults below are the sanctioned single site of both.
+
+/** Injectable formatter config — production omits everything (browser locale/tz, real clock);
+ *  tests pin all three for deterministic output across ICU builds. */
+export interface TimeLibConfig {
+  readonly now?: () => number;
+  readonly locale?: string;
+  readonly timeZone?: string;
+}
+
+export interface TimeLib {
+  /** `14:07` — the message-row timestamp form. */
+  readonly formatTime: (epochMs: number) => string;
+  /** `Jul 3, 2026` — list/detail date form. */
+  readonly formatDate: (epochMs: number) => string;
+  /** `Jul 3, 2026, 14:07` — audit/detail form. */
+  readonly formatDateTime: (epochMs: number) => string;
+  /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
+  readonly formatRelative: (epochMs: number) => string;
+}
+
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_HOUR = 60 * MS_PER_MINUTE;
+const MS_PER_DAY = 24 * MS_PER_HOUR;
+/** Days before a relative time ("9 days ago") reads worse than the date — the fallback horizon. */
+const RELATIVE_HORIZON_DAYS = 7;
+const RELATIVE_HORIZON_MS = RELATIVE_HORIZON_DAYS * MS_PER_DAY;
+
+export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
+  const now = config.now ?? ((): number => Date.now());
+  const locale = config.locale;
+  const tz = config.timeZone === undefined ? {} : { timeZone: config.timeZone };
+
+  // Intl formatter construction is expensive; each is built once per TimeLib (closure-memoized).
+  const time = new Intl.DateTimeFormat(locale, { ...tz, hour: "2-digit", minute: "2-digit" });
+  const date = new Intl.DateTimeFormat(locale, {
+    ...tz,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+  const dateTime = new Intl.DateTimeFormat(locale, {
+    ...tz,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "narrow" });
+
+  const formatDate = (epochMs: number): string => date.format(epochMs);
+
+  return {
+    formatTime: (epochMs): string => time.format(epochMs),
+    formatDate,
+    formatDateTime: (epochMs): string => dateTime.format(epochMs),
+    formatRelative: (epochMs): string => {
+      const deltaMs = epochMs - now();
+      const magnitude = Math.abs(deltaMs);
+      if (magnitude >= RELATIVE_HORIZON_MS) {
+        return formatDate(epochMs);
+      }
+      if (magnitude >= MS_PER_DAY) {
+        return relative.format(Math.trunc(deltaMs / MS_PER_DAY), "day");
+      }
+      if (magnitude >= MS_PER_HOUR) {
+        return relative.format(Math.trunc(deltaMs / MS_PER_HOUR), "hour");
+      }
+      if (magnitude >= MS_PER_MINUTE) {
+        return relative.format(Math.trunc(deltaMs / MS_PER_MINUTE), "minute");
+      }
+      return relative.format(Math.trunc(deltaMs / MS_PER_SECOND), "second");
+    },
+  };
+}

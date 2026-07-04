@@ -119,8 +119,11 @@ function SortableItem({ id, index, handle, disabled, children }: SortableItemPro
  * whether/how to apply it (optimistic re-sort, a mutation, both) — this component holds no
  * reorder state of its own.
  *
- * Usage: `<SortableList items={rules} getItemKey={(r) => r.id} renderItem={(r) => <RuleRow r={r}
- *   />} onReorder={(keys) => reorderRules(keys)} handle />`
+ * Usage:
+ * ```tsx
+ * <SortableList items={rules} getItemKey={(r) => r.id} renderItem={(r) => <RuleRow r={r}
+ *   />} onReorder={(keys) => reorderRules(keys)} handle />
+ * ```
  */
 export function SortableList<T>({
   items,

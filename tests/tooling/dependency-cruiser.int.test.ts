@@ -173,6 +173,40 @@ function writeAllFixtures(): void {
     "packages/ui/src/__dc/minisearch-sealbreach.ts",
     `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`,
   );
+
+  // ── The @orb/ui INTERNAL cake (groups → primitives → lib/tokens) ──
+  fx("packages/ui/src/primitives/__dc_prim/i.ts", VAL);
+  fx("packages/ui/src/markdown/__dc_g/i.ts", VAL);
+  // ui-lib-tokens-floor: the floor reaching UP into primitives.
+  fx("packages/ui/src/lib/__dc_up.ts", `import "../primitives/__dc_prim/i.ts";\n`);
+  // ui-primitives-below-groups: a primitive reaching UP into a group.
+  fx("packages/ui/src/primitives/__dc_prim/up.ts", `import "../../markdown/__dc_g/i.ts";\n`);
+  // ui-groups-independent: group→group sideways (charts → markdown) at runtime.
+  fx(
+    "packages/ui/src/charts/__dc_g/cross.ts",
+    `import { t } from "../../markdown/__dc_g/i.ts";\nexport const u = t;\n`,
+  );
+
+  // ── The @orb/client INTERNAL cake (main → routes → features → forms/data → state → lib) ──
+  fx("packages/client/src/state/__dc_t/i.ts", VAL);
+  fx("packages/client/src/data/__dc_t/i.ts", VAL);
+  fx("packages/client/src/forms/__dc_t/i.ts", VAL);
+  fx("packages/client/src/routes/__dc_rt.ts", VAL);
+  // client-lib-floor: the floor reaching UP into state.
+  fx("packages/client/src/lib/__dc_up.ts", `import "../state/__dc_t/i.ts";\n`);
+  // client-state-below-data: a store reaching UP into the Query layer.
+  fx("packages/client/src/state/__dc_up.ts", `import "../data/__dc_t/i.ts";\n`);
+  // client-data-direction: the data layer reaching UP into forms.
+  fx("packages/client/src/data/__dc_up.ts", `import "../forms/__dc_t/i.ts";\n`);
+  // client-forms-direction: a form factory VALUE-importing the data layer (type-only is exempt).
+  fx(
+    "packages/client/src/forms/__dc_up.ts",
+    `import { t } from "../data/__dc_t/i.ts";\nexport const u = t;\n`,
+  );
+  // client-features-below-routes: a feature importing a route module.
+  fx("packages/client/src/features/__dc_cfeat/uproute.ts", `import "../../routes/__dc_rt.ts";\n`);
+  // client-nothing-imports-main: anything importing the composition root (the real main.tsx).
+  fx("packages/client/src/routes/__dc_main.ts", `import "../main.tsx";\n`);
 }
 
 interface Violation {

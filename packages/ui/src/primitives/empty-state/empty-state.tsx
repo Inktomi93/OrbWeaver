@@ -16,8 +16,11 @@ export interface EmptyStateProps {
  * the section rhythm). Domain-agnostic: the copy is the caller's; the intent is the DESIGN.md
  * "Weave" teaching moment (ui-package-design §6.1).
  *
- * Usage: `<EmptyState icon={<Icon icon={Search} size="lg" />} title="No characters yet"
- *   description="Weave your first one to begin." action={<Button>New character</Button>} />`.
+ * Usage:
+ * ```tsx
+ * <EmptyState icon={<Icon icon={Search} size="lg" />} title="No characters yet"
+ *   description="Weave your first one to begin." action={<Button>New character</Button>} />
+ * ```
  */
 export function EmptyState({
   icon,

@@ -24,7 +24,16 @@
     "./tools/grit/no-layout-context-props.grit",
     "./tools/grit/no-untrusted-html-in-main-dom.grit",
     "./tools/grit/no-external-media-without-gate.grit",
-    "./tools/grit/theme-override-only-via-scope.grit"
+    "./tools/grit/theme-override-only-via-scope.grit",
+    "./tools/grit/client-cache-surgery-only-in-data.grit",
+    "./tools/grit/no-raw-zustand-persist.grit",
+    "./tools/grit/no-static-staletime.grit",
+    "./tools/grit/no-fake-disabled-id.grit",
+    "./tools/grit/chat-stream-writes-in-bus-only.grit",
+    "./tools/grit/no-multiplexed-mutation-error.grit",
+    "./tools/grit/zustand-selector-stability.grit",
+    "./tools/grit/no-raw-random.grit",
+    "./tools/grit/testid-typed-only.grit"
   ],
   "vcs": {
     "enabled": true,
@@ -424,6 +433,16 @@
           "performance": {
             "noBarrelFile": "off",
             "noReExportAll": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/client/src/forms/use-app-form.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
           }
         }
       }

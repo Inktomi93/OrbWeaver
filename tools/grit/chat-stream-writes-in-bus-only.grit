@@ -1,0 +1,17 @@
+// Plugin: chat-stream-writes-in-bus-only — the stream store's WRITE api (`chatStream`) may be
+// imported only by the bus reducer (`data/bus/`) and the composition root (main.tsx wires the
+// reducer's deps). A component/feature writing turn slots directly forges server-authoritative
+// lifecycle state — the slot machine is driven by BUS events alone (UI-Gates §11.1: slot lifecycle
+// is owned by the terminal turn events; gate `bus-onData-no-store-write`'s write-side half).
+// Reads (`useTurnSlot`/`useTurnPhase`/`subscribeTurnSlot`) are unrestricted.
+language js
+
+`import { $imports } from "#state"` where {
+  $imports <: contains `chatStream`,
+  $filename <: not or {
+    r".*/packages/client/src/data/bus/.*",
+    r".*/packages/client/src/main\.tsx$",
+    r".*\.test\.tsx?$"
+  },
+  register_diagnostic(span=$imports, message="chatStream (the stream store's WRITE api) imported outside data/bus/ — turn slots are driven by bus events through applyChatBusEvent only; components read via useTurnSlot/useTurnPhase. See UI-Gates-and-Lessons.md §11.1.")
+}

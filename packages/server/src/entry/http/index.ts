@@ -19,5 +19,6 @@ export type { BlobAssetsPort, BlobCasPort, BlobDeps } from "./blob";
 export { registerBlob } from "./blob";
 export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
+export { securityHeaders } from "./security-headers";
 export type { UploadAssetsPort, UploadDeps } from "./upload";
 export { registerUpload } from "./upload";

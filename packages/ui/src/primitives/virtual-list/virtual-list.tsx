@@ -44,7 +44,7 @@ export interface VirtualListProps<T> {
   /**
    * Round-robins rows across N lanes (TanStack's masonry primitive — each virtual item gets a
    * `lane` index) instead of one column. Passthrough only: this seal stays a 1D row list, so a
-   * lanes>1 caller owns the lane→horizontal-position CSS itself (e.g. via the `data-lane`
+   * `lanes>1` caller owns the lane→horizontal-position CSS itself (e.g. via the `data-lane`
    * attribute this seal stamps on every row) — see `@orb/ui/media-grid` for the uniform-grid shape
    * this is NOT (that seal deliberately derives its own CSS-grid columns instead, per its own doc).
    */
@@ -64,9 +64,20 @@ export interface VirtualListProps<T> {
    * composer gets it free rather than each caller re-deriving the check.
    */
   readonly scrollToIndex?: number;
+  /**
+   * Fires when the rendered window's LAST index comes within `endApproachRows` of the tail — the
+   * infinite-scroll trigger, driven by the virtualizer's own range (UI-Lib-TanStack-Query.md §5:
+   * no `react-intersection-observer`; the virtualizer already reports tail proximity). The caller
+   * owns the fetch guard (`hasNextPage && !isFetching` — `createCollectionSurface` bakes it).
+   */
+  readonly onEndApproach?: () => void;
+  /** Tail-proximity threshold in rows for `onEndApproach`. @defaultValue 8 */
+  readonly endApproachRows?: number;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
   readonly className?: string;
 }
+
+const DEFAULT_END_APPROACH_ROWS = 8;
 
 /**
  * The `@tanstack/react-virtual` seal (UI-Gates §7 — the Virtual×Compiler footgun row): a windowed
@@ -100,6 +111,8 @@ export function VirtualList<T>({
   rangeExtractor,
   renderItem,
   scrollToIndex,
+  onEndApproach,
+  endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
 }: VirtualListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -152,6 +165,21 @@ export function VirtualList<T>({
     }
   }, []);
 
+  // The tail-proximity trigger: with directDomUpdates, React re-renders exactly when the rendered
+  // RANGE changes — so the last rendered index is a render-time value and an effect on it fires
+  // once per window shift, never per scroll frame. The guard against duplicate fetches is the
+  // CALLER's (`hasNextPage && !isFetching`); this seam only reports proximity.
+  const virtualItems = virtualizer.getVirtualItems();
+  const lastRenderedIndex = virtualItems.length === 0 ? -1 : (virtualItems.at(-1)?.index ?? -1);
+  useLayoutEffect(() => {
+    if (onEndApproach === undefined || items.length === 0) {
+      return;
+    }
+    if (lastRenderedIndex >= items.length - endApproachRows) {
+      onEndApproach();
+    }
+  }, [onEndApproach, lastRenderedIndex, items.length, endApproachRows]);
+
   // The declarative "scroll to index" seam — fires only when the VALUE changes (an append that
   // grows total item count), not on every render. `align: "end"` is the "pin to bottom" shape;
   // reduced-motion is checked here (not left to the caller) so every composer gets it free.
@@ -179,7 +207,7 @@ export function VirtualList<T>({
         className="relative w-full"
         data-slot="virtual-list-viewport"
       >
-        {virtualizer.getVirtualItems().map((virtualItem) => (
+        {virtualItems.map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
           <div

@@ -157,7 +157,7 @@ module.exports = {
     {
       name: "ui-satellite-seals",
       comment:
-        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only) · minisearch→primitives/macro-textarea/ (carve-out item 18 — the macro-textarea fuzzy-match seal). Importing a sealed lib from any OTHER ui module is a seal breach.",
+        "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ (gate icons-lucide-only) · minisearch→{primitives/macro-textarea/, fuzzy-search/} (the macro autocomplete seal + the generic browse-search hook — ONE lib, TWO sanctioned homes). Importing a sealed lib from any OTHER ui module is a seal breach.",
       severity: "error",
       from: {
         path: UI,
@@ -171,6 +171,7 @@ module.exports = {
           `${UI}diff/`,
           `${UI}primitives/icons/`,
           `${UI}primitives/macro-textarea/`,
+          `${UI}fuzzy-search/`,
         ],
       },
       to: {
@@ -181,6 +182,94 @@ module.exports = {
     // in @orb/client's package.json → the import cannot resolve under pnpm isolation) + biome
     // noUndeclaredDependencies. A dep-cruiser twin here would be unfireable-by-construction (its own
     // pin test could never make it fire), so it is intentionally absent. (ui-package-design.md §8.)
+
+    // ════════════════════ The @orb/ui INTERNAL cake (groups → primitives → lib/tokens) ═════════════
+    {
+      name: "ui-lib-tokens-floor",
+      comment:
+        "lib/ + tokens/ are @orb/ui's floor — read DOWN-into by every group, reaching UP to none. A lib/tokens module importing primitives/ or a group dir inverts the package's own cake. (UI-Arch §2; the ui mirror of foundation-reaches-up-to-nothing.)",
+      severity: "error",
+      from: { path: `${UI}(lib|tokens)/` },
+      to: {
+        path: `${UI}(primitives|layout|charts|markdown|stream|content|code-editor|diff|fuzzy-search)/`,
+      },
+    },
+    {
+      name: "ui-primitives-below-groups",
+      comment:
+        "primitives/ sit BELOW the composed groups (layout/charts/markdown/stream/content/code-editor/diff): a primitive may import lib/tokens + sibling primitives (relative-path variant composition, §13.7), never a group dir. Groups compose primitives; primitives never know a group exists. (UI-Arch §2.)",
+      severity: "error",
+      from: { path: `${UI}primitives/` },
+      to: { path: `${UI}(layout|charts|markdown|stream|content|code-editor|diff|fuzzy-search)/` },
+    },
+    {
+      name: "ui-groups-independent",
+      comment:
+        "The composed groups (layout/charts/markdown/stream/content/code-editor/diff) stay independent — no group imports another group's internals. Shared needs live in primitives/ or lib/ (push it DOWN, never sideways) — the ui mirror of domain-no-cross-feature. Type-only exempt (a shape at a composition seam).",
+      severity: "error",
+      from: { path: `${UI}(layout|charts|markdown|stream|content|code-editor|diff|fuzzy-search)/` },
+      to: {
+        path: `${UI}(layout|charts|markdown|stream|content|code-editor|diff|fuzzy-search)/`,
+        pathNot: `${UI}$1/`,
+        dependencyTypesNot: ["type-only"],
+      },
+    },
+
+    // ═══════════ The @orb/client INTERNAL cake (main → routes → features → forms/data → state → lib) ═══════════
+    // The client's own tier order (UI-Arch §2.1, decided at the client-foundation wave — supersedes
+    // this header's old "client layering deferred" note): lib/ is the floor; state/ holds the gated
+    // stores; data/ (Query+tRPC) may reach state (the bus reducer drives the stream store) + lib;
+    // forms/ may reach state (draft mirrors) + lib but NOT data (a form factory takes `save` INJECTED
+    // — binding a mutation is the feature's composition job); features compose everything below;
+    // routes compose features; main.tsx (with index.ts) is the composition root nothing imports.
+    {
+      name: "client-lib-floor",
+      comment:
+        "client lib/ is the floor — the cross-cutting seams (time/notify/test-ids/VT) reach UP to nothing inside the client. (UI-Arch §2.1; the client mirror of foundation-reaches-up-to-nothing.)",
+      severity: "error",
+      from: { path: `${CLIENT}lib/` },
+      to: { path: `${CLIENT}(state|data|forms|features|routes)/` },
+    },
+    {
+      name: "client-state-below-data",
+      comment:
+        "client state/ (the gated Zustand stores) sits below data/forms/features/routes — a store never reads the Query layer, a form, or a surface. Server state NEVER lives in a store (§5); anything a store needs arrives as a plain value through its action params.",
+      severity: "error",
+      from: { path: `${CLIENT}state/` },
+      to: { path: `${CLIENT}(data|forms|features|routes)/` },
+    },
+    {
+      name: "client-data-direction",
+      comment:
+        "client data/ (Query + tRPC + the bus + the factories) may reach state/ (the bus reducer drives the stream store) + lib/, never forms/features/routes — the data layer serves surfaces, it doesn't know them.",
+      severity: "error",
+      from: { path: `${CLIENT}data/` },
+      to: { path: `${CLIENT}(forms|features|routes)/` },
+    },
+    {
+      name: "client-forms-direction",
+      comment:
+        "client forms/ (the editor factories + bound fields) may reach state/ (draft mirrors) + lib/, never data/features/routes. A factory takes `save` INJECTED — the feature binds the mutation at composition; a forms→data import would hard-couple every editor to the Query layer. Type-only exempt.",
+      severity: "error",
+      from: { path: `${CLIENT}forms/` },
+      to: { path: `${CLIENT}(data|features|routes)/`, dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "client-features-below-routes",
+      comment:
+        "client features/ sit below routes/ + the entry files — a feature never imports a route module or main.tsx (routes compose features, never the reverse).",
+      severity: "error",
+      from: { path: `${CLIENT}features/` },
+      to: { path: [`${CLIENT}routes/`, `${CLIENT}main\\.tsx$`] },
+    },
+    {
+      name: "client-nothing-imports-main",
+      comment:
+        "main.tsx is the composition root — the top of the client cake; nothing imports it (the mirror of 'nothing imports entry/').",
+      severity: "error",
+      from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
+      to: { path: `${CLIENT}main\\.tsx$` },
+    },
 
     // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>kit) ═══════
     {

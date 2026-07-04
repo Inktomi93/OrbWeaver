@@ -34,6 +34,7 @@ import {
   registerBlob,
   registerHealthz,
   registerUpload,
+  securityHeaders,
   serializeSessionCookie,
 } from "./http";
 import type { ImportAssetPort, ImportCharacterPort } from "./import";
@@ -107,6 +108,10 @@ function readSessionToken(headers: Headers): string | null {
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+
+  // ── The app-document CSP + sibling security headers (D44 §12.5; entry/http/security-headers) ─────────
+  // FIRST so every response — including the allowlist 403 below — carries the headers.
+  app.use("*", securityHeaders({ dev: env.NODE_ENV !== "production" }));
 
   // ── Ingress IP-allowlist edge belt (infra/network/ingress — PD-91; off unless IP_ALLOWLIST is set) ────
   const allowlist = parseAllowlist(env.IP_ALLOWLIST);

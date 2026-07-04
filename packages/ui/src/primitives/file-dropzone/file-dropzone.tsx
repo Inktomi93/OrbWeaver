@@ -45,7 +45,7 @@ export interface FileDropzoneProps
   instructions?: string;
   /**
    * Supplementary line under the instructions (e.g. accepted types). When omitted and
-   * `maxSizeBytes` is set, auto-renders "Up to {size} per file" — an explicit `hint` overrides it.
+   * `maxSizeBytes` is set, auto-renders "Up to `{size}` per file" — an explicit `hint` overrides it.
    */
   hint?: string;
   className?: string;
@@ -127,8 +127,11 @@ function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps):
  * `<Spinner>` / a checkmark and inert the input+drop handlers — caller-driven states (the caller
  * owns the actual upload request); this primitive holds no timer for clearing `success`.
  *
- * Usage: `<Field label="Avatar"><FileDropzone accept="image/*" maxSizeBytes={20_000_000}
- *   onFilesSelected={({ accepted }) => upload(accepted[0])} /></Field>`
+ * Usage:
+ * ```tsx
+ * <Field label="Avatar"><FileDropzone accept="image/*" maxSizeBytes={20_000_000}
+ *   onFilesSelected={({ accepted }) => upload(accepted[0])} /></Field>
+ * ```
  */
 export function FileDropzone({
   accept,

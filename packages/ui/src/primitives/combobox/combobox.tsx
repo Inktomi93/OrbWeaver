@@ -117,8 +117,12 @@ function ComboboxResultStatus(): ReactElement {
  * `Combobox.Input` extends `FieldRootState`; `aria-describedby` is also exposed directly for
  * standalone (non-`<Field>`) composition.
  *
- * Usage: `<Combobox aria-label="Labels" items={seedLabels} maxItems={8} onValueChange={setLabels}
- * value={labels} />` — omit `items` for pure free-text chip entry (world-info keyword triggers).
+ * Usage:
+ * ```tsx
+ * <Combobox aria-label="Labels" items={seedLabels} maxItems={8} onValueChange={setLabels}
+ *   value={labels} />
+ * ```
+ * — omit `items` for pure free-text chip entry (world-info keyword triggers).
  */
 export function Combobox({
   items,

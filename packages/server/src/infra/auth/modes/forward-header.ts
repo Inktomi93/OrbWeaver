@@ -28,7 +28,7 @@ import type { AuthConfig, ResolveDeps } from "../contract";
 
 // Network-trust header form: authentik joins groups with "|"; tolerate commas too. Top-level
 // (useTopLevelRegex — compiled once, not per call).
-const GROUP_SEPARATOR = /[|,]/;
+const GROUP_SEPARATOR = /[|,]/u;
 
 function groupsFromClaim(claim: unknown): string[] {
   if (Array.isArray(claim)) {

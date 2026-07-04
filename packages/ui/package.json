@@ -30,6 +30,7 @@
     "./field": "./src/primitives/field/index.ts",
     "./fieldset": "./src/primitives/fieldset/index.ts",
     "./file-dropzone": "./src/primitives/file-dropzone/index.ts",
+    "./fuzzy-search": "./src/fuzzy-search/index.ts",
     "./highlighted-text": "./src/primitives/highlighted-text/index.ts",
     "./histogram": "./src/charts/histogram/index.ts",
     "./icons": "./src/primitives/icons/index.ts",

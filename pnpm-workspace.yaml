@@ -179,6 +179,16 @@ catalog:
   # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
   babel-plugin-react-compiler: ^1.0.0
   "@rolldown/plugin-babel": ^0.2.3
+  # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
+  #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
+  "@tanstack/react-query": ^5.101.2
+  "@tanstack/react-query-devtools": ^5.101.2
+  "@tanstack/react-form": ^1.33.0
+  zustand: ^5.0.14
+  # @trpc/client + the tanstack-react-query bridge track @trpc/server's major (^11.18.0) — the
+  # options-proxy (`trpc.x.y.queryOptions()`) IS the queryKey factory (gate no-array-literal-querykey).
+  "@trpc/client": ^11.18.0
+  "@trpc/tanstack-react-query": ^11.18.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
   # 1.170.17 is <24h-blocked; ^1.170.16 is the latest mature (caret adopts newer once mature).
