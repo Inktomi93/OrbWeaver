@@ -33,7 +33,10 @@
     "./tools/grit/no-multiplexed-mutation-error.grit",
     "./tools/grit/zustand-selector-stability.grit",
     "./tools/grit/no-raw-random.grit",
-    "./tools/grit/testid-typed-only.grit"
+    "./tools/grit/testid-typed-only.grit",
+    "./tools/grit/no-media-queries-in-features.grit",
+    "./tools/grit/no-raw-container-widths.grit",
+    "./tools/grit/no-manual-token-estimate.grit"
   ],
   "vcs": {
     "enabled": true,

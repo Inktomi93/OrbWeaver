@@ -16,10 +16,11 @@
 //               ✅ <p className="text-body text-muted-foreground">…</p>
 //               ✅ <span className="font-mono text-mono-tag">…</span>
 //
-//             Same litmus as no-raw-spacing-in-features: the GritQL plugin is
-//             warn-severity tree-wide; the substrate-clean ratchet (Wave 1)
-//             promotes it to error for the substrate paths. Wave 5's codemod
-//             will sweep features/* into compliance.
+//             Same litmus as no-raw-spacing-in-features: severity is `error` for the
+//             substrate paths directly (there is no separate `scripts/check/
+//             substrate-clean.ts` ratchet in orb — that name is a Deferred-Dropped
+//             backlog item, Core-Enforcement-Deferred-Dropped.md; this grit is
+//             self-contained). Wave 5's codemod will sweep features/* into compliance.
 //
 // Allowed:    Color/utility prefixes that happen to start with `text-` stay clean:
 //               text-foreground / text-muted-foreground / text-destructive /
@@ -29,11 +30,12 @@
 //             / text-mono-tag) — the regex only matches the raw font-size scale.
 //
 // Scope:      Fires ONLY inside packages/{client,ui}/src and SKIPS
-//             the allowlist (features/_shared/layout/, _shared/form/contexts.ts,
-//             components/ui/, components/markdown.tsx) — via the in-rule `$filename`
-//             guard, NOT per-line suppressions. Mirrors substrate-clean.ts exactly.
-//             (See no-raw-spacing-in-features.grit for the guard rationale + the
-//             retired biome #6851 note.)
+//             the allowlist (packages/ui/src/layout/ — primitives DEFINE the tokens;
+//             packages/ui/src/markdown/ — the prose-typography carve-out) via the
+//             in-rule `$filename` guard, NOT per-line suppressions. No components/ui/
+//             or features/_shared/ drawer exists in orb (D43 §11.0: no directory is
+//             exempt from a boundary rule). (See no-raw-spacing-in-features.grit for
+//             the guard rationale + the retired biome #6851 note.)
 //
 // Refs:       docs/architecture/core/UI-Architecture-and-Layout.md (typography intent tokens)
 //             packages/ui/src/styles/theme.css (--text-* definitions)
@@ -42,17 +44,15 @@
 language js
 
 // Shared guard: substrate-gated client path AND not allowlisted. $filename is
-// auto-bound by biome. Mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES.
+// auto-bound by biome. Self-contained (no scripts/check/substrate-clean.ts in orb —
+// Deferred-Dropped backlog item; this predicate IS the ratchet).
 predicate in_substrate_scope() {
   // D43 §11.4: the token gates cover ALL feature + ui TSX (no components/ui-style exemption).
   // @orb/ui is in scope; its layout/ primitives are allowlisted below (they DEFINE the tokens).
   $filename <: r".*/packages/(?:client|ui)/src/.*",
   $filename <: not or {
-    r".*/features/_shared/layout/.*",
-    r".*/features/_shared/form/contexts\.ts$",
-    r".*/packages/client/src/shared/ui/.*",
     r".*/packages/ui/src/layout/.*",
-    r".*/components/markdown\.tsx$"
+    r".*/packages/ui/src/markdown/.*"
   }
 }
 

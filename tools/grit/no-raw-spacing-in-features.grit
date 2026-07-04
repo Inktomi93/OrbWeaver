@@ -27,13 +27,15 @@
 // Scope:      Fires ONLY inside the substrate-gated client paths
 //             (packages/{client,ui}/src) and SKIPS the allowlist —
 //             via the in-rule `$filename` guard below, NOT per-line suppressions.
-//             This mirrors scripts/check/substrate-clean.ts ALLOWLIST_PREFIXES
-//             exactly, so biome's plugin output == the substrate gate's scope.
+//             (There is no `scripts/check/substrate-clean.ts` in orb — that name is a
+//             Deferred-Dropped backlog item, Core-Enforcement-Deferred-Dropped.md; this
+//             grit IS the substrate-cleanliness ratchet, self-contained.)
 //             Allowlisted (own raw scale by design):
-//               • features/_shared/layout/        — primitives DEFINE the tokens
-//               • features/_shared/form/contexts.ts
-//               • components/ui/                  — shadcn fork files
-//               • components/markdown.tsx         — prose chrome
+//               • packages/ui/src/layout/   — primitives DEFINE the tokens
+//               • packages/ui/src/markdown/ — prose chrome (streamdown rendering)
+//             (no components/ui/ or features/_shared/ drawer exists in orb — D43 §11.0:
+//             no directory is exempt from a boundary rule; the two paths above are the
+//             token-DEFINING seal, not a convenience exemption.)
 //             ($filename guards are biome-2.4-native — see no-await-db-in-loop.grit;
 //             the old github.com/biomejs/biome/issues/6851 note was about `overrides`,
 //             which can't disable a plugin per-path. The grit pattern itself can.)
@@ -57,17 +59,15 @@
 language js
 
 // Shared guard: the file is a substrate-gated client path AND not allowlisted.
-// Mirrors scripts/check/substrate-clean.ts. $filename is auto-bound by biome.
+// Self-contained (no scripts/check/substrate-clean.ts in orb — Deferred-Dropped backlog
+// item; this predicate IS the ratchet). $filename is auto-bound by biome.
 predicate in_substrate_scope() {
   // D43 §11.4: the token gates cover ALL feature + ui TSX (no components/ui-style exemption).
   // @orb/ui is in scope; its layout/ primitives are allowlisted below (they DEFINE the tokens).
   $filename <: r".*/packages/(?:client|ui)/src/.*",
   $filename <: not or {
-    r".*/features/_shared/layout/.*",
-    r".*/features/_shared/form/contexts\.ts$",
-    r".*/packages/client/src/shared/ui/.*",
     r".*/packages/ui/src/layout/.*",
-    r".*/components/markdown\.tsx$"
+    r".*/packages/ui/src/markdown/.*"
   }
 }
 

@@ -1,0 +1,86 @@
+// Plugin: no-media-queries-in-features
+// Severity: error
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Tailwind VIEWPORT breakpoint variant prefixes — `sm:`, `md:`, `lg:`,
+//             `xl:`, `2xl:`, their `max-*` counterparts (`max-md:`), and arbitrary
+//             media variants (`min-[900px]:`, `max-[600px]:`) — inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` / `tv(...)` call-arg strings
+//
+// Rationale:  A feature adapts to ITS CONTAINER, not the viewport (UI-Arch §4b axis 1):
+//             the ONLY responsive thing a feature writes is a `@container` query
+//             (via `<Container>` / `@sm:`-style container variants — the `@` prefix,
+//             which this rule does NOT flag). The one genuinely viewport-dependent
+//             reflow (3-pane ⇄ stack, drawer ⇄ sheet) lives ONCE in the SHELL tier
+//             (`features/app-shell/**` — exempt below). A viewport breakpoint in a
+//             feature regrows the per-mount `compact`/`inDrawer` threading the
+//             container model exists to delete (D42 §4 correction; D43 §11.2).
+//
+//               ❌ <div className="flex-col md:flex-row">
+//               ✅ <div className="flex-col @md:flex-row">   (container variant — @-prefixed)
+//               ✅ <Container size="md"><Surface /></Container>
+//
+// Allowed:    Capability variants are NOT viewport size (UI-Arch §4b axis 3): `hover:`,
+//             `focus:`, `pointer-coarse:`, `pointer-fine:`, `dark:`, `motion-*:` etc.
+//             pass — hover/pointer are legitimately `@media (hover/pointer)` and cannot
+//             be expressed as container queries. Container variants (`@sm:`/`@md:`/
+//             `@container/name:`) pass — they are `@`-prefixed, so the token-boundary
+//             guard (preceded by space or opening quote, never `@`) skips them.
+//
+// Scope:      packages/{client,ui}/src EXCEPT features/app-shell/** — the shell is the
+//             one legal viewport-`@media` site (UI-Arch §4.1/§4b axis 2). Via the
+//             in-rule `$filename` guard, NOT per-line suppressions.
+//
+// Refs:       docs/architecture/core/UI-Architecture-and-Layout.md §4b (the 4 responsive axes)
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: same className-string shape as the raw-value trio. The `(?:[^\"]* )?`
+// token-boundary prefix forces the variant to sit right after the opening quote OR a
+// space — so an `@`-prefixed container variant (`@md:`) can never be matched (its
+// preceding char is `@`, not a boundary). Breakpoint token set is the closed viewport
+// list; capability variants are deliberately absent from it.
+
+language js
+
+// Shared guard: substrate-gated client/ui path, but NOT the app-shell (the one legal
+// viewport-@media site). $filename is auto-bound by biome.
+predicate in_feature_media_scope() {
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
+  $filename <: not r".*/packages/client/src/features/app-shell/.*"
+}
+
+or {
+  JsxAttribute() as $attr where {
+    in_feature_media_scope(),
+    $attr <: r"^className=\"(?:[^\"]* )?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):[^\"]*\"$",
+    register_diagnostic(span=$attr, message="viewport breakpoint variant in a feature className (sm:/md:/lg:/xl:/2xl:/max-*:) — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`; viewport `@media` reflow lives only in features/app-shell. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.", severity="error")
+  },
+  `cn($args)` where {
+    in_feature_media_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):[^\"]*\"$",
+      register_diagnostic(span=$lit, message="viewport breakpoint variant in cn() (sm:/md:/lg:/xl:/2xl:/max-*:) — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.", severity="error")
+    }
+  },
+  `clsx($args)` where {
+    in_feature_media_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):[^\"]*\"$",
+      register_diagnostic(span=$lit, message="viewport breakpoint variant in clsx() (sm:/md:/lg:/xl:/2xl:/max-*:) — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.", severity="error")
+    }
+  },
+  `cva($args)` where {
+    in_feature_media_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):[^\"]*\"$",
+      register_diagnostic(span=$lit, message="viewport breakpoint variant in cva() (sm:/md:/lg:/xl:/2xl:/max-*:) — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    in_feature_media_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"(?:[^\"]* )?(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):[^\"]*\"$",
+      register_diagnostic(span=$lit, message="viewport breakpoint variant in tv() (sm:/md:/lg:/xl:/2xl:/max-*:) — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.", severity="error")
+    }
+  }
+}

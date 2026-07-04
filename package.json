@@ -24,7 +24,7 @@
     "engines": "bash scripts/dev/engines.sh",
     "typecheck": "pnpm -r exec tsc --noEmit --pretty false",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",
-    "lint:eslint": "eslint packages/ui packages/client tests/ui tests/client packages/server packages/kit packages/db packages/contracts",
+    "lint:eslint": "eslint packages/ui packages/client tests/ui tests/client packages/server packages/kit packages/db packages/contracts --max-warnings 3",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "format:docs": "tsx scripts/docs/format-md.ts --write",

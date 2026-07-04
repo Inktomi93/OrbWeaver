@@ -93,11 +93,23 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "f.ts",
     src: "declare const x: unknown;\nexport const a = x as never;\n",
   },
+  "no-manual-token-estimate": {
+    path: "packages/server/src/domain/foo/tok.ts",
+    src: "export function f(text: string) {\n  return text.length / 4;\n}\n",
+  },
+  "no-media-queries-in-features": {
+    path: "packages/client/src/features/x/surfaces/m.tsx",
+    src: 'export const C = () => <div className="md:flex-row" />;\n',
+  },
   "no-mint-via-cast": {
     path: "f.ts",
     // token assembled so THIS file's source carries no literal unseeded-id call (the test-determinism
     // gate scans every line of tests/, comments included); the WRITTEN fixture resolves to the real call.
     src: `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`,
+  },
+  "no-raw-container-widths": {
+    path: "packages/client/src/features/x/surfaces/w.tsx",
+    src: 'export const C = () => <div className="w-64" />;\n',
   },
   "no-raw-clock": {
     path: "f.ts",

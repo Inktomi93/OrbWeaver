@@ -27,6 +27,7 @@ import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
 import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
+import { stateFiles } from "./gates/state-files.ts";
 import { testDeterminism } from "./gates/test-determinism.ts";
 import { testFactoryContract } from "./gates/test-factory-contract.ts";
 import { testFixtureImports } from "./gates/test-fixture-imports.ts";
@@ -70,6 +71,7 @@ export const ALL_CHECKS: readonly Check[] = [
   packageLayout,
   uiPrimitiveStructure,
   clientStructure,
+  stateFiles,
   componentSize,
   vectorScopeDerived,
   turnIdentity,
