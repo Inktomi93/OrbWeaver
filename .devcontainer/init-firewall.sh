@@ -24,6 +24,17 @@ else
     echo "No Docker DNS rules to restore"
 fi
 
+# Bootstrap: reset to OPEN egress during setup. The GitHub-meta fetch + the per-domain `dig`
+# resolves below run BEFORE the DROP policy is (re-)established near the end. `iptables -F` clears
+# RULES but NOT the default policy, so a prior run that set OUTPUT→DROP (or one that aborted after
+# setting it) leaves DROP in force here — the bootstrap fetches then fail, GitHub never gets
+# allowlisted, the final self-test fails, and the policy stays DROP: every subsequent run is
+# poisoned. A fresh container works only because Docker's default policy is ACCEPT. Reset to that
+# known-open baseline so re-runs behave like a first run; the script re-locks to default-deny below.
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+
 # First allow DNS and localhost before any restrictions
 # Allow outbound DNS
 iptables -A OUTPUT -p udp --dport 53 -j ACCEPT
@@ -66,7 +77,10 @@ if [ -n "$gh_ranges" ]; then
             continue
         fi
         echo "Adding GitHub range $cidr"
-        ipset add allowed-domains "$cidr"
+        # -exist: don't abort under `set -e` if two allowlisted sources yield an overlapping
+        # range/IP (Azure Front Door puts VS Code/marketplace/blob on shared 13.107.x — a raw
+        # `ipset add` of a dup exits non-zero and killed the whole rebuild; the orb fix).
+        ipset add allowed-domains "$cidr" -exist
     done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 else
     echo "Skipped GitHub IP ranges"
@@ -99,7 +113,8 @@ for domain in \
             exit 1
         fi
         echo "Adding $ip for $domain"
-        ipset add allowed-domains "$ip"
+        # -exist: tolerate a dup IP across two allowlisted domains (see the GitHub-range note).
+        ipset add allowed-domains "$ip" -exist
     done < <(echo "$ips")
 done
 
