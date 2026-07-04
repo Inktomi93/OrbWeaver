@@ -1,0 +1,174 @@
+// Unit: per-row attribution resolution (features/chat/lib/attribution, #21 §12.4). Pins the trust
+// rules: assistant rows resolve `characterId` against the roster; a null `characterId` in a
+// multi-character room is "Narrator" (never `participants[0]`); user rows resolve `personaId`,
+// falling back to the chat's active persona for legacy rows; everything else renders no chrome.
+
+import type { ParticipantView } from "@orb/contracts/chat";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { PersonaAttribution } from "../../../../../packages/client/src/features/chat/lib/attribution";
+import {
+  initialsForAttribution,
+  resolveRowAttribution,
+} from "../../../../../packages/client/src/features/chat/lib/attribution";
+import { expect, test } from "../../../../support/fixtures";
+
+const ALICE_ID = castId<CharacterId>("char_alice");
+const BOB_ID = castId<CharacterId>("char_bob");
+const NATE_PERSONA_ID = castId<PersonaId>("persona_nate");
+
+function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantView {
+  return {
+    id: castId("participant_1"),
+    chatId: castId("chat_1"),
+    kind: "character",
+    userId: null,
+    characterId: ALICE_ID,
+    role: "member",
+    activePersonaId: null,
+    talkativeness: 1,
+    disabled: false,
+    joinedAt: 0,
+    joinSeq: 0,
+    leftSeq: null,
+    joinHistoryVisibility: "full",
+    displayName: "Alice",
+    handle: null,
+    avatarAssetId: null,
+    ...overrides,
+  };
+}
+
+test("assistant row with no roster threaded gets no attribution chrome (solo-chat default)", () => {
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+  });
+  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+});
+
+test("assistant row resolves name + avatar + color from the roster by characterId", () => {
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+    participants,
+  });
+  expect(result.name).toBe("Alice");
+  expect(result.tokens).not.toBeNull();
+});
+
+test("a characterId absent from the roster gets no chrome (not a crash, not char[0])", () => {
+  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: BOB_ID,
+    personaId: null,
+    participants,
+  });
+  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+});
+
+test("null characterId in a MULTI-character room resolves to a neutral Narrator", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ characterId: ALICE_ID, displayName: "Alice" })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })],
+  ]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: null,
+    personaId: null,
+    participants,
+  });
+  expect(result.name).toBe("Narrator");
+  expect(result.tokens).toBeNull();
+});
+
+test("null characterId in a SOLO room (one character participant) gets no chrome, not Narrator", () => {
+  const participants = new Map([[ALICE_ID, makeParticipant({ characterId: ALICE_ID })]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: null,
+    personaId: null,
+    participants,
+  });
+  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+});
+
+test("a non-character participant (human/agent/observer) never counts toward multi-character", () => {
+  const humanParticipant = makeParticipant({
+    kind: "human",
+    characterId: null,
+    displayName: "Nate",
+  });
+  const participants = new Map<CharacterId, ParticipantView>([
+    [ALICE_ID, makeParticipant({ characterId: ALICE_ID })],
+    // Keyed distinctly even though this participant's own characterId is null — the map key here
+    // is arbitrary in the test; only `kind` drives the multi-character count.
+    [BOB_ID, humanParticipant],
+  ]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: null,
+    personaId: null,
+    participants,
+  });
+  expect(result.name).toBeNull();
+});
+
+test("user row resolves the message's own personaId against the persona library", () => {
+  const personas = new Map<PersonaId, PersonaAttribution>([
+    [NATE_PERSONA_ID, { name: "Nate", avatarAssetId: null }],
+  ]);
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: NATE_PERSONA_ID,
+    personas,
+  });
+  expect(result.name).toBe("Nate");
+  expect(result.tokens).toBeNull();
+});
+
+test("user row with a null personaId falls back to the chat's active persona (legacy rows)", () => {
+  const personas = new Map<PersonaId, PersonaAttribution>([
+    [NATE_PERSONA_ID, { name: "Nate", avatarAssetId: null }],
+  ]);
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: null,
+    personas,
+    activePersonaId: NATE_PERSONA_ID,
+  });
+  expect(result.name).toBe("Nate");
+});
+
+test("the message's OWN personaId wins over the active persona (historical author, not current)", () => {
+  const oldPersonaId = castId<PersonaId>("persona_old");
+  const personas = new Map<PersonaId, PersonaAttribution>([
+    [oldPersonaId, { name: "Old Persona", avatarAssetId: null }],
+    [NATE_PERSONA_ID, { name: "Nate", avatarAssetId: null }],
+  ]);
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: oldPersonaId,
+    personas,
+    activePersonaId: NATE_PERSONA_ID,
+  });
+  expect(result.name).toBe("Old Persona");
+});
+
+test("system rows never get attribution chrome", () => {
+  const result = resolveRowAttribution({ role: "system", characterId: null, personaId: null });
+  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+});
+
+test("initials take the first letter of up to two words", () => {
+  expect(initialsForAttribution("Alice Smith")).toBe("AS");
+  expect(initialsForAttribution("Bob")).toBe("B");
+  expect(initialsForAttribution("   ")).toBe("?");
+});

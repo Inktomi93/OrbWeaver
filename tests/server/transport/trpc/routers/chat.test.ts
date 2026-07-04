@@ -6,7 +6,7 @@
 // Driven through the real ladder via `createCaller` (authed); the live bus is transport module state.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
@@ -162,5 +162,45 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
     await expect(caller(ctx).chat.listMessages({ chatId: CHAT })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+});
+
+describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire-through)", () => {
+  test("a thin pass-through: chatId/messageId/variantId reach the verb with the resolved Principal", async () => {
+    const variantId = castId<MessageVariantId>("message_variant_2");
+    const selectVariant = vi.fn<ChatService["selectVariant"]>(async () => MESSAGE);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { selectVariant } },
+    });
+
+    const result = await caller(ctx).chat.selectVariant({
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      variantId,
+    });
+
+    expect(selectVariant).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      variantId,
+    });
+    expect(result).toEqual(MESSAGE);
+  });
+
+  test("a sibling-ownership miss (a variantId from a DIFFERENT slot) surfaces the verb's leak-free NOT_FOUND", async () => {
+    const variantId = castId<MessageVariantId>("message_variant_other_slot");
+    const selectVariant = vi
+      .fn<ChatService["selectVariant"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { selectVariant } },
+    });
+
+    await expect(
+      caller(ctx).chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });

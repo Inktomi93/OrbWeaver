@@ -10,7 +10,8 @@ import { createInvalidation, useTRPC } from "@orb/client/data";
 import { Composer, MessageListSurface, MessageThreadAnchor } from "@orb/client/features/chat";
 import type { ChatHandle } from "@orb/client/state";
 import { chatStream, committedChat, draftChat, useTurnPhase } from "@orb/client/state";
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
@@ -18,32 +19,87 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
+import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
+import type { PersonaAttribution } from "../../../../packages/client/src/features/chat/lib/attribution";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
+
+/** A persona library entry, keyed inline — the CT-serializable shape (a `Map` prop does NOT survive
+ *  the Playwright CT mount boundary: props cross a serialization wire, and `Map`/`Set` instances
+ *  arrive empty on the other side with no error. Plain arrays of plain objects are the safe shape;
+ *  the `Map` the row actually needs is built HERE, inside the story component that executes
+ *  post-mount in the real browser context — never at the `.ct.tsx` call site). */
+export interface PersonaAttributionEntry extends PersonaAttribution {
+  readonly id: PersonaId;
+}
 
 export interface MessageRowStoryProps {
   readonly chatStyle: (typeof THEME_SCOPE_CHAT_STYLES)[number];
   // Named `messageRole` (not `role`) so the JSX prop at the CT call site isn't read as an ARIA role.
   readonly messageRole?: MessageRole;
   readonly content?: string;
+  /** #21 attribution — the row's server-stamped speaker (assistant) / historical author (user). */
+  readonly characterId?: CharacterId | null;
+  readonly personaId?: PersonaId | null;
+  /** CT-serializable roster (see `PersonaAttributionEntry` — arrays, not `Map`s, cross the wire). */
+  readonly participants?: readonly ParticipantView[];
+  readonly personas?: readonly PersonaAttributionEntry[];
+  readonly activePersonaId?: PersonaId | null;
 }
 
-/** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times. */
+/** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
+ *  #21 attribution-chrome CT's mount point (roster/persona maps are optional pass-throughs). */
 export function MessageRowStory({
   chatStyle,
   messageRole = "assistant",
   content = "**Bold** and _italic_",
+  characterId = null,
+  personaId = null,
+  participants,
+  personas,
+  activePersonaId,
 }: MessageRowStoryProps): ReactElement {
+  const participantsMap =
+    participants === undefined
+      ? undefined
+      : new Map(
+          participants
+            .filter(
+              (p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null,
+            )
+            .map((p) => [p.characterId, p] as const),
+        );
+  const personasMap =
+    personas === undefined
+      ? undefined
+      : new Map(personas.map(({ id, ...rest }) => [id, rest] as const));
+
   return (
     <MessageThreadAnchor>
-      <MessageRow message={makeMessageView({ role: messageRole, content })} chatStyle={chatStyle} />
+      <MessageRow
+        message={makeMessageView({ role: messageRole, content, characterId, personaId })}
+        chatStyle={chatStyle}
+        participants={participantsMap}
+        personas={personasMap}
+        activePersonaId={activePersonaId}
+      />
     </MessageThreadAnchor>
   );
+}
+
+export interface MessageContentSpansStoryProps {
+  readonly content: string;
+}
+
+/** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
+ *  in isolation, without the row's attribution chrome. */
+export function MessageContentSpansStory({ content }: MessageContentSpansStoryProps): ReactElement {
+  return <MessageContent content={content} trust="trusted" />;
 }
 
 function GhostRowInner(): ReactElement {
@@ -168,11 +224,21 @@ export function GhostRowScriptedStory({ chunks }: GhostRowScriptedStoryProps): R
   );
 }
 
-/** The swipe strip on a 3-variant assistant message (n/m counter + generate-next). */
-export function SwipeStripStory(): ReactElement {
+export interface SwipeStripStoryProps {
+  /** @defaultValue a 3-variant assistant message, selection sitting on the middle (2nd) variant. */
+  readonly message?: MessageView;
+}
+
+/** The swipe strip, addressing a caller-supplied (or default 3-variant) assistant message — a CT test
+ *  drives step-back/step-forward-to-existing by `update()`-ing this with a DIFFERENT `message` prop
+ *  across renders (the `reasoning-block.ct.tsx` prop-transition pattern), which lets
+ *  `useVariantHistory`'s per-mount memory accumulate exactly like a live session would. */
+export function SwipeStripStory({ message }: SwipeStripStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
-      <SwipeStrip message={makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })} />
+      <SwipeStrip
+        message={message ?? makeMessageView({ variantCount: 3, selectedVariantIdx: 1 })}
+      />
     </CtDataProviders>
   );
 }
