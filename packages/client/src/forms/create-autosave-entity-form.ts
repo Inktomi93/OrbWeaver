@@ -97,13 +97,27 @@ export function createAutosaveEntityForm<TValues extends object>(
       },
     });
 
-    // Belt for the draft path: if a draft seeded this mount, mirror it back immediately so a
-    // crash BEFORE the first keystroke still holds the restored state.
+    // Belt for the draft path: if a draft seeded this mount, mirror the full merged seed back
+    // ONCE so a crash BEFORE the first keystroke still holds the restored state.
+    //
+    // `seededRef` is load-bearing, not decoration: `draftSeed` is re-read every render (line ~55 is a
+    // plain store READ, not a subscription), and its identity FLIPS the moment the debounced onChange
+    // writes an edit into the same slot. Without the guard, the next host re-render (a background
+    // refetch handing `serverValues` a fresh identity is the common trigger) re-runs this effect and
+    // writes the fixed mount `seedRef.current` back OVER the user's live edit — reverting the
+    // crash-survival mirror exactly when it matters (an invalid in-progress edit never submits, so
+    // `clearDraft` never runs to mask it). The guard makes the write genuinely mount-once; `mountKey`
+    // (= entityId) remounts the hook on id change, so the ref resets per entity. exhaustive-deps stays
+    // green (deps unchanged; the guard short-circuits the body).
+    const seededRef = useRef(false);
     useEffect(() => {
+      if (seededRef.current) {
+        return;
+      }
+      seededRef.current = true;
       if (draftSeed !== undefined) {
         config.draft?.setDraft(entityId, seedRef.current);
       }
-      // mount-only by design (seedRef is fixed for the mount; id change remounts via mountKey)
     }, [entityId, draftSeed]);
 
     // The compile-time `no-form-reset-in-autosave`: reset is structurally absent from the type.

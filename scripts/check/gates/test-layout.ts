@@ -74,15 +74,19 @@ function violationFor(root: string, rel: string, name: string): Violation | unde
     return;
   }
   const base = name.slice(0, -kind.length);
-  const ext = kind.endsWith(".tsx") ? ".tsx" : ".ts";
   const sub = segs.slice(1, -1).join("/");
-  if (srcExistsFor({ root, pkg, sub, base, ext })) {
+  // A `.tsx`-kind test (`.ct.tsx` / `.test.tsx`) may mirror EITHER a `.tsx` component OR a `.ts`
+  // module — a CT that drives a hook FACTORY (no JSX in the source, but its effect/render behavior
+  // needs a real browser) mirrors a `.ts` source. A `.ts`-kind test mirrors a `.ts` source only (a
+  // node test can't import a `.tsx`-only component without a renderer).
+  const exts = kind.endsWith(".tsx") ? [".tsx", ".ts"] : [".ts"];
+  if (exts.some((ext) => srcExistsFor({ root, pkg, sub, base, ext }))) {
     return;
   }
   return {
     file: `tests/${rel}`,
     line: 0,
-    message: `mirror miss — no source for packages/${pkg}/src/${join(sub, base)}${ext} (test path must prefix-swap)`,
+    message: `mirror miss — no source for packages/${pkg}/src/${join(sub, base)}{${exts.join(",")}} (test path must prefix-swap)`,
   };
 }
 
