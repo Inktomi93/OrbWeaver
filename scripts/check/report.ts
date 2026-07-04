@@ -4,6 +4,8 @@
 // docs/architecture/core/Core-Enforcement-Active-Gates.md; the deferred backlog in
 // Core-Enforcement-Deferred-Dropped.md.
 
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { busCoverage } from "./gates/bus-coverage.ts";
 import { clientStructure } from "./gates/client-structure.ts";
@@ -35,9 +37,13 @@ import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
+import type { Check } from "./harness.ts";
 import { runChecks } from "./harness.ts";
 
-runChecks([
+/** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which
+ *  filters this list by touched-path zone — importing this module does NOT run anything (the
+ *  is-main guard below fires only under `tsx scripts/check/report.ts`, i.e. `pnpm check:structure`). */
+export const ALL_CHECKS: readonly Check[] = [
   featureStructure,
   testLayout,
   verbNaming,
@@ -69,4 +75,16 @@ runChecks([
   ownerRoleSplit,
   busCoverage,
   memberCardClamped,
-]);
+];
+
+// Direct-run guard: `pnpm check:structure` (tsx runs this file as the entrypoint) executes every
+// gate exactly as before — same output, same exit(1)-on-violation; an import (file.ts) gets the
+// list only. argv[1] is the tsx entry script, so the URL comparison is the ESM "is main" idiom.
+const entry = process.argv[1];
+if (
+  entry !== undefined &&
+  import.meta.url === pathToFileURL(entry).href &&
+  runChecks(ALL_CHECKS) > 0
+) {
+  process.exit(1);
+}

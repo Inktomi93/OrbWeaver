@@ -4,24 +4,19 @@
 // avatar SET NULL on asset delete.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
-import type { Db } from "@orb/db";
-import { assets, isConstraintViolation, personas, users } from "@orb/db";
+import { assets, isConstraintViolation, personas } from "@orb/db";
 import { parseRecord } from "@orb/db/kit";
-import type { AssetId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
+// The user factory replaces the hand-rolled seedOwner (support/factories — the one seeding home).
+import { seedUser } from "../../support/factories/index.ts";
 import { expect, test } from "../../support/fixtures";
-
-async function seedOwner(db: Db, id: string, handle: string): Promise<UserId> {
-  const ownerId = castId<UserId>(id);
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>(handle) });
-  return ownerId;
-}
 
 test("personas insert→select round-trips (branded id survives, metadata JSON parses)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_persona_a", "persona-owner-a");
+  const { id: ownerId } = await seedUser(db);
   const id = castId<PersonaId>("persona_roundtrip");
   const metadata: PersonaMetadata = { descriptionPosition: "in_prompt" };
 
@@ -60,7 +55,7 @@ test("owner_id FK is enforced (insert against a missing user fails)", async () =
 
 test("avatar_asset_id is SET NULL when its asset is deleted (persona survives)", async () => {
   const db = await freshDb();
-  const ownerId = await seedOwner(db, "user_persona_b", "persona-owner-b");
+  const { id: ownerId } = await seedUser(db);
   const assetId = castId<AssetId>("asset_persona_avatar");
   await db.insert(assets).values({
     id: assetId,

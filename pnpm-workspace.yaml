@@ -197,6 +197,14 @@ catalog:
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter(). See proposed/client-tooling-setup.md §4.
   "@tanstack/react-router": ^1.170.16
+  # --- dev-only instrumentation (T5, scratch/dev-tooling-support-kit-plan.md): the unified TanStack
+  #     Devtools shell + panels. Shell + vite strip-plugin are PRE-1.0 → EXACT pins (bump = read the
+  #     changelog); router-devtools panel is stable (peer @tanstack/react-router ^1.170.16 satisfies).
+  #     Runtime panels live in client `dependencies` (dep-cruiser not-to-dev-dep — they're imported
+  #     from src/, DEV-gated + build-stripped); devtools-vite is config-only → devDependencies.
+  "@tanstack/react-devtools": 0.10.8
+  "@tanstack/react-router-devtools": ^1.167.0
+  "@tanstack/devtools-vite": 0.8.1
 
 # Force vite/vitest's bundled esbuild (0.25.x — rejects the `es2025` target) up to 0.28.1, which
 # supports es2025, so the transform matches tsc's es2025 with no "Unrecognized target" warning. Scoped

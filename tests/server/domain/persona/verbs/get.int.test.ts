@@ -1,19 +1,21 @@
 // verb: get — owner-scoped single read. Load-bearing: "not found" and "not yours" collapse into one
 // answer (no foreign-existence leak) — both throw PersonaNotFoundError.
 
-import type { PersonaId } from "@orb/kit/ids";
+import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+// The central user factory replaces the harness's hand-rolled seedUser (support/factories).
+import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal } from "../_support.ts";
 
 describe("get", () => {
   test("returns an owned persona by id", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Nyx", description: "d" },
@@ -26,8 +28,8 @@ describe("get", () => {
   test("another user's persona is indistinguishable from a missing one (PersonaNotFoundError)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
+    const other = (await seedUser(db, { handle: castId<Handle>("other") })).id;
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Secret", description: "d" },
@@ -40,7 +42,7 @@ describe("get", () => {
   test("a missing id throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
     await expect(
       svc.get({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") }),
     ).rejects.toThrow(PersonaNotFoundError);

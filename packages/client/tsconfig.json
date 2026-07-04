@@ -1,7 +1,21 @@
 {
+  // @orb/client is browser code (the frontend cake tip: kit ← ui ← client). DOM libs + JSX on top
+  // of the isomorphic base — mirrors packages/ui. Explicit include (was implicit-everything): the
+  // package's own code PLUS the client-owned CT browser program the root aggregator excludes —
+  // the tests/client `.ct.tsx` mirror, its `_ct-stories.tsx` story modules, and the client-side CT
+  // provider stack (ct-data-providers.tsx — it imports @orb/client, so it can NEVER be swept into
+  // ui's program: upward-cake; packages/ui/tsconfig.json includes only ct-providers.tsx).
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["es2025", "dom", "dom.iterable"],
     "jsx": "react-jsx"
-  }
+  },
+  "include": [
+    "src",
+    "vite.config.ts",
+    "../../reset.d.ts",
+    "../../tests/client/**/*.ct.tsx",
+    "../../tests/client/**/_ct-stories.tsx",
+    "../../tests/support/ct/ct-data-providers.tsx"
+  ]
 }
