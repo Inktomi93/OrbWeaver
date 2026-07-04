@@ -72,6 +72,12 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 
+# --- read-only reference corpus (neo-tavern source + upstream cite targets + design goals) ---
+# Root-anchored (the /data/ lesson). NEVER committed: ~258M of frozen evidence the docs cite
+# one-line (ST tool-calling.js etc.), mirrored so dev-container sessions can verify references.
+# NB search tools that respect ignore files skip this — use /usr/bin/grep -a or `sg --no-ignore`.
+/reference/
+
 # --- scratch ---
 scratchpad/
 scratch/
