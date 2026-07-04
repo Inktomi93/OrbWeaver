@@ -9,6 +9,7 @@ export {
   logAudit,
   resetAuditFailureCount,
 } from "./audit";
+export { type ClientErrorReport, recordClientError } from "./client-error";
 export {
   type AdminAuthChecker,
   type AssetInspector,

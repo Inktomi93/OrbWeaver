@@ -19,6 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
+import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
@@ -93,6 +94,75 @@ export function GhostRowStory(): ReactElement {
         }}
       >
         complete
+      </button>
+    </div>
+  );
+}
+
+export interface ReasoningBlockStoryProps {
+  readonly reasoning: string;
+  readonly thinking: boolean;
+}
+
+/** The bare `<ReasoningBlock>` — a pure-render leaf (no chat-store dependency), so the CT test drives
+ *  its TTFT/auto-collapse/toggle behavior by mounting with props and re-`update()`-ing them, exactly
+ *  like `crossfade-image.ct.tsx` drives a prop transition. */
+export function ReasoningBlockStory({
+  reasoning,
+  thinking,
+}: ReasoningBlockStoryProps): ReactElement {
+  return (
+    <div style={{ width: 360 }}>
+      <ReasoningBlock reasoning={reasoning} thinking={thinking} />
+    </div>
+  );
+}
+
+const SCRIPTED_CHAT_ID = castId<ChatId>("chat_ct_ghost_scripted");
+
+export interface GhostRowScriptedStoryProps {
+  /** The exact sequence of raw TEXT deltas to append, one per `next-chunk` click — lets a CT test
+   *  assemble a precise streaming sequence (an unterminated code fence, a torn `<speaker` tag, …) and
+   *  assert the render after each step (UI-Gates §11.6 golden checkpoint). */
+  readonly chunks: readonly string[];
+}
+
+/** The ghost row driven by an explicit, test-controlled SCRIPT of raw text chunks (rather than the
+ *  fixed "Hi " token `GhostRowStory` uses). */
+export function GhostRowScriptedStory({ chunks }: GhostRowScriptedStoryProps): ReactElement {
+  const [next, setNext] = useState(0);
+  return (
+    <div style={{ width: 360 }}>
+      <GhostMessageRow
+        chatId={SCRIPTED_CHAT_ID}
+        chatStyle="bubble"
+        streaming={useTurnPhase(SCRIPTED_CHAT_ID) === "streaming"}
+      />
+      <button
+        type="button"
+        data-testid="begin"
+        onClick={(): void => {
+          chatStream.beginTurn(SCRIPTED_CHAT_ID, {
+            intent: "send",
+            speakerCharacterId: null,
+            targetMessageId: null,
+          });
+        }}
+      >
+        begin
+      </button>
+      <button
+        type="button"
+        data-testid="next-chunk"
+        onClick={(): void => {
+          const chunk = chunks[next];
+          if (chunk !== undefined) {
+            chatStream.appendDelta({ chatId: SCRIPTED_CHAT_ID, kind: "text", text: chunk });
+            setNext((n) => n + 1);
+          }
+        }}
+      >
+        next chunk
       </button>
     </div>
   );

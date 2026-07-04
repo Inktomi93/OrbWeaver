@@ -10,6 +10,7 @@
 // `entry/` into admin's `EmbedProducerPort`; the bulk embed path is the admin `embed-corpus` workload.
 
 import { z } from "zod";
+import { recordClientError } from "#foundation/observability";
 import { adminRouter } from "./routers/admin";
 import { assetsRouter } from "./routers/assets";
 import { buddyRouter } from "./routers/buddy";
@@ -29,6 +30,15 @@ import { workloadsRouter } from "./routers/workloads";
 import { worldInfoRouter } from "./routers/world-info";
 import { publicProcedure, t } from "./trpc";
 
+// PD-58 — the client→server error-report verb's wire bounds. Generous (a real stack/ownerStack can run
+// long) but finite: this rejects a pathologically oversized payload at the transport edge BEFORE it's
+// parsed/logged; the sink (`recordClientError`) truncates independently to a log-line-friendly length —
+// two independent caps, not a shared constant, because they guard different things (wire abuse vs. log
+// line size) and live in different tiers.
+const CLIENT_ERROR_TEXT_MAX = 20_000;
+const CLIENT_ERROR_URL_MAX = 4000;
+const CLIENT_ERROR_REQUEST_ID_MAX = 200;
+
 export const appRouter = t.router({
   // Loose public procs — liveness + an echo diagnostic (anonymous-allowed; the per-IP public bucket
   // covers them). The real readiness probe is `entry/http` `/api/healthz` (it reads lifecycle + engines).
@@ -36,6 +46,28 @@ export const appRouter = t.router({
   echo: publicProcedure
     .input(z.object({ message: z.string() }))
     .query(({ input }) => ({ message: input.message })),
+
+  // PD-58 — the client error boundary's fire-and-forget report. `publicProcedure` (anonymous-allowed):
+  // a render throw can happen before auth resolves, or BECAUSE auth is broken, so this must never itself
+  // require a working session. `recordClientError` (foundation/observability) writes the report into the
+  // same log stream + `/api/_debug/errors` ring a server error lands in. Always returns `{ ok: true }` —
+  // the sink is best-effort and never throws; a validation failure on a malformed/oversized report is the
+  // ONLY rejection path (mapped to BAD_REQUEST by tRPC's own input-parse failure, upstream of the handler).
+  clientError: publicProcedure
+    .input(
+      z.object({
+        message: z.string().max(CLIENT_ERROR_TEXT_MAX),
+        stack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
+        ownerStack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
+        url: z.string().max(CLIENT_ERROR_URL_MAX),
+        // biome-ignore lint/plugin/no-raw-id: opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
+        requestId: z.string().max(CLIENT_ERROR_REQUEST_ID_MAX).optional(),
+      }),
+    )
+    .mutation(({ input }) => {
+      recordClientError(input);
+      return { ok: true } as const;
+    }),
 
   admin: adminRouter,
   assets: assetsRouter,
