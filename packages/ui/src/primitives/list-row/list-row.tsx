@@ -55,8 +55,11 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
  * with its own accessible name, outside the row's accessible name (which is computed from the
  * body's text content alone).
  *
- * Usage: `<ListRow leading={<Avatar .../>} title="Elara" subtitle="Last used 2h ago" clickable
- *   selected={activeId === id} onClick={() => select(id)} actions={<Button size="sm">Edit</Button>} />`
+ * Usage:
+ * ```tsx
+ * <ListRow leading={<Avatar .../>} title="Elara" subtitle="Last used 2h ago" clickable
+ *   selected={activeId === id} onClick={() => select(id)} actions={<Button size="sm">Edit</Button>} />
+ * ```
  */
 export function ListRow({
   leading,

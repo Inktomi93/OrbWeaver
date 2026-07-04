@@ -25,6 +25,7 @@
 //     `message_variants`. `MessageView` is the slot joined with its selected variant.
 //   • D22: `memberCardVisibility` is a host-set dial on `groupConfigSchema` (default `sheet`).
 
+import type { ContentSpan } from "@orb/kit/content";
 import type {
   AssetId,
   CharacterId,
@@ -893,3 +894,42 @@ export const messageContentBlockSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 export type MessageContentBlock = z.infer<typeof messageContentBlockSchema>;
+
+/**
+ * Project kit content spans (`@orb/kit/content` `tokenizeContent` — the ONE ref grammar, D51) into
+ * the D44 render blocks: consecutive text spans join into one `markdown` block; image spans become
+ * `media` blocks (`external` refs are rendered through the gated `MessageMedia`, never a raw
+ * `<img>` — D44 §12.3). The `html-card` extraction grammar is NOT parsed here — it lands with the
+ * chat-content wiring that defines how a card is embedded in a stored body (the union member is
+ * born-compliant; this projection covers the markdown + media classes the D51 grammar defines).
+ */
+export function contentSpansToBlocks(spans: readonly ContentSpan[]): MessageContentBlock[] {
+  const blocks: MessageContentBlock[] = [];
+  let pendingText = "";
+  const flushText = (): void => {
+    if (pendingText.length > 0) {
+      blocks.push({ kind: "markdown", md: pendingText });
+      pendingText = "";
+    }
+  };
+  for (const span of spans) {
+    if (span.kind === "text") {
+      pendingText += span.text;
+      continue;
+    }
+    flushText();
+    blocks.push({
+      kind: "media",
+      media: "image", // the D51 grammar embeds images; native a/v arrives via html-card/native paths
+      src:
+        span.ref.kind === "asset"
+          ? // The span's assetId is a stored-canon ref parsed by the kit tokenizer (kit cannot carry
+            // the brand — the cake); the schema-validated brand cast is the sanctioned re-entry.
+            { kind: "asset", assetId: typeIdSchema(ID_PREFIX.asset).parse(span.ref.assetId) }
+          : { kind: "external", url: span.ref.url },
+      alt: span.alt,
+    });
+  }
+  flushText();
+  return blocks;
+}

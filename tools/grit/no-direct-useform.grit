@@ -5,9 +5,9 @@
 //             `createFormHookContexts(...)` calls (TanStack Form's lower-level API).
 //
 // Rationale:  The whole app shares ONE `createFormHook` instance, defined in
-//             `features/_shared/form/use-app-form.ts`. Every entity editor imports
-//             `useAppForm` from `features/_shared` and gets the shadcn-bound
-//             `field.Text`/`field.Macro`/... components for free. Calling
+//             `packages/client/src/forms/use-app-form.ts`. Every entity editor imports
+//             `useAppForm` from `#forms` (usually via the two editor factories)
+//             and gets the bound Text/Textarea/Number/Select/Switch fields free. Calling
 //             `useForm(` directly bypasses the bound fields — surfaces fall back
 //             to raw `<form.Field>` + manual Input/Label wiring, and the
 //             surrounding pattern drifts across the codebase. Calling
@@ -24,8 +24,8 @@
 // Suppress:   // biome-ignore lint/plugin/no-direct-useform: <reason>
 //
 // Legitimate sites carrying this suppression today:
-//   • features/_shared/form/contexts.ts      — defines the shared contexts
-//   • features/_shared/form/use-app-form.ts  — defines the shared hook
+//   • packages/client/src/forms/contexts.ts     — defines the shared contexts
+//   • packages/client/src/forms/use-app-form.ts — defines the shared hook
 //   (Pre-toolkit features like prompt-manager/section-edit-surface.tsx,
 //   chat/injections-surface.tsx migrate naturally when touched. The exemptions
 //   live in `.dependency-cruiser.cjs`'s `tanstack-form-only-in-shared` rule.)
@@ -44,9 +44,9 @@ or {
   `createFormHook($args)` as $call,
   `createFormHookContexts($args)` as $call
 } where {
-  // The toolkit ITSELF (features/_shared/form/) is the one sanctioned caller of
+  // The toolkit ITSELF (packages/client/src/forms/) is the one sanctioned caller of
   // createFormHook/createFormHookContexts — it defines useAppForm. Skip it in-rule
   // (biome-2.4 $filename guard) so the rule flags only feature-code drift.
-  $filename <: not r".*/features/_shared/form/.*",
-  register_diagnostic(span=$call, message="Use `useAppForm` (and `withForm` / `withFieldGroup`) from `features/_shared` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds shadcn Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See docs/architecture/core/UI-Lib-TanStack-Form.md.", severity="error")
+  $filename <: not r".*/packages/client/src/forms/.*",
+  register_diagnostic(span=$call, message="Use `useAppForm` (and `withForm` / `withFieldGroup`) from `#forms` instead of TanStack Form's `useForm` / `createFormHook` / `createFormHookContexts` directly. The shared instance pre-binds the @orb/ui Field components; calling these directly bypasses the bound fields and drifts every editor surface apart. See docs/architecture/core/UI-Lib-TanStack-Form.md.", severity="error")
 }

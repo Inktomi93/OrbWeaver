@@ -52,6 +52,12 @@ export function isReservedAgentHandle(handle: string): boolean {
   return handle.startsWith(RESERVED_AGENT_HANDLE_PREFIX);
 }
 
+/** The custom CSRF request header (orbweaver-namespaced; was neo's `x-neo-csrf`). A cross-boundary
+ *  wire fact — the CLIENT sends it on every request and the server gate keys on it, so its one home
+ *  is contracts (promoted from `infra/auth/csrf.ts` at the Phase-6 client-foundation wave;
+ *  `infra/auth` imports it DOWN). `SameSite=Lax` + this header is the whole CSRF story. */
+export const CSRF_HEADER = "x-orb-csrf";
+
 // The ONE auth-mode axis — the SSO mechanism selector. The single tuple is the one home (§7.5,
 // Spine-TypeScript-and-Patterns.md §"String-union dispatch" names `authMode`): `foundation/env` derives `z.enum(AUTH_MODES)` for the
 // `AUTH_MODE` var + its superRefine, and `infra/auth`'s `AuthConfig.mode` + the `MODE_RESOLVERS` dispatch

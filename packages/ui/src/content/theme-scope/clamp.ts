@@ -8,6 +8,10 @@
 // DROPPED (the inherited token shows through) — never applied raw. This is what makes ThemeScope safe
 // where SillyTavern's raw `--SmartTheme*` vars are not.
 import { z } from "zod";
+import { isSafeColor } from "#lib";
+
+// The color predicate lives in `#lib/safe-color` (floor-homed — color-field, a PRIMITIVE, shares it
+// and a primitive may not reach up into content/; the ui internal cake).
 
 /** Fonts a user may pick — an allowlist (D44 §12.1 "font (allowlist)"); anything else is dropped. */
 export const THEME_FONT_ALLOWLIST = [
@@ -21,44 +25,15 @@ export const THEME_FONT_ALLOWLIST = [
 ] as const;
 type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
-const CHAT_STYLES = ["bubble", "flat", "document"] as const;
-const DENSITIES = ["comfortable", "compact"] as const;
-const RADII = ["base", "control", "card", "full"] as const;
-
-// A color must be one of these SAFE forms. Deliberately NO url()/expression()/var()/gradient — a value
-// that could carry a network fetch or a CSS escape is rejected outright (not sanitized). Hex, rg[b]a(),
-// hsl[a](), oklch()/oklab(), and the bare CSS named colors are the whole permitted surface.
-const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;
-const RGB = /^rgba?\(\s*[0-9., %/]+\)$/iu;
-const HSL = /^hsla?\(\s*[0-9., %/deg]+\)$/iu;
-const OKL = /^okl(?:ch|ab)\(\s*[0-9.\-% /]+\)$/iu;
-const NAMED = /^[a-z]{3,20}$/iu; // transparent, currentColor, red, … (letters only — no separators)
-// Belt: reject anything carrying a CSS-escape or fetch vector even if it slipped a shape test.
-const INJECTION = /[;{}<>()\\]|url|expression|javascript:|@import|\/\*/iu;
-
-// A legit color value (oklch(...), #rrggbbaa, rgba(...)) is well under this; longer = a payload attempt.
-const MAX_COLOR_LEN = 64;
-
-/**
- * The D44 §12.1 color-safety predicate: a color must parse as one of the safe CSS color forms
- * (hex / rgb[a]() / hsl[a]() / oklch()/oklab() / a bare named color) and never carry an
- * injection vector (`url()`, `expression()`, `javascript:`, `@import`, a `{`/`;` escape). Exported
- * so OTHER ui primitives that accept a raw color value (e.g. `color-field`) can reuse the exact
- * same clamp instead of re-deriving their own regex set (see UI-Primitives-and-Reuse.md §13.9).
- */
-export function isSafeColor(raw: string): boolean {
-  const value = raw.trim();
-  if (value.length === 0 || value.length > MAX_COLOR_LEN) {
-    return false;
-  }
-  // url()/expression() contain "(" so the INJECTION guard catches them; the shape guards below allow
-  // the "(" ONLY inside the known color-function forms, which the guard would also flag — so check the
-  // shape FIRST and only run the injection guard on the named/hex path (functional forms are exact).
-  if (HEX.test(value) || NAMED.test(value)) {
-    return !INJECTION.test(value);
-  }
-  return RGB.test(value) || HSL.test(value) || OKL.test(value);
-}
+// Exported for the contracts↔ui structural PAIRING test (D44 §12.5: the wire schema in
+// `@orb/contracts/theme` and this render clamp are a deliberate cake-forced two-copy; the pairing
+// suite imports both packages and asserts identical key sets / enums / font allowlist).
+export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document"] as const;
+export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
+export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
+const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;
+const DENSITIES = THEME_SCOPE_DENSITIES;
+const RADII = THEME_SCOPE_RADII;
 
 const colorToken = z.string().refine(isSafeColor);
 const bubble = z.object({ bg: colorToken.optional(), fg: colorToken.optional() });

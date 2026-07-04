@@ -1,0 +1,26 @@
+// Plugin: client-cache-surgery-only-in-data — the QueryClient's imperative cache API
+// (`invalidateQueries` / `setQueryData` / `cancelQueries` / `getQueryData` / `removeQueries` /
+// `resetQueries`) may be called ONLY inside `packages/client/src/data/` — the layer that owns the
+// central invalidation seam (UI-Gates §11.3: gate `no-inline-invalidate-outside-seam`), the bus
+// reducer, and `createEntityMutation`'s optimistic flow (`no-inline-cache-surgery-in-stream`,
+// scoped so the factory's `onMutate` is legal — it lives in data/). A feature/surface/store calling
+// these bypasses the one map that keeps invalidation coherent (neo: 81 sites / 40 files, no map).
+// Features invalidate by calling `invalidate(event)` / passing `invalidates` filters to the factory.
+language js
+
+`$client.$method($_)` where {
+  $method <: or {
+    `invalidateQueries`,
+    `setQueryData`,
+    `cancelQueries`,
+    `getQueryData`,
+    `removeQueries`,
+    `resetQueries`
+  },
+  $filename <: r".*/packages/client/src/.*",
+  $filename <: not or {
+    r".*/packages/client/src/data/.*",
+    r".*\.test\.tsx?$"
+  },
+  register_diagnostic(span=$method, message="imperative QueryClient cache call outside client data/ — invalidation goes through the central seam (data/invalidation.ts invalidate(event)/invalidateFilters) and optimistic writes through createEntityMutation; a loose cache call here recreates neo's 81-site invalidation sprawl. See UI-Gates-and-Lessons.md §11.3.")
+}

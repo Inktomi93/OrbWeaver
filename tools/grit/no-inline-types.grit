@@ -37,6 +37,11 @@ or {
       // primitive's exported prop types + ui-local zod clamps (ThemeScope) ARE its public API,
       // homed beside the component. Same exemption class as kit/contracts/db. (ui-package-design §1.)
       r".*/packages/(?:kit|contracts|db|ui)/.*",
+      // The client FOUNDATION dirs are the §7.4 "client-only view → client" type homes (UI-Arch
+      // §2.1: data/forms/state/lib are the spec'd homes for ChatHandle, TurnSlot, the factory
+      // configs, …). Feature dirs stay UNexempt — a feature's exported type belongs in
+      // @orb/contracts or one of these foundation homes, never loose in a component (§11.0 rot).
+      r".*/packages/client/src/(?:data|forms|state|lib)/.*",
       r".*/server/src/kit/.*",
       r".*\.test\.tsx?$",
       r".*/tests/.*",

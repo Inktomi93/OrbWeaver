@@ -62,6 +62,7 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
 // Cross-boundary identity type re-exported type-only for ergonomics (canonical home: @orb/contracts).
 // NOTE: `Principal` is NOT re-exported — infra/auth never constructs one (that is `entry/auth/seam.ts`).
 export type { ResolvedIdentity } from "@orb/contracts/identity";
+export { CSRF_HEADER } from "@orb/contracts/identity";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
 export { authConfigFromEnv } from "./config";
 export type {
@@ -74,7 +75,7 @@ export type {
   OidcTransactionStore,
   ResolveDeps,
 } from "./contract";
-export { CSRF_HEADER, hasCsrfHeader } from "./csrf";
+export { hasCsrfHeader } from "./csrf";
 export { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch";
 export { normalizeHost } from "./host";
 export { SESSION_COOKIE_NAME } from "./modes/cookie-session";

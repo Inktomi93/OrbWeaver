@@ -1,0 +1,16 @@
+// Plugin: testid-typed-only — a freeform `data-testid="…"` string literal in client code means a
+// typo silently breaks an e2e selector with a green check (UI-Gates §11.5). The typed registry
+// (`lib/test-ids.ts` `testId("key")`) makes the typo a `tsc` error on both the stamping and the
+// selecting side. Matcher: a JsxAttribute that carries a DIRECT JsxString initializer (the quoted
+// form) — the legal `data-testid={testId("…")}` is an expression container (no JsxString child) and
+// does not match. (Node-primitive form, empirically verified firing + non-firing — the
+// `JsxAttribute(name=…, initializer=…)` field form and the attribute SNIPPET form both silently
+// match nothing in Biome 2.5, the no-inline-types.grit failure class.)
+language js
+
+JsxAttribute() as $node where {
+  $node <: contains `data-testid`,
+  $node <: contains JsxString(),
+  $filename <: r".*/packages/client/src/.*",
+  register_diagnostic(span=$node, message="freeform data-testid string — use the typed registry: data-testid={testId(\"key\")} (lib/test-ids.ts); a typo becomes a tsc error instead of a silently-broken e2e selector. See UI-Gates-and-Lessons.md §11.5.")
+}

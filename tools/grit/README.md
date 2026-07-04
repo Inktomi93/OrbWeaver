@@ -43,6 +43,24 @@ These fire zero times today (no client code) but are armed. Their diagnostic *me
 point at the real orbweaver homes — the token set in `packages/ui/src/styles/theme.css` and the
 `docs/architecture/core/UI-*.md` convention docs — not the retired neo `src/client/AGENTS.md` paths.
 
+## The client-foundation belts (added 2026-07-03 WITH the constructs they gate — §11.7 born-compliant)
+
+The UI-Gates §8 PARKED belts whose constructs landed at the client-foundation wave; each was
+fixture-verified firing at add time. Plus the D44 containment trio (`no-untrusted-html-in-main-dom` ·
+`no-external-media-without-gate` · `theme-override-only-via-scope`), armed earlier with `@orb/ui`.
+
+| Rule | Catches | Carries (UI-Gates §8) |
+| --- | --- | --- |
+| `client-cache-surgery-only-in-data` | imperative QueryClient cache calls outside `client/src/data/` | `no-inline-invalidate-outside-seam` + `no-inline-cache-surgery-in-stream` |
+| `no-raw-zustand-persist` | `persist(` outside the draft-store factory | `persist-shape-needs-version` + `persist-partialize-and-total-migrate` |
+| `no-static-staletime` | `staleTime: 'static'` anywhere (ignores invalidateQueries) | `no-static-staletime-on-bus-keys` (strengthened to total) |
+| `no-fake-disabled-id` | `castId("")` — the fake-disabled sentinel | `no-fake-disabled-id` |
+| `chat-stream-writes-in-bus-only` | importing the stream store's write api outside `data/bus/` | `bus-onData-no-store-write` (write half) |
+| `no-multiplexed-mutation-error` | `a.error ?? b.error` / `\|\|` (v5 sticky-error leak) | `no-multiplexed-mutation-error` |
+| `zustand-selector-stability` | a selector returning a fresh `{}`/`[]` literal | the zustand-selector gate |
+| `no-raw-random` | ambient `Math.random()` in shipped source | client-determinism (random half; clock half = `no-raw-clock`) |
+| `testid-typed-only` | freeform `data-testid="…"` string literals in client | the typed-`testId` gate |
+
 ## Intentionally NOT a gate
 
 - **`no-raw-id-mint`** (blanket ban on raw `crypto.randomUUID()`/`nanoid()`) — declined: it over-fires on

@@ -5,7 +5,7 @@
 // weaker one. Per-field drop (a bad entry is silently omitted), never a whole-object reject — matching
 // `clampThemeTokens`'s own drop-per-field behavior.
 import { z } from "zod";
-import { isSafeColor } from "../theme-scope/clamp";
+import { isSafeColor } from "#lib";
 
 const CUSTOM_PROP_KEY = /^--[\w-]+$/u;
 

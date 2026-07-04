@@ -141,6 +141,47 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "packages/client/src/features/x/surfaces/c.tsx",
     src: 'export const C = () => <div style={{ "--color-primary": "red" }} />;\n',
   },
+
+  // ── The client-foundation belts (2026-07-03 — added WITH the constructs they gate, §11.7) ──
+  "client-cache-surgery-only-in-data": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    // biome-ignore lint/security/noSecrets: a high-entropy fixture SOURCE string (a QueryClient call), not a secret.
+    src: "export const f = (qc: { invalidateQueries: (a: unknown) => void }) => {\n  qc.invalidateQueries({});\n};\n",
+  },
+  "no-raw-zustand-persist": {
+    path: "packages/client/src/state/rogue-store.ts",
+    src: 'export const creator = persist(() => ({}), { name: "rogue" });\n',
+  },
+  "no-static-staletime": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: 'export const o = { staleTime: "static" };\n',
+  },
+  "no-fake-disabled-id": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: 'export const id = castId("");\n',
+  },
+  "chat-stream-writes-in-bus-only": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: 'import { chatStream } from "#state";\nexport const s = chatStream;\n',
+  },
+  "no-multiplexed-mutation-error": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: "export const e = (a: { error: unknown }, b: { error: unknown }) => a.error ?? b.error;\n",
+  },
+  "zustand-selector-stability": {
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: "declare const useFooStore: (sel: (s: { a: number }) => unknown) => unknown;\nexport const v = useFooStore((s) => ({ a: s.a }));\n",
+  },
+  "no-raw-random": {
+    // token assembled so THIS file carries no literal ambient-random call (test-determinism scans
+    // every line of tests/); the WRITTEN fixture resolves to the real call.
+    path: "packages/client/src/features/x/hooks/h.ts",
+    src: `export const r = Math.${["ran", "dom"].join("")}();\n`,
+  },
+  "testid-typed-only": {
+    path: "packages/client/src/features/x/surfaces/c.tsx",
+    src: 'export const C = () => <div data-testid="freeform-string" />;\n',
+  },
 };
 
 function pluginDiagnostics(file: string, configPath: string): number {

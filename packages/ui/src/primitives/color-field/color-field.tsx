@@ -1,14 +1,13 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import { cn } from "#lib";
+import { cn, isSafeColor } from "#lib";
 import { Field } from "#primitives/field";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Check/Icon fine (the spinner.tsx precedent).
 import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { Spinner } from "#primitives/spinner";
-import { isSafeColor } from "../../content/theme-scope/clamp";
 import { colorFieldVariants } from "./variants";
 
 export interface ColorSwatchProps {
@@ -115,8 +114,8 @@ const FALLBACK_NATIVE_HEX = "#000000";
  * path to a value.
  *
  * Label association: the swatch trigger button is wrapped in Base UI `Field.Control` (the same
- * registration `Textarea` uses for a plain native element), so `<Field label="Accent">
- * <ColorField .../></Field>` gets `htmlFor`/`aria-describedby`/`data-invalid` for free — a button
+ * registration `Textarea` uses for a plain native element), so `<Field label="Accent">`
+ * `<ColorField .../></Field>` gets `htmlFor`/`aria-describedby`/`data-invalid` for free — a button
  * is a labelable HTML element, so a click on the Field label focuses/activates it.
  *
  * Validation mirrors the D44 §12.1 `<ThemeScope>` clamp EXACTLY: `isSafeColor` is imported from

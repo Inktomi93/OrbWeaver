@@ -138,9 +138,12 @@ export default tseslint.config(
   {
     // @deprecated enforcement (type-aware, shipped source only): any USE of a @deprecated symbol
     // (ours OR a third-party API) errors — the doctrine's tag becomes a gate, not an editor strikethrough.
+    // tsdoc/syntax joined at the client-foundation wave (2026-07-03): ui/client now carry a real
+    // exported-API surface (the factories/seals), so their doc comments get the same Documentation-Law
+    // gate as server/kit/db/contracts.
     files: SHIPPED_SRC,
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { "@typescript-eslint/no-deprecated": "error" },
+    plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
+    rules: { "@typescript-eslint/no-deprecated": "error", "tsdoc/syntax": "error" },
   },
   {
     // Type-aware parser for the exported-API packages (server/kit/db/contracts) — projectService builds
@@ -194,8 +197,11 @@ export default tseslint.config(
     },
   },
   {
-    // @tanstack/query — queryKey + queryFn discipline. Dormant until tRPC/Query lands on the client;
-    // no-ops on the empty client today. Property-order + rest-destructure rules dropped (see header).
+    // @tanstack/query — queryKey + queryFn discipline (LIVE since the client-foundation wave landed
+    // Query code). no-rest-destructuring stays dropped (ergonomic). The two property-order rules were
+    // originally dropped as "ordering → Biome", but Biome has NO TanStack-aware ordering rule and both
+    // are TYPE-INFERENCE correctness per their own meta (a mis-ordered onMutate loses the context
+    // type — UI-Lib-TanStack-Query.md §E-3) — turned ON at the wave (2026-07-03).
     files: [CLIENT_SRC],
     plugins: { "@tanstack/query": pluginQuery },
     rules: {
@@ -204,6 +210,8 @@ export default tseslint.config(
       "@tanstack/query/no-void-query-fn": "error",
       "@tanstack/query/stable-query-client": "error",
       "@tanstack/query/prefer-query-options": "error",
+      "@tanstack/query/mutation-property-order": "error",
+      "@tanstack/query/infinite-query-property-order": "error",
     },
   },
   {

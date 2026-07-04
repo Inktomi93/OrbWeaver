@@ -38,8 +38,10 @@ export interface TabsPanelProps extends BaseTabsPanelProps {
  * `--active-tab-*` vars for the vertical axis; the skin below reads that attribute, not a prop.
  *
  * Usage:
- * `<Tabs defaultValue="prompt"><TabsList><TabsTab value="prompt">Prompt</TabsTab></TabsList>
- *  <TabsPanel value="prompt">…</TabsPanel></Tabs>`
+ * ```tsx
+ * <Tabs defaultValue="prompt"><TabsList><TabsTab value="prompt">Prompt</TabsTab></TabsList>
+ *  <TabsPanel value="prompt">…</TabsPanel></Tabs>
+ * ```
  */
 export function Tabs({ className, ...rest }: TabsProps): ReactElement {
   return (

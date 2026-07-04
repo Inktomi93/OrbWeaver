@@ -18,6 +18,7 @@ import type {
 } from "@orb/contracts/chat";
 import {
   CHAT_BUS_EVENT_TYPES,
+  contentSpansToBlocks,
   createInviteSchema,
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -437,4 +438,46 @@ test("messageContentBlockSchema — round-trips its three kinds (D44)", () => {
   ]) {
     expect(messageContentBlockSchema.parse(block)).toEqual(block);
   }
+});
+
+test("contentSpansToBlocks — joins text runs, converts D51 image refs, brands asset ids", () => {
+  // biome-ignore lint/security/noSecrets: a fixture TypeID literal, not a secret.
+  const assetId = "asset_01h455vb4pex5vsknk084sn02q";
+  const blocks = contentSpansToBlocks([
+    { kind: "text", text: "Look: " },
+    { kind: "text", text: "two panels.\n" },
+    {
+      kind: "image",
+      ref: { kind: "asset", assetId },
+      alt: "a map",
+    },
+    { kind: "image", ref: { kind: "external", url: "https://example.test/x.png" }, alt: "" },
+    { kind: "text", text: "The end." },
+  ]);
+  expect(blocks).toEqual([
+    { kind: "markdown", md: "Look: two panels.\n" },
+    { kind: "media", media: "image", src: { kind: "asset", assetId }, alt: "a map" },
+    {
+      kind: "media",
+      media: "image",
+      src: { kind: "external", url: "https://example.test/x.png" },
+      alt: "",
+    },
+    { kind: "markdown", md: "The end." },
+  ]);
+  // Every block is schema-valid (the projection can never emit an unrenderable block).
+  for (const b of blocks) {
+    expect(messageContentBlockSchema.parse(b)).toEqual(b);
+  }
+});
+
+test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad asset id THROWS", () => {
+  expect(contentSpansToBlocks([{ kind: "text", text: "plain" }])).toEqual([
+    { kind: "markdown", md: "plain" },
+  ]);
+  expect(() =>
+    contentSpansToBlocks([
+      { kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "" },
+    ]),
+  ).toThrow();
 });

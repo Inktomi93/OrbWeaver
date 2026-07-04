@@ -22,12 +22,15 @@ export interface SelectionBarProps {
  * slot, and a clear button. Render-null-when-zero is the CALLER's concern (ui-package-design §12
  * Wave 3-C; work-order #21) — this primitive always renders exactly what it's given.
  *
- * Usage: `{count > 0 && (
+ * Usage:
+ * ```tsx
+ * {count > 0 && (
  *   <SelectionBar count={count} onClear={clearSelection}>
  *     <Button intent="ghost" size="sm">Archive</Button>
  *     <Button intent="destructive" size="sm">Delete</Button>
  *   </SelectionBar>
- * )}`
+ * )}
+ * ```
  */
 export function SelectionBar({
   count,

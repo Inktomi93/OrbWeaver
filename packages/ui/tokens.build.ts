@@ -57,7 +57,7 @@ function renderTokensTs(tokens: readonly FlatToken[]): string {
   return [
     `/** ${HEADER} */`,
     "",
-    "/** Every design token: dotted path → its CSS custom property + the resolved seed value. */",
+    "/** Token → `{ cssVar, value }`: `cssVar` for CSS (theme-overridable); `value` is the static literal, for consumers that can't resolve `var()` (canvas chart libs, `parseFloat`). */",
     "export const TOKENS = {",
     ...entries,
     "} as const;",
