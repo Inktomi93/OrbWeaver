@@ -119,6 +119,13 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     app.use("*", ipAllowlistMiddleware(allowlist));
   }
 
+  // FLAG[PD-118]: the `observability` per-request middleware (foundation/observability/middleware.ts —
+  // X-Request-Id + request-root span + request-ring record) is BUILT + exported and doc-claimed "Mounted
+  // by entry/app" (its header + Tier-2-Foundation §16), but is NOT in this chain — so the /api/_debug
+  // traces ring stays empty and no response carries X-Request-Id. Mount it here (ordering call: after
+  // auth so getRequestUserId resolves, root span still wrapping the request); mounting makes both claims
+  // true. Surfaced by the T6 trace probes.
+
   // ── Auth middleware: resolve the ONE Principal per request + refresh a slid cookie session ────────────
   app.use("*", async (c, next) => {
     const token = readSessionToken(c.req.raw.headers);
