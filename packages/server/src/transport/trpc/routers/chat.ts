@@ -54,6 +54,13 @@ const swipeSchema = z.object({
   guided: z.any().optional(),
 });
 
+// The Stop verb (task #18 — the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
+// turn.ts createAbort) was already fully implemented — active-turns registry, turn-owner-only, an
+// idempotent no-op with nothing in flight — but had never been exposed on this router (MISSING-API,
+// swept via `sg`/grep before this addition; no test or call site referenced `chat.abort`). Thin
+// pass-through, same shape as `getChat` (chatId only — `AbortParams extends ChatScopedParams {}`).
+const abortSchema = z.object({ chatId: brandedId<ChatId>() });
+
 const streamSchema = z.object({
   chatId: brandedId<ChatId>(),
   // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
@@ -85,6 +92,9 @@ export const chatRouter = t.router({
   swipe: authedProcedure
     .input(swipeSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.swipe({ principal: ctx.auth, ...input })),
+  abort: authedProcedure
+    .input(abortSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.
   generateImage: authedProcedure

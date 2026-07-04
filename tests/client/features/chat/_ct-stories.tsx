@@ -7,19 +7,21 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
-import { MessageListSurface, MessageThreadAnchor } from "@orb/client/features/chat";
+import { Composer, MessageListSurface, MessageThreadAnchor } from "@orb/client/features/chat";
+import type { ChatHandle } from "@orb/client/state";
 import { chatStream, committedChat, draftChat, useTurnPhase } from "@orb/client/state";
-import type { MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
-import { CHAT_ID, makeMessageView } from "./fixtures";
+import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -139,6 +141,77 @@ export function MessageListSurfaceStory({
   return (
     <CtDataProviders>
       <SurfaceHarness committed={committed} />
+    </CtDataProviders>
+  );
+}
+
+// ── Composer story (data layer + turn-lifecycle drivers) ───────────────────────────────────────────
+
+export interface ComposerStoryProps {
+  /** @defaultValue true — a committed chat (`COMPOSER_CHAT_ID`); `false` mounts a draft handle. */
+  readonly committed?: boolean;
+}
+
+function ComposerStoryInner({ committed = true }: ComposerStoryProps): ReactElement {
+  const [value, setValue] = useState("");
+  const [startedChatId, setStartedChatId] = useState<ChatId | null>(
+    committed ? COMPOSER_CHAT_ID : null,
+  );
+  const handle: ChatHandle =
+    startedChatId !== null ? committedChat(startedChatId) : draftChat("draft_ct_composer");
+
+  return (
+    <div>
+      <Composer
+        handle={handle}
+        value={value}
+        onChange={setValue}
+        onCommitted={(id): void => setStartedChatId(id)}
+      />
+      {/* Turn-lifecycle drivers (mirrors GhostRowStory above) — the CT clicks these to move
+          `chatStream`'s slot through pending/streaming/stopping/aborted without a real SSE round-trip
+          (Stop's immediate-feedback half is client-only; only the eventual close needs the bus). */}
+      <button
+        type="button"
+        data-testid="drive-begin"
+        onClick={(): void => {
+          chatStream.beginTurn(COMPOSER_CHAT_ID, {
+            intent: "send",
+            speakerCharacterId: null,
+            targetMessageId: null,
+          });
+        }}
+      >
+        begin
+      </button>
+      <button
+        type="button"
+        data-testid="drive-delta"
+        onClick={(): void => {
+          chatStream.appendDelta({ chatId: COMPOSER_CHAT_ID, kind: "text", text: "Hi" });
+        }}
+      >
+        token
+      </button>
+      <button
+        type="button"
+        data-testid="drive-abort"
+        onClick={(): void => {
+          chatStream.abortTurn(COMPOSER_CHAT_ID, "user");
+        }}
+      >
+        abort
+      </button>
+    </div>
+  );
+}
+
+/** The composer wired to the real data layer (routeTrpc stubs the network) + the turn-lifecycle
+ *  driver buttons a CT clicks to move it through pending → streaming → stopping → aborted. */
+export function ComposerStory(props: ComposerStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <ComposerStoryInner {...props} />
     </CtDataProviders>
   );
 }

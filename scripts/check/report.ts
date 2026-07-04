@@ -29,6 +29,7 @@ import { schemaBranding } from "./gates/schema-branding.ts";
 import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
 import { stateFiles } from "./gates/state-files.ts";
+import { surfaceInAContainer } from "./gates/surface-in-a-container.ts";
 import { testDeterminism } from "./gates/test-determinism.ts";
 import { testFactoryContract } from "./gates/test-factory-contract.ts";
 import { testFixtureImports } from "./gates/test-fixture-imports.ts";
@@ -36,6 +37,7 @@ import { testLayout } from "./gates/test-layout.ts";
 import { testMockDoctrine } from "./gates/test-mock-doctrine.ts";
 import { testNoStubs } from "./gates/test-no-stubs.ts";
 import { testPresence } from "./gates/test-presence.ts";
+import { testPresenceClient } from "./gates/test-presence-client.ts";
 import { turnIdentity } from "./gates/turn-identity.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
@@ -54,6 +56,7 @@ export const ALL_CHECKS: readonly Check[] = [
   typesInContract,
   noInlineUnionRedecl,
   testPresence,
+  testPresenceClient,
   testDeterminism,
   commentedCode,
   schemaBranding,
@@ -81,6 +84,7 @@ export const ALL_CHECKS: readonly Check[] = [
   busCoverage,
   memberCardClamped,
   diagnosticLegibility,
+  surfaceInAContainer,
 ];
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact

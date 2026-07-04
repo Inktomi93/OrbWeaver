@@ -68,6 +68,10 @@ function harness(chatIds: readonly ChatId[]): Harness {
       completeTurn,
       abortTurn,
       clearTurn: chatStream.clearTurn,
+      // The reducer never calls this (markStopping is the ONE component-callable exception — see
+      // state/chat-stream.ts's header) but `ChatBusDeps.stream` is typed as the full `ChatStreamApi`,
+      // so the harness literal needs the field to satisfy the type. Real impl, unused by this suite.
+      markStopping: chatStream.markStopping,
     },
     invalidate,
     onWarning,
