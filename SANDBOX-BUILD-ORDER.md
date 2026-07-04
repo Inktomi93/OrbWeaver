@@ -1,15 +1,24 @@
-# Sandbox build-order scratch (2026-07-04b — support-kit + W1-0 wave landed)
+# Sandbox build-order scratch (2026-07-04c — CHAT SURFACE largely landed + app RUNS)
 
 > **SCRATCH, not law.** A session-handoff note for dev-container Claude sessions: the agreed
-> build order + operational context as of commit `b9a0784`. The constitution
+> build order + operational context as of commit `2ebd039`. The constitution
 > (`docs/architecture/core/AGENTS.md` — read it IN FULL first), the D-ledger, and
 > `Core-BUILD-PLAN.md`/`Core-Audits-and-Debt.md` WIN over anything here. Delete this file when
 > it goes stale; update the date line when you land a wave.
 >
-> **LAST SESSION (2026-07-04b) — the client FOUNDATION + enforcement perimeter LANDED (9 commits,
-> `dffcfae`→`b9a0784`). The "harnesses before feature agents" prerequisite (§11.7) is now
-> SATISFIED. Do NOT rebuild any of it. The immediate next lane is the CHAT SURFACE (Wave 1.1
-> below). Detailed record of what landed + the deferred follow-ups: `scratch/dev-tooling-support-kit-plan.md`.**
+> **SESSION 2026-07-04c — the CHAT SURFACE (Wave 1.1) is largely BUILT + the app RUNS at `/`
+> (7 commits `1e94b90`→`2ebd039`, all green).** Landed: message-list surface (chatStyle bubble|flat|
+> document + ghost-isolated streaming), composer (Pattern-B send + `stopping` phase + `chat.abort`),
+> streaming (TTFT reasoning-block + `repairStreamingTail` + code-fence goldens), swipes
+> (`chat.selectVariant` + keyboard), speaker attribution + `<speaker>` OKLCH coloring, the bus-reducer
+> test, `chat.listMessages`. Cleared **PD-118** + **PD-58**; filed **PD-119** (message-list has no
+> keep-mounted path). 3 client-factory type-bugs fixed. **34 gates** (test-presence-client +
+> surface-in-a-container LIVE). The app mounts `ChatRoomSurface` at `/` (HomePage, draft landing).
+> **NEXT LANE = the APP-SHELL** (the 4-region rail frame + welcome pane — the mockup's visual gap +
+> the composition home for the character library). Then character library → panels → committed features.
+> **Full session record (recipes, gaps, the agent-sdk/consent finding, the mockup-launch recipe,
+> the neo-vs-corpus reconciliation): `scratch/chat-surface-lane.md`.** Earlier foundation record:
+> `scratch/dev-tooling-support-kit-plan.md`. The TASK BOARD is the durable roadmap (#24–#34).**
 
 ## Where the tree is (so you don't re-derive it)
 
