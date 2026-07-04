@@ -39,9 +39,14 @@ type BusFilterMap = {
 const nothing = (): readonly InvalidateFilter[] => [];
 
 function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
-  // The room read + the list (recency/preview both move on any canon change). Cheap and precise:
-  // getChat is input-scoped to THIS chat; listChats is path-scoped.
-  return [trpc.chat.getChat.queryFilter({ chatId }), trpc.chat.listChats.pathFilter()];
+  // The room read + the message list + the chat list (recency/preview all move on any canon change).
+  // Cheap + precise: getChat + listMessages are input-scoped to THIS chat; listChats is path-scoped.
+  // listMessages is the chat message-list surface's read (W-17); a canon mutation refetches it.
+  return [
+    trpc.chat.getChat.queryFilter({ chatId }),
+    trpc.chat.listMessages.pathFilter(),
+    trpc.chat.listChats.pathFilter(),
+  ];
 }
 
 const BUS_FILTERS: BusFilterMap = {

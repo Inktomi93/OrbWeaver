@@ -32,6 +32,12 @@ const startChatSchema = z.object({
   opening: z.any().optional(),
 });
 
+const listMessagesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  beforeSeq: z.number().optional(),
+  limit: z.number().optional(),
+});
+
 const sendSchema = z.object({
   chatId: brandedId<ChatId>(),
   content: z.string(),
@@ -68,6 +74,11 @@ export const chatRouter = t.router({
     .query(({ ctx, input }) =>
       ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId }),
     ),
+  // A paged canon read (D26), member-gated (`requireParticipant` inside the verb — leak-free NOT_FOUND
+  // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
+  listMessages: authedProcedure
+    .input(listMessagesSchema)
+    .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
   send: authedProcedure
     .input(sendSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),
