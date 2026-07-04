@@ -82,8 +82,11 @@ must fire AFTER the swipe path's variable re-fold (automation-design/05 review f
   feature carries the association.
 - **Committed means full treatment** — cold-read build bar, tests travel with code, no thin
   slices of committed features.
-- **Local-light/vLLM suites self-skip in here** (`VLLM_DISABLED=1`, no `.models/`); that is
-  expected, not a failure. The firewall blocks everything but npm/GitHub/Anthropic/VS Code.
+- **Local-light/vLLM suites self-skip in here** (`VLLM_DISABLED=true`, no `.models/`); that is
+  expected, not a failure. The env floor is a strict `z.enum(["true","false"])` — the value
+  `1` kills EVERY server suite at module load (fixed in devcontainer.json 2026-07-04; a
+  running container built before that needs `export VLLM_DISABLED=true` or a rebuild).
+  The firewall blocks everything but npm/GitHub/Anthropic/VS Code.
 
 ## The `/reference/` corpus (gitignored, read-only)
 
