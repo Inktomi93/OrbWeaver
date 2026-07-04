@@ -8,6 +8,8 @@ export type { EffectiveConfigWiring } from "./effective-config";
 export { createEffectiveConfigWiring } from "./effective-config";
 export type { DomainEventBus } from "./event-bus";
 export { createDomainEventBus } from "./event-bus";
+export type { ImageRefAssets } from "./resolve-image-ref";
+export { resolveImageRefToUrl } from "./resolve-image-ref";
 export type { RoleClientsBinderDeps } from "./role-clients";
 export { bindRoleClientsForUser } from "./role-clients";
 export type { RunnerEnvDeps } from "./runner-env";

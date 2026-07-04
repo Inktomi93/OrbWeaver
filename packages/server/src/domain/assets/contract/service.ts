@@ -33,7 +33,7 @@ import type {
   ResolveVariantParams,
   StoreParams,
 } from "./params";
-import type { AssetMetadata, StoredAsset } from "./results";
+import type { AssetCasRef, AssetMetadata, StoredAsset } from "./results";
 import type { AssetListItem, GalleryItemView } from "./views";
 
 /**
@@ -99,6 +99,10 @@ export interface AssetsService {
    *  `null` when the asset row is gone; a present-row-missing-blob is an integrity fault (`cas.read` throws).
    *  NOT routed through `getMetadata`'s owner gate; wired only into the embeddings indexer at the root. */
   readonly loadAssetBytes: (assetId: AssetId) => Promise<Uint8Array | null>;
+  /** Resolve an asset's `(ownerId, hash)` CAS coordinates from its ROW ID alone — un-principal (D20), the
+   *  `loadAssetBytes` posture. A pure coordinate lookup (no bytes, no gate); the chat `resolveImageUrl` seam
+   *  uses it to turn a canon `asset:<id>` ref into the hash `getMetadata` gates on. `undefined` when gone. */
+  readonly assetCasRefById: (assetId: AssetId) => Promise<AssetCasRef | undefined>;
   /** Every IMAGE asset id (`mime LIKE 'image/%'`), ALL owners (the embeddings BULK embed pass's enumeration —
    *  PD-53). UN-PRINCIPAL like `loadAssetBytes` (D20): a trusted SYSTEM sweep, never a user-facing surface;
    *  wired only into the embeddings service at the composition root. A read — never throws. */

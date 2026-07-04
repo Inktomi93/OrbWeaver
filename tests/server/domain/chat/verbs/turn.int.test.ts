@@ -14,7 +14,8 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
+import { personas } from "@orb/db";
+import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
@@ -104,6 +105,10 @@ function harness(
     hostTierRegexScripts?: RegexScript[];
     /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
     onChatRequest?: (request: unknown) => void;
+    /** Capture the `personaIds` `loadRoom` resolved for the round (the PD-70 presence-gating pin). */
+    onForeignInputs?: (args: { readonly personaIds: readonly PersonaId[] }) => void;
+    /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
+    readPresence?: ChatContext["readPresence"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -121,6 +126,7 @@ function harness(
       Promise.resolve({
         characterId: over.groupCharacterId ?? castId<CharacterId>("character_group"),
       }),
+    ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
@@ -147,14 +153,16 @@ function harness(
     prng: seededPrng(),
     delay: () => Promise.resolve(),
     resolveConnection: () => Promise.resolve(connectionOf()),
-    resolveForeignInputs: () =>
-      Promise.resolve({
+    resolveForeignInputs: (args) => {
+      over.onForeignInputs?.(args);
+      return Promise.resolve({
         promptConfig: DEFAULT_PROMPT_CONFIG,
         personas: PERSONAS,
         globalRegexScripts: over.hostTierRegexScripts ?? [],
         scanDepth: 6,
         injectionTokenBudget: 0,
-      }),
+      });
+    },
   });
   return { ctx, events, deltas, turn, activeTurns };
 }
@@ -192,6 +200,13 @@ async function seedRoom(
   return { host, chatId, chars, names };
 }
 
+/** Seed a persona row (the `chat_participants.activePersonaId` FK target). */
+async function seedPersona(ownerId: UserId, key: string): Promise<PersonaId> {
+  const id = castId<PersonaId>(`persona_${key}`);
+  await db.insert(personas).values({ id, ownerId, name: key, description: "" });
+  return id;
+}
+
 describe("send — the solo path (roster-of-1)", () => {
   test("commits the user row + the assistant turn; emits the lifecycle", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
@@ -214,6 +229,74 @@ describe("send — the solo path (roster-of-1)", () => {
     expect(types).toContain("messageCommitted");
     expect(types).toContain("turnStarted");
     expect(types).toContain("turnCompleted");
+  });
+});
+
+describe("send — presence cast-gating (PD-70)", () => {
+  /** Seed a host + an away member (each with a persona) + one character; return the ids + persona ids. */
+  async function seedTwoHumanRoom(): Promise<{
+    host: UserId;
+    member: UserId;
+    chatId: ChatId;
+    hostPersona: PersonaId;
+    memberPersona: PersonaId;
+    names: Record<string, string>;
+  }> {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const hostPersona = await seedPersona(host, "host_pov");
+    const memberPersona = await seedPersona(member, "member_pov");
+    const chatId = await seedChat(db, "a", {
+      metadata: { group: { output: "per-speaker", policy: "natural" } },
+    });
+    await seedParticipant(db, {
+      chatId,
+      key: "h",
+      userId: host,
+      role: "host",
+      activePersonaId: hostPersona,
+    });
+    await seedParticipant(db, {
+      chatId,
+      key: "m",
+      userId: member,
+      role: "member",
+      activePersonaId: memberPersona,
+    });
+    const cid = await seedCharacter(db, host, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: cid, joinSeq: 0 });
+    return { host, member, chatId, hostPersona, memberPersona, names: { [cid]: "aria" } };
+  }
+
+  test("an OFFLINE human's persona drops from the round; the host's (and cast) survive", async () => {
+    const room = await seedTwoHumanRoom();
+    const seen: (readonly PersonaId[])[] = [];
+    const h = harness(db, room.names, {
+      onForeignInputs: ({ personaIds }) => seen.push(personaIds),
+      // The member is away (no live SSE); the host is driving the turn.
+      readPresence: (userId) =>
+        Promise.resolve({ userId, online: userId !== room.member, lastSeenAt: null }),
+    });
+
+    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain(room.hostPersona);
+    expect(seen[0]).not.toContain(room.memberPersona);
+  });
+
+  test("when BOTH humans are online, both personas are present (no drop)", async () => {
+    const room = await seedTwoHumanRoom();
+    const seen: (readonly PersonaId[])[] = [];
+    const h = harness(db, room.names, {
+      onForeignInputs: ({ personaIds }) => seen.push(personaIds),
+      readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
+    });
+
+    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual(expect.arrayContaining([room.hostPersona, room.memberPersona]));
   });
 });
 

@@ -14,6 +14,7 @@
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";
+import { createAssetCasRefById } from "./verbs/asset-cas-ref-by-id";
 import { createGetMetadata } from "./verbs/get-metadata";
 import { createListGallery } from "./verbs/list-gallery";
 import { createListImageAssetIds } from "./verbs/list-image-asset-ids";
@@ -29,6 +30,7 @@ export function createAssetsService(ctx: AssetsContext): AssetsService {
     getMetadata: createGetMetadata(ctx),
     resolveVariant: createResolveVariant(ctx),
     loadAssetBytes: createLoadAssetBytes(ctx),
+    assetCasRefById: createAssetCasRefById(ctx),
     listImageAssetIds: createListImageAssetIds(ctx),
     listOwned: createListOwned(ctx),
     addToGallery: createAddToGallery(ctx),

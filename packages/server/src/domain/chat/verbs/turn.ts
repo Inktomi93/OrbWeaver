@@ -168,6 +168,20 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   const cards = await Promise.all(
     charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })),
   );
+  // PD-70 cast-gating: an OFFLINE human's persona drops from the present-cast set for this round — their
+  // persona-book world-info stops joining the pool (the "presence → injected WI/persona" spoof surface;
+  // `presence.read` is server-derived SSE liveness, never a client-asserted heartbeat). No host/anchor
+  // special-case: the anchor {{user}} POV is a SEPARATE pinned field (`chats.anchorPersonaId`), resolved
+  // independently, so whoever the host pinned survives regardless of their liveness — gated uniformly here.
+  const humanPersonas = roster.flatMap((r) =>
+    r.kind === "human" && r.userId !== null && r.activePersonaId !== null
+      ? [{ userId: r.userId, personaId: r.activePersonaId }]
+      : [],
+  );
+  const online = await Promise.all(
+    humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)),
+  );
+  const personaIds = humanPersonas.filter((_h, i) => online[i]).map((h) => h.personaId);
   return {
     hostUserId,
     candidates: charRows.map((r) => ({
@@ -181,9 +195,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
       name: cards[i]?.name ?? "",
     })),
     castCharacterIds: charRows.map((r) => r.characterId),
-    personaIds: roster.flatMap((r) =>
-      r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : [],
-    ),
+    personaIds,
   };
 }
 
