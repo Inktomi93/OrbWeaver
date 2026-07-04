@@ -18,6 +18,10 @@ import type { Runner } from "../contract/runner";
 import { assetsBackfillRunner } from "../runners/assets-backfill";
 import { computeCooccurrenceRunner } from "../runners/compute-cooccurrence";
 import { computeThemesRunner } from "../runners/compute-themes";
+import { crewCardEvolutionRunner } from "../runners/crew-card-evolution";
+import { crewDirectorRunner } from "../runners/crew-director";
+import { crewLorebookKeeperRunner } from "../runners/crew-lorebook-keeper";
+import { crewProseAuditRunner } from "../runners/crew-prose-audit";
 import { cslsRunner } from "../runners/csls";
 import { distillCharactersRunner } from "../runners/distill-characters";
 import { embedAssetsRunner } from "../runners/embed-assets";
@@ -47,4 +51,8 @@ export const RUNNERS: { [K in WorkloadKind]: Runner<K> } = {
   "reconcile-stats": reconcileStatsRunner,
   "refresh-model-catalog": refreshModelCatalogRunner,
   "reconcile-world-state": reconcileWorldStateRunner,
+  "crew-lorebook-keeper": crewLorebookKeeperRunner,
+  "crew-card-evolution": crewCardEvolutionRunner,
+  "crew-director": crewDirectorRunner,
+  "crew-prose-audit": crewProseAuditRunner,
 };

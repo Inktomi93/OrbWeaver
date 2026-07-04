@@ -82,4 +82,10 @@ export interface ResultByKind {
   "reconcile-stats": ReconcileStatsWorkloadResult;
   "refresh-model-catalog": CatalogRefreshResult;
   "reconcile-world-state": DeferredResult;
+  // The chat-crew CW1 stubs (D59) — deferred until CW2–CW5 land each real runner, which swaps its arm
+  // for the committed per-kind summary shape (chat-crew-design/03 §1–4).
+  "crew-lorebook-keeper": DeferredResult;
+  "crew-card-evolution": DeferredResult;
+  "crew-director": DeferredResult;
+  "crew-prose-audit": DeferredResult;
 }

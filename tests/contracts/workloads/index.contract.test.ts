@@ -11,7 +11,7 @@ import { expect, test } from "../../support/fixtures";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 14-member kind axis (incl. reserved reconcile-world-state)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (incl. reserved reconcile-world-state + the 4 crew-* CW1 stubs)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "embed-corpus",
     "embed-assets",
@@ -27,6 +27,10 @@ test("WORKLOAD_KINDS is exactly the pinned 14-member kind axis (incl. reserved r
     "reconcile-stats",
     "refresh-model-catalog",
     "reconcile-world-state",
+    "crew-lorebook-keeper",
+    "crew-card-evolution",
+    "crew-director",
+    "crew-prose-audit",
   ]);
   expect(workloadKindSchema.options).toEqual(WORKLOAD_KINDS);
 });
@@ -95,6 +99,10 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "reconcile-stats": true,
   "refresh-model-catalog": true,
   "reconcile-world-state": true,
+  "crew-lorebook-keeper": true,
+  "crew-card-evolution": true,
+  "crew-director": true,
+  "crew-prose-audit": true,
 };
 test("WorkloadKind has no member beyond the tuple", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual([...WORKLOAD_KINDS].sort());

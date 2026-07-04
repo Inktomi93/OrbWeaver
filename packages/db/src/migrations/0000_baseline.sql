@@ -33,6 +33,71 @@ CREATE TABLE `audit_logs` (
 CREATE INDEX `audit_logs_time_idx` ON `audit_logs` (`created_at`);--> statement-breakpoint
 CREATE INDEX `audit_logs_actor_idx` ON `audit_logs` (`actor_user_id`);--> statement-breakpoint
 CREATE INDEX `audit_logs_entity_idx` ON `audit_logs` (`entity_type`,`entity_id`);--> statement-breakpoint
+CREATE TABLE `automation_budgets` (
+	`chat_id` text PRIMARY KEY NOT NULL,
+	`max_fires_per_hour` integer DEFAULT 120 NOT NULL,
+	`max_spend_actions_per_day` integer DEFAULT 10 NOT NULL,
+	`max_usd_per_day` real DEFAULT 1,
+	`usd_spent_today` real DEFAULT 0 NOT NULL,
+	`spend_day` text DEFAULT '' NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `automation_fires` (
+	`id` text PRIMARY KEY NOT NULL,
+	`rule_id` text NOT NULL,
+	`chat_id` text,
+	`trigger_type` text NOT NULL,
+	`outcome` text NOT NULL,
+	`detail` text,
+	`automation_depth` integer DEFAULT 0 NOT NULL,
+	`fired_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`rule_id`) REFERENCES `automation_rules`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "automation_fires_outcome_check" CHECK(outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run'))
+);
+--> statement-breakpoint
+CREATE INDEX `automation_fires_rule_time` ON `automation_fires` (`rule_id`,`fired_at`);--> statement-breakpoint
+CREATE TABLE `automation_rules` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`chat_id` text,
+	`name` text NOT NULL,
+	`description` text,
+	`enabled` integer DEFAULT false NOT NULL,
+	`position` integer NOT NULL,
+	`trigger_bus` text NOT NULL,
+	`trigger_type` text NOT NULL,
+	`predicate_cel` text,
+	`actions` text NOT NULL,
+	`match_automation_events` integer DEFAULT false NOT NULL,
+	`cooldown_seconds` integer DEFAULT 0 NOT NULL,
+	`max_fires_per_hour` integer DEFAULT 30 NOT NULL,
+	`consecutive_errors` integer DEFAULT 0 NOT NULL,
+	`last_error` text,
+	`last_fired_at` integer,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "automation_rules_name_check" CHECK(length(name) <= 120),
+	CONSTRAINT "automation_rules_trigger_bus_check" CHECK(trigger_bus in ('chat', 'domain')),
+	CONSTRAINT "automation_rules_trigger_type_check" CHECK((trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'crew.keeperRan', 'crew.editProposalCreated', 'crew.cardProposalCreated', 'crew.directorPassCompleted', 'rpg.clockCompleted', 'rpg.sessionConcluded', 'rpg.encounterEnded', 'rpg.reputationMilestone', 'rpg.checkResolved')))
+);
+--> statement-breakpoint
+CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint
+CREATE TABLE `global_variables` (
+	`owner_id` text NOT NULL,
+	`key` text NOT NULL,
+	`value` text NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`owner_id`, `key`),
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "global_variables_key_check" CHECK(length(key) <= 128),
+	CONSTRAINT "global_variables_value_check" CHECK(length(cast(value as blob)) <= 65536)
+);
+--> statement-breakpoint
 CREATE TABLE `buddies` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
@@ -82,6 +147,21 @@ CREATE TABLE `buddy_turns` (
 );
 --> statement-breakpoint
 CREATE INDEX `buddy_turns_user_created_idx` ON `buddy_turns` (`user_id`,`created_at`);--> statement-breakpoint
+CREATE TABLE `card_evolution_proposals` (
+	`id` text PRIMARY KEY NOT NULL,
+	`character_id` text NOT NULL,
+	`chat_id` text,
+	`changes` text NOT NULL,
+	`source_span` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`resolved_at` integer,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "card_evolution_proposals_status_check" CHECK(status in ('pending', 'accepted', 'dismissed', 'superseded'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `card_evolution_proposals_pending_unique` ON `card_evolution_proposals` (`character_id`,`chat_id`) WHERE status = 'pending';--> statement-breakpoint
 CREATE TABLE `character_personas` (
 	`character_id` text NOT NULL,
 	`persona_id` text NOT NULL,
@@ -324,6 +404,68 @@ CREATE TABLE `pending_turns` (
 );
 --> statement-breakpoint
 CREATE INDEX `pending_turns_chat_idx` ON `pending_turns` (`chat_id`);--> statement-breakpoint
+CREATE TABLE `crew_chats` (
+	`chat_id` text PRIMARY KEY NOT NULL,
+	`config` text,
+	`keeper_last_seq` integer DEFAULT 0 NOT NULL,
+	`card_evolution_last_seq` integer DEFAULT 0 NOT NULL,
+	`director_turn_counter` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `crew_edit_proposals` (
+	`id` text PRIMARY KEY NOT NULL,
+	`chat_id` text NOT NULL,
+	`message_id` text NOT NULL,
+	`variant_id` text NOT NULL,
+	`proposed_content` text NOT NULL,
+	`notes` text,
+	`audited_hash` text NOT NULL,
+	`original_content` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`resolved_at` integer,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "crew_edit_proposals_status_check" CHECK(status in ('pending', 'accepted', 'dismissed', 'superseded', 'stale'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `crew_edit_proposals_pending_variant_unique` ON `crew_edit_proposals` (`variant_id`) WHERE status = 'pending';--> statement-breakpoint
+CREATE TABLE `crew_guides` (
+	`chat_id` text NOT NULL,
+	`guide_key` text NOT NULL,
+	`injection_id` text,
+	`name` text NOT NULL,
+	`template` text NOT NULL,
+	`depth` integer NOT NULL,
+	`role` text DEFAULT 'system' NOT NULL,
+	`labeled` integer DEFAULT true NOT NULL,
+	`auto_refresh` integer DEFAULT false NOT NULL,
+	`enabled` integer DEFAULT true NOT NULL,
+	`last_refresh_seq` integer,
+	`last_refresh_at` integer,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`chat_id`, `guide_key`),
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`injection_id`) REFERENCES `chat_injections`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "crew_guides_role_check" CHECK(role in ('system', 'user', 'assistant'))
+);
+--> statement-breakpoint
+CREATE TABLE `crew_plots` (
+	`chat_id` text PRIMARY KEY NOT NULL,
+	`arc` text NOT NULL,
+	`twists` text,
+	`retired_twists` text,
+	`guidance` text NOT NULL,
+	`last_pass_seq` integer NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `user_credentials` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -856,7 +998,7 @@ CREATE TABLE `workloads` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "workloads_kind_check" CHECK(kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state')),
+	CONSTRAINT "workloads_kind_check" CHECK(kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit')),
 	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died'))
 );
 --> statement-breakpoint
