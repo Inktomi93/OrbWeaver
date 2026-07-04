@@ -69,9 +69,12 @@ export {
 export { withContextCompressionPlugin } from "./runners/chat/context-compression";
 export { runResponsesTurn } from "./runners/chat/responses";
 export {
+  buildChatResponseFormat,
   buildHistoryMessages,
   buildReasoningRequest,
   buildSystemMessage,
+  buildToolChoice,
+  buildWireTools,
   chatSamplingFields,
   isMandatoryReasoningRejection,
   mergeCustomParameters,

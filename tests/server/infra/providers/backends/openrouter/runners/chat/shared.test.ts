@@ -6,9 +6,12 @@
 // the customParameters overlay, the mandatory-reasoning detector, and the SDK→kit chunk reshape.
 
 import {
+  buildChatResponseFormat,
   buildHistoryMessages,
   buildReasoningRequest,
   buildSystemMessage,
+  buildToolChoice,
+  buildWireTools,
   chatSamplingFields,
   isMandatoryReasoningRejection,
   mergeCustomParameters,
@@ -49,6 +52,79 @@ describe("buildHistoryMessages", () => {
       { role: "user", content: "hi", name: "Alice" },
       { role: "assistant", content: "yo" },
     ]);
+  });
+});
+
+describe("buildHistoryMessages — the D48 tool exchange (T2)", () => {
+  test("assistant tool-call parts → SDK toolCalls; a TEXT-LESS tool-call turn is KEPT", () => {
+    const messages = buildHistoryMessages([
+      {
+        role: "assistant",
+        content: [{ type: "tool-call", toolCallId: "call_1", name: "tick", arguments: '{"m":1}' }],
+      },
+    ]);
+    expect(messages).toEqual([
+      {
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          { id: "call_1", type: "function", function: { name: "tick", arguments: '{"m":1}' } },
+        ],
+      },
+    ]);
+  });
+
+  test("a tool-role turn → ONE {role:'tool'} message PER result part, joined by toolCallId", () => {
+    const messages = buildHistoryMessages([
+      {
+        role: "tool",
+        content: [
+          { type: "tool-result", toolCallId: "call_1", content: '{"ok":true}' },
+          { type: "tool-result", toolCallId: "call_2", content: '{"ok":false}', isError: true },
+        ],
+      },
+    ]);
+    expect(messages).toEqual([
+      { role: "tool", toolCallId: "call_1", content: '{"ok":true}' },
+      { role: "tool", toolCallId: "call_2", content: '{"ok":false}' },
+    ]);
+  });
+
+  test("byte-identity guard: a tool-less history maps exactly as pre-T2 (no new keys)", () => {
+    expect(
+      buildHistoryMessages([{ role: "user", content: [{ type: "text", text: "hi" }] }]),
+    ).toEqual([{ role: "user", content: "hi" }]);
+  });
+});
+
+describe("the D48 request-field builders (chat-completions dialect)", () => {
+  test("buildWireTools wraps in the {type:'function'} envelope, order preserved", () => {
+    expect(
+      buildWireTools([{ name: "a", description: "da", parameters: { type: "object" } }]),
+    ).toEqual([
+      {
+        type: "function",
+        function: { name: "a", description: "da", parameters: { type: "object" } },
+      },
+    ]);
+  });
+
+  test("buildToolChoice: all four contract arms", () => {
+    expect(buildToolChoice({ mode: "auto" })).toBe("auto");
+    expect(buildToolChoice({ mode: "none" })).toBe("none");
+    expect(buildToolChoice({ mode: "required" })).toBe("required");
+    expect(buildToolChoice({ mode: "tool", name: "tick" })).toEqual({
+      type: "function",
+      function: { name: "tick" },
+    });
+  });
+
+  // biome-ignore lint/security/noSecrets: a test title naming a wire dialect, not a secret.
+  test("buildChatResponseFormat: json_schema dialect, strict defaults true", () => {
+    expect(buildChatResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
+      type: "json_schema",
+      jsonSchema: { name: "s", schema: { type: "object" }, strict: true },
+    });
   });
 });
 

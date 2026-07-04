@@ -55,6 +55,7 @@ export type {
   NormalizedFinishReason,
   OpenRouterChatRequest,
   ResponseFormat,
+  ToolCallInput,
   ToolChoice,
   WireTool,
 } from "./chat";

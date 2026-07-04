@@ -17,11 +17,12 @@
 // DETERMINISM (spine/testing §3): the clock is the injected `deps.now` — no `Date.now()`/`new Date()` here;
 // the pre-commit retry's jitter RNG is injectable too (tests pass a seeded one).
 
+import type { ChatContentPart } from "@orb/contracts/chat";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatRequest, ChatResult } from "../../../contract";
+import type { ChatHistoryMessage, ChatRequest, ChatResult } from "../../../contract";
 import { ProviderError } from "../../../contract";
 import type {
   ChatCompletionStreamChunk,
@@ -35,6 +36,10 @@ import {
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
   providerErrorFromHttp,
+  rawResponseFormat,
+  rawToolCallDeltas,
+  rawToolChoice,
+  rawWireTools,
   reduceChatCompletionStream,
   runWithPreCommitRetry,
   turnAbortSignal,
@@ -80,6 +85,8 @@ interface ResponseMap {
   readonly errorMessagePath?: string | undefined;
   /** Dot-path to an in-band error code (HTTP-status-shaped, drives classification). */
   readonly errorCodePath?: string | undefined;
+  /** Dot-path to the raw `tool_calls` array (stream fragments OR one-shot complete calls — D48/T2). */
+  readonly toolCallsPath?: string | undefined;
 }
 
 // The conservative DEFAULTS (the wire is raw snake_case — the OpenRouter SDK's camelCase normalisation does
@@ -93,6 +100,9 @@ const STREAM_DEFAULT_MAP: ResponseMap = {
   completionTokensPath: "usage.completion_tokens",
   errorMessagePath: "error.message",
   errorCodePath: "error.code",
+  // D48/T2: standard-OpenAI only in v1 (fragments are arrays — the dot-path map can't express them; a
+  // user override lands with the PD-13 response-map metadata if ever needed).
+  toolCallsPath: "choices.0.delta.tool_calls",
 };
 const BODY_DEFAULT_MAP: ResponseMap = {
   contentPath: "choices.0.message.content",
@@ -102,6 +112,8 @@ const BODY_DEFAULT_MAP: ResponseMap = {
   completionTokensPath: "usage.completion_tokens",
   errorMessagePath: "error.message",
   errorCodePath: "error.code",
+  // One-shot bodies carry COMPLETE calls; `rawToolCallDeltas` maps them to position-indexed fragments.
+  toolCallsPath: "choices.0.message.tool_calls",
 };
 
 // File-local: narrow an unknown to an indexable object (covers arrays — `typeof [] === "object"`, and a
@@ -162,10 +174,15 @@ export function reshapeChunk(raw: unknown, map: ResponseMap): ChatCompletionStre
     errorMessage !== undefined
       ? { message: errorMessage, code: readNumber(raw, map.errorCodePath) ?? 0 }
       : undefined;
+  const toolCalls = rawToolCallDeltas(readPath(raw, map.toolCallsPath));
   return {
     choices: [
       {
-        delta: { content: content ?? null, ...(reasoning !== undefined ? { reasoning } : {}) },
+        delta: {
+          content: content ?? null,
+          ...(reasoning !== undefined ? { reasoning } : {}),
+          ...(toolCalls !== undefined ? { toolCalls } : {}),
+        },
         finishReason,
       },
     ],
@@ -192,28 +209,70 @@ function samplingFromIntent(params: UserIntent): OpenAiSamplingInput {
   };
 }
 
+// The raw-wire tool halves of one turn (D48/T2 — snake field names, biome-exempted at the sites).
+function rawHistoryToolCalls(content: readonly ChatContentPart[]): Record<string, unknown>[] {
+  const calls: Record<string, unknown>[] = [];
+  for (const part of content) {
+    if (part.type === "tool-call") {
+      calls.push({
+        id: part.toolCallId,
+        type: "function",
+        function: { name: part.name, arguments: part.arguments },
+      });
+    }
+  }
+  return calls;
+}
+
+function rawToolResultMessages(content: readonly ChatContentPart[]): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const part of content) {
+    if (part.type === "tool-result") {
+      // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+      out.push({ role: "tool", tool_call_id: part.toolCallId, content: part.content });
+    }
+  }
+  return out;
+}
+
+// One user/assistant turn → its raw message, or null when empty (a text-less assistant tool-call turn is
+// KEPT — the calls ARE its content).
+function rawTurnMessage(turn: ChatHistoryMessage): Record<string, unknown> | null {
+  const text = chatHistoryText(turn.content);
+  const toolCalls = turn.role === "assistant" ? rawHistoryToolCalls(turn.content) : [];
+  if (text.trim().length === 0 && toolCalls.length === 0) {
+    return null;
+  }
+  return {
+    role: turn.role,
+    content: text,
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field name (snake_case).
+    ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+    ...(turn.name !== undefined ? { name: turn.name } : {}),
+  };
+}
+
 // Assemble the OpenAI-spec messages: the split system prompt folded into one `system` turn (cache-stable
-// prefix + volatile tail), then the non-empty history turns carrying their per-participant `name`.
-function buildMessages(
-  req: ChatCompletionsRequest,
-): ReadonlyArray<{ readonly role: string; readonly content: string; readonly name?: string }> {
+// prefix + volatile tail), then the non-empty history turns carrying their per-participant `name`. A
+// materialized tool exchange (D48/T2) maps per the raw wire: assistant `tool-call` parts → `tool_calls`;
+// a `tool`-role turn → one `{role:"tool"}` message per `tool-result` part.
+function buildMessages(req: ChatCompletionsRequest): readonly Record<string, unknown>[] {
   const systemText = [req.systemPrompt.static.trim(), req.systemPrompt.dynamic.trim()]
     .filter((part) => part.length > 0)
     .join("\n\n");
-  const messages: Array<{ role: string; content: string; name?: string }> = [];
+  const messages: Record<string, unknown>[] = [];
   if (systemText.length > 0) {
     messages.push({ role: SYSTEM_ROLE, content: systemText });
   }
   for (const turn of req.history) {
-    const text = chatHistoryText(turn.content);
-    if (text.trim().length === 0) {
+    if (turn.role === "tool") {
+      messages.push(...rawToolResultMessages(turn.content));
       continue;
     }
-    messages.push({
-      role: turn.role,
-      content: text,
-      ...(turn.name !== undefined ? { name: turn.name } : {}),
-    });
+    const message = rawTurnMessage(turn);
+    if (message !== null) {
+      messages.push(message);
+    }
   }
   return messages;
 }
@@ -232,6 +291,15 @@ function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
     messages: buildMessages(req),
     stream: true,
     ...buildOpenAiSamplingFields(samplingFromIntent(req.params)),
+    // D48/T2: absent means ABSENT — a tool-less/format-less body stays byte-identical to pre-D48; the
+    // `auto` toolChoice default is the CALLER's, never hardwired here.
+    ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
+    ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
+    // biome-ignore lint/style/useNamingConvention: OpenAI-compatible wire field names (snake_case).
+    ...(req.responseFormat !== undefined
+      ? { response_format: rawResponseFormat(req.responseFormat) }
+      : {}),
   };
   return applyIncludeExclude(base, req.customParameters ?? null, null);
 }

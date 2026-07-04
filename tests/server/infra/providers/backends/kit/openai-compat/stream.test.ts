@@ -5,6 +5,7 @@
 import type {
   ChatCompletionResult,
   ChatCompletionStreamChunk,
+  ChatToolCallDelta,
   StreamDelta,
 } from "@orb/server/infra/providers/backends/kit";
 import {
@@ -22,6 +23,10 @@ async function* streamOf(
   for (const item of items) {
     yield item;
   }
+}
+
+function chunkWithToolCalls(toolCalls: readonly ChatToolCallDelta[]): ChatCompletionStreamChunk {
+  return { choices: [{ delta: { toolCalls }, finishReason: null }] };
 }
 
 function sseBody(text: string): ReadableStream<Uint8Array> {
@@ -209,5 +214,83 @@ describe("the raw SSE parser", () => {
       out.push(item);
     }
     expect(out).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+});
+
+describe("the D48 tool-call delta accumulator (T2 — tool-use-design/02 §6)", () => {
+  test("assembles arguments split MID-TOKEN across fragments (string concat, never incremental parse)", async () => {
+    const view = await reduceChatCompletionStream(
+      streamOf([
+        chunkWithToolCalls([{ index: 0, id: "call_1", function: { name: "tick_clock" } }]),
+        chunkWithToolCalls([{ index: 0, function: { arguments: '{"minu' } }]),
+        chunkWithToolCalls([{ index: 0, function: { arguments: 'tes":30}' } }]),
+        { choices: [{ delta: {}, finishReason: "tool_calls" }] },
+      ]),
+    );
+    expect(view.choices?.[0]?.message?.toolCalls).toEqual([
+      { id: "call_1", function: { name: "tick_clock", arguments: '{"minutes":30}' } },
+    ]);
+  });
+
+  test("interleaves multiple calls by index; emission order = ascending index", async () => {
+    const view = await reduceChatCompletionStream(
+      streamOf([
+        chunkWithToolCalls([
+          { index: 1, id: "call_b", function: { name: "b", arguments: "{" } },
+          { index: 0, id: "call_a", function: { name: "a", arguments: "{}" } },
+        ]),
+        chunkWithToolCalls([{ index: 1, function: { arguments: "}" } }]),
+      ]),
+    );
+    expect(view.choices?.[0]?.message?.toolCalls).toEqual([
+      { id: "call_a", function: { name: "a", arguments: "{}" } },
+      { id: "call_b", function: { name: "b", arguments: "{}" } },
+    ]);
+  });
+
+  test("latches id/name on FIRST sight — later repeats/omissions never clobber", async () => {
+    const view = await reduceChatCompletionStream(
+      streamOf([
+        chunkWithToolCalls([{ index: 0, id: "call_first", function: { name: "real" } }]),
+        chunkWithToolCalls([
+          { index: 0, id: "call_second", function: { name: "fake", arguments: "{}" } },
+        ]),
+      ]),
+    );
+    expect(view.choices?.[0]?.message?.toolCalls).toEqual([
+      { id: "call_first", function: { name: "real", arguments: "{}" } },
+    ]);
+  });
+
+  test("a tool-less stream carries NO toolCalls key (absence discipline) and 'tool_calls' normalizes to 'tool'", async () => {
+    const bare = await reduceChatCompletionStream(
+      streamOf([{ choices: [{ delta: { content: "hi" }, finishReason: "stop" }] }]),
+    );
+    expect(bare.choices?.[0]?.message).not.toHaveProperty("toolCalls");
+
+    const withCalls = await reduceChatCompletionStream(
+      streamOf([
+        chunkWithToolCalls([{ index: 0, id: "c", function: { name: "n", arguments: "{}" } }]),
+        { choices: [{ delta: {}, finishReason: "tool_calls" }] },
+      ]),
+    );
+    const turn = mapChatCompletionToTurnResult(withCalls, {
+      model: "m",
+      startedAt: 0,
+      now: 1,
+      contextWindow: null,
+      maxOutputTokens: null,
+    });
+    expect(turn.finishReason).toBe("tool");
+    expect(turn.toolCalls).toEqual([{ toolCallId: "c", name: "n", arguments: "{}" }]);
+
+    const bareTurn = mapChatCompletionToTurnResult(bare, {
+      model: "m",
+      startedAt: 0,
+      now: 1,
+      contextWindow: null,
+      maxOutputTokens: null,
+    });
+    expect(bareTurn).not.toHaveProperty("toolCalls");
   });
 });
