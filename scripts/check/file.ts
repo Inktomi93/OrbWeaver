@@ -194,8 +194,8 @@ async function gatesStep(paths: readonly string[]): Promise<Step | undefined> {
   process.stdout.write(`structure gates (${gates.length} of ${ALL_CHECKS.length} in scope):\n`);
   process.chdir(ROOT); // runChecks roots the ts-morph project at cwd
   const started = Date.now();
-  const total = runChecks(gates);
-  return { name: "structure", ok: total === 0, output: "", ms: Date.now() - started };
+  const result = runChecks(gates);
+  return { name: "structure", ok: result.total === 0, output: "", ms: Date.now() - started };
 }
 
 function normalize(args: readonly string[]): { paths: string[]; bad: string[] } {
