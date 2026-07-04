@@ -88,6 +88,14 @@ export const ID_PREFIX = {
   // D49: hosted image-generation provenance (imagery leaf, item 1) + curated gallery items (gallery v2, item 2).
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
+  // D59: chat-crew review artifacts — the prose-audit edit proposal (crew-owned) + the card-evolution
+  // proposal (character-owned; the crew only FILES it — chat-crew-design/02 §4–5).
+  crewEditProposal: "crewprop",
+  cardEvolutionProposal: "cardprop",
+  // D46: automation rules + the fire log. `global_variables` deliberately has NO TypeID — nothing FKs
+  // it; the natural key (ownerId, key) IS the identity (automation-design/02 §4).
+  automationRule: "automation_rule",
+  automationFire: "automation_fire",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -153,6 +161,14 @@ export type ModelStatId = TypeIdOf<"model_stat">;
 // --- Buddy (proactive companion turns + quips) -------------------------------
 export type BuddyTurnId = TypeIdOf<"buddy_turn">;
 export type BuddyQuipId = TypeIdOf<"buddy_quip">;
+
+// --- Chat crew (D59 — review artifacts) ---------------------------------------
+export type CrewEditProposalId = TypeIdOf<"crewprop">;
+export type CardEvolutionProposalId = TypeIdOf<"cardprop">;
+
+// --- Automation (D46 — rules + the fire log) ----------------------------------
+export type AutomationRuleId = TypeIdOf<"automation_rule">;
+export type AutomationFireId = TypeIdOf<"automation_fire">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
 export type WorkloadId = TypeIdOf<"workload">;

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "99436abe-d3f4-4929-a03e-b2ca4d7a3eb9",
+  "id": "3abcf5db-59f4-49ce-84b6-d0efca6a6916",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -216,6 +216,430 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
+    },
+    "automation_budgets": {
+      "name": "automation_budgets",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "max_fires_per_hour": {
+          "name": "max_fires_per_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 120
+        },
+        "max_spend_actions_per_day": {
+          "name": "max_spend_actions_per_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 10
+        },
+        "max_usd_per_day": {
+          "name": "max_usd_per_day",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": 1
+        },
+        "usd_spent_today": {
+          "name": "usd_spent_today",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "spend_day": {
+          "name": "spend_day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "automation_budgets_chat_id_chats_id_fk": {
+          "name": "automation_budgets_chat_id_chats_id_fk",
+          "tableFrom": "automation_budgets",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "automation_fires": {
+      "name": "automation_fires",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "trigger_type": {
+          "name": "trigger_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "automation_depth": {
+          "name": "automation_depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "fired_at": {
+          "name": "fired_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "automation_fires_rule_time": {
+          "name": "automation_fires_rule_time",
+          "columns": ["rule_id", "fired_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "automation_fires_rule_id_automation_rules_id_fk": {
+          "name": "automation_fires_rule_id_automation_rules_id_fk",
+          "tableFrom": "automation_fires",
+          "tableTo": "automation_rules",
+          "columnsFrom": ["rule_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "automation_fires_chat_id_chats_id_fk": {
+          "name": "automation_fires_chat_id_chats_id_fk",
+          "tableFrom": "automation_fires",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "automation_fires_outcome_check": {
+          "name": "automation_fires_outcome_check",
+          "value": "outcome in ('fired', 'predicate_false', 'predicate_error', 'budget_refused', 'depth_refused', 'action_error', 'authority_refused', 'test_run')"
+        }
+      }
+    },
+    "automation_rules": {
+      "name": "automation_rules",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trigger_bus": {
+          "name": "trigger_bus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "trigger_type": {
+          "name": "trigger_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "predicate_cel": {
+          "name": "predicate_cel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actions": {
+          "name": "actions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "match_automation_events": {
+          "name": "match_automation_events",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "cooldown_seconds": {
+          "name": "cooldown_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "max_fires_per_hour": {
+          "name": "max_fires_per_hour",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 30
+        },
+        "consecutive_errors": {
+          "name": "consecutive_errors",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_fired_at": {
+          "name": "last_fired_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "automation_rules_chat_enabled": {
+          "name": "automation_rules_chat_enabled",
+          "columns": ["chat_id", "enabled", "trigger_type"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "automation_rules_owner_id_users_id_fk": {
+          "name": "automation_rules_owner_id_users_id_fk",
+          "tableFrom": "automation_rules",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "automation_rules_chat_id_chats_id_fk": {
+          "name": "automation_rules_chat_id_chats_id_fk",
+          "tableFrom": "automation_rules",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "automation_rules_name_check": {
+          "name": "automation_rules_name_check",
+          "value": "length(name) <= 120"
+        },
+        "automation_rules_trigger_bus_check": {
+          "name": "automation_rules_trigger_bus_check",
+          "value": "trigger_bus in ('chat', 'domain')"
+        },
+        "automation_rules_trigger_type_check": {
+          "name": "automation_rules_trigger_type_check",
+          "value": "(trigger_bus = 'chat' AND trigger_type in ('chatOpened', 'messageCommitted', 'messageEdited', 'variantSelected', 'turnStarted', 'turnCompleted', 'turnAborted', 'worldInfoActivated', 'personaSwitched', 'chatCreated', 'messageHidden', 'messagesDeleted', 'chatUpdated', 'wiEntryAttached', 'wiEntryDetached')) OR (trigger_bus = 'domain' AND trigger_type in ('character.updated', 'asset.created', 'crew.keeperRan', 'crew.editProposalCreated', 'crew.cardProposalCreated', 'crew.directorPassCompleted', 'rpg.clockCompleted', 'rpg.sessionConcluded', 'rpg.encounterEnded', 'rpg.reputationMilestone', 'rpg.checkResolved'))"
+        }
+      }
+    },
+    "global_variables": {
+      "name": "global_variables",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "global_variables_owner_id_users_id_fk": {
+          "name": "global_variables_owner_id_users_id_fk",
+          "tableFrom": "global_variables",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "global_variables_owner_id_key_pk": {
+          "columns": ["owner_id", "key"],
+          "name": "global_variables_owner_id_key_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "global_variables_key_check": {
+          "name": "global_variables_key_check",
+          "value": "length(key) <= 128"
+        },
+        "global_variables_value_check": {
+          "name": "global_variables_value_check",
+          "value": "length(cast(value as blob)) <= 65536"
+        }
+      }
     },
     "buddies": {
       "name": "buddies",
@@ -526,6 +950,105 @@
         "buddy_turns_role_check": {
           "name": "buddy_turns_role_check",
           "value": "role in ('user', 'assistant')"
+        }
+      }
+    },
+    "card_evolution_proposals": {
+      "name": "card_evolution_proposals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "changes": {
+          "name": "changes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_span": {
+          "name": "source_span",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "card_evolution_proposals_pending_unique": {
+          "name": "card_evolution_proposals_pending_unique",
+          "columns": ["character_id", "chat_id"],
+          "isUnique": true,
+          "where": "status = 'pending'"
+        }
+      },
+      "foreignKeys": {
+        "card_evolution_proposals_character_id_characters_id_fk": {
+          "name": "card_evolution_proposals_character_id_characters_id_fk",
+          "tableFrom": "card_evolution_proposals",
+          "tableTo": "characters",
+          "columnsFrom": ["character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "card_evolution_proposals_chat_id_chats_id_fk": {
+          "name": "card_evolution_proposals_chat_id_chats_id_fk",
+          "tableFrom": "card_evolution_proposals",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "card_evolution_proposals_status_check": {
+          "name": "card_evolution_proposals_status_check",
+          "value": "status in ('pending', 'accepted', 'dismissed', 'superseded')"
         }
       }
     },
@@ -2125,6 +2648,422 @@
           "tableFrom": "pending_turns",
           "tableTo": "users",
           "columnsFrom": ["run_as_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "crew_chats": {
+      "name": "crew_chats",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "config": {
+          "name": "config",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "keeper_last_seq": {
+          "name": "keeper_last_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "card_evolution_last_seq": {
+          "name": "card_evolution_last_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "director_turn_counter": {
+          "name": "director_turn_counter",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crew_chats_chat_id_chats_id_fk": {
+          "name": "crew_chats_chat_id_chats_id_fk",
+          "tableFrom": "crew_chats",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "crew_edit_proposals": {
+      "name": "crew_edit_proposals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "variant_id": {
+          "name": "variant_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "proposed_content": {
+          "name": "proposed_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "audited_hash": {
+          "name": "audited_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "original_content": {
+          "name": "original_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "resolved_at": {
+          "name": "resolved_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "crew_edit_proposals_pending_variant_unique": {
+          "name": "crew_edit_proposals_pending_variant_unique",
+          "columns": ["variant_id"],
+          "isUnique": true,
+          "where": "status = 'pending'"
+        }
+      },
+      "foreignKeys": {
+        "crew_edit_proposals_chat_id_chats_id_fk": {
+          "name": "crew_edit_proposals_chat_id_chats_id_fk",
+          "tableFrom": "crew_edit_proposals",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "crew_edit_proposals_message_id_messages_id_fk": {
+          "name": "crew_edit_proposals_message_id_messages_id_fk",
+          "tableFrom": "crew_edit_proposals",
+          "tableTo": "messages",
+          "columnsFrom": ["message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "crew_edit_proposals_variant_id_message_variants_id_fk": {
+          "name": "crew_edit_proposals_variant_id_message_variants_id_fk",
+          "tableFrom": "crew_edit_proposals",
+          "tableTo": "message_variants",
+          "columnsFrom": ["variant_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "crew_edit_proposals_status_check": {
+          "name": "crew_edit_proposals_status_check",
+          "value": "status in ('pending', 'accepted', 'dismissed', 'superseded', 'stale')"
+        }
+      }
+    },
+    "crew_guides": {
+      "name": "crew_guides",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "guide_key": {
+          "name": "guide_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "injection_id": {
+          "name": "injection_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "template": {
+          "name": "template",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "depth": {
+          "name": "depth",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'system'"
+        },
+        "labeled": {
+          "name": "labeled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "auto_refresh": {
+          "name": "auto_refresh",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "last_refresh_seq": {
+          "name": "last_refresh_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_refresh_at": {
+          "name": "last_refresh_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crew_guides_chat_id_chats_id_fk": {
+          "name": "crew_guides_chat_id_chats_id_fk",
+          "tableFrom": "crew_guides",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "crew_guides_injection_id_chat_injections_id_fk": {
+          "name": "crew_guides_injection_id_chat_injections_id_fk",
+          "tableFrom": "crew_guides",
+          "tableTo": "chat_injections",
+          "columnsFrom": ["injection_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "crew_guides_chat_id_guide_key_pk": {
+          "columns": ["chat_id", "guide_key"],
+          "name": "crew_guides_chat_id_guide_key_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "crew_guides_role_check": {
+          "name": "crew_guides_role_check",
+          "value": "role in ('system', 'user', 'assistant')"
+        }
+      }
+    },
+    "crew_plots": {
+      "name": "crew_plots",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "arc": {
+          "name": "arc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "twists": {
+          "name": "twists",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "retired_twists": {
+          "name": "retired_twists",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "guidance": {
+          "name": "guidance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "last_pass_seq": {
+          "name": "last_pass_seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "crew_plots_chat_id_chats_id_fk": {
+          "name": "crew_plots_chat_id_chats_id_fk",
+          "tableFrom": "crew_plots",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -5634,7 +6573,7 @@
       "checkConstraints": {
         "workloads_kind_check": {
           "name": "workloads_kind_check",
-          "value": "kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state')"
+          "value": "kind in ('embed-corpus', 'embed-assets', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'import-st', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'crew-lorebook-keeper', 'crew-card-evolution', 'crew-director', 'crew-prose-audit')"
         },
         "workloads_status_check": {
           "name": "workloads_status_check",
