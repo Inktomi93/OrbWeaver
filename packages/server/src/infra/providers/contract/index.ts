@@ -51,11 +51,15 @@ export type {
   ChatResult,
   ChatUsage,
   CostDetails,
+  HistoryRole,
   NormalizedFinishReason,
   OpenRouterChatRequest,
+  ResponseFormat,
+  ToolChoice,
+  WireTool,
 } from "./chat";
-// ── Infra-internal: the chat role (request/result/usage/finish vocab) ────────────────────────────
-export { NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "./chat";
+// ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
+export { HISTORY_ROLES, NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "./chat";
 // ── Infra-internal: the diagnostic request shapes + the bound diagnostic surface ─────────────────
 export type {
   AccountCreditsRequest,

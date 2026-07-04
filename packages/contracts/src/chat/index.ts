@@ -467,7 +467,26 @@ export type ChatDeltaEvent =
  *  `ChatHistoryMessage` imports it. Distinct from the D44 RENDER `MessageContentBlock` (display ⇆ client). */
 export type ChatContentPart =
   | { readonly type: "text"; readonly text: string }
-  | { readonly type: "image"; readonly url: string };
+  | { readonly type: "image"; readonly url: string }
+  /* The D48 tool exchange (tool-use-design/02 §1): parts are the WIRE form only — persisted form is
+   * `ToolCallRecord[]` on the variant (never markdown in a body, never a slot row); assembly MATERIALIZES
+   * a recorded exchange into `assistant(tool-call)` + `tool(tool-result)` messages at the engine REQUEST
+   * seam, so the string-shaped assemble/SHAPE transforms stay parts-blind (the D51 law, both directions). */
+  | {
+      readonly type: "tool-call"; // assistant emits — one per model-requested call
+      readonly toolCallId: string;
+      readonly name: string;
+      /** RAW model-emitted JSON string (parsed once, at execute). */
+      readonly arguments: string;
+    }
+  | {
+      readonly type: "tool-result"; // the wire `tool` role carries — one per executed call
+      /** Joins back to the originating tool-call. */
+      readonly toolCallId: string;
+      /** The record's `result` JSON document. */
+      readonly content: string;
+      readonly isError?: boolean | undefined;
+    };
 
 /** Why the engine dropped content from a turn (the domain-originated `warning` bus event — distinct from the
  *  infra runner's `ResolvedWarning`/`WARNING_CODES`, which report resolve/wire drops). One home; the union is

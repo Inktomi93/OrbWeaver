@@ -3,7 +3,12 @@
 // mapping, the case-insensitive fold, the null/empty passthrough, and the "never silently a stop"
 // fallback (an unrecognized non-null value → "other", not "stop").
 
-import { NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "@orb/server/infra/providers";
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import {
+  HISTORY_ROLES,
+  NORMALIZED_FINISH_REASONS,
+  normalizeFinishReason,
+} from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -51,5 +56,18 @@ describe("normalizeFinishReason — the cross-backend finish-reason map", () => 
       "tool",
       "other",
     ]);
+  });
+});
+
+describe("HISTORY_ROLES — the D48 wire-axis role tuple (tool-use-design/02 §1)", () => {
+  test("is exactly user/assistant/tool — the tool role exists ONLY on the wire axis", () => {
+    expect([...HISTORY_ROLES]).toStrictEqual(["user", "assistant", "tool"]);
+  });
+
+  test("stays a DISTINCT axis from kit MESSAGE_ROLES (persisted roles gain no 'tool'; wire gains no 'system')", () => {
+    // The two tuples deliberately diverge on both sides: `system` rides `systemPrompt`, never
+    // history; `tool` is a materialized wire message, never a persisted slot role (D48).
+    expect(MESSAGE_ROLES).not.toContain("tool");
+    expect(HISTORY_ROLES).not.toContain("system");
   });
 });

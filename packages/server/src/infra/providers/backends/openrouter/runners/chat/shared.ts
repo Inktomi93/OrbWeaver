@@ -18,6 +18,7 @@ import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
 import {
+  assertMappedHistoryRole,
   cacheControlBlock,
   chatHistoryText,
   effectiveProviderRouting,
@@ -94,7 +95,7 @@ export function buildHistoryMessages(history: readonly ChatHistoryMessage[]): Ch
       continue;
     }
     messages.push({
-      role: turn.role,
+      role: assertMappedHistoryRole(turn.role),
       content: text,
       ...(turn.name !== undefined ? { name: turn.name } : {}),
     });

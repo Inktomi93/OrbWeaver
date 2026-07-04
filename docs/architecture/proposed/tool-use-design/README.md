@@ -43,22 +43,22 @@ streamed-then-parsed — with validation + ONE bounded retry owned by the CALLER
 | [`04-structured-output.md`](04-structured-output.md) | the `responseFormat` lifecycle end-to-end, validation ownership (caller + `runStructuredAgentTurn`), streaming-stays-on, per-backend realization, the tools × responseFormat exclusivity LEAN |
 | [`05-build-plan-and-resolutions.md`](05-build-plan-and-resolutions.md) | the committed doc's §8 open questions → verdicts/LEANs, build chunks T1–T7 (sizes, dependencies, checkpoints, per-chunk test plans), review flags |
 
-## Landed vs remaining (verified against the tree, 2026-07-01)
+## Landed vs remaining (verified against the tree, 2026-07-03 — the T1 landing)
 
 The committed doc's §1 "born-compliant callout" is a MIXED list — part landed, part
-deferred-blessed. The truth (PD-54's row is accurate; commit `1d18f17`'s message is explicit that
-ONLY the gates landed):
+deferred-blessed. The truth (PD-54's row is the running record):
 
 | §1 item | State | Where |
 |---|---|---|
 | `ModelCapability.tools?: {parallel}` + `output.structured?` gates | **LANDED** (`1d18f17`) | `packages/contracts/src/connection/index.ts` |
-| `HISTORY_ROLES` tuple + the wire `tool` role | **NOT landed** — deferred-blessed, ships with the loop (PD-54) | target: `infra/providers/contract/chat.ts` (role is still `"user" \| "assistant"`) |
-| `tool-call` / `tool-result` `ChatContentPart` members | **NOT landed** | target: `@orb/contracts/chat` (NOT the infra contract — D51 re-homed `ChatContentPart` there; the committed doc's §1 pre-dates D51) |
-| `ToolCallRecord` DTO + `message_variants.toolCalls` retype | **NOT landed** — column exists untyped-open (D37) | `packages/db/src/schema/chat.ts` `toolCalls` |
-| `tools?`/`toolChoice?`/`responseFormat?` request fields | **NOT landed** | `infra/providers/contract/chat.ts` `ChatRequest` arms |
-| `tools_unsupported` + `structured_output_unsupported` warning codes | **NOT landed**; home corrected to `CHAT_WARNING_CODES` per D51 (02 §5) | `@orb/contracts/chat` |
+| `HISTORY_ROLES` tuple + the wire `tool` role | **LANDED** (T1, 2026-07-03) — plus the kit `assertMappedHistoryRole` T1→T2 bridge (a tool-role turn reaching a translator pre-T2 throws) | `infra/providers/contract/chat.ts`; guard in `backends/kit/history.ts` |
+| `tool-call` / `tool-result` `ChatContentPart` members | **LANDED** (T1, 2026-07-03) — exhaustive-member pin in `tests/contracts/chat/index.test-d.ts` | `@orb/contracts/chat` (the D51 home) |
+| `ToolCallRecord` DTO + `message_variants.toolCalls` retype | **LANDED** (2026-07-02, schema leaf); round-trip pinned in the contract suite | `@orb/contracts/chat` + `packages/db/src/schema/chat.ts` |
+| `tools?`/`toolChoice?`/`responseFormat?` request fields (+ `WireTool`/`ToolChoice`/`ResponseFormat`) | **LANDED** (T1, 2026-07-03) — both wire arms; the agent-sdk arm carries NONE (type-pinned in `chat.test-d.ts`) | `infra/providers/contract/chat.ts` `ChatRequest` arms |
+| `tools_unsupported` + `structured_output_unsupported` warning codes | **NOT landed** — deliberately: a code lands in the SAME PR as its first emit site (05 §T1 checkpoint); the emit sites are T4/T6's gates. Home stays `CHAT_WARNING_CODES` per D51 (02 §5) | `@orb/contracts/chat` |
 | `NormalizedFinishReason` `"tool"` + `FINISH_REASON_MAP` | **LANDED** (pre-existing) | `infra/providers/contract/chat.ts` |
-| The recurse loop | **ABSENT** (PD-54 "ready"; being scoped/built with chat P5 RIGHT NOW — this set describes THAT loop, not a second one) | `domain/chat/engine/` |
+| T2 (translator mappings + the stream accumulator + `ChatResult.toolCalls`) | **NOT landed** — next chunk; deletes the three `assertMappedHistoryRole` call sites as each mapping lands | translators + `openai-compat/stream.ts` |
+| The recurse loop | **ABSENT** (T4 — coordinated behind the AP3 engine work; this set describes THAT loop, not a second one) | `domain/chat/engine/` |
 
 ## Standing decisions a cold agent must not re-litigate
 

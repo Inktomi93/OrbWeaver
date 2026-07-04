@@ -1,4 +1,10 @@
-import type { ChatBusEvent, InviteView, MessageSlot, MessageView } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  ChatContentPart,
+  InviteView,
+  MessageSlot,
+  MessageView,
+} from "@orb/contracts/chat";
 import { expectTypeOf, test } from "vitest";
 
 // Type-level pins for the chat contract (moved out of `.contract.test.ts` per core/Spine-Testing.md §1 — the
@@ -41,4 +47,20 @@ test("ChatBusEvent cannot represent a secret / credential / baseUrl / caller id 
 // ── InviteView exposes no token (raw or hashed) — a leak would let anyone redeem ──────────────────────
 test("InviteView has no token field at the type level (no redeem-token leak)", () => {
   expectTypeOf<UnionMemberHasKey<InviteView, "token">>().toEqualTypeOf<false>();
+});
+
+// ── ChatContentPart — the D48 exhaustive-member pin (tool-use-design/02 §1) ───────────────────────────
+// A translator maps parts by `type`; this pin makes ADDING a member a visible red HERE (update the
+// literal union below + audit every translator's dispatch — the D45 image-parts landing discipline).
+test("ChatContentPart is exactly text|image|tool-call|tool-result; tool parts carry the wire join", () => {
+  expectTypeOf<ChatContentPart["type"]>().toEqualTypeOf<
+    "text" | "image" | "tool-call" | "tool-result"
+  >();
+  // The exchange join: both tool members carry toolCallId; neither leaks a parsed-arguments object.
+  expectTypeOf<
+    Extract<ChatContentPart, { type: "tool-call" }>["arguments"]
+  >().toEqualTypeOf<string>();
+  expectTypeOf<
+    Extract<ChatContentPart, { type: "tool-result" }>["content"]
+  >().toEqualTypeOf<string>();
 });

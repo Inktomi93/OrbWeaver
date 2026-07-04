@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit";
 import {
+  assertMappedHistoryRole,
   buildOpenAiSamplingFields,
   chatHistoryText,
   IDLE_TIMEOUT_MS,
@@ -59,8 +60,12 @@ function toMessages(req: VllmChatTurn): WireMessage[] {
     .join("\n\n");
   const history: WireMessage[] = req.history.map((h) =>
     h.name === undefined
-      ? { role: h.role, content: chatHistoryText(h.content) }
-      : { role: h.role, content: chatHistoryText(h.content), name: h.name },
+      ? { role: assertMappedHistoryRole(h.role), content: chatHistoryText(h.content) }
+      : {
+          role: assertMappedHistoryRole(h.role),
+          content: chatHistoryText(h.content),
+          name: h.name,
+        },
   );
   return system.length > 0 ? [{ role: "system", content: system }, ...history] : history;
 }

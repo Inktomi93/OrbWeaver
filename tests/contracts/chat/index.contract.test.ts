@@ -33,6 +33,7 @@ import {
   previewInviteSchema,
   redeemInviteSchema,
   roomOverridesSchema,
+  toolCallRecordSchema,
 } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -480,4 +481,39 @@ test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad ass
       { kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "" },
     ]),
   ).toThrow();
+});
+
+// ── toolCallRecordSchema (D48/PD-54 T1) — the db read-seam parse for `message_variants.toolCalls` ────
+test("toolCallRecordSchema round-trips an executed record AND the recorded-unexecuted shape", () => {
+  const executed = {
+    toolCallId: "call_abc123",
+    name: "tick_clock",
+    arguments: '{"minutes":30}',
+    result: '{"advanced":true}',
+    isError: false,
+    durationMs: 12,
+  };
+  expect(toolCallRecordSchema.parse(executed)).toEqual(executed);
+
+  // Recurse-limit hit: recorded-but-unexecuted ⇔ result:null + durationMs:null (03 §2.2).
+  const unexecuted = { ...executed, result: null, durationMs: null };
+  expect(toolCallRecordSchema.parse(unexecuted)).toEqual(unexecuted);
+
+  // isError is authoritative for chip styling — an error result is still a JSON document string.
+  const errored = { ...executed, result: '{"error":"party is mid-combat"}', isError: true };
+  expect(toolCallRecordSchema.parse(errored)).toEqual(errored);
+});
+
+test("toolCallRecordSchema refuses a structurally wrong record (no cast-shaped reads)", () => {
+  // `arguments` must stay the RAW string — a pre-parsed object is the exact drift the schema exists to catch.
+  expect(
+    toolCallRecordSchema.safeParse({
+      toolCallId: "call_x",
+      name: "n",
+      arguments: { minutes: 30 },
+      result: null,
+      isError: false,
+      durationMs: null,
+    }).success,
+  ).toBe(false);
 });
