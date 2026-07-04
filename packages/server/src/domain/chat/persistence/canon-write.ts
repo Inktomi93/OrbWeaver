@@ -22,7 +22,7 @@
 // TYPES-IN-CONTRACT: the param shapes are FILE-LOCAL (the `types-in-contract` gate forbids an exported
 // feature type outside contract/); callers pass a structurally-matching literal (TS infers at the call site).
 
-import type { AssembledPrompt, MessageView } from "@orb/contracts/chat";
+import type { AssembledPrompt, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
@@ -63,6 +63,9 @@ interface CanonVariantInput {
   /** D46 runtime plane — the ordered variable ops this variant applied (the turn's macro op-log). Absent/[] ⇒
    *  no variable mutations; persisted as-is and folded (`foldVarOps`) into `chats.runtime_variables`. */
   readonly variableDelta?: readonly VarOp[] | null | undefined;
+  /** D48 — the turn's cumulative tool exchange (emission/execution order across every recursion depth;
+   *  tool-use-design/03 §3). Null/absent ⇒ a tool-less turn (never []). */
+  readonly toolCalls?: readonly ToolCallRecord[] | null | undefined;
 }
 
 /** The slot attribution (D26 — SLOT-level; a swipe never re-voices). All nullable per role. */
@@ -139,6 +142,7 @@ function variantColumns(args: {
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
+    toolCalls: args.variant.toolCalls ?? null,
     createdAt: args.now,
   };
 }
@@ -262,6 +266,7 @@ export function continueVariantStatements(
           // A continue re-runs assembly (macros fire again) → its op-log REPLACES this variant's delta (the
           // variant keeps its identity; its recorded mutations are the latest run's — D46).
           variableDelta: params.variant.variableDelta ?? null,
+          toolCalls: params.variant.toolCalls ?? null,
           preContinueContent: params.preContinueContent,
           preContinueReasoning: params.preContinueReasoning,
           lastContinuationContent: params.lastContinuationContent,

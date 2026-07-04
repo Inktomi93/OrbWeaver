@@ -32,6 +32,8 @@ import type {
   ChatContext,
   ChatService,
   ChatServiceDeps,
+  ChatToolOps,
+  ChatToolSet,
   PresenceReadOp,
   TurnRequest,
   TurnStreamChunk,
@@ -57,6 +59,7 @@ import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta } from "#domain/stats";
+import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
@@ -82,6 +85,9 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
 /** What `buildChatService` needs from the composition root — the boot primitives + the already-built sibling
  *  services chat's injected ops route through (their FRONT DOORS only; chat never sideways-imports them). */
 export interface ChatComposeInput {
+  /** The D48 tool-use service (optional — absent wires `ChatContext.tools` to null, the byte-identical
+   *  no-op; tool-use-design/03 §1). Present from services.ts once ANY registrant/consumer exists. */
+  readonly toolUse?: ToolUseService | undefined;
   readonly db: Db;
   readonly now: () => number;
   /** The lock-holder tag for this replica (also used by the boot lock reclaim — one source of truth). */
@@ -141,6 +147,31 @@ export interface ChatComposeResult {
  * collaborator. Returns the service AND the bus emit (see {@link ChatComposeResult} — world-info publishes
  * its `WiBusEvent` through the SAME durable-first bus so WI attachment changes land in `chat_events`).
  */
+// The ChatToolOps adapter (tool-use-design/03 §1): chat's opaque `ChatToolSet` IS the `ResolvedToolSet`
+// this seam minted via `resolveTools` (chat never constructs one — the AgentToolServer opacity pattern);
+// the exec frame's `runAsUserId` resolves to the LIVE host `Principal` here (PD-73 — the engine stays
+// Principal-blind; D19: the host funds and authorizes the tool run).
+function buildChatToolOps(
+  toolUse: ToolUseService,
+  resolveHostPrincipal: (userId: UserId) => Promise<Principal>,
+): ChatToolOps {
+  // Entry re-narrows what it minted — the ONE contained narrow for the opaque seam.
+  // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
+  const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
+  return {
+    resolveTools: (names) => toolUse.resolveTools(names),
+    toWireTools: (set) => toolUse.toWireTools(asResolvedSet(set)),
+    executeToolCalls: async (set, calls, frame) =>
+      toolUse.executeToolCalls(asResolvedSet(set), calls, {
+        principal: await resolveHostPrincipal(frame.runAsUserId),
+        triggeredBy: frame.triggeredBy,
+        chatId: frame.chatId,
+        roster: frame.roster,
+        ...(frame.signal !== undefined ? { signal: frame.signal } : {}),
+      }),
+  };
+}
+
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now } = input;
 
@@ -236,6 +267,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
     applyRegexReplace: createRegexApplyReplace(),
+    // D48: the injected tool ops — null until a registrant/consumer wires the service in services.ts.
+    tools:
+      input.toolUse === undefined
+        ? null
+        : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
     // The chat ROLE expects a STREAMING `(TurnRequest) => AsyncIterable<TurnStreamChunk>`,
     // but `infra/providers` exposes only `(ChatRequest) => Promise<ChatResult>` (different request shape + a
     // non-streaming Promise + a callback `onDelta` stream). The bridging slice maps the shapes and yields the stream.
@@ -286,6 +322,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
               history: req.history as any,
               historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
+              // D48: absent stays ABSENT (byte-identical pre-D48 request without tools).
+              ...(req.tools !== undefined ? { tools: req.tools } : {}),
+              ...(req.toolChoice !== undefined ? { toolChoice: req.toolChoice } : {}),
               onDelta,
               signal: req.signal,
             };
@@ -309,6 +348,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               finishReason: result.finishReason,
               stopReason: result.stopReason,
               terminalReason: result.terminalReason,
+              // D48: the reducer-assembled calls ride the final chunk (the loop's pivot input).
+              ...(result.toolCalls !== undefined ? { toolCalls: result.toolCalls } : {}),
             },
           });
           done = true;

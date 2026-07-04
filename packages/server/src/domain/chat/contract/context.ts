@@ -18,10 +18,10 @@
 // precise param/result shapes (the rich search hit/result + the embeddings store-params are not on the seam node).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatBusEvent, GroupConfig, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
+import type { AgentSourceKind, Can, ChatRoster, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec } from "@orb/contracts/preset";
@@ -46,6 +46,7 @@ import type {
 } from "@orb/kit/ids";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { AuditEntry } from "#foundation/observability";
+import type { ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns";
 import type { ResolveForeignInputsOp } from "./foreign";
 import type { MemoryLog } from "./memory";
@@ -65,6 +66,43 @@ export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexR
  *  streams chunks back (text/reasoning deltas + a terminal `final` economics chunk). The 4 per-backend
  *  dispatch arms collapse into this ONE call; the runner translates `TurnRequest` → its sealed request. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
+
+// ── The tool ops (D48 — the recurse loop's injected seam; tool-use-design/03 §1) ──────────────────
+/** OPAQUE to chat: the resolved tool set `resolveTools` returns and the other two ops accept (the D47
+ *  `AgentToolServer` precedent — chat never looks inside; resolving once per turn then projecting +
+ *  executing against the SAME value is the whole contract). */
+export type ChatToolSet = unknown;
+
+/** The identity frame the loop hands `executeToolCalls`. Deliberately NO `Principal`: the engine is
+ *  Principal-BLIND (the turn-identity gate) — the entry adapter resolves `runAsUserId` → the live host
+ *  `Principal` (the PD-73 `createHostPrincipalResolver` pattern; D19 — the host funds and authorizes).
+ *  `roster` is the CALLER-loaded membership fed to `can()` for chat-scoped ceilings (chat loads, the
+ *  seam decides); null until a chat-scoped registrant exists (rpg — the verb layer supplies it then). */
+export interface ChatToolExecFrame {
+  readonly runAsUserId: UserId;
+  readonly triggeredBy: UserId;
+  readonly chatId: ChatId;
+  readonly roster: ChatRoster | null;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** The injected tool-use op bundle (`entry` wires it to `ToolUseService`; chat and tool-use never
+ *  import each other). `ChatContext.tools` is `null` when tool-use isn't wired (tests, minimal
+ *  deploys) — a plain chat attaches nothing either way, so the request never carries `tools` and
+ *  `finishReason:"tool"` cannot occur: the loop degenerates to exactly one `runChatTurn` call, and
+ *  the assembled request is BYTE-IDENTICAL wired-unattached vs null (the 05 §T4 pin). */
+export interface ChatToolOps {
+  /** Attach-time resolve (throws on an unknown name — a wiring bug, never model data). */
+  readonly resolveTools: (names: readonly string[]) => ChatToolSet;
+  /** Registry → the wire `tools[]` (the cached JSON-schema projections, resolve order). */
+  readonly toWireTools: (set: ChatToolSet) => readonly WireTool[];
+  /** The ONE execute path — sequential, errors-as-data; never throws per-call. */
+  readonly executeToolCalls: (
+    set: ChatToolSet,
+    calls: readonly ToolCallInput[],
+    frame: ChatToolExecFrame,
+  ) => Promise<readonly ToolCallRecord[]>;
+}
 
 // ── Connection / credentials (per-turn resolution) ───────────
 /** `connection.resolveChat` — resolve `{api, model, credential, capability}` for a turn from the chat row's
@@ -305,6 +343,8 @@ export interface ChatContext {
   // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   readonly runChatTurn: RunChatTurnOp;
+  /** The D48 tool ops (`null` = tool-use not wired — byte-identical no-op; tool-use-design/03 §1). */
+  readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;

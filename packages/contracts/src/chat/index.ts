@@ -494,6 +494,9 @@ export type ChatContentPart =
 export const CHAT_WARNING_CODES = [
   // Image parts were stripped because the resolved model's `input.vision` isn't true (D45).
   "image_dropped",
+  // Tools were attached but `capability.tools` is absent → dropped; the turn proceeds tool-less
+  // (D48; the domain-side gate per D51's rule — the emit site is the engine's attach gate).
+  "tools_unsupported",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 

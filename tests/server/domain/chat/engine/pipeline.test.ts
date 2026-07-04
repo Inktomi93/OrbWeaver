@@ -1,7 +1,12 @@
 // engine/pipeline — the per-turn execution pipeline: assemble→shape→fit→request→reduce. Pins the stream
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
-import type { AssembleContext, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatDeltaEvent,
+  MessageView,
+  ToolCallRecord,
+} from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
@@ -11,8 +16,14 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
-import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
+import type {
+  ChatToolOps,
+  RunChatTurnOp,
+} from "../../../../../packages/server/src/domain/chat/contract/context";
+import type {
+  TurnRequest,
+  TurnStreamChunk,
+} from "../../../../../packages/server/src/domain/chat/contract/results";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -83,6 +94,17 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     chatId: castId<ChatId>("chat_a"),
     onDelta: (d: ChatDeltaEvent): void => {
       deltas.push(d);
+    },
+    // The D48 axis defaults: tool-use unwired + nothing attached — the loop degenerates to one call
+    // (the byte-identical no-op); the loop goldens override these.
+    tools: null,
+    attachedToolNames: [],
+    toolRecurseLimit: 5,
+    toolExecFrame: {
+      runAsUserId: castId("user_host"),
+      triggeredBy: castId("user_host"),
+      chatId: castId<ChatId>("chat_a"),
+      roster: null,
     },
     ...over,
   };
@@ -339,5 +361,203 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("<think>x</think>y");
     expect(result.reasoning).toBeNull();
+  });
+});
+
+// ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
+const TOOL_CAPABILITY = {
+  reasoning: { mode: "none", enabled: false },
+  sampling: {},
+  output: { maxTokens: { min: 1, max: 8192 } },
+  context: { window: 200_000 },
+  tools: { parallel: false },
+} as unknown as ModelCapability;
+
+const TOOL_CONNECTION: ResolvedConnection = { ...CONNECTION, capability: TOOL_CAPABILITY };
+
+/** A scripted role returning one chunk-set PER INVOCATION (depth k gets script[k]); captures requests. */
+function scriptedDepths(
+  scripts: readonly (readonly TurnStreamChunk[])[],
+  sink: TurnRequest[],
+): RunChatTurnOp {
+  let call = 0;
+  return (req) => {
+    sink.push(req);
+    const chunks = scripts[Math.min(call, scripts.length - 1)] ?? [];
+    call += 1;
+    return (async function* (): AsyncGenerator<TurnStreamChunk> {
+      await Promise.resolve();
+      for (const c of chunks) {
+        yield c;
+      }
+    })();
+  };
+}
+
+const toolFinal = (
+  content: string,
+  calls: readonly { id: string; name: string; args: string }[],
+): TurnStreamChunk => ({
+  kind: "final",
+  economics: {
+    content,
+    tokensIn: 10,
+    tokensOut: 5,
+    costUsd: 0.01,
+    finishReason: "tool",
+    toolCalls: calls.map((c) => ({ toolCallId: c.id, name: c.name, arguments: c.args })),
+  },
+});
+
+const doneFinal = (content: string): TurnStreamChunk => ({
+  kind: "final",
+  economics: { content, tokensIn: 7, tokensOut: 3, costUsd: 0.02, finishReason: "stop" },
+});
+
+/** A fake ChatToolOps: echoes executions as records; `failWith` makes every call errors-as-data. */
+function fakeToolOps(executed: string[][], failWith?: string): ChatToolOps {
+  return {
+    resolveTools: (names) => ({ marker: "resolved-set", names }),
+    toWireTools: () => [{ name: "tick_clock", description: "d", parameters: { type: "object" } }],
+    executeToolCalls: (_set, calls): Promise<ToolCallRecord[]> => {
+      executed.push(calls.map((c) => c.name));
+      return Promise.resolve(
+        calls.map((c) => ({
+          toolCallId: c.toolCallId,
+          name: c.name,
+          arguments: c.arguments,
+          result:
+            failWith === undefined
+              ? JSON.stringify({ ok: c.name })
+              : JSON.stringify({ error: failWith }),
+          isError: failWith !== undefined,
+          durationMs: 1,
+        })),
+      );
+    },
+  };
+}
+
+describe("runTurnPipeline — the D48 recurse loop", () => {
+  test("loop golden: emits calls → executes → recurses with the exchange → finishes; content + usage aggregate", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths(
+        [
+          [toolFinal("The clock ticks... ", [{ id: "c1", name: "tick_clock", args: '{"m":30}' }])],
+          [doneFinal("Half an hour passes.")],
+        ],
+        requests,
+      ),
+    });
+    const result = await runTurnPipeline(args);
+
+    // Two role calls; the first carried the wire tools + the LOOP's auto default.
+    expect(requests).toHaveLength(2);
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["tick_clock"]);
+    expect(requests[0]?.toolChoice).toEqual({ mode: "auto" });
+    // The recursed request's history grew by the materialized exchange: assistant(tool-call) + tool(result).
+    const secondHistory = requests[1]?.history ?? [];
+    const appended = secondHistory.slice((requests[0]?.history ?? []).length);
+    expect(appended.map((m) => m.role)).toEqual(["assistant", "tool"]);
+    expect(
+      appended[0]?.content.some((p) => p.type === "tool-call" && p.name === "tick_clock"),
+    ).toBe(true);
+    expect(
+      appended[1]?.content.some((p) => p.type === "tool-result" && p.toolCallId === "c1"),
+    ).toBe(true);
+    // Executed once, in order; records land on the result in execution order.
+    expect(executed).toEqual([["tick_clock"]]);
+    expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
+    expect(result.toolRecords[0]?.isError).toBe(false);
+    // Prose flows across depths into ONE variant; usage sums into one economics row.
+    expect(result.content).toBe("The clock ticks... Half an hour passes.");
+    expect(result.economics?.tokensIn).toBe(17);
+    expect(result.economics?.tokensOut).toBe(8);
+    expect(result.economics?.costUsd).toBeCloseTo(0.03);
+    expect(result.toolsUnsupported).toBe(false);
+  });
+
+  test("limit boundary: the limit-th depth RECORDS the pending calls unexecuted (result:null) and stops", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const always = toolFinal("more... ", [{ id: "cX", name: "tick_clock", args: "{}" }]);
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      toolRecurseLimit: 2,
+      runChatTurn: scriptedDepths([[always]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    // Depths 0 and 1 execute; the limit hit at depth 2 records-without-executing and ends the turn.
+    expect(requests).toHaveLength(3);
+    expect(executed).toHaveLength(2);
+    expect(result.toolRecords).toHaveLength(3);
+    const last = result.toolRecords.at(-1);
+    expect(last?.result).toBeNull();
+    expect(last?.isError).toBe(false);
+    expect(last?.durationMs).toBeNull();
+  });
+
+  test("errors-as-data feedback is VISIBLE to the recursed model (the tool message carries the error document)", async () => {
+    const requests: TurnRequest[] = [];
+    const { args } = baseArgs({
+      connection: TOOL_CONNECTION,
+      tools: fakeToolOps([], "party is mid-combat"),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths(
+        [
+          [toolFinal("", [{ id: "c1", name: "tick_clock", args: "{}" }])],
+          [doneFinal("I cannot do that right now.")],
+        ],
+        requests,
+      ),
+    });
+    const result = await runTurnPipeline(args);
+    const toolRow = requests[1]?.history.at(-1);
+    const resultPart = toolRow?.content.find((p) => p.type === "tool-result");
+    const narrowed = resultPart?.type === "tool-result" ? resultPart : null;
+    expect(JSON.parse(narrowed?.content ?? "{}")).toEqual({ error: "party is mid-combat" });
+    expect(narrowed?.isError).toBe(true);
+    expect(result.toolRecords[0]?.isError).toBe(true);
+  });
+
+  test("byte-identity pin (05 §T4): tools null vs wired-but-unattached — the request is deep-equal, no tools field", async () => {
+    const reqA: TurnRequest[] = [];
+    const reqB: TurnRequest[] = [];
+    const depthScript = [[doneFinal("hi")]];
+    const { args: a } = baseArgs({ tools: null, runChatTurn: scriptedDepths(depthScript, reqA) });
+    const { args: b } = baseArgs({
+      tools: fakeToolOps([]),
+      attachedToolNames: [],
+      runChatTurn: scriptedDepths(depthScript, reqB),
+    });
+    await runTurnPipeline(a);
+    await runTurnPipeline(b);
+    expect(reqA[0]).not.toHaveProperty("tools");
+    expect(reqB[0]).not.toHaveProperty("tools");
+    expect(JSON.stringify(reqA[0])).toBe(JSON.stringify(reqB[0]));
+  });
+
+  test("the capability gate: attached but capability.tools absent → dropped + flagged; ONE call, no tools field", async () => {
+    const requests: TurnRequest[] = [];
+    const executed: string[][] = [];
+    const { args } = baseArgs({
+      // CONNECTION (no tools capability) — the gate drops the attachment.
+      tools: fakeToolOps(executed),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths([[doneFinal("plain reply")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(executed).toHaveLength(0);
+    expect(result.toolsUnsupported).toBe(true);
+    expect(result.toolRecords).toEqual([]);
   });
 });

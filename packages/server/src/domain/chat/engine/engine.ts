@@ -26,6 +26,7 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
 import type {
   TurnEconomics,
   TurnEngine,
@@ -35,7 +36,6 @@ import type {
   TurnPersist,
   TurnPrep,
 } from "../contract/results";
-
 import {
   appendVariantStatements,
   buildCommittedMessageView,
@@ -164,6 +164,8 @@ function variantPayloadOf(
     // context, by-reference) IS this variant's delta — COPIED (the shared per-round array is cleared after each
     // speaker's commit, so a snapshot must not alias it). Empty ⇒ persisted as null (the "no mutations" contract).
     variableDelta: [...(prep.assembleContext.opLog ?? [])],
+    // D48 — the turn's cumulative tool exchange; [] ⇒ null (a tool-less turn persists no column value).
+    toolCalls: result.toolRecords.length > 0 ? result.toolRecords : null,
   };
 }
 
@@ -368,6 +370,19 @@ async function executeTurn(
       // Thread the caller's abort signal → the role; the runner aborts its
       // in-flight request when signalled (a single engine turn is now interruptible mid-generation).
       signal: prep.signal,
+      // The D48 recurse-loop axis (tool-use-design/03): ops off ctx; names/roster/limit off prep (the
+      // GATHER union — empty today, so the loop degenerates and the request stays byte-identical); the
+      // exec frame stays Principal-BLIND (runAsUserId — the entry adapter resolves the host Principal).
+      tools: ctx.tools,
+      attachedToolNames: prep.attachedToolNames ?? [],
+      toolRecurseLimit: prep.toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT,
+      toolExecFrame: {
+        runAsUserId: prep.runAsUserId,
+        triggeredBy: prep.triggeredBy,
+        chatId: prep.chatId,
+        roster: prep.toolRoster ?? null,
+        signal: prep.signal,
+      },
       onDelta: (delta) => {
         void deps.emit({ type: "delta", chatId: prep.chatId, delta });
       },
@@ -375,6 +390,11 @@ async function executeTurn(
     // D45: image parts were stripped for a non-vision model — surface it (once per turn) on the bus.
     if (result.imageDropped) {
       await deps.emit({ type: "warning", chatId: prep.chatId, code: "image_dropped" });
+    }
+    // D48: tools were attached but the model's capability lacks `tools` — dropped, ran tool-less (D51's
+    // domain-side gate; the code's ONE emit site).
+    if (result.toolsUnsupported) {
+      await deps.emit({ type: "warning", chatId: prep.chatId, code: "tools_unsupported" });
     }
     const view = await commitGeneration({
       ctx,

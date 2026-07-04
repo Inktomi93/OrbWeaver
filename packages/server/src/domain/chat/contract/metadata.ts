@@ -37,7 +37,15 @@ export interface ChatMetadata {
   roomOverrides?: RoomOverrides;
   opening?: OpeningPolicy;
   providerRouting?: OpenRouterProviderRouting;
+  /** The D48 recurse-depth cap (tool-use-design/03 §2.1): a CHAT-level knob (in a multi-human room the
+   *  loop spends the HOST's money — D19 — so the funder tunes it), host-editable, seed 5. */
+  toolRecurseLimit?: number;
 }
+
+// The D48 recurse-limit knob (03 §2.1): bounded so a fat-fingered edit can't authorize a runaway chain.
+export const TOOL_RECURSE_LIMIT_DEFAULT = 5;
+const TOOL_RECURSE_LIMIT_MAX = 20;
+const toolRecurseLimitSchema = z.number().int().min(1).max(TOOL_RECURSE_LIMIT_MAX);
 
 /**
  * The declarative shape of the `chats.metadata` blob. LOOSE at the top level (unknown future fields are
@@ -52,6 +60,7 @@ export const chatMetadataSchema = z
     group: groupConfigSchema.optional().catch(undefined),
     roomOverrides: roomOverridesSchema.optional().catch(undefined),
     opening: openingPolicySchema.optional().catch(undefined),
+    toolRecurseLimit: toolRecurseLimitSchema.optional().catch(undefined),
   })
   .loose();
 
@@ -81,6 +90,10 @@ export function parseChatMetadata(raw: unknown): ChatMetadata {
   if (opening.success) {
     out.opening = opening.data;
   }
+  const recurse = toolRecurseLimitSchema.safeParse(obj["toolRecurseLimit"]);
+  if (recurse.success) {
+    out.toolRecurseLimit = recurse.data;
+  }
   // The providerRouting LEAF parse lives in connection (its one home) — returns `undefined` on a corrupt /
   // non-object blob, so it self-heals the same way.
   const routing = parseProviderRouting(obj["providerRouting"]);
@@ -107,4 +120,10 @@ export function getGroupConfig(rawMetadata: unknown): GroupConfig {
  */
 export function getRoomOverrides(rawMetadata: unknown): RoomOverrides {
   return parseChatMetadata(rawMetadata).roomOverrides ?? DEFAULT_ROOM_OVERRIDES;
+}
+
+/** The effective D48 recurse-depth cap for a chat's raw `metadata` blob — the parsed knob or the seed
+ *  default (5). Accepts the RAW column value (fault-isolated internally). */
+export function getToolRecurseLimit(rawMetadata: unknown): number {
+  return parseChatMetadata(rawMetadata).toolRecurseLimit ?? TOOL_RECURSE_LIMIT_DEFAULT;
 }
