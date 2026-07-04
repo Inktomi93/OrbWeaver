@@ -1,22 +1,27 @@
 // The streaming ghost row — the ONLY component in the tree that subscribes to token text (UI-Gates
-// §11.1 ghost-isolation). `useGhostText` mirrors the live turn's tokens via the render-free store
-// subscription, so a delta re-renders THIS row alone; the list, composer, and canon rows stay still.
-// The reveal is paced through `@orb/ui/stream useSmoothText` (grapheme-safe, reduced-motion passthrough)
-// and fed to `@orb/ui/markdown` as `trusted` (own AI output). Before the first token (pending, or the
-// first streaming frame) it shows the TTFT `StreamShimmer`.
+// §11.1 ghost-isolation). `useGhostText`/`useGhostReasoning`/`useGhostThinking` mirror the live turn's
+// tokens via the render-free store subscription, so a delta re-renders THIS row alone; the list,
+// composer, and canon rows stay still. The answer body is paced through `@orb/ui/stream
+// useSmoothText` (grapheme-safe, reduced-motion passthrough), passed through `repairStreamingTail`
+// (`@orb/kit/fix-markdown` — the #402/#473 streaming code-fence/torn-markup guard, UI-Gates §11.6)
+// while still streaming, then fed to `@orb/ui/markdown` as `trusted` (own AI output). Before the first
+// answer token (pending, or the first streaming frame) it shows the TTFT `StreamShimmer`.
 //
-// SCOPE (#17): a minimal "Generating…" shimmer. The full TTFT reasoning-block ("Thinking… Ns" →
-// "Thought for Ns") + streaming code-fence golden tests are task #20. It wears the assistant skin so
-// the ghost reads as an in-progress assistant message that swaps to the canonical row on turn-complete.
+// TASK #20 additions: the `<ReasoningBlock>` disclosure (rendered above the answer body, when there's
+// reasoning) owns its own "Thinking… Ns" → "Thought for Ns" TTFT affordance + the same repair guard for
+// the reasoning trace. It wears the assistant skin so the ghost reads as an in-progress assistant
+// message that swaps to the canonical row on turn-complete.
 
+import { repairStreamingTail } from "@orb/kit/fix-markdown";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { useGhostText } from "../hooks/use-ghost-stream";
+import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
+import { ReasoningBlock } from "./reasoning-block";
 
 /** The paced-reveal trickle floor (chars/sec) — a calm cadence while a stream is live. */
 const GHOST_CPS = 40;
@@ -36,7 +41,13 @@ export function GhostMessageRow({
   streaming,
 }: GhostMessageRowProps): ReactElement {
   const text = useGhostText(chatId);
+  const reasoning = useGhostReasoning(chatId);
+  const thinking = useGhostThinking(chatId);
   const paced = useSmoothText(text, { enabled: streaming, cps: GHOST_CPS });
+  // The repair guard applies only while still streaming (repairStreamingTail's contract, kit
+  // fix-markdown header) — once the turn settles, the ghost's last paint no longer matters (the
+  // canonical row takes over via the separate settled fixMarkdown pipeline).
+  const repaired = streaming ? repairStreamingTail(paced) : paced;
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   return (
     <Stack
@@ -49,10 +60,11 @@ export function GhostMessageRow({
           have a sized parent (the assistant skin is otherwise shrink-to-fit, collapsing them to zero).
           It swaps to the shrink-to-fit canonical MessageRow on turn-complete. */}
       <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full")}>
-        {paced.length === 0 ? (
+        {reasoning.length > 0 ? <ReasoningBlock reasoning={reasoning} thinking={thinking} /> : null}
+        {repaired.length === 0 ? (
           <StreamShimmer label="Generating a reply…" />
         ) : (
-          <Markdown trust="trusted">{paced}</Markdown>
+          <Markdown trust="trusted">{repaired}</Markdown>
         )}
       </Stack>
     </Stack>
