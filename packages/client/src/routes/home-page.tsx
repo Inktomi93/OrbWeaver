@@ -1,20 +1,22 @@
-import { Stack } from "@orb/ui/layout";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
+import { AppShell } from "#features/app-shell";
 import { ChatRoomSurface } from "#features/chat";
 import { chatStream, draftChat } from "#state";
 
-// The `/` home: the composition root's CONTENT mount for the chat pane (UI-Arch §4.1 — the full
-// four-region rail frame is a later app-shell task; today the pane fills the viewport). A route MAY
-// import a feature surface (the same route→feature seam `router.tsx` uses for `AppShell`); a feature
-// may not import another feature (that's what the §32 slot registries are for), so the mount + the
-// `ChatBusDeps` assembly live HERE, at the route. `stream` is the chat-stream singleton; `invalidate`
-// is the central seam rebuilt per render from the provided tRPC proxy + QueryClient (stateless +
-// fire-and-forget, identity churn is harmless — the subscription keys off ids, not deps identity).
-// A DRAFT handle is the real "new chat" landing state — empty transcript + a live composer, no server
-// read — until the chat-list selection flow lands and promotes it to a committed chat on first send.
+// The `/` home: the composition root. It mounts the four-region <AppShell> (UI-Arch §4.1) and composes
+// the (already-built) <ChatRoomSurface> into the shell's `chats` CONTENT slot. A ROUTE may import a
+// feature front door (the same route→feature seam `router.tsx` uses); a feature may NOT import another
+// feature — so app-shell stays domain-agnostic (it renders regions + slots) and the chat mount + its
+// `ChatBusDeps` assembly live HERE. Every other rail section falls back to the shell's own
+// <SectionPlaceholder> until its feature lands (unwired ≠ fabricated).
+//
+// `stream` is the chat-stream singleton; `invalidate` is the central seam rebuilt per render from the
+// provided tRPC proxy + QueryClient (stateless + fire-and-forget — identity churn is harmless, the
+// subscription keys off ids, not deps identity). A DRAFT handle is the real "new chat" landing state:
+// empty transcript + a live composer, no server read, until first send promotes it to a committed chat.
 export function HomePage(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -22,8 +24,12 @@ export function HomePage(): ReactElement {
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
 
   return (
-    <Stack className="h-dvh bg-background text-foreground">
-      <ChatRoomSurface initialHandle={draftChat("landing")} busDeps={busDeps} />
-    </Stack>
+    <AppShell
+      sections={{
+        chats: {
+          content: <ChatRoomSurface initialHandle={draftChat("landing")} busDeps={busDeps} />,
+        },
+      }}
+    />
   );
 }
