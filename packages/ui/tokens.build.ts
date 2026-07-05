@@ -28,6 +28,12 @@ interface FlatToken {
   readonly value: unknown;
 }
 
+/** A pointer-conditional override: the token's fine-pointer value (DTCG `$extensions["orb.pointerFine"]`). */
+interface FineOverride {
+  readonly path: readonly string[];
+  readonly value: string;
+}
+
 /** A DTCG value → its CSS string (cubicBezier arrays become cubic-bezier(); numbers stringify). */
 function renderValue(value: unknown): string {
   if (Array.isArray(value)) {
@@ -44,6 +50,45 @@ function cssVarName(path: readonly string[]): string {
 function renderThemeCss(tokens: readonly FlatToken[]): string {
   const lines = tokens.map((t) => `  ${cssVarName(t.path)}: ${renderValue(t.value)};`);
   return `/* ${HEADER}\n */\n@theme {\n${lines.join("\n")}\n}\n`;
+}
+
+/**
+ * The pointer-conditional override block (D62 P1, UI-Arch §4b axis 3). The `@theme` block above
+ * carries the COARSE-first control heights (the ≥44px touch floor holds by default); fine pointers
+ * narrow them here. Emitted UNLAYERED on purpose: an unlayered `:root` custom-property override
+ * beats the `@layer theme` value regardless of source order (verified against the Tailwind v4
+ * compiler), so the fine values win wherever a `height: var(--spacing-control-*)` utility resolves.
+ * The narrowed values live in `tokens.json` (`$extensions["orb.pointerFine"]`) — this script carries
+ * no design literals.
+ */
+function renderPointerFineBlock(overrides: readonly FineOverride[]): string {
+  if (overrides.length === 0) {
+    return "";
+  }
+  const lines = overrides.map((o) => `    ${cssVarName(o.path)}: ${o.value};`);
+  return `\n@media (pointer: fine) {\n  :root {\n${lines.join("\n")}\n  }\n}\n`;
+}
+
+/** Collect `$extensions["orb.pointerFine"]` fine-pointer values from the RAW DTCG source (literal
+ *  dimensions — no `{references}` to resolve, so the un-transformed source is the right input). */
+function collectPointerFine(
+  node: Record<string, unknown>,
+  path: readonly string[],
+  out: FineOverride[],
+): void {
+  if ("$value" in node) {
+    const ext = (node["$extensions"] as Record<string, unknown> | undefined)?.["orb.pointerFine"];
+    if (typeof ext === "string") {
+      out.push({ path, value: ext });
+    }
+    return;
+  }
+  for (const [key, child] of Object.entries(node)) {
+    if (key.startsWith("$") || typeof child !== "object" || child === null) {
+      continue;
+    }
+    collectPointerFine(child as Record<string, unknown>, [...path, key], out);
+  }
 }
 
 function renderTokensTs(tokens: readonly FlatToken[]): string {
@@ -96,7 +141,12 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
     }
   };
   walk(dictionary as Record<string, unknown>, []);
-  return { themeCss: renderThemeCss(flat), tokensTs: renderTokensTs(flat) };
+  const fine: FineOverride[] = [];
+  collectPointerFine(source as unknown as Record<string, unknown>, [], fine);
+  return {
+    themeCss: renderThemeCss(flat) + renderPointerFineBlock(fine),
+    tokensTs: renderTokensTs(flat),
+  };
 }
 
 // tsx entrypoint (`pnpm --filter @orb/ui tokens:build`): write the committed artifacts.
