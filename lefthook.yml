@@ -17,8 +17,12 @@
 #     (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
 #     (the ts-morph gates) + dep-cruiser (all 5 packages). ~30s. A type/lint/boundary-red tree cannot
 #     be committed. (No separate staged-Biome step — `pnpm check`'s lint covers the whole repo.)
-#   • pre-push → `pnpm check` AND `pnpm test` (the unit/integration/contract run, ~3.5min) — the full
-#     green-to-commit bar before code leaves the machine; kept off pre-commit only for commit speed.
+#   • pre-push → `pnpm check` + `pnpm test` (unit/integration/contract, ~3.5min) + `pnpm test:ct` (the
+#     Playwright CT suite, ~2-4min, `CT_GATE=1` so parallelism flakes retry instead of blocking) — the
+#     full green bar before code leaves the machine; all kept off pre-commit only for commit speed. CTs
+#     are the ONE class `pnpm check` can't hold (browser — vitest-browser hangs, Spine-Testing §7), so
+#     they gate HERE, not at commit. NOTE: needs Playwright chromium on the pushing machine
+#     (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires on the host.
 # Bypass for genuine emergencies only: `git commit --no-verify` / `git push --no-verify`.
 #
 # OUTPUT is tuned for agent/CI consumption (the recurring pain: lefthook's truecolor banner blew the
@@ -51,3 +55,8 @@ pre-push:
       run: pnpm test
       env:
         NO_COLOR: "1"
+    test:ct:
+      run: pnpm test:ct
+      env:
+        NO_COLOR: "1"
+        CT_GATE: "1"
