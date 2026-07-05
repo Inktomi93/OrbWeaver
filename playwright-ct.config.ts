@@ -19,7 +19,11 @@ export default defineConfig({
   outputDir: "reports/ct-results",
   fullyParallel: true,
   forbidOnly: process.env.CI !== undefined,
-  retries: 0,
+  // `CT_GATE=1` (set by the lefthook pre-push CT step) enables retries so parallelism flakes — the
+  // drawer/chart/lightbox focus/ResizeObserver timing artifacts that only surface after 500+ tests in
+  // one page context — don't block the gate. Ad-hoc `pnpm test:ct` keeps retries:0 so a real flake stays
+  // visible while debugging; `trace: on-first-retry` (below) then captures the failing gate run.
+  retries: process.env.CT_GATE !== undefined ? 2 : 0,
   reporter: [["html", { outputFolder: "reports/ct-report", open: "never" }]],
   use: {
     trace: "on-first-retry",
