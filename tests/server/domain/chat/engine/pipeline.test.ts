@@ -360,6 +360,31 @@ describe("runTurnPipeline — history macro resolution", () => {
   });
 });
 
+// ── task #59 S2: the two persona axes stay distinct WITHIN one real pipeline call (BUILD's card-derived
+// section vs SHAPE's history-row resolution) — not just as separate unit fixtures on assemble.ts/macros.ts.
+describe("runTurnPipeline — persona axes stay distinct (card pin vs history active-fallback)", () => {
+  test("a CARD-derived section's {{user}} resolves to the PINNED anchor while a null-stamp history row resolves to the ACTIVE persona", async () => {
+    // The card's own systemPrompt overrides the (empty-by-default) main_prompt marker — a CARD-derived
+    // section (assemble.ts's dual-persona rule: CARD sections bind {{user}} to ctx.pinnedPersona, the
+    // FROZEN anchor). The canon row's {{user}} has a NULL personaId stamp, so it falls through to
+    // ctx.activePersona — never the pinned anchor (Chat-Macro-Resolution.md §4/§6).
+    const ctx = ctxOf({
+      character: { name: "Aria", description: "a bold knight", systemPrompt: "Dear {{user}}," },
+      pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
+      activePersona: { name: "Zara", description: "the live active persona" },
+    });
+    const { args } = baseArgs({ assembleContext: ctx, canon: [userRow("{{user}} nods")] });
+    const result = await runTurnPipeline(args);
+
+    // BUILD half: the card-derived section resolved {{user}} against the PINNED anchor.
+    expect(result.request.prompt.static).toContain("Dear Nyx,");
+    expect(result.request.prompt.static).not.toContain("Dear Zara,");
+    // SHAPE half: the null-stamp history row resolved {{user}} against the ACTIVE persona, never the pin.
+    expect(historyText(result.request)).toContain("Zara nods");
+    expect(historyText(result.request)).not.toContain("Nyx nods");
+  });
+});
+
 describe("runTurnPipeline — immutability", () => {
   test("does not mutate the immutable assemble ctx (chat.md §5)", async () => {
     const ctx = ctxOf();

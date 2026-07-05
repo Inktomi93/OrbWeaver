@@ -760,3 +760,38 @@ describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
     expect(outcome.messages[0]?.content).toBe("raw badword text");
   });
 });
+
+// TODO(#60): C5 (reattribution flips the stamp — a persona/character re-stamp re-resolves BOTH the
+// macro subject and the attribution chrome from the SAME producer, content untouched) is out of scope
+// here; it rides task #60 (persona reattribution, in flight separately per Chat-Macro-Resolution.md §5).
+
+// ── Storage stays RAW (D51) — task #59 S5. Chat-Macro-Resolution.md §0: content stores literal
+// `{{macros}}`; resolution happens ONLY at consumption (ASSEMBLE/DISPLAY), never at write. This is the
+// real-DB pin: a full send/persist round-trip with `{{user}}`/`{{char}}` in BOTH the user's composer text
+// and the model's reply must leave the committed canon row's `content` byte-identical to the raw macro
+// text — never resolved to a name, even though the SAME turn's assemble ctx carries a real persona.
+describe("storage stays RAW (D51) — macros in message content are never resolved at persist time", () => {
+  test("the committed user AND assistant rows still hold the literal {{user}}/{{char}} tokens", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    // No host-tier regex rides this turn — the user text and the scripted reply both carry raw macros.
+    const h = harness(db, names, { content: "{{char}} nods at {{user}}." });
+
+    const outcome = await h.turn.send({
+      principal: principal(host),
+      chatId,
+      content: "{{user}} waves at {{char}}.",
+    });
+
+    // The verb's OWN return value is unresolved…
+    expect(outcome.messages[0]?.content).toBe("{{user}} waves at {{char}}.");
+    expect(outcome.messages[1]?.content).toBe("{{char}} nods at {{user}}.");
+
+    // …and a FRESH re-read of the persisted canon (real libSQL, not the in-memory return value) proves the
+    // row was never mutated at write: the stored content is the SAME literal macro text.
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.map((m) => m.content)).toEqual([
+      "{{user}} waves at {{char}}.",
+      "{{char}} nods at {{user}}.",
+    ]);
+  });
+});

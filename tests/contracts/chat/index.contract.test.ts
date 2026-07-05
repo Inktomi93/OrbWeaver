@@ -42,6 +42,7 @@ import {
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { resolveRowMacros } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "../../support/fixtures";
 
@@ -550,4 +551,70 @@ test("buildPersonaNameMap rebuilds a personaId → {name, description} lookup fr
 test("buildCharacterNameMap / buildPersonaNameMap: an empty wire array rebuilds an empty map", () => {
   expect(buildCharacterNameMap([]).size).toBe(0);
   expect(buildPersonaNameMap([]).size).toBe(0);
+});
+
+// ── §6 parity keystone (Chat-Macro-Resolution.md §6 / task #59 P1) ──────────────────────────────────
+// The doctrine's ONE shared fixture: anchor(pinned)=Nyx, active=Zara, a row stamped personaId=Mara,
+// content "{{user}} waves". Server ASSEMBLE (`engine/pipeline.ts`'s `toShapeCanon`, via `engine.ts`'s
+// `buildCharacterNameMap`/`buildPersonaNameMap` call over the loaded producer) and client DISPLAY
+// (`message-list-surface.tsx`'s merge, via the SAME two builders over the wire producer) each rebuild
+// their lookup maps from the identical `ChatMacroNameProducer` ARRAY shape — this is the ONE place both
+// "sides" import the SAME builders, so a fixture here proves the map-construction step itself can't
+// diverge (the atom-level parity — resolveRowMacros itself — is pinned separately in
+// tests/kit/macro/row-macros.test.ts). Two independently-built map pairs from the SAME array, fed through
+// `resolveRowMacros`, must both resolve to Mara — never Zara (active) nor Nyx (the pinned anchor, a CARD-
+// only axis — never a history row's subject).
+test("§6 parity keystone: server-build and client-build of the SAME producer array both resolve a row's {{user}} to Mara, never the active nor the pinned anchor", () => {
+  const maraId = mintTypeId(ID_PREFIX.persona);
+  const producer: { characterNames: CharacterNameEntry[]; personaNames: PersonaNameEntry[] } = {
+    characterNames: [],
+    personaNames: [{ id: maraId, name: "Mara", description: "a wandering scholar" }],
+  };
+
+  // "server ASSEMBLE"-side build — mirrors engine.ts's `buildCharacterNameMap(macroProducer.characterNames)`
+  // / `buildPersonaNameMap(macroProducer.personaNames)` call.
+  const serverCharacterNamesById = buildCharacterNameMap(producer.characterNames);
+  const serverPersonaNamesById = buildPersonaNameMap(producer.personaNames);
+  // "client DISPLAY"-side build — mirrors message-list-surface.tsx's merge-then-build call (a fresh array
+  // copy stands in for "the producer arrived over the wire", never the SAME in-memory reference).
+  const clientCharacterNamesById = buildCharacterNameMap([...producer.characterNames]);
+  const clientPersonaNamesById = buildPersonaNameMap([...producer.personaNames]);
+
+  const rowStamps = { characterId: null, personaId: maraId };
+  const serverOut = resolveRowMacros("{{user}} waves", rowStamps, {
+    characterNamesById: serverCharacterNamesById,
+    personaNamesById: serverPersonaNamesById,
+    activePersonaName: "Zara", // the ACTIVE persona — must lose to the row's own Mara stamp.
+  });
+  const clientOut = resolveRowMacros("{{user}} waves", rowStamps, {
+    characterNamesById: clientCharacterNamesById,
+    personaNamesById: clientPersonaNamesById,
+    activePersonaName: "Zara",
+  });
+  expect(serverOut).toBe("Mara waves");
+  expect(clientOut).toBe("Mara waves");
+  expect(serverOut).toBe(clientOut);
+
+  // …and a NULL stamp (no producer entry the row itself owns) falls to the active persona on BOTH sides —
+  // never the pinned anchor (that axis is CARD-only; a history row never sees it — Chat-Macro-Resolution.md §4).
+  const nullStampServer = resolveRowMacros(
+    "{{user}} waves",
+    { characterId: null, personaId: null },
+    {
+      characterNamesById: serverCharacterNamesById,
+      personaNamesById: serverPersonaNamesById,
+      activePersonaName: "Zara",
+    },
+  );
+  const nullStampClient = resolveRowMacros(
+    "{{user}} waves",
+    { characterId: null, personaId: null },
+    {
+      characterNamesById: clientCharacterNamesById,
+      personaNamesById: clientPersonaNamesById,
+      activePersonaName: "Zara",
+    },
+  );
+  expect(nullStampServer).toBe("Zara waves");
+  expect(nullStampClient).toBe("Zara waves");
 });
