@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { useMemo } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
-import { AppShell, RAIL_SECTIONS } from "#features/app-shell";
+import { AppShell, RAIL_SECTIONS, YouSheet } from "#features/app-shell";
 import {
   CharacterDetailSurface,
   CharacterLibraryAnchor,
@@ -32,6 +32,7 @@ import {
   openModal,
   selectChat,
   setActiveSection,
+  setMobileSheet,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
@@ -82,6 +83,14 @@ export function HomePage(): ReactElement {
       goToLanding();
     }
   };
+  // Selecting a chat from the LIST panel: land on it AND close any open mobile list sheet (L6/J12) — a
+  // mobile sheet is transient, so tapping a row must reveal the chat, not leave the list covering it.
+  // `setMobileSheet(null)` is a no-op on desktop (the resolve ignores `mobileSheet`), so the docked
+  // desktop list is untouched. Wired at the route (the §5.1 composition seam), not inside the chat feature.
+  const selectChatFromList = (chatId: ChatId): void => {
+    selectChat(chatId);
+    setMobileSheet(null);
+  };
   // Every "new chat" affordance (chat-list "+", landing hero, ⌘K) opens the J2 character picker first —
   // a characterless draft is no longer the default (D62 P4 / rule 2).
   const openNewChatPicker = (): void => openModal("newChat");
@@ -117,7 +126,7 @@ export function HomePage(): ReactElement {
               <ChatListSurface
                 activeChatId={activeChatId}
                 onNewChat={openNewChatPicker}
-                onSelect={selectChat}
+                onSelect={selectChatFromList}
                 onDeletedChat={onDeletedChat}
               />
             </ChatListAnchor>
@@ -169,6 +178,9 @@ export function HomePage(): ReactElement {
         settings: <SettingsShell />,
         newChat: <NewChatPicker />,
         command: <CommandPaletteSurface goToSections={goToSections} />,
+        // The mobile "You" bottom sheet (L6/J12) — a shell-tier body the route composes over the `you`
+        // slot (the same seam as the four above), keeping app-shell's modal-slots lib component-free.
+        you: <YouSheet />,
       }}
       // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
       // Mounted ONLY for a COMMITTED chat (a draft has no server row for the reads/writes to target);

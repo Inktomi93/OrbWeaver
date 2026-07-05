@@ -38,8 +38,17 @@ export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies, §11.5). `newChat`
  *  (J2) is trigger-only from CONTENT affordances (chat-list "+", landing hero, ⌘K) — NOT a rail button
- *  (its trigger is the standalone `NEW_CHAT_ACTION`, never appended to `RAIL_ACTIONS`). */
-export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat"] as const;
+ *  (its trigger is the standalone `NEW_CHAT_ACTION`, never appended to `RAIL_ACTIONS`). `you` (L6 mobile,
+ *  D62 P3) is the bottom-tab-bar "You" sheet — trigger-only from the mobile bar (`YOU_ACTION`), a
+ *  `drawer`-presentation modal (bottom sheet), never a desktop rail button. */
+export const MODAL_SLOT_IDS = [
+  "theme",
+  "settings",
+  "account",
+  "command",
+  "newChat",
+  "you",
+] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** A panel's 3-state model (UI-Arch §4.1): docked (in-flow, pushes CONTENT) · overlay (floats over,
@@ -67,6 +76,14 @@ interface ShellState {
    *  domain-agnostic (it never learns a chat tab id). `null` = the surface's own default tab. Transient
    *  (never persisted — a deep-linked tab must not survive a reload, like `openModal`). */
   readonly contextTab: string | null;
+  /** L6 mobile (D62 P3 · J12): WHICH side panel is currently open AS A SHEET on mobile — `null` = you're
+   *  on CONTENT (the correct mobile landing, never an open list). At most ONE sheet at a time (opening one
+   *  closes the other): a mobile sheet is a full-width overlay, so stacked sheets make no sense. This is
+   *  DEVICE-STATE, deliberately SEPARATE from the persisted `panelOverrides` (a "docked" dock preference is
+   *  a desktop concept a sheet must never inherit) — the `use-shell-layout.ts` resolve picks this on mobile
+   *  and the persisted overrides on desktop. TRANSIENT (never persisted, like `openModal`) and RESET on
+   *  section change (`setActiveSection`) so a rail-tab tap always lands on CONTENT. */
+  readonly mobileSheet: PanelName | null;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -80,6 +97,7 @@ const DEFAULT_STATE: ShellState = {
   panelOverrides: {},
   openModal: null,
   contextTab: null,
+  mobileSheet: null,
 };
 
 // v2: the persisted shape changed from a single global `listPanel`/`contextPanel` pair (v1) to the
@@ -150,6 +168,7 @@ function migrate(persisted: unknown): ShellState {
     panelOverrides: sanitizeOverrides(p.panelOverrides),
     openModal: null,
     contextTab: null,
+    mobileSheet: null,
   };
 }
 
@@ -169,9 +188,11 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
 // ── The write API — intent-named module actions (the store handle never escapes this file, §5). ──
 
 /** Switch the active rail section (drives the LIST + CONTENT slots). Each section keeps its own panel
- *  state — switching restores this section's overrides (§4.2 rule 2), resolved in use-shell-layout.ts. */
+ *  state — switching restores this section's overrides (§4.2 rule 2), resolved in use-shell-layout.ts.
+ *  Also closes any open mobile sheet (L6/J12): a rail-tab tap must land on CONTENT, never carry the prior
+ *  section's list sheet across. */
 export function setActiveSection(id: SectionId): void {
-  useShellStore.setState({ activeSection: id }, false, "shell/setActiveSection");
+  useShellStore.setState({ activeSection: id, mobileSheet: null }, false, "shell/setActiveSection");
 }
 
 /** Set the ACTIVE section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). Signature is
@@ -199,6 +220,13 @@ export function closeModal(): void {
   useShellStore.setState({ openModal: null }, false, "shell/closeModal");
 }
 
+/** Open/close the mobile side-panel SHEET (L6/J12). `null` closes (back to CONTENT); a `PanelName` opens
+ *  that panel as a sheet AND closes the other (one sheet at a time). The `use-shell-layout.ts` mobile
+ *  resolve maps this to the panel's `overlay`/`collapsed` mode; desktop ignores it. */
+export function setMobileSheet(panel: PanelName | null): void {
+  useShellStore.setState({ mobileSheet: panel }, false, "shell/setMobileSheet");
+}
+
 // ── The read API — narrow hooks so chrome re-renders only on the slice it reads. ──
 
 export function useActiveSection(): SectionId {
@@ -219,4 +247,9 @@ export function useOpenModal(): ModalSlotId | null {
 /** The current CONTEXT-panel tab request (opaque; `null` = the surface's default). A primitive selector. */
 export function useContextTab(): string | null {
   return useShellStore((s) => s.contextTab);
+}
+
+/** Which side panel is open as a mobile SHEET (`null` = on CONTENT). A primitive selector. */
+export function useMobileSheet(): PanelName | null {
+  return useShellStore((s) => s.mobileSheet);
 }

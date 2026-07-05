@@ -64,9 +64,11 @@ export {
   SECTION_IDS,
   setActiveSection,
   setContextTab,
+  setMobileSheet,
   setPanelMode,
   useActiveSection,
   useContextTab,
+  useMobileSheet,
   useOpenModal,
   usePanelOverride,
 } from "./shell-store";

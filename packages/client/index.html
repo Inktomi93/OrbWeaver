@@ -2,8 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover: the shell paints into the iOS safe-area insets (§4.1 immersive layout). -->
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- viewport-fit=cover: the shell paints into the iOS safe-area insets (§4.1 immersive layout).
+         interactive-widget=resizes-content (§4b axis 4): the virtual keyboard shrinks the content so the
+         composer reflows ABOVE it — dvh/svh alone are not shrunk by the keyboard (L6/J12). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>orbweaver</title>
   </head>
   <body>

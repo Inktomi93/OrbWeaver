@@ -147,7 +147,12 @@ function ChatListBody({
   }
 
   return (
-    <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto" gap="row" role="list">
+    <Stack
+      aria-label="Chats"
+      className="h-full min-h-0 overflow-y-auto overscroll-contain"
+      gap="row"
+      role="list"
+    >
       {filtered.map((chat) => (
         <ChatListRow
           chat={chat}
