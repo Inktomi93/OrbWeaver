@@ -7,7 +7,14 @@
 
 import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatParticipantId,
+  MessageVariantId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
@@ -812,6 +819,164 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
 
     await expect(
       caller(ctx).chat.deleteChatInjection({ chatId: CHAT, injectionId: InjectionId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// The group-roster-controls cluster (task #29 — the cast bar + per-member controls): the two per-member
+// setters + forceCharacterTurn were fully implemented in domain/chat (verbs/roster.ts + verbs/turn.ts),
+// host-gated via substrate/auth/matrix.ts, but never exposed on this router (the same MISSING-API shape
+// the #28 cluster was in). Thin pass-throughs; the leak-free NOT_FOUND collapse is the verb's own gate.
+
+const CHARACTER = castId<CharacterId>("character_aria");
+
+// A minimal ParticipantView the two setters return — only the mutated field is asserted; the rest is
+// the shape's filler (the same posture the MESSAGE/ForkResult fixtures take).
+const PARTICIPANT: Awaited<ReturnType<ChatService["setParticipantDisabled"]>> = {
+  id: castId<ChatParticipantId>("chat_participant_1"),
+  chatId: CHAT,
+  kind: "character",
+  userId: null,
+  characterId: CHARACTER,
+  role: "member",
+  activePersonaId: null,
+  talkativeness: 0.5,
+  disabled: false,
+  joinedAt: 0,
+  joinSeq: 1,
+  leftSeq: null,
+  joinHistoryVisibility: "from-join",
+  displayName: "Aria",
+  handle: null,
+  avatarAssetId: null,
+};
+
+describe("chat.setParticipantDisabled — the per-member mute/unmute setter (task #29 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/characterId/disabled reach the verb with the resolved Principal", async () => {
+    const setParticipantDisabled = vi.fn<ChatService["setParticipantDisabled"]>(async () => ({
+      ...PARTICIPANT,
+      disabled: true,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setParticipantDisabled } },
+    });
+
+    const result = await caller(ctx).chat.setParticipantDisabled({
+      chatId: CHAT,
+      characterId: CHARACTER,
+      disabled: true,
+    });
+
+    expect(setParticipantDisabled).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      characterId: CHARACTER,
+      disabled: true,
+    });
+    expect(result.disabled).toBe(true);
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const setParticipantDisabled = vi
+      .fn<ChatService["setParticipantDisabled"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { setParticipantDisabled } },
+    });
+
+    await expect(
+      caller(ctx).chat.setParticipantDisabled({
+        chatId: CHAT,
+        characterId: CHARACTER,
+        disabled: true,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.setParticipantTalkativeness — the per-member weight setter (task #29 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/characterId/talkativeness reach the verb with the resolved Principal", async () => {
+    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(
+      async () => ({ ...PARTICIPANT, talkativeness: 0.8 }),
+    );
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setParticipantTalkativeness } },
+    });
+
+    const result = await caller(ctx).chat.setParticipantTalkativeness({
+      chatId: CHAT,
+      characterId: CHARACTER,
+      talkativeness: 0.8,
+    });
+
+    expect(setParticipantTalkativeness).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      characterId: CHARACTER,
+      talkativeness: 0.8,
+    });
+    expect(result.talkativeness).toBe(0.8);
+  });
+
+  test("a non-numeric talkativeness is rejected at the wire before the verb", async () => {
+    const setParticipantTalkativeness = vi.fn<ChatService["setParticipantTalkativeness"]>(
+      async () => PARTICIPANT,
+    );
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setParticipantTalkativeness } },
+    });
+
+    await expect(
+      caller(ctx).chat.setParticipantTalkativeness({
+        chatId: CHAT,
+        characterId: CHARACTER,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema to prove the wire rejects it.
+        talkativeness: "loud" as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(setParticipantTalkativeness).not.toHaveBeenCalled();
+  });
+});
+
+describe("chat.forceCharacterTurn — the host summons a member to speak next (task #29 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/characterId reach the verb with the resolved Principal", async () => {
+    const forceCharacterTurn = vi.fn<ChatService["forceCharacterTurn"]>(async () => ({
+      messages: [MESSAGE],
+      aborted: false,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { forceCharacterTurn } },
+    });
+
+    const result = await caller(ctx).chat.forceCharacterTurn({
+      chatId: CHAT,
+      characterId: CHARACTER,
+    });
+
+    expect(forceCharacterTurn).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      characterId: CHARACTER,
+    });
+    expect(result.messages).toEqual([MESSAGE]);
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const forceCharacterTurn = vi
+      .fn<ChatService["forceCharacterTurn"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { forceCharacterTurn } },
+    });
+
+    await expect(
+      caller(ctx).chat.forceCharacterTurn({ chatId: CHAT, characterId: CHARACTER }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });

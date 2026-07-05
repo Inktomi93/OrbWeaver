@@ -211,6 +211,39 @@ const streamSchema = z.object({
   lastEventId: z.string().nullish(),
 });
 
+// The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
+// per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
+// `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
+// were ALL already fully implemented in domain/chat (verbs/roster.ts + verbs/turn.ts) — host-gated via
+// substrate/auth/matrix.ts, DB-backed (chatParticipants columns), bus-emitting — but none had ever been
+// exposed on this router (the same MISSING-API shape the #28 CONTEXT-panel cluster + the guided-generations
+// cluster were in; swept via grep before this addition, no call site referenced any of the three). Thin
+// pass-throughs; authz lives INSIDE each verb (`requireHost`, the sibling-cluster shape). `forceCharacterTurn`
+// mirrors `generate` minus the persona/speaker knobs (chatId + the target characterId + the optional
+// intent/guided steer — same `z.any()` shape as `send`/`generate` above, no dedicated wire schema yet).
+// NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
+// override block (the verb's presence-only target check, verbs/turn.ts).
+const setParticipantDisabledSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+  disabled: z.boolean(),
+});
+
+const setParticipantTalkativenessSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+  // The 0–1 arbitration sampling weight (contracts `talkativenessSchema`); the strict range is the verb's
+  // (the domain owns the clamp) — the wire only pins the shape (a number, the target).
+  talkativeness: z.number(),
+});
+
+const forceCharacterTurnSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+  intent: z.any().optional(),
+  guided: z.any().optional(),
+});
+
 export const chatRouter = t.router({
   startChat: authedProcedure
     .input(startChatSchema)
@@ -309,6 +342,22 @@ export const chatRouter = t.router({
     .input(deleteChatInjectionSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input }),
+    ),
+  // The group-roster-controls cluster (task #29 — see the schemas' header note above). Thin pass-throughs.
+  setParticipantDisabled: authedProcedure
+    .input(setParticipantDisabledSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setParticipantDisabled({ principal: ctx.auth, ...input }),
+    ),
+  setParticipantTalkativeness: authedProcedure
+    .input(setParticipantTalkativenessSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setParticipantTalkativeness({ principal: ctx.auth, ...input }),
+    ),
+  forceCharacterTurn: authedProcedure
+    .input(forceCharacterTurnSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input }),
     ),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.

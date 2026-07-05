@@ -6,7 +6,7 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 import type { ChatBusDeps } from "@orb/client/data";
-import { createInvalidation, useTRPC } from "@orb/client/data";
+import { createInvalidation, QueryBoundary, useTRPC } from "@orb/client/data";
 import {
   ChatContextPanel,
   ChatListAnchor,
@@ -40,12 +40,15 @@ import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
+import { RosterPanel } from "../../../../packages/client/src/features/chat/components/roster-panel";
+import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
@@ -623,6 +626,61 @@ export function ChatContextPanelStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 560 }}>
         <ChatContextPanel chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Group-roster-controls stories (task #29) ────────────────────────────────────────────────────
+
+/** The read-only cast bar (chat-cast-bar.tsx) — the roster comes from the routeTrpc `chat.getChat`
+ *  stub the `.ct.tsx` sets per case (a solo roster → the bar renders `null`; a 2+ roster → chips). */
+export function ChatCastBarStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      {/* A wrapping div so the mount `component` locator is the WRAPPER, not the cast bar's own root
+          element — a `component.getByTestId`/`getByText` then searches its descendants (the
+          ComposerStory precedent; without it `component` IS the bar and its own testid is not a
+          descendant of itself). */}
+      <div>
+        <ChatCastBar chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Roster tab body (roster-panel.tsx) in isolation, inside a QueryBoundary (it suspends on the
+ *  `chat.getChat` roster read — the same boundary `ChatContextPanel` wraps it in). The `.ct.tsx` stubs
+ *  the roster + the three write verbs. */
+export function RosterPanelStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 360 }}>
+        <QueryBoundary
+          fallback={<span>loading…</span>}
+          renderError={(): ReactElement => <span>error</span>}
+        >
+          <RosterPanel chatId={CHAT_ID} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The composer-adjacent speak-as dropdown (speak-as-select.tsx). A committed handle by default (reads
+ *  the `chat.getChat` roster + fires `chat.generate`); `committed=false` mounts a draft (renders `null`). */
+export function SpeakAsSelectStory({
+  committed = true,
+}: {
+  readonly committed?: boolean;
+}): ReactElement {
+  const handle: ChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_speak_as");
+  return (
+    <CtDataProviders>
+      {/* A wrapping div so the mount `component` locator is the WRAPPER (see ChatCastBarStory) — the
+          `.ct.tsx` uses `component.getByRole("button", …)` to find the trigger as a descendant. */}
+      <div>
+        <SpeakAsSelect handle={handle} />
       </div>
     </CtDataProviders>
   );
