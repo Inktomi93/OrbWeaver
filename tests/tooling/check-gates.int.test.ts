@@ -145,6 +145,11 @@ function writeFixtures(): void {
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
+  // zustand-selector-derived: a store-hook selector returning a fresh object literal, unwrapped.
+  fx(
+    "packages/client/src/state/__g_zustand.ts",
+    "declare const useGStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useGStore((s) => ({ a: s.a, b: s.b }));\n",
+  );
   // vector-scope-derived: a domain OUTSIDE the sanctioned set importing a vector-table symbol (D20).
   fx(
     `${D}/__g_vec/persistence/x.ts`,

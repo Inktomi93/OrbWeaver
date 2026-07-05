@@ -58,7 +58,7 @@ fixture-verified firing at add time. Plus the D44 containment trio (`no-untruste
 | `no-fake-disabled-id` | `castId("")` — the fake-disabled sentinel | `no-fake-disabled-id` |
 | `chat-stream-writes-in-bus-only` | importing the stream store's write api outside `data/bus/` | `bus-onData-no-store-write` (write half) |
 | `no-multiplexed-mutation-error` | `a.error ?? b.error` / `\|\|` (v5 sticky-error leak) | `no-multiplexed-mutation-error` |
-| `zustand-selector-stability` | a selector returning a fresh `{}`/`[]` literal | the zustand-selector gate |
+| `zustand-selector-stability` | a selector returning a fresh `{}`/`[]` literal (concise-body shape only) | the zustand-selector gate's Layer-2 half — `scripts/check/gates/zustand-selector-derived.ts` is the Layer-3 full-body half (block/ternary/`??`, `Object.keys/values/entries`, array-rebuild methods, + `useStore(store, selector)`) |
 | `no-raw-random` | ambient `Math.random()` in shipped source | client-determinism (random half; clock half = `no-raw-clock`) |
 | `testid-typed-only` | freeform `data-testid="…"` string literals in client | the typed-`testId` gate |
 | `no-untrusted-html-in-main-dom` | `dangerouslySetInnerHTML` outside the markdown/sandbox-frame seals | D44 §12.2 (untrusted HTML → `SandboxFrame` / sanitized markdown only) |

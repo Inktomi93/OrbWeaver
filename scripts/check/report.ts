@@ -43,6 +43,7 @@ import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
+import { zustandSelectorDerived } from "./gates/zustand-selector-derived.ts";
 import type { Check, GateResult, RunChecksResult } from "./harness.ts";
 import { runChecks } from "./harness.ts";
 
@@ -76,6 +77,7 @@ export const ALL_CHECKS: readonly Check[] = [
   uiPrimitiveStructure,
   clientStructure,
   stateFiles,
+  zustandSelectorDerived,
   componentSize,
   vectorScopeDerived,
   turnIdentity,
