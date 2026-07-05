@@ -80,42 +80,42 @@ each gate is one module in `gates/`. Add a gate by dropping it in `gates/` and l
 lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives the gate registry from
 `report.ts` and asserts every gate fires on a fixture (a broken AST query can't silently pass; anti-drift).
 
-| Gate | Enforces | Origin |
-| - | - | - |
-| `feature-structure` | domain 8-slot template (index/service/context + contract/ + verbs/) | neo (ported) |
-| `test-layout` | `tests/` prefix-swaps 1:1 to real `packages/<pkg>/src`; support/+e2e/ exempt | neo (ported) |
-| `verb-naming` | `verbs/<v>.ts` exports `create<Pascal(v)>` | new |
-| `no-caller-user-id` | the identifier `callerUserId` is forbidden (D19 turn-identity): the caller is `Principal.userId`; use `triggeredBy`/`runAsUserId`. AST-only (catches a newly-introduced name tsc can't) | new (P5) |
-| `types-in-contract` | a feature's `contract/service.ts` declares the exported `<Feature>Service` interface (§7.4) | new |
-| `no-inline-union-redecl` | no inline ≥3-member string-literal union type aliases (→ contracts) | new |
-| `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test` | new |
-| `test-determinism` | no ambient clock/random/unseeded-id under `tests/` (support/+e2e/ exempt) | new |
-| `commented-code` | no parked code in `//` comments (prose only) | neo (ported) |
-| `schema-branding` | db `*Id` columns carry `.$type<XId>()` (PK + cross-brand FK) | neo (ported) |
-| `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | neo (ported) |
-| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader — AST gate catching the `process["env"]` bracket form biome's `noProcessEnv` misses (ignores comments) | new (4a) |
-| `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (non-literal-seed) carries `ASSUMES(single-replica)` in its file | new (4a) |
-| `providers-runner-seal` | no `domain`/`transport`/`entry` imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — `Tier-3b-Providers.md` inv #3 | new (4b) |
-| `ui-primitive-structure` | `@orb/ui` primitive dir shape — front-door `index.ts` + the `<name>.tsx`/`variants.ts` trio + a colocated test; per BUILT primitive | new |
-| `client-structure` | `@orb/client` §2.1 feature-slice layout — front-door `index.ts` + known buckets (surfaces/anchors/components/hooks/lib; app-shell +registry/store) + no-stray-root, PLUS neo rules 2/6/7: feature-name↔domain mirror (or RESERVED), per-bucket file naming (`-surface.tsx` / `use-` / anchor container-suffix), and **surface-purity** (a surface renders no outer Dialog/Sheet/Drawer — the anchor's job); per BUILT feature | new |
-| `state-files` | `@orb/client` `state/` Zustand discipline (UI-Arch §5) — a per-store top-level field cap, one store minted per file, and no exported raw store handle (intent-named actions + narrow read hooks only) | new (W1-0c) |
-| `zustand-selector-derived` | the Layer-3 half of the Zustand selector-stability belt (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) — flags a `use<X>Store(selector)`/`useStore(store, selector)` call whose inline selector returns (directly, from a block body, or from either branch of a `?:`/`??`/`||`/`&&`) a fresh object/array literal, an `Object.keys/values/entries(...)` derivation, or an array-rebuilding `.map/.filter/...` call, unless wrapped in `useShallow(...)` — the shapes `tools/grit/zustand-selector-stability.grit`'s AST pattern (Layer 2, literal-concise-body only) can't express | new (task #51 — realizes §8's PARKED "the zustand-selector gate" + §11.5's "extend to ALL keyed stores") |
-| `component-size` | `@orb/client` hard file-size cap (450 default / 500 route shells); gates `.ts` + `.tsx`, exempts tests/gen/`.d.ts` — god-component sprawl can't survive a check run | neo (ported) |
-| `no-direct-users-read` | the `users` table is read/written ONLY by `sessions` + `admin`; any other domain importing the `users` symbol from `@orb/db` is RED (identity comes from the Principal — resolve-once) | new |
-| `pd-citation-integrity` | every in-code `FLAG[PD-n]` resolves to a `Core-Audits-and-Debt.md` registry row; no duplicate PD ids (the concurrent-append collision) | new |
-| `test-mock-doctrine` | `vi.mock` of an internal module is banned — fake at the edges, inject at the root (`core/Spine-Testing.md §3`); third-party node edges only | new |
-| `test-factory-contract` | `makeX(overrides?)` builders are pure (no db param); persisted variants are `seedX(db, …)`; factories live in `tests/support/factories/` | new |
-| `test-fixture-imports` | tests import `{ test, expect }` from `support/fixtures`, never raw `vitest`/`@playwright/test` (e2e, support/, `.test-d.ts` exempt) | new |
-| `test-no-stubs` | every test block carries ≥1 assertion (`expect`/`expectTypeOf`) — anti-gaming for `test-presence` | new |
-| `server-layout` | `packages/server/src` root = the 6 tier dirs + `index.ts` only (§3) | new |
-| `package-layout` | kit/contracts/db/ui/client: every module is a directory with `index.ts`; no loose root files except `index.ts` (D15) | new |
-| `vector-scope-derived` | the vector tables (`character/image_embeddings`, `chat_digests/segments/digest_speakers`) are IMPORTED only by their sanctioned homes (embeddings/search/chat-memory/discovery/debug), WRITTEN only by `embeddings/persistence`, and cosine-ranked (`vector_distance_cos`) only in `search/persistence` — scope is derived from the producer, never stamped (D20) | new (PD-116) |
-| `turn-identity` | the chat ENGINE is `Principal`-blind: no `Principal` import and no `principal` identifier under `domain/chat/engine/` — the turn triple is `runAsUserId`/`triggeredBy`/caller-resolved-upstream (D16/D17/D19) | new (PD-116) |
-| `membership-enforcer` | no owner-equality comparison (`x.ownerId ===`) and no `fetchOwned`/`OwnedTable` import in `domain/chat` + the chat transport — chats are MEMBERSHIP-scoped (`assertParticipant` → `can()`); the host is looked up from the roster, never compared as an owner (D16/D18) | new (PD-116) |
-| `owner-role-split` | no `role === "owner"\|"admin"` comparison outside `domain/admin/guard.ts` — `can()` is the ONE privilege seam; owner ⊇ admin lives inside it (D17; the gate's founding catch fixed the auth seam's inline `isAdmin`) | new (PD-116) |
-| `bus-coverage` | every `CHAT_BUS_EVENT_TYPES` member has a server emit site OR a cited `DEFERRED` entry — a self-cleaning two-direction ratchet (missing emit RED; stale allowlist RED). Founding census: 8/26 unwired → PD-89 + PD-117 (D50) | new (PD-116) |
-| `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the PD-111-deleted `getRosterCardView` stays dead (D22) | new (PD-116/PD-111) |
-| `diagnostic-legibility` | every custom-gate + grit diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate that makes the W1-D message normalization permanent; a new gate/grit cannot regress to a bare/pointerless message | new (W1-D) |
+| Gate | Enforces | Origin | | |
+| - | - | - | - | - |
+| `feature-structure` | domain 8-slot template (index/service/context + contract/ + verbs/) | neo (ported) | | |
+| `test-layout` | `tests/` prefix-swaps 1:1 to real `packages/<pkg>/src`; support/+e2e/ exempt | neo (ported) | | |
+| `verb-naming` | `verbs/<v>.ts` exports `create<Pascal(v)>` | new | | |
+| `no-caller-user-id` | the identifier `callerUserId` is forbidden (D19 turn-identity): the caller is `Principal.userId`; use `triggeredBy`/`runAsUserId`. AST-only (catches a newly-introduced name tsc can't) | new (P5) | | |
+| `types-in-contract` | a feature's `contract/service.ts` declares the exported `<Feature>Service` interface (§7.4) | new | | |
+| `no-inline-union-redecl` | no inline ≥3-member string-literal union type aliases (→ contracts) | new | | |
+| `test-presence` | verbs/persistence/contract-schemas carry their required `.test`/`.int.test`/`.contract.test` | new | | |
+| `test-determinism` | no ambient clock/random/unseeded-id under `tests/` (support/+e2e/ exempt) | new | | |
+| `commented-code` | no parked code in `//` comments (prose only) | neo (ported) | | |
+| `schema-branding` | db `*Id` columns carry `.$type<XId>()` (PK + cross-brand FK) | neo (ported) | | |
+| `db-structure` | `packages/db` schema by-domain layout + aggregator barrel + relations | neo (ported) | | |
+| `sole-env-reader` | `foundation/env` is the ONLY `process.env` reader — AST gate catching the `process["env"]` bracket form biome's `noProcessEnv` misses (ignores comments) | new (4a) | | |
+| `assumes-single-replica` | a module-scope mutable `new Map/Set/WeakMap/WeakSet()` (non-literal-seed) carries `ASSUMES(single-replica)` in its file | new (4a) | | |
+| `providers-runner-seal` | no `domain`/`transport`/`entry` imports the sealed runner derivation/vocab (`deriveRunner`/`backendForSource`/`BackendKey`/`BACKEND_KEYS`) — `Tier-3b-Providers.md` inv #3 | new (4b) | | |
+| `ui-primitive-structure` | `@orb/ui` primitive dir shape — front-door `index.ts` + the `<name>.tsx`/`variants.ts` trio + a colocated test; per BUILT primitive | new | | |
+| `client-structure` | `@orb/client` §2.1 feature-slice layout — front-door `index.ts` + known buckets (surfaces/anchors/components/hooks/lib; app-shell +registry/store) + no-stray-root, PLUS neo rules 2/6/7: feature-name↔domain mirror (or RESERVED), per-bucket file naming (`-surface.tsx` / `use-` / anchor container-suffix), and **surface-purity** (a surface renders no outer Dialog/Sheet/Drawer — the anchor's job); per BUILT feature | new | | |
+| `state-files` | `@orb/client` `state/` Zustand discipline (UI-Arch §5) — a per-store top-level field cap, one store minted per file, and no exported raw store handle (intent-named actions + narrow read hooks only) | new (W1-0c) | | |
+| `zustand-selector-derived` | the Layer-3 half of the Zustand selector-stability belt (UI-Lib-Zustand.md §A/§C-1, UI-Gates-and-Lessons.md §7/§11.5) — flags a `use<X>Store(selector)`/`useStore(store, selector)` call whose inline selector returns (directly, from a block body, or from either branch of a `?:`/`??`/\` | | `/`&&`) a fresh object/array literal, an `Object.keys/values/entries(...)`derivation, or an array-rebuilding`.map/.filter/...`call, unless wrapped in`useShallow(...)`— the shapes`tools/grit/zustand-selector-stability.grit\`'s AST pattern (Layer 2, literal-concise-body only) can't express | new (task #51 — realizes §8's PARKED "the zustand-selector gate" + §11.5's "extend to ALL keyed stores") |
+| `component-size` | `@orb/client` hard file-size cap (450 default / 500 route shells); gates `.ts` + `.tsx`, exempts tests/gen/`.d.ts` — god-component sprawl can't survive a check run | neo (ported) | | |
+| `no-direct-users-read` | the `users` table is read/written ONLY by `sessions` + `admin`; any other domain importing the `users` symbol from `@orb/db` is RED (identity comes from the Principal — resolve-once) | new | | |
+| `pd-citation-integrity` | every in-code `FLAG[PD-n]` resolves to a `Core-Audits-and-Debt.md` registry row; no duplicate PD ids (the concurrent-append collision) | new | | |
+| `test-mock-doctrine` | `vi.mock` of an internal module is banned — fake at the edges, inject at the root (`core/Spine-Testing.md §3`); third-party node edges only | new | | |
+| `test-factory-contract` | `makeX(overrides?)` builders are pure (no db param); persisted variants are `seedX(db, …)`; factories live in `tests/support/factories/` | new | | |
+| `test-fixture-imports` | tests import `{ test, expect }` from `support/fixtures`, never raw `vitest`/`@playwright/test` (e2e, support/, `.test-d.ts` exempt) | new | | |
+| `test-no-stubs` | every test block carries ≥1 assertion (`expect`/`expectTypeOf`) — anti-gaming for `test-presence` | new | | |
+| `server-layout` | `packages/server/src` root = the 6 tier dirs + `index.ts` only (§3) | new | | |
+| `package-layout` | kit/contracts/db/ui/client: every module is a directory with `index.ts`; no loose root files except `index.ts` (D15) | new | | |
+| `vector-scope-derived` | the vector tables (`character/image_embeddings`, `chat_digests/segments/digest_speakers`) are IMPORTED only by their sanctioned homes (embeddings/search/chat-memory/discovery/debug), WRITTEN only by `embeddings/persistence`, and cosine-ranked (`vector_distance_cos`) only in `search/persistence` — scope is derived from the producer, never stamped (D20) | new (PD-116) | | |
+| `turn-identity` | the chat ENGINE is `Principal`-blind: no `Principal` import and no `principal` identifier under `domain/chat/engine/` — the turn triple is `runAsUserId`/`triggeredBy`/caller-resolved-upstream (D16/D17/D19) | new (PD-116) | | |
+| `membership-enforcer` | no owner-equality comparison (`x.ownerId ===`) and no `fetchOwned`/`OwnedTable` import in `domain/chat` + the chat transport — chats are MEMBERSHIP-scoped (`assertParticipant` → `can()`); the host is looked up from the roster, never compared as an owner (D16/D18) | new (PD-116) | | |
+| `owner-role-split` | no `role === "owner"\|"admin"` comparison outside `domain/admin/guard.ts` — `can()` is the ONE privilege seam; owner ⊇ admin lives inside it (D17; the gate's founding catch fixed the auth seam's inline `isAdmin`) | new (PD-116) | | |
+| `bus-coverage` | every `CHAT_BUS_EVENT_TYPES` member has a server emit site OR a cited `DEFERRED` entry — a self-cleaning two-direction ratchet (missing emit RED; stale allowlist RED). Founding census: 8/26 unwired → PD-89 + PD-117 (D50) | new (PD-116) | | |
+| `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the PD-111-deleted `getRosterCardView` stays dead (D22) | new (PD-116/PD-111) | | |
+| `diagnostic-legibility` | every custom-gate + grit diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate that makes the W1-D message normalization permanent; a new gate/grit cannot regress to a bare/pointerless message | new (W1-D) | | |
 
 The table mirrors `scripts/check/report.ts` (34 registered gates); `report.ts` is the runtime truth.
 

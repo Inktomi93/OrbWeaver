@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-04
+updated: 2026-07-05
 ---
 
 # UI-Architecture-and-Layout
@@ -166,23 +166,34 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 
 #### 4.1 The shell — the rail + collapsible panels (D55) — Phase 6, unbuilt
 
-> **Design-seed status:** the Claude-design handoff is a **stale color-palette seed**. Its `Hearth`/`Loom`/`Pocket` "modes" never did the structural work they claimed; the VS-Code "Work mode" is **CUT**. **Themes are color palettes only** (§12.1) — there is NO structural mode. Keep from the seed ONLY the palette: the OKLCH ramp + **Ember** accent + **Geist** (the §3 token seed). Where the layout below and the seed disagree, this wins.
+> **Design-seed status (amended D62):** the Claude-design handoff's `Hearth`/`Loom`/`Pocket` "modes" never did the structural work they claimed; the VS-Code "Work mode" stays **CUT**. **Themes are color palettes only** (§12.1) — there is NO structural mode. From the seed corpus (`reference/design/`), keep the palette (OKLCH ramp + **Ember** + **Geist**, the §3 token seed) AND — added by D62 — its **visual grammar as reference** (control metrics, popover chrome, micro-caps/mono voice, empty-state style; the D62 program docs cite it file-by-file). Where the layout below and the seed disagree, this wins.
 
 The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp-overlay so it is BOTH the "command-center" *and* the "immersive-SillyTavern" layout — **one shell, panels toggled**, not two builds.
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, fixed). Weave glyph → section icons
-            (Chats · Characters · Corpus · Refinery · Analytics) → spacer → Theme · Settings · avatar.
-            Registry-as-data: RAIL_SLOTS, id-paired with MODAL_SLOTS (gate check:registry-pairing).
-  LIST    — the active section's collection + search + "new". Side panel.
+  RAIL    — persistent thin icon column (~56px, fixed). Weave glyph → section icons, SEVEN at
+            end-state (D62 P6), grouped by --spacing-section dividers:
+            Chats · Characters · Corpus (primary) | World Info · Presets · Refinery (authoring)
+            | Analytics (insight) → spacer → Theme · Settings · avatar. Seven is the CEILING —
+            anything further goes to modals/settings. Sections exist only as RAIL_SLOTS entries,
+            id-paired with MODAL_SLOTS (gate check:registry-pairing).
+  LIST    — the active section's collection: header row (micro-caps title + create "+") → search →
+            ListRow rows. Side panel. Per-section DEFAULTS (user toggle wins thereafter):
+            docked for Chats/Characters/World Info/Presets; collapsed for the content-first hubs
+            (Corpus/Refinery/Analytics) — a SECTION_PANEL_DEFAULTS map beside RAIL_SECTIONS.
   CONTENT — the fluid hero: HEADER bar (active entity · scene chip · thread actions) + the THREAD
             (chat/editor surface, prose capped 65–75ch) + the COMPOSER (pill input · attach · Send,
-            mid-stream STOP, optimistic send). LEFTOVER width feeds CONTEXT, NOT a wider chat.
-  CONTEXT — the right detail panel (active character/entity). Side panel.
+            mid-stream STOP, optimistic send). With NOTHING selected the Chats section renders the
+            LANDING surface (welcome hero + recent chats + character quick-picks — the committed
+            {kind:landing} pane), never an empty room. LEFTOVER width feeds CONTEXT, NOT a wider chat.
+  CONTEXT — the right detail panel (active artifact's detail + config; tabs). Side panel. Defaults
+            collapsed except Chats-with-active-chat.
 
-MOBILE:  RAIL → TOP tab bar (Nate's call, NOT the seed's bottom-tabs); LIST/CONTEXT →
-         full-screen / sheets; single column. (Mobile is a responsive LAYOUT, never a theme.)
+MOBILE:  RAIL → BOTTOM tab bar (D62 P3, supersedes the earlier top-bar note): Chats · Characters ·
+         Corpus · You (You = account/settings sheet + overflow sections; everything also reachable
+         via ⌘K). LIST/CONTEXT → full-screen / sheets; single column; land on CONTENT, never on an
+         open list sheet. (Mobile is a responsive LAYOUT, never a theme.)
 ```
 
 - **Refinery is a first-class rail section + feature surface** (Score→Rewrite→Analyze; schema anticipates it — D28). Its sub-parts (stage-stepper, assay, issue-list, compare-diff → `@orb/ui/diff`, guidance-bar) are app components over the primitives.
@@ -190,6 +201,58 @@ MOBILE:  RAIL → TOP tab bar (Nate's call, NOT the seed's bottom-tabs); LIST/CO
 - **"Immersive-ST" = both side panels collapsed; "command-center" = panels docked.** One persisted **focus toggle**. *The §11.1 clamp-overlay IS the `overlay` mechanism — the baked work powers the collapse, not a rewrite.*
 - **The shell is THEME-INDEPENDENT.** Themes are color palettes in the D44 selector (§12.1), NOT layout modes; rail + panels render identically under any palette.
 - **A migrating ST user loses nothing:** swipes · edit-in-place · branch/fork · italics-narration · hide-from-AI all live in the CONTENT thread, identical regardless of chrome.
+
+#### 4.2 The region map — what lives where (ledger D62)
+
+The shell is Discord's anatomy with different nouns; the mapping is LAW so no lane invents geography. The difference that matters: rail items are **facets of one world**, not separate servers — cross-section jumps (character card → start chat) are common and route through store actions (`setActiveSection` + a seed), never stranding the user.
+
+| Discord | Orbweaver | Owns |
+| - | - | - |
+| Server rail | RAIL | which facet — sections + theme/settings/avatar at the foot |
+| Channel sidebar | LIST | the section's collection: header row (micro-caps title + create `+`) → search → `ListRow`s. Finding. |
+| Chat pane | CONTENT | the artifact you're in: identity header + working surface. Doing. |
+| Members panel | CONTEXT | detail + config of CONTENT's active artifact. Closable; never navigation. |
+| Quick switcher | `command` modal (⌘K) | jump to any thread/section/create action |
+| User settings overlay | `settings` modal, full-bleed variant | USER group (Account · Personas · Appearance · Chat behavior) + APP group (Connections · Automation · System · Admin). Generation config is NOT settings — it is the Presets section. |
+| Avatar chip | rail-foot avatar → `account` modal | quick identity card; links into Settings |
+
+Per-section grid (end-state; the D62 program builds toward it):
+
+| Section | LIST | CONTENT — none selected | CONTENT — selected | CONTEXT |
+| - | - | - | - | - |
+| Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Overrides · Preview · Injections · Roster(group) |
+| Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
+| World Info | book rows | teaching state | entries table + editor | book config + activation scope |
+| Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
+| Corpus | recent searches/lenses (default-collapsed) | search-first hub | results in CONTENT (list + graph) | selected result's dossier |
+| Refinery | past sessions (default-collapsed) | pick-a-character | pipeline (stepper · assay · issues · compare) | collapsed |
+| Analytics | default-collapsed | dashboard | drill-in in CONTENT | dimension detail |
+
+**Interaction physics (all six are load-bearing):**
+
+1. LIST selection drives CONTENT; CONTEXT follows CONTENT. CONTEXT holds actions ON the artifact, never navigation (§5.1 writer-only).
+2. Per-section selection is REMEMBERED — rail-switching away and back restores the section exactly (selection stores + `<Activity>` pane-keeping, §4a).
+3. Per-section panel DEFAULTS, user override wins (the `SECTION_PANEL_DEFAULTS` map sets only the initial value; the persisted per-panel mode wins thereafter).
+4. Cross-section actions carry their subject in ONE action path (`startNewChat({characterIds})` + `setActiveSection`) — the user lands ready to act.
+5. Modals are for interrupts and pickers ONLY (new-chat picker, add-member, theme, settings, account, ⌘K). Section content NEVER lives in a modal — it is a CONTEXT tab or a CONTENT state.
+6. Focus mode = both side panels collapsed (`toggleFocus`); the topbar reopen affordances are the way back.
+
+#### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
+
+Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8 + `proposed/design-enforcement.md`. When a build instinct conflicts with a rule, the rule wins.
+
+1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
+2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.
+3. **One primary action per view.** Exactly one `intent="primary"` control visible per region at rest (composer Send counts for CONTENT).
+4. **Progressive disclosure.** Rest state shows the reading surface; management chrome appears on hover AND `:focus-within` (keyboard parity), always-visible at `pointer: coarse`, or lives one click away (CONTEXT tab, options menu).
+5. **LIST finds; CONTENT does.** Every LIST panel composes header row → search → `ListRow`s.
+6. **Keyboard first.** ⌘K reaches every section/recent/create; Esc closes the top layer; focus is visible everywhere and lands correctly on open.
+7. **Perceived performance.** Optimistic send, shape-matched skeletons, streaming text as the arrival motion. Never a centered spinner; never layout shift on data arrival.
+8. **Empty, loading, error are designed states** — every surface ships all three (the `QueryBoundary` battery forces the slots; D62 makes them worth looking at).
+9. **Chrome is quiet; content is loud.** Micro-caps muted section labels; mono data accents; the accent color on ≤10% of any viewport. If a screenshot's loudest element is chrome, the hierarchy is inverted.
+10. **Same action, same home.** One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry).
+
+**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId` — gate `placeholder-copy-registry`). The Weave glyph appears at most ONCE per screen (DESIGN.md restraint rule), only in empty states / loading / corpus.
 
 ### 4a. React 19 / 19.2 — platform leverage (use these, skip those)
 
@@ -230,7 +293,7 @@ The client targets **React 19 + the React Compiler** (LIVE: the compiler runs fu
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `no-media-queries-in-features` keeps it there.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Touch-first baseline:** interactive primitives meet the ≥44px touch floor *unconditionally* via token control-heights; `data-density="compact"` *tightens* for fine pointers — nothing to branch. Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent**. Base UI suppresses tooltips on touch for free. *Gate `touch-target-floor`: interactive primitives may not set a control-height below the touch token.*
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor (AMENDED — D62 P1; was "unconditional"):** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 28px · `control-md` 34px · `control-lg` 40px · icon 34px — emitted as a token-layer `pointer: fine` override (THIS layer, never features; nothing to branch). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis. Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. *Gate `touch-target-floor`: asserts the floor per-pointer (one coarse-emulated CT pass).*
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 

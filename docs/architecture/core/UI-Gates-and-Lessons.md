@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-05
 ---
 
 # UI-Gates-and-Lessons
@@ -40,6 +40,17 @@ The two FORM rows are 2 of the six editor obligations the factories bake — **t
 **REALIZED (2026-07-05 — task #51):** the zustand-selector gate. It was NOT wholly unwritten — `tools/grit/zustand-selector-stability.grit` (Layer 2) already caught the narrow "arrow concise-body IS `({...})`/`[...]`" shape and was LIVE in `biome.json`. §11.5's "extend the selector gate to ALL keyed stores" ask is now discharged by the Layer-3 structural gate `zustand-selector-derived.ts` (listed above), which adds full-body reasoning (block `return`s, `?:`/`??`/`||`/`&&` branches, `Object.keys/values/entries`, array-rebuilding `.map/.filter/...`) and the second call shape (`useStore(store, selector)`, the vanilla-store adapter `createEntityDraftStore`'s read hooks use) a Grit AST pattern can't express. Both layers stay live — the grit is the fast narrow belt, the structural gate is the comprehensive one.
 
 **DORMANT (built + self-tested, held out of `report.ts`'s `ALL_CHECKS` — distinct from PARKED, which is unwritten; activation is a one-line add, ground truth = the `DORMANT_GATES` set in `tests/tooling/check-gates.int.test.ts`):** `surface-in-a-container` (needs a real consumer surface — app-shell is shell-tier-exempt) · `component-size-ui` (rides W1-1's `table.tsx` split) · `test-presence-client` (rides W1-1's client-primitive test backfill). Full registry + triggers: `Core-Enforcement-Active-Gates.md`.
+
+**PLANNED — the D62 design-gate set (specced; implementation detail + tiering: `proposed/design-enforcement.md` §3; they land WITH the D62 lanes per §11.7, and the D62 lanes ALSO trigger the full remaining §8-PARKED activation — the lanes ARE feature agents):**
+
+- `no-raw-interactive-intrinsics` — in `features/**` a raw `<button>/<input>/<select>/<textarea>/<a>` JSX element is banned regardless of className (interactive elements come from `@orb/ui`); app-shell stays shell-tier-exempt.
+- `no-arbitrary-tw-values` — bracket-value utilities (`p-[13px]`, `text-[10.5px]`) banned in features AND ui — widens the token-gate grit family to the general bracket escape.
+- `empty-state-has-action` — an `<EmptyState>` in `features/**` must pass `action` or sit in the gate-file allowlist (§4.3 rule 1's mechanical half).
+- `placeholder-copy-registry` — pairing test: every `SectionId` has a DISTINCT placeholder-copy entry (freshness-test pattern).
+- `modal-body-not-placeholder` — a `MODAL_SLOTS` body rendering `SectionPlaceholder` must carry an explicit `placeholder: true` registry flag (silent-sparkle shipping becomes countable).
+- **ARIA-tree goldens** — `toMatchAriaSnapshot` over the canonical shell states (`tests/e2e/shell-structure.spec.ts`); structure drift = a visible diff. **Prerequisite: the CI browser lane** (ci.yml has none yet — its own comment defers it; activating it = install browsers + run `playwright test`).
+- **Screenshot goldens** — `toHaveScreenshot` on the same states × {desktop, mobile}, probe-mode on, animations off, devtools masked; the Phase-6 "visual-regression as a gate" commitment made concrete. Local fast loop stays `pnpm snap --probe --diff`; the committed Playwright baselines are the ONE merge-gate source of truth.
+- **CT state-coverage** — extend the §13.7 CT contract: every interactive primitive's CT asserts focus-visible ring + disabled opacity (+ loading/error where claimed) — the machine-checkable core of the 8-state doctrine.
 
 **No directory is exempt from a boundary rule** (the `_shared` + `components/ui/` exemptions are what rotted neo — §11.0).
 

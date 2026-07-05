@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-05
 ---
 
 # Orbweaver — build plan (the ordered runbook)
@@ -79,24 +79,79 @@ D44 gates, tokens → Tailwind `@theme`. **`@orb/client`** scaffold — the feat
 `client-structure`/`component-size`/feature-isolation gates, vite entry + hand-written router tree; the
 base site boots.
 
-**Remaining:**
+**Remaining — the D62 lane sequence (ledger D62; step-level detail lives in the D62 program docs:
+`proposed/ui-polish-punchlist.md` · `proposed/ux-flow-revamp.md` (J1–J12 + the parity map) ·
+`proposed/design-enforcement.md`). The standing rules for every lane:** feature-slice ·
+surfaces/anchors · `state:files` · intent tokens · container-driven layout (`@media` only in
+app-shell) · Query (server) + gated Zustand (client) · Router minimal · `#` imports. Every lane
+brief cites its law rows (§4.1–§4.3), ends with verify snaps, updates the golden baselines in the
+same commit, and pastes the §4.3 Tier-C checklist. Lanes L0→L4 are strictly ordered; L5/L6 hang off
+L1/L2; L7 tracks server-domain availability.
 
-1. The client FEATURE surfaces over the scaffold: feature-slice · surfaces/anchors · `state:files` ·
-   intent tokens; **container-driven** layout (4-tier; `@media` only in app-shell); Query (server) +
-   gated Zustand (client); TanStack Router **minimal** (single-route shell, no file-based codegen). `#`
-   imports, no `@/`.
-2. Client component tests = **Playwright CT** (`.ct.tsx` at the `tests/client/` mirror); e2e =
-   **Playwright** (`.spec.ts` under `tests/e2e/`). No Vitest browser. Client pure-logic stays node
-   `.test.ts`. Add **visual-regression** (Playwright screenshots) as a gate.
-3. **Client-surfaced committed features (D47/D49):** the **welcome screen** (`{kind:landing}` center
-   pane), **reasoning-block render + effort picker** (the D41 data already exists), the **gallery
-   grids**, the **token-counter panel** (over `@orb/kit/tokens` — pure client), **inline image display**
-   (`message-media`), and the **`/imagine` command surface** (a D46 Tier-1 automation action). The
-   feature-slice structure ABSORBS the Phase-7/8 feature UIs additively as those server domains land —
-   this phase need not wait for 7/8.
+1. **L0 — tokens** (dispatchable NOW; rulings P1/P2 decided): the corrected Hearth palette
+   (UIP-101) · pointer-conditional control heights (UIP-102 — coarse 44px floor / fine 28-34-40) ·
+   the micro/tracking type pair · the avatar display-size trio · `--color-info`/`--glow`/
+   `--shadow-overlay`. Same commit: `touch-target-floor` re-scope + the §4b axis-3/`tokens.json`
+   `$description` wording + AA re-check.
+2. **L1 — primitive deltas** (`ux-flow-revamp.md` §4, under the §13.7/§13.8 contract): new `kbd` ·
+   `Text` micro/caps · `Avatar` sizes+hue · `Dialog` widths+`full` · `EmptyState` action/decoration ·
+   `Skeleton` shimmer · `Button` secondary-bordered/ghost-muted (P5) · Tabs underline · weave-glyph
+   re-home to `client/src/lib/`. Plus the remaining client-foundation belts: the D62 lanes are
+   feature agents, so per §11.7 ALL §8-PARKED belts + the D62 design-gate set activate in/with this
+   wave. **The CI browser lane activates here** (ci.yml has none — install browsers + run
+   `playwright test`; prerequisite for the ARIA/screenshot goldens).
+3. **L2 — shell chrome** (punchlist §2 + J3 header slot): rail polish + grouped sections ·
+   kill the triple-title (panel header = list header row) · topbar identity header + ⌘K chip ·
+   context-panel header · the document-scroll-leak fix (UIP-205) · `SECTION_PANEL_DEFAULTS`.
+4. **L3 — flow spine** (J1/J2/J4/J5): the landing surface (`{kind:landing}` — the committed
+   welcome screen, P4) · the new-chat character picker (multi-select founds groups —
+   `startChat(characterIds[])` already plural) · the real ⌘K palette over `@orb/ui/command` ·
+   chat-list `ListRow` rows + search + row kebab (**this lane routes the four chat-lifecycle
+   procedures** — title/star/archive/delete exist on `ChatService` but not in
+   `transport/trpc/routers/chat.ts`; thin pass-through, D62). ARIA + screenshot goldens land on
+   these states in the same lane.
+5. **L4 — chat room** (J3/J6/J7 + punchlist §3): the 65–75ch thread column · hover-reveal message
+   actions (+ coarse-pointer/`:focus-within` fallbacks) · pill composer · chat header ⋯ options
+   menu · bulk-select (`selection-bar` + `state/message-selection-store.ts`) · cast-bar `+`
+   add-member · **reasoning-block effort picker** (D41 data exists) · **inline image display**
+   (`message-media` wiring) · **token-counter panel** (CONTEXT tab, over `@orb/kit/tokens`).
+6. **L5 — sections & modals** (J8–J11 + punchlist §4/§5): distinct Weave placeholders per section ·
+   character detail card (J9; the editor is its own follow-on lane — `createSavedEntityForm`, with
+   `proposed/character-snapshot-ux.md` + the parity-map satellite dialogs riding it) · corpus
+   interim search (J10) · the settings full-bleed overlay shell (J11 — Appearance pane migrates
+   first; **`proposed/connection-capability-panel.md`** lands as the Connections pane's
+   descriptor-driven params half when credentials UI arrives) · the interim theme picker
+   (Hearth/Mocha/Light) — the full theme EDITOR rides **`proposed/themes-design.md`** (server
+   `themes` entity + `createSavedEntityForm`) as a follow-on.
+7. **L6 — mobile** (J12, P3): bottom tab bar (Chats · Characters · Corpus · You) · land-on-CONTENT ·
+   sheet polish · `interactive-widget=resizes-content` + safe-area audit · the §4.1 `MOBILE:`
+   D-ledger amendment ships in this lane.
+8. **L7 — parity growth** (the `ux-flow-revamp.md` §3 map is the authority; each row cites its
+   decided home; build by product priority as server domains allow): **Presets section** (P6; +
+   prompt-manager Prompt tab; **`proposed/preset-form-mapper-elimination.md`** is a lane rule for
+   its editor — no flat-form mapper) → **World Info section** (P6; four activation sources per the
+   map) → **character EDITOR** (+ import UI over the built card parsers; tag management modal —
+   server half: `proposed/tag-pending-review.md`) → **Connections** (Settings pane; D47 direct
+   providers when built) → **Corpus hub** (search/insights/stats faces; the deferred verbs:
+   `proposed/discovery-deferred-corpus-surface.md` + `proposed/stats-discovery-seam.md` slot here)
+   → **gallery grids** (D49 — server built; `media-grid` exists) → **`/imagine` command surface**
+   (composer wand item; D46 Tier-1) → **Refinery + Analytics** (their engines' phases). Import/
+   export surface growth rides `proposed/import-st-profile-waves.md` + `proposed/
+   export-deferred-surfaces.md` when those waves open; Workloads UI lands in Settings→APP→System
+   (`proposed/workloads-deferred-designs.md` for the deferred server halves). The feature-slice
+   structure ABSORBS the Phase-7/8 feature UIs additively as those domains land (tool-use records ·
+   databank panel · expressions stage · hub browse · saved-roster picker · rpg/crew/buddy surfaces
+   · agent-principal admin rows — each enters at its parity-map home; this phase never waits on
+   7/8).
 
-**✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green; the UI-boundary
-physics hold (an app→raw-primitive import fails to resolve).
+Client test posture (unchanged): Playwright CT (`.ct.tsx`, `tests/client/` mirror) + e2e
+(`.spec.ts`, `tests/e2e/`); no Vitest browser; client pure-logic stays node `.test.ts`. The D62
+goldens (ARIA + screenshots) ARE the visual-regression gate this phase committed to.
+
+**✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green (incl. the
+shell-structure goldens); the UI-boundary physics hold (an app→raw-primitive import fails to
+resolve); L0–L5 landed = the app opens on the landing, every section has a distinct surface or
+teaching state, and no modal ships a sparkle placeholder.
 
 ---
 

@@ -22,13 +22,15 @@ updated: 2026-07-03
 - **One Phase-5 seam open:** the OpenAI-path tool-loop (D48) — `domain/chat/engine/pipeline.ts` marks
   it the next chunk.
 - **Phase 6 (client) IN PROGRESS:** `@orb/ui` built + the primitive fleet integrated; the client
-  feature-slice scaffold + gates landed and the base site boots; the feature surfaces remain.
+  feature-slice scaffold + gates landed and the base site boots; the feature surfaces remain and
+  now build to the **D62 lane sequence** (L0 tokens → … → L7 parity; `Core-BUILD-PLAN.md` Phase 6 +
+  the D62 program docs under `proposed/`).
 - **Phase 7 PARTIAL:** `domain/imagery` + gallery landed early; tool-use · databank · expressions ·
   the D61 leaves (hub, roster-preset) pending.
 - **D60 agent principals:** AP0–AP2 landed (identity spine + attribution + containment suite); the
   AP3+ seat wave is pending (PD-17).
-- Phase detail + per-phase checkpoints: `Core-BUILD-PLAN.md`. Ledger latest: **D61**
-  (`Core-Laws-and-Precedents.md` + `Core-Path-Registry-D60-D61.md`).
+- Phase detail + per-phase checkpoints: `Core-BUILD-PLAN.md`. Ledger latest: **D62**
+  (`Core-Laws-and-Precedents.md` + `Core-Path-Registry-D62.md` — the UI/UX revamp program).
 
 ## NEXT ACTION
 

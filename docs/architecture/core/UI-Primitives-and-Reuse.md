@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-04
+updated: 2026-07-05
 ---
 
 # UI-Primitives-and-Reuse
@@ -48,6 +48,12 @@ updated: 2026-07-04
 | cache invalidation | `invalidate(event)` (the seam) | inline `invalidateQueries` |
 | global client state | one gated Zustand store | exported `set`/`getState`, >10 fields |
 | an editor draft | `createEntityDraftStore` | a bespoke persist store |
+| an entity list row (chats, presets, books, docs) | `@orb/ui/list-row` (leading · title/subtitle · trailing actions · selected) | a `Card interactive` or hand-rolled row |
+| a settings row | `@orb/ui/setting-row` | hand-rolled label+control Stacks |
+| bulk-select mode chrome | `@orb/ui/selection-bar` | a bespoke count+actions footer |
+| an editor's save/dirty bar | `@orb/ui/save-bar` | a bespoke sticky footer |
+| the ⌘K palette / any picker-with-search | `@orb/ui/command` (cmdk seal) | a hand-rolled filtered list |
+| a keyboard-hint chip | `@orb/ui/kbd` (D62 — lands in the D62 primitive lane) | inline mono spans |
 | a route / auth gate | Router `beforeLoad`+`redirect` (§6.1) | `useBlocker` for an in-app pane guard |
 | the editor "unsaved? leave?" guard | a **hand-rolled in-app** guard off view-state | `useBlocker` (won't fire on a pane swap) |
 | single-route pane transition | hand-rolled `document.startViewTransition()` | the router's VT (won't fire; `pathChanged` is constant) |
@@ -118,4 +124,6 @@ Codified after a full seal review found the same miss-class across agents: thin 
 
 **The homing rule:** a factory that touches tRPC/Query/Form/Zustand types is CLIENT-side (`packages/client`, Phase 6); a pure component/DOM/string-math primitive is UI-side. The `@orb/ui` inclusion litmus: **domain-agnostic** (a `Button`, never a `CharacterCard`) AND ≥1 committed consumer (or a neo staple). Domain components live in `client/features`.
 
-**Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / weave-glyph / dialog-state-gate (app-shell chrome) · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears). **`table` IS an `@orb/ui` primitive** (built + exported `./table`): kept per Nate 2026-07-04 — a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and the primitive naturally splits under the 450-line cap (`table.tsx` = 461).
+**Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / dialog-state-gate (app-shell chrome) · **weave-glyph — RE-HOMED by D62 to `packages/client/src/lib/` (the cross-cutting display seam): features cannot import app-shell, and D62's empty-state decorations need the glyph across features; still NOT `@orb/ui` (brand, not a domain-agnostic primitive)** · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears).
+
+**D62 primitive deltas (specced in `proposed/ux-flow-revamp.md` §4 — the ONE home for the delta list; every delta lands under the §13.7 contract + §13.8 rules):** new `kbd`; `Text` gains `micro` size + `caps` transform; `Avatar` sizes decouple from control tokens (new avatar-size token trio) + deterministic per-entity fallback hue; `Dialog` gains width variants + a `full` presentation; `EmptyState` gains `action` + `decoration` slots; `Skeleton` gains the shimmer (reduced-motion-safe); `Button` `secondary` retunes to bordered (D62 P5) and `ghost` defaults muted. **`table` IS an `@orb/ui` primitive** (built + exported `./table`): kept per Nate 2026-07-04 — a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and the primitive naturally splits under the 450-line cap (`table.tsx` = 461).
