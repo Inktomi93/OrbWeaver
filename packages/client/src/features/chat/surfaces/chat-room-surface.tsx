@@ -30,6 +30,7 @@ import { committedChat, isCommitted } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
 import { ChatCastBar } from "../components/chat-cast-bar";
 import { Composer } from "../components/composer";
+import { MessageSelectionBar } from "../components/message-selection-bar";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { MessageListSurface } from "./message-list-surface";
 
@@ -75,6 +76,9 @@ export function ChatRoomSurface({
           <MessageListSurface busDeps={busDeps} handle={handle} onChatForked={onChatForked} />
         </MessageThreadAnchor>
       </Stack>
+      {/* Bulk-select bar (J6) — pinned above the composer while select mode is on (renders null otherwise);
+          only a COMMITTED chat has server messages to select. */}
+      {isCommitted(handle) ? <MessageSelectionBar chatId={handle.id} /> : null}
       <ComposerSlot
         handle={handle}
         value={draftText}

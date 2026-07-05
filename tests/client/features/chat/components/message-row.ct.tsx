@@ -22,6 +22,7 @@ const BUBBLE = '[data-slot="message-bubble"]';
 const ROW = '[data-slot="message-row"]';
 const ATTRIBUTION = '[data-slot="message-attribution"]';
 const THEME_SCOPE = '[data-slot="theme-scope"]';
+const SPEAKER_ACCENT_RE = /text-speaker/u;
 
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");
@@ -111,7 +112,11 @@ test("assistant row resolves name from the roster + colors the bubble via ThemeS
     />,
   );
   await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
-  await expect(component.locator(THEME_SCOPE)).toHaveCount(1);
+  // TWO ThemeScopes now (UIP-304): one (display:contents) tints the speaker NAME with `--color-speaker`
+  // (the accent), one wraps the bubble CONTENT — both from the same per-character `attribution.tokens`.
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(2);
+  // The speaker name carries the accent color hook.
+  await expect(component.locator(ATTRIBUTION).getByText("Alice")).toHaveClass(SPEAKER_ACCENT_RE);
 });
 
 test("a null characterId in a multi-character room shows a neutral Narrator, uncolored", async ({

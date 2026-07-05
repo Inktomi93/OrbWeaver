@@ -5,12 +5,27 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { MessageActionsRowStory } from "../_ct-stories";
 import { makeMessageView } from "../fixtures";
 
 const HIDE_LABEL_RE = /Hide from AI|Unhide from AI/u;
+const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
+const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
+const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
 const SYSTEM_MESSAGE: MessageView = makeMessageView({ role: "system", content: "a room notice" });
+
+// UIP-305: the cluster rests hidden (opacity-0 / pointer-events-none) and reveals on hover /
+// focus-within / coarse pointer. The reveal is a pure CSS variant (asserted structurally in its own test
+// below); these interaction tests care about the MUTATION wiring, so they force the revealed state
+// inline — decoupling "does the verb fire correctly" from the CSS-variant-generation of the CT bundle.
+async function revealActions(component: Locator): Promise<void> {
+  await component.locator("[data-slot='message-actions-row']").evaluate((el: HTMLElement) => {
+    el.style.opacity = "1";
+    el.style.pointerEvents = "auto";
+  });
+}
 
 test("edit/hide/fork are hidden on a system row; delete/copy stay available", async ({ mount }) => {
   const component = await mount(<MessageActionsRowStory message={SYSTEM_MESSAGE} />);
@@ -30,11 +45,31 @@ test("edit/hide/fork are all available on an assistant row", async ({ mount }) =
   await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
 });
 
+test("the action cluster rests hidden and carries the hover/focus/coarse reveal hooks (UIP-305)", async ({
+  mount,
+}) => {
+  const component = await mount(<MessageActionsRowStory />);
+  const cluster = component.locator("[data-slot='message-actions-row']");
+
+  // At rest the cluster is opacity-0 + pointer-events-none (present in the DOM, but not interactive).
+  await expect(cluster).toHaveCSS("opacity", "0");
+  await expect(cluster).toHaveCSS("pointer-events", "none");
+
+  // …and it carries all three reveal hooks: hover, keyboard focus-within (the gate-relevant parity half,
+  // §4.3 rule 4), and always-on at a coarse pointer. (Asserted on the class list — a computed-style hover
+  // check would depend on the CT bundle's variant generation; the class presence is the load-bearing
+  // contract that these variants are wired.)
+  await expect(cluster).toHaveClass(HOVER_REVEAL_RE);
+  await expect(cluster).toHaveClass(FOCUS_REVEAL_RE);
+  await expect(cluster).toHaveClass(COARSE_REVEAL_RE);
+});
+
 test("hide-from-AI fires setMessageHidden with the flipped flag", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "chat.setMessageHidden": () => ({ ok: true }) });
   const message = makeMessageView({ excludedFromPrompt: false });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Hide from AI" }).click();
 
   await expect.poll(() => trpc.count("chat.setMessageHidden")).toBe(1);
@@ -49,6 +84,7 @@ test("an already-hidden row shows Unhide and toggles the flag back", async ({ mo
   const message = makeMessageView({ excludedFromPrompt: true });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Unhide from AI" }).click();
 
   await expect.poll(() => trpc.count("chat.setMessageHidden")).toBe(1);
@@ -66,6 +102,7 @@ test("delete opens a confirm dialog; confirming fires deleteMessages with this O
   const message = makeMessageView();
   const component = await mount(<MessageActionsRowStory message={message} />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Delete message" }).click();
   // The dialog portals to document.body — assert against the page, not the component root.
   await expect(page.getByText("Delete this message?")).toBeVisible();
@@ -79,6 +116,7 @@ test("delete's Cancel closes the dialog without firing the mutation", async ({ m
   const trpc = await routeTrpc(page, { "chat.deleteMessages": () => null });
   const component = await mount(<MessageActionsRowStory />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Delete message" }).click();
   await page.getByRole("button", { name: "Cancel" }).click();
 
@@ -93,6 +131,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   const message = makeMessageView({ seq: 7 });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Fork chat here" }).click();
 
   await expect.poll(() => trpc.count("chat.forkChat")).toBe(1);
@@ -108,6 +147,7 @@ test("copy writes the message content to the clipboard (no network call)", async
   const message = makeMessageView({ content: "copy me please" });
   const component = await mount(<MessageActionsRowStory message={message} />);
 
+  await revealActions(component);
   await component.getByRole("button", { name: "Copy message" }).click();
 
   const readClipboard = (): Promise<string> => page.evaluate(() => navigator.clipboard.readText());

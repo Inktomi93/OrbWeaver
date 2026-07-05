@@ -132,6 +132,10 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
     );
   }
 
+  // UIP-304: emphasis/italic (`*text*` → `<em>`) reads as NARRATION in this app's prose voice (ST
+  // EmColor / D44 §12.1 narrationColor) — the base className tints every rendered `<em>` with
+  // `--color-narration`. ONE home for the convention (re-themes for free; a per-speaker ThemeScope that
+  // re-points `--color-narration` overrides it inline for a merged-narrator span).
   return (
     <MarkdownErrorBoundary>
       <Streamdown
@@ -144,7 +148,7 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         // `controls` (copy/download/fullscreen), `lineNumbers`, `parseIncompleteMarkdown`, and
         // `linkSafety` are all left at Streamdown's own defaults (`true` / repair-on / confirm-on) —
         // deliberately not overridden; documented in the seal's option map.
-        {...(className === undefined ? {} : { className })}
+        className={cn("[&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
         {...(mode === "streaming" ? { caret: "block" as const } : {})}
         {...(untrusted

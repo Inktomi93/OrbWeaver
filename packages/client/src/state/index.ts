@@ -9,10 +9,12 @@ export {
   commitDraft,
   goToLanding,
   selectChat,
+  setEffort,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSessionKey,
+  useEffort,
 } from "./active-chat-store";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle";
 export { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle";
@@ -40,6 +42,16 @@ export {
   useIsEditingMessage,
   useMessageEditDraftText,
 } from "./message-edit-draft";
+export {
+  clearSelection,
+  enterSelectionMode,
+  exitSelectionMode,
+  readSelectedMessageIds,
+  toggleMessageSelected,
+  useIsMessageSelected,
+  useSelectedCount,
+  useSelectionActive,
+} from "./message-selection-store";
 export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
 export {
   closeModal,
@@ -48,8 +60,10 @@ export {
   PANEL_MODES,
   SECTION_IDS,
   setActiveSection,
+  setContextTab,
   setPanelMode,
   useActiveSection,
+  useContextTab,
   useOpenModal,
   usePanelOverride,
 } from "./shell-store";

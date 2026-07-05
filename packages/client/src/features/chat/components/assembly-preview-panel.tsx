@@ -10,6 +10,7 @@
 
 import type { AssembleTrace } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -51,6 +52,12 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
         What the model will see on the next turn. Read-only.
       </Text>
 
+      <TokenEstimate
+        staticText={prompt.static}
+        dynamicText={prompt.dynamic}
+        injections={prompt.afterHistory}
+      />
+
       <OverrideSources sources={trace.overrideSources} />
 
       <PromptText heading="System prompt — static" text={prompt.static} emptyLabel="(empty)" />
@@ -77,6 +84,57 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
 
       <TraceSummary trace={trace} />
     </Stack>
+  );
+}
+
+/** An ADVISORY local token estimate (`@orb/kit/tokens` QuadChars — the same engine the server assembly
+ *  uses) over the assembled prompt halves + in-history injections. Quiet mono stats (§4.3 rule 9). Not
+ *  billing truth: the real count is the provider's post-turn `usage` (the estimator's own file header). */
+function TokenEstimate({
+  staticText,
+  dynamicText,
+  injections,
+}: {
+  readonly staticText: string;
+  readonly dynamicText: string;
+  readonly injections: readonly { readonly content: string }[];
+}): ReactElement {
+  const staticTokens = estimateTokens(staticText);
+  const dynamicTokens = estimateTokens(dynamicText);
+  const injectionTokens = injections.reduce((sum, inj) => sum + estimateTokens(inj.content), 0);
+  const total = staticTokens + dynamicTokens + injectionTokens;
+  return (
+    <Section heading="Token estimate (advisory)">
+      <Stack gap="field">
+        <TokenLine label="System — static" value={staticTokens} />
+        <TokenLine label="System — dynamic" value={dynamicTokens} />
+        {injectionTokens > 0 ? (
+          <TokenLine label="In-history injections" value={injectionTokens} />
+        ) : null}
+        <TokenLine label="Total" value={total} />
+        <Text size="micro" tone="muted">
+          Estimated locally (QuadChars) — the real count is the provider's post-turn usage.
+        </Text>
+      </Stack>
+    </Section>
+  );
+}
+
+/** One token-estimate row — label + a right-aligned mono count (`≈` marks it advisory). */
+function TokenLine({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: number;
+}): ReactElement {
+  return (
+    <Row gap="block" justify="between" align="center">
+      <Text size="label" tone="muted">
+        {label}
+      </Text>
+      <Text size="code">{`≈ ${value}`}</Text>
+    </Row>
   );
 }
 

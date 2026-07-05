@@ -159,7 +159,19 @@ export function MessageActionsRow({ message, onChatForked }: MessageActionsRowPr
   };
 
   return (
-    <Row gap="field" align="center" data-slot="message-actions-row">
+    // UIP-305 progressive disclosure (§4.3 rule 4): the action cluster rests hidden (opacity-0 +
+    // pointer-events-none), revealed on row hover (`group-hover`, the message-row `group` hook) AND on
+    // keyboard focus within it (`group-focus-within` — the gate-relevant keyboard-parity half), and is
+    // ALWAYS visible on a coarse pointer (`pointer-coarse:` — a capability variant, not a viewport one,
+    // so it's compose-legal per the no-media-queries-in-features carve-out). Right-aligned under the
+    // bubble edge (`justify-end`), quiet metadata voice — not a full-width toolbar.
+    <Row
+      gap="field"
+      align="center"
+      justify="end"
+      data-slot="message-actions-row"
+      className="pointer-events-none opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
+    >
       {editable ? (
         <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
           <Icon icon={Pencil} size="sm" />

@@ -15,7 +15,7 @@
 // suspend the whole room); the room only mounts this for a COMMITTED chat (a draft has no server roster).
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Row } from "@orb/ui/layout";
 import { cn } from "@orb/ui/lib";
@@ -25,6 +25,8 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { initialsForAttribution } from "../lib/attribution";
+import { resolveViewerIsHost } from "../lib/roster";
+import { AddMemberPopover } from "./add-member-popover";
 
 export interface ChatCastBarProps {
   /** A COMMITTED chat id — the room mounts this only for a committed chat (a draft has no server roster). */
@@ -53,6 +55,11 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
     return null;
   }
 
+  // J7 add-member: the trailing "+" is HOST-only (the verb is host-gated server-side; mirror it so a
+  // member never sees an affordance that would only NOT_FOUND). `chat` is defined here (cast came from it).
+  const isHost = chat !== undefined && resolveViewerIsHost(chat.participants);
+  const existingCharacterIds: readonly CharacterId[] = cast.map((member) => member.characterId);
+
   return (
     <Row
       gap="field"
@@ -78,6 +85,9 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
           </Text>
         </Row>
       ))}
+      {isHost ? (
+        <AddMemberPopover chatId={chatId} existingCharacterIds={existingCharacterIds} />
+      ) : null}
     </Row>
   );
 }

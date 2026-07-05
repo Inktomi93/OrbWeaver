@@ -27,6 +27,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, useTRPC } from "#data";
+import { setContextTab, useContextTab } from "#state";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
@@ -69,8 +70,25 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   // identical `cast.length <= 1 → null` gate for the member-visible glance strip).
   const showRoster = isHost && resolveIsGroupChat(chat.participants);
 
+  // CONTROLLED by the shell's `contextTab` seam (ux-flow-revamp J6) — the chat options menu (J3 header)
+  // sets it to jump straight to a tab. Resolve against the CURRENTLY-VISIBLE tabs so a stale/hidden
+  // request (e.g. "preview" as a non-host) safely falls back to Overrides rather than selecting nothing.
+  // A manual tab click writes back through `setContextTab`, so the seam stays the single source of truth.
+  const contextTab = useContextTab();
+  const visibleTabs = new Set<string>(["overrides", "injections"]);
+  if (showRoster) {
+    visibleTabs.add("roster");
+  }
+  if (isHost) {
+    visibleTabs.add("preview");
+  }
+  const activeTab = contextTab !== null && visibleTabs.has(contextTab) ? contextTab : "overrides";
+
   return (
-    <Tabs defaultValue="overrides">
+    <Tabs
+      value={activeTab}
+      onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
+    >
       <TabsList>
         <TabsTab value="overrides">Overrides</TabsTab>
         {/* Roster (group controls, task #29) — host-AND-group-only, mirroring the Preview gate: mute /

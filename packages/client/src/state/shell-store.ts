@@ -61,6 +61,12 @@ interface ShellState {
   /** Per-section side-panel overrides (sparse). Un-overridden ⇒ the feature default (§4.2 rule 3). */
   readonly panelOverrides: PanelOverrides;
   readonly openModal: ModalSlotId | null;
+  /** The CONTEXT-panel "open this tab" seam (ux-flow-revamp J6): an OPAQUE string the shell forwards and
+   *  the active CONTENT's context surface interprets (chat maps it to its Overrides/Preview/Injections/
+   *  Roster tab). Kept as a bare `string | null` — NOT a chat-specific union — so the shell stays
+   *  domain-agnostic (it never learns a chat tab id). `null` = the surface's own default tab. Transient
+   *  (never persisted — a deep-linked tab must not survive a reload, like `openModal`). */
+  readonly contextTab: string | null;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
@@ -73,6 +79,7 @@ const DEFAULT_STATE: ShellState = {
   activeSection: "chats",
   panelOverrides: {},
   openModal: null,
+  contextTab: null,
 };
 
 // v2: the persisted shape changed from a single global `listPanel`/`contextPanel` pair (v1) to the
@@ -142,6 +149,7 @@ function migrate(persisted: unknown): ShellState {
     activeSection: isSectionId(p.activeSection) ? p.activeSection : DEFAULT_STATE.activeSection,
     panelOverrides: sanitizeOverrides(p.panelOverrides),
     openModal: null,
+    contextTab: null,
   };
 }
 
@@ -181,6 +189,12 @@ export function openModal(id: ModalSlotId): void {
   useShellStore.setState({ openModal: id }, false, "shell/openModal");
 }
 
+/** Ask the CONTEXT panel to open a specific tab (an opaque id the active context surface interprets —
+ *  ux-flow-revamp J6: the chat options menu calls this + docks the panel). `null` clears the request. */
+export function setContextTab(tab: string | null): void {
+  useShellStore.setState({ contextTab: tab }, false, "shell/setContextTab");
+}
+
 export function closeModal(): void {
   useShellStore.setState({ openModal: null }, false, "shell/closeModal");
 }
@@ -200,4 +214,9 @@ export function usePanelOverride(section: SectionId, panel: PanelName): PanelMod
 
 export function useOpenModal(): ModalSlotId | null {
   return useShellStore((s) => s.openModal);
+}
+
+/** The current CONTEXT-panel tab request (opaque; `null` = the surface's default). A primitive selector. */
+export function useContextTab(): string | null {
+  return useShellStore((s) => s.contextTab);
 }

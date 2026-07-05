@@ -52,14 +52,20 @@ export interface RowSkin {
 const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 
 export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
+  // UIP-304: the whole row is a centered ≤48rem (`--container-cq-lg`) reading column (`mx-auto
+  // max-w-cq-lg`), with the per-role bubble aligned user-right / assistant-left WITHIN it — so a bubble
+  // never spans a 1920px viewport, and the composer's own `max-w-cq-lg` column aligns with it.
   bubble: {
-    outer: (role) => cx("w-full", alignFor(role)),
+    outer: (role) => cx("mx-auto w-full max-w-cq-lg", alignFor(role)),
     inner: (role) => cx("max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]),
   },
+  // `flat` is full-width by design (UIP-304) — but padded on the SECTION scale, not the tighter block
+  // scale, so a full-bleed row still breathes.
   flat: {
     outer: () => "w-full items-stretch",
-    inner: (role) => cx("w-full px-block py-row", role === "system" && "text-muted-foreground"),
+    inner: (role) => cx("w-full px-section py-row", role === "system" && "text-muted-foreground"),
   },
+  // `document` = the centered manuscript column (prose-capped ~65ch), already centered by `items-center`.
   document: {
     outer: () => "w-full items-center",
     inner: () => "w-full max-w-prose px-block py-row text-prose-body",
