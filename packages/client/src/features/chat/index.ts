@@ -9,6 +9,8 @@ export type { ChatListAnchorProps } from "./anchors/chat-list-anchor";
 export { ChatListAnchor } from "./anchors/chat-list-anchor";
 export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor";
+export type { ChatHeaderSurfaceProps } from "./components/chat-header";
+export { ChatHeaderSurface } from "./components/chat-header";
 export type { ComposerProps } from "./components/composer";
 export { Composer } from "./components/composer";
 export type {

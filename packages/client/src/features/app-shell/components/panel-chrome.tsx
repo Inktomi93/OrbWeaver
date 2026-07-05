@@ -1,30 +1,38 @@
 // PanelChrome — the wrapper for a side panel (LIST or CONTEXT). Renders the `.shell-panel` aside
 // whose `data-panel-mode` drives the §11.1 clamp-overlay (docked in-flow · overlay float · collapsed
-// `-translate-x-full`, zero width) entirely in shell.css — no width math in JS. A header carries the
-// title + a collapse control; the body scrolls (overscroll contained, §4b axis 4, in shell.css). The
-// REOPEN affordance for a collapsed panel lives in the always-present topbar, so a translated-off
-// panel is never the only way back.
+// `-translate-x-full`, zero width) entirely in shell.css — no width math in JS. The body scrolls
+// (overscroll contained, §4b axis 4, in shell.css).
+//
+// HEADER (D62 UIP-202 — kill the triple title): the header is an OPTIONAL ReactNode slot. The CONTEXT
+// panel supplies one (the entity detail header, or the "Details" fallback) and gets a collapse control
+// in that row. The LIST panel supplies NONE (`header` undefined) — its own list surface owns the
+// section title (UIP-301/302), and its REOPEN/collapse affordance is the always-present topbar toggle
+// ("Hide/Show list panel"), so a translated-off panel is never the only way back.
 
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the status-chip.tsx precedent).
 import { Icon, PanelLeftClose, PanelRightClose } from "@orb/ui/icons";
-import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { PanelMode, PanelName } from "#state";
 
 export interface PanelChromeProps {
   readonly panel: PanelName;
-  readonly title: string;
+  /** Header content — an entity/detail header node. `undefined` renders NO header row (the LIST panel:
+   *  its list surface owns the title, the topbar owns the collapse — UIP-202). */
+  readonly header?: ReactNode;
+  /** Accessible label for the panel's collapse button (only rendered when a header + `onCollapse` are). */
+  readonly collapseLabel?: string;
   /** The current mode — sets `data-panel-mode` (shell.css owns the transform/width per mode). */
   readonly mode: PanelMode;
-  /** Collapse control — the header's close button (topbar owns the reopen). */
-  readonly onCollapse: () => void;
+  /** Collapse control — the header's close button (topbar owns the reopen). Omitted ⇒ no button. */
+  readonly onCollapse?: () => void;
   readonly children: ReactNode;
 }
 
 export function PanelChrome({
   panel,
-  title,
+  header,
+  collapseLabel,
   mode,
   onCollapse,
   children,
@@ -40,19 +48,21 @@ export function PanelChrome({
       aria-hidden={mode === "collapsed" ? "true" : undefined}
       inert={mode === "collapsed" ? true : undefined}
     >
-      <header className="shell-panel-header">
-        <Text size="label" weight="medium" tone="muted">
-          {title}
-        </Text>
-        <Button
-          intent="ghost"
-          size="icon"
-          aria-label={`Collapse ${title} panel`}
-          onClick={onCollapse}
-        >
-          <Icon icon={CollapseIcon} size="sm" />
-        </Button>
-      </header>
+      {header === undefined ? null : (
+        <header className="shell-panel-header">
+          {header}
+          {onCollapse === undefined ? null : (
+            <Button
+              intent="ghost"
+              size="icon"
+              aria-label={collapseLabel ?? "Collapse panel"}
+              onClick={onCollapse}
+            >
+              <Icon icon={CollapseIcon} size="sm" />
+            </Button>
+          )}
+        </header>
+      )}
       <div className="shell-panel-body">{children}</div>
     </aside>
   );

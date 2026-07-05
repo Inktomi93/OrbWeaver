@@ -8,19 +8,16 @@
 // DOMAIN-AGNOSTIC (the seam): AppShell knows RAIL/LIST/CONTENT/CONTEXT, never `Chat`/`Character`. It
 // accepts a `sections` slot map keyed by SectionId; the ROUTE (home-page.tsx) composes the chat into
 // the `chats` CONTENT slot (route→feature is legal; feature→feature is not). An unwired section falls
-// back to an honest <SectionPlaceholder>, never a fabricated surface.
+// back to an honest <SectionPlaceholder>, never a fabricated surface. The `header`/`contextHeader`
+// ReactNode slots (UIP-202/204) are route-composed too — the topbar identity + the CONTEXT detail
+// header are domain data the ROUTE supplies; the shell only forwards the node (falls back to the
+// section name / "Details").
 
+import { Text } from "@orb/ui/text";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import type { ModalSlotId, SectionId } from "#state";
-import {
-  closeModal,
-  openModal,
-  setActiveSection,
-  setPanelMode,
-  toggleFocus,
-  togglePanel,
-} from "#state";
+import { closeModal, openModal, setActiveSection, setPanelMode } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
 import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
@@ -40,14 +37,26 @@ export interface SectionSlot {
 export interface AppShellProps {
   /** Per-section slots. Only `chats.content` is wired today (the chat pane); the rest fall back. */
   readonly sections: Partial<Record<SectionId, SectionSlot>>;
+  /** Route-composed topbar identity header (UIP-202) — the active chat's avatar + title. Undefined ⇒
+   *  the topbar shows the active section name (the draft/none fallback). */
+  readonly header?: ReactNode;
   /** The CONTEXT (right detail) panel body — undefined today (no entity-detail surface wired yet). */
   readonly contextPanel?: ReactNode;
+  /** Route-composed CONTEXT panel header (UIP-204) — the active entity's detail header. Undefined ⇒
+   *  the "Details" fallback. */
+  readonly contextHeader?: ReactNode;
   /** Route-composed modal bodies (id-keyed), rendered over the `MODAL_SLOTS` placeholders. The shell
    *  stays domain-agnostic: it forwards a ReactNode slot, never importing a feature (§4.1). */
   readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
 }
 
-export function AppShell({ sections, contextPanel, modals }: AppShellProps): ReactElement {
+export function AppShell({
+  sections,
+  header,
+  contextPanel,
+  contextHeader,
+  modals,
+}: AppShellProps): ReactElement {
   const layout = useShellLayout();
   // The global density axis (§4) — stamped on the shell root; a compact override tightens spacing
   // tokens for the whole subtree (shell.css). Live-swappable via the appearance settings panel.
@@ -81,24 +90,22 @@ export function AppShell({ sections, contextPanel, modals }: AppShellProps): Rea
           onOpenModal={openModal}
         />
 
-        <PanelChrome
-          panel="list"
-          title={layout.activeSectionLabel}
-          mode={layout.listMode}
-          onCollapse={(): void => setPanelMode("list", "collapsed")}
-        >
+        {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
+            toggle owns the collapse. */}
+        <PanelChrome panel="list" mode={layout.listMode}>
           <RegionAnchor region="list">{listContent}</RegionAnchor>
         </PanelChrome>
 
         <div className="shell-main">
           <ShellTopbar
             title={layout.activeSectionLabel}
+            header={header}
             listMode={layout.listMode}
             contextMode={layout.contextMode}
             immersive={layout.immersive}
-            onToggleList={(): void => togglePanel("list")}
-            onToggleContext={(): void => togglePanel("context")}
-            onToggleFocus={(): void => toggleFocus()}
+            onToggleList={(): void => layout.togglePanel("list")}
+            onToggleContext={(): void => layout.togglePanel("context")}
+            onToggleFocus={layout.toggleFocus}
             onOpenCommand={(): void => openModal("command")}
           />
           <div className="shell-content">
@@ -108,7 +115,14 @@ export function AppShell({ sections, contextPanel, modals }: AppShellProps): Rea
 
         <PanelChrome
           panel="context"
-          title="Details"
+          header={
+            contextHeader ?? (
+              <Text size="label" weight="medium" tone="muted">
+                Details
+              </Text>
+            )
+          }
+          collapseLabel="Collapse detail panel"
           mode={layout.contextMode}
           onCollapse={(): void => setPanelMode("context", "collapsed")}
         >
@@ -117,6 +131,7 @@ export function AppShell({ sections, contextPanel, modals }: AppShellProps): Rea
               <SectionPlaceholder
                 title="Details"
                 description="Select something to see its details here."
+                weave={true}
               />
             )}
           </RegionAnchor>

@@ -1,7 +1,10 @@
 // Story module for the state-tier CTs (Spine-Testing §7 — CT mounts ONLY from a non-test module).
 // ShellStoreProbe renders the shell store's read-hook values as text + buttons that fire its module
 // actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
-// assert the state machine + the toggleFocus derivation end-to-end.
+// assert the store's OWN surface: section switch, PER-SECTION panel override memory (§4.2 rule 2), and
+// the modal open/close read. The resolve step (override ?? default) + the toggle/focus derivations moved
+// to the app-shell feature's `use-shell-layout.ts` (they need the SECTION_PANEL_DEFAULTS table the store
+// can't import) — those are exercised end-to-end by app-shell.ct.tsx, the correct tier.
 
 import {
   closeModal,
@@ -12,15 +15,12 @@ import {
   setActiveSection,
   setPanelMode,
   startNewChat,
-  toggleFocus,
-  togglePanel,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
-  useIsImmersive,
   useOpenModal,
-  usePanelMode,
+  usePanelOverride,
 } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -28,43 +28,31 @@ import type { ReactElement } from "react";
 
 export function ShellStoreProbe(): ReactElement {
   const section = useActiveSection();
-  const list = usePanelMode("list");
-  const context = usePanelMode("context");
-  const immersive = useIsImmersive();
+  // The ACTIVE section's raw overrides (undefined = unset ⇒ the feature default resolves it; the store
+  // itself only holds the override). "none" stands in for an unset override in the probe's text output.
+  const list = usePanelOverride(section, "list") ?? "none";
+  const context = usePanelOverride(section, "context") ?? "none";
   const modal = useOpenModal();
   return (
     <div>
-      <output>
-        {`section=${section} list=${list} context=${context} immersive=${String(immersive)} modal=${modal ?? "none"}`}
-      </output>
+      <output>{`section=${section} list=${list} context=${context} modal=${modal ?? "none"}`}</output>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
       </button>
-      <button type="button" onClick={(): void => togglePanel("list")}>
-        toggle list
+      <button type="button" onClick={(): void => setActiveSection("chats")}>
+        go chats
+      </button>
+      <button type="button" onClick={(): void => setPanelMode("list", "collapsed")}>
+        collapse list
       </button>
       <button type="button" onClick={(): void => setPanelMode("context", "docked")}>
         dock context
-      </button>
-      <button type="button" onClick={(): void => toggleFocus()}>
-        toggle focus
       </button>
       <button type="button" onClick={(): void => openModal("settings")}>
         open settings
       </button>
       <button type="button" onClick={(): void => closeModal()}>
         close modal
-      </button>
-      <button
-        type="button"
-        onClick={(): void => {
-          setActiveSection("chats");
-          setPanelMode("list", "docked");
-          setPanelMode("context", "collapsed");
-          closeModal();
-        }}
-      >
-        reset
       </button>
     </div>
   );

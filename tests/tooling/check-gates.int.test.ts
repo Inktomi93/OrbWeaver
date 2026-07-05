@@ -192,6 +192,22 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_surfacefeat/surfaces/__g_thing-surface.tsx",
     "export function gThingSurface() {\n  return <div>hi</div>;\n}\n",
   );
+  // registry-pairing: a rail-slots.ts / modal-slots.tsx PAIR that fails to bijection — a modal trigger
+  // ("ghost") with no body, AND a body ("orphan") with no trigger (both arms fire).
+  fx(
+    "packages/client/src/features/__g_pairing/lib/rail-slots.ts",
+    'export const GHOST = { kind: "modal", id: "ghost", label: "Ghost" };\n',
+  );
+  fx(
+    "packages/client/src/features/__g_pairing/lib/modal-slots.tsx",
+    'export const MODAL_SLOTS = { orphan: { title: "Orphan", render: () => null } };\n',
+  );
+  // modal-body-not-placeholder: a modal-slots.tsx entry rendering <SectionPlaceholder> with NO
+  // `placeholder: true` flag (a silent-sparkle body).
+  fx(
+    "packages/client/src/features/__g_modalph/lib/modal-slots.tsx",
+    'export const MODAL_SLOTS = { silent: { title: "S", render: () => <SectionPlaceholder title="S" /> } };\n',
+  );
 }
 
 let registry = new Set<string>();

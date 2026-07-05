@@ -8,7 +8,13 @@ import {
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
 } from "#features/character";
-import { ChatContextPanel, ChatListAnchor, ChatListSurface, ChatRoomSurface } from "#features/chat";
+import {
+  ChatContextPanel,
+  ChatHeaderSurface,
+  ChatListAnchor,
+  ChatListSurface,
+  ChatRoomSurface,
+} from "#features/chat";
 import { AppearanceSettingsSurface } from "#features/settings";
 import {
   chatStream,
@@ -18,6 +24,7 @@ import {
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
+  useActiveSection,
   useActiveSessionKey,
 } from "#state";
 
@@ -52,10 +59,20 @@ export function HomePage(): ReactElement {
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
+  const activeSection = useActiveSection();
   const activeChatId = isCommitted(handle) ? handle.id : null;
+
+  // UIP-202: the topbar shows the ACTIVE CHAT identity — but ONLY on the Chats section with a committed
+  // chat (a draft/none, or any other section, falls back to the shell's section-name title). The route
+  // is the single reactive reader (§5.1); the shell only forwards this ReactNode, staying domain-agnostic.
+  const topbarHeader =
+    activeSection === "chats" && activeChatId !== null ? (
+      <ChatHeaderSurface chatId={activeChatId} />
+    ) : undefined;
 
   return (
     <AppShell
+      header={topbarHeader}
       sections={{
         chats: {
           list: (
