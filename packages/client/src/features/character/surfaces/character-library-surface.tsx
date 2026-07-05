@@ -39,7 +39,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useTRPC } from "#data";
-import { setActiveSection, startNewChat } from "#state";
+import { selectCharacter, setActiveSection, startNewChat, useSelectedCharacterId } from "#state";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCard } from "../components/character-card";
 import { filterCharacters } from "../lib/filter-characters";
@@ -52,6 +52,9 @@ const SKELETON_ROW_COUNT = 6;
 const PAGE_LIMIT = 30;
 /** The sliding-window cache bound (UI-Lib-TanStack-Query.md §4) — old pages drop as new ones load. */
 const MAX_PAGES = 5;
+/** Stable no-op for the card's DORMANT bulk-select seam (`onToggleSelect`) — no bulk-mode UI exists yet
+ *  (the future bulk-ops lane wires it, the message-selection precedent). Module-level so it never churns. */
+const NOOP_TOGGLE = (): void => undefined;
 
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
@@ -91,6 +94,10 @@ export function CharacterLibrarySurface({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
   const collection = useCharacterLibraryCollection({ trpc }, undefined);
+  // The selected character (J9) — drives the row's `selected` skin AND the route's CONTENT swap to the
+  // detail card. Lives in its OWN store (not the collection's local selection, which is the dormant
+  // bulk-select seam), so the selection survives a windowed row unmount + is the route's single reader.
+  const selectedId = useSelectedCharacterId();
 
   const filtered: readonly CharacterCardItem[] = filterCharacters(collection.items, deferredQuery);
 
@@ -102,6 +109,9 @@ export function CharacterLibrarySurface({
     startNewChat({ characterIds: [castId<CharacterId>(id)] });
     setActiveSection("chats");
   };
+  // Open a row's detail card (J9) — a writer-only store touch; the route reads `selectedCharacterId` and
+  // renders the detail surface in the Characters CONTENT (no section flip — we're already here).
+  const openDetail = (id: string): void => selectCharacter(castId<CharacterId>(id));
 
   return (
     <Stack className="h-full min-h-0" gap="block">
@@ -119,9 +129,10 @@ export function CharacterLibrarySurface({
           isEmpty={collection.isEmpty}
           isPending={collection.isPending}
           listProps={collection.listProps}
+          onSelect={openDetail}
           onStartChat={startChatWith}
           query={deferredQuery}
-          selection={collection.selection}
+          selectedId={selectedId}
         />
       </Stack>
     </Stack>
@@ -136,7 +147,8 @@ interface CharacterLibraryBodyProps {
   readonly error: unknown | null;
   readonly filtered: readonly CharacterCardItem[];
   readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
-  readonly selection: ReturnType<typeof useCharacterLibraryCollection>["selection"];
+  readonly selectedId: CharacterId | null;
+  readonly onSelect: (id: string) => void;
   readonly onStartChat: (id: string) => void;
 }
 
@@ -149,7 +161,8 @@ function CharacterLibraryBody({
   error,
   filtered,
   listProps,
-  selection,
+  selectedId,
+  onSelect,
   onStartChat,
 }: CharacterLibraryBodyProps): ReactElement {
   if (isPending) {
@@ -191,9 +204,10 @@ function CharacterLibraryBody({
         renderItem={(item): ReactNode => (
           <CharacterCard
             character={item}
+            onSelect={onSelect}
             onStartChat={onStartChat}
-            onToggleSelect={selection.toggle}
-            selected={selection.isSelected(item.id)}
+            onToggleSelect={NOOP_TOGGLE}
+            selected={selectedId === item.id}
           />
         )}
       />

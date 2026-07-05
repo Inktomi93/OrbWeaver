@@ -208,6 +208,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_modalph/lib/modal-slots.tsx",
     'export const MODAL_SLOTS = { silent: { title: "S", render: () => <SectionPlaceholder title="S" /> } };\n',
   );
+  // placeholder-copy-registry: a section-placeholder-copy.ts map with TWO entries sharing the same
+  // (title, description) pair — the "all sections look identical" duplicate the gate forbids (J10).
+  fx(
+    "packages/client/src/features/__g_phcopy/lib/section-placeholder-copy.ts",
+    `export const SECTION_PLACEHOLDER_COPY = {\n  one: { title: "Dup", description: "same copy" },\n  two: { title: "Dup", description: "same copy" },\n};\n`,
+  );
 }
 
 let registry = new Set<string>();

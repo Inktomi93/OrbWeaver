@@ -10,6 +10,13 @@ export type { CharacterLibraryAnchorProps } from "./anchors/character-library-an
 export { CharacterLibraryAnchor } from "./anchors/character-library-anchor";
 export type { CharacterCardItem, CharacterCardProps } from "./components/character-card";
 export { CharacterCard } from "./components/character-card";
+export type {
+  CharacterDetailCardProps,
+  CharacterDetailItem,
+} from "./components/character-detail-card";
+export { CharacterDetailCard } from "./components/character-detail-card";
 export { CharacterLibraryWelcome } from "./components/character-library-welcome";
+export type { CharacterDetailSurfaceProps } from "./surfaces/character-detail-surface";
+export { CharacterDetailSurface } from "./surfaces/character-detail-surface";
 export type { CharacterLibrarySurfaceProps } from "./surfaces/character-library-surface";
 export { CharacterLibrarySurface } from "./surfaces/character-library-surface";

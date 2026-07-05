@@ -24,7 +24,6 @@
 // State-law recap (gate `state:files`): one store per file, ≤10 fields, no exported set/getState —
 // callers use the intent-named module actions + narrow read hooks below, never the raw handle.
 
-import type { EffortLevel } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { ChatHandle } from "./chat-handle";
 import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
@@ -46,12 +45,6 @@ interface ActiveChatState {
   readonly draftSeed: DraftSeed | undefined;
   /** The stable React key for the active-chat slot — see THE KEY DISCIPLINE in the header. */
   readonly sessionKey: string;
-  /** The composer's sticky per-turn REASONING EFFORT (ux-flow-revamp §3 "Reasoning block" row → the
-   *  composer trailing cluster). `null` = auto (send no `intent.effort`; the server uses the preset/model
-   *  default). Session-sticky — PRESERVED across every slot transition below (a user shouldn't re-pick
-   *  each message), so it lives here beside the slot rather than in a per-message store. It is the ONLY
-   *  `UserIntent` axis the client threads today; the full generation config is preset-domain (L7). */
-  readonly effort: EffortLevel | null;
 }
 
 // A monotonic session counter (deterministic — no randomness): each new-chat click mints a fresh key so
@@ -75,7 +68,6 @@ const useActiveChatStore = createGatedStore<ActiveChatState>(
     handle: landingChat(),
     draftSeed: undefined,
     sessionKey: INITIAL_SESSION_KEY,
-    effort: null,
   }),
 );
 
@@ -85,11 +77,8 @@ const useActiveChatStore = createGatedStore<ActiveChatState>(
  *  "start chat with X"). Mints a fresh `sessionKey` so the composer remounts clean. */
 export function startNewChat(seed?: DraftSeed): void {
   const sessionKey = nextSessionKey();
-  // `effort` is session-sticky — carried across the new-chat transition (replace=true would otherwise
-  // drop it), so a user's chosen reasoning effort persists as they start fresh threads.
-  const { effort } = useActiveChatStore.getState();
   useActiveChatStore.setState(
-    { handle: draftChat(sessionKey), draftSeed: seed, sessionKey, effort },
+    { handle: draftChat(sessionKey), draftSeed: seed, sessionKey },
     true,
     "activeChat/startNew",
   );
@@ -98,9 +87,8 @@ export function startNewChat(seed?: DraftSeed): void {
 /** Make an existing committed chat active (the chat-list select, and the Fork-nav landing). Keyed by
  *  the chat id, so re-selecting the same chat is idempotent and switching chats remounts the slot. */
 export function selectChat(chatId: ChatId): void {
-  const { effort } = useActiveChatStore.getState(); // session-sticky (see startNewChat).
   useActiveChatStore.setState(
-    { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId, effort },
+    { handle: committedChat(chatId), draftSeed: undefined, sessionKey: chatId },
     true,
     "activeChat/select",
   );
@@ -112,12 +100,12 @@ export function selectChat(chatId: ChatId): void {
  *  committed chat, not a stale draft. A no-op if the active chat is no longer that draft (the user
  *  navigated on): the committed id would not match the current slot, so we only apply when still a draft. */
 export function commitDraft(chatId: ChatId): void {
-  const { handle, draftSeed, sessionKey, effort } = useActiveChatStore.getState();
+  const { handle, draftSeed, sessionKey } = useActiveChatStore.getState();
   if (isCommitted(handle)) {
     return; // already committed / moved on — nothing to promote
   }
   useActiveChatStore.setState(
-    { handle: committedChat(chatId), draftSeed, sessionKey, effort },
+    { handle: committedChat(chatId), draftSeed, sessionKey },
     true,
     "activeChat/commitDraft",
   );
@@ -127,19 +115,11 @@ export function commitDraft(chatId: ChatId): void {
  *  J5's delete-of-the-active-chat: after a delete the CONTENT can't keep pointing at a now-404 chat id).
  *  Mints a fresh `sessionKey` so a subsequent new-chat/select remounts a clean slot. */
 export function goToLanding(): void {
-  const { effort } = useActiveChatStore.getState(); // session-sticky (see startNewChat).
   useActiveChatStore.setState(
-    { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey(), effort },
+    { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() },
     true,
     "activeChat/goToLanding",
   );
-}
-
-/** Set the composer's sticky reasoning effort (`null` = auto). A MERGE write (not a slot transition) —
- *  the composer's EffortSelect calls this; `useSendMessage` reads it via `useEffort` and threads it as
- *  `intent.effort` on the next send. */
-export function setEffort(effort: EffortLevel | null): void {
-  useActiveChatStore.setState({ effort }, false, "activeChat/setEffort");
 }
 
 // ── The read API — narrow hooks so the route re-renders only on the slice it reads. ──
@@ -157,10 +137,4 @@ export function useActiveDraftSeed(): DraftSeed | undefined {
 /** The stable slot key — threaded to `ChatRoomSurface`'s React `key` (see THE KEY DISCIPLINE). */
 export function useActiveSessionKey(): string {
   return useActiveChatStore((s) => s.sessionKey);
-}
-
-/** The composer's sticky reasoning effort (`null` = auto). Read by the EffortSelect (to paint the active
- *  level) and by `useSendMessage` (to build `intent.effort`). A primitive selector — no fresh object. */
-export function useEffort(): EffortLevel | null {
-  return useActiveChatStore((s) => s.effort);
 }

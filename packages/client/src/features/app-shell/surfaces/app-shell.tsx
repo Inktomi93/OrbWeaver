@@ -26,6 +26,7 @@ import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
 import { useDensity } from "../hooks/use-density";
 import { useShellLayout } from "../hooks/use-shell-layout";
+import { SECTION_PLACEHOLDER_COPY } from "../lib/section-placeholder-copy";
 import "./shell.css";
 
 /** A section's content for the two slots it can fill: the LIST panel and the CONTENT hero. */
@@ -62,10 +63,20 @@ export function AppShell({
   // tokens for the whole subtree (shell.css). Live-swappable via the appearance settings panel.
   const density = useDensity();
   const slot = sections[layout.activeSection];
-  const listContent = slot?.list ?? (
-    <SectionPlaceholder title={`${layout.activeSectionLabel} list`} />
+  // The active section's distinct placeholder copy (J10 — one home in SECTION_PLACEHOLDER_COPY); the
+  // Weave decoration marks it as the sanctioned teaching moment. Route-composed sections (chats/characters)
+  // never fall through to these; the three unbuilt hubs (corpus/refinery/analytics) read distinct now.
+  const placeholderCopy = SECTION_PLACEHOLDER_COPY[layout.activeSection];
+  // Weave rides the CONTENT placeholder only (DESIGN.md: at most ONE Weave per screen) — the LIST
+  // placeholder keeps the muted sparkle so a user-docked LIST never paints a second glyph.
+  const listContent = slot?.list ?? <SectionPlaceholder title={`${placeholderCopy.title} list`} />;
+  const content = slot?.content ?? (
+    <SectionPlaceholder
+      title={placeholderCopy.title}
+      description={placeholderCopy.description}
+      weave={true}
+    />
   );
-  const content = slot?.content ?? <SectionPlaceholder title={layout.activeSectionLabel} />;
 
   const dismissOverlays = (): void => {
     if (layout.listMode === "overlay") {

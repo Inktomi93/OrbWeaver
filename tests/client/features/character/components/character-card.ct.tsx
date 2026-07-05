@@ -39,6 +39,15 @@ test("marks the row aria-pressed when selected", async ({ mount }) => {
   await expect(component.getByRole("button", { pressed: true })).toBeVisible();
 });
 
+test("clicking the card body fires onSelect with the character id (opens the detail card)", async ({
+  mount,
+}) => {
+  const component = await mount(<CharacterCardStory name="Aria Nightshade" />);
+  // The card body is the outer role=button (the start-chat button has an explicit name); click it.
+  await component.getByRole("button", { pressed: false }).first().click();
+  await expect(component.getByTestId("selected-id")).toHaveText("char_ct_story");
+});
+
 test("the start-chat action fires onStartChat with the character id", async ({ mount }) => {
   const component = await mount(<CharacterCardStory name="Aria Nightshade" />);
   await component
@@ -47,12 +56,12 @@ test("the start-chat action fires onStartChat with the character id", async ({ m
   await expect(component.getByTestId("started-id")).toHaveText("char_ct_story");
 });
 
-test("start-chat does NOT also toggle the card's select (stopPropagation)", async ({ mount }) => {
+test("start-chat does NOT also open the card's detail (stopPropagation)", async ({ mount }) => {
   const component = await mount(<CharacterCardStory name="Aria Nightshade" />);
   await component
     .getByRole("button", { name: "Start chat with Aria Nightshade", exact: true })
     .click();
-  // The seam fired, but the card's own select was NOT triggered by the nested button's click.
+  // The seam fired, but the card's own onSelect was NOT triggered by the nested button's click.
   await expect(component.getByTestId("started-id")).toHaveText("char_ct_story");
-  await expect(component.getByTestId("toggled-id")).toHaveText("");
+  await expect(component.getByTestId("selected-id")).toHaveText("");
 });

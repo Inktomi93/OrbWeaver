@@ -9,13 +9,16 @@ export {
   commitDraft,
   goToLanding,
   selectChat,
-  setEffort,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSessionKey,
-  useEffort,
 } from "./active-chat-store";
+export {
+  clearCharacterSelection,
+  selectCharacter,
+  useSelectedCharacterId,
+} from "./character-selection-store";
 export type { ActiveChatHandle, ChatHandle } from "./chat-handle";
 export { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle";
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";

@@ -7,12 +7,14 @@
 // can't import) — those are exercised end-to-end by app-shell.ct.tsx, the correct tier.
 
 import {
+  clearCharacterSelection,
   closeModal,
   commitDraft,
   goToLanding,
   isCommitted,
   isLanding,
   openModal,
+  selectCharacter,
   selectChat,
   setActiveSection,
   setPanelMode,
@@ -23,6 +25,7 @@ import {
   useActiveSessionKey,
   useOpenModal,
   usePanelOverride,
+  useSelectedCharacterId,
 } from "@orb/client/state";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -96,6 +99,24 @@ export function ActiveChatStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => goToLanding()}>
         go landing
+      </button>
+    </div>
+  );
+}
+
+/** CharacterSelectionProbe — renders the character-selection store's read hook as text + buttons that
+ *  fire its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a
+ *  browser) and assert select → clear (J9: LIST selection drives the CONTENT detail card). */
+export function CharacterSelectionProbe(): ReactElement {
+  const selected = useSelectedCharacterId();
+  return (
+    <div>
+      <output>{`selected=${selected ?? "none"}`}</output>
+      <button type="button" onClick={(): void => selectCharacter(PROBE_CHARACTER)}>
+        select aria
+      </button>
+      <button type="button" onClick={(): void => clearCharacterSelection()}>
+        clear selection
       </button>
     </div>
   );

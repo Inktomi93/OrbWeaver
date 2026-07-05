@@ -14,7 +14,6 @@
 // is `lib/continue-on-empty.ts` — real, tested groundwork the Send button doesn't yet act on (the
 // `chat.continueTurn` verb isn't on the transport — MISSING-API, flagged at its source).
 
-import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
@@ -26,13 +25,12 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
-import { isCommitted, useEffort } from "#state";
+import { isCommitted } from "#state";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { isContinueEligible } from "../lib/continue-on-empty";
 import { ComposerWand } from "./composer-wand";
-import { EffortSelect } from "./effort-select";
 import { SpeakAsSelect } from "./speak-as-select";
 
 /** UIP-306 placeholder voice, as a pure helper (avoids a nested ternary): a draft teaches the
@@ -67,11 +65,6 @@ export function Composer({
 }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
-  // The sticky reasoning effort (active-chat-store) → the per-turn intent threaded onto Send. `null`
-  // (auto) sends NO intent so the server uses the preset/model default; a level sends `{ effort }` (the
-  // ONLY UserIntent axis the client threads today — the full config is preset-domain, L7).
-  const effort = useEffort();
-  const intent: Partial<UserIntent> | undefined = effort === null ? undefined : { effort };
   // Clear-on-commit (UI-Gates §11.1): the draft is NOT cleared optimistically in `submit` — the hook
   // fires `onDraftCommitted` only once the bus confirms the user's own row committed, and we clear HERE.
   // A send that fails pre-commit never fires it, so the draft survives for retry (no restore, no race).
@@ -80,7 +73,6 @@ export function Composer({
     draftSeed,
     onCommitted,
     onDraftCommitted: () => onChange(""),
-    intent,
   });
 
   const trimmed = value.trim();
@@ -143,8 +135,6 @@ export function Composer({
         {/* Speak-as (task #29) — summon a specific character to speak (chat.generate's
             speakerCharacterId). Size-gates itself to `null` for a solo/draft chat. */}
         <SpeakAsSelect handle={handle} />
-        {/* Reasoning-effort quick-control — sticky per-turn intent (ux-flow-revamp §3). */}
-        <EffortSelect />
         <Textarea
           aria-label="Message"
           placeholder={placeholder}

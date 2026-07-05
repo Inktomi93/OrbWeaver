@@ -84,34 +84,6 @@ test("draft handle: Send lazily starts the chat, then commits the typed text as 
   });
 });
 
-test("the reasoning-effort control renders (Auto default) and its selection threads intent.effort into chat.send", async ({
-  mount,
-  page,
-}) => {
-  // The effort quick-control is sticky per-turn (ux-flow-revamp §3): Auto ⇒ no `intent` on the wire
-  // (server default); a level ⇒ `intent.effort`. Each CT gets a fresh page ⇒ the store's effort starts
-  // at its `null` (Auto) default.
-  const trpc = await routeTrpc(page, { "chat.send": () => ({ ok: true }) });
-  const component = await mount(<ComposerStory />);
-
-  // Renders at the Auto default — and an Auto send carries NO intent.
-  await expect(component.getByRole("button", { name: "Reasoning effort: Auto" })).toBeVisible();
-  await component.getByLabel("Message", { exact: true }).fill("no effort set");
-  await component.getByRole("button", { name: "Send message" }).click();
-  await expect.poll(() => trpc.count("chat.send")).toBe(1);
-  expect((trpc.lastInput("chat.send") as { intent?: unknown }).intent).toBeUndefined();
-
-  // Pick High → the trigger relabels and the NEXT send carries intent.effort = "high".
-  await component.getByRole("button", { name: "Reasoning effort: Auto" }).click();
-  await page.getByRole("menuitemradio", { name: "High", exact: true }).click();
-  await expect(component.getByRole("button", { name: "Reasoning effort: High" })).toBeVisible();
-
-  await component.getByLabel("Message", { exact: true }).fill("effortful");
-  await component.getByRole("button", { name: "Send message" }).click();
-  await expect.poll(() => trpc.count("chat.send")).toBe(2);
-  expect(trpc.lastInput("chat.send")).toMatchObject({ intent: { effort: "high" } });
-});
-
 test("Stop shows 'stopping' immediately on click and fires chat.abort; the button stays in the Stop family (never reverts to Send) until turnAborted lands", async ({
   mount,
   page,

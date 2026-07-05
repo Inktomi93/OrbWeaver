@@ -30,19 +30,25 @@ export interface CharacterCardItem {
 export interface CharacterCardProps {
   readonly character: CharacterCardItem;
   readonly selected: boolean;
-  /** Toggles the row's local selected/highlighted state — a stub today (no editor exists yet; the
-   *  character-detail/editor surface is a later task). */
+  /** DORMANT bulk-select seam (a future character-bulk-ops lane wires it, the message-selection precedent):
+   *  toggles the row's checkbox membership. Unwired today — kept, not deleted (the box owner's don't-delete
+   *  pre-wired-seams rule). Distinct from `onSelect` (which opens the detail card). */
   readonly onToggleSelect: (id: string) => void;
+  /** Open this character's detail card in CONTENT (ux-flow-revamp J9) — the row's PRIMARY click. Writes the
+   *  character-selection store; the route reads it and swaps CONTENT to the detail surface. */
+  readonly onSelect: (id: string) => void;
   /** Start a new chat seeded with this character (the library → chat seam). Renders the primary
    *  "start chat" action; `stopPropagation` keeps it from also firing the card's select. */
   readonly onStartChat: (id: string) => void;
 }
 
 /** One character row — the library list's `renderItem` output (see `<VirtualList>` in the surface). */
+// `onToggleSelect` is intentionally NOT destructured — it's the dormant bulk-select seam (kept on the
+// interface for the future bulk-ops lane, unwired today). The card's primary click drives `onSelect`.
 export function CharacterCard({
   character,
   selected,
-  onToggleSelect,
+  onSelect,
   onStartChat,
 }: CharacterCardProps): ReactElement {
   const visibleTags = character.tags.filter((tag) => !tag.isHiddenOnCard);
@@ -63,7 +69,7 @@ export function CharacterCard({
       aria-pressed={selected}
       data-selected={selected ? "" : undefined}
       interactive={true}
-      onClick={(): void => onToggleSelect(character.id)}
+      onClick={(): void => onSelect(character.id)}
       padding="block"
     >
       <Row align="center" gap="row">
