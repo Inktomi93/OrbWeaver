@@ -29,8 +29,16 @@ const DEFAULT_DEBOUNCE_MS = 500;
 
 export interface AutosaveEntityFormConfig<TValues extends object> {
   readonly defaultValues: TValues;
-  /** Persist the values (fire-and-forget from the listener; failures surface via the caller's channel). */
-  readonly save: (values: TValues) => Promise<unknown>;
+  /**
+   * Persist the values (fire-and-forget from the listener; failures surface via the caller's channel).
+   *
+   * OPTIONAL because a factory runs at MODULE scope (stable hook identity, §13.1) where the runtime
+   * tRPC client — a React-context value — is not reachable; a surface whose `save` must close over the
+   * live client supplies it at CALL time via `AutosaveEntityFormArgs.save` instead (which WINS). This
+   * mirrors `createEntityMutation`, whose client also arrives per-call (`useX({ trpc })`), never baked
+   * into the module-scope config. Supply save at exactly ONE of the two seams; the call-time one wins.
+   */
+  readonly save?: (values: TValues) => Promise<unknown>;
   /** The crash-survival mirror (obligation 5). Omit ONLY for genuinely ephemeral panels. */
   readonly draft?: EntityDraftStore<TValues>;
   /** @defaultValue 500 */
@@ -45,6 +53,14 @@ export interface AutosaveEntityFormConfig<TValues extends object> {
 export interface AutosaveEntityFormArgs<TValues extends object> {
   readonly entityId: string;
   readonly serverValues: TValues | undefined;
+  /**
+   * The persist fn — supplied at CALL time so it can close over the live tRPC client the surface holds
+   * via `useTRPCClient()`/a `createEntityMutation` hook (a module-scope `config.save` cannot reach
+   * React context). WINS over `config.save` when both are present. Must be referentially stable across
+   * the mount (it is captured once, in `onSubmit`) — a client-bound closure or a mutation's
+   * `mutateAsync` satisfies this; the app-lifetime client makes identity churn harmless anyway.
+   */
+  readonly save?: (values: TValues) => Promise<unknown>;
 }
 
 /**
@@ -67,7 +83,12 @@ export function createAutosaveEntityForm<TValues extends object>(
   return function useAutosaveEntityForm({
     entityId,
     serverValues,
+    save: callTimeSave,
   }: AutosaveEntityFormArgs<TValues>) {
+    // The persist fn: the call-time `save` (client-bound; the surface's seam) WINS over the
+    // module-scope `config.save`. Exactly one is expected; if neither is supplied the form is
+    // read-only (no persist) — a legal "genuinely ephemeral panel" shape, never a throw.
+    const save = callTimeSave ?? config.save;
     // Seed order (obligation 5): defaults ← server row ← surviving draft (the draft is the user's
     // newest unsaved intent; it wins over the server row it was edited from).
     const draftSeed = config.draft?.readDraft(entityId);
@@ -82,7 +103,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       ...config.options,
       defaultValues: seedRef.current,
       onSubmit: async ({ value }: { value: TValues }) => {
-        await config.save(value);
+        await save?.(value);
         // A confirmed save makes the mirror redundant — clear it so a later crash doesn't
         // resurrect a stale draft over fresher server truth.
         config.draft?.clearDraft(entityId);

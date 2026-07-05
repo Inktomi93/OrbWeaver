@@ -145,6 +145,41 @@ test("user row resolves the message's personaId against the macro-name producer"
   await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
 });
 
+// ── #31 appearance: showInChatAvatars gates ONLY the avatar image (the name survives) ─────────────
+
+const AVATAR = '[data-slot="avatar-root"]';
+
+test("showInChatAvatars=false hides the avatar image but KEEPS the speaker name", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={false}
+    />,
+  );
+  // The attribution row + name stay; only the avatar image is dropped (ST "show avatars" parity).
+  await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
+  await expect(component.locator(AVATAR)).toHaveCount(0);
+});
+
+test("showInChatAvatars=true (default) renders the attribution avatar", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={true}
+    />,
+  );
+  await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
+  await expect(component.locator(AVATAR)).toHaveCount(1);
+});
+
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
 
 test("a message with {{char}}/{{user}} resolves real names once the roster + active persona are threaded", async ({

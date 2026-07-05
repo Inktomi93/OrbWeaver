@@ -51,6 +51,7 @@ import { isCommitted, isLiveTurnPhase, useTurnPhase } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
+import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { messageItemKey, useMessageItems } from "../hooks/use-message-items";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { buildParticipantsById, resolveViewerActivePersonaId } from "../lib/roster";
@@ -117,6 +118,9 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   const characterNamesById = buildCharacterNameMap(producers.flatMap((p) => p.characterNames));
   const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
+  // Per-message avatar chrome from the synced appearance pref (§12.1) — read ONCE here, threaded to
+  // each row as props (rows stay prop-driven + Compiler-memoized, never a per-row query).
+  const messageAppearance = useMessageAppearance();
   const phase = useTurnPhase(chatId);
   const items = useMessageItems(messages, chatId);
 
@@ -135,6 +139,9 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
       <MessageRow
         message={item.view}
         chatStyle={chatStyle}
+        avatarSize={messageAppearance.avatarSize}
+        avatarShape={messageAppearance.avatarShape}
+        showInChatAvatars={messageAppearance.showInChatAvatars}
         showSwipes={item.view.id === lastAssistantId}
         participants={participants}
         characterNamesById={characterNamesById}
