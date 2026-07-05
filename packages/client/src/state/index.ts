@@ -48,10 +48,7 @@ export {
   SECTION_IDS,
   setActiveSection,
   setPanelMode,
-  toggleFocus,
-  togglePanel,
   useActiveSection,
-  useIsImmersive,
   useOpenModal,
-  usePanelMode,
+  usePanelOverride,
 } from "./shell-store";

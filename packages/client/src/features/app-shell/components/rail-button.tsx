@@ -1,8 +1,13 @@
 // RailButton — one rail affordance: an icon Button with a hover/focus tooltip carrying its label
 // (the label is ALSO the button's accessible name, so keyboard/AT users never depend on the visual
-// tooltip — §4a WCAG baseline). Active sections tint Ember + set aria-current; the rest are muted.
-// Composed from @orb/ui primitives (Button · Tooltip · Icon) — app-shell paints the frame, the
-// affordances stay primitive-composed.
+// tooltip — §4a WCAG baseline). Composed from @orb/ui primitives (Button · Tooltip · Icon) — app-shell
+// paints the frame, the affordances stay primitive-composed.
+//
+// VISUAL STATES (D62 UIP-201) live in shell.css (the shell-tier painter), keyed off the `.shell-rail-
+// button` class + the `data-active` attribute — NOT inline utilities: the fine-pointer 40px sizing
+// (`--spacing-control-lg`), hover (`--sidebar-accent`), and active tint (`color-mix(primary 14%,
+// transparent)` bg + primary icon — NOT a solid slab) are shell geometry/chrome. Focus rides the
+// Button primitive's built-in 2px `--color-ring` offset-2 focus-visible ring.
 
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the status-chip.tsx precedent).
@@ -36,7 +41,7 @@ export function RailButton({
             aria-label={label}
             aria-current={active ? "page" : undefined}
             data-active={active ? "" : undefined}
-            className={active ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+            className="shell-rail-button"
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />

@@ -1,8 +1,20 @@
-// The APP-SHELL layout store (UI-Arch §4.1 + §5) — the ONE device-local, persisted home for the
-// four-region rail frame's chrome state: which rail section is active, each side panel's
-// dock/overlay/collapse mode, and which rail-triggered modal (if any) is open. Persisted through
+// The APP-SHELL layout store (UI-Arch §4.1 + §4.2 + §5) — the ONE device-local, persisted home for the
+// four-region rail frame's chrome state: which rail section is active, the PER-SECTION side-panel
+// override map, and which rail-triggered modal (if any) is open. Persisted through
 // `createPersistedStore` so a reload restores the user's layout; `openModal` is deliberately NOT
 // persisted (a modal must never reappear on reload — partialize excludes it).
+//
+// WHY PER-SECTION panel state (D62): §4.2 rule 2 ("per-section selection is REMEMBERED — rail-switching
+// away and back restores the section exactly") + rule 3 ("per-section panel DEFAULTS, user override wins
+// thereafter") together mean each section keeps its OWN panel modes. So the store holds a sparse
+// `panelOverrides` map (a section→panel→mode override the user's toggle writes), NOT a single global
+// list/context pair. The INITIAL value for an un-overridden (section, panel) is the SECTION_PANEL_DEFAULTS
+// table — but that table lives beside RAIL_SECTIONS in the app-shell FEATURE (features/app-shell/lib/
+// rail-slots.ts), which state MUST NOT import (that would be a reverse feature→state→feature cycle). So
+// the RESOLVE step (override ?? default) + the toggle/focus derivations (which need the resolved mode)
+// live in the feature's `use-shell-layout.ts` merge point; this store owns only the raw override writes +
+// reads. `setPanelMode(panel, mode)` keeps its `(panel, mode)` signature (writes the ACTIVE section's
+// override) so no call site changes.
 //
 // This file also HOMES the shell's layout vocabulary unions (SectionId · ModalSlotId · PanelName ·
 // PanelMode). They live in state, not the app-shell feature, so the flow is one-directional
@@ -36,36 +48,85 @@ export type PanelMode = (typeof PANEL_MODES)[number];
 /** The two collapsible side panels (RAIL is fixed, CONTENT is fluid — neither is a panel). */
 export type PanelName = "list" | "context";
 
+/** One section's panel overrides — a sparse map; an absent (section, panel) resolves to the feature's
+ *  SECTION_PANEL_DEFAULTS table (in use-shell-layout.ts, the resolve seam). File-local (not exported):
+ *  the reader is `usePanelOverride`, never a raw shape crossing a boundary. */
+type SectionPanels = Partial<Record<PanelName, PanelMode>>;
+type PanelOverrides = Partial<Record<SectionId, SectionPanels>>;
+
 interface ShellState {
   readonly activeSection: SectionId;
-  readonly listPanel: PanelMode;
-  readonly contextPanel: PanelMode;
+  /** Per-section side-panel overrides (sparse). Un-overridden ⇒ the feature default (§4.2 rule 3). */
+  readonly panelOverrides: PanelOverrides;
   readonly openModal: ModalSlotId | null;
 }
 
 /** Only the layout preference persists — `openModal` is transient (never reopen a modal on reload). */
 interface PersistedShellState {
   readonly activeSection: SectionId;
-  readonly listPanel: PanelMode;
-  readonly contextPanel: PanelMode;
+  readonly panelOverrides: PanelOverrides;
 }
 
 const DEFAULT_STATE: ShellState = {
   activeSection: "chats",
-  // command-center default: the list of chats is docked; the context/detail panel starts collapsed
-  // (nothing entity-detail is wired to show yet — honest empty, not a fabricated panel).
-  listPanel: "docked",
-  contextPanel: "collapsed",
+  panelOverrides: {},
   openModal: null,
 };
 
-const PERSIST_VERSION = 1;
+// v2: the persisted shape changed from a single global `listPanel`/`contextPanel` pair (v1) to the
+// per-section `panelOverrides` map. A v1 blob has no override map — migrate degrades it to empty
+// overrides (the section defaults take over), keeping only a valid `activeSection`.
+const PERSIST_VERSION = 2;
 
 function isSectionId(v: unknown): v is SectionId {
   return typeof v === "string" && (SECTION_IDS as readonly string[]).includes(v);
 }
 function isPanelMode(v: unknown): v is PanelMode {
   return typeof v === "string" && (PANEL_MODES as readonly string[]).includes(v);
+}
+
+// Literal-key panel patch (NOT a computed key): a computed `[panel]` widens to a string index that
+// won't assign to `SectionPanels`, so branch on the field name (the old panelPatch precedent).
+function patchPanels(current: SectionPanels, panel: PanelName, mode: PanelMode): SectionPanels {
+  return panel === "list" ? { ...current, list: mode } : { ...current, context: mode };
+}
+
+/** Write one (section, panel) override, preserving every other section + the section's other panel. */
+function withOverride(
+  overrides: PanelOverrides,
+  section: SectionId,
+  panel: PanelName,
+  mode: PanelMode,
+): PanelOverrides {
+  const next: PanelOverrides = { ...overrides };
+  // Index assignment (not a literal computed key) — assignable to the Partial Record.
+  next[section] = patchPanels(overrides[section] ?? {}, panel, mode);
+  return next;
+}
+
+/** Keep only recognized section → panel → mode entries from an untrusted persisted blob. */
+function sanitizeOverrides(v: unknown): PanelOverrides {
+  if (typeof v !== "object" || v === null) {
+    return {};
+  }
+  const out: PanelOverrides = {};
+  for (const [section, panels] of Object.entries(v)) {
+    if (!isSectionId(section) || typeof panels !== "object" || panels === null) {
+      continue;
+    }
+    const raw = panels as Record<string, unknown>;
+    let entry: SectionPanels = {};
+    const list = raw["list"];
+    const context = raw["context"];
+    if (isPanelMode(list)) {
+      entry = patchPanels(entry, "list", list);
+    }
+    if (isPanelMode(context)) {
+      entry = patchPanels(entry, "context", context);
+    }
+    out[section] = entry;
+  }
+  return out;
 }
 
 /** TOTAL, crash-proof migrate: any unknown/corrupt persisted blob degrades to the default layout —
@@ -77,8 +138,7 @@ function migrate(persisted: unknown): ShellState {
   const p = persisted as Partial<Record<keyof PersistedShellState, unknown>>;
   return {
     activeSection: isSectionId(p.activeSection) ? p.activeSection : DEFAULT_STATE.activeSection,
-    listPanel: isPanelMode(p.listPanel) ? p.listPanel : DEFAULT_STATE.listPanel,
-    contextPanel: isPanelMode(p.contextPanel) ? p.contextPanel : DEFAULT_STATE.contextPanel,
+    panelOverrides: sanitizeOverrides(p.panelOverrides),
     openModal: null,
   };
 }
@@ -91,50 +151,28 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>(
     migrate,
     partialize: (s): PersistedShellState => ({
       activeSection: s.activeSection,
-      listPanel: s.listPanel,
-      contextPanel: s.contextPanel,
+      panelOverrides: s.panelOverrides,
     }),
   },
 );
 
-const PANEL_FIELD: Readonly<Record<PanelName, "listPanel" | "contextPanel">> = {
-  list: "listPanel",
-  context: "contextPanel",
-};
-
-/** Build the single-panel partial explicitly — a computed-key literal widens to a string index that
- *  won't assign to `Partial<ShellState>`, so branch on the field name instead. */
-function panelPatch(panel: PanelName, mode: PanelMode): Partial<ShellState> {
-  return panel === "list" ? { listPanel: mode } : { contextPanel: mode };
-}
-
 // ── The write API — intent-named module actions (the store handle never escapes this file, §5). ──
 
-/** Switch the active rail section (drives the LIST + CONTENT slots). */
+/** Switch the active rail section (drives the LIST + CONTENT slots). Each section keeps its own panel
+ *  state — switching restores this section's overrides (§4.2 rule 2), resolved in use-shell-layout.ts. */
 export function setActiveSection(id: SectionId): void {
   useShellStore.setState({ activeSection: id }, false, "shell/setActiveSection");
 }
 
-/** Set a panel's explicit mode (dock ⇄ overlay ⇄ collapse). */
+/** Set the ACTIVE section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). Signature is
+ *  `(panel, mode)` — unchanged — so every call site is untouched; the active section is read internally. */
 export function setPanelMode(panel: PanelName, mode: PanelMode): void {
-  useShellStore.setState(panelPatch(panel, mode), false, "shell/setPanelMode");
-}
-
-/** The panel-chrome toggle: collapsed → docked, anything-open → collapsed (the common show/hide). */
-export function togglePanel(panel: PanelName): void {
-  const current = useShellStore.getState()[PANEL_FIELD[panel]];
-  const next: PanelMode = current === "collapsed" ? "docked" : "collapsed";
-  useShellStore.setState(panelPatch(panel, next), false, "shell/togglePanel");
-}
-
-/** The ONE focus toggle (UI-Arch §4.1): immersive-ST (both panels collapsed) ⇄ command-center (both
- *  docked). Derived from the two per-panel fields — no third source of truth. If EITHER panel is
- *  open we go immersive (collapse both); only when both are already collapsed do we restore both. */
-export function toggleFocus(): void {
-  const { listPanel, contextPanel } = useShellStore.getState();
-  const bothCollapsed = listPanel === "collapsed" && contextPanel === "collapsed";
-  const next: PanelMode = bothCollapsed ? "docked" : "collapsed";
-  useShellStore.setState({ listPanel: next, contextPanel: next }, false, "shell/toggleFocus");
+  const { activeSection, panelOverrides } = useShellStore.getState();
+  useShellStore.setState(
+    { panelOverrides: withOverride(panelOverrides, activeSection, panel, mode) },
+    false,
+    "shell/setPanelMode",
+  );
 }
 
 export function openModal(id: ModalSlotId): void {
@@ -151,15 +189,13 @@ export function useActiveSection(): SectionId {
   return useShellStore((s) => s.activeSection);
 }
 
-export function usePanelMode(panel: PanelName): PanelMode {
-  return useShellStore((s) => s[PANEL_FIELD[panel]]);
+/** The stored override for one (section, panel) — `undefined` when the user hasn't toggled it (the
+ *  feature's SECTION_PANEL_DEFAULTS resolves the initial value). A primitive selector (no fresh object,
+ *  so it's zustand-selector-derived clean). */
+export function usePanelOverride(section: SectionId, panel: PanelName): PanelMode | undefined {
+  return useShellStore((s) => s.panelOverrides[section]?.[panel]);
 }
 
 export function useOpenModal(): ModalSlotId | null {
   return useShellStore((s) => s.openModal);
-}
-
-/** True when both panels are collapsed (the immersive-ST layout) — for the focus-toggle affordance. */
-export function useIsImmersive(): boolean {
-  return useShellStore((s) => s.listPanel === "collapsed" && s.contextPanel === "collapsed");
 }

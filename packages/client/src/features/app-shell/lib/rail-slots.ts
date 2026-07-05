@@ -21,7 +21,13 @@ import {
   SunMoon,
   Users,
 } from "@orb/ui/icons";
-import type { ModalSlotId, SectionId } from "#state";
+import type { ModalSlotId, PanelMode, PanelName, SectionId } from "#state";
+
+/** The rail's section GROUPS (UI-Arch §4.1 — grouped by `--spacing-section` dividers): primary (the
+ *  everyday collections) · authoring (create/refine) · insight (analyze). End-state adds World Info +
+ *  Presets to `authoring`; today's five sections map onto the three groups already. The group union is
+ *  DERIVED inline on `RailSectionEntry.group` (no exported `type` alias — a feature-lib type leak). */
+export const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
 
 /** A navigable rail section (selects the LIST + CONTENT slots). */
 export interface RailSectionEntry {
@@ -29,6 +35,8 @@ export interface RailSectionEntry {
   readonly id: SectionId;
   readonly label: string;
   readonly icon: LucideIcon;
+  /** Which rail group this section renders in (drives the `--spacing-section` divider grouping). */
+  readonly group: (typeof SECTION_GROUPS)[number];
 }
 
 /** A rail/avatar/topbar affordance that opens a modal (id-paired with a MODAL_SLOTS body). */
@@ -46,12 +54,28 @@ type RailSlot = RailSectionEntry | RailModalEntry;
 /** The rail nav, in render order. Each `id` is typed `SectionId`, so a typo is a tsc error; the
  *  pairing test asserts every `SectionId` appears exactly once (full coverage of the union). */
 export const RAIL_SECTIONS: readonly RailSectionEntry[] = [
-  { kind: "section", id: "chats", label: "Chats", icon: MessagesSquare },
-  { kind: "section", id: "characters", label: "Characters", icon: Users },
-  { kind: "section", id: "corpus", label: "Corpus", icon: Library },
-  { kind: "section", id: "refinery", label: "Refinery", icon: FlaskConical },
-  { kind: "section", id: "analytics", label: "Analytics", icon: ChartColumn },
+  { kind: "section", id: "chats", label: "Chats", icon: MessagesSquare, group: "primary" },
+  { kind: "section", id: "characters", label: "Characters", icon: Users, group: "primary" },
+  { kind: "section", id: "corpus", label: "Corpus", icon: Library, group: "primary" },
+  { kind: "section", id: "refinery", label: "Refinery", icon: FlaskConical, group: "authoring" },
+  { kind: "section", id: "analytics", label: "Analytics", icon: ChartColumn, group: "insight" },
 ];
+
+/** SECTION_PANEL_DEFAULTS — each section's INITIAL LIST/CONTEXT panel mode (UI-Arch §4.1 + §4.2 rule 3).
+ *  The map sets ONLY the boot value; the persisted per-panel override (shell-store `panelOverrides`) wins
+ *  thereafter, resolved at the `use-shell-layout.ts` merge point (`override ?? default`). §4.1: LIST docked
+ *  for the collection-first sections (Chats/Characters), collapsed for the content-first hubs
+ *  (Corpus/Refinery/Analytics). CONTEXT defaults collapsed for every section — "docked for
+ *  Chats-with-active-chat" (§4.1) is a runtime rule that depends on chat-activation state the domain-
+ *  agnostic shell can't see; a later chat lane seeds that override via `setPanelMode` when a chat commits.
+ *  Keyed by every `SectionId` (a `Record`, so a new section is a `tsc` error until it declares defaults). */
+export const SECTION_PANEL_DEFAULTS: Record<SectionId, Record<PanelName, PanelMode>> = {
+  chats: { list: "docked", context: "collapsed" },
+  characters: { list: "docked", context: "collapsed" },
+  corpus: { list: "collapsed", context: "collapsed" },
+  refinery: { list: "collapsed", context: "collapsed" },
+  analytics: { list: "collapsed", context: "collapsed" },
+};
 
 /** The rail footer's modal triggers (above the avatar): theme + settings. */
 export const RAIL_ACTIONS: readonly RailModalEntry[] = [

@@ -8,7 +8,7 @@
 import type { ReactElement } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
-import { ACCOUNT_ACTION, RAIL_ACTIONS, RAIL_SECTIONS } from "../lib/rail-slots";
+import { ACCOUNT_ACTION, RAIL_ACTIONS, RAIL_SECTIONS, SECTION_GROUPS } from "../lib/rail-slots";
 import { RailButton } from "./rail-button";
 
 export interface RailProps {
@@ -20,19 +20,26 @@ export interface RailProps {
 export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps): ReactElement {
   return (
     <nav className="shell-rail" aria-label="Primary">
+      {/* Brand: the Weave glyph ALONE — no active/hover box, muted color from shell.css (UIP-201). */}
       <div className="shell-rail-brand" aria-hidden="true">
-        <WeaveGlyph size={26} className="text-primary" />
+        <WeaveGlyph size={26} />
       </div>
 
+      {/* Sections grouped by SECTION_GROUPS (primary · authoring · insight) — the `--spacing-section`
+          gap between groups is the divider (UIP-201 / §4.1); `--spacing-field` within a group. */}
       <div className="shell-rail-sections">
-        {RAIL_SECTIONS.map((s) => (
-          <RailButton
-            key={s.id}
-            label={s.label}
-            icon={s.icon}
-            active={s.id === activeSection}
-            onClick={(): void => onSelectSection(s.id)}
-          />
+        {SECTION_GROUPS.map((group) => (
+          <div className="shell-rail-group" key={group}>
+            {RAIL_SECTIONS.filter((s) => s.group === group).map((s) => (
+              <RailButton
+                key={s.id}
+                label={s.label}
+                icon={s.icon}
+                active={s.id === activeSection}
+                onClick={(): void => onSelectSection(s.id)}
+              />
+            ))}
+          </div>
         ))}
       </div>
 
@@ -47,11 +54,14 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
             onClick={(): void => onOpenModal(a.id)}
           />
         ))}
-        <RailButton
-          label={ACCOUNT_ACTION.label}
-          icon={ACCOUNT_ACTION.icon}
-          onClick={(): void => onOpenModal(ACCOUNT_ACTION.id)}
-        />
+        {/* Avatar last — a `--spacing-row` top margin (shell.css) so it doesn't fuse with Settings. */}
+        <div className="shell-rail-avatar">
+          <RailButton
+            label={ACCOUNT_ACTION.label}
+            icon={ACCOUNT_ACTION.icon}
+            onClick={(): void => onOpenModal(ACCOUNT_ACTION.id)}
+          />
+        </div>
       </div>
     </nav>
   );

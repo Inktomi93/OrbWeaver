@@ -18,6 +18,7 @@ import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
+import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
@@ -25,6 +26,7 @@ import { ownerRoleSplit } from "./gates/owner-role-split.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
+import { registryPairing } from "./gates/registry-pairing.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
 import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
@@ -87,6 +89,8 @@ export const ALL_CHECKS: readonly Check[] = [
   memberCardClamped,
   diagnosticLegibility,
   surfaceInAContainer,
+  registryPairing,
+  modalBodyNotPlaceholder,
 ];
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact

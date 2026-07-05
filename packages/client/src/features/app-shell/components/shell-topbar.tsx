@@ -1,14 +1,16 @@
 // biome-ignore-all lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react
-// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph fine (the
-// table.tsx / status-chip.tsx precedent).
+// re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + LucideIcon fine
+// (the table.tsx / status-chip.tsx precedent).
 
 // ShellTopbar — the always-present strip above CONTENT (UI-Arch §4.1: HEADER bar). Shell-owned,
-// section-agnostic chrome: it renders the panel show/hide toggles (the REOPEN affordance for a
-// collapsed panel — always visible, never off-screen) + the active section title (or a per-section
-// header node the route supplies) + the ⌘K command trigger. Character/scene chip is absent, not
-// fabricated — no client data feeds it yet (the mockup's chip is design intent, wired later).
+// section-agnostic chrome: the panel show/hide toggles (the REOPEN affordance for a collapsed panel —
+// always visible, never off-screen), the active section title (or a per-section `header` node the route
+// supplies — UIP-202: the active chat identity), the ⌘K jump chip, and the focus toggle. Group order
+// (UIP-203): [list-toggle | title/identity] … [⌘K chip | focus | context-toggle]. Every icon button +
+// the chip carries a Tooltip (labels also live as aria-labels — §4a WCAG baseline).
 
 import { Button } from "@orb/ui/button";
+import type { LucideIcon } from "@orb/ui/icons";
 import {
   Expand,
   Icon,
@@ -18,14 +20,15 @@ import {
   PanelRightOpen,
   Shrink,
 } from "@orb/ui/icons";
+import { Kbd } from "@orb/ui/kbd";
 import { Text } from "@orb/ui/text";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import type { PanelMode } from "#state";
-import { COMMAND_ACTION } from "../lib/rail-slots";
 
 export interface ShellTopbarProps {
   readonly title: string;
-  /** Per-section header node the route may supply (defaults to just the title). */
+  /** Per-section header node the route may supply (defaults to just the title — UIP-202). */
   readonly header?: ReactNode;
   readonly listMode: PanelMode;
   readonly contextMode: PanelMode;
@@ -35,6 +38,35 @@ export interface ShellTopbarProps {
   readonly onToggleContext: () => void;
   readonly onToggleFocus: () => void;
   readonly onOpenCommand: () => void;
+}
+
+interface TopbarIconButtonProps {
+  readonly label: string;
+  readonly icon: LucideIcon;
+  readonly pressed?: boolean;
+  readonly onClick: () => void;
+}
+
+/** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label. */
+function TopbarIconButton({ label, icon, pressed, onClick }: TopbarIconButtonProps): ReactElement {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            intent="ghost"
+            size="icon"
+            aria-label={label}
+            aria-pressed={pressed}
+            onClick={onClick}
+          >
+            <Icon icon={icon} size="sm" />
+          </Button>
+        }
+      />
+      <TooltipPopup side="bottom">{label}</TooltipPopup>
+    </Tooltip>
+  );
 }
 
 export function ShellTopbar({
@@ -53,15 +85,12 @@ export function ShellTopbar({
   return (
     <header className="shell-topbar">
       <div className="shell-topbar-lead">
-        <Button
-          intent="ghost"
-          size="icon"
-          aria-label={listCollapsed ? "Show list panel" : "Hide list panel"}
-          aria-pressed={!listCollapsed}
+        <TopbarIconButton
+          label={listCollapsed ? "Show list panel" : "Hide list panel"}
+          icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
+          pressed={!listCollapsed}
           onClick={onToggleList}
-        >
-          <Icon icon={listCollapsed ? PanelLeftOpen : PanelLeftClose} size="sm" />
-        </Button>
+        />
         {header ?? (
           <Text size="title" weight="semibold">
             {title}
@@ -70,30 +99,38 @@ export function ShellTopbar({
       </div>
 
       <div className="shell-topbar-trail">
-        <Button
-          intent="ghost"
-          size="icon"
-          aria-label={immersive ? "Exit focus mode" : "Enter focus mode"}
-          aria-pressed={immersive}
+        {/* ⌘K jump chip (UIP-203) — a bordered pill (P5 `secondary`, muted until hover) with a kbd-styled
+            shortcut + a "jump" label; opens the command modal. */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                intent="secondary"
+                size="sm"
+                aria-label="Command menu"
+                onClick={onOpenCommand}
+              >
+                <Kbd>⌘K</Kbd>
+                <Text as="span" size="micro" tone="muted">
+                  jump
+                </Text>
+              </Button>
+            }
+          />
+          <TooltipPopup side="bottom">Jump to…</TooltipPopup>
+        </Tooltip>
+        <TopbarIconButton
+          label={immersive ? "Exit focus mode" : "Enter focus mode"}
+          icon={immersive ? Shrink : Expand}
+          pressed={immersive}
           onClick={onToggleFocus}
-        >
-          <Icon icon={immersive ? Shrink : Expand} size="sm" />
-        </Button>
-        <Button intent="ghost" size="sm" aria-label="Command menu" onClick={onOpenCommand}>
-          <Icon icon={COMMAND_ACTION.icon} size="sm" />
-          <Text as="span" size="label" tone="muted">
-            ⌘K
-          </Text>
-        </Button>
-        <Button
-          intent="ghost"
-          size="icon"
-          aria-label={contextCollapsed ? "Show detail panel" : "Hide detail panel"}
-          aria-pressed={!contextCollapsed}
+        />
+        <TopbarIconButton
+          label={contextCollapsed ? "Show detail panel" : "Hide detail panel"}
+          icon={contextCollapsed ? PanelRightOpen : PanelRightClose}
+          pressed={!contextCollapsed}
           onClick={onToggleContext}
-        >
-          <Icon icon={contextCollapsed ? PanelRightOpen : PanelRightClose} size="sm" />
-        </Button>
+        />
       </div>
     </header>
   );

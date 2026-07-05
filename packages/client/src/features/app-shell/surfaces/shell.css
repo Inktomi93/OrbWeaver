@@ -21,7 +21,15 @@
   height: 100dvh;
   position: relative;
   isolation: isolate; /* Base UI stacking-context guidance (globals.css note) */
-  overflow: hidden;
+  /* `clip`, NOT `hidden` (UIP-205 fix): a collapsed/overlay panel is `position:absolute` +
+   * translateX off-screen, but a TRANSFORMED box still contributes to its ancestor's SCROLLABLE
+   * OVERFLOW region — so `overflow:hidden` leaves `.shell-grid` a real (if scrollbar-less) scroll
+   * container whose scrollWidth exceeds clientWidth by a panel width. Native "scroll the focused
+   * element into view" then nudges scrollLeft on click/focus, sliding the whole shell (rail off-
+   * screen). `overflow:clip` removes the element as a scroll container entirely — nothing can scroll
+   * it, by wheel, drag, OR programmatic focus-scroll. Diagnosed live: scrollLeft 0→56 on click,
+   * stays 0 with clip. */
+  overflow: clip;
   background: var(--color-background);
   color: var(--color-foreground);
   padding-inline-start: env(safe-area-inset-left);
@@ -68,16 +76,51 @@
   align-items: center;
   justify-content: center;
   padding-block-end: var(--spacing-row);
+  /* Brand glyph alone — muted, no box (UIP-201). WeaveGlyph paints in currentColor, so this cascades. */
+  color: var(--color-muted-foreground);
 }
-.shell-rail-sections,
-.shell-rail-actions {
+/* Sections: `--spacing-section` BETWEEN groups (the divider), `--spacing-field` within a group. */
+.shell-rail-sections {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-section);
+}
+.shell-rail-group {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-field);
 }
+.shell-rail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-row);
+}
+/* Avatar: extra top margin so it doesn't fuse with the settings icon (UIP-201). */
+.shell-rail-avatar {
+  margin-block-start: var(--spacing-row);
+}
 .shell-rail-spacer {
   flex: 1 1 auto;
+}
+
+/* Rail buttons (UIP-201) — fine-pointer 40px (`--spacing-control-lg`; coarse flips to a 56px hit area,
+ * §4b axis 3), muted at rest (the ghost default), hover = `--sidebar-accent`, active = a primary-14%
+ * tint + primary icon (NOT a solid slab). Scoped under `.shell-rail` so the two-class specificity beats
+ * the Button primitive's single-class size/color utilities. Focus rides the Button's own ring. */
+.shell-rail .shell-rail-button {
+  width: var(--spacing-control-lg);
+  height: var(--spacing-control-lg);
+}
+.shell-rail .shell-rail-button:hover {
+  background: var(--color-sidebar-accent);
+  color: var(--color-sidebar-foreground);
+}
+.shell-rail .shell-rail-button[data-active] {
+  background: color-mix(in oklab, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
 }
 
 /* ── SIDE PANELS (the §11.1 clamp-overlay) ────────────────────────────────────────────────────── */
@@ -253,8 +296,15 @@
     padding-inline-end: var(--spacing-row);
   }
   .shell-rail-sections,
+  .shell-rail-group,
   .shell-rail-actions {
     flex-direction: row;
+  }
+  /* In the horizontal strip the avatar's block margin would push it DOWN — reset to an inline gap
+     (L6 replaces this whole block with the bottom tab bar; this keeps the interim strip sane). */
+  .shell-rail-avatar {
+    margin-block-start: 0;
+    margin-inline-start: var(--spacing-row);
   }
   .shell-main {
     grid-column: 1;
