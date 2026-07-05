@@ -24,9 +24,17 @@ export { useStopTurn } from "./hooks/use-stop-turn";
 export { isContinueEligible } from "./lib/continue-on-empty";
 export type { ChatContextPanelProps } from "./surfaces/chat-context-panel-surface";
 export { ChatContextPanel } from "./surfaces/chat-context-panel-surface";
+export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface";
+export { ChatLandingSurface } from "./surfaces/chat-landing-surface";
 export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface";
 export { ChatListSurface } from "./surfaces/chat-list-surface";
 export type { ChatRoomSurfaceProps } from "./surfaces/chat-room-surface";
 export { ChatRoomSurface } from "./surfaces/chat-room-surface";
+export type {
+  CommandPaletteSurfaceProps,
+  GoToSection,
+} from "./surfaces/command-palette-surface";
+export { CommandPaletteSurface } from "./surfaces/command-palette-surface";
 export type { MessageListSurfaceProps } from "./surfaces/message-list-surface";
 export { MessageListSurface } from "./surfaces/message-list-surface";
+export { NewChatPicker } from "./surfaces/new-chat-picker-surface";

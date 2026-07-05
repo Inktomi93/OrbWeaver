@@ -11,6 +11,7 @@ import { MODAL_SLOTS } from "../../../../../packages/client/src/features/app-she
 import {
   ACCOUNT_ACTION,
   COMMAND_ACTION,
+  NEW_CHAT_ACTION,
   RAIL_ACTIONS,
   RAIL_SECTIONS,
   RAIL_SLOTS,
@@ -23,8 +24,13 @@ describe("rail-slots ↔ modal-slots pairing", () => {
     expect(railSectionIds).toEqual([...SECTION_IDS].sort());
   });
 
-  test("every modal trigger (rail action / avatar / command) has a MODAL_SLOTS body", () => {
-    const triggerIds = [...RAIL_ACTIONS.map((a) => a.id), ACCOUNT_ACTION.id, COMMAND_ACTION.id];
+  test("every modal trigger (rail action / avatar / command / new-chat) has a MODAL_SLOTS body", () => {
+    const triggerIds = [
+      ...RAIL_ACTIONS.map((a) => a.id),
+      ACCOUNT_ACTION.id,
+      COMMAND_ACTION.id,
+      NEW_CHAT_ACTION.id,
+    ];
     for (const id of triggerIds) {
       expect(MODAL_SLOTS[id]).toBeDefined();
       expect(typeof MODAL_SLOTS[id].title).toBe("string");
@@ -33,10 +39,14 @@ describe("rail-slots ↔ modal-slots pairing", () => {
   });
 
   test("every MODAL_SLOTS body has a reachable trigger (no orphan modal)", () => {
+    // The reachable set = rail-footer actions + avatar + the topbar ⌘K + the CONTENT-level new-chat
+    // trigger. NEW_CHAT_ACTION is NOT in RAIL_SLOTS (it paints no rail button — the J2 reachable-set
+    // trap), so it MUST be listed here or `newChat`'s body reads as an orphan.
     const reachable = new Set<string>([
       ...RAIL_ACTIONS.map((a) => a.id),
       ACCOUNT_ACTION.id,
       COMMAND_ACTION.id,
+      NEW_CHAT_ACTION.id,
     ]);
     for (const id of MODAL_SLOT_IDS) {
       expect(reachable.has(id)).toBe(true);

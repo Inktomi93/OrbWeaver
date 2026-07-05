@@ -1,26 +1,36 @@
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useMemo } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
-import { AppShell } from "#features/app-shell";
+import { AppShell, RAIL_SECTIONS } from "#features/app-shell";
 import {
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
 } from "#features/character";
+import type { GoToSection } from "#features/chat";
 import {
   ChatContextPanel,
   ChatHeaderSurface,
+  ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
   ChatRoomSurface,
+  CommandPaletteSurface,
+  NewChatPicker,
 } from "#features/chat";
 import { AppearanceSettingsSurface } from "#features/settings";
 import {
   chatStream,
   commitDraft,
+  goToLanding,
   isCommitted,
+  isLanding,
+  openModal,
   selectChat,
+  setActiveSection,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
@@ -62,6 +72,30 @@ export function HomePage(): ReactElement {
   const activeSection = useActiveSection();
   const activeChatId = isCommitted(handle) ? handle.id : null;
 
+  // J5 delete-of-the-active-chat: after a host deletes the chat the CONTENT is showing, the id 404s —
+  // return to the landing surface so the room never points at a dropped chat (the goToLanding consumer).
+  const onDeletedChat = (deletedChatId: ChatId): void => {
+    if (activeChatId === deletedChatId) {
+      goToLanding();
+    }
+  };
+  // Every "new chat" affordance (chat-list "+", landing hero, ⌘K) opens the J2 character picker first —
+  // a characterless draft is no longer the default (D62 P4 / rule 2).
+  const openNewChatPicker = (): void => openModal("newChat");
+  // The Characters-section jump the landing quick-picks + "All characters →" use.
+  const browseCharacters = (): void => setActiveSection("characters");
+  const startChatWithCharacter = (characterId: CharacterId): void => {
+    startNewChat({ characterIds: [characterId] });
+  };
+
+  // The ⌘K palette's "Go to" targets — bridged from the rail's OWN section registry (RAIL_SECTIONS) to
+  // the chat-feature palette as {id,label} (§5.1 seam: the route owns app-shell↔chat composition, so the
+  // section labels keep ONE home). Stable per render — RAIL_SECTIONS is a module constant.
+  const goToSections = useMemo<readonly GoToSection[]>(
+    () => RAIL_SECTIONS.map((s) => ({ id: s.id, label: s.label })),
+    [],
+  );
+
   // UIP-202: the topbar shows the ACTIVE CHAT identity — but ONLY on the Chats section with a committed
   // chat (a draft/none, or any other section, falls back to the shell's section-name title). The route
   // is the single reactive reader (§5.1); the shell only forwards this ReactNode, staying domain-agnostic.
@@ -79,12 +113,23 @@ export function HomePage(): ReactElement {
             <ChatListAnchor>
               <ChatListSurface
                 activeChatId={activeChatId}
-                onNewChat={(): void => startNewChat()}
+                onNewChat={openNewChatPicker}
                 onSelect={selectChat}
+                onDeletedChat={onDeletedChat}
               />
             </ChatListAnchor>
           ),
-          content: (
+          // CONTENT branches on the handle: a `landing` handle (nothing selected — the at-rest state)
+          // renders the welcome hero, never an empty room (D62 P4 / J1). Else the chat room (TS narrows
+          // `handle` to `ActiveChatHandle` in this branch — a landing handle can't reach the composer).
+          content: isLanding(handle) ? (
+            <ChatLandingSurface
+              onSelect={selectChat}
+              onStartChat={startChatWithCharacter}
+              onNewChat={openNewChatPicker}
+              onBrowseCharacters={browseCharacters}
+            />
+          ) : (
             <ChatRoomSurface
               key={sessionKey}
               busDeps={busDeps}
@@ -108,7 +153,13 @@ export function HomePage(): ReactElement {
           content: <CharacterLibraryWelcome />,
         },
       }}
-      modals={{ settings: <AppearanceSettingsSurface /> }}
+      // Route-composed modal bodies (over the app-shell placeholder slots — the shell stays domain-
+      // agnostic): the appearance settings pane, the J2 new-chat picker, and the J4 ⌘K palette.
+      modals={{
+        settings: <AppearanceSettingsSurface />,
+        newChat: <NewChatPicker />,
+        command: <CommandPaletteSurface goToSections={goToSections} />,
+      }}
       // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
       // Mounted ONLY for a COMMITTED chat (a draft has no server row for the reads/writes to target);
       // a draft or non-chat section falls back to the shell's honest placeholder.

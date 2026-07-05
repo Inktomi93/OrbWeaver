@@ -980,3 +980,142 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/title reach the verb with the resolved Principal", async () => {
+    const updateTitle = vi.fn<ChatService["updateTitle"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { updateTitle } },
+    });
+
+    const result = await caller(ctx).chat.updateTitle({ chatId: CHAT, title: "A new title" });
+
+    expect(updateTitle).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      title: "A new title",
+    });
+    expect(result).toBeUndefined();
+  });
+
+  test("a null title clears it (the wire accepts string | null)", async () => {
+    const updateTitle = vi.fn<ChatService["updateTitle"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { updateTitle } },
+    });
+
+    await caller(ctx).chat.updateTitle({ chatId: CHAT, title: null });
+
+    expect(updateTitle).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      title: null,
+    });
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const updateTitle = vi
+      .fn<ChatService["updateTitle"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { updateTitle } },
+    });
+
+    await expect(caller(ctx).chat.updateTitle({ chatId: CHAT, title: "x" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/star reach the verb with the resolved Principal", async () => {
+    const star = vi.fn<ChatService["star"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { star } },
+    });
+
+    await caller(ctx).chat.star({ chatId: CHAT, star: true });
+
+    expect(star).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      star: true,
+    });
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const star = vi.fn<ChatService["star"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { star } },
+    });
+
+    await expect(caller(ctx).chat.star({ chatId: CHAT, star: true })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("chat.archive — the LIST-row archive toggle (J5 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/archived reach the verb with the resolved Principal", async () => {
+    const archive = vi.fn<ChatService["archive"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { archive } },
+    });
+
+    await caller(ctx).chat.archive({ chatId: CHAT, archived: true });
+
+    expect(archive).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      archived: true,
+    });
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const archive = vi.fn<ChatService["archive"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { archive } },
+    });
+
+    await expect(caller(ctx).chat.archive({ chatId: CHAT, archived: true })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("chat.delete — the LIST-row delete verb (J5 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId reaches the verb with the resolved Principal", async () => {
+    const del = vi.fn<ChatService["delete"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { delete: del } },
+    });
+
+    const result = await caller(ctx).chat.delete({ chatId: CHAT });
+
+    expect(del).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const del = vi.fn<ChatService["delete"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { delete: del } },
+    });
+
+    await expect(caller(ctx).chat.delete({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});

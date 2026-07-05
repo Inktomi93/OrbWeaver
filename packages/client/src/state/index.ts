@@ -7,14 +7,15 @@
 export type { DraftSeed } from "./active-chat-store";
 export {
   commitDraft,
+  goToLanding,
   selectChat,
   startNewChat,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSessionKey,
 } from "./active-chat-store";
-export type { ChatHandle } from "./chat-handle";
-export { committedChat, draftChat, isCommitted } from "./chat-handle";
+export type { ActiveChatHandle, ChatHandle } from "./chat-handle";
+export { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle";
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
   chatStream,

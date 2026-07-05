@@ -5,7 +5,7 @@
 // narrows correctly both ways (the type-guard's actual runtime behavior, not just its declared
 // type — a `h is Extract<...>` signature lies for free if the runtime check itself is wrong).
 
-import { committedChat, draftChat, isCommitted } from "@orb/client/state";
+import { committedChat, draftChat, isCommitted, isLanding, landingChat } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -26,9 +26,23 @@ describe("ChatHandle builders + discriminant", () => {
     expect("id" in handle).toBe(false);
   });
 
-  test("isCommitted narrows true for a committed handle, false for a draft", () => {
+  test("landingChat carries only kind:'landing' (no id, no draftKey) — the at-rest state (J1)", () => {
+    const handle = landingChat();
+    expect(handle).toEqual({ kind: "landing" });
+    expect("id" in handle).toBe(false);
+    expect("draftKey" in handle).toBe(false);
+  });
+
+  test("isCommitted narrows true for a committed handle, false for a draft or landing", () => {
     expect(isCommitted(committedChat(CHAT_ID))).toBe(true);
     expect(isCommitted(draftChat("draft_xyz"))).toBe(false);
+    expect(isCommitted(landingChat())).toBe(false);
+  });
+
+  test("isLanding narrows true only for a landing handle", () => {
+    expect(isLanding(landingChat())).toBe(true);
+    expect(isLanding(committedChat(CHAT_ID))).toBe(false);
+    expect(isLanding(draftChat("draft_xyz"))).toBe(false);
   });
 
   test("two draft handles with different keys are never confused with each other or a committed handle", () => {

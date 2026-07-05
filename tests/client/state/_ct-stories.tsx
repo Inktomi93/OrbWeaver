@@ -9,7 +9,9 @@
 import {
   closeModal,
   commitDraft,
+  goToLanding,
   isCommitted,
+  isLanding,
   openModal,
   selectChat,
   setActiveSection,
@@ -70,7 +72,12 @@ export function ActiveChatStoreProbe(): ReactElement {
   const handle = useActiveChatHandle();
   const seed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
-  const handleStr = isCommitted(handle) ? `committed:${handle.id}` : `draft:${handle.draftKey}`;
+  let handleStr = "landing";
+  if (isCommitted(handle)) {
+    handleStr = `committed:${handle.id}`;
+  } else if (!isLanding(handle)) {
+    handleStr = `draft:${handle.draftKey}`;
+  }
   const seedStr = seed?.characterIds?.join(",") ?? "none";
   return (
     <div>
@@ -86,6 +93,9 @@ export function ActiveChatStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => commitDraft(PROBE_COMMIT_CHAT)}>
         commit draft
+      </button>
+      <button type="button" onClick={(): void => goToLanding()}>
+        go landing
       </button>
     </div>
   );

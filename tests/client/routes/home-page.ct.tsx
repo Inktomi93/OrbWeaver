@@ -1,13 +1,13 @@
 // CT: the `/` home route — the central navigation seam end-to-end (this route was untested before this
 // task). Drives the PRODUCTION composition: the four-region shell, the active-chat store, and the
-// character→chat seam. Asserts: the default chats section renders the draft-landing composer; and
-// picking a character in the library STARTS a chat with it — the library writes the shared stores
-// (startNewChat + setActiveSection), the route (the sole reader) flips CONTENT to a seeded chat room.
-// This is the §5.1 anti-jank seam proven without a real generation (that's the e2e's job).
+// character→chat seam. Asserts: the default chats section renders the LANDING surface (D62 P4 / J1 — the
+// app never opens on an empty room); and picking a character in the library STARTS a chat with it — the
+// library writes the shared stores (startNewChat + setActiveSection), the route (the sole reader) flips
+// CONTENT to a seeded chat room. This is the §5.1 anti-jank seam proven without a real generation.
 //
-// tRPC is stubbed at the NETWORK (routeTrpc): `chat.listChats` (the docked LIST panel reads it on
-// mount) + `character.list` (the library). No `chat.listMessages` stub is needed — every chat reached
-// here is a DRAFT (no server row), so the transcript never reads the server.
+// tRPC is stubbed at the NETWORK (routeTrpc): `chat.listChats` (the docked LIST panel + the landing
+// recents) + `character.list` (the library + the landing quick-picks). No `chat.listMessages` stub is
+// needed — every chat reached here is a DRAFT (no server row), so the transcript never reads the server.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../packages/client/src/lib/test-ids";
@@ -19,14 +19,22 @@ const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade
 
 /** The library page (`character.list` is keyset-paged: `{items, nextCursor}`). */
 const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
+const NO_CHARACTERS = { items: [], nextCursor: null };
 
-test("the default chats section renders the draft-landing composer", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [] });
+test("the default chats section renders the landing surface, not an empty room (J1)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, { "chat.listChats": [], "character.list": NO_CHARACTERS });
   const component = await mount(<HomePageStory />);
 
-  // Landing = an empty draft chat: the composer is live, the transcript empty. No character picked yet.
-  await expect(component.getByTestId(testId("composer"))).toBeVisible();
-  await expect(component.getByText("No messages yet.")).toBeVisible();
+  // At rest = the landing hero, never a dead composer. An empty DB teaches the first step.
+  await expect(component.getByText("Pick up a thread")).toBeVisible();
+  await expect(
+    component.getByRole("button", { name: "Create your first character" }),
+  ).toBeVisible();
+  // No chat room / composer is mounted at rest.
+  await expect(page.getByTestId(testId("composer"))).toHaveCount(0);
 });
 
 test("picking a character in the library starts a chat with it (the library→chat seam)", async ({
