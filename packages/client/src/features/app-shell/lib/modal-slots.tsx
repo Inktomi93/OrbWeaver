@@ -65,4 +65,17 @@ export const MODAL_SLOTS: Record<ModalSlotId, ModalDef> = {
       />
     ),
   },
+  // The new-chat character picker (J2). Route-composed over this placeholder via `AppShellProps.modals`
+  // (home-page.tsx `newChat` slot) — the static render below is the honest fallback that never runs when
+  // the route injects the real `<NewChatPicker>` body, so `placeholder: true` stays correct here.
+  newChat: {
+    title: "New chat",
+    placeholder: true,
+    render: (): ReactElement => (
+      <SectionPlaceholder
+        title="New chat"
+        description="Pick a character to start a chat — the picker lands with the chat feature."
+      />
+    ),
+  },
 };

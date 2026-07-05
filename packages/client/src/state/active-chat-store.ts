@@ -26,7 +26,7 @@
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { ChatHandle } from "./chat-handle";
-import { committedChat, draftChat, isCommitted } from "./chat-handle";
+import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
 import { createGatedStore } from "./create-gated-store";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat` (see the
@@ -61,9 +61,11 @@ const INITIAL_SESSION_KEY = nextSessionKey();
 const useActiveChatStore = createGatedStore<ActiveChatState>(
   "active-chat",
   (): ActiveChatState => ({
-    // The landing state: an empty draft with no seed — identical to the pre-store `draftChat("landing")`
-    // mount, now owned here so the route reads ONE source of truth.
-    handle: draftChat(INITIAL_SESSION_KEY),
+    // The at-rest LANDING state (D62 P4 / J1): nothing selected → the route renders the landing surface
+    // (hero + recents + quick-picks), never an empty room. `startNewChat`/`selectChat` transition out of
+    // it; `goToLanding` returns to it. The `sessionKey` still carries slot identity (unused while landing,
+    // since no `ChatRoomSurface` mounts).
+    handle: landingChat(),
     draftSeed: undefined,
     sessionKey: INITIAL_SESSION_KEY,
   }),
@@ -106,6 +108,17 @@ export function commitDraft(chatId: ChatId): void {
     { handle: committedChat(chatId), draftSeed, sessionKey },
     true,
     "activeChat/commitDraft",
+  );
+}
+
+/** Return to the at-rest LANDING state (the topbar brand/home affordance + the "Close chat" action, and
+ *  J5's delete-of-the-active-chat: after a delete the CONTENT can't keep pointing at a now-404 chat id).
+ *  Mints a fresh `sessionKey` so a subsequent new-chat/select remounts a clean slot. */
+export function goToLanding(): void {
+  useActiveChatStore.setState(
+    { handle: landingChat(), draftSeed: undefined, sessionKey: nextSessionKey() },
+    true,
+    "activeChat/goToLanding",
   );
 }
 

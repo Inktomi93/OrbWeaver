@@ -25,7 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
-import type { ChatHandle } from "#state";
+import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
 import { ChatCastBar } from "../components/chat-cast-bar";
@@ -34,7 +34,9 @@ import type { DraftSeed } from "../hooks/use-send-message";
 import { MessageListSurface } from "./message-list-surface";
 
 export interface ChatRoomSurfaceProps {
-  readonly initialHandle: ChatHandle;
+  /** The room's opening handle — `committed | draft` ONLY (`landing` EXCLUDED by the type): the route
+   *  renders `ChatLandingSurface` for a landing handle, so this surface never mounts with one. */
+  readonly initialHandle: ActiveChatHandle;
   readonly busDeps: ChatBusDeps;
   /** New-chat seed for the draft→committed path — see `DraftSeed` (hooks/use-send-message.ts). */
   readonly draftSeed?: DraftSeed | undefined;

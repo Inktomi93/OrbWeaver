@@ -15,8 +15,8 @@ test("new-chat mints a fresh sessionKey each time and carries the roster seed", 
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");
 
-  // Landing: an empty draft, no seed, the first session key.
-  await expect(state).toHaveText("handle=draft:draft-1 session=draft-1 seed=none");
+  // At rest: the LANDING handle (nothing selected — J1), no seed, the first session key.
+  await expect(state).toHaveText("handle=landing session=draft-1 seed=none");
 
   // A blank new chat → a fresh draft + a NEW session key (so the composer remounts clean).
   await probe.getByRole("button", { name: "new blank" }).click();
@@ -71,4 +71,20 @@ test("commitDraft is a no-op once the active chat is already committed", async (
   await expect(state).toHaveText(
     "handle=committed:chat_probe_select session=chat_probe_select seed=none",
   );
+});
+
+test("goToLanding returns to the landing handle with a fresh session key (J1)", async ({
+  mount,
+}) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+
+  // Open a chat (session keyed by its id)…
+  await probe.getByRole("button", { name: "select chat" }).click();
+  await expect(state).toContainText("handle=committed:chat_probe_select");
+
+  // …then close it: the handle returns to landing + a fresh session key (so a later new-chat/select
+  // remounts a clean slot). The delete-of-the-active-chat + brand/home affordance both land here.
+  await probe.getByRole("button", { name: "go landing" }).click();
+  await expect(state).toHaveText("handle=landing session=draft-2 seed=none");
 });

@@ -17,6 +17,7 @@ import {
   FlaskConical,
   Library,
   MessagesSquare,
+  Plus,
   Settings,
   SunMoon,
   Users,
@@ -97,6 +98,18 @@ export const COMMAND_ACTION: RailModalEntry = {
   id: "command",
   label: "Jump to…",
   icon: Command,
+};
+
+/** The new-chat affordance (J2) — opened by CONTENT-level triggers (chat-list "+", landing hero, ⌘K
+ *  "New chat"), NOT the rail. Standalone (the COMMAND_ACTION precedent): deliberately NOT in RAIL_SLOTS
+ *  so it paints no spurious rail-footer button — but it IS a modal trigger, so the pairing test's
+ *  reachable set must include it (the J2 step-3 reachable-set trap: otherwise `newChat`'s MODAL_SLOTS
+ *  body reads as an orphan). */
+export const NEW_CHAT_ACTION: RailModalEntry = {
+  kind: "modal",
+  id: "newChat",
+  label: "New chat",
+  icon: Plus,
 };
 
 /** The full rail registry (nav + footer + avatar) — the pairing test walks this against MODAL_SLOTS. */

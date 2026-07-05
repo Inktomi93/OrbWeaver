@@ -211,6 +211,31 @@ const streamSchema = z.object({
   lastEventId: z.string().nullish(),
 });
 
+// The CHAT-ROW lifecycle cluster (J5 chat-list — the LIST-panel row kebab: rename/star/archive/delete).
+// `updateTitle`/`star`/`archive`/`delete` (domain/chat/verbs/chat-lifecycle.ts) were ALL already fully
+// implemented — HOST-only via `requireHost` (substrate/auth/matrix.ts), DB-backed, bus-emitting
+// (`chatUpdated`/`chatDeleted`) — but none had ever been exposed on this router (the SAME MISSING-API shape
+// the #28/#29 clusters + the guided-generations cluster were in; swept via grep before this addition, no
+// call site referenced any of the four). Thin pass-throughs; authz lives INSIDE each verb. `title` is
+// required + nullable (`UpdateTitleParams.title: string | null` — null clears the title).
+const updateTitleSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  title: z.string().nullable(),
+});
+
+const starChatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  star: z.boolean(),
+});
+
+const archiveChatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  archived: z.boolean(),
+});
+
+// `delete` is chatId-only (`DeleteChatParams extends ChatScopedParams {}` — same shape as `getChat`/`abort`).
+const deleteChatSchema = z.object({ chatId: brandedId<ChatId>() });
+
 // The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
 // per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
 // `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
@@ -359,6 +384,19 @@ export const chatRouter = t.router({
     .mutation(({ ctx, input }) =>
       ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input }),
     ),
+  // The chat-ROW lifecycle cluster (J5 — the LIST-panel row kebab). Thin pass-throughs; host-only INSIDE.
+  updateTitle: authedProcedure
+    .input(updateTitleSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.updateTitle({ principal: ctx.auth, ...input })),
+  star: authedProcedure
+    .input(starChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.star({ principal: ctx.auth, ...input })),
+  archive: authedProcedure
+    .input(archiveChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.archive({ principal: ctx.auth, ...input })),
+  delete: authedProcedure
+    .input(deleteChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.
   generateImage: authedProcedure

@@ -36,8 +36,10 @@ import { createPersistedStore } from "./create-persisted-store";
 export const SECTION_IDS = ["chats", "characters", "corpus", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
-/** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies, §11.5). */
-export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command"] as const;
+/** The rail/topbar/avatar-triggered modal surfaces (id-paired with MODAL_SLOTS bodies, §11.5). `newChat`
+ *  (J2) is trigger-only from CONTENT affordances (chat-list "+", landing hero, ⌘K) — NOT a rail button
+ *  (its trigger is the standalone `NEW_CHAT_ACTION`, never appended to `RAIL_ACTIONS`). */
+export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat"] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** A panel's 3-state model (UI-Arch §4.1): docked (in-flow, pushes CONTENT) · overlay (floats over,

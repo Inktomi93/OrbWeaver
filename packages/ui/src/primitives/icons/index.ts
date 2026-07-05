@@ -7,6 +7,7 @@
 export type { LucideIcon } from "lucide-react";
 export {
   AlertTriangle,
+  Archive,
   ChartColumn,
   Check,
   ChevronDown,
@@ -50,6 +51,7 @@ export {
   Shrink,
   Sparkles,
   Square,
+  Star,
   SunMoon,
   Trash2,
   Unlock,

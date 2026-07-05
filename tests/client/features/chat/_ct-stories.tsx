@@ -7,17 +7,21 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, QueryBoundary, useTRPC } from "@orb/client/data";
+import type { GoToSection } from "@orb/client/features/chat";
 import {
   ChatContextPanel,
+  ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
   ChatRoomSurface,
+  CommandPaletteSurface,
   Composer,
   MessageListSurface,
   MessageThreadAnchor,
+  NewChatPicker,
 } from "@orb/client/features/chat";
 import type { MessageRenderContext } from "@orb/client/lib";
-import type { ChatHandle } from "@orb/client/state";
+import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
   cancelEditingMessage,
   chatStream,
@@ -593,18 +597,90 @@ export function ChatListSurfaceStory({
 function ChatListInner({ activeChatId }: { readonly activeChatId: string | null }): ReactElement {
   const [selected, setSelected] = useState("none");
   const [newCount, setNewCount] = useState(0);
+  const [deleted, setDeleted] = useState("none");
   return (
     <div style={{ height: 480, width: 320 }}>
       <ChatListAnchor>
         <ChatListSurface
           activeChatId={activeChatId === null ? null : castId<ChatId>(activeChatId)}
+          onDeletedChat={(id): void => setDeleted(id)}
           onNewChat={(): void => setNewCount((n) => n + 1)}
           onSelect={(id): void => setSelected(id)}
         />
       </ChatListAnchor>
       <p data-testid="selected">{selected}</p>
       <p data-testid="new-count">{String(newCount)}</p>
+      <p data-testid="deleted">{deleted}</p>
     </div>
+  );
+}
+
+// ── Landing story (data layer — listChats + character.list stubbed at the network) ────────────────
+
+/** The Chats-section LANDING surface (J1), wired to the real data layer (routeTrpc stubs
+ *  `chat.listChats` + `character.list`). Records select / start-chat / new-chat / browse clicks into
+ *  visible markers so a CT can assert the write-intent callbacks fire with the right id. */
+export function ChatLandingSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChatLandingInner />
+    </CtDataProviders>
+  );
+}
+
+function ChatLandingInner(): ReactElement {
+  const [selected, setSelected] = useState("none");
+  const [started, setStarted] = useState("none");
+  const [newCount, setNewCount] = useState(0);
+  const [browsed, setBrowsed] = useState(0);
+  return (
+    <div style={{ height: 640, width: 720 }}>
+      <ChatLandingSurface
+        onBrowseCharacters={(): void => setBrowsed((n) => n + 1)}
+        onNewChat={(): void => setNewCount((n) => n + 1)}
+        onSelect={(id): void => setSelected(id)}
+        onStartChat={(id): void => setStarted(id)}
+      />
+      <p data-testid="selected">{selected}</p>
+      <p data-testid="started">{started}</p>
+      <p data-testid="new-count">{String(newCount)}</p>
+      <p data-testid="browsed">{String(browsed)}</p>
+    </div>
+  );
+}
+
+// ── New-chat picker story (data layer — character.list stubbed at the network) ────────────────────
+
+/** The J2 new-chat character picker modal body, wired to the real data layer (routeTrpc stubs
+ *  `character.list`). Multi-select is internal state (a local Set); the CT asserts rows render, search
+ *  filters, and the confirm item's label reflects the selection count. */
+export function NewChatPickerStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 560, width: 480 }}>
+        <NewChatPicker />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+// ── Command palette story (data layer — listChats stubbed at the network) ─────────────────────────
+
+const CT_GO_TO_SECTIONS: readonly GoToSection[] = [
+  { id: "chats", label: "Chats" },
+  { id: "characters", label: "Characters" },
+  { id: "corpus", label: "Corpus" },
+];
+
+/** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
+ *  `goToSections` is a fixed CT literal (the route supplies RAIL_SECTIONS in production). */
+export function CommandPaletteSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 480, width: 560 }}>
+        <CommandPaletteSurface goToSections={CT_GO_TO_SECTIONS} />
+      </div>
+    </CtDataProviders>
   );
 }
 
@@ -617,7 +693,7 @@ function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactE
     stream: chatStream,
     invalidate: createInvalidation({ queryClient, trpc }).invalidate,
   };
-  const handle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_room");
+  const handle: ActiveChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_room");
   // A draft carries a founding roster seed (the new-chat-with-character path); a committed room ignores it.
   const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
   return (
