@@ -13,9 +13,13 @@
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, personas } from "@orb/db";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
-import { CharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
+import {
+  AssetNotFoundError,
+  CharacterNotFoundError,
+  PersonaNotFoundError,
+} from "../contract/errors";
 import type { PersonaDetail } from "../contract/views";
 
 const LIMIT_ONE = 1;
@@ -97,6 +101,21 @@ export async function ensureCharacterOwned(
   }
 }
 
+/** Gate: a supplied avatar asset must belong to the caller (D21 cross-root belt — `personas` and
+ *  `assets` are BOTH owner-stamped producers, so the FK alone proves existence, never ownership; an
+ *  unchecked link would leak a foreign asset's CAS hash through the detail JOIN). A foreign/absent
+ *  asset collapses to {@link AssetNotFoundError} (no existence leak). */
+export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
+  const rows = await db
+    .select({ ownerId: assets.ownerId })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(LIMIT_ONE);
+  if (rows[0]?.ownerId !== ownerId) {
+    throw new AssetNotFoundError(assetId);
+  }
+}
+
 /** Gate: the persona must belong to the caller. A foreign/absent persona collapses to
  *  {@link PersonaNotFoundError} (no existence leak). */
 export async function ensurePersonaOwned(
@@ -120,7 +139,9 @@ export function detailOf({ persona: row, avatar }: PersonaWithAvatar): PersonaDe
   return {
     id: row.id,
     name: row.name,
+    title: row.title,
     description: row.description,
+    starred: row.starred,
     avatarAssetId: row.avatarAssetId,
     avatarHash: avatar?.hash ?? null,
     metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),

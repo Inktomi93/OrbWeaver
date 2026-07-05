@@ -22,7 +22,7 @@ import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BatchStmt, Db } from "@orb/db";
-import { chatParticipants, chats, personas, users } from "@orb/db";
+import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
 import type { ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
@@ -535,6 +535,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // `seeds.defaultPersonaId`), VALIDATED as an owned live persona (persona.get under the synthetic
     // host principal) -- a stale/unowned id collapses to null so a dead id never lands in the
     // `chats.anchorPersonaId` FK.
+    // The character-lock hop (D62 — ST/neo parity): a solo-character founding with EXACTLY ONE
+    // `character_personas` connection auto-anchors that persona; 0 or 2+ connections (ambiguity) or a
+    // group founding falls through to the default seed. Owner-scoped via `personas.ownerId` so a
+    // foreign persona can never leak in (the neo `connected-persona.ts` semantics, carried).
+    resolveConnectedPersona: async (userId, characterIds) => {
+      const [characterId] = characterIds;
+      if (characterId === undefined || characterIds.length !== 1) {
+        return null;
+      }
+      const rows = await db
+        .select({ personaId: characterPersonas.personaId })
+        .from(characterPersonas)
+        .innerJoin(personas, eq(personas.id, characterPersonas.personaId))
+        .where(and(eq(characterPersonas.characterId, characterId), eq(personas.ownerId, userId)))
+        .limit(2);
+      const [only] = rows;
+      return rows.length === 1 && only !== undefined ? only.personaId : null;
+    },
     resolveDefaultPersona: async (userId) => {
       const us = await input.settings.loadUserSettings(userId);
       const raw = us.seeds.defaultPersonaId;

@@ -72,7 +72,11 @@ export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
 export const createPersonaSchema = z.object({
   name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),
+  /** Display subtitle for pickers/lists (ST persona "title") — never injected into the prompt. */
+  title: z.string().max(NAME_MAX_LENGTH).nullable().optional(),
   description: z.string().max(DESCRIPTION_MAX_LENGTH),
+  /** Favorite flag (ST persona favorites) — pickers sort/highlight starred first. */
+  starred: z.boolean().optional(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),
   metadata: personaMetadataWriteSchema.nullable().optional(),
 });

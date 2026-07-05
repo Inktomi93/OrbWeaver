@@ -461,4 +461,63 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBeNull();
   });
+
+  test("the connected persona (character-lock hop, D62) beats the default seed", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const connected = await seedPersona(host, "persona_connected");
+    const fallback = await seedPersona(host, "persona_fallback");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveConnectedPersona: (userId, characterIds) =>
+        Promise.resolve(userId === host && characterIds[0] === aria ? connected : null),
+      resolveDefaultPersona: () => Promise.resolve(fallback),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBe(connected);
+    const hostRow = chat.participants.find((p) => p.role === "host");
+    expect(hostRow?.activePersonaId).toBe(connected);
+  });
+
+  test("no connection (the hop yields null): the default seed still anchors", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const fallback = await seedPersona(host, "persona_fallback");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveConnectedPersona: () => Promise.resolve(null),
+      resolveDefaultPersona: () => Promise.resolve(fallback),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBe(fallback);
+  });
+
+  test("an explicit anchor beats the connected persona too (full precedence: explicit > connected > default)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const explicit = await seedPersona(host, "persona_explicit");
+    const connected = await seedPersona(host, "persona_connected");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "hi")),
+      resolveConnectedPersona: () => Promise.resolve(connected),
+    });
+
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      anchorPersonaId: explicit,
+    });
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
+    expect(row?.anchorPersonaId).toBe(explicit);
+  });
 });

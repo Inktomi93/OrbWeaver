@@ -2,11 +2,15 @@
 // character.updated; `null` CLEARS a nullable field while `undefined` (omitted) keeps it; an empty edit
 // neither writes nor emits; not-owned throws.
 
-import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
+import {
+  AssetNotFoundError,
+  CharacterNotFoundError,
+  createCharacterService,
+} from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 describe("update", () => {
   test("a content edit changes contentHash and emits character.updated", async () => {
@@ -107,5 +111,31 @@ describe("update", () => {
     await expect(
       svc.update({ principal: principal(other), characterId: created.id, input: { name: "Hax" } }),
     ).rejects.toBeInstanceOf(CharacterNotFoundError);
+  });
+
+  test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — nothing written)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const other = await seedUser(db, { handle: "other" });
+    const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
+    const created = await svc.create({
+      principal: principal(owner),
+      input: { handle: "nyx", name: "Nyx", description: "d" },
+    });
+    h.events.length = 0;
+
+    await expect(
+      svc.update({
+        principal: principal(owner),
+        characterId: created.id,
+        input: { avatarAssetId: foreign },
+      }),
+    ).rejects.toBeInstanceOf(AssetNotFoundError);
+
+    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    expect(reread.avatarAssetId).toBeNull();
+    expect(h.events).toHaveLength(0);
   });
 });

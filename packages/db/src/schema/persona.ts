@@ -27,7 +27,12 @@ export const personas = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // ST persona "title" — a display subtitle for pickers/lists, never injected into the prompt.
+    // First-class nullable column (D62 rider), not metadata-blob cargo: it's a list-rendered field.
+    title: text("title"),
     description: text("description").notNull(),
+    // ST persona favorites (mirrors `characters.starred`) — pickers sort/highlight starred first.
+    starred: integer("starred", { mode: "boolean" }).notNull().default(false),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — it must NOT delete the persona.
     avatarAssetId: text("avatar_asset_id")
       .$type<AssetId>()

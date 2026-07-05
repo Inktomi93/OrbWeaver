@@ -9,12 +9,17 @@ import { personas } from "@orb/db";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { CreatePersonaParams } from "../contract/params";
 import type { PersonaContext, PersonaService } from "../contract/service";
-import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
+import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 import { normalizeWriteMetadata } from "../substrate/metadata";
 
 export function createCreate(ctx: PersonaContext): PersonaService["create"] {
   return async ({ principal, input }: CreatePersonaParams) => {
     const ownerId = principal.userId;
+    const avatarAssetId = input.avatarAssetId ?? null;
+    if (avatarAssetId !== null) {
+      // D21 cross-root belt: the FK proves the asset exists, never that it's the caller's.
+      await ensureAssetOwned(ctx.db, ownerId, avatarAssetId);
+    }
     const at = ctx.now();
     const personaId = ctx.newPersonaId();
     const metadata = normalizeWriteMetadata(input.metadata ?? null);
@@ -23,8 +28,10 @@ export function createCreate(ctx: PersonaContext): PersonaService["create"] {
       id: personaId,
       ownerId,
       name: input.name,
+      title: input.title ?? null,
       description: input.description,
-      avatarAssetId: input.avatarAssetId ?? null,
+      starred: input.starred ?? false,
+      avatarAssetId,
       metadata,
       createdAt: at,
       updatedAt: at,

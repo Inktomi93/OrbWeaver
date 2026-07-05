@@ -10,13 +10,25 @@
 //     seeder slice lands.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { CharacterId } from "@orb/kit/ids";
+import type { AssetId, CharacterId } from "@orb/kit/ids";
 
 export class CharacterNotFoundError extends DomainNotFoundError {
   public readonly characterId: CharacterId;
   constructor(characterId: CharacterId) {
     super("character", characterId);
     this.characterId = characterId;
+    this.name = this.constructor.name;
+  }
+}
+
+/** Thrown by create/update when a supplied `avatarAssetId` is missing OR not the caller's — the D21
+ *  cross-root belt (assets are per-user; the FK alone proves existence, never ownership). Same
+ *  leak-free collapse as CharacterNotFoundError (see persistence/queries.ts `ensureAssetOwned`). */
+export class AssetNotFoundError extends DomainNotFoundError {
+  public readonly assetId: AssetId;
+  constructor(assetId: AssetId) {
+    super("asset", assetId);
+    this.assetId = assetId;
     this.name = this.constructor.name;
   }
 }

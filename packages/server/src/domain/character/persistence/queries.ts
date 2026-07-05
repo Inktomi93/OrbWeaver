@@ -25,9 +25,10 @@ import {
   parseStringArray,
   tags,
 } from "@orb/db";
-import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { AssetNotFoundError } from "../contract/errors";
 import type { SnapshotSummary } from "../contract/results";
 import type { CharacterDetail, CharacterSummary } from "../contract/views";
 import { cardTokenSize } from "../substrate/card-tokens";
@@ -47,6 +48,21 @@ const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null
 interface CharacterWithAvatar {
   readonly character: CharacterRow;
   readonly avatar: AssetRow | null;
+}
+
+/** Gate: a supplied avatar asset must belong to the caller (D21 cross-root belt — `characters` and
+ *  `assets` are BOTH owner-stamped producers, so the FK alone proves existence, never ownership; an
+ *  unchecked link would leak a foreign asset's CAS hash through the detail JOIN). A foreign/absent
+ *  asset collapses to {@link AssetNotFoundError} (no existence leak). */
+export async function ensureAssetOwned(db: Db, ownerId: UserId, assetId: AssetId): Promise<void> {
+  const rows = await db
+    .select({ ownerId: assets.ownerId })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(LIMIT_ONE);
+  if (rows[0]?.ownerId !== ownerId) {
+    throw new AssetNotFoundError(assetId);
+  }
 }
 
 /** One owned character + its avatar, or undefined when not found / not the caller's. */

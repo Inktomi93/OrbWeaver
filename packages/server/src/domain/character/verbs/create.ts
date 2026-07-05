@@ -12,7 +12,12 @@ import { CharacterNotFoundError } from "../contract/errors";
 import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
-import { canonicalTagsOf, detailOf, loadOwnedCharacterWithAvatar } from "../persistence/queries";
+import {
+  canonicalTagsOf,
+  detailOf,
+  ensureAssetOwned,
+  loadOwnedCharacterWithAvatar,
+} from "../persistence/queries";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */
@@ -26,9 +31,22 @@ function provenanceColumns(provenance: CharacterImportProvenance | undefined): {
   return { importedFrom: provenance.importedFrom, importHash: provenance.importHash };
 }
 
+/** D21 cross-root belt: the FK proves a supplied avatar asset exists, never that it's the caller's.
+ *  Extracted (like `provenanceColumns`) to keep the verb closure under the cognitive-complexity gate. */
+async function guardAvatarOwned(
+  ctx: CharacterContext,
+  ownerId: CreateCharacterParams["principal"]["userId"],
+  avatarAssetId: CreateCharacterParams["input"]["avatarAssetId"],
+): Promise<void> {
+  if (avatarAssetId !== null && avatarAssetId !== undefined) {
+    await ensureAssetOwned(ctx.db, ownerId, avatarAssetId);
+  }
+}
+
 export function createCreate(ctx: CharacterContext): CharacterService["create"] {
   return async ({ principal, input, provenance }: CreateCharacterParams) => {
     const ownerId = principal.userId;
+    await guardAvatarOwned(ctx, ownerId, input.avatarAssetId);
     const at = ctx.now();
     const characterId = ctx.newCharacterId();
     const { importedFrom, importHash } = provenanceColumns(provenance);
