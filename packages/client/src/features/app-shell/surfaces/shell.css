@@ -1,0 +1,267 @@
+/* shell.css — the app-shell's layout MECHANICS (UI-Arch §4.1 + §11.1 + §4b axis 2). The shell tier is
+ * the ONE place raw layout CSS + the ONE viewport @media live; feature TSX never writes @media, and the
+ * clamp-overlay + grid math live HERE, not in JS. Every value references a generated token custom
+ * property (--color-*, --spacing-*, --z-*, --motion-*, from @orb/ui globals.css @theme). Two local
+ * layout constants (rail width, panel clamp) have no DTCG token today — they are shell-scoped CSS vars,
+ * not Tailwind utilities, so they touch no token gate and stay the shell's private geometry. */
+
+.shell-grid {
+  /* rail (fixed) | list track | content (fluid) | context track. A collapsed/overlay panel's track is
+   * 0 — leftover width feeds CONTENT, never a wider chat (§4.1). */
+  --rail-w: 3.5rem; /* ~56px */
+  --panel-w: clamp(16rem, 22vw, 22rem);
+  --list-track: 0px;
+  --context-track: 0px;
+
+  display: grid;
+  grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
+  grid-template-rows: 100%;
+  height: 100vh; /* fallback for no-dvh */
+  /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback (§4b axis 4) — the vh line above is the floor for browsers without dvh; this line wins where supported. */
+  height: 100dvh;
+  position: relative;
+  isolation: isolate; /* Base UI stacking-context guidance (globals.css note) */
+  overflow: hidden;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  padding-inline-start: env(safe-area-inset-left);
+}
+
+/* A DOCKED panel occupies its grid track (pushes CONTENT); overlay/collapsed leave the track at 0. */
+.shell-grid[data-list-mode="docked"] {
+  --list-track: var(--panel-w);
+}
+.shell-grid[data-context-mode="docked"] {
+  --context-track: var(--panel-w);
+}
+
+/* ── RAIL ─────────────────────────────────────────────────────────────────────────────────────── */
+.shell-rail {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: var(--z-raised);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-row);
+  width: var(--rail-w);
+  padding-block: var(--spacing-block);
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  border-inline-end: 1px solid var(--color-sidebar-border);
+}
+.shell-rail-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block-end: var(--spacing-row);
+}
+.shell-rail-sections,
+.shell-rail-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-field);
+}
+.shell-rail-spacer {
+  flex: 1 1 auto;
+}
+
+/* ── SIDE PANELS (the §11.1 clamp-overlay) ────────────────────────────────────────────────────── */
+.shell-panel {
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+}
+.shell-panel[data-panel-side="list"] {
+  grid-column: 2;
+  border-inline-end: 1px solid var(--color-sidebar-border);
+}
+.shell-panel[data-panel-side="context"] {
+  grid-column: 4;
+  border-inline-start: 1px solid var(--color-sidebar-border);
+}
+
+/* DOCKED — in flow, fills its track. */
+.shell-panel[data-panel-mode="docked"] {
+  position: relative;
+  width: auto;
+}
+
+/* OVERLAY + COLLAPSED — pulled OUT of grid flow, fixed clamp width, transform-animated. The track is
+ * already 0, so CONTENT never reflows when a panel toggles (§11.1). */
+.shell-panel[data-panel-mode="overlay"],
+.shell-panel[data-panel-mode="collapsed"] {
+  position: absolute;
+  /* Reset the grid placement: an abspos GRID ITEM otherwise uses its grid-AREA as the containing
+   * block, so inset-inline-start would stack on top of column 2's origin. `auto` makes the grid
+   * padding box the containing block, so the inset positions against the shell edge. */
+  grid-column: auto;
+  inset-block: 0;
+  width: var(--panel-w);
+  z-index: var(--z-overlay);
+  transition: transform var(--motion-base) ease;
+}
+.shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  inset-inline-start: var(--rail-w);
+}
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  inset-inline-end: 0;
+}
+.shell-panel[data-panel-mode="overlay"] {
+  transform: translateX(0);
+}
+/* COLLAPSED — translated fully off its own edge: zero visual width, no reflow. */
+.shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+  transform: translateX(-100%);
+}
+.shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+  transform: translateX(100%);
+}
+
+.shell-panel-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+  height: 3rem;
+  padding-inline: var(--spacing-block);
+  border-block-end: 1px solid var(--color-sidebar-border);
+}
+.shell-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── CONTENT column (topbar + hero) ───────────────────────────────────────────────────────────── */
+.shell-main {
+  grid-column: 3;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-background);
+}
+.shell-topbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+  height: 3rem;
+  padding-inline: var(--spacing-block);
+  padding-inline-end: max(var(--spacing-block), env(safe-area-inset-right));
+  border-block-end: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+.shell-topbar-lead,
+.shell-topbar-trail {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-row);
+  min-width: 0;
+}
+.shell-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+}
+/* The region containment providers (<RegionAnchor>) fill their cell so the surface inside adapts. */
+.shell-region-fill {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── SCRIM (dismisses an overlay panel / a mobile sheet) ──────────────────────────────────────── */
+.shell-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-overlay) - 1);
+  background: var(--color-scrim);
+  border: none;
+  cursor: pointer;
+  animation: shell-scrim-in var(--motion-fast) ease;
+}
+@keyframes shell-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ── MODAL header (inside the shared <Dialog>) ────────────────────────────────────────────────── */
+.shell-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+  margin-block-end: var(--spacing-block);
+}
+
+/* ── THE ONE @media: desktop columns ⇄ mobile top-bar + full-screen sheets (§4b axis 2) ───────────
+ * Below the breakpoint the rail reflows to a TOP bar and both panels become full-screen sheets
+ * (docked/overlay = open sheet; collapsed = off-screen). The STORED per-panel mode is untouched (it is
+ * device-independent user intent) — only the RENDERING changes here, in pure CSS, no JS resize hook. */
+@media (max-width: 48rem) {
+  .shell-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--rail-w) minmax(0, 1fr);
+  }
+  .shell-rail {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    width: auto;
+    height: var(--rail-w);
+    padding-block: 0;
+    padding-inline: var(--spacing-block);
+    padding-block-start: env(safe-area-inset-top);
+    border-inline-end: none;
+    border-block-end: 1px solid var(--color-sidebar-border);
+  }
+  .shell-rail-brand {
+    padding-block-end: 0;
+    padding-inline-end: var(--spacing-row);
+  }
+  .shell-rail-sections,
+  .shell-rail-actions {
+    flex-direction: row;
+  }
+  .shell-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  /* Panels → full-screen sheets over the content (open when docked/overlay, off-screen when collapsed). */
+  .shell-panel[data-panel-mode="docked"],
+  .shell-panel[data-panel-mode="overlay"],
+  .shell-panel[data-panel-mode="collapsed"] {
+    position: fixed;
+    inset-block: var(--rail-w) 0;
+    inset-inline: 0;
+    width: 100dvw;
+    z-index: var(--z-modal);
+    transition: transform var(--motion-base) ease;
+  }
+  .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
+    transform: translateX(-100%);
+  }
+  .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+    transform: translateX(100%);
+  }
+}

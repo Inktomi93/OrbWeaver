@@ -1,4 +1,4 @@
-// `createGatedStore` — the ONE way a hook-shaped client store is minted (UI-Arch §2.1 state/;
+// `createGatedStore` — the way a hook-shaped, NON-persisted client store is minted (UI-Arch §2.1 state/;
 // UI-Lib-Zustand.md recs #7/#12 + C-2): it bakes the devtools middleware so no store file
 // re-decides the wiring, and re-types the setter so the ACTION LABEL (the devtools 3rd arg) is
 // REQUIRED at every call site — an unlabeled transition is a `tsc` error, and the Redux DevTools
@@ -7,9 +7,10 @@
 // always included — it only widens `subscribe`, and every lifecycle store wants the transient
 // (render-free) seam (D-6). `enabled` gates on DEV *and* extension presence, so the node test
 // lane (vitest: DEV true, no extension, no window) stays warning-clean and prod stays inert.
-// The persist-shaped sibling (`createEntityDraftStore`) is a vanilla-store FACTORY, not a hook —
-// it composes devtools(persist(...)) itself and shares STORE_DEVTOOLS_ENABLED + the name registry
-// discipline from here.
+// Two persist-shaped siblings share STORE_DEVTOOLS_ENABLED + the name-registry discipline from here:
+// `createEntityDraftStore` (a per-entity VANILLA-store factory, not a hook — one store per editor id)
+// and `createPersistedStore` (a hook-shaped singleton with `persist` baked in — this file's shape plus
+// a persisted slice, for one global device-local concern like the shell layout).
 // State-law recap the wrapper does NOT relax (gate `state:files`): one store per file, callers
 // never see raw set/getState across module boundaries — module-level actions in the store's own
 // file call `useXStore.setState(next, replace, "domain/action")` and export intent-named fns.
