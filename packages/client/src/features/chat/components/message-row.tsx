@@ -12,6 +12,14 @@
 // gets the pre-#21 no-chrome render, so this is additive, not a breaking prop. Trust is `trusted` (own
 // AI output / own input) — other-participant `untrusted` routing lands with the multi-human wave
 // (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`.
+//
+// MACRO DISPLAY PASS: the SAME `participants`/`personas`/`activePersonaId` roster this row already
+// threads for attribution ALSO builds the `MessageRenderContext` `<MessageContent>` needs to resolve
+// `{{char}}`/`{{user}}` (`lib/message-render-context` — pure data-shaping, reusing this resolution
+// rather than a second lookup). `rowCharacterId` is this row's own `message.characterId` (retargets
+// `{{char}}` to the row's voiced speaker in a group room). Same additive default as attribution: when
+// NEITHER map is threaded at all, `resolveMessageRenderContext` returns `undefined` and `content`
+// renders UNCHANGED (never a "" macro-erasure) — see that helper's header for why.
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -24,6 +32,7 @@ import { cn } from "#lib";
 import { useIsEditingMessage } from "#state";
 import type { PersonaAttribution } from "../lib/attribution";
 import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
+import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
@@ -71,10 +80,16 @@ export function MessageRow({
   // unmounts this row on scroll. While editing, the textarea REPLACES the read-only body; the
   // attribution chrome + swipe strip stay put (only the content slot swaps).
   const editing = useIsEditingMessage(message.id);
+  const renderContext = resolveMessageRenderContext({ participants, personas, activePersonaId });
   const content = editing ? (
     <MessageEditTextarea message={message} />
   ) : (
-    <MessageContent content={message.content} trust="trusted" />
+    <MessageContent
+      content={message.content}
+      trust="trusted"
+      renderContext={renderContext}
+      rowCharacterId={message.characterId}
+    />
   );
 
   return (

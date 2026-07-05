@@ -18,13 +18,25 @@
 // row's TRUSTED author identity (name/avatar) is a separate concern resolved in message-row.tsx from
 // the server-stamped `characterId`; this per-span tint is a cosmetic default, and a real
 // per-character `ThemeOverride` (once the theme system lands) layers on top via the same ThemeScope.
+//
+// MACRO DISPLAY PASS (the `{{char}}`/`{{user}}` bug fix, §12.4's deferred SEAM in content-blocks.ts):
+// `renderMessageForDisplay` (`#lib/message-render` — ONE engine, `@orb/kit/macro` underneath, D-ledger
+// "engine vs data") runs on the RAW `content` string BEFORE the speaker-span split, so a merged-
+// narrator body's markers still see fully-resolved text and `{{char}}`/`{{user}}` never leak into a
+// `<speaker>` NAME position. `renderContext` is optional + additive: absent (no roster/persona
+// threaded to the row yet — the pre-existing #21 default) means content passes through UNCHANGED, so
+// every caller that predates this pass (CT stories, the edit textarea's read-only preview, etc.)
+// keeps its exact prior byte-for-byte render.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
+import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+import type { MessageRenderContext } from "#lib";
+import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
 import { parseSpeakerSpans } from "../lib/parse-speaker-spans";
 import { colorForCharacter } from "../lib/speaker-color";
@@ -97,11 +109,29 @@ export interface MessageContentProps {
   /** The stored/authored body string (D26/D51 — content is always a string upstream). */
   readonly content: string;
   readonly trust: Trust;
+  /** The room-level macro DATA (roster/persona names) — absent means "no roster/persona threaded
+   *  yet" (the pre-existing #21 additive default), in which case `content` renders UNCHANGED. */
+  readonly renderContext?: MessageRenderContext | undefined;
+  /** This row's own speaker (the message's `characterId`) — retargets `{{char}}` to THIS character
+   *  in a group room; omit/null for rows with no known speaker (falls back to `renderContext`'s
+   *  default `characterName`). Ignored when `renderContext` is absent. */
+  readonly rowCharacterId?: CharacterId | null | undefined;
 }
 
-/** Render a message body as its typed block sequence, speaker-split + colored per §12.4. */
-export function MessageContent({ content, trust }: MessageContentProps): ReactElement {
-  const spans = parseSpeakerSpans(content);
+/** Render a message body as its typed block sequence, speaker-split + colored per §12.4. Macros
+ *  (`{{char}}`/`{{user}}`/…) are resolved against `renderContext` BEFORE the speaker-span split, so a
+ *  merged-narrator body's `<speaker>` markers see already-substituted text. */
+export function MessageContent({
+  content,
+  trust,
+  renderContext,
+  rowCharacterId,
+}: MessageContentProps): ReactElement {
+  const resolvedContent =
+    renderContext === undefined
+      ? content
+      : renderMessageForDisplay(content, renderContext, rowCharacterId);
+  const spans = parseSpeakerSpans(resolvedContent);
 
   // Byte-identical no-op (the load-bearing case, §12.4): zero well-formed `<speaker>` markers
   // collapse to exactly one null-speaker span carrying the untouched `content` string — render

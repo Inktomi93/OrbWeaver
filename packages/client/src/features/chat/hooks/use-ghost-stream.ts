@@ -14,10 +14,12 @@
 import type { ChatId } from "@orb/kit/ids";
 import { useTurnSlot } from "#state";
 
-/** The live turn's streamed token text for `chatId`, or "" while pending / off-turn. */
+/** The live turn's streamed token text for `chatId` — populated while `streaming`/`stopping` (mirrors
+ *  `useGhostReasoning` below: the store keeps accumulating `text` through `stopping`, so the render
+ *  side must keep reading it then too), "" while pending / off-turn. */
 export function useGhostText(chatId: ChatId | null): string {
   const slot = useTurnSlot(chatId);
-  return slot.phase === "streaming" ? slot.text : "";
+  return slot.phase === "streaming" || slot.phase === "stopping" ? slot.text : "";
 }
 
 /** The live turn's streamed reasoning text for `chatId` — populated while `streaming`/`stopping`

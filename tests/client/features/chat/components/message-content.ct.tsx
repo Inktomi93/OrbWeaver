@@ -52,3 +52,33 @@ test("a preamble before the first marker renders as an un-themed narrator span",
   await expect(component.getByText("The room falls silent.")).toBeVisible();
   await expect(component.getByText("Well then.")).toBeVisible();
 });
+
+// ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
+
+test("with no renderContext, {{char}}/{{user}} render LITERALLY — the pre-fix default", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageContentSpansStory content="{{char}} doesn't look up. So here's the deal, {{user}}:" />,
+  );
+  await expect(
+    component.getByText("{{char}} doesn't look up. So here's the deal, {{user}}:"),
+  ).toBeVisible();
+});
+
+test("with a renderContext, {{char}}/{{user}} resolve to real names before Markdown", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageContentSpansStory
+      content="{{char}} doesn't look up. So here's the deal, {{user}}:"
+      characterName="Kira"
+      userName="Nate"
+    />,
+  );
+  await expect(
+    component.getByText("Kira doesn't look up. So here's the deal, Nate:"),
+  ).toBeVisible();
+  await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
+  await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
+});

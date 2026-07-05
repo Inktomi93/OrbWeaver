@@ -54,6 +54,7 @@ export {
   Unlock,
   Upload,
   Users,
+  WandSparkles,
   X,
 } from "lucide-react";
 export type { IconProps } from "./icon";

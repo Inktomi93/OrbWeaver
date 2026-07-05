@@ -11,9 +11,18 @@
 //     seeds OVER the server row at mount and clears on a confirmed save.
 //   • `onFieldUnmount` flush — the documented-but-unprosed hook (reference-only; no guide
 //     exercises it): a field unmounting mid-debounce flushes its pending value.
+//
+// Two more adopts from the full-docs mine (UI-Lib-TanStack-Form.md §E.6/§E.11), the same as the
+// saved-entity factory: `validationLogic: revalidateLogic()` as the default validation seam
+// (inert unless a config supplies `onDynamic`; overridable via `config.options`), and an
+// `onSubmitInvalid` focus-first-error belt (harmless here — the listener only ever calls
+// `handleSubmit()` once `isValid`, so an invalid submit is rare, but a consumer that DOES ever
+// drive an explicit submit still gets the a11y behavior for free).
 
+import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef } from "react";
 import type { EntityDraftStore } from "#state";
+import type { AppFormInstance, AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
 
 const DEFAULT_DEBOUNCE_MS = 500;
@@ -26,8 +35,11 @@ export interface AutosaveEntityFormConfig<TValues extends object> {
   readonly draft?: EntityDraftStore<TValues>;
   /** @defaultValue 500 */
   readonly debounceMs?: number;
-  /** Extra `useAppForm` options (validators etc.) spread verbatim. */
-  readonly options?: Record<string, unknown>;
+  /**
+   * Extra `useAppForm` options (validators etc.) spread verbatim. Derived from the REAL hook
+   * options (never a hand-restated bag): a typo'd key is now a compile error, not a silent no-op.
+   */
+  readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
 }
 
 export interface AutosaveEntityFormArgs<TValues extends object> {
@@ -35,13 +47,19 @@ export interface AutosaveEntityFormArgs<TValues extends object> {
   readonly serverValues: TValues | undefined;
 }
 
-/** The autosave form surface — everything the AppForm exposes MINUS `reset` (see the header). */
-type AutosaveForm = Omit<ReturnType<typeof useAppForm>, "reset">;
+/**
+ * The autosave form surface — everything the AppForm exposes MINUS `reset` (see the header). Pinned
+ * to the SAME `AppFormInstance<TValues>` instantiation `form` is actually built from (a bare
+ * `ReturnType<typeof useAppForm>` — no type args — independently defaults every trailing generic and
+ * can silently stop structurally matching, which is exactly what surfaced when `config.options`
+ * moved off `Record<string, unknown>` onto the real, richer `AppFormOptions<TValues>`).
+ */
+type AutosaveForm<TValues extends object> = Omit<AppFormInstance<TValues>, "reset">;
 
 export function createAutosaveEntityForm<TValues extends object>(
   config: AutosaveEntityFormConfig<TValues>,
 ): (args: AutosaveEntityFormArgs<TValues>) => {
-  form: AutosaveForm;
+  form: AutosaveForm<TValues>;
   /** Spread as `key={mountKey}` — id change remounts + reseeds (same rule as the saved factory). */
   mountKey: string;
 } {
@@ -60,6 +78,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     });
 
     const form = useAppForm({
+      validationLogic: revalidateLogic(), // submit-then-live seam; overridable via config.options
       ...config.options,
       defaultValues: seedRef.current,
       onSubmit: async ({ value }: { value: TValues }) => {
@@ -68,8 +87,22 @@ export function createAutosaveEntityForm<TValues extends object>(
         // resurrect a stale draft over fresher server truth.
         config.draft?.clearDraft(entityId);
       },
+      onSubmitInvalid: (): void => {
+        // Focus-first-error — the library ships none by design. `@orb/ui/field` stamps real
+        // aria-invalid="true" on the native control (never a wrapper div), so this finds it.
+        // biome-ignore lint/security/noSecrets: false positive — an aria-attribute CSS selector, not a credential.
+        document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+      },
       listeners: {
         // The docs' own autosave recipe: mirror to the draft store, then submit-if-valid.
+        // NOTE (audit tier-3, evaluated + deferred): the real per-callback param type is
+        // form-core's `FormListenersPropsField<TFormData, TOnMount, ..., TSubmitMeta>` — but it is
+        // NOT exported from `@tanstack/form-core`/`@tanstack/react-form` (only the outer
+        // `FormListeners<...>` container is). Deriving it honestly would mean threading the full
+        // 11-generic validator chain through `AutosaveEntityFormConfig<TValues>` (today collapsed
+        // into the single `options` bag) — a public-shape change, not a same-shape tightening. The
+        // hand-narrowed shape below is self-checking (a real API shift breaks the call site), so
+        // it's left as-is rather than risking a wrong "clean swap."
         onChange: ({
           formApi,
         }: {
@@ -121,6 +154,6 @@ export function createAutosaveEntityForm<TValues extends object>(
     }, [entityId, draftSeed]);
 
     // The compile-time `no-form-reset-in-autosave`: reset is structurally absent from the type.
-    return { form: form as AutosaveForm, mountKey: entityId };
+    return { form: form as AutosaveForm<TValues>, mountKey: entityId };
   };
 }

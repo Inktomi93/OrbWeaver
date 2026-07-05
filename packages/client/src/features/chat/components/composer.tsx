@@ -4,11 +4,11 @@
 // (native `field-sizing: content` via `@orb/ui/textarea` — no JS measuring, D54) and ONE right-side
 // control that toggles Send ⇄ Stop off the live turn phase (`useTurnPhase`, never a local boolean).
 //
-// The LEFT icon cluster (attach / the guided-generations wand, task #27) is deliberately NOT built
-// here — those are separately-owned features with their own tasks; fabricating placeholder buttons
-// for unbuilt capabilities would be exactly the invention the missing-API protocol forbids. The
-// composer's draft text is a plain controlled `value`/`onChange` pair (the composing surface owns the
-// state) — that lift IS the seam #27 will read once it's composed alongside the composer.
+// The LEFT icon cluster: the guided-generations WAND (task #27, `<ComposerWand>`) reads this
+// composer's DRAFT TEXT as its guidance input (the plain controlled `value`/`onChange` pair below is
+// the seam it was reserved for) — see `components/composer-wand.tsx` + `hooks/use-guided-actions.ts`
+// for the dispatch. `attach` (file uploads) is still a separately-owned, unbuilt capability —
+// fabricating a placeholder button for it would be the invention the missing-API protocol forbids.
 //
 // Send (Pattern B) and Stop are `useSendMessage`/`useStopTurn` (hooks/); continue-on-empty eligibility
 // is `lib/continue-on-empty.ts` — real, tested groundwork the Send button doesn't yet act on (the
@@ -31,6 +31,7 @@ import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { isContinueEligible } from "../lib/continue-on-empty";
+import { ComposerWand } from "./composer-wand";
 
 export interface ComposerProps {
   readonly handle: ChatHandle;
@@ -55,7 +56,9 @@ export function Composer({
 }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
-  const sendMessage = useSendMessage({ handle, draftSeed, onCommitted });
+  // `onRestoreDraft` puts the typed text back if the send fails before the user's row commits (the hook
+  // owns the pre-/post-commit phase-gate) — the textarea was cleared optimistically in `submit` below.
+  const sendMessage = useSendMessage({ handle, draftSeed, onCommitted, onRestoreDraft: onChange });
 
   const trimmed = value.trim();
   const canSubmitText = trimmed.length > 0;
@@ -75,7 +78,9 @@ export function Composer({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (event.key === "Enter" && !event.shiftKey) {
+    // `isComposing` guards CJK/IME candidate-confirm Enter (the standard DOM composition check) —
+    // without it, confirming a candidate mid-composition fires a half-composed send.
+    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       submit();
     }
@@ -85,6 +90,13 @@ export function Composer({
     <footer data-testid={testId("composer")}>
       <Card padding="block">
         <Row gap="field" align="end">
+          <ComposerWand
+            handle={handle}
+            value={value}
+            onChange={onChange}
+            draftSeed={draftSeed}
+            onCommitted={onCommitted}
+          />
           <Textarea
             aria-label="Message"
             placeholder={continueEligible ? "Continue, or type a message…" : "Type a message…"}

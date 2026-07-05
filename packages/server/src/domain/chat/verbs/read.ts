@@ -336,6 +336,11 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
+// `listMessages` page bounds (mirrors `domain/character/verbs/list.ts`'s DEFAULT_LIMIT/MAX_LIMIT pair) —
+// an unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole.
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 100;
+
 /** `listMessages` — a paged canon read (D26 — each slot joined to its selected variant), chronological. The
  *  `excludedFromPrompt` (hidden) flag rides each `MessageView` (the client renders the held-out state); a
  *  member sees the full room canon (D18). */
@@ -347,7 +352,8 @@ function createListMessages(ctx: ChatContext): ChatService["listMessages"] {
     limit,
   }: ListMessagesParams): Promise<MessageView[]> => {
     await requireParticipant(ctx, principal, chatId);
-    const page = await loadMessagesPage(ctx.db, chatId, beforeSeq, limit);
+    const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const page = await loadMessagesPage(ctx.db, chatId, beforeSeq, pageSize);
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
     return page.reverse();
   };

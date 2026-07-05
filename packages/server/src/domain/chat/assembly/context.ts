@@ -448,6 +448,7 @@ function resolveGuidedSteer(
     input: steer.input ?? "",
     model: input.model,
     chatId: input.chatId,
+    person: steer.person,
   });
   const placement =
     steer.placement ??

@@ -18,7 +18,7 @@
 // observability probe, never for the input/button — those use getByLabel/getByRole).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AutosaveDraftMirrorStory } from "./_ct-stories";
+import { AutosaveDraftMirrorStory, AutosaveUnmountFlushStory } from "./_ct-stories";
 
 test("a host re-render after an edit does NOT clobber the draft mirror back to the mount seed", async ({
   mount,
@@ -46,4 +46,26 @@ test("a host re-render after an edit does NOT clobber the draft mirror back to t
   // with it, the edit survives. Auto-retry gives the (buggy) clobber every chance to land first.
   await expect(draftState).toContainText('"text":"edited value"');
   await expect(draftState).not.toContainText("seed text");
+});
+
+test("a field unmounting mid-debounce flushes its pending edit via onFieldUnmount", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AutosaveUnmountFlushStory />);
+
+  const savedState = page.getByTestId("unmount-flush-saved-state");
+  // Empty-key default is `{}` (matching the draft-mirror story's own `DraftObserver` convention).
+  await expect(savedState).toHaveText("{}");
+
+  await page.getByLabel("Flush text").fill("flushed value");
+  // The debounce is deliberately 5s — nothing has fired yet, so the mirror/submit is still pending.
+  await expect(savedState).toHaveText("{}");
+
+  // Unmount ONLY the field (the form instance stays mounted) — this is what `onFieldUnmount` fires on.
+  await page.getByRole("button", { name: "unmount field" }).click();
+
+  // THE PIN: the flush lands well inside the 5s debounce window, proving `onFieldUnmount` drove the
+  // submit directly (`handleSubmit()`), not the (much later) natural debounce timer.
+  await expect(savedState).toContainText('"text":"flushed value"');
 });

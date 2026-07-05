@@ -11,14 +11,23 @@
 // reasoning) owns its own "Thinking… Ns" → "Thought for Ns" TTFT affordance + the same repair guard for
 // the reasoning trace. It wears the assistant skin so the ghost reads as an in-progress assistant
 // message that swaps to the canonical row on turn-complete.
+//
+// MACRO DISPLAY PASS (optional, additive — mirrors message-row.tsx's roster threading): `renderContext`
+// is undefined until a caller wires the room's roster/persona names down to the ghost (the surface —
+// out of THIS lane's file set — doesn't yet; `rowCharacterId` would come from the live turn slot's own
+// `speakerCharacterId`, already tracked in `chat-stream.ts`, once that plumbing lands). Until then this
+// is a no-op: `text`/`reasoning` render exactly as before. When present, `{{char}}`/`{{user}}` resolve
+// on EACH accumulated delta via the SAME `#lib/message-render` pipeline the settled row uses (one
+// engine) — cheap and pure, run before pacing so the paced reveal shows already-substituted text.
 
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
 import type { ReactElement } from "react";
-import { cn } from "#lib";
+import type { MessageRenderContext } from "#lib";
+import { cn, renderMessageForDisplay } from "#lib";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { ReasoningBlock } from "./reasoning-block";
@@ -32,6 +41,11 @@ export interface GhostMessageRowProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   /** True while the turn is in the `streaming` phase — pacing runs only then (pending = shimmer). */
   readonly streaming: boolean;
+  /** The room-level macro DATA — absent (the current default; no caller wires it yet) means the
+   *  streamed text/reasoning render UNCHANGED, same as before this pass existed. */
+  readonly renderContext?: MessageRenderContext | undefined;
+  /** The turn's voiced speaker — retargets `{{char}}`; ignored when `renderContext` is absent. */
+  readonly rowCharacterId?: CharacterId | null | undefined;
 }
 
 /** The in-progress assistant row, streaming paced markdown (or a TTFT shimmer before first token). */
@@ -39,10 +53,20 @@ export function GhostMessageRow({
   chatId,
   chatStyle,
   streaming,
+  renderContext,
+  rowCharacterId,
 }: GhostMessageRowProps): ReactElement {
-  const text = useGhostText(chatId);
-  const reasoning = useGhostReasoning(chatId);
+  const rawText = useGhostText(chatId);
+  const rawReasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
+  const text =
+    renderContext === undefined
+      ? rawText
+      : renderMessageForDisplay(rawText, renderContext, rowCharacterId);
+  const reasoning =
+    renderContext === undefined
+      ? rawReasoning
+      : renderMessageForDisplay(rawReasoning, renderContext, rowCharacterId);
   const paced = useSmoothText(text, { enabled: streaming, cps: GHOST_CPS });
   // #38: Streamdown 2.5 (inside `@orb/ui/markdown` with `mode="streaming"`) repairs the streaming
   // markdown tail itself (unterminated fences / torn emphasis) — so the only pre-pass the seal still

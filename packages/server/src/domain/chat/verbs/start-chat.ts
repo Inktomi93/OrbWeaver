@@ -42,7 +42,7 @@ import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
-import type { StartChatParams } from "../contract/params";
+import type { GuidedSteer, StartChatParams } from "../contract/params";
 import type { StartChatResult, TurnEngine, TurnOutcome } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type { ChatDetail } from "../contract/views";
@@ -289,6 +289,10 @@ async function runGeneratedOpening(
     readonly hostUserId: UserId;
     readonly characterIds: readonly CharacterId[];
     readonly anchorPersonaId: PersonaId | null;
+    /** The composer wand's degenerate "Guide the opening" steer (`StartChatParams.guided`) — its
+     *  `input` fills the `opening` action's `{{input}}`; only relevant here (the ONE call site that
+     *  resolves the `opening` action — the verbatim seed paths never call `resolveGuidedActionText`). */
+    readonly guided?: GuidedSteer | undefined;
   },
 ): Promise<TurnOutcome> {
   const { chatId, hostUserId } = args;
@@ -316,7 +320,7 @@ async function runGeneratedOpening(
   // assemble ctx ({{char}}/{{user}}/… live), delivered on `appendUserTurn` (never a placement).
   const openingPrompt = resolveGuidedActionText(assembleContext, {
     action: "opening",
-    input: "",
+    input: args.guided?.input ?? "",
     model: connection.model,
     chatId,
   });
@@ -345,6 +349,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     title,
     opening,
     temporary,
+    guided,
   }: StartChatParams): Promise<StartChatResult> => {
     const now = ctx.now();
     const chatId = ctx.newChatId();
@@ -427,6 +432,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
             hostUserId,
             characterIds,
             anchorPersonaId: anchor,
+            guided,
           })
         : seedOutcome(seed.views);
 

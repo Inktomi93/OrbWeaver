@@ -15,11 +15,26 @@
 //      pill uses `!isDefaultValue`, the guard uses `isDirty` — two flags, two jobs, NEVER unified).
 //   6. `promote()` — mount-time non-user writes go through `setFieldValue(..., {dontUpdateMeta:
 //      true})` so they don't flip dirty. The flag is TYPED-BUT-UNDOCUMENTED (patch-semver types):
-//      it lives behind this one wrapper + a guard test, so a rename is a one-file fix.
+//      it lives behind this one wrapper + a guard test, so a rename is a one-file fix. The options
+//      bag is `satisfies UpdateMetaOptions` (the REAL exported type, not a hand-respelled inline
+//      shape) — a rename/reshape of `dontUpdateMeta` breaks HERE at compile time, not silently.
 // (Obligation 5 — the Zustand-persist draft mirror — is the AUTOSAVE factory's; a button-gated
 // editor holds unsaved state in the form itself.)
+//
+// Two more adopts from the full-docs mine (UI-Lib-TanStack-Form.md §E.6/§E.11), baked as defaults
+// every consumer inherits for free:
+//   • `validationLogic: revalidateLogic()` — the editor-friendly default validation seam
+//     (validate-on-submit, then live on-change after the first submit); inert unless a config
+//     supplies an `onDynamic` validator, and overridable via `config.options` (spread BEFORE it).
+//   • `onSubmitInvalid` focus-first-error — the library ships none by design (philosophy.md); the
+//     `@orb/ui/field` primitive already stamps real `aria-invalid="true"` on the native control via
+//     Base UI's Field.Control, so the documented `querySelector('[aria-invalid="true"]')` recipe
+//     finds the actual control, not a wrapper div.
 
+import type { UpdateMetaOptions } from "@tanstack/react-form";
+import { revalidateLogic } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
+import type { AppFormOptions } from "./use-app-form";
 import { useAppForm } from "./use-app-form";
 
 /** The authored per-entity config — `formOptions()`-shaped (the one home for defaults+validators). */
@@ -28,8 +43,12 @@ export interface SavedEntityFormConfig<TValues extends object> {
   readonly defaultValues: TValues;
   /** Persist the values; RESOLVES to the saved row (the re-baseline source). */
   readonly save: (values: TValues) => Promise<TValues>;
-  /** Extra `useAppForm` options (validators etc.) spread verbatim — authored at the call site. */
-  readonly options?: Record<string, unknown>;
+  /**
+   * Extra `useAppForm` options (validators etc.) spread verbatim — authored at the call site.
+   * Derived from the REAL hook options (never a hand-restated bag): a typo'd key (e.g.
+   * `validaters`) is now a compile error instead of a silently-swallowed no-op.
+   */
+  readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
 }
 
 export interface SavedEntityFormArgs<TValues extends object> {
@@ -56,12 +75,24 @@ export function createSavedEntityForm<TValues extends object>(
     const [saveTick, setSaveTick] = useState(0);
 
     const form = useAppForm({
+      validationLogic: revalidateLogic(), // submit-then-live seam; overridable via config.options
       ...config.options,
       defaultValues: serverValues ?? config.defaultValues, // obligation 1 (seed once at mount)
       onSubmit: async ({ value }: { value: TValues }) => {
+        // FLAG[#58] parse-on-submit NOT wired: `value` is the form's INPUT type. If a config supplies
+        // a Standard-Schema validator with a Zod `.transform()`/coercion, the OUTPUT is NOT applied
+        // here — `config.save` receives the untransformed input (UI-Lib-TanStack-Form §C footgun #7).
+        // The TInput/TOutput split is deferred to the first entity editor whose schema actually
+        // transforms (validate against a real consumer, per the factory drift-bug lesson) — task #58.
         const saved = await config.save(value);
         savedRef.current = saved;
         setSaveTick((t) => t + 1);
+      },
+      onSubmitInvalid: (): void => {
+        // Focus-first-error — the library ships none by design. `@orb/ui/field` stamps real
+        // aria-invalid="true" on the native control (never a wrapper div), so this finds it.
+        // biome-ignore lint/security/noSecrets: false positive — an aria-attribute CSS selector, not a credential.
+        document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       },
     });
 
@@ -86,12 +117,15 @@ export function createSavedEntityForm<TValues extends object>(
       form,
       mountKey: entityId,
       promote: (name: string, value: unknown): void => {
-        // The ONE dontUpdateMeta site (obligation 6) — see the header for why it's wrapped.
-        (form.setFieldValue as (n: string, v: unknown, o?: { dontUpdateMeta?: boolean }) => void)(
-          name,
-          value,
-          { dontUpdateMeta: true },
-        );
+        // The ONE dontUpdateMeta site (obligation 6) — see the header for why it's wrapped. The
+        // field-name/value narrowing to `never` is the loose public-boundary erasure (legitimate —
+        // `promote` takes an arbitrary path string, not a branded id); the options bag is
+        // `satisfies UpdateMetaOptions`, the REAL exported type, so it breaks HERE at compile time
+        // if the flag is renamed/reshaped.
+        // biome-ignore lint/plugin/no-loose-id-cast: not a branded-id cast — `name`/`value` are an arbitrary DeepKeys path + its value, erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header).
+        form.setFieldValue(name as never, value as never, {
+          dontUpdateMeta: true,
+        } satisfies UpdateMetaOptions);
       },
       discard: (): void => {
         form.reset();
