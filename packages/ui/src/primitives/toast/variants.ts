@@ -22,8 +22,12 @@ const twMergeConfig = {
 export const toastVariants = tv(
   {
     slots: {
+      // `pointer-events-none` on the region so an EMPTY (or padding-only) viewport never eats clicks on
+      // the controls it overlaps — individual toasts opt back in via the `root` slot's `pointer-events-
+      // auto`. Without this the fixed bottom-right region intercepts taps on anything beneath it (the L6
+      // mobile bottom tab bar sits directly under it — surfaced by the app-shell mobile CT).
       viewport:
-        "fixed right-0 bottom-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col-reverse gap-row p-section outline-none",
+        "pointer-events-none fixed right-0 bottom-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col-reverse gap-row p-section outline-none",
       root: [
         "pointer-events-auto relative w-full rounded-card border border-border bg-popover p-block text-popover-foreground shadow-lg",
         "transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",

@@ -2,10 +2,15 @@
 // click switches the section (store → CONTENT/LIST slots), the topbar panel toggle collapses a panel
 // via the §11.1 clamp-overlay (data-panel-mode + zero rendered width, not just a class string), the
 // focus toggle drives immersive ⇄ command-center, and a footer modal trigger opens the paired
-// MODAL_SLOTS dialog. Each test gets a fresh page (isolated localStorage) so the store starts default.
+// MODAL_SLOTS dialog. The MOBILE block (L6/J12 · D62 P3) covers the bottom-tab-bar reflow at a mobile
+// viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
+// Each test gets a fresh page (isolated localStorage) so the store starts default.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AppShellStory } from "../_ct-stories";
+
+// Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
+const MOBILE = { width: 390, height: 844 };
 
 test("default renders the chats content pane inside the frame", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);
@@ -77,4 +82,83 @@ test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ moun
   // Close returns to no dialog.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
+
+test("mobile: the bottom bar is the curated four; overflow + footer affordances are off the bar", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+
+  // The four thumb-reach tabs render as named buttons.
+  await Promise.all(
+    ["Chats", "Characters", "Corpus", "You"].map((name) =>
+      expect(shell.getByRole("button", { name, exact: true })).toBeVisible(),
+    ),
+  );
+  // The overflow sections + the desktop footer triggers are NOT on the bar (they live in the You sheet).
+  // display:none on the desktop block removes them from the a11y tree entirely.
+  await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Analytics" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Switch theme" })).toHaveCount(0);
+});
+
+test("mobile: you land on CONTENT — the list panel is collapsed, not an open sheet", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(MOBILE);
+  await mount(<AppShellStory />);
+  // Mobile resolves the list to a closed sheet (collapsed), never the persisted desktop dock — the
+  // correct landing is CONTENT (chats pane visible), not a menu.
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.getByText("chats content pane")).toBeVisible();
+});
+
+test("mobile: a tab click switches the section", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "Corpus", exact: true }).click();
+  await expect(page.getByText("corpus content pane")).toBeVisible();
+  await expect(page.getByText("chats content pane")).toHaveCount(0);
+});
+
+test("mobile: the You tab opens the sheet; an overflow section routes and closes it", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "You", exact: true }).click();
+
+  // The sheet holds account/settings/theme + the overflow sections (Refinery/Analytics reachable HERE).
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Theme" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
+
+  // Tapping an overflow section switches the active section AND closes the sheet (setActiveSection +
+  // closeModal), landing on that section's distinct placeholder copy.
+  await page.getByRole("button", { name: "Analytics" }).click();
+  await expect(page.getByRole("button", { name: "Settings" })).toHaveCount(0);
+  await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
+});
+
+test("mobile: the You sheet hands off to Settings in the shared modal slot (single-slot layered)", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  await shell.getByRole("button", { name: "You", exact: true }).click();
+  // Opening Settings REPLACES the You sheet in the shared openModal slot (not a nested modal): the You
+  // rows disappear, the Settings modal body appears.
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByText("App + user settings")).toBeVisible();
+  // The You-sheet overflow row is gone (the slot now holds Settings, not You).
+  await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
 });

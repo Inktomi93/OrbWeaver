@@ -18,14 +18,19 @@ import { SectionPlaceholder } from "../components/section-placeholder";
 export interface ModalDef {
   /** The dialog heading (labels the popup for AT). */
   readonly title: string;
+  /** How this modal PRESENTS (L6/J12): a centered `dialog` (default) or a bottom `drawer` sheet (the
+   *  mobile "You" sheet). ModalHost picks `@orb/ui/dialog` vs `@orb/ui/drawer` off this — the trigger↔
+   *  body pairing + `openModal`/`closeModal` control are identical for both. */
+  readonly presentation?: "dialog" | "drawer";
   /** The Dialog width/presentation variant (UIP-401). Defaults to the Dialog's own `md`; `full` is the
    *  full-bleed overlay (J11 settings). Presentation metadata of the MODAL, independent of whether the
-   *  body is the placeholder or a route-composed real surface — so it lives on the def, not the body. */
+   *  body is the placeholder or a route-composed real surface — so it lives on the def, not the body.
+   *  Ignored for `presentation: "drawer"` (a bottom sheet has no width clamp). */
   readonly size?: DialogPopupProps["size"];
   /** `true` when `render` is still an honest SectionPlaceholder (not a real surface) — enforced by the
    *  `modal-body-not-placeholder` gate. A route-composed real body drops this flag. */
   readonly placeholder?: boolean;
-  /** The modal body — rendered inside the shell's one <Dialog> when this id is open. */
+  /** The modal body — rendered inside the shell's one <Dialog>/<Drawer> when this id is open. */
   readonly render: () => ReactElement;
 }
 
@@ -85,6 +90,25 @@ export const MODAL_SLOTS: Record<ModalSlotId, ModalDef> = {
       <SectionPlaceholder
         title="New chat"
         description="Pick a character to start a chat — the picker lands with the chat feature."
+      />
+    ),
+  },
+  // The mobile "You" bottom sheet (L6/J12 · D62 P3). `presentation: "drawer"` makes ModalHost render it
+  // as a bottom sheet (`@orb/ui/drawer`) instead of a centered Dialog. The real `<YouSheet>` body is
+  // ROUTE-COMPOSED over this placeholder via `AppShellProps.modals` (home-page.tsx `you` slot) — the same
+  // seam as settings/theme/newChat/command. Why route-inject a SHELL-tier body: statically importing a
+  // browser component into this lib drags DOM source (`@orb/ui/list-row`'s `.click()`) into the DOM-less
+  // node types-program via the pairing test's `modal-slots` import (test:types boundary) — the modals-prop
+  // seam keeps this lib import-free of components, exactly why the 4 real bodies already use it. The static
+  // render below is the honest fallback that never runs when the route injects the real body.
+  you: {
+    title: "You",
+    presentation: "drawer",
+    placeholder: true,
+    render: (): ReactElement => (
+      <SectionPlaceholder
+        title="You"
+        description="Account, settings, theme, and the rest of your sections live here."
       />
     ),
   },

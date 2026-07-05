@@ -57,19 +57,30 @@
 }
 
 /* ── RAIL ─────────────────────────────────────────────────────────────────────────────────────── */
+/* The rail is ONE component with TWO layouts (L6/J12): the `.shell-rail-desktop` thin icon column and
+ * the `.shell-rail-mobile` bottom tab bar. `.shell-rail` owns only the grid cell + sidebar chrome; the
+ * flex layout lives on whichever inner block the breakpoint shows. Desktop hides the mobile bar; the one
+ * `@media` below flips it (grid-row 1 → 2, column → row) — no JS viewport branch, no second nav. */
 .shell-rail {
   grid-column: 1;
   grid-row: 1;
   z-index: var(--z-raised);
+  width: var(--rail-w);
+  background: var(--color-sidebar);
+  color: var(--color-sidebar-foreground);
+  border-inline-end: 1px solid var(--color-sidebar-border);
+}
+.shell-rail-desktop {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--spacing-row);
-  width: var(--rail-w);
+  height: 100%;
   padding-block: var(--spacing-block);
-  background: var(--color-sidebar);
-  color: var(--color-sidebar-foreground);
-  border-inline-end: 1px solid var(--color-sidebar-border);
+}
+/* The mobile bottom tab bar — hidden on desktop; the `@media` below shows it + hides `.shell-rail-desktop`. */
+.shell-rail-mobile {
+  display: none;
 }
 .shell-rail-brand {
   display: flex;
@@ -121,6 +132,26 @@
 .shell-rail .shell-rail-button[data-active] {
   background: color-mix(in oklab, var(--color-primary) 14%, transparent);
   color: var(--color-primary);
+}
+
+/* Mobile bottom-tab buttons (L6/J12) — a vertical icon+label stack that fills its share of the bar
+ * (flex:1). Each is `--rail-w` tall (≥44px coarse-pointer hit floor, §4b axis 3). Muted at rest, primary
+ * when active (the current section). Two-class specificity beats the Button primitive's own utilities
+ * (the `.shell-rail-button` precedent). */
+.shell-rail .shell-tab-button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: var(--rail-w);
+  flex-direction: column;
+  gap: 0.125rem;
+  border-radius: 0;
+  color: var(--color-muted-foreground);
+}
+.shell-rail .shell-tab-button[data-active] {
+  color: var(--color-primary);
+}
+.shell-tab-label {
+  line-height: 1;
 }
 
 /* ── SIDE PANELS (the §11.1 clamp-overlay) ────────────────────────────────────────────────────── */
@@ -270,61 +301,75 @@
   margin-block-end: var(--spacing-block);
 }
 
-/* ── THE ONE @media: desktop columns ⇄ mobile top-bar + full-screen sheets (§4b axis 2) ───────────
- * Below the breakpoint the rail reflows to a TOP bar and both panels become full-screen sheets
- * (docked/overlay = open sheet; collapsed = off-screen). The STORED per-panel mode is untouched (it is
- * device-independent user intent) — only the RENDERING changes here, in pure CSS, no JS resize hook. */
+/* ── THE ONE @media: desktop columns ⇄ mobile BOTTOM tab bar + sheets (§4b axis 2 · L6/J12 · D62 P3) ──
+ * Below the breakpoint the rail reflows to a BOTTOM tab bar (thumb ergonomics — ruling P3, supersedes
+ * the earlier top-bar shape) and the side panels become sheets that slide in BELOW the topbar and ABOVE
+ * the bar. The panel MODE is resolved mobile-aware in use-shell-layout.ts (a transient sheet, never the
+ * persisted desktop dock) → here we only place the rendering: overlay = open sheet, collapsed = off-
+ * screen. Pure CSS + the `useIsMobileViewport` matchMedia twin (same 48rem literal — they cite each
+ * other; a viewport breakpoint is shell-only, distinct from the `--container-cq-*` @container tokens). */
 @media (max-width: 48rem) {
   .shell-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--rail-w) minmax(0, 1fr);
-  }
-  .shell-rail {
-    grid-column: 1;
-    grid-row: 1;
-    flex-direction: row;
-    width: auto;
-    height: var(--rail-w);
-    padding-block: 0;
-    padding-inline: var(--spacing-block);
-    padding-block-start: env(safe-area-inset-top);
-    border-inline-end: none;
-    border-block-end: 1px solid var(--color-sidebar-border);
-  }
-  .shell-rail-brand {
-    padding-block-end: 0;
-    padding-inline-end: var(--spacing-row);
-  }
-  .shell-rail-sections,
-  .shell-rail-group,
-  .shell-rail-actions {
-    flex-direction: row;
-  }
-  /* In the horizontal strip the avatar's block margin would push it DOWN — reset to an inline gap
-     (L6 replaces this whole block with the bottom tab bar; this keeps the interim strip sane). */
-  .shell-rail-avatar {
-    margin-block-start: 0;
-    margin-inline-start: var(--spacing-row);
+    /* Content fills the top; the bar owns the bottom row (its height grows by the home-indicator inset). */
+    grid-template-rows: minmax(0, 1fr) calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
   .shell-main {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
   }
-  /* Panels → full-screen sheets over the content (open when docked/overlay, off-screen when collapsed). */
+  .shell-rail {
+    grid-column: 1;
+    grid-row: 2;
+    width: auto;
+    border-inline-end: none;
+    border-block-start: 1px solid var(--color-sidebar-border);
+    /* Safe-area (§4b axis 4): pad the bar above the iOS home indicator; the grid row grew to match. */
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+  /* Swap which inner block lays out: the desktop column hides, the bottom tab bar shows. */
+  .shell-rail-desktop {
+    display: none;
+  }
+  .shell-rail-mobile {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    height: var(--rail-w);
+  }
+  /* Panels → sheets in the band BETWEEN the topbar (3rem) and the bottom bar, so the topbar's always-
+   * present list/context toggle stays reachable AND doubles as the sheet dismiss (no new close button —
+   * J12). overlay = open (translateX 0), collapsed = slid off its own edge (zero visual width). `docked`
+   * never resolves on mobile (use-shell-layout forces overlay/collapsed) — matched here only so a stray
+   * docked value can't fall through to the DESKTOP grid-track rule and mis-place a broken panel. */
   .shell-panel[data-panel-mode="docked"],
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-mode="collapsed"] {
     position: fixed;
-    inset-block: var(--rail-w) 0;
-    inset-inline: 0;
+    inset-block: 3rem calc(var(--rail-w) + env(safe-area-inset-bottom));
     width: 100dvw;
     z-index: var(--z-modal);
     transition: transform var(--motion-base) ease;
+  }
+  /* Reset the DESKTOP side-specific insets (they pin the list overlay to `inset-inline-start:var(--rail-w)`
+   * — specificity (0,3,0), so a generic `inset-inline:0` here loses). Match that specificity per side so
+   * a mobile sheet spans the full width from x=0 (else a "collapsed" panel leaves a rail-width sliver). */
+  .shell-panel[data-panel-side="list"][data-panel-mode="overlay"],
+  .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"],
+  .shell-panel[data-panel-side="context"][data-panel-mode="overlay"],
+  .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
+    inset-inline: 0;
   }
   .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
     transform: translateX(-100%);
   }
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     transform: translateX(100%);
+  }
+  /* The dismiss scrim covers ONLY the sheet's own band — the topbar (dismiss/toggle) and the bottom bar
+   * (tab switch) stay live above it, so a scrim tap dismisses but the chrome never goes dead. */
+  .shell-scrim {
+    inset-block: 3rem calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
 }

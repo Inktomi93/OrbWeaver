@@ -17,7 +17,7 @@ import { Text } from "@orb/ui/text";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import type { ModalSlotId, SectionId } from "#state";
-import { closeModal, openModal, setActiveSection, setPanelMode } from "#state";
+import { closeModal, openModal, setActiveSection } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
 import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
@@ -78,12 +78,14 @@ export function AppShell({
     />
   );
 
+  // Dismiss whichever panel is floating (desktop overlay OR a mobile sheet — both resolve to "overlay").
+  // Routed through the mobile-aware `collapsePanel` so a tap on the scrim closes the mobile sheet too.
   const dismissOverlays = (): void => {
     if (layout.listMode === "overlay") {
-      setPanelMode("list", "collapsed");
+      layout.collapsePanel("list");
     }
     if (layout.contextMode === "overlay") {
-      setPanelMode("context", "collapsed");
+      layout.collapsePanel("context");
     }
   };
 
@@ -135,7 +137,7 @@ export function AppShell({
           }
           collapseLabel="Collapse detail panel"
           mode={layout.contextMode}
-          onCollapse={(): void => setPanelMode("context", "collapsed")}
+          onCollapse={(): void => layout.collapsePanel("context")}
         >
           <RegionAnchor region="context">
             {contextPanel ?? (

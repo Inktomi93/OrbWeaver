@@ -38,6 +38,12 @@ export interface RailSectionEntry {
   readonly icon: LucideIcon;
   /** Which rail group this section renders in (drives the `--spacing-section` divider grouping). */
   readonly group: (typeof SECTION_GROUPS)[number];
+  /** L6 mobile curation (D62 P3): the desktop rail shows ALL sections, but 10 icons across a thumb-
+   *  reach bottom bar is unusable — so the mobile bottom tab bar shows only the `mobilePrimary` sections
+   *  (Chats · Characters · Corpus) + the "You" tab. Every OTHER section is still reachable — it folds
+   *  into the You sheet's overflow list (derived: `!mobilePrimary`) and ⌘K — never silently dropped.
+   *  Absent ⇒ falsy ⇒ overflow; the flag is opt-IN so a new section defaults to reachable-via-You. */
+  readonly mobilePrimary?: boolean;
 }
 
 /** A rail/avatar/topbar affordance that opens a modal (id-paired with a MODAL_SLOTS body). */
@@ -55,12 +61,40 @@ type RailSlot = RailSectionEntry | RailModalEntry;
 /** The rail nav, in render order. Each `id` is typed `SectionId`, so a typo is a tsc error; the
  *  pairing test asserts every `SectionId` appears exactly once (full coverage of the union). */
 export const RAIL_SECTIONS: readonly RailSectionEntry[] = [
-  { kind: "section", id: "chats", label: "Chats", icon: MessagesSquare, group: "primary" },
-  { kind: "section", id: "characters", label: "Characters", icon: Users, group: "primary" },
-  { kind: "section", id: "corpus", label: "Corpus", icon: Library, group: "primary" },
+  {
+    kind: "section",
+    id: "chats",
+    label: "Chats",
+    icon: MessagesSquare,
+    group: "primary",
+    mobilePrimary: true,
+  },
+  {
+    kind: "section",
+    id: "characters",
+    label: "Characters",
+    icon: Users,
+    group: "primary",
+    mobilePrimary: true,
+  },
+  {
+    kind: "section",
+    id: "corpus",
+    label: "Corpus",
+    icon: Library,
+    group: "primary",
+    mobilePrimary: true,
+  },
   { kind: "section", id: "refinery", label: "Refinery", icon: FlaskConical, group: "authoring" },
   { kind: "section", id: "analytics", label: "Analytics", icon: ChartColumn, group: "insight" },
 ];
+
+/** The mobile bottom-tab-bar sections (L6 / D62 P3) — DERIVED from RAIL_SECTIONS (no parallel list to
+ *  drift): the `mobilePrimary` subset, in rail order. The bottom bar renders these + the `YOU_ACTION`
+ *  tab; every other section is reachable via the You sheet's overflow + ⌘K. */
+export const MOBILE_PRIMARY_SECTIONS: readonly RailSectionEntry[] = RAIL_SECTIONS.filter(
+  (s) => s.mobilePrimary === true,
+);
 
 /** SECTION_PANEL_DEFAULTS — each section's INITIAL LIST/CONTEXT panel mode (UI-Arch §4.1 + §4.2 rule 3).
  *  The map sets ONLY the boot value; the persisted per-panel override (shell-store `panelOverrides`) wins
@@ -110,6 +144,18 @@ export const NEW_CHAT_ACTION: RailModalEntry = {
   id: "newChat",
   label: "New chat",
   icon: Plus,
+};
+
+/** The "You" tab (L6 mobile bottom bar — D62 P3). Opens the `you` bottom sheet: account · settings ·
+ *  theme + the overflow (non-`mobilePrimary`) sections. Standalone (the NEW_CHAT_ACTION/COMMAND_ACTION
+ *  precedent) — deliberately NOT in RAIL_SLOTS: it paints NO desktop rail button (the desktop rail shows
+ *  every section directly + the footer theme/settings/avatar), only the mobile bar renders it. But it IS
+ *  a modal trigger, so the pairing test's reachable set must include it (else `you`'s body is an orphan). */
+export const YOU_ACTION: RailModalEntry = {
+  kind: "modal",
+  id: "you",
+  label: "You",
+  icon: CircleUser,
 };
 
 /** The full rail registry (nav + footer + avatar) — the pairing test walks this against MODAL_SLOTS. */
