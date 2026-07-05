@@ -8,6 +8,7 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { resolveRowMacros } from "@orb/kit/macro";
 import {
   initialsForAttribution,
   resolveRowAttribution,
@@ -153,6 +154,49 @@ test("user row with a null personaId falls back to the viewing participant's act
     activePersonaId: NATE_PERSONA_ID,
   });
   expect(result.name).toBe("Nate");
+});
+
+// ── C5 (#59 §6 parity lock), client side: after a reattribution changes the row's `personaId` stamp (the
+//    post-mutation refetch), BOTH the #21 badge AND the {{user}} macro re-resolve to the NEW persona off the
+//    SAME stamp + the SAME producer — no UI needed, just the pure render path. Twin of the server C5 test. ──
+test("C5 client: a changed personaId stamp re-resolves BOTH the badge and {{user}} to the new persona", () => {
+  const mara = castId<PersonaId>("persona_mara");
+  const zara = castId<PersonaId>("persona_zara");
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [mara, { name: "Mara", description: "" }],
+    [zara, { name: "Zara", description: "" }],
+  ]);
+  const macroCtx = {
+    characterNamesById: new Map<CharacterId, RowCharacterName>(),
+    personaNamesById,
+  };
+
+  // Before reattribution: the row is stamped Mara. The viewer's CURRENT persona is Zara — it must NOT win
+  // over the row's own stamp (that's the whole point of the per-message stamp).
+  const badgeBefore = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: mara,
+    personaNamesById,
+    activePersonaId: zara,
+  });
+  expect(badgeBefore.name).toBe("Mara");
+  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: mara }, macroCtx)).toBe(
+    "Mara waves",
+  );
+
+  // After reattribution the refetched row carries personaId = Zara → badge + macro both flip to Zara.
+  const badgeAfter = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: zara,
+    personaNamesById,
+    activePersonaId: zara,
+  });
+  expect(badgeAfter.name).toBe("Zara");
+  expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: zara }, macroCtx)).toBe(
+    "Zara waves",
+  );
 });
 
 test("the message's OWN personaId wins over the active persona (historical author, not current)", () => {

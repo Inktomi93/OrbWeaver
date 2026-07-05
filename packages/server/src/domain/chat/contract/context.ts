@@ -242,6 +242,17 @@ export type GeneratePictureOp = (p: {
  *  starter's active persona anchors the room; the card `{{user}}` POV is theirs from message one). */
 export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
+/** `persona.verifyPersonaOwned` — does `personaId` belong to `ownerId`? The persona-reattribution ownership
+ *  belt (Chat-Macro-Resolution §5): a user's line may be re-stamped only to a persona that user OWNS (checked
+ *  against the ROW's `authorUserId`, never the acting host's id). Wired at the root to a sanctioned one-column
+ *  `personas` read (the `resolveUserPublics`/world-info precedent — mirrors persona's `ensurePersonaOwned`
+ *  shape). A boolean (not a throw) so the chat verb owns its coded refusal; `false` = absent/foreign
+ *  (leak-free). */
+export type VerifyPersonaOwnedOp = (params: {
+  readonly ownerId: UserId;
+  readonly personaId: PersonaId;
+}) => Promise<boolean>;
+
 // ── Memory substrate (injected here, consumed by `memory/` — see FLAG[memory-substrate]) ──
 // REFINED by the memory chunk (the FLAG[memory-substrate] grant): the minimal `{lens,text,blockKey}` store
 // op could not carry the `chat_digests`/`chat_segments` row facets memory produces (topicAnchor/keywords/
@@ -369,6 +380,8 @@ export interface ChatContext {
   readonly generatePicture: GeneratePictureOp;
   /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
+  /** Does a `personaId` belong to a given `ownerId`? The `reattributePersona` ownership belt (§5). */
+  readonly verifyPersonaOwned: VerifyPersonaOwnedOp;
   // ── memory substrate (consumed by memory/) ──
   readonly embeddingsStore: EmbeddingsStoreOp;
   readonly searchDigests: SearchDigestsOp;

@@ -528,6 +528,18 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         return null; // stale/unowned default -> no seed (the anchor stays unset).
       }
     },
+    // The `reattributePersona` ownership belt (Chat-Macro-Resolution §5): may a line authored by `ownerId` be
+    // re-stamped to `personaId`? A sanctioned one-column `personas` read (the `resolveUserPublics`/world-info
+    // precedent — mirrors persona's `ensurePersonaOwned` shape without a cross-domain persistence import),
+    // returned as a boolean so the chat verb owns its coded refusal. Absent/foreign ⇒ false (leak-free).
+    verifyPersonaOwned: async ({ ownerId, personaId }) => {
+      const rows = await db
+        .select({ ownerId: personas.ownerId })
+        .from(personas)
+        .where(eq(personas.id, personaId))
+        .limit(1);
+      return rows[0]?.ownerId === ownerId;
+    },
     emitNotification: async (event, coStatements) => {
       const view = await input.notifications.record({
         event,

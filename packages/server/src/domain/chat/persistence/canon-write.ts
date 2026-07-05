@@ -399,6 +399,30 @@ export function reattributeMessagesStatement(
   );
 }
 
+/** Re-stamp a set of slots' `personaId` (the authoring-persona / `{{user}}` axis — `reattributePersona`;
+ *  author-or-host per row, Chat-Macro-Resolution §5). Scoped to `chatId` AND `role = 'user'` (the belt: only a
+ *  user row carries a meaningful authoring persona — an assistant/system row is NEVER re-stamped even if its id
+ *  slips into the set; the verb also rejects such an id up front). ONE statement. */
+export function reattributePersonaStatement(
+  db: Db,
+  chatId: ChatId,
+  messageIds: readonly MessageId[],
+  personaId: PersonaId,
+): BatchStmt {
+  return batchStmt(
+    db
+      .update(messages)
+      .set({ personaId })
+      .where(
+        and(
+          eq(messages.chatId, chatId),
+          inArray(messages.id, [...messageIds]),
+          eq(messages.role, "user"),
+        ),
+      ),
+  );
+}
+
 /** Shift EVERY slot in `[lo, hi]` (inclusive) by a UNIFORM `by` (the `moveMessage` re-sequence phase 1). A
  *  single uniform shift is collision-free (a bijection onto a disjoint range) — used to PARK the affected
  *  range above the canon head before the per-row final stamp (phase 2 = {@link setMessageSeqStatement}), so a

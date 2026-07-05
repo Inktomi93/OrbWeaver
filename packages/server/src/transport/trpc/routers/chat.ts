@@ -140,6 +140,16 @@ const deleteMessagesSchema = z.object({
   messageIds: z.array(brandedId<MessageId>()),
 });
 
+// `reattributePersona` (task #60 — the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
+// / ST `#persona_sync_name`): re-stamp a set of USER rows' `personaId`. Author-or-host PER row + role/ownership
+// belts are enforced INSIDE the verb (no router-level authz — the sibling canon-edit shape). `messageIds` is
+// the bulk set (the client passes all its own user-row ids) or a single id (per-message).
+const reattributePersonaSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageIds: z.array(brandedId<MessageId>()),
+  personaId: brandedId<PersonaId>(),
+});
+
 // `throughSeq`/`title` mirror `ForkChatParams` (D27 deep copy — throughSeq truncates the copy to a
 // message's `seq`, the "fork at this point" affordance the actions row's Fork button drives).
 const forkChatSchema = z.object({
@@ -218,6 +228,11 @@ export const chatRouter = t.router({
     .input(deleteMessagesSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input }),
+    ),
+  reattributePersona: authedProcedure
+    .input(reattributePersonaSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.reattributePersona({ principal: ctx.auth, ...input }),
     ),
   forkChat: authedProcedure
     .input(forkChatSchema)

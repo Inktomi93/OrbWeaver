@@ -24,6 +24,9 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.nominateHostHandoff).toBe("host");
     expect(CHAT_VERB_AUTHORITY.forceCharacterTurn).toBe("host");
     expect(CHAT_VERB_AUTHORITY.reattributeMessages).toBe("host");
+    // reattributePersona is author-or-host (NOT host-only like the character axis) — a member re-stamps their
+    // OWN user lines; the host any (the per-row gate + role/ownership belts live in the verb). Task #60 / §5.
+    expect(CHAT_VERB_AUTHORITY.reattributePersona).toBe("author-or-host");
     expect(CHAT_VERB_AUTHORITY.delete).toBe("host");
     expect(CHAT_VERB_AUTHORITY.moveMessage).toBe("host"); // the §11 "reorder" entry
     expect(CHAT_VERB_AUTHORITY.getChatLineage).toBe("lineage-per-ancestor");

@@ -347,6 +347,16 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),
+    // Default = the REAL ownership read against the seeded `personas` (mirrors the root's `verifyPersonaOwned`)
+    // so the `reattributePersona` tests need no per-test override; a test may override to force a verdict.
+    verifyPersonaOwned: async ({ ownerId, personaId }) => {
+      const rows = await db
+        .select({ ownerId: personas.ownerId })
+        .from(personas)
+        .where(eq(personas.id, personaId))
+        .limit(1);
+      return rows[0]?.ownerId === ownerId;
+    },
     embeddingsStore: notStubbed,
     searchDigests: notStubbed,
     searchCorpus: notStubbed,

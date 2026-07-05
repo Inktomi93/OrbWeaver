@@ -344,6 +344,16 @@ export interface ReattributeMessagesParams extends ChatScopedParams {
   readonly characterId: CharacterId;
 }
 
+/** `reattributePersona` — re-stamp the authoring `personaId` (the `{{user}}`/attribution-badge axis; PD-100)
+ *  of a set of USER-role slots. Author-or-host PER targeted row (a member re-stamps THEIR OWN user lines; the
+ *  host may re-stamp any), and the target persona must be owned by each row's AUTHOR. The deliberate lever to
+ *  fix history attribution after a live persona switch (neo `usePersonaReattribute` / ST `#persona_sync_name`;
+ *  Chat-Macro-Resolution.md §5). Bulk = the caller passes all their user-row ids; per-message = one id. */
+export interface ReattributePersonaParams extends ChatScopedParams {
+  readonly messageIds: readonly MessageId[];
+  readonly personaId: PersonaId;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // group / roster
 // ─────────────────────────────────────────────────────────────────────────────
