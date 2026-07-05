@@ -8,10 +8,12 @@
 import {
   getTraceByRequestId,
   initTracing,
+  logger,
   observability,
+  observabilityErrorHandler,
   recentRequests,
 } from "@orb/server/foundation/observability";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
 // The middleware's own guard charset (mirrored here to assert a minted id is safe by construction). A real
@@ -127,5 +129,36 @@ describe("the /api/_debug trace-skip (introspection doesn't evict real traces)",
     expect(record?.method).toBe("POST");
     expect(record?.path).toBe("/api/chats");
     expect(record?.status).toBe(OK_STATUS);
+  });
+});
+
+// A minimal Hono-Context stand-in: `observabilityErrorHandler` only touches `c.text(body, status)` (the
+// same posture the middleware test above uses for its mock Context). `c.text` returns a real Response so
+// the 500 shape can be asserted without pulling Hono into the test.
+const INTERNAL_ERROR = 500;
+interface MockErrorCtx {
+  text: (body: string, status: number) => Response;
+}
+const errorCtx: MockErrorCtx = {
+  text: (body: string, status: number): Response => new Response(body, { status }),
+};
+
+describe("observabilityErrorHandler (the thrown-request path, PD-118)", () => {
+  test("logs ONE request.thrown error line carrying the err, and returns Hono's default 500 text", async () => {
+    // pino output is silenced (LOG_LEVEL=silent) in tests; spy `logger.error` directly (the same posture
+    // as client-error.test.ts). Called OUTSIDE `runInRequest`, so getLog() resolves to the base logger.
+    const spy = vi.spyOn(logger, "error");
+    const err = new Error("handler-blew-up");
+    // ErrorHandler's return type is `Response | Promise<Response>`; await covers both (our impl is sync).
+    const res = await observabilityErrorHandler(err, errorCtx as never);
+
+    expect(spy).toHaveBeenCalledOnce();
+    const [fields, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
+    expect(fields["err"]).toBe(err);
+    expect(msg).toBe("request.thrown");
+
+    // The client-visible response is unchanged from Hono's default onError — this is an observability fix.
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expect(await res.text()).toBe("Internal Server Error");
   });
 });

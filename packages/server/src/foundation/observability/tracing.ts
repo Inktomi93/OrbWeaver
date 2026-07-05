@@ -329,7 +329,16 @@ export function withRequestSpan<T>(
     async (root) => {
       try {
         const result = await fn();
-        root.setStatus({ code: SpanStatusCode.OK });
+        // Do NOT clobber an ERROR status a HANDLED throw already set on this root while `next()` still
+        // resolved normally. Hono's compose() catches a thrown request handler at ITS origin dispatch frame
+        // (below the observability middleware), converts it to a Response via `app.onError`, and resolves
+        // `next()` normally — so a thrown request reaches here on the SUCCESS path. `recordThrownRequest`
+        // (called from that onError, root still active) marks ERROR; the SDK's setStatus lets a later OK
+        // overwrite a prior ERROR (only OK is final — verified against @opentelemetry/sdk-trace-base), so
+        // guard explicitly or the /api/_debug/traces status would seal back to "ok".
+        if (spanStatusCode(root) !== SpanStatusCode.ERROR) {
+          root.setStatus({ code: SpanStatusCode.OK });
+        }
         return result;
       } catch (err) {
         root.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage(err) });
@@ -339,6 +348,35 @@ export function withRequestSpan<T>(
       }
     },
   );
+}
+
+/** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
+ *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `undefined` — the OK-set path, i.e. prior
+ *  behavior — if a future OTel renames the property; it never throws. */
+function spanStatusCode(s: Span): SpanStatusCode | undefined {
+  return (s as unknown as { status?: { code?: SpanStatusCode } }).status?.code;
+}
+
+/**
+ * Record a THROWN (non-Response) request on the active request-root span, then leave the throw to Hono's
+ * `app.onError` (this does NOT itself produce a Response). Hono's compose() catches a handler throw at its
+ * ORIGIN dispatch frame — BELOW the observability middleware — so the throw never rejects the middleware's
+ * `next()` and `withRequestSpan` would otherwise seal the root as "ok" (invisible to /api/_debug/traces as
+ * an error). Called from `observabilityErrorHandler` while the root is still active in the same await chain:
+ * marks it error + records the SAME `exception` event `span()` emits (ONE trace format — no new shape), so
+ * the ring records `status: "error"` with the error. No-op when there is no active span (a throw ABOVE the
+ * middleware — e.g. in the auth seam — was never traced, so there is nothing to correct).
+ */
+export function recordThrownRequest(err: unknown): void {
+  const active = trace.getActiveSpan();
+  if (active === undefined) {
+    return;
+  }
+  active.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage(err) });
+  active.addEvent("exception", {
+    "exception.message": errorMessage(err),
+    "exception.type": err instanceof Error ? err.name : "unknown",
+  });
 }
 
 /** Add an event marker to the current span (no-op if there is none) — a point-in-time annotation within a

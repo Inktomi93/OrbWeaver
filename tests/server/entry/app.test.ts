@@ -8,7 +8,11 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
-import { recentRequests } from "@orb/server/foundation/observability";
+import {
+  getTraceByRequestId,
+  initTracing,
+  recentRequests,
+} from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp } from "../../../packages/server/src/entry/app.ts";
@@ -18,6 +22,7 @@ const FROZEN_NOW = 1_750_000_000_000;
 const OK = 200;
 const UNAUTHORIZED = 401;
 const SERVICE_UNAVAILABLE = 503;
+const INTERNAL_ERROR = 500;
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),
@@ -141,5 +146,40 @@ describe("createApp", () => {
     expect(record?.method).toBe("GET");
     expect(record?.path).toBe("/healthz");
     expect(record?.status).toBe(OK);
+  });
+
+  // PD-118 (thrown-request gap): a non-tRPC route that THROWS (returns no Response) is caught by Hono's
+  // compose at its own dispatch frame — below the `observability` middleware — so the throw never rejects
+  // that middleware's `next()`. Without `app.onError(observabilityErrorHandler)` the request-root span
+  // would seal as "ok" and the throw would vanish from /api/_debug/traces. This drives the REAL createApp
+  // wiring (real middleware order + the wired onError) and pins: the throw still yields a 500 (nothing
+  // swallowed) AND the trace ring records the request as status:"error" with the exception event.
+  test("PD-118: a thrown non-tRPC handler seals a status:error trace AND still returns 500", async () => {
+    initTracing();
+    const requestId = "pd-118-thrown-req-1";
+    const app = createApp(deps({}));
+    // Attach a throwing probe route on the real app (a non-/api/_debug path so the middleware traces it).
+    app.get("/api/_probe/throw", () => {
+      throw new Error("boom-observed");
+    });
+
+    const res = await app.fetch(
+      new Request("http://localhost/api/_probe/throw", {
+        headers: { "X-Request-Id": requestId },
+      }),
+    );
+
+    // (c) the throw is handled — the client sees Hono's default 500 text, unchanged (no error-contract shift).
+    expect(res.status).toBe(INTERNAL_ERROR);
+    expect(await res.text()).toBe("Internal Server Error");
+
+    // (a) the request-root span landed in the ring marked error (NOT clobbered back to "ok"), carrying the
+    // exception event — so /api/_debug/traces surfaces the thrown request instead of a mislabeled "ok".
+    const trace = getTraceByRequestId(requestId);
+    if (trace === undefined) {
+      throw new Error("expected a recorded trace for the thrown request");
+    }
+    expect(trace.status).toBe("error");
+    expect(trace.spans.some((s) => s.events.some((e) => e.name === "exception"))).toBe(true);
   });
 });

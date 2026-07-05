@@ -17,7 +17,11 @@ import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Hono } from "hono";
 import { env } from "#foundation/env";
-import { observability, registerDebugRoutes } from "#foundation/observability";
+import {
+  observability,
+  observabilityErrorHandler,
+  registerDebugRoutes,
+} from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
@@ -110,6 +114,17 @@ function readSessionToken(headers: Headers): string | null {
 
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
+
+  // ── Uncaught-throw observability (PD-118): Hono's onError is the SINGLE origin-frame hook for a request
+  // handler that THROWS (returns no Response). Hono's compose() catches such a throw at the throwing
+  // handler's OWN dispatch frame — below the `observability` middleware — so the throw never bubbles up
+  // through that middleware's `next()`; without this the request-root span would seal as "ok" and Hono's
+  // default onError would log via raw console.error (bypassing pino + /api/_debug). `observabilityErrorHandler`
+  // records the throw on the still-active root span (→ /api/_debug/traces status:error) + emits one pino
+  // `request.thrown` line, then returns the SAME 500 text Hono's default returns (no error-contract change).
+  // tRPC procedure/createContext throws never reach here (the fetch adapter maps them to a Response first),
+  // so this fires ONLY for the genuinely-uncaught non-tRPC path — no double-record.
+  app.onError(observabilityErrorHandler);
 
   // ── The app-document CSP + sibling security headers (D44 §12.5; entry/http/security-headers) ─────────
   // FIRST so every response — including the allowlist 403 below — carries the headers.
