@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePrefersReducedMotion } from "#lib";
 import { snapToGraphemeBoundary, snapToWordBoundary } from "./snap";
 
 // ── useSmoothText — adaptive streaming-text pacer (ui-package-design §6.3.1, layer 2) ────────────
@@ -29,22 +30,9 @@ const MIN_TICK_MS = 30; // ≈33fps state-update ceiling
 const MAX_FRAME_DT_SEC = 0.25; // clamp tab-suspend gaps (a background/minimized tab's huge dt)
 const MS_PER_SEC = 1000;
 
-// ── prefers-reduced-motion ────────────────────────────────────────────────────────────────────
 // The paced reveal IS motion; under reduced-motion the hook degrades to the strict passthrough
-// (full text immediately, exactly like `enabled: false`).
-const reducedMotionQuery: MediaQueryList | null =
-  typeof globalThis.matchMedia === "function"
-    ? globalThis.matchMedia("(prefers-reduced-motion: reduce)")
-    : null;
-
-function subscribeReducedMotion(cb: () => void): () => void {
-  reducedMotionQuery?.addEventListener("change", cb);
-  return () => reducedMotionQuery?.removeEventListener("change", cb);
-}
-
-function useReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReducedMotion, () => reducedMotionQuery?.matches ?? false);
-}
+// (full text immediately, exactly like `enabled: false`). `usePrefersReducedMotion` (`#lib`) is the
+// one shared matchMedia + useSyncExternalStore home — see its file header.
 
 export interface UseSmoothTextOptions {
   /** `false` (or reduced-motion) is a strict passthrough: the full `target` is returned every render. */
@@ -62,7 +50,7 @@ export interface UseSmoothTextOptions {
  */
 export function useSmoothText(target: string, opts: UseSmoothTextOptions): string {
   const { cps } = opts;
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = usePrefersReducedMotion();
   const enabled = opts.enabled && !reducedMotion;
   const [shown, setShown] = useState(0);
   // Float cursor + last-frame timestamp live in refs — they advance sub-character amounts per frame

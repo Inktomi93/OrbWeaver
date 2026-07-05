@@ -7,7 +7,14 @@
 
 import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
-import { Composer, MessageListSurface, MessageThreadAnchor } from "@orb/client/features/chat";
+import {
+  ChatListAnchor,
+  ChatListSurface,
+  ChatRoomSurface,
+  Composer,
+  MessageListSurface,
+  MessageThreadAnchor,
+} from "@orb/client/features/chat";
 import type { ChatHandle } from "@orb/client/state";
 import {
   cancelEditingMessage,
@@ -410,6 +417,80 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
   return (
     <CtDataProviders>
       <ComposerStoryInner {...props} />
+    </CtDataProviders>
+  );
+}
+
+// ── Chat-list story (data layer — listChats stubbed at the network) ─────────────────────────────────
+
+export interface ChatListSurfaceStoryProps {
+  /** The active chat id (paints the selected row) — a plain string, cast to `ChatId` inside. */
+  readonly activeChatId?: string | null;
+}
+
+/** The Chats-section LIST surface + its anchor, wired to the real data layer (routeTrpc stubs
+ *  `chat.listChats`). Records select / new-chat clicks into visible markers so a CT can assert the
+ *  callbacks fire with the right id. */
+export function ChatListSurfaceStory({
+  activeChatId = null,
+}: ChatListSurfaceStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChatListInner activeChatId={activeChatId} />
+    </CtDataProviders>
+  );
+}
+
+function ChatListInner({ activeChatId }: { readonly activeChatId: string | null }): ReactElement {
+  const [selected, setSelected] = useState("none");
+  const [newCount, setNewCount] = useState(0);
+  return (
+    <div style={{ height: 480, width: 320 }}>
+      <ChatListAnchor>
+        <ChatListSurface
+          activeChatId={activeChatId === null ? null : castId<ChatId>(activeChatId)}
+          onNewChat={(): void => setNewCount((n) => n + 1)}
+          onSelect={(id): void => setSelected(id)}
+        />
+      </ChatListAnchor>
+      <p data-testid="selected">{selected}</p>
+      <p data-testid="new-count">{String(newCount)}</p>
+    </div>
+  );
+}
+
+// ── Chat-room story (the composed transcript + composer pane) ────────────────────────────────────
+
+function ChatRoomHarness({ committed }: { readonly committed: boolean }): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+  };
+  const handle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_room");
+  // A draft carries a founding roster seed (the new-chat-with-character path); a committed room ignores it.
+  const draftSeed = committed ? undefined : { characterIds: [castId<CharacterId>("char_ct_room")] };
+  return (
+    <div style={{ height: 480 }}>
+      <ChatRoomSurface busDeps={busDeps} draftSeed={draftSeed} initialHandle={handle} />
+    </div>
+  );
+}
+
+export interface ChatRoomSurfaceStoryProps {
+  /** @defaultValue false — a seeded draft (empty transcript, no server read); `true` = a committed chat. */
+  readonly committed?: boolean;
+}
+
+/** The composed chat-room pane (transcript + composer) — a seeded draft by default (proves the empty
+ *  transcript + live composer with NO server read), or a committed chat (reads `listMessages`). */
+export function ChatRoomSurfaceStory({
+  committed = false,
+}: ChatRoomSurfaceStoryProps): ReactElement {
+  return (
+    <CtDataProviders>
+      <ChatRoomHarness committed={committed} />
     </CtDataProviders>
   );
 }

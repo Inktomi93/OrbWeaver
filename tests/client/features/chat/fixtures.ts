@@ -46,3 +46,36 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     ...overrides,
   };
 }
+
+/** The `chat.listChats` row shape (ChatSummary — packages/server/src/domain/chat/contract/views.ts).
+ *  A plain client read-model literal (see the header); `participantNames` is names-only (the list card
+ *  has no avatars). Ids are plain strings — the wire shape routeTrpc fulfills. */
+export interface ChatSummaryFixture {
+  readonly id: string;
+  readonly title: string | null;
+  readonly star: boolean;
+  readonly archived: boolean;
+  readonly parentChatId: string | null;
+  readonly lastMessageAt: number | null;
+  readonly messageCount: number;
+  readonly participantNames: readonly string[];
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** A fully-valid `ChatSummary` literal — the chats-list row. */
+export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): ChatSummaryFixture {
+  return {
+    id: "chat_ct_list_1",
+    title: "A grand adventure",
+    star: false,
+    archived: false,
+    parentChatId: null,
+    lastMessageAt: FROZEN_AT,
+    messageCount: 4,
+    participantNames: ["Aria Nightshade"],
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+    ...overrides,
+  };
+}

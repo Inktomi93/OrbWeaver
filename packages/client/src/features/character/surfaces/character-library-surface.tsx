@@ -24,6 +24,8 @@
 // here is read-only (no Retry button); a future factory revision could add one, but that is
 // `create-collection-surface.ts` territory, outside this surface's file.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the rail-slots.ts / spinner.tsx precedent).
 import { Icon, Search, Users } from "@orb/ui/icons";
@@ -37,6 +39,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useTRPC } from "#data";
+import { setActiveSection, startNewChat } from "#state";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCard } from "../components/character-card";
 import { filterCharacters } from "../lib/filter-characters";
@@ -91,6 +94,15 @@ export function CharacterLibrarySurface({
 
   const filtered: readonly CharacterCardItem[] = filterCharacters(collection.items, deferredQuery);
 
+  // The library → chat seam (UI-Arch §5.1): a writer-only touch of the shared stores — seed a fresh
+  // draft with this character, then flip the rail to the Chats section so the route mounts it. NO
+  // `#features/chat` import (dep-cruiser client-feature-front-door); the active-chat + shell stores are
+  // the shared substrate below both features, so nothing chases an ambient active chat.
+  const startChatWith = (id: string): void => {
+    startNewChat({ characterIds: [castId<CharacterId>(id)] });
+    setActiveSection("chats");
+  };
+
   return (
     <Stack className="h-full min-h-0" gap="block">
       <Input
@@ -107,6 +119,7 @@ export function CharacterLibrarySurface({
           isEmpty={collection.isEmpty}
           isPending={collection.isPending}
           listProps={collection.listProps}
+          onStartChat={startChatWith}
           query={deferredQuery}
           selection={collection.selection}
         />
@@ -124,6 +137,7 @@ interface CharacterLibraryBodyProps {
   readonly filtered: readonly CharacterCardItem[];
   readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
   readonly selection: ReturnType<typeof useCharacterLibraryCollection>["selection"];
+  readonly onStartChat: (id: string) => void;
 }
 
 /** Loading → error → empty (no characters at all) → no-matches (a search with zero hits) → the list. */
@@ -136,6 +150,7 @@ function CharacterLibraryBody({
   filtered,
   listProps,
   selection,
+  onStartChat,
 }: CharacterLibraryBodyProps): ReactElement {
   if (isPending) {
     return <LoadingRows />;
@@ -176,6 +191,7 @@ function CharacterLibraryBody({
         renderItem={(item): ReactNode => (
           <CharacterCard
             character={item}
+            onStartChat={onStartChat}
             onToggleSelect={selection.toggle}
             selected={selection.isSelected(item.id)}
           />

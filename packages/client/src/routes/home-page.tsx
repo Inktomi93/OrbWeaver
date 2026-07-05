@@ -4,37 +4,74 @@ import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
 import { AppShell } from "#features/app-shell";
 import { CharacterLibraryAnchor, CharacterLibrarySurface } from "#features/character";
-import { ChatRoomSurface } from "#features/chat";
-import { chatStream, draftChat } from "#state";
+import { ChatListAnchor, ChatListSurface, ChatRoomSurface } from "#features/chat";
+import {
+  chatStream,
+  commitDraft,
+  isCommitted,
+  selectChat,
+  startNewChat,
+  useActiveChatHandle,
+  useActiveDraftSeed,
+  useActiveSessionKey,
+} from "#state";
 
-// The `/` home: the composition root. It mounts the four-region <AppShell> (UI-Arch §4.1) and composes
-// the (already-built) <ChatRoomSurface> into the shell's `chats` CONTENT slot, and the character library
-// (anchor + surface) into the `characters` CONTENT slot. A ROUTE may import a feature front door (the
-// same route→feature seam `router.tsx` uses); a feature may NOT import another feature — so app-shell
-// stays domain-agnostic (it renders regions + slots) and the chat mount + its `ChatBusDeps` assembly live
-// HERE. Every other rail section falls back to the shell's own <SectionPlaceholder> until its feature
-// lands (unwired ≠ fabricated).
+// The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
+// <AppShell> (UI-Arch §4.1) and is the ONE reactive READER of the active-chat store (state/active-chat-
+// store.ts) — it reads which chat is active and renders the right CONTENT (a <ChatRoomSurface> for the
+// active draft/committed chat), plus the Chats-LIST + Characters-LIST as section content. A ROUTE may
+// import a feature front door (route→feature is legal); a feature may NOT import another feature — so
+// app-shell stays domain-agnostic (regions + slots) and every domain touch lives HERE.
 //
-// `characters` uses CONTENT, not LIST: the library is a full search + virtualized card browse (the same
-// shape as the "chats" content pane), not a narrow side-list — LIST suits a slim nav-style rail (e.g. a
-// chat-history picker), which this isn't. Selecting a character is a stub today (highlight only; no
-// detail/editor surface exists yet, so `contextPanel` stays unset — a later task).
+// THE ANTI-JANK SEAM (UI-Arch §5.1): every WRITER of the active chat (the character card's "start chat",
+// the chat-list select, a message row's Fork) only CALLS a store action; this route is the single
+// reader. No surface reads-and-effects off an ambient active chat, so the neo `this_chid` chase is
+// impossible by construction. The character library reaches "start a chat with X" via the SAME shared
+// stores (startNewChat + setActiveSection), never a character→chat import.
+//
+// THE KEY (state/active-chat-store.ts THE KEY DISCIPLINE): `sessionKey` is <ChatRoomSurface>'s React
+// key — stable across a draft→committed promotion, so the surface does NOT remount mid-first-turn
+// (which would tear down the live SSE subscription + the in-flight send). It changes only on new-chat /
+// select-different-chat. `onChatStarted`→`commitDraft` records the committed id WITHOUT changing the key;
+// `onChatForked`→`selectChat` is the unified fork-nav landing (both seams terminate at the store).
 //
 // `stream` is the chat-stream singleton; `invalidate` is the central seam rebuilt per render from the
 // provided tRPC proxy + QueryClient (stateless + fire-and-forget — identity churn is harmless, the
-// subscription keys off ids, not deps identity). A DRAFT handle is the real "new chat" landing state:
-// empty transcript + a live composer, no server read, until first send promotes it to a committed chat.
+// subscription keys off ids, not deps identity).
 export function HomePage(): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const invalidation = createInvalidation({ queryClient, trpc });
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
 
+  const handle = useActiveChatHandle();
+  const draftSeed = useActiveDraftSeed();
+  const sessionKey = useActiveSessionKey();
+  const activeChatId = isCommitted(handle) ? handle.id : null;
+
   return (
     <AppShell
       sections={{
         chats: {
-          content: <ChatRoomSurface initialHandle={draftChat("landing")} busDeps={busDeps} />,
+          list: (
+            <ChatListAnchor>
+              <ChatListSurface
+                activeChatId={activeChatId}
+                onNewChat={(): void => startNewChat()}
+                onSelect={selectChat}
+              />
+            </ChatListAnchor>
+          ),
+          content: (
+            <ChatRoomSurface
+              key={sessionKey}
+              busDeps={busDeps}
+              draftSeed={draftSeed}
+              initialHandle={handle}
+              onChatForked={selectChat}
+              onChatStarted={commitDraft}
+            />
+          ),
         },
         characters: {
           content: (

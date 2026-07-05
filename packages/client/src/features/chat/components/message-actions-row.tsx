@@ -23,15 +23,12 @@
 // `chatCreated` re-folds (already wired) for the eventual cache refresh; `invalidates` is the
 // settle-time backstop, never a manual cache patch.
 //
-// FORK NAVIGATION SEAM — genuinely absent, not invented (report per the build brief): `forkChat`
-// returns the new `ChatDetail` (id + all), but there is no prop path from this row up to
-// `ChatRoomSurface`'s `setHandle`/`onChatStarted` (surfaces/chat-room-surface.tsx — off-limits to this
-// lane, and its `onChatStarted` callback is only threaded from the composer's OWN draft→committed
-// promotion, not from deep inside the message-list's row tree). So Fork here can create the new chat
-// and tell the user it happened (`notify.success`, `chat.listChats` invalidated so any chat-list
-// surface will show it), but it CANNOT navigate the user there. A real "switch the active pane to
-// chat X" seam needs a shell-level current-chat concern (or an `onForked` callback threaded down
-// through `MessageListSurface`/`ChatRoomSurface`) — out of this lane's file set.
+// FORK NAVIGATION SEAM — now WIRED (the active-chat store closed the gap the earlier note called for).
+// `forkChat` returns the new chat's id; the `onChatForked` callback threads UP through
+// `MessageRow`/`MessageListSurface`/`ChatRoomSurface` from the route, which maps it to the active-chat
+// store's `selectChat` — the SAME landing the chat-list select + the new-chat flow use (one seam, unified
+// at state, §5.1). Optional: a caller that hasn't wired it (e.g. a CT of the row alone) still forks +
+// notifies; only navigation is skipped.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -103,10 +100,13 @@ function isEditableRole(role: MessageView["role"]): boolean {
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
+  /** Navigate to the forked chat once `forkChat` resolves (the route maps this to `selectChat`).
+   *  Optional — a row without it still forks + notifies, just doesn't switch the active chat. */
+  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
 /** The always-available per-message action affordance: Edit · Hide-from-AI · Delete · Fork · Copy. */
-export function MessageActionsRow({ message }: MessageActionsRowProps): ReactElement {
+export function MessageActionsRow({ message, onChatForked }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const hide = useHideMutation({ trpc, invalidation });
@@ -140,8 +140,9 @@ export function MessageActionsRow({ message }: MessageActionsRowProps): ReactEle
     }
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
-      // No navigation seam from here (see file header) — tell the user it happened; they switch to
-      // it via whatever chat-list surface lands next (`chat.listChats` is invalidated above).
+      // Navigate to the fork (the wired seam — see file header), then confirm. A caller without the
+      // callback still forks (`chat.listChats` is invalidated above so any list refreshes) + notifies.
+      onChatForked?.(result.chat.id);
       notify.success(`Forked to a new chat (${result.chat.id}).`);
     } catch {
       // The sticky mutation error + the global errorToast already surfaced the failure.

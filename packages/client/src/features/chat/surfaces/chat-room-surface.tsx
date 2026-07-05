@@ -40,6 +40,9 @@ export interface ChatRoomSurfaceProps {
   /** Fires once a draft chat is promoted to a committed one (e.g. so a chat-list ancestor can select
    *  it) — this pane already updates its OWN handle regardless of whether a caller supplies this. */
   readonly onChatStarted?: ((chatId: ChatId) => void) | undefined;
+  /** Navigate to a forked chat (a message row's Fork) — threaded to the transcript; the route maps it
+   *  to the active-chat store's `selectChat` (the unified fork-nav landing, §5.1). */
+  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
 /** The composed chat pane: the scrolling transcript + the pinned composer. */
@@ -48,6 +51,7 @@ export function ChatRoomSurface({
   busDeps,
   draftSeed,
   onChatStarted,
+  onChatForked,
 }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
   const [draftText, setDraftText] = useState("");
@@ -61,7 +65,7 @@ export function ChatRoomSurface({
     <Stack gap="block" className="h-full">
       <Stack className="min-h-0 flex-1">
         <MessageThreadAnchor>
-          <MessageListSurface handle={handle} busDeps={busDeps} />
+          <MessageListSurface busDeps={busDeps} handle={handle} onChatForked={onChatForked} />
         </MessageThreadAnchor>
       </Stack>
       <ComposerSlot

@@ -13,9 +13,14 @@
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useTRPC } from "#data";
-import type { ChatHandle } from "#state";
+import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted } from "#state";
 import { useInvalidation } from "./use-invalidation";
+
+// `DraftSeed` now lives in `state/active-chat-store.ts` (state owns the seed like it owns `ChatHandle`
+// — one-directional flow). Re-exported here so this hook's own consumers (composer.tsx,
+// chat-room-surface.tsx) + the chat front door keep importing it from the same place — a stable seam.
+export type { DraftSeed } from "#state";
 
 interface SendVars {
   readonly chatId: ChatId;
@@ -59,14 +64,6 @@ const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
   errorToast: "Couldn't start the chat.",
 });
-
-export interface DraftSeed {
-  /** The founding roster. @defaultValue [] (a narrator-only room) — the real picked cast arrives once
-   *  the new-chat character-picker flow lands (a later task); an empty roster is a legal placeholder. */
-  readonly characterIds?: readonly CharacterId[] | undefined;
-  readonly anchorPersonaId?: PersonaId | null | undefined;
-  readonly title?: string | null | undefined;
-}
 
 export interface UseSendMessageOptions {
   readonly handle: ChatHandle;
