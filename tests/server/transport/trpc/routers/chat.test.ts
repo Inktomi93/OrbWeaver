@@ -6,6 +6,7 @@
 // Driven through the real ladder via `createCaller` (authed); the live bus is transport module state.
 
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
@@ -202,5 +203,187 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
     await expect(
       caller(ctx).chat.selectVariant({ chatId: CHAT, messageId: MESSAGE.id, variantId }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+// The per-message ACTION cluster's four verbs — all were fully implemented in domain/chat but never
+// exposed on this router (the same MISSING-API shape selectVariant/abort were in). Each is a thin
+// pass-through; the leak-free NOT_FOUND collapse is proven once per verb (the same shape every other
+// leak-free test above proves — the router adds no gating of its own, it only forwards).
+
+describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire-through)", () => {
+  test("a thin pass-through: chatId/messageId/content reach the verb with the resolved Principal", async () => {
+    const editMessage = vi.fn<ChatService["editMessage"]>(async () => MESSAGE);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { editMessage } },
+    });
+
+    const result = await caller(ctx).chat.editMessage({
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      content: "edited content",
+    });
+
+    expect(editMessage).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      content: "edited content",
+    });
+    expect(result).toEqual(MESSAGE);
+  });
+
+  test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
+    const editMessage = vi
+      .fn<ChatService["editMessage"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { editMessage } },
+    });
+
+    await expect(
+      caller(ctx).chat.editMessage({ chatId: CHAT, messageId: MESSAGE.id, content: "x" }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.setMessageHidden — the hide-from-AI toggle (chat-surface lane wire-through)", () => {
+  test("a thin pass-through: chatId/messageId/hidden reach the verb with the resolved Principal", async () => {
+    const setMessageHidden = vi.fn<ChatService["setMessageHidden"]>(async () => ({
+      ...MESSAGE,
+      excludedFromPrompt: true,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setMessageHidden } },
+    });
+
+    const result = await caller(ctx).chat.setMessageHidden({
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      hidden: true,
+    });
+
+    expect(setMessageHidden).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      hidden: true,
+    });
+    expect(result.excludedFromPrompt).toBe(true);
+  });
+
+  test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
+    const setMessageHidden = vi
+      .fn<ChatService["setMessageHidden"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { setMessageHidden } },
+    });
+
+    await expect(
+      caller(ctx).chat.setMessageHidden({ chatId: CHAT, messageId: MESSAGE.id, hidden: true }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-through)", () => {
+  test("a thin pass-through: chatId/messageIds reach the verb with the resolved Principal", async () => {
+    const deleteMessages = vi.fn<ChatService["deleteMessages"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { deleteMessages } },
+    });
+
+    const result = await caller(ctx).chat.deleteMessages({
+      chatId: CHAT,
+      messageIds: [MESSAGE.id],
+    });
+
+    expect(deleteMessages).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageIds: [MESSAGE.id],
+    });
+    expect(result).toBeUndefined();
+  });
+
+  test("a member deleting another's slot without host role gets the verb's leak-free NOT_FOUND", async () => {
+    const deleteMessages = vi
+      .fn<ChatService["deleteMessages"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { deleteMessages } },
+    });
+
+    await expect(
+      caller(ctx).chat.deleteMessages({ chatId: CHAT, messageIds: [MESSAGE.id] }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lane wire-through)", () => {
+  const ForkedChat = castId<ChatId>("chat_forked_1");
+  // A minimal ChatDetail literal — this router test only proves the wire-through, not the view shape
+  // (the same posture the file-header MESSAGE fixture takes).
+  const ForkResult: Awaited<ReturnType<ChatService["forkChat"]>> = {
+    chat: {
+      id: ForkedChat,
+      title: "Forked chat",
+      star: false,
+      archived: false,
+      parentChatId: CHAT,
+      forkedAt: 0,
+      anchorPersonaId: null,
+      participants: [],
+      group: DEFAULT_GROUP_CONFIG,
+      roomOverrides: DEFAULT_ROOM_OVERRIDES,
+      opening: null,
+      compactSummary: null,
+      compactedAtSeq: null,
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  };
+
+  test("a thin pass-through: chatId/throughSeq/title reach the verb with the resolved Principal", async () => {
+    const forkChat = vi.fn<ChatService["forkChat"]>(async () => ForkResult);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { forkChat } },
+    });
+
+    const result = await caller(ctx).chat.forkChat({
+      chatId: CHAT,
+      throughSeq: MESSAGE.seq,
+      title: "Forked chat",
+    });
+
+    expect(forkChat).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      throughSeq: MESSAGE.seq,
+      title: "Forked chat",
+    });
+    expect(result.chat.id).toBe(ForkedChat);
+    expect(result.chat.parentChatId).toBe(CHAT);
+  });
+
+  test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
+    const forkChat = vi
+      .fn<ChatService["forkChat"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { forkChat } },
+    });
+
+    await expect(caller(ctx).chat.forkChat({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });

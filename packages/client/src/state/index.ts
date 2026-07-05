@@ -20,6 +20,14 @@ export type { GatedSet, GatedStoreHook } from "./create-gated-store";
 export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
 export type { PersistedStoreOptions } from "./create-persisted-store";
 export { createPersistedStore } from "./create-persisted-store";
+export {
+  cancelEditingMessage,
+  readMessageEditDraft,
+  setMessageEditDraft,
+  startEditingMessage,
+  useIsEditingMessage,
+  useMessageEditDraftText,
+} from "./message-edit-draft";
 export type { ModalSlotId, PanelMode, PanelName, SectionId } from "./shell-store";
 export {
   closeModal,

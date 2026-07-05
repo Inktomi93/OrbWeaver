@@ -73,6 +73,37 @@ const selectVariantSchema = z.object({
 // pass-through, same shape as `getChat` (chatId only — `AbortParams extends ChatScopedParams {}`).
 const abortSchema = z.object({ chatId: brandedId<ChatId>() });
 
+// The per-message ACTION cluster (edit-in-place · hide-from-AI · delete · fork; the chat-surface lane's
+// task #24-adjacent brief): `editMessage`/`setMessageHidden`/`deleteMessages`/`forkChat`
+// (domain/chat/verbs/edit.ts + fork.ts) were ALL already fully implemented — author-or-host gated,
+// D26-correct, bus-emitting — but none had ever been exposed on this router (the SAME MISSING-API
+// shape `abort`/`selectVariant` were in before 2026-07-04c; swept via grep before this addition, no
+// call site referenced any of the four). Thin pass-throughs, same shape as their sibling verbs above.
+const editMessageSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+  content: z.string(),
+});
+
+const setMessageHiddenSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+  hidden: z.boolean(),
+});
+
+const deleteMessagesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageIds: z.array(brandedId<MessageId>()),
+});
+
+// `throughSeq`/`title` mirror `ForkChatParams` (D27 deep copy — throughSeq truncates the copy to a
+// message's `seq`, the "fork at this point" affordance the actions row's Fork button drives).
+const forkChatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  throughSeq: z.number().optional(),
+  title: z.string().nullish(),
+});
+
 const streamSchema = z.object({
   chatId: brandedId<ChatId>(),
   // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
@@ -112,6 +143,23 @@ export const chatRouter = t.router({
   abort: authedProcedure
     .input(abortSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),
+  // The per-message ACTION cluster's four verbs (see the schemas' header note above).
+  editMessage: authedProcedure
+    .input(editMessageSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.editMessage({ principal: ctx.auth, ...input })),
+  setMessageHidden: authedProcedure
+    .input(setMessageHiddenSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setMessageHidden({ principal: ctx.auth, ...input }),
+    ),
+  deleteMessages: authedProcedure
+    .input(deleteMessagesSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.deleteMessages({ principal: ctx.auth, ...input }),
+    ),
+  forkChat: authedProcedure
+    .input(forkChatSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.
   generateImage: authedProcedure
