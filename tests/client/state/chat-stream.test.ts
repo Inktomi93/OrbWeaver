@@ -1,19 +1,28 @@
 // The stream-slot DU machine: transitions are replace-semantics (no stale field bleeds across
-// phases), deltas accumulate per kind, terminals own the lifecycle, and the "no turn" read is the
-// STABLE IDLE_TURN reference (the v5 Object.is selector contract).
+// phases), deltas accumulate per kind, terminals own the lifecycle. Plus the user-message-committed
+// SIGNAL (the composer's clear-on-commit correlation) — a render-free per-chat listener set, not a slot.
+//
+// Every test mints a FRESH chat id (`freshChatId`) so the module-singleton store needs no inter-test
+// reset — there is no `clearTurn` (removed as dead API; a terminal slot just lingers until the next
+// `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
 import type { TurnSlot } from "@orb/client/state";
-import { chatStream, IDLE_TURN, subscribeTurnSlot } from "@orb/client/state";
+import { chatStream, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
-const CHAT_A = castId<ChatId>("chat_teststreamaaaa");
-const CHAT_B = castId<ChatId>("chat_teststreambbbb");
 const MSG = castId<MessageId>("msg_teststreamaaaaa");
 const SEND: TurnIntent = "send";
+
+let uniq = 0;
+/** A fresh per-test chat id so the module-singleton store carries no cross-test state (no clearTurn). */
+function freshChatId(): ChatId {
+  uniq += 1;
+  return castId<ChatId>(`chat_teststream_${String(uniq).padStart(5, "0")}`);
+}
 
 function begin(chatId: ChatId): void {
   chatStream.beginTurn(chatId, { intent: SEND, speakerCharacterId: null, targetMessageId: null });
@@ -25,134 +34,177 @@ function textDelta(chatId: ChatId, text: string): ChatDeltaEvent {
 
 describe("chatStream turn slots", () => {
   test("begin → pending; first delta → streaming; deltas accumulate per kind", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_A, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_A);
-    chatStream.appendDelta(textDelta(CHAT_A, "Hel"));
-    chatStream.appendDelta(textDelta(CHAT_A, "lo"));
-    chatStream.appendDelta({ chatId: CHAT_A, kind: "reasoning", text: "thinking" });
+    begin(chatId);
+    chatStream.appendDelta(textDelta(chatId, "Hel"));
+    chatStream.appendDelta(textDelta(chatId, "lo"));
+    chatStream.appendDelta({ chatId, kind: "reasoning", text: "thinking" });
 
     const last = seen.at(-1);
     expect(last).toMatchObject({ phase: "streaming", text: "Hello", reasoning: "thinking" });
     expect(seen[0]?.phase).toBe("pending");
 
-    chatStream.completeTurn(CHAT_A, MSG);
+    chatStream.completeTurn(chatId, MSG);
     const done = seen.at(-1);
     expect(done?.phase).toBe("completed");
     // Replace semantics: the completed slot carries NO streaming fields.
     expect(done !== undefined && "text" in done).toBe(false);
-
-    chatStream.clearTurn(CHAT_A);
-    expect(seen.at(-1)).toBe(IDLE_TURN); // the STABLE reference, not a fresh {phase:"idle"}
     unsub();
   });
 
   test("abort from pending; per-chat isolation; delta without a live turn is dropped", () => {
+    const chatB = freshChatId();
     const seenB: TurnSlot[] = [];
-    const unsubB = subscribeTurnSlot(CHAT_B, (slot) => seenB.push(slot));
+    const unsubB = subscribeTurnSlot(chatB, (slot) => seenB.push(slot));
 
-    begin(CHAT_B);
-    chatStream.abortTurn(CHAT_B, "user");
+    begin(chatB);
+    chatStream.abortTurn(chatB, "user");
     expect(seenB.at(-1)).toMatchObject({ phase: "aborted", reason: "user" });
 
     // A raced delta after the terminal must not resurrect a slot.
-    chatStream.appendDelta(textDelta(CHAT_B, "late"));
+    chatStream.appendDelta(textDelta(chatB, "late"));
     expect(seenB.at(-1)?.phase).toBe("aborted");
 
-    // CHAT_A (cleared in the prior test) stayed untouched by CHAT_B's lifecycle.
+    // A DIFFERENT chat runs its own lifecycle, untouched by chatB's terminal.
+    const chatA = freshChatId();
     let current: TurnSlot | null = null;
-    const unsubA = subscribeTurnSlot(CHAT_A, (slot) => {
+    const unsubA = subscribeTurnSlot(chatA, (slot) => {
       current = slot;
     });
-    begin(CHAT_A);
-    chatStream.clearTurn(CHAT_A);
-    expect(current).toBe(IDLE_TURN);
+    begin(chatA);
+    expect(current).toMatchObject({ phase: "pending" });
     unsubA();
-    chatStream.clearTurn(CHAT_B);
     unsubB();
   });
 });
 
 describe("chatStream markStopping (ADDITIVE — the composer's Stop button)", () => {
   test("streaming → markStopping → stopping, preserving accumulated text; deltas keep accumulating", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_A, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_A);
-    chatStream.appendDelta(textDelta(CHAT_A, "Hel"));
-    chatStream.markStopping(CHAT_A);
+    begin(chatId);
+    chatStream.appendDelta(textDelta(chatId, "Hel"));
+    chatStream.markStopping(chatId);
     expect(seen.at(-1)).toMatchObject({ phase: "stopping", text: "Hel" });
 
     // A delta legitimately keeps arriving mid-stop — it accumulates, staying in `stopping`.
-    chatStream.appendDelta(textDelta(CHAT_A, "lo"));
+    chatStream.appendDelta(textDelta(chatId, "lo"));
     expect(seen.at(-1)).toMatchObject({ phase: "stopping", text: "Hello" });
-
-    chatStream.clearTurn(CHAT_A);
     unsub();
   });
 
   test("pending → markStopping → stopping (before any token — the TTFT window)", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_B, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_B);
-    chatStream.markStopping(CHAT_B);
+    begin(chatId);
+    chatStream.markStopping(chatId);
     expect(seen.at(-1)).toMatchObject({ phase: "stopping", text: "", reasoning: "" });
-
-    chatStream.clearTurn(CHAT_B);
     unsub();
   });
 
   test("markStopping is idempotent — a second call from `stopping` is a no-op (the double-abort guard)", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_A, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_A);
-    chatStream.markStopping(CHAT_A);
+    begin(chatId);
+    chatStream.markStopping(chatId);
     const afterFirst = seen.at(-1);
-    chatStream.markStopping(CHAT_A);
+    chatStream.markStopping(chatId);
     expect(seen.at(-1)).toBe(afterFirst); // no new emission — store-level no-op, not just idempotent state
-
-    chatStream.clearTurn(CHAT_A);
     unsub();
   });
 
   test("markStopping from idle is a no-op (nothing to stop)", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_B, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    chatStream.markStopping(CHAT_B); // no begin() — the slot is idle/untracked
+    chatStream.markStopping(chatId); // no begin() — the slot is idle/untracked
     expect(seen).toEqual([]);
     unsub();
   });
 
   test("completeTurn from stopping → completed (a race the server wins: turn finished right as Stop fired)", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_A, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_A);
-    chatStream.appendDelta(textDelta(CHAT_A, "Hi"));
-    chatStream.markStopping(CHAT_A);
-    chatStream.completeTurn(CHAT_A, MSG);
+    begin(chatId);
+    chatStream.appendDelta(textDelta(chatId, "Hi"));
+    chatStream.markStopping(chatId);
+    chatStream.completeTurn(chatId, MSG);
 
     expect(seen.at(-1)).toMatchObject({ phase: "completed", messageId: MSG });
-    chatStream.clearTurn(CHAT_A);
     unsub();
   });
 
   test("abortTurn from stopping → aborted (the server confirms the cancel — the slot closes HERE, not at markStopping)", () => {
+    const chatId = freshChatId();
     const seen: TurnSlot[] = [];
-    const unsub = subscribeTurnSlot(CHAT_B, (slot) => seen.push(slot));
+    const unsub = subscribeTurnSlot(chatId, (slot) => seen.push(slot));
 
-    begin(CHAT_B);
-    chatStream.markStopping(CHAT_B);
+    begin(chatId);
+    chatStream.markStopping(chatId);
     expect(seen.at(-1)?.phase).toBe("stopping"); // still open — markStopping never closes the slot
 
-    chatStream.abortTurn(CHAT_B, "user");
+    chatStream.abortTurn(chatId, "user");
     expect(seen.at(-1)).toMatchObject({ phase: "aborted", reason: "user" });
-
-    chatStream.clearTurn(CHAT_B);
     unsub();
+  });
+});
+
+describe("chatStream user-message-committed signal (the composer's clear-on-commit seam)", () => {
+  test("notifyUserMessageCommitted fires the chat's subscribed listeners, per-chat isolated", () => {
+    const chatA = freshChatId();
+    const chatB = freshChatId();
+    const onA = vi.fn();
+    const onB = vi.fn();
+    const unsubA = subscribeUserMessageCommitted(chatA, onA);
+    const unsubB = subscribeUserMessageCommitted(chatB, onB);
+
+    chatStream.notifyUserMessageCommitted(chatA);
+    expect(onA).toHaveBeenCalledTimes(1);
+    expect(onB).not.toHaveBeenCalled(); // isolated by chat id
+
+    unsubA();
+    unsubB();
+  });
+
+  test("an unsubscribed listener no longer fires (the send-hook's finally cleanup)", () => {
+    const chatId = freshChatId();
+    const listener = vi.fn();
+    const unsub = subscribeUserMessageCommitted(chatId, listener);
+    unsub();
+
+    chatStream.notifyUserMessageCommitted(chatId);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  test("notify with no subscribers is a silent no-op (a send that failed pre-commit, listener already gone)", () => {
+    const chatId = freshChatId();
+    expect(() => chatStream.notifyUserMessageCommitted(chatId)).not.toThrow();
+  });
+
+  test("a listener that unsubscribes DURING notify does not corrupt the iteration (snapshot fire)", () => {
+    const chatId = freshChatId();
+    const calls: string[] = [];
+    const unsubSelf = subscribeUserMessageCommitted(chatId, () => {
+      calls.push("self");
+      unsubSelf(); // remove self mid-fire — the snapshot must still complete cleanly
+    });
+    const unsubOther = subscribeUserMessageCommitted(chatId, () => calls.push("other"));
+
+    chatStream.notifyUserMessageCommitted(chatId);
+    expect(calls).toEqual(["self", "other"]);
+
+    unsubOther();
   });
 });

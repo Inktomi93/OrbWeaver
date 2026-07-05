@@ -14,7 +14,7 @@ import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, isLiveTurnPhase, readTurnPhase } from "#state";
+import { isCommitted, subscribeUserMessageCommitted } from "#state";
 import { useInvalidation } from "./use-invalidation";
 
 // `DraftSeed` now lives in `state/active-chat-store.ts` (state owns the seed like it owns `ChatHandle`
@@ -71,10 +71,11 @@ export interface UseSendMessageOptions {
   /** Fires once a draft is promoted to a committed chat (startChat resolved) — the composition
    *  tier's seam to flip its own `ChatHandle` from `draft` to `committed`. */
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
-  /** Restore the composer's draft text after a send that failed BEFORE the user's row committed (the
-   *  composer clears its textarea optimistically on submit; this puts the text back). Only the
-   *  PRE-COMMIT branch calls it — see the phase-gate in `send` below. */
-  readonly onRestoreDraft?: ((content: string) => void) | undefined;
+  /** Fires the instant the bus confirms the caller's OWN user row committed (a USER-role
+   *  `messageCommitted` for this send's chat) — the composer clears its draft HERE, not optimistically
+   *  on submit. A send that fails BEFORE that commit never fires this, so the draft naturally survives
+   *  for retry with zero restore logic (the race-free replacement for the old phase-gate restore). */
+  readonly onDraftCommitted?: (() => void) | undefined;
 }
 
 export interface UseSendMessageResult {
@@ -96,37 +97,25 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  // RESTORE-ON-FAILED-SEND, gated on the turn phase (the "Stop flashes / lost draft" sibling bug). The
-  // composer clears its textarea the instant Send is clicked; if the send then FAILS we want the text
-  // back — but ONLY when the failure is pre-commit (the user's row never durably landed). The `send` verb's
-  // promise stays open for the WHOLE turn and can reject AFTER the user row committed and generation began
-  // (the server rethrows a post-`turnStarted` engine error — domain/chat/verbs/turn.ts createSend's
-  // `try/finally`, engine.ts executeTurn's emit-turnAborted-then-rethrow). Restoring then would wrongly
-  // re-populate text already persisted AND visible in the transcript.
+  // CLEAR-ON-`messageCommitted` — the RACE-FREE draft-clear correlation (UI-Gates §11.1). The composer
+  // does NOT clear optimistically on submit; it holds the draft until THIS function confirms the user's
+  // own row committed durably, then fires `onDraftCommitted`. Correlation is by ORDER + ROLE: exactly one
+  // send is in flight at a time, so the NEXT user-role `messageCommitted` bus event for this chat after
+  // the commit-producing mutation started is unambiguously "mine". We subscribe SYNCHRONOUSLY right before
+  // firing that mutation — JS is single-threaded and any bus delivery needs a real network round-trip, so
+  // the subscribe always lands before the event can arrive (no missed-event window). On a send that fails
+  // BEFORE the commit, no user-role `messageCommitted` ever fires ⇒ the callback never runs ⇒ the draft
+  // survives for retry with zero restore logic and zero race windows. The `send` verb's promise stays open
+  // for the WHOLE turn, so this signal fires MID-await (the row commits strictly before generation), which
+  // is exactly right: the draft clears the instant the user's line lands, not when the turn finishes.
   //
-  // The gate is `isLiveTurnPhase` (pending/streaming/stopping — the SAME predicate the ghost row uses),
-  // NOT `!== "idle"`: a turn slot is NOT reset to `idle` between turns (there is no client `clearTurn`
-  // caller — a completed/aborted slot lingers at its terminal phase until the NEXT turn's `beginTurn`
-  // overwrites it). So `!== "idle"` would read a STALE `completed`/`aborted` from a prior turn as
-  // "committed" and wrongly skip the restore when a 2nd+ message fails pre-commit. `isLiveTurnPhase`
-  // reads it correctly: a live turn (pending/streaming/stopping) means THIS send's `turnStarted` fired ⇒
-  // `messageCommitted` fired before it (createSend emits it strictly earlier) ⇒ the row committed → keep
-  // the cleared draft; a non-live phase (idle OR a stale terminal) means no live turn for this send ⇒
-  // pre-commit ⇒ restore. A `startChat` rejection on the draft path is ALWAYS pre-commit (no chat/row
-  // exists yet) → always restore (`committedChatId` stays null).
-  //
-  // TWO known-and-accepted residual windows where the gate can misjudge (both narrow, both recoverable —
-  // worst case the restored text is already in the transcript, so the user just clears it, no data loss):
-  // (a) a throw in createSend AFTER persistUserMessage but BEFORE turnStarted (canonFacts/arbitrate/
-  // mintSyntheticGroupCharacter/activeTurns.register) leaves the phase non-live while the row IS committed
-  // → a wrong restore; (b) an SSE race — a generation failing within SSE-delivery latency of `turnStarted`
-  // can reject here before the client has processed the `turnStarted` frame, so the phase is still non-live
-  // → a wrong restore. (A stale terminal phase is NOT a third window — `isLiveTurnPhase` reads it as
-  // not-live, which is the correct restore.) The fully race-free fix is clear-on-`messageCommitted` (only
-  // clear the composer once the bus confirms the user's row) — deferred: it needs bus↔composer correlation
-  // plumbing. The phase-gate is the right client-only fix for now.
-  const runSend = async (content: string, trimmed: string): Promise<void> => {
+  // For a DRAFT handle the chat id isn't known until `startChat` resolves, and the user row is committed by
+  // the SUBSEQUENT `send` — so we subscribe AFTER startChat, keyed on the new id, before `send` fires
+  // (startChat's own seeded-greeting `messageCommitted`s are assistant-role and pre-subscribe — neither
+  // could satisfy the role==="user" gate). A `startChat` rejection is always pre-commit → draft survives.
+  const runSend = async (trimmed: string): Promise<void> => {
     let committedChatId: ChatId | null = isCommitted(opts.handle) ? opts.handle.id : null;
+    let unsubscribe: (() => void) | null = null;
     try {
       if (committedChatId === null) {
         // Draft: no server row yet. Lazily create the room, then commit the typed text as its first send.
@@ -138,13 +127,12 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
         committedChatId = result.chat.id;
         opts.onCommitted?.(committedChatId);
       }
+      // Subscribe BEFORE the send mutate (synchronous — no await between here and the fire), so the user
+      // row's `messageCommitted` can't race past. The listener clears the composer's draft.
+      unsubscribe = subscribeUserMessageCommitted(committedChatId, () => opts.onDraftCommitted?.());
       await sendMutation.mutateAsync({ chatId: committedChatId, content: trimmed });
-    } catch (err) {
-      // Pre-commit ⇔ startChat itself failed (no chat/row) OR the send failed with NO live turn for it.
-      if (committedChatId === null || !isLiveTurnPhase(readTurnPhase(committedChatId))) {
-        opts.onRestoreDraft?.(content);
-      }
-      throw err;
+    } finally {
+      unsubscribe?.();
     }
   };
 
@@ -155,7 +143,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     }
     setError(null);
     setIsPending(true);
-    runSend(content, trimmed)
+    runSend(trimmed)
       .catch((err: unknown) => setError(err))
       .finally(() => setIsPending(false));
   };

@@ -74,13 +74,8 @@ function slotOf(chatId: ChatId): TurnSlot {
   return useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN;
 }
 
-function setSlot(chatId: ChatId, next: TurnSlot | undefined, action: string): void {
-  const turns = { ...useChatStreamStore.getState().turns };
-  if (next === undefined) {
-    delete turns[chatId];
-  } else {
-    turns[chatId] = next;
-  }
+function setSlot(chatId: ChatId, next: TurnSlot, action: string): void {
+  const turns = { ...useChatStreamStore.getState().turns, [chatId]: next };
   useChatStreamStore.setState({ turns }, true, action);
 }
 
@@ -98,11 +93,44 @@ export interface ChatStreamApi {
   readonly appendDelta: (delta: ChatDeltaEvent) => void;
   readonly completeTurn: (chatId: ChatId, messageId: MessageId | null) => void;
   readonly abortTurn: (chatId: ChatId, reason: TurnAbortReason) => void;
-  readonly clearTurn: (chatId: ChatId) => void;
+  /** Fire the per-chat "the caller's OWN user row committed" signal (below) — the bus calls this from
+   *  its `messageCommitted` case (role==="user" only). The composer's send-hook subscribes via
+   *  `subscribeUserMessageCommitted` to clear its draft exactly on this. A signal, NOT a slot write —
+   *  it touches no `TurnSlot`; the read side is `subscribeUserMessageCommitted`, never a store selector. */
+  readonly notifyUserMessageCommitted: (chatId: ChatId) => void;
   /** Component-callable (see header WRITE OWNERSHIP note): `pending`/`streaming` → `stopping`,
    *  preserving whatever text/reasoning had already accumulated. Idempotent no-op from any other
    *  phase (already stopping / idle / terminal) — the store-level half of the double-abort guard. */
   readonly markStopping: (chatId: ChatId) => void;
+}
+
+// The USER-MESSAGE-COMMITTED SIGNAL (the composer's clear-on-commit correlation, UI-Gates §11.1). A
+// render-free per-chat listener set — NOT a Zustand field: it is a fire-and-forget notification, not
+// state anyone reads back, so homing it as store state would only invite a stray selector and a fresh
+// render on every send. Mirrors `subscribeTurnSlot`'s imperative (no-render) seam. The producer is the
+// bus (`applyChatBusEvent`'s `messageCommitted` case → `notifyUserMessageCommitted`); the sole consumer
+// is `use-send-message`'s draft-clear correlation. Keeps §11.1 intact: the bus stays the one seam, and
+// this is a transient signal off it, never a second store.
+const userMessageCommittedListeners = new Map<ChatId, Set<() => void>>();
+
+/** Subscribe to "a USER-role `messageCommitted` for `chatId` was observed on the bus" (fired once per
+ *  such event). The send-hook registers RIGHT BEFORE firing the commit-producing mutation, so the NEXT
+ *  user-row commit for this chat is unambiguously "mine" (one send in flight at a time). Returns an
+ *  unsubscribe the caller MUST invoke (the send-hook does, in its `finally`). */
+export function subscribeUserMessageCommitted(chatId: ChatId, listener: () => void): () => void {
+  const set = userMessageCommittedListeners.get(chatId) ?? new Set<() => void>();
+  set.add(listener);
+  userMessageCommittedListeners.set(chatId, set);
+  return (): void => {
+    const current = userMessageCommittedListeners.get(chatId);
+    if (current === undefined) {
+      return;
+    }
+    current.delete(listener);
+    if (current.size === 0) {
+      userMessageCommittedListeners.delete(chatId);
+    }
+  };
 }
 
 export const chatStream: ChatStreamApi = {
@@ -154,8 +182,15 @@ export const chatStream: ChatStreamApi = {
       setSlot(chatId, { phase: "aborted", intent: slot.intent, reason }, "turn/abort");
     }
   },
-  clearTurn: (chatId) => {
-    setSlot(chatId, undefined, "turn/clear");
+  notifyUserMessageCommitted: (chatId) => {
+    const set = userMessageCommittedListeners.get(chatId);
+    if (set === undefined) {
+      return;
+    }
+    // Snapshot before firing — an unsubscribe inside a listener must not mutate the set mid-iteration.
+    for (const listener of [...set]) {
+      listener();
+    }
   },
   markStopping: (chatId) => {
     const slot = slotOf(chatId);
@@ -198,15 +233,6 @@ export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
  *  `stopping` is still live, or the ghost row unmounts/blanks the instant Stop is clicked. */
 export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
   return phase === "pending" || phase === "streaming" || phase === "stopping";
-}
-
-/** Non-reactive one-shot phase read for imperative callbacks that can't call the `useTurnPhase` hook
- *  (e.g. `use-send-message`'s post-failure restore gate, which reads — at catch time — whether the
- *  turn already left `idle`, i.e. whether `messageCommitted`/`turnStarted` have been observed). */
-export function readTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
-  return chatId === null
-    ? "idle"
-    : (useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN).phase;
 }
 
 /** Transient (render-free) subscription to one chat's slot — the smooth-text pacer's feed

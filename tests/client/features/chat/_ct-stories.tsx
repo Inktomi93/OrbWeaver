@@ -202,6 +202,11 @@ export interface MessageContentSpansStoryProps {
    *  no-op default every other story here relies on. */
   readonly characterName?: string;
   readonly userName?: string;
+  /** The render trust tier to mount at (D44 §12.0) — defaults `trusted` to preserve the pre-#25 stories.
+   *  The guardrail tests mount `untrusted` to prove `<speaker>` coloring survives + Mermaid is withheld. */
+  readonly trust?: "trusted" | "untrusted";
+  /** External-media gate for the mount (defaults `false` = gated, the safe floor). */
+  readonly allowExternal?: boolean;
 }
 
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
@@ -212,6 +217,8 @@ export function MessageContentSpansStory({
   content,
   characterName,
   userName,
+  trust = "trusted",
+  allowExternal = false,
 }: MessageContentSpansStoryProps): ReactElement {
   const renderContext: MessageRenderContext | undefined =
     characterName === undefined && userName === undefined
@@ -222,7 +229,13 @@ export function MessageContentSpansStory({
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { activePersonaName: userName }),
         };
-  return <MessageContent content={content} trust="trusted" renderContext={renderContext} />;
+  return (
+    <MessageContent
+      content={content}
+      render={{ trust, allowExternal }}
+      renderContext={renderContext}
+    />
+  );
 }
 
 function GhostRowInner(): ReactElement {
@@ -529,6 +542,19 @@ function ComposerStoryInner({ committed = true }: ComposerStoryProps): ReactElem
         }}
       >
         abort
+      </button>
+      {/* The clear-on-commit signal (UI-Gates §11.1): simulates the bus observing the caller's OWN
+          user-row `messageCommitted` — the composer's send-hook subscribes to this and clears the draft
+          HERE (never optimistically on submit). In production `applyChatBusEvent` fires it; the CT drives
+          it directly, the same way the turn-lifecycle buttons above stand in for the SSE bus. */}
+      <button
+        type="button"
+        data-testid="drive-message-committed"
+        onClick={(): void => {
+          chatStream.notifyUserMessageCommitted(COMPOSER_CHAT_ID);
+        }}
+      >
+        commit
       </button>
     </div>
   );

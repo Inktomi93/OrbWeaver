@@ -20,8 +20,8 @@ export {
   chatStream,
   IDLE_TURN,
   isLiveTurnPhase,
-  readTurnPhase,
   subscribeTurnSlot,
+  subscribeUserMessageCommitted,
   useTurnPhase,
   useTurnSlot,
 } from "./chat-stream";

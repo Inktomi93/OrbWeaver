@@ -32,6 +32,7 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
+import { makeMessageView } from "../../features/chat/fixtures";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────
 
@@ -43,6 +44,9 @@ interface Harness {
   readonly appendDelta: ReturnType<typeof vi.fn<typeof chatStream.appendDelta>>;
   readonly completeTurn: ReturnType<typeof vi.fn<typeof chatStream.completeTurn>>;
   readonly abortTurn: ReturnType<typeof vi.fn<typeof chatStream.abortTurn>>;
+  readonly notifyUserMessageCommitted: ReturnType<
+    typeof vi.fn<typeof chatStream.notifyUserMessageCommitted>
+  >;
   /** Latest slot snapshot for `chatId`, updated via a real `subscribeTurnSlot`. */
   readonly slotOf: (chatId: ChatId) => TurnSlot | undefined;
   readonly unsub: () => void;
@@ -59,6 +63,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
   const appendDelta = vi.fn(chatStream.appendDelta);
   const completeTurn = vi.fn(chatStream.completeTurn);
   const abortTurn = vi.fn(chatStream.abortTurn);
+  const notifyUserMessageCommitted = vi.fn(chatStream.notifyUserMessageCommitted);
   const invalidate = vi.fn((_event: ChatBusEvent): void => undefined);
   const onWarning = vi.fn((_code: ChatWarningCode, _chatId: ChatId): void => undefined);
   const deps: ChatBusDeps = {
@@ -67,7 +72,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
       appendDelta,
       completeTurn,
       abortTurn,
-      clearTurn: chatStream.clearTurn,
+      notifyUserMessageCommitted,
       // The reducer never calls this (markStopping is the ONE component-callable exception — see
       // state/chat-stream.ts's header) but `ChatBusDeps.stream` is typed as the full `ChatStreamApi`,
       // so the harness literal needs the field to satisfy the type. Real impl, unused by this suite.
@@ -84,6 +89,7 @@ function harness(chatIds: readonly ChatId[]): Harness {
     appendDelta,
     completeTurn,
     abortTurn,
+    notifyUserMessageCommitted,
     slotOf: (chatId): TurnSlot | undefined => slots.get(chatId),
     unsub: (): void => {
       for (const u of unsubs) {
@@ -244,6 +250,59 @@ describe("applyChatBusEvent — turn terminals", () => {
 
     expect(h.abortTurn).toHaveBeenCalledExactlyOnceWith(chatId, "stale");
     expect(h.slotOf(chatId)).toMatchObject({ phase: "aborted", reason: "stale" });
+    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(event);
+    h.unsub();
+  });
+});
+
+// ── messageCommitted's clear-on-commit split (the composer's draft-clear correlation) ───────────────
+// A canon event (always invalidates), but ALSO fires the user-message-committed signal — gated to a
+// USER-role view so the assistant's own later `messageCommitted` (same chat, same turn) can't falsely
+// clear the composer, and gated to a present view (absent ⇒ inconclusive ⇒ don't clear).
+
+describe("applyChatBusEvent — messageCommitted clear-on-commit signal", () => {
+  test("a USER-role committed view fires the commit signal for chatId AND invalidates", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+    const event: ChatBusEvent = {
+      type: "messageCommitted",
+      chatId,
+      messageId: MESSAGE_ID,
+      view: makeMessageView({ id: MESSAGE_ID, chatId, role: "user" }),
+    };
+
+    applyChatBusEvent(event, h.deps);
+
+    expect(h.notifyUserMessageCommitted).toHaveBeenCalledExactlyOnceWith(chatId);
+    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(event);
+    h.unsub();
+  });
+
+  test("an ASSISTANT-role committed view invalidates but does NOT fire the signal (no false clear)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+    const event: ChatBusEvent = {
+      type: "messageCommitted",
+      chatId,
+      messageId: MESSAGE_ID,
+      view: makeMessageView({ id: MESSAGE_ID, chatId, role: "assistant" }),
+    };
+
+    applyChatBusEvent(event, h.deps);
+
+    expect(h.notifyUserMessageCommitted).not.toHaveBeenCalled();
+    expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(event);
+    h.unsub();
+  });
+
+  test("a view-less messageCommitted invalidates but does NOT fire the signal (inconclusive ⇒ don't clear)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+    const event: ChatBusEvent = { type: "messageCommitted", chatId, messageId: MESSAGE_ID };
+
+    applyChatBusEvent(event, h.deps);
+
+    expect(h.notifyUserMessageCommitted).not.toHaveBeenCalled();
     expect(h.invalidate).toHaveBeenCalledExactlyOnceWith(event);
     h.unsub();
   });

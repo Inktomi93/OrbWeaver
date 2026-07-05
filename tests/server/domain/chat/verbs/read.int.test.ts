@@ -396,4 +396,45 @@ describe("read — durable chat-bus log (the streamMessages SSE resume)", () => 
       chatEventBounds({ principal: principal(stranger), chatId }),
     ).rejects.toBeInstanceOf(ChatNotFoundError);
   });
+
+  // The FIRST-TURN-RACE server pin (#1): the client seeds `lastEventId:"0"` for a just-created chat so
+  // the server replays the head deltas that raced past the fresh SSE attach. This proves the exact path
+  // that silently re-breaks — a fresh chat's DELTA events, written through the REAL durable-first bus,
+  // are returned by `replayChatEvents({afterSeq:0})` in seq order with their nested payload intact. The
+  // sibling events.int.test only round-trips flat `chatUpdated`/`chatDeleted`; nothing else exercises a
+  // real-bus-emitted `delta` (the token-carrying member) through the member-gated replay verb.
+  test("a replay from afterSeq 0 returns a fresh chat's head deltas in order, payload intact (the #1 first-turn-race pin)", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+    // Emit the HEAD of a turn through the REAL domain bus (durable-first: the chat_events INSERT commits
+    // before the ring push) — turnStarted + two text deltas, exactly the shape that races the attach.
+    const ctx = makeChatContext(db);
+    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    await bus.emit({
+      type: "turnStarted",
+      chatId,
+      intent: "send",
+      api: "chat-completions",
+      source: "openrouter",
+      model: "test-model",
+      speakerCharacterId: null,
+      targetMessageId: null,
+    });
+    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "Hello " } });
+    await bus.emit({ type: "delta", chatId, delta: { chatId, kind: "text", text: "world" } });
+
+    const { replayChatEvents } = createRead(ctx, makeDeps());
+    // afterSeq:0 == the client's `lastEventId:"0"` seed — replay the whole durable log from baseline.
+    const replayed = await replayChatEvents({ principal: principal(me), chatId, afterSeq: 0 });
+
+    expect(replayed.map((e) => e.seq)).toEqual([1, 2, 3]);
+    expect(replayed.map((e) => e.event.type)).toEqual(["turnStarted", "delta", "delta"]);
+    // The token-carrying payload survives the JSON round-trip through the durable column, byte-for-byte.
+    expect(replayed.slice(1).map((e) => (e.event.type === "delta" ? e.event.delta : null))).toEqual(
+      [
+        { chatId, kind: "text", text: "Hello " },
+        { chatId, kind: "text", text: "world" },
+      ],
+    );
+  });
 });
