@@ -1,6 +1,6 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ToastPlayground } from "./toast-fixture";
+import { ToastPlayground } from "./toast.fixtures";
 
 test("a toast appears via the imperative add API", async ({ mount, page }) => {
   await mount(<ToastPlayground />);
