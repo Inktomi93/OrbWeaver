@@ -26,11 +26,28 @@ describe("layer (floor-merge)", () => {
     expect(layer({ corpusAutoindex: null }).corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
   });
 
-  test("born-in-DB floors: forbidExternalMedia off, memory empty, vllm concurrency code floor", () => {
+  test("born-in-DB floors: forbidExternalMedia FORBIDS by default, memory empty, vllm concurrency code floor", () => {
     const cfg = layer({});
-    expect(cfg.forbidExternalMedia).toBe(false);
+    // D44 §12.3 — external media does NOT auto-load by default (the load is the tracking-pixel/exfil); the
+    // no-override default forbids (a per-character/admin override can still opt IN to allow — see below).
+    expect(cfg.forbidExternalMedia).toBe(true);
     expect(cfg.memoryDefaults).toEqual({});
     expect(cfg.vllmConcurrency.embed).toBeGreaterThan(0);
+  });
+
+  test("forbidExternalMedia default is OVERRIDABLE: an admin `false` opts the deployment IN to allow", () => {
+    // Confirms the flipped default is an overridable default, not a hard clamp — the per-character
+    // `override ?? global` chain (in domain/chat's resolveRenderPolicy) can likewise opt a character in.
+    expect(layer({ forbidExternalMedia: false }).forbidExternalMedia).toBe(false);
+    expect(layer({ forbidExternalMedia: null }).forbidExternalMedia).toBe(true); // null = clear → floor
+  });
+
+  test("born-in-DB floor: trustHtml is UNTRUSTED (false) by default; an override opts in", () => {
+    // D44 §12.0 — the safe default is untrusted; only an explicit admin override (or a per-character
+    // `trustHtml`) escalates. Mirrors forbidExternalMedia's floor discipline.
+    expect(layer({}).trustHtml).toBe(false);
+    expect(layer({ trustHtml: null }).trustHtml).toBe(false);
+    expect(layer({ trustHtml: true }).trustHtml).toBe(true);
   });
 
   test("D17 governance floors: local-compute ON, max-pro-sub OFF, budget null", () => {

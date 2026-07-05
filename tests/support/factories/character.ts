@@ -29,6 +29,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     archived: false,
     synthetic: false,
     forbidExternalMedia: null,
+    trustHtml: null,
     importedFrom: null,
     importHash: null,
     contentHash: `hash_${id}`,

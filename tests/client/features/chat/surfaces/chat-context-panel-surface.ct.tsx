@@ -17,8 +17,18 @@ function human(role: "host" | "member"): Record<string, unknown> {
   return { kind: "human", role, userId: "user_ct", characterId: null };
 }
 
-function chatDetail(role: "host" | "member", roomOverrides: Record<string, string> = {}): unknown {
-  return { participants: [human(role)], roomOverrides };
+// A character seat — only the fields `resolveIsGroupChat` reads (kind/characterId), same shape as
+// chat-cast-bar.ct's fixture (the identical roster filter both surfaces share).
+function character(key: string): Record<string, unknown> {
+  return { kind: "character", userId: null, characterId: `character_${key}`, role: "member" };
+}
+
+function chatDetail(
+  role: "host" | "member",
+  roomOverrides: Record<string, string> = {},
+  characters: readonly Record<string, unknown>[] = [],
+): unknown {
+  return { participants: [human(role), ...characters], roomOverrides };
 }
 
 // A minimal AssemblyPreview ({ prompt, trace }) — proves the Preview tab renders the assembled halves +
@@ -63,6 +73,36 @@ test("host sees all three tabs (Overrides · Preview · Injections)", async ({ m
   await expect(component.getByRole("tab", { name: "Overrides" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
   await expect(component.getByRole("tab", { name: "Injections" })).toBeVisible();
+});
+
+test("host in a SOLO (1-character) chat sees no Roster tab (D16 size-gate)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host", {}, [character("aria")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+
+  // Preview stays (host-only, not group-gated); Roster is hidden — mute/talkativeness/force-turn are
+  // meaningless for one character (mirrors ChatCastBar's identical solo size-gate).
+  await expect(component.getByRole("tab", { name: "Preview" })).toBeVisible();
+  await expect(component.getByRole("tab", { name: "Roster" })).toHaveCount(0);
+});
+
+test("host in a GROUP (2-character) chat sees the Roster tab", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => chatDetail("host", {}, [character("aria"), character("bryn")]),
+    "chat.listChatInjections": () => [],
+    "chat.previewAssembly": () => PREVIEW,
+  });
+
+  const component = await mount(<ChatContextPanelStory />);
+
+  await expect(component.getByRole("tab", { name: "Roster" })).toBeVisible();
 });
 
 test("member loses the Preview tab and the overrides are read-only", async ({ mount, page }) => {

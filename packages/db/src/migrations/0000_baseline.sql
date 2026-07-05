@@ -189,6 +189,7 @@ CREATE TABLE `characters` (
 	`archived` integer DEFAULT false NOT NULL,
 	`synthetic` integer DEFAULT false NOT NULL,
 	`forbid_external_media` integer,
+	`trust_html` integer,
 	`imported_from` text,
 	`import_hash` text,
 	`content_hash` text NOT NULL,

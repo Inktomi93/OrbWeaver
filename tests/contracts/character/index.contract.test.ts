@@ -119,9 +119,12 @@ test("updateCharacterSchema makes content optional and adds the identity-only fl
     starred: true,
     archived: false,
     forbidExternalMedia: null,
+    trustHtml: null,
   });
   expect(parsed.starred).toBe(true);
   expect(parsed.forbidExternalMedia).toBeNull();
+  // D44 §12.0 — the render-trust override is the same tri-state (null = inherit the deployment default).
+  expect(parsed.trustHtml).toBeNull();
   // Card content is omittable on update.
   expect(parsed.name).toBeUndefined();
 });

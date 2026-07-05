@@ -417,6 +417,29 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     getCard: ({ ownerId, characterId }) =>
       input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    // D44 §12.0 — resolve a roster member's render policy: the deployment floor (`getEffectiveConfig`) with
+    // the character's tri-state overrides layered per `override ?? global`. A human seat (`characterId:
+    // null`) or a card that's gone/unreadable resolves to the global floor alone (fail-closed to the
+    // deployment default, never a throw into roster assembly — mirrors `getCard`'s null-tolerance).
+    resolveRenderPolicy: async ({ ownerId, characterId }) => {
+      const cfg = input.settings.getEffectiveConfig();
+      const global = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+      if (characterId === null || ownerId === null) {
+        return global;
+      }
+      try {
+        const detail = await input.character.get({
+          principal: hostPrincipal(ownerId),
+          characterId,
+        });
+        return {
+          trustHtml: detail.trustHtml ?? global.trustHtml,
+          forbidExternalMedia: detail.forbidExternalMedia ?? global.forbidExternalMedia,
+        };
+      } catch {
+        return global;
+      }
+    },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
     resolveUserPublics: async (userId, personaId) => {

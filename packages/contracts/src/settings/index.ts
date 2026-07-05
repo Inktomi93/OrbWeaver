@@ -179,8 +179,13 @@ export const appSettingsSchema = z.object({
   /** Log verbosity. Live: the resolver rebinds `logger.level` on every reload (no restart needed). */
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   /** Block external (http/https) media URLs in rendered chat content — a privacy/SSRF guard. Default
-   *  off (born-in-DB floor). */
+   *  ON (D44 §12.3 — forbid by default; the load itself is the tracking-pixel/exfil). Overridable per
+   *  deployment (admin) and per character (`override ?? global`). */
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
+  /** D44 §12.0 — render rich HTML (Tier-A cards + Mermaid) as TRUSTED by default. Deployment-wide OPT-IN
+   *  to the untrusted-by-default render posture (a per-character `trustHtml` override layers on top —
+   *  `override ?? global`). Default off (born-in-DB floor): untrusted. */
+  trustHtml: z.boolean().nullable().optional().catch(undefined),
   /** Within-chat memory subsystem tuning (see `memoryDefaultsSchema`). Absent → the baked-in defaults. */
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   /** Memory summarizer generation knobs (see `memorySummarizerSchema`). */
@@ -617,6 +622,9 @@ export interface EffectiveAppConfig {
   logLevel: LogLevel;
   /** Block external (http/https) media URLs in rendered chat content — a privacy/SSRF guard. */
   forbidExternalMedia: boolean;
+  /** D44 §12.0 — deployment-wide render-trust default (resolved). `true` = rich HTML/Mermaid render as
+   *  trusted globally; a per-character `trustHtml` still overrides. Floor: `false` (untrusted). */
+  trustHtml: boolean;
   /** Within-chat memory subsystem tuning. Empty = the baked-in resolver defaults at the consumer. */
   memoryDefaults: MemoryDefaults;
   memorySummarizer: MemorySummarizerConfig;

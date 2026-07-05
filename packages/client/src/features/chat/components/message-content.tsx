@@ -2,9 +2,13 @@
 // (§12.4, via lib/content-blocks) and dispatches each block by kind. EXHAUSTIVE `switch` + `assertNever`
 // so a new block kind fails `tsc` here (the trust-tier × render-tier dispatch stays type-safe).
 //
-// SCOPE (task #17): `markdown` is rendered fully through `@orb/ui/markdown`. `media` + `html-card`
-// route to a minimal typed placeholder — the full `<MessageMedia>` (gated external loads) + Tier-B
-// `<sandbox-frame>` wiring is task #25; the exhaustive dispatch means #25 drops straight in.
+// SCOPE (task #25): `markdown` renders through `@orb/ui/markdown` at the row's resolved trust tier;
+// `media` routes through the gated `<MessageMediaBlock>` (external → `<MessageMedia>` + `<Lightbox>`;
+// asset = the pre-wired #67 seam); `html-card` dispatches on its OWN block-level `trust` (tierA → the
+// sanitized `untrusted` markdown seal with `css` DISCARDED — Tier-A forbids `<style>`; tierB → the
+// sandboxed `<SandboxFrame>`). Untrusted HTML NEVER touches the main DOM (gate
+// `no-untrusted-html-in-main-dom`); external media NEVER bypasses `<MessageMedia>` (gate
+// `no-external-media-without-gate`).
 //
 // SPEAKER SPLIT (#21, §12.4): the body is parsed on `<speaker>NAME</speaker>` markers UPSTREAM of
 // block projection (`lib/parse-speaker-spans`) — each span is THEN projected independently through
@@ -32,16 +36,20 @@ import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { Text } from "@orb/ui/text";
+import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
 import { parseSpeakerSpans } from "../lib/parse-speaker-spans";
+import type { RowRenderPolicy } from "../lib/render-trust";
 import { colorForCharacter } from "../lib/speaker-color";
+import { MessageMediaBlock } from "./message-media-block";
 
-/** Own AI output is `trusted`; imported cards / other participants are `untrusted` (§11.6). */
+/** The render trust tier (D44 §12.0 — untrusted by DEFAULT). `trusted` only for the viewer's OWN input or
+ *  a character/global that opted in; `untrusted` for all LLM / imported / other-participant / system
+ *  content. Resolved per-row upstream (`resolveRowRenderPolicy`), never hand-picked here. */
 type Trust = "trusted" | "untrusted";
 
 function assertNever(value: never): never {
@@ -51,7 +59,12 @@ function assertNever(value: never): never {
 // biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
 // "unreachable case" on every arm); tsc resolves the union + the assertNever exhaustiveness correctly.
 // Same resolver gap as data/bus/apply-chat-bus-event.ts (which suppresses the identical rule).
-function renderBlock(block: MessageContentBlock, key: string, trust: Trust): ReactElement {
+function renderBlock(
+  block: MessageContentBlock,
+  key: string,
+  trust: Trust,
+  allowExternal: boolean,
+): ReactElement {
   switch (block.kind) {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "markdown":
@@ -62,20 +75,28 @@ function renderBlock(block: MessageContentBlock, key: string, trust: Trust): Rea
           {block.md}
         </Markdown>
       );
-    // Task #25 — the gated MessageMedia / sandbox-frame render. Typed placeholder keeps the seam.
+    // Gated media (D44 §12.3): external → `<MessageMedia>` + `<Lightbox>`; asset → the #67 pre-wired seam.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "media":
-      return (
-        <Text key={key} as="span" size="label" tone="muted">
-          [media]
-        </Text>
-      );
+      return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
+    // HTML card (D44 §12.2). Dispatch on the block's OWN trust tier (independent of the message-level
+    // `trust`): tierA renders through the SANITIZED untrusted markdown seal (Streamdown's Tier-A allowlist
+    // + url gate — main DOM, inert), `css` DISCARDED (Tier-A forbids `<style>`/inline style; applying it
+    // would reopen the CSS-exfil vector the iframe exists to contain). tierB renders inside the sandboxed
+    // `<SandboxFrame>` (null-origin iframe + per-frame CSP — untrusted HTML never sanitized-into-main-DOM).
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
-      return (
-        <Text key={key} as="span" size="label" tone="muted">
-          [card]
-        </Text>
+      return block.trust === "tierB" ? (
+        <SandboxFrame
+          key={key}
+          html={block.html}
+          {...(block.css === undefined ? {} : { css: block.css })}
+          title="Rich content card"
+        />
+      ) : (
+        <Markdown key={key} trust="untrusted" mode="static">
+          {block.html}
+        </Markdown>
       );
     default:
       return assertNever(block);
@@ -89,7 +110,7 @@ function renderBlock(block: MessageContentBlock, key: string, trust: Trust): Rea
 // (never serializes to the DOM — harmless to pass `undefined` for the no-op call).
 function renderSegment(
   text: string,
-  trust: Trust,
+  render: RowRenderPolicy,
   keyPrefix: string,
   listKey?: string,
 ): ReactElement {
@@ -99,7 +120,12 @@ function renderSegment(
       {/* Block order is fully determined by `text` and never reorders independently, so the
           positional index IS each block's stable identity (no natural id exists in the render model). */}
       {blocks.map((block, index) =>
-        renderBlock(block, `${keyPrefix}${index}-${block.kind}`, trust),
+        renderBlock(
+          block,
+          `${keyPrefix}${index}-${block.kind}`,
+          render.trust,
+          render.allowExternal,
+        ),
       )}
     </Stack>
   );
@@ -108,7 +134,9 @@ function renderSegment(
 export interface MessageContentProps {
   /** The stored/authored body string (D26/D51 — content is always a string upstream). */
   readonly content: string;
-  readonly trust: Trust;
+  /** The RESOLVED render decision for this row (D44 §12.0 — `resolveRowRenderPolicy`): the markdown/
+   *  html-card trust tier + the external-media gate. Untrusted + gate-external is the safe floor. */
+  readonly render: RowRenderPolicy;
   /** The room-level macro DATA (roster/persona names) — absent means "no roster/persona threaded
    *  yet" (the pre-existing #21 additive default), in which case `content` renders UNCHANGED. */
   readonly renderContext?: MessageRenderContext | undefined;
@@ -128,7 +156,7 @@ export interface MessageContentProps {
  *  merged-narrator body's `<speaker>` markers see already-substituted text. */
 export function MessageContent({
   content,
-  trust,
+  render,
   renderContext,
   rowCharacterId,
   rowPersonaId,
@@ -144,7 +172,7 @@ export function MessageContent({
   // through the EXACT original single-path, no new element in the tree.
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return renderSegment(onlySpan.text, trust, "");
+    return renderSegment(onlySpan.text, render, "");
   }
 
   return (
@@ -152,11 +180,11 @@ export function MessageContent({
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return renderSegment(span.text, trust, `${key}-`, key);
+          return renderSegment(span.text, render, `${key}-`, key);
         }
         return (
           <ThemeScope key={key} tokens={colorForCharacter(span.speaker)}>
-            {renderSegment(span.text, trust, `${key}-`)}
+            {renderSegment(span.text, render, `${key}-`)}
           </ThemeScope>
         );
       })}

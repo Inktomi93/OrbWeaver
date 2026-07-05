@@ -136,12 +136,15 @@ export const createCharacterSchema = z.object({
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 
 // `update` is `create` with every field optional, plus the identity-only flags that are NOT card content
-// (`starred`, `archived`, and the tri-state `forbidExternalMedia`: null = inherit the deployment default,
-// true = forbid, false = allow). The tRPC router extends this with the branded `characterId` at its boundary.
+// (`starred`, `archived`, the tri-state `forbidExternalMedia`, and the tri-state `trustHtml`: null = inherit
+// the deployment default). The tRPC router extends this with the branded `characterId` at its boundary.
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
   starred: z.boolean().optional(),
   archived: z.boolean().optional(),
   forbidExternalMedia: z.boolean().nullable().optional(),
+  // D44 §12.0 render-trust OPT-IN. Tri-state: null = inherit the deployment default, true = this
+  // character's HTML renders TRUSTED (rich HTML + Mermaid), false = force untrusted. (`override ?? global`.)
+  trustHtml: z.boolean().nullable().optional(),
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 

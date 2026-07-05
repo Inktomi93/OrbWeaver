@@ -25,6 +25,7 @@ export interface CharacterSummaryFixture {
   readonly starred: boolean;
   readonly archived: boolean;
   readonly forbidExternalMedia: boolean | null;
+  readonly trustHtml: boolean | null;
   readonly avatarAssetId: string | null;
   readonly avatarHash: string | null;
   readonly contentHash: string;
@@ -60,6 +61,7 @@ export function makeCharacterSummary(
     starred: false,
     archived: false,
     forbidExternalMedia: null,
+    trustHtml: null,
     avatarAssetId: null,
     avatarHash: null,
     contentHash: "hash_ct_1",

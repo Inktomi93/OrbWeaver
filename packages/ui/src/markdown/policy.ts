@@ -1,9 +1,12 @@
 // The two-trust-policy markdown security config (UI-Gates §11.6 / D44 §12.2). Built against the
 // VERIFIED Streamdown 2.5 API (its real security surface is `allowedElements`/`disallowedElements` +
 // `urlTransform`, NOT the docs-assumed `allowedImagePrefixes`/`allowDataImages`, which do not exist —
-// recorded in ui-package-design §3/§10). Streamdown runs rehype-sanitize + rehype-harden by DEFAULT,
-// so `trusted` is the permissive default and `untrusted` TIGHTENS via an element allowlist + a url
-// blocker. Pure (no JSX) so the component file stays component-export-only.
+// recorded in ui-package-design §3/§10). Streamdown runs rehype-sanitize + rehype-harden by DEFAULT, so
+// `trusted` is the PERMISSIVE policy (Streamdown's own defaults) and `untrusted` TIGHTENS via an element
+// allowlist + a url blocker. NB (D44 §12.0): "trusted" names the permissive POLICY, NOT a default render
+// posture — the RENDER is untrusted BY DEFAULT; the caller selects `trusted` only for the viewer's own
+// input or a character/global that opted in (`resolveRowRenderPolicy`). Pure (no JSX) so the component
+// file stays component-export-only.
 import remarkGfm from "remark-gfm";
 import type { AllowedTags, StreamdownProps, UrlTransform } from "streamdown";
 import { defaultRemarkPlugins } from "streamdown";

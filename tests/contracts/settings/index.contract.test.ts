@@ -47,6 +47,7 @@ test("appSettingsSchema admits null per field (the CLEAR sentinel)", () => {
     importSkipCharacters: null,
     logLevel: null,
     forbidExternalMedia: null,
+    trustHtml: null,
     memoryDefaults: null,
     memorySummarizer: null,
     rateLimits: null,

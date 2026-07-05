@@ -137,6 +137,34 @@ test("trusted: a mermaid diagram renders OR degrades to the graceful token-style
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
+test("GUARDRAIL #54 — untrusted: a mermaid fence does NOT render a diagram (renders inert code)", async ({
+  mount,
+}) => {
+  // D44 §12.2 / #54: Mermaid renders arbitrary diagram DSL through a heavy lazy engine — an UNTRUSTED
+  // ```mermaid fence must NOT become a diagram. The seal withholds the `mermaid` option under untrusted,
+  // so the fence degrades to an inert Shiki code block: no rendered <svg> diagram, and the diagram DSL
+  // survives as literal code text (proving it was NOT interpreted). Because the `mermaid` option is
+  // withheld entirely, there is NO code path that can mount a diagram — so the absence assertions are
+  // stable (nothing renders late).
+  const md = "```mermaid\ngraph TD; A-->B;\n```";
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {md}
+    </Markdown>,
+  );
+  // The literal DSL is present as code text (not consumed into a diagram) — the positive signal that the
+  // fence rendered as a code block.
+  await expect(cmp).toContainText("graph TD");
+  // No mermaid DIAGRAM container is mounted (Streamdown tags a rendered diagram `data-streamdown="mermaid"`
+  // / `"mermaid-block"`), and the seal's Mermaid error surface never fires. (A plain code block still has
+  // its own copy/download ICON svgs — so we assert on the diagram container, not a blanket `svg` count.)
+  // biome-ignore lint/security/noSecrets: a CSS attribute selector for the mermaid diagram container, not a secret.
+  await expect(cmp.locator('[data-streamdown="mermaid"]')).toHaveCount(0);
+  // biome-ignore lint/security/noSecrets: a CSS attribute selector for the mermaid diagram container, not a secret.
+  await expect(cmp.locator('[data-streamdown="mermaid-block"]')).toHaveCount(0);
+  await expect(cmp.locator('[data-slot="markdown-mermaid-error"]')).toHaveCount(0);
+});
+
 test("trusted: a complete <speaker> tag renders its NAME as literal text (allowedTags passthrough)", async ({
   mount,
 }) => {

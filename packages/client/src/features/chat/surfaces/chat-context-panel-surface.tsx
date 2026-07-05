@@ -15,6 +15,11 @@
 // who is host, in today's single-human rooms). Host → full editing across all tabs + the Preview tab;
 // member → read-only Overrides + Injections, and Preview is HIDDEN (previewAssembly is host-only
 // server-side; a member-scoped previewSection affordance is deferred — task #28 flag).
+//
+// ROSTER GATE (D16 — roster-of-1 is degenerate, not an `isGroup` branch): the Roster tab is HOST-AND-
+// GROUP gated (`resolveIsGroupChat`, ../lib/roster.ts) — mute/talkativeness/force-turn are meaningless
+// with one character, so a solo (1-character) chat shows no Roster tab even to its host. Mirrors
+// `ChatCastBar`'s identical `cast.length <= 1 → null` size-gate for the member-visible glance strip.
 
 import type { ChatId } from "@orb/kit/ids";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
@@ -26,7 +31,7 @@ import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
 import { RosterPanel } from "../components/roster-panel";
-import { resolveViewerIsHost } from "../lib/roster";
+import { resolveIsGroupChat, resolveViewerIsHost } from "../lib/roster";
 
 export interface ChatContextPanelProps {
   /** A COMMITTED chat id — the route passes this only when a committed chat is active (a draft has no
@@ -59,15 +64,20 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   // already the shell's chat read (no new fetch for the overrides tab).
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const isHost = resolveViewerIsHost(chat.participants);
+  // D16 roster-of-1 is degenerate, not a group — mute/talkativeness/force-turn are meaningless for one
+  // character, so a solo chat must not show the Roster tab even to its host (mirrors ChatCastBar's
+  // identical `cast.length <= 1 → null` gate for the member-visible glance strip).
+  const showRoster = isHost && resolveIsGroupChat(chat.participants);
 
   return (
     <Tabs defaultValue="overrides">
       <TabsList>
         <TabsTab value="overrides">Overrides</TabsTab>
-        {/* Roster (group controls, task #29) — host-only, mirroring the Preview gate: mute /
-            talkativeness / force-turn are host authority (substrate/auth/matrix.ts), so a member never
-            sees the tab. The cast bar (chat-room-surface) is the member-visible glance surface. */}
-        {isHost ? <TabsTab value="roster">Roster</TabsTab> : null}
+        {/* Roster (group controls, task #29) — host-AND-group-only, mirroring the Preview gate: mute /
+            talkativeness / force-turn are host authority (substrate/auth/matrix.ts) AND meaningless for
+            a solo (1-character) chat, so neither a member nor a solo-chat host sees the tab. The cast
+            bar (chat-room-surface) is the member-visible glance surface, size-gated the same way. */}
+        {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
         {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
         <TabsTab value="injections">Injections</TabsTab>
         <TabsIndicator />
@@ -77,7 +87,7 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
         <RoomOverridesForm chatId={chatId} roomOverrides={chat.roomOverrides} isHost={isHost} />
       </TabsPanel>
 
-      {isHost ? (
+      {showRoster ? (
         <TabsPanel value="roster">
           <RosterPanel chatId={chatId} />
         </TabsPanel>

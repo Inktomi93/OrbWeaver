@@ -47,6 +47,7 @@ export function flagEdits(input: UpdateCharacterInput): {
   starred?: boolean;
   archived?: boolean;
   forbidExternalMedia?: boolean | null;
+  trustHtml?: boolean | null;
 } {
   return {
     ...(input.starred === undefined ? {} : { starred: input.starred }),
@@ -54,5 +55,6 @@ export function flagEdits(input: UpdateCharacterInput): {
     ...(input.forbidExternalMedia === undefined
       ? {}
       : { forbidExternalMedia: input.forbidExternalMedia }),
+    ...(input.trustHtml === undefined ? {} : { trustHtml: input.trustHtml }),
   };
 }

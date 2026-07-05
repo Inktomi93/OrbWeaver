@@ -54,6 +54,10 @@ export const characters = sqliteTable(
     synthetic: integer("synthetic", { mode: "boolean" }).notNull().default(false),
     // Tri-state: null = inherit the deployment default, true = forbid, false = allow.
     forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
+    // D44 §12.0 render-trust OPT-IN (untrusted by default). Tri-state: null = inherit the deployment
+    // default, true = this character's card/message HTML is TRUSTED (rich HTML + Mermaid render), false =
+    // force untrusted. Mirrors `forbidExternalMedia` (a per-character override of a global media policy).
+    trustHtml: integer("trust_html", { mode: "boolean" }),
     importedFrom: text("imported_from"),
     // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
     importHash: text("import_hash"),

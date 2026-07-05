@@ -20,7 +20,14 @@ import {
 import { env } from "#foundation/env";
 
 // ── Born-in-DB floors (no env var; only an admin override moves them; named — `noMagicNumbers`) ───────
-const FORBID_EXTERNAL_MEDIA_FLOOR = false;
+// D44 §12.3 — external media FORBIDDEN by default (the load itself is the tracking-pixel/exfil): the
+// no-override default is `true` (no auto-load → click-to-load placeholder). This is an OVERRIDABLE default,
+// NOT a hard clamp — an admin AppSettings override moves it, and a per-character `forbidExternalMedia`
+// override resolves against it (`override ?? global`), so opting a character IN to allow (false) still works.
+const FORBID_EXTERNAL_MEDIA_FLOOR = true;
+// D44 §12.0 — render-trust floor is UNTRUSTED (false): rich HTML/Mermaid are NOT trusted by default; an
+// admin override (or a per-character `trustHtml`) opts in. The safe default is the whole point of D21.
+const TRUST_HTML_FLOOR = false;
 // vLLM client-side batch concurrency — the promoted `VLLM_*_CONCURRENCY` knobs have NO env var (the env
 // only carries the CHUNK size); these are the born-in-DB code floors the runners read per-batch.
 const VLLM_EMBED_CONCURRENCY_FLOOR = 4;
@@ -65,6 +72,7 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     importSkipCharacters: overrides.importSkipCharacters ?? splitCsv(env.IMPORT_SKIP_CHARACTERS),
     logLevel: overrides.logLevel ?? env.LOG_LEVEL,
     forbidExternalMedia: overrides.forbidExternalMedia ?? FORBID_EXTERNAL_MEDIA_FLOOR,
+    trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
     memorySummarizer: overrides.memorySummarizer ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),

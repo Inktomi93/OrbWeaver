@@ -3,7 +3,11 @@ import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
 import { AppShell } from "#features/app-shell";
-import { CharacterLibraryAnchor, CharacterLibrarySurface } from "#features/character";
+import {
+  CharacterLibraryAnchor,
+  CharacterLibrarySurface,
+  CharacterLibraryWelcome,
+} from "#features/character";
 import { ChatContextPanel, ChatListAnchor, ChatListSurface, ChatRoomSurface } from "#features/chat";
 import { AppearanceSettingsSurface } from "#features/settings";
 import {
@@ -75,11 +79,16 @@ export function HomePage(): ReactElement {
           ),
         },
         characters: {
-          content: (
+          // LIST = the section's collection (UI-Arch §4.1): search + the character rows, mirroring the
+          // Chats section's list/content split (ChatListAnchor+ChatListSurface / ChatRoomSurface).
+          list: (
             <CharacterLibraryAnchor>
               <CharacterLibrarySurface />
             </CharacterLibraryAnchor>
           ),
+          // CONTENT: no per-character detail surface exists yet (a later task) — an honest, intentional
+          // welcome state instead of an empty placeholder beside the grid.
+          content: <CharacterLibraryWelcome />,
         },
       }}
       modals={{ settings: <AppearanceSettingsSurface /> }}

@@ -11,7 +11,7 @@
 // the contracts builders straight (see `message-list-surface.tsx`).
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 
 /** The chat's roster, keyed by character id — filters to `kind === "character"` participants (a
  *  human/agent/observer participant has no place in a `CharacterId`-keyed map; same discriminant
@@ -45,6 +45,21 @@ export function resolveViewerActivePersonaId(
   return null;
 }
 
+/** The VIEWING participant's user id — the "own-authored content" signal for the D44 §12.0 render-trust
+ *  rule (a `role==="user"` message whose `authorUserId` matches is the viewer's OWN, hence trusted). Same
+ *  "first present `human` seat" proxy as {@link resolveViewerActivePersonaId} (no client auth/session yet —
+ *  task #50; today's rooms carry exactly one human). `null` when no human is present — the safe floor:
+ *  with no resolvable viewer, NO message matches "own-authored", so everything stays untrusted (fail
+ *  closed). When real viewer identity lands (#50), this resolves against the authenticated principal. */
+export function resolveViewerUserId(participants: readonly ParticipantView[]): UserId | null {
+  for (const participant of participants) {
+    if (participant.kind === "human") {
+      return participant.userId;
+    }
+  }
+  return null;
+}
+
 /** Whether the VIEWING participant is the room host (drives the CONTEXT-panel host gate — task #28:
  *  host → full editing; member → read-only overrides + injections, preview hidden). Same "first present
  *  human seat" proxy as {@link resolveViewerActivePersonaId} (no client auth/session yet — task #50;
@@ -58,4 +73,13 @@ export function resolveViewerIsHost(participants: readonly ParticipantView[]): b
     }
   }
   return false;
+}
+
+/** Whether this room is a real GROUP (more than 1 character participant) — the D16 "roster-of-1 is degenerate,
+ *  not an `isGroup` branch" gate: mute/talkativeness/force-turn are meaningless with one character, so
+ *  the CONTEXT-panel Roster tab (group controls) must NOT appear for a solo chat, mirroring
+ *  `ChatCastBar`'s identical `cast.length <= 1 → null` size-gate (chat-cast-bar.tsx) — same filter,
+ *  same threshold, so the tab and the glance strip agree on solo-vs-group for the same roster. */
+export function resolveIsGroupChat(participants: readonly ParticipantView[]): boolean {
+  return buildParticipantsById(participants).size > 1;
 }

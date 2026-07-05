@@ -62,6 +62,15 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
             ? await ctx.resolveUserPublics(r.userId, r.activePersonaId)
             : null;
 
+        // D44 §12.0 — the RESOLVED per-participant render policy (`override ?? global`). Keyed on the
+        // character override for AI seats; the global floor for humans (`characterId: null` → the op
+        // returns global; whose OWN messages are trusted via the client's own-user rule, a separate axis).
+        // Resolved server-side once (the one home).
+        const renderPolicy = await ctx.resolveRenderPolicy({
+          ownerId: hostUserId,
+          characterId: r.characterId,
+        });
+
         let avatarAssetId: AssetId | null = null;
         if (publics?.avatarAssetId !== undefined && publics.avatarAssetId !== null) {
           avatarAssetId = castId<AssetId>(publics.avatarAssetId as string);
@@ -87,6 +96,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
           handle: (publics?.handle as any) ?? null,
           avatarAssetId,
+          renderPolicy,
         };
       }),
     );

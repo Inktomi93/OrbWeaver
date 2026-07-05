@@ -36,10 +36,15 @@ const STREAMING_ANIMATION = { animation: "fadeIn", sep: "word" } as const;
 
 export interface MarkdownProps {
   /**
-   * `trusted` = our own AI output (Streamdown's permissive defaults — max functionality; the
-   * `<speaker>` custom tag passes through as literal text). `untrusted` = D21 content (imported cards,
-   * other users): the Tier-A element allowlist + the url gate (blocks javascript:/data:/off-allowlist
-   * hosts) and NO custom-tag passthrough. Pick per the content's trust tier, never by convenience.
+   * The render trust tier — **untrusted BY DEFAULT** (D21 / D44 §12.0). `untrusted` = the safe posture
+   * for anything the box owner didn't author: LLM output (indirect prompt-injection can make the model
+   * emit exfil-shaped markup — Claude-Artifacts treats its own model's HTML the same way), imported
+   * cards, and other participants. It applies the Tier-A element allowlist + the url gate (blocks
+   * javascript:/data:/off-allowlist hosts), drops the `<speaker>` custom-tag passthrough, AND withholds
+   * Mermaid (see the render body). `trusted` is the EXPLICIT-OPT-IN escalation — the viewer's OWN input,
+   * or a character/global that opted into rich HTML (the D44 `trustHtml` axis, resolved by the caller) —
+   * and enables Streamdown's permissive defaults + the `<speaker>` literal passthrough. The boundary is
+   * the caller's to resolve; NEVER pick `trusted` for convenience.
    */
   readonly trust: (typeof TRUSTS)[number];
   /**
@@ -89,20 +94,29 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * `streaming`), the token-sourced `shikiTheme` (fenced code tracks the app palette — the charts-seal
  * lesson), the KaTeX `math` + token-styled `mermaid` plugins, `controls` (copy/download/fullscreen —
  * Streamdown's default), `linkSafety` (its default external-link confirm), the streaming `caret`, and
- * the per-block `fadeIn` (reduced-motion-gated). Two trust policies (D44 §12.2): `trusted` for our AI
- * output (+ `<speaker>` literal passthrough), `untrusted` for cards/other users (element allowlist +
- * url gate). Streamdown runs rehype-sanitize + rehype-harden by default, so `<script>`/`on*`/`<style>`
- * are stripped under BOTH policies. GFM is re-pinned `{ singleTilde:false }` so `10~20°C` isn't struck
- * through. The lazy code/mermaid chunks are error-bounded; a pathologically large input falls back to
- * a plain `<pre>`.
+ * the per-block `fadeIn` (reduced-motion-gated). Two trust policies (D44 §12.0/§12.2), **untrusted by
+ * default**: `untrusted` (LLM output / imported cards / other users) applies the Tier-A element
+ * allowlist + url gate, drops the `<speaker>` passthrough, AND withholds Mermaid (#54 — see the render
+ * body); `trusted` (the opt-in escalation) restores Streamdown's permissive defaults + `<speaker>`
+ * literal passthrough. Streamdown runs rehype-sanitize + rehype-harden by default, so
+ * `<script>`/`on*`/`<style>` are stripped under BOTH policies. GFM is re-pinned `{ singleTilde:false }`
+ * so `10~20°C` isn't struck through. The lazy code/mermaid chunks are error-bounded; a pathologically
+ * large input falls back to a plain `<pre>`.
  *
  * Usage:
- *   `<Markdown trust="trusted" mode="static">{message.body}</Markdown>`  (settled canon)
- *   `<Markdown trust="trusted" mode="streaming">{repaired}</Markdown>`   (live ghost / reasoning)
+ *   `<Markdown trust="untrusted" mode="static">{message.body}</Markdown>`  (settled canon — the default)
+ *   `<Markdown trust="trusted" mode="streaming">{repaired}</Markdown>`     (own input / opted-in card)
  */
 export function Markdown({ trust, mode, children, className }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
+  // GUARDRAIL (#54 / D44 §12.2): withhold Mermaid under `untrusted`. A ```mermaid fence renders arbitrary
+  // diagram DSL through a heavy lazy engine (diagram-label injection + resource-abuse surface), so the
+  // `mermaid` option is passed ONLY for `trusted` content; without it the fence degrades to an inert Shiki
+  // code block. KaTeX (`math`) is kept for BOTH tiers — rehype-katex defaults `trust:false` (no
+  // `\href`/`\includegraphics`, so no network/script vector), math-only and inert (KATEX_OPTIONS sets
+  // only `errorColor`, never `trust`). Verified against Streamdown 2.5's `mermaid?: MermaidOptions` prop.
+  const mermaidProp = untrusted ? {} : { mermaid: MARKDOWN_MERMAID_OPTIONS };
   // Animation is structurally inert in `static` mode anyway (Streamdown branches on it), but gate
   // explicitly so intent is legible and reduced-motion always wins.
   const animate = mode === "streaming" && !reducedMotion;
@@ -125,8 +139,8 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         dir="auto"
         shikiTheme={MARKDOWN_SHIKI_THEME}
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
-        mermaid={MARKDOWN_MERMAID_OPTIONS}
         plugins={{ math: MARKDOWN_MATH_PLUGIN }}
+        {...mermaidProp}
         // `controls` (copy/download/fullscreen), `lineNumbers`, `parseIncompleteMarkdown`, and
         // `linkSafety` are all left at Streamdown's own defaults (`true` / repair-on / confirm-on) —
         // deliberately not overridden; documented in the seal's option map.
