@@ -13,9 +13,10 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { VarOp } from "@orb/kit/macro";
+import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
+import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -33,6 +34,7 @@ import {
   seedChat,
   seedMessage,
   seedParticipant,
+  seedPersona,
   seedUser,
 } from "../_support";
 
@@ -615,5 +617,214 @@ describe("duplicateMessage / reattributeMessages", () => {
     const [row] = await db.select().from(messages).where(eq(messages.id, a.messageId));
     expect(row?.characterId).toBe(charB);
     expect(emitted.at(-1)?.type).toBe("messageEdited");
+  });
+});
+
+describe("reattributePersona — author-or-host per row; re-stamp USER slots' personaId (§5)", () => {
+  /** Seed a user message authored by `author`, stamped `opts.personaId` (default null), at `seq`. */
+  function seedUserMsg(
+    chatId: Awaited<ReturnType<typeof seedChat>>,
+    seq: number,
+    author: UserId,
+    opts: { personaId?: PersonaId | null; content?: string } = {},
+  ): ReturnType<typeof seedMessage> {
+    return seedMessage(db, chatId, seq, {
+      role: "user",
+      authorUserId: author,
+      personaId: opts.personaId ?? null,
+      content: opts.content ?? "{{user}} waves",
+    });
+  }
+
+  test("the author re-stamps their OWN user message: personaId updated + messageEdited emitted", async () => {
+    const { member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    const { messageId } = await seedUserMsg(chatId, 1, member);
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({
+      principal: principal(member),
+      chatId,
+      messageIds: [messageId],
+      personaId: persona,
+    });
+
+    const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(row?.personaId).toBe(persona);
+    const last = emitted.at(-1);
+    expect(last?.type).toBe("messageEdited");
+    expect(last?.type === "messageEdited" && last.view?.personaId).toBe(persona);
+  });
+
+  test("the host re-stamps ANOTHER member's message to a persona that MEMBER owns", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara"); // owned by the MEMBER (the row's author)
+    const { messageId } = await seedUserMsg(chatId, 1, member);
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({
+      principal: principal(host),
+      chatId,
+      messageIds: [messageId],
+      personaId: persona,
+    });
+
+    const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(row?.personaId).toBe(persona);
+  });
+
+  test("a non-author, non-host member is refused with not_author (host may re-stamp)", async () => {
+    const { member, chatId } = await seedRoom();
+    const other = await seedUser(db, "other");
+    await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
+    const persona = await seedPersona(db, member, "mara");
+    const { messageId } = await seedUserMsg(chatId, 1, member); // authored by `member`
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    const err = await edit
+      .reattributePersona({
+        principal: principal(other), // neither author nor host
+        chatId,
+        messageIds: [messageId],
+        personaId: persona,
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_author");
+    // no write landed
+    const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(row?.personaId).toBeNull();
+  });
+
+  test("the ownership belt: a persona NOT owned by the row's author is refused (even for the host)", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const hostPersona = await seedPersona(db, host, "hostpersona"); // owned by the HOST, not the author
+    const { messageId } = await seedUserMsg(chatId, 1, member);
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    const err = await edit
+      .reattributePersona({
+        principal: principal(host), // host clears the author-or-host gate…
+        chatId,
+        messageIds: [messageId],
+        personaId: hostPersona, // …but the persona isn't the AUTHOR's
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_persona_owner");
+    const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(row?.personaId).toBeNull();
+  });
+
+  test("user-rows-only: targeting an assistant row is refused with not_user_message (nothing written)", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    const asst = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    const err = await edit
+      .reattributePersona({
+        principal: principal(host),
+        chatId,
+        messageIds: [asst.messageId],
+        personaId: persona,
+      })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_user_message");
+    const [row] = await db.select().from(messages).where(eq(messages.id, asst.messageId));
+    expect(row?.personaId).toBeNull();
+  });
+
+  test("bulk: N user-row ids → exactly N messageEdited events, each carrying the new personaId", async () => {
+    const { member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    const m1 = await seedUserMsg(chatId, 1, member);
+    const m2 = await seedUserMsg(chatId, 2, member);
+    const m3 = await seedUserMsg(chatId, 3, member);
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({
+      principal: principal(member),
+      chatId,
+      messageIds: [m1.messageId, m2.messageId, m3.messageId],
+      personaId: persona,
+    });
+
+    const edits = emitted.filter((e) => e.type === "messageEdited");
+    expect(edits).toHaveLength(3);
+    expect(edits.every((e) => e.type === "messageEdited" && e.view?.personaId === persona)).toBe(
+      true,
+    );
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
+    expect(rows.every((r) => r.personaId === persona)).toBe(true);
+  });
+
+  test("an empty messageIds set is an idempotent no-op (no event, no write)", async () => {
+    const { member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({
+      principal: principal(member),
+      chatId,
+      messageIds: [],
+      personaId: persona,
+    });
+    expect(emitted).toHaveLength(0);
+  });
+
+  // ── C5 (#59 §6 parity lock), server side: after the stamp flips, the SAME kit atom re-resolves {{user}} ──
+  test("C5 server: reattributePersona flips the stamp → resolveRowMacros renders the NEW persona for {{user}}", async () => {
+    const { member, chatId } = await seedRoom();
+    const mara = await seedPersona(db, member, "mara");
+    const zara = await seedPersona(db, member, "zara");
+    const { messageId } = await seedUserMsg(chatId, 1, member, {
+      personaId: mara,
+      content: "{{user}} waves",
+    });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    // The per-chat name producer (Chat-Macro-Resolution §1) covering both personas.
+    const personaNamesById = new Map<PersonaId, RowPersonaName>([
+      [mara, { name: "Mara", description: "" }],
+      [zara, { name: "Zara", description: "" }],
+    ]);
+    const ctx = {
+      characterNamesById: new Map<CharacterId, RowCharacterName>(),
+      personaNamesById,
+    };
+
+    // Before: the row is stamped Mara → {{user}} resolves to Mara.
+    const before = await db.select().from(messages).where(eq(messages.id, messageId));
+    expect(
+      resolveRowMacros(
+        "{{user}} waves",
+        { characterId: null, personaId: before[0]?.personaId ?? null },
+        ctx,
+      ),
+    ).toBe("Mara waves");
+
+    await edit.reattributePersona({
+      principal: principal(member),
+      chatId,
+      messageIds: [messageId],
+      personaId: zara,
+    });
+
+    // After: the SAME atom, fed the row's NEW stamp, renders Zara — the storage stayed the literal macro.
+    const after = await db
+      .select()
+      .from(messages)
+      .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+      .where(eq(messages.id, messageId));
+    expect(after[0]?.message_variants.content).toBe("{{user}} waves"); // RAW storage untouched (D51)
+    expect(
+      resolveRowMacros(
+        "{{user}} waves",
+        { characterId: null, personaId: after[0]?.messages.personaId ?? null },
+        ctx,
+      ),
+    ).toBe("Zara waves");
   });
 });

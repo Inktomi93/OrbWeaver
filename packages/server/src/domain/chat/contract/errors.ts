@@ -33,6 +33,14 @@ export const CHAT_OP_CODES = {
   /** An abort called by a member who does not own the in-flight turn (`turn-owner` — the
    *  rollback-theft defense; a host aborting a member's turn is refused). */
   notTurnOwner: "not_turn_owner",
+  /** `reattributePersona` targeted a non-USER slot (assistant/system) — only a user message carries an
+   *  authoring persona (the `{{user}}` subject). A coded validation refusal on a KNOWN membership (the caller
+   *  cleared the per-row author-or-host gate), never a NOT_FOUND collapse. */
+  notUserMessage: "not_user_message",
+  /** `reattributePersona`'s target persona is NOT owned by the targeted row's AUTHOR — a line may only be
+   *  attributed to a persona its author owns (never the acting host's own persona; a persona has ONE owner, so
+   *  a bulk set that mixes authors can never all pass). Leak-free coded refusal. */
+  notPersonaOwner: "not_persona_owner",
   /** A roster mutation targeted a participant that is not a PRESENT member of the chat (missing or already
    *  left). Host-only surfaces (the caller already sees the roster), so a coded refusal leaks nothing —
    *  unlike `requireParticipant` failures, which stay a leak-free `ChatNotFoundError`. */

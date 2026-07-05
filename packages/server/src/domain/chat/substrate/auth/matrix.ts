@@ -101,6 +101,7 @@ export const CHAT_VERB_AUTHORITY = {
   star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
   archive: "host", // archiving removes the room from every member's active list — host
   reattributeMessages: "host", // host-only (self-heal hash-diff re-attribution)
+  reattributePersona: "author-or-host", // author-or-host PER targeted row: a member re-stamps THEIR OWN user lines, the host any (the persona-attribution / {{user}} history fix — Chat-Macro-Resolution §5). The verb also asserts role==='user' + target-persona-owned-by-the-row's-author.
   setGroupConfig: "host",
   addCharacterToChat: "host",
   seatAgent: "host",

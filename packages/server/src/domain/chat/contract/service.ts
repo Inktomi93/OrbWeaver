@@ -67,6 +67,7 @@ import type {
   PreviewSectionParams,
   ReapTemporaryChatsParams,
   ReattributeMessagesParams,
+  ReattributePersonaParams,
   RedeemInviteParams,
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
@@ -230,6 +231,9 @@ export interface ChatService {
   readonly archive: (params: ArchiveChatParams) => Promise<void>;
   /** Re-stamp the `characterId` attribution of a set of slots (host-only; self-heal hash-diff). */
   readonly reattributeMessages: (params: ReattributeMessagesParams) => Promise<void>;
+  /** Re-stamp the authoring `personaId` of a set of USER slots (author-or-host PER row; the target persona
+   *  must be owned by each row's author — the `{{user}}`/attribution history fix, Chat-Macro-Resolution §5). */
+  readonly reattributePersona: (params: ReattributePersonaParams) => Promise<void>;
 
   // ── group / roster ──────────────────────────────────────────────────────────────
   /** Host-only write of the `chatMetadata.group` sub-blob (parsed → fully-defaulted). */

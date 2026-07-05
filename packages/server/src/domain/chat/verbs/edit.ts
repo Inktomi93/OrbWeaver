@@ -27,7 +27,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { ChatContext } from "../contract/context";
-import { ChatNotFoundError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type { ResolveForeignInputsOp } from "../contract/foreign";
 import type {
   ClearReasoningParams,
@@ -37,6 +37,7 @@ import type {
   EditReasoningParams,
   MoveMessageParams,
   ReattributeMessagesParams,
+  ReattributePersonaParams,
   SelectVariantParams,
   SetMessageHiddenParams,
 } from "../contract/params";
@@ -49,6 +50,7 @@ import {
   editReasoningStatements,
   insertCanonMessageStatements,
   reattributeMessagesStatement,
+  reattributePersonaStatement,
   selectActiveVariantStatement,
   setMessageHiddenStatement,
   setMessageSeqStatement,
@@ -95,6 +97,7 @@ type EditVerbs = Pick<
   | "moveMessage"
   | "duplicateMessage"
   | "reattributeMessages"
+  | "reattributePersona"
 >;
 
 /** Load a slot ⋈ its selected variant AND verify it belongs to `chatId` — a missing slot OR a foreign-chat
@@ -632,6 +635,78 @@ function createReattributeMessages(
   };
 }
 
+// ── reattributePersona (author-or-host PER row — re-stamp the personaId of a set of USER slots) ───────────────
+/** `reattributePersona` — author-or-host PER targeted row (a member re-stamps THEIR OWN user lines; the host
+ *  any — the `deleteMessages` per-slot gate shape, NOT a single top-level gate). Re-stamps `messages.personaId`
+ *  (the `{{user}}`/authoring-persona axis; Chat-Macro-Resolution §5) for a set of USER-role slots. Four belts,
+ *  ALL validated BEFORE any write (validate-all-before-write — mirror `reattributeMessages`): every slot must
+ *  (a) belong to `chatId` [else leak-free `ChatNotFoundError`], (b) be a USER row with a non-null author
+ *  [`not_user_message` — an assistant/system row has no authoring persona], (c) clear the per-slot
+ *  author-or-host gate, and (d) target a persona OWNED by that row's AUTHOR [`not_persona_owner` — you
+ *  attribute a line only to a persona its author owns, never the host's; a persona has ONE owner, so a mixed-
+ *  author set can never all pass]. Emits one `messageEdited` per re-stamped slot (the [reattribute-carrier]
+ *  choice — a persona re-stamp IS a slot edit; see the file header). An empty set is a no-op. */
+function createReattributePersona(
+  ctx: ChatContext,
+  emit: EmitChatEvent,
+): ChatService["reattributePersona"] {
+  return async ({
+    principal,
+    chatId,
+    messageIds,
+    personaId,
+  }: ReattributePersonaParams): Promise<void> => {
+    if (messageIds.length === 0) {
+      return;
+    }
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const slots = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
+    // Belts (a)-(c), synchronous per slot — collect each row's author for the ownership belt (d) below.
+    const authorIds: UserId[] = [];
+    for (const slot of slots) {
+      if (slot === undefined || slot.chatId !== chatId) {
+        throw new ChatNotFoundError(chatId);
+      }
+      if (slot.role !== "user" || slot.authorUserId === null) {
+        throw new ChatOperationError(
+          CHAT_OP_CODES.notUserMessage,
+          `chat ${chatId}: only a user message carries an authoring persona`,
+        );
+      }
+      assertAuthorOrHost(
+        ctx.can,
+        { principal, role: membership.role, authorUserId: slot.authorUserId },
+        chatId,
+      );
+      authorIds.push(slot.authorUserId);
+    }
+    // Belt (d): the target persona must be owned by EACH targeted row's author (checked once per DISTINCT
+    // author — a persona has one owner, so a mixed-author set fails here). Parallel; no write yet.
+    const distinctAuthors = [...new Set(authorIds)];
+    const ownership = await Promise.all(
+      distinctAuthors.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })),
+    );
+    if (ownership.some((owned) => !owned)) {
+      throw new ChatOperationError(
+        CHAT_OP_CODES.notPersonaOwner,
+        `chat ${chatId}: the target persona must be owned by the message author`,
+      );
+    }
+    await ctx.db.batch(
+      batchMany([reattributePersonaStatement(ctx.db, chatId, messageIds, personaId)]),
+    );
+    // Re-read each re-stamped slot's fresh view, then fan the per-slot `messageEdited` (one carrier per slot).
+    const views = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
+    await Promise.all(
+      views.flatMap((view) =>
+        view !== undefined
+          ? [emit({ type: "messageEdited", chatId, messageId: view.id, view })]
+          : [],
+      ),
+    );
+  };
+}
+
 /**
  * The canon-edit verb BUNDLE (the grouped-file `create<File>` convention — `verb-naming` gate). Folds the
  * per-verb factories into one object keyed by their `ChatService` method names; the composition root spreads
@@ -649,5 +724,6 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
     moveMessage: createMoveMessage(ctx, emit),
     duplicateMessage: createDuplicateMessage(ctx, emit),
     reattributeMessages: createReattributeMessages(ctx, emit),
+    reattributePersona: createReattributePersona(ctx, emit),
   };
 }
