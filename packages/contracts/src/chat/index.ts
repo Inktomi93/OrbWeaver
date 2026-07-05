@@ -30,6 +30,7 @@ import type {
   AssetId,
   CharacterId,
   ChatId,
+  ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
   Handle,
@@ -178,6 +179,30 @@ export interface ChatInjection {
   /** Priority WITHIN a depth (ST `injection_order`); co-located `in_chat` injections splice DESC. */
   order?: number;
 }
+
+/** The four injection positions as a tuple — the ONE runtime home for the `ChatInjection["position"]`
+ *  axis (`satisfies` binds it to the interface, so a widened union fails `tsc` here; §5.5 no inline
+ *  re-spell). The db carries its OWN tuple checked against the same wire type (schema/chat.ts). */
+export const CHAT_INJECTION_POSITIONS = [
+  "before_prompt",
+  "in_static",
+  "in_prompt",
+  "in_chat",
+] as const satisfies readonly ChatInjection["position"][];
+
+/** The `setChatInjection` wire INPUT — the `ChatInjection` fields a client authors + the optional `id`
+ *  (present ⇒ update; absent ⇒ create). `chatId`/`principal` are added at the transport edge (the router
+ *  extends this), never here. Derived-checked: `satisfies` (below) proves the inferred shape matches the
+ *  domain `SetChatInjectionParams` slice, so a params reshape breaks HERE, not silently at the boundary. */
+export const chatInjectionInputSchema = z.object({
+  id: brandedId<ChatInjectionId>().optional(),
+  position: z.enum(CHAT_INJECTION_POSITIONS),
+  depth: z.number().int(),
+  role: messageRoleSchema,
+  content: z.string(),
+  order: z.number().int().optional(),
+});
+export type ChatInjectionInput = z.infer<typeof chatInjectionInputSchema>;
 
 /** Debug metadata about what assembly did — NOT the prompt text. Answers "why did/didn't this fire?"
  *  without dumping RP content (the host/admin-only trace surface). */

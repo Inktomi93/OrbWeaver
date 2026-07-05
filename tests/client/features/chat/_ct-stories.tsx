@@ -8,6 +8,7 @@
 import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
 import {
+  ChatContextPanel,
   ChatListAnchor,
   ChatListSurface,
   ChatRoomSurface,
@@ -610,6 +611,19 @@ export function ChatRoomSurfaceStory({
   return (
     <CtDataProviders>
       <ChatRoomHarness committed={committed} />
+    </CtDataProviders>
+  );
+}
+
+/** The chat CONTEXT panel (task #28 — overrides · preview · injections tabs), over the stubbed network
+ *  (`chat.getChat` drives the host gate + overrides; `chat.listChatInjections`/`chat.previewAssembly`
+ *  feed the tabs). The `.ct.tsx` sets the routeTrpc stubs (incl. the host/member roster) per case. */
+export function ChatContextPanelStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 560 }}>
+        <ChatContextPanel chatId={CHAT_ID} />
+      </div>
     </CtDataProviders>
   );
 }

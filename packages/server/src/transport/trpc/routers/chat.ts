@@ -12,10 +12,18 @@
 // covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { chatInjectionInputSchema, roomOverridesSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  MessageId,
+  MessageVariantId,
+  PersonaId,
+} from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -158,6 +166,45 @@ const forkChatSchema = z.object({
   title: z.string().nullish(),
 });
 
+// The CONTEXT-panel cluster (task #28 — the chat right-region: room-overrides · preview-request ·
+// manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`/
+// `getRoomOverridesForChat` (verbs/roster.ts), `previewAssembly` (verbs/read.ts), and
+// `setChatInjection`/`listChatInjections`/`deleteChatInjection` (verbs/chat-lifecycle.ts) were ALL
+// already fully implemented — host/member gated via substrate/auth/matrix.ts, DB-backed where relevant,
+// bus-emitting — but none had ever been exposed on this router (swept via grep before this addition, no
+// call site referenced any). Thin pass-throughs; authz lives INSIDE each verb (the sibling-cluster shape).
+// The wire input schemas are DERIVED from contracts (`roomOverridesSchema`, `chatInjectionInputSchema`) —
+// no re-spelled union at the transport edge (§5.5). `previewAssembly` is a host-only READ (the assembled
+// prompt + trace is a debug surface); `getRoomOverridesForChat`/`peekPrompt`/`previewSection` stay
+// unexposed for now (the room read rides `getChat`'s `ChatDetail.roomOverrides`; the member preview
+// affordance is deferred — task #28 flag).
+const setRoomOverridesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  overrides: roomOverridesSchema,
+});
+
+// speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
+// has no dedicated wire schema yet (the domain type is the validated shape — same `z.any()` shape as
+// `send`/`generate` above).
+const previewAssemblySchema = z.object({
+  chatId: brandedId<ChatId>(),
+  speakerCharacterId: brandedId<CharacterId>().nullish(),
+  guided: z.any().optional(),
+});
+
+// `setChatInjection` upserts (id present ⇒ update, absent ⇒ create); the contracts schema owns the
+// authored fields (position/depth/role/content/order + the optional id), the router adds the chatId.
+const setChatInjectionSchema = chatInjectionInputSchema.extend({
+  chatId: brandedId<ChatId>(),
+});
+
+const listChatInjectionsSchema = z.object({ chatId: brandedId<ChatId>() });
+
+const deleteChatInjectionSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  injectionId: brandedId<ChatInjectionId>(),
+});
+
 const streamSchema = z.object({
   chatId: brandedId<ChatId>(),
   // biome-ignore lint/plugin/no-raw-id: lastEventId is the SSE resume cursor (a `seq` string set by tRPC's Last-Event-ID), not a branded entity id.
@@ -237,6 +284,32 @@ export const chatRouter = t.router({
   forkChat: authedProcedure
     .input(forkChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
+  // The CONTEXT-panel cluster (task #28 — see the schemas' header note above). Thin pass-throughs.
+  setRoomOverrides: authedProcedure
+    .input(setRoomOverridesSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setRoomOverrides({ principal: ctx.auth, ...input }),
+    ),
+  previewAssembly: authedProcedure
+    .input(previewAssemblySchema)
+    .query(({ ctx, input }) =>
+      ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input }),
+    ),
+  setChatInjection: authedProcedure
+    .input(setChatInjectionSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setChatInjection({ principal: ctx.auth, ...input }),
+    ),
+  listChatInjections: authedProcedure
+    .input(listChatInjectionsSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.chat.listChatInjections({ principal: ctx.auth, ...input }),
+    ),
+  deleteChatInjection: authedProcedure
+    .input(deleteChatInjectionSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input }),
+    ),
   // Generate image(s) in a chat (P5: mode "free" + a required prompt). The wire `size` is Phase-7 (not
   // forwarded); mode/prompt/n map onto `chat.generateImage`.
   generateImage: authedProcedure

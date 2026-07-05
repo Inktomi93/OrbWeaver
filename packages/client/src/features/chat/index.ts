@@ -20,6 +20,8 @@ export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
 export { isContinueEligible } from "./lib/continue-on-empty";
+export type { ChatContextPanelProps } from "./surfaces/chat-context-panel-surface";
+export { ChatContextPanel } from "./surfaces/chat-context-panel-surface";
 export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface";
 export { ChatListSurface } from "./surfaces/chat-list-surface";
 export type { ChatRoomSurfaceProps } from "./surfaces/chat-room-surface";

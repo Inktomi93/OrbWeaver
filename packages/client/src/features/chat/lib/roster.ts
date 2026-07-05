@@ -44,3 +44,18 @@ export function resolveViewerActivePersonaId(
   }
   return null;
 }
+
+/** Whether the VIEWING participant is the room host (drives the CONTEXT-panel host gate — task #28:
+ *  host → full editing; member → read-only overrides + injections, preview hidden). Same "first present
+ *  human seat" proxy as {@link resolveViewerActivePersonaId} (no client auth/session yet — task #50;
+ *  today's rooms carry exactly one human, the owner, who is host). `false` when no human is present
+ *  (a fully-AI preview) — the safe read-only floor, never a false host grant. When real viewer identity
+ *  lands, this resolves against the authenticated participant instead of the first seat. */
+export function resolveViewerIsHost(participants: readonly ParticipantView[]): boolean {
+  for (const participant of participants) {
+    if (participant.kind === "human") {
+      return participant.role === "host";
+    }
+  }
+  return false;
+}
