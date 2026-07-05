@@ -13,7 +13,12 @@
 // The hook is the logic half (node-reasoned, feature-agnostic); the feature renders `items` through
 // `<VirtualList>`/`<MediaGrid>` with the returned `listProps`.
 
-import type { InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
+import type {
+  DefaultError,
+  InfiniteData,
+  QueryKey,
+  UseInfiniteQueryOptions,
+} from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import type { Trpc } from "./trpc";
@@ -23,12 +28,13 @@ import type { Trpc } from "./trpc";
  *  not a bare `readonly unknown[]`/`Error` — the proxy's actual return is DataTag-keyed (a branded
  *  TRPCQueryKey tuple) with a TRPCClientErrorLike error (which doesn't structurally satisfy `Error`
  *  — no `name` field), and a fixed `readonly unknown[]`/`Error` rejects it (`queryFn`/`retry` embed
- *  those types contravariantly). Defaulted to `QueryKey`/`Error` so a caller that isn't wrapping a
- *  real tRPC options call still infers cleanly. */
+ *  those types contravariantly). Defaulted to `QueryKey`/`DefaultError` (the Register-resolving
+ *  alias — `Error` today, no `defaultError` registered) so a caller that isn't wrapping a real tRPC
+ *  options call still infers cleanly, and every factory follows §G7 uniformly if that fork lands. */
 type BaseInfiniteOptions<
   TPage,
   TPageParam,
-  TError = Error,
+  TError = DefaultError,
   TKey extends QueryKey = QueryKey,
 > = UseInfiniteQueryOptions<TPage, TError, InfiniteData<TPage, TPageParam>, TKey, TPageParam>;
 
@@ -37,7 +43,7 @@ export interface CollectionSurfaceConfig<
   TPage,
   TParams,
   TPageParam,
-  TError = Error,
+  TError = DefaultError,
   TKey extends QueryKey = QueryKey,
 > {
   /** `(t, params) => t.character.list.infiniteQueryOptions({...params}, { getNextPageParam, maxPages })`. */
@@ -86,7 +92,7 @@ export function createCollectionSurface<
   TPage,
   TParams,
   TPageParam = unknown,
-  TError = Error,
+  TError = DefaultError,
   TKey extends QueryKey = QueryKey,
 >(
   config: CollectionSurfaceConfig<TItem, TPage, TParams, TPageParam, TError, TKey>,

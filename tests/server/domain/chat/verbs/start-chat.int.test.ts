@@ -317,6 +317,36 @@ describe("startChat — lazy room creation + opening", () => {
     expect(rows).toHaveLength(0);
   });
 
+  test("guided: the composer wand's degenerate 'Guide the opening' steer reaches the generated opening's turn prompt", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const engineOutcome: TurnOutcome = { messages: [], aborted: false };
+    const runTurn = vi.fn(
+      (_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome),
+    );
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "ignored")),
+    });
+    const deps = makeDeps({
+      engine: { runTurn },
+      resolveConnection: () =>
+        Promise.resolve({ model: "test-model" } as unknown as ResolvedConnection),
+    });
+    const { startChat } = createStartChat(ctx, deps);
+
+    await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "generate",
+      guided: { action: "opening", input: "start in the middle of a chase" },
+    });
+
+    // The default `opening` template splices {{input}} onto the resolved prompt — a draft chat has no
+    // committed turn to steer, so the wand's typed guidance rides this founding turn instead.
+    const prep = runTurn.mock.calls[0]?.[0];
+    expect(prep?.appendUserTurn).toContain("start in the middle of a chase");
+  });
+
   test("atomic: the chat row + the full roster commit together", async () => {
     const host = await seedUser(db, "host");
     const aria = await seedCharacter(db, host, "aria");

@@ -572,6 +572,38 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
 
     expect(JSON.stringify(requests)).not.toContain("special consideration");
   });
+
+  test("impersonate's guided steer threads {{person}} (composer wand's 1st/2nd/3rd-person picker)", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
+
+    await h.turn.impersonate({
+      principal: principal(host),
+      chatId,
+      guided: { action: "impersonate", input: "ask about the ruins", person: "third" },
+    });
+
+    // The default `impersonate` template carries a literal `{{person}}-person perspective` slot —
+    // the wand's picked word must land there (never the kit resolver's "first" floor).
+    const wire = JSON.stringify(requests);
+    expect(wire).toContain("third-person perspective");
+    expect(wire).toContain("ask about the ruins");
+  });
+
+  test("impersonate with NO person picked falls back to the kit resolver's 'first' default", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria"]);
+    const requests: unknown[] = [];
+    const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
+
+    await h.turn.impersonate({
+      principal: principal(host),
+      chatId,
+      guided: { action: "impersonate", input: "ask about the ruins" },
+    });
+
+    expect(JSON.stringify(requests)).toContain("first-person perspective");
+  });
 });
 
 describe("swipe — append-variant on an existing assistant slot (D26)", () => {

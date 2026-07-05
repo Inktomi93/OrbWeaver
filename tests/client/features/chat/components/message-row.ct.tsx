@@ -142,3 +142,38 @@ test("user row resolves the message's personaId against the persona library", as
   // User-row attribution carries no color wrap — the per-role user-bubble token owns that already.
   await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
 });
+
+// ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
+
+test("a message with {{char}}/{{user}} resolves real names once the roster + active persona are threaded", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      content="{{char}} waves at {{user}}."
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      personas={[{ id: NATE_PERSONA_ID, name: "Alex", avatarAssetId: null }]}
+      activePersonaId={NATE_PERSONA_ID}
+    />,
+  );
+  await expect(component.getByText("Alice waves at Alex.")).toBeVisible();
+  await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
+  await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
+});
+
+test("no roster/persona threaded: {{char}}/{{user}} macros still render literally (pre-existing gap, not a regression)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      content="{{char}} waves at {{user}}."
+      characterId={ALICE_ID}
+    />,
+  );
+  await expect(component.getByText("{{char}} waves at {{user}}.")).toBeVisible();
+});

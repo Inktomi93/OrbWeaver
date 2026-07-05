@@ -9,6 +9,7 @@ export const TEST_IDS = {
   adminPage: "admin-page",
   composer: "composer",
   composerSend: "composer-send",
+  composerWand: "composer-wand",
   messageList: "message-list",
 } as const;
 

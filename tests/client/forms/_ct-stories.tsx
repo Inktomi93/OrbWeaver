@@ -20,7 +20,7 @@
 // A button bumps a counter spread into a fresh `serverValues` object each click — the clobber
 // trigger (new server identity, identical content) without any network.
 
-import { createAutosaveEntityForm } from "@orb/client/forms";
+import { createAutosaveEntityForm, createSavedEntityForm } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -90,6 +90,104 @@ export function AutosaveDraftMirrorStory(): ReactElement {
       <DraftObserver />
       <button type="button" onClick={(): void => setServerValues({ text: SEED_TEXT })}>
         force host re-render
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// AutosaveUnmountFlushStory — pins `listeners.onFieldUnmount` (create-autosave-entity-form.ts
+// ~line 115): a field unmounting mid-debounce must FLUSH its pending edit via `handleSubmit()`,
+// not wait out the (here deliberately long) debounce. The FORM instance stays mounted the whole
+// time — only the individual `<form.AppField>` unmounts — so the listener fires for the right
+// reason (a field tearing down), not as a side effect of the whole hook unmounting.
+const UNMOUNT_FLUSH_ENTITY_ID = "unmount-flush-entity";
+// Far longer than the test's assertion window — proves the FLUSH fired, not the natural debounce.
+const UNMOUNT_FLUSH_DEBOUNCE_MS = 5000;
+// A distinct key on the SAME store mechanism, reused purely as a "save was called" observation
+// channel (not an entity draft) — avoids inventing new production plumbing for a test signal.
+const UNMOUNT_FLUSH_SAVE_KEY = "unmount-flush-saved";
+
+const unmountFlushChannel = createEntityDraftStore<StoryValues>({
+  name: "autosave-ct-unmount-flush",
+});
+
+const useUnmountFlushForm = createAutosaveEntityForm<StoryValues>({
+  defaultValues: { text: "" },
+  save: (values): Promise<void> => {
+    unmountFlushChannel.setDraft(UNMOUNT_FLUSH_SAVE_KEY, values);
+    return Promise.resolve();
+  },
+  debounceMs: UNMOUNT_FLUSH_DEBOUNCE_MS,
+});
+
+/** Owns the form + a toggle that unmounts ONLY the field, keeping the form instance alive. */
+function UnmountFlushFormPane({
+  serverValues,
+}: {
+  readonly serverValues: StoryValues;
+}): ReactElement {
+  const { form } = useUnmountFlushForm({ entityId: UNMOUNT_FLUSH_ENTITY_ID, serverValues });
+  const [showField, setShowField] = useState(true);
+  return (
+    <div>
+      {showField ? (
+        <form.AppField name="text">
+          {(field): ReactElement => <field.TextField label="Flush text" />}
+        </form.AppField>
+      ) : null}
+      <button type="button" onClick={(): void => setShowField(false)}>
+        unmount field
+      </button>
+    </div>
+  );
+}
+
+/** SIBLING observer — reactive read of the save-signal channel (empty-key default is `{}`, per the `AutosaveDraftMirrorStory` convention above). */
+function UnmountFlushSavedObserver(): ReactElement {
+  const saved = unmountFlushChannel.useDraft(UNMOUNT_FLUSH_SAVE_KEY);
+  return <output data-testid="unmount-flush-saved-state">{JSON.stringify(saved)}</output>;
+}
+
+export function AutosaveUnmountFlushStory(): ReactElement {
+  return (
+    <div>
+      <UnmountFlushFormPane serverValues={{ text: "" }} />
+      <UnmountFlushSavedObserver />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// SavedEntityPromoteStory — pins `promote()`'s `dontUpdateMeta: true` guarantee
+// (create-saved-entity-form.ts `promote()`): a mount-time NON-USER write must change the value
+// without ever flipping the form's (persistent) `isDirty` — the meta-preservation contract the
+// headless `create-saved-entity-form.test.ts` pins at the raw FormApi level, exercised here
+// through the REAL factory-exported `promote()` wrapper.
+interface SavedStoryValues {
+  readonly name: string;
+  readonly avatarAssetId: string | null;
+}
+
+const usePromoteStoryForm = createSavedEntityForm<SavedStoryValues>({
+  defaultValues: { name: "", avatarAssetId: null },
+  save: (values): Promise<SavedStoryValues> => Promise.resolve(values),
+});
+
+export function SavedEntityPromoteStory(): ReactElement {
+  const { form, promote } = usePromoteStoryForm({
+    entityId: "promote-story-entity",
+    serverValues: undefined,
+  });
+  return (
+    <div>
+      <form.Subscribe selector={(s): boolean => s.isDirty}>
+        {(isDirty): ReactElement => (
+          <output data-testid="promote-story-is-dirty">{String(isDirty)}</output>
+        )}
+      </form.Subscribe>
+      <button type="button" onClick={(): void => promote("avatarAssetId", "asset_promoted")}>
+        promote avatarAssetId
       </button>
     </div>
   );

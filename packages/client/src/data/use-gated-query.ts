@@ -17,7 +17,12 @@
 // inference on that key stays intact end-to-end. The gated-off branch still needs ONE stable
 // literal key regardless of what `TKey` turns out to be — an inert marker cache slot never
 // actually read as `TData`, so casting it to `TKey` is safe (see `GATED_OFF_KEY`).
-import type { QueryKey, UseQueryOptions, UseQueryResult } from "@tanstack/react-query";
+import type {
+  DefaultError,
+  QueryKey,
+  UseQueryOptions,
+  UseQueryResult,
+} from "@tanstack/react-query";
 import { skipToken, useQuery } from "@tanstack/react-query";
 
 type GatedOptions<TData, TError, TKey extends QueryKey> = Pick<
@@ -34,10 +39,11 @@ const GATED_OFF_KEY = ["__gated__", "off"] as const;
  * branded-input typing holds end-to-end. ONE `useQuery` call site (rules-of-hooks: the gate lives
  * in the options expression, never in a conditional hook). `TKey`/`TError` are inferred from
  * whatever `optionsFor` actually returns (a real tRPC `.queryOptions()` call carries its own
- * DataTag'd key + `TRPCClientErrorLike` error) — defaulted to `Error` so a non-tRPC caller still
- * infers cleanly.
+ * DataTag'd key + `TRPCClientErrorLike` error) — defaulted to `DefaultError` (the Register-resolving
+ * alias — `Error` today, no `defaultError` registered) so a non-tRPC caller still infers cleanly,
+ * and every factory follows §G7 uniformly if that fork lands.
  */
-export function useGatedQuery<TId, TData, TError = Error, TKey extends QueryKey = QueryKey>(
+export function useGatedQuery<TId, TData, TError = DefaultError, TKey extends QueryKey = QueryKey>(
   id: TId | null | undefined,
   optionsFor: (id: TId) => GatedOptions<TData, TError, TKey>,
 ): UseQueryResult<TData, TError> {

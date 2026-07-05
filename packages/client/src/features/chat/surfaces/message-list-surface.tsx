@@ -30,7 +30,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useChatBus, useTRPC } from "#data";
 import type { ChatHandle } from "#state";
-import { isCommitted, useTurnPhase } from "#state";
+import { isCommitted, isLiveTurnPhase, useTurnPhase } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
@@ -85,13 +85,17 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   const phase = useTurnPhase(chatId);
   const items = useMessageItems(messages, chatId);
 
-  const live = phase === "pending" || phase === "streaming";
+  const live = isLiveTurnPhase(phase);
   // The tail assistant message is the swipe-eligible row (hidden mid-stream — scout swipe-strip rule).
   const lastAssistantId = live ? null : findLastAssistantId(messages);
 
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
-      <GhostMessageRow chatId={chatId} chatStyle={chatStyle} streaming={phase === "streaming"} />
+      <GhostMessageRow
+        chatId={chatId}
+        chatStyle={chatStyle}
+        streaming={phase === "streaming" || phase === "stopping"}
+      />
     ) : (
       <MessageRow
         message={item.view}

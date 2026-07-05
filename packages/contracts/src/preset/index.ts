@@ -184,6 +184,17 @@ export const GUIDED_ACTION_KINDS = [
   "continue",
 ] as const satisfies readonly string[];
 export type GuidedActionKind = (typeof GUIDED_ACTION_KINDS)[number];
+
+// The `impersonate` action's `{{person}}` word (`@orb/kit/guided`'s `opts.person`, domain `GuidedSteer.
+// person`) — spliced verbatim into "{{person}}-person perspective" templates. Meaningless for every
+// other action (their templates carry no `{{person}}` token). ONE importable union (spine §5.5) so the
+// composer wand's 1st/2nd/3rd-person picker and the domain steer field can never drift apart.
+export const GUIDED_IMPERSONATE_PERSONS = [
+  "first",
+  "second",
+  "third",
+] as const satisfies readonly string[];
+export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
 export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS);
 
 // The default `opening` template mirrors the retired `newChat` sentinel so an unsteered opening reads

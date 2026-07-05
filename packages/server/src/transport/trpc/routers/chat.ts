@@ -30,6 +30,11 @@ const startChatSchema = z.object({
   anchorPersonaId: brandedId<PersonaId>().nullish(),
   title: z.string().nullish(),
   opening: z.any().optional(),
+  // The composer wand's degenerate "Guide the opening" (a draft chat has no committed turn to steer
+  // yet — its guided input rides the founding `generate` opening instead; ignored by every other
+  // `opening` policy). Same `z.any()` shape as `send`/`swipe`'s `guided` below (no dedicated
+  // `GuidedSteer` wire schema exists yet — the domain type is the validated shape server-side).
+  guided: z.any().optional(),
 });
 
 const listMessagesSchema = z.object({
@@ -60,6 +65,35 @@ const sendSchema = z.object({
 const swipeSchema = z.object({
   chatId: brandedId<ChatId>(),
   messageId: brandedId<MessageId>(),
+  intent: z.any().optional(),
+  guided: z.any().optional(),
+});
+
+// The three remaining guided-generations verbs (chat-surface-lane task #27 — the composer WAND):
+// `ChatService.continueTurn`/`impersonate`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
+// createImpersonate/createGenerate) were ALL already fully implemented — participant-gated, D26-correct,
+// bus-emitting, EVERY generating verb already threading an optional `guided: GuidedSteer` steer — but none
+// had ever been exposed on this router (the same MISSING-API shape `abort`/`selectVariant`/the per-message
+// action cluster were in before 2026-07-04c; swept via grep before this addition, no call site referenced
+// any of the three). Thin pass-throughs, same shape as `swipe` (continueTurn: messageId-scoped) or `send`
+// minus the persisted content (impersonate/generate: chatId-scoped, no message row of their own to target).
+const continueTurnSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+  intent: z.any().optional(),
+  guided: z.any().optional(),
+});
+
+const impersonateSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  personaId: brandedId<PersonaId>().nullish(),
+  intent: z.any().optional(),
+  guided: z.any().optional(),
+});
+
+const generateSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  speakerCharacterId: brandedId<CharacterId>().nullish(),
   intent: z.any().optional(),
   guided: z.any().optional(),
 });
@@ -156,6 +190,18 @@ export const chatRouter = t.router({
     .mutation(({ ctx, input }) =>
       ctx.services.chat.selectVariant({ principal: ctx.auth, ...input }),
     ),
+  // The three guided-generations verbs (see the schemas' header note above).
+  continueTurn: authedProcedure
+    .input(continueTurnSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.continueTurn({ principal: ctx.auth, ...input }),
+    ),
+  impersonate: authedProcedure
+    .input(impersonateSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.impersonate({ principal: ctx.auth, ...input })),
+  generate: authedProcedure
+    .input(generateSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.generate({ principal: ctx.auth, ...input })),
   abort: authedProcedure
     .input(abortSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.abort({ principal: ctx.auth, ...input })),

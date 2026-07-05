@@ -19,6 +19,8 @@ export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
   chatStream,
   IDLE_TURN,
+  isLiveTurnPhase,
+  readTurnPhase,
   subscribeTurnSlot,
   useTurnPhase,
   useTurnSlot,

@@ -14,7 +14,7 @@ import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted } from "#state";
+import { isCommitted, isLiveTurnPhase, readTurnPhase } from "#state";
 import { useInvalidation } from "./use-invalidation";
 
 // `DraftSeed` now lives in `state/active-chat-store.ts` (state owns the seed like it owns `ChatHandle`
@@ -71,6 +71,10 @@ export interface UseSendMessageOptions {
   /** Fires once a draft is promoted to a committed chat (startChat resolved) — the composition
    *  tier's seam to flip its own `ChatHandle` from `draft` to `committed`. */
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
+  /** Restore the composer's draft text after a send that failed BEFORE the user's row committed (the
+   *  composer clears its textarea optimistically on submit; this puts the text back). Only the
+   *  PRE-COMMIT branch calls it — see the phase-gate in `send` below. */
+  readonly onRestoreDraft?: ((content: string) => void) | undefined;
 }
 
 export interface UseSendMessageResult {
@@ -92,6 +96,58 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
+  // RESTORE-ON-FAILED-SEND, gated on the turn phase (the "Stop flashes / lost draft" sibling bug). The
+  // composer clears its textarea the instant Send is clicked; if the send then FAILS we want the text
+  // back — but ONLY when the failure is pre-commit (the user's row never durably landed). The `send` verb's
+  // promise stays open for the WHOLE turn and can reject AFTER the user row committed and generation began
+  // (the server rethrows a post-`turnStarted` engine error — domain/chat/verbs/turn.ts createSend's
+  // `try/finally`, engine.ts executeTurn's emit-turnAborted-then-rethrow). Restoring then would wrongly
+  // re-populate text already persisted AND visible in the transcript.
+  //
+  // The gate is `isLiveTurnPhase` (pending/streaming/stopping — the SAME predicate the ghost row uses),
+  // NOT `!== "idle"`: a turn slot is NOT reset to `idle` between turns (there is no client `clearTurn`
+  // caller — a completed/aborted slot lingers at its terminal phase until the NEXT turn's `beginTurn`
+  // overwrites it). So `!== "idle"` would read a STALE `completed`/`aborted` from a prior turn as
+  // "committed" and wrongly skip the restore when a 2nd+ message fails pre-commit. `isLiveTurnPhase`
+  // reads it correctly: a live turn (pending/streaming/stopping) means THIS send's `turnStarted` fired ⇒
+  // `messageCommitted` fired before it (createSend emits it strictly earlier) ⇒ the row committed → keep
+  // the cleared draft; a non-live phase (idle OR a stale terminal) means no live turn for this send ⇒
+  // pre-commit ⇒ restore. A `startChat` rejection on the draft path is ALWAYS pre-commit (no chat/row
+  // exists yet) → always restore (`committedChatId` stays null).
+  //
+  // TWO known-and-accepted residual windows where the gate can misjudge (both narrow, both recoverable —
+  // worst case the restored text is already in the transcript, so the user just clears it, no data loss):
+  // (a) a throw in createSend AFTER persistUserMessage but BEFORE turnStarted (canonFacts/arbitrate/
+  // mintSyntheticGroupCharacter/activeTurns.register) leaves the phase non-live while the row IS committed
+  // → a wrong restore; (b) an SSE race — a generation failing within SSE-delivery latency of `turnStarted`
+  // can reject here before the client has processed the `turnStarted` frame, so the phase is still non-live
+  // → a wrong restore. (A stale terminal phase is NOT a third window — `isLiveTurnPhase` reads it as
+  // not-live, which is the correct restore.) The fully race-free fix is clear-on-`messageCommitted` (only
+  // clear the composer once the bus confirms the user's row) — deferred: it needs bus↔composer correlation
+  // plumbing. The phase-gate is the right client-only fix for now.
+  const runSend = async (content: string, trimmed: string): Promise<void> => {
+    let committedChatId: ChatId | null = isCommitted(opts.handle) ? opts.handle.id : null;
+    try {
+      if (committedChatId === null) {
+        // Draft: no server row yet. Lazily create the room, then commit the typed text as its first send.
+        const result = await startChatMutation.mutateAsync({
+          characterIds: [...(opts.draftSeed?.characterIds ?? [])],
+          anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
+          title: opts.draftSeed?.title ?? null,
+        });
+        committedChatId = result.chat.id;
+        opts.onCommitted?.(committedChatId);
+      }
+      await sendMutation.mutateAsync({ chatId: committedChatId, content: trimmed });
+    } catch (err) {
+      // Pre-commit ⇔ startChat itself failed (no chat/row) OR the send failed with NO live turn for it.
+      if (committedChatId === null || !isLiveTurnPhase(readTurnPhase(committedChatId))) {
+        opts.onRestoreDraft?.(content);
+      }
+      throw err;
+    }
+  };
+
   const send = (content: string): void => {
     const trimmed = content.trim();
     if (trimmed.length === 0) {
@@ -99,22 +155,7 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     }
     setError(null);
     setIsPending(true);
-    const run = async (): Promise<void> => {
-      if (isCommitted(opts.handle)) {
-        await sendMutation.mutateAsync({ chatId: opts.handle.id, content: trimmed });
-        return;
-      }
-      // Draft: no server row yet. Lazily create the room, then commit the typed text as its first send.
-      const result = await startChatMutation.mutateAsync({
-        characterIds: [...(opts.draftSeed?.characterIds ?? [])],
-        anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
-        title: opts.draftSeed?.title ?? null,
-      });
-      const chatId = result.chat.id;
-      opts.onCommitted?.(chatId);
-      await sendMutation.mutateAsync({ chatId, content: trimmed });
-    };
-    run()
+    runSend(content, trimmed)
       .catch((err: unknown) => setError(err))
       .finally(() => setIsPending(false));
   };

@@ -163,12 +163,26 @@ export function MessageEditTextareaStory({
 
 export interface MessageContentSpansStoryProps {
   readonly content: string;
+  /** Opt into the macro DISPLAY pass (`renderMessageForDisplay`) with these two names — omitted
+   *  (both undefined, the default) mounts with NO `renderContext` at all, pinning the byte-identical
+   *  no-op default every other story here relies on. */
+  readonly characterName?: string;
+  readonly userName?: string;
 }
 
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
- *  in isolation, without the row's attribution chrome. */
-export function MessageContentSpansStory({ content }: MessageContentSpansStoryProps): ReactElement {
-  return <MessageContent content={content} trust="trusted" />;
+ *  in isolation, without the row's attribution chrome. Also the macro-resolution CT's mount point
+ *  (`characterName`/`userName` build a minimal `renderContext` when supplied). */
+export function MessageContentSpansStory({
+  content,
+  characterName,
+  userName,
+}: MessageContentSpansStoryProps): ReactElement {
+  const renderContext =
+    characterName === undefined && userName === undefined
+      ? undefined
+      : { characterName: characterName ?? "", userName: userName ?? "" };
+  return <MessageContent content={content} trust="trusted" renderContext={renderContext} />;
 }
 
 function GhostRowInner(): ReactElement {
@@ -346,6 +360,75 @@ export function MessageListSurfaceStory({
   return (
     <CtDataProviders>
       <SurfaceHarness committed={committed} />
+    </CtDataProviders>
+  );
+}
+
+/** Bug-1 (first-turn streaming race) harness: mounts a DRAFT surface (no subscription), and a
+ *  `commit-draft` button flips the handle draft→committed WITHIN this one mount — exactly the
+ *  transition `useChatBus` seeds a replay cursor for. The CT asserts the subscription then carries
+ *  `lastEventId:"0"` and the scripted head deltas animate the ghost. */
+function ReplaySeedHarness(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+  };
+  const [committed, setCommitted] = useState(false);
+  const handle: ChatHandle = committed ? committedChat(CHAT_ID) : draftChat("draft_ct_replay");
+  return (
+    <div style={{ height: 480 }}>
+      <MessageThreadAnchor>
+        <MessageListSurface handle={handle} busDeps={busDeps} />
+      </MessageThreadAnchor>
+      <button type="button" data-testid="commit-draft" onClick={(): void => setCommitted(true)}>
+        commit
+      </button>
+    </div>
+  );
+}
+
+/** The Bug-1 replay-seed harness (draft→committed within one mount). */
+export function MessageListReplaySeedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReplaySeedHarness />
+    </CtDataProviders>
+  );
+}
+
+/** Bug-2 (Stop flashes the reply away) harness: a committed surface + a `mark-stopping` button that
+ *  drives the slot streaming→stopping (client-only `markStopping`, no bus event) so the CT can assert
+ *  the ghost row stays mounted and keeps its accumulated text through `stopping`. */
+function StoppingHarness(): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const busDeps: ChatBusDeps = {
+    stream: chatStream,
+    invalidate: createInvalidation({ queryClient, trpc }).invalidate,
+  };
+  return (
+    <div style={{ height: 480 }}>
+      <MessageThreadAnchor>
+        <MessageListSurface handle={committedChat(CHAT_ID)} busDeps={busDeps} />
+      </MessageThreadAnchor>
+      <button
+        type="button"
+        data-testid="mark-stopping"
+        onClick={(): void => chatStream.markStopping(CHAT_ID)}
+      >
+        stop
+      </button>
+    </div>
+  );
+}
+
+/** The Bug-2 stopping harness (a committed surface with a markStopping driver). */
+export function MessageListStoppingStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <StoppingHarness />
     </CtDataProviders>
   );
 }

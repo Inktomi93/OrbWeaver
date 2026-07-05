@@ -15,18 +15,26 @@
 // Callback property order is onMutate → onError → onSettled (type-inference-sensitive — the
 // @tanstack/query/mutation-property-order lint).
 
-import type { DefaultError, MutationFunction, QueryKey } from "@tanstack/react-query";
+import type { DefaultError, QueryKey, UseMutationOptions } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import type { InvalidateFilter, Invalidation } from "./invalidation";
 import type { Trpc } from "./trpc";
 
-/** What the tRPC proxy's `.mutationOptions()` provides — the key + fn pair the factory wraps. */
-interface BaseMutationOptions<TVars, TData> {
-  readonly mutationKey: readonly unknown[];
-  // v5.101 `MutationFunction` is 2-arg `(vars, context)` — the tRPC proxy's `.mutationOptions()`
-  // provides exactly that shape; a 1-arg fn (e.g. a test double) still assigns (fewer params OK).
-  readonly mutationFn?: MutationFunction<TData, TVars>;
-}
+/**
+ * What the tRPC proxy's `.mutationOptions()` provides — the key + fn pair the factory wraps.
+ * DERIVED off the real exported `UseMutationOptions` (never a restated literal shape), the same
+ * router-agnostic pattern `use-gated-query.ts`/`create-collection-surface.ts` use: a TanStack
+ * rename/reshape of `mutationKey`/`mutationFn` breaks HERE at compile time, not silently at a
+ * consumer. `mutationKey` is `Required` — it always comes from a real proxy call, which mints it (a
+ * bare `Pick` would make it optional). The v5.101 `MutationFunction` (which `UseMutationOptions`
+ * types `mutationFn` as) is 2-arg `(vars, context)`; the proxy provides exactly that shape, and a
+ * 1-arg fn (e.g. a test double) still assigns (fewer params OK). `TError` defaults to `DefaultError`
+ * (Register-resolving; `Error` today) so this stays uniform with the other factories if §G7 lands.
+ */
+type BaseMutationOptions<TVars, TData, TError = DefaultError> = Required<
+  Pick<UseMutationOptions<TData, TError, TVars>, "mutationKey">
+> &
+  Pick<UseMutationOptions<TData, TError, TVars>, "mutationFn">;
 
 export interface EntityMutationConfig<TVars, TData, TRead> {
   /** `(t) => t.character.update.mutationOptions()` — the proxy is the one mutationKey/Fn source. */

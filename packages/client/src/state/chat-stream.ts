@@ -193,6 +193,22 @@ export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
   );
 }
 
+/** True for `pending`/`streaming`/`stopping` — the store's own "a turn is live" definition (mirrors
+ *  `appendDelta`'s accumulate-through-stopping invariant above): the render side must agree that
+ *  `stopping` is still live, or the ghost row unmounts/blanks the instant Stop is clicked. */
+export function isLiveTurnPhase(phase: TurnSlot["phase"]): boolean {
+  return phase === "pending" || phase === "streaming" || phase === "stopping";
+}
+
+/** Non-reactive one-shot phase read for imperative callbacks that can't call the `useTurnPhase` hook
+ *  (e.g. `use-send-message`'s post-failure restore gate, which reads — at catch time — whether the
+ *  turn already left `idle`, i.e. whether `messageCommitted`/`turnStarted` have been observed). */
+export function readTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
+  return chatId === null
+    ? "idle"
+    : (useChatStreamStore.getState().turns[chatId] ?? IDLE_TURN).phase;
+}
+
 /** Transient (render-free) subscription to one chat's slot — the smooth-text pacer's feed
  *  (UI-Lib-Zustand.md D-6: high-frequency token appends bypass React renders entirely). */
 export function subscribeTurnSlot(chatId: ChatId, listener: (slot: TurnSlot) => void): () => void {

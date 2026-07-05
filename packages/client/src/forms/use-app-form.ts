@@ -33,3 +33,59 @@ export const { useAppForm, withForm, withFieldGroup } = createFormHook({
     FormErrorBanner,
   },
 });
+
+// The REAL `useAppForm` options type, pinned to a concrete `TValues` — a type-extraction-only "fake
+// call" instantiation (the trailing 11 validator/listener generics widened to `any`, TanStack's own
+// idiom for these deeply-generic escape hatches — see form-core's `AnyFieldApi`/`AnyFormApi`). Plain
+// `Parameters<typeof useAppForm>[0]` collapses every generic to `unknown` (no call site to infer
+// from), which is NOT assignable back into a real `useAppForm<TValues, ...>({...})` call once spread
+// — this is the derivation the two editor factories actually need for their `config.options` type.
+// biome-ignore lint/suspicious/noExplicitAny: type-extraction-only instantiation of TanStack's own generic escape hatch (see comment above) — never a runtime value, never flows into app logic.
+type Wildcard = any;
+
+declare function pinAppFormOptions<TValues extends object>(
+  opts: Parameters<
+    typeof useAppForm<
+      TValues,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard,
+      Wildcard
+    >
+  >[0],
+): void;
+
+/** The real `useAppForm` options shape for a concrete `TValues` (see `pinAppFormOptions` above). */
+export type AppFormOptions<TValues extends object> = Parameters<
+  typeof pinAppFormOptions<TValues>
+>[0];
+
+/**
+ * The real `useAppForm` RETURN (form instance) type for a concrete `TValues` — the SAME pin as
+ * `AppFormOptions` (bare `ReturnType<typeof useAppForm>`, with no type args, independently defaults
+ * every trailing generic and can silently stop structurally matching a `form` built from a richly
+ * typed `AppFormOptions<TValues>` call — this keeps both derivations locked to one instantiation).
+ */
+export type AppFormInstance<TValues extends object> = ReturnType<
+  typeof useAppForm<
+    TValues,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard,
+    Wildcard
+  >
+>;

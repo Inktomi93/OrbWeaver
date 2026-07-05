@@ -20,7 +20,7 @@ import type {
 } from "@orb/contracts/chat";
 import type { AgentSourceKind, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { GuidedActionKind, UserIntent } from "@orb/contracts/preset";
+import type { GuidedActionKind, GuidedImpersonatePerson, UserIntent } from "@orb/contracts/preset";
 import type {
   CharacterId,
   ChatId,
@@ -64,6 +64,11 @@ export interface GuidedSteer {
   readonly action: GuidedActionKind;
   readonly input?: string | undefined;
   readonly placement?: GuidedPlacement | undefined;
+  /** The `{{person}}` word for `impersonate`'s 1st/2nd/3rd-person templates (`@orb/kit/guided`'s
+   *  `opts.person`) — meaningless for every other action (their templates carry no `{{person}}` token,
+   *  so a caller-supplied value there is a harmless no-op). Absent ⇒ the kit resolver's own "first"
+   *  floor. */
+  readonly person?: GuidedImpersonatePerson | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -81,6 +86,11 @@ export interface StartChatParams extends ChatActorParams {
   /** ST "Temporary Chat" (PD-65): born ephemeral — hidden from `listChats`, swept by
    *  `reapTemporaryChats` once expired. Absent ⇒ a normal persistent chat. */
   readonly temporary?: boolean | undefined;
+  /** The one-turn guided steer for a `generate` opening (the composer wand's degenerate "Guide the
+   *  opening" — a draft chat has no committed turn yet, so the steer rides the founding turn instead of
+   *  a follow-up verb). Only `runGeneratedOpening` reads it (`policy !== "generate"` ⇒ ignored — the
+   *  verbatim seed paths have no generation to steer). */
+  readonly guided?: GuidedSteer | undefined;
 }
 
 export interface ListChatsParams extends ChatActorParams {

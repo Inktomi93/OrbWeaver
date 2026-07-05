@@ -246,6 +246,130 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
   });
 });
 
+// The three guided-generations verbs (chat-surface-lane task #27 — the composer WAND): all were fully
+// implemented in domain/chat/verbs/turn.ts but never exposed on this router (the same MISSING-API shape
+// selectVariant/abort were in). Each is a thin pass-through, incl. an untouched `guided` steer object.
+
+describe("chat.continueTurn — the guided-continue verb (composer wand wire-through)", () => {
+  test("a thin pass-through: chatId/messageId/guided reach the verb with the resolved Principal", async () => {
+    const continueTurn = vi.fn<ChatService["continueTurn"]>(async () => ({
+      messages: [MESSAGE],
+      aborted: false,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { continueTurn } },
+    });
+
+    const guided = { action: "continue" as const, input: "steer it darker" };
+    const result = await caller(ctx).chat.continueTurn({
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      guided,
+    });
+
+    expect(continueTurn).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+      guided,
+    });
+    expect(result.messages).toEqual([MESSAGE]);
+  });
+
+  test("a non-assistant / missing target surfaces the verb's leak-free NOT_FOUND", async () => {
+    const continueTurn = vi
+      .fn<ChatService["continueTurn"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { continueTurn } },
+    });
+
+    await expect(
+      caller(ctx).chat.continueTurn({ chatId: CHAT, messageId: MESSAGE.id }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.impersonate — the guided-impersonate verb (composer wand wire-through)", () => {
+  test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb", async () => {
+    const impersonate = vi.fn<ChatService["impersonate"]>(async () => ({
+      messages: [MESSAGE],
+      aborted: false,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { impersonate } },
+    });
+
+    const guided = {
+      action: "impersonate" as const,
+      input: "ask about the ruins",
+      person: "third",
+    };
+    const result = await caller(ctx).chat.impersonate({ chatId: CHAT, guided });
+
+    expect(impersonate).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      guided,
+    });
+    expect(result.messages).toEqual([MESSAGE]);
+  });
+
+  test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
+    const impersonate = vi
+      .fn<ChatService["impersonate"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { impersonate } },
+    });
+
+    await expect(caller(ctx).chat.impersonate({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("chat.generate — the guided-response verb (composer wand wire-through)", () => {
+  test("a thin pass-through: chatId/speakerCharacterId/guided reach the verb", async () => {
+    const generate = vi.fn<ChatService["generate"]>(async () => ({
+      messages: [MESSAGE],
+      aborted: false,
+    }));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { generate } },
+    });
+
+    const guided = { action: "response" as const, input: "hint at the letter" };
+    const result = await caller(ctx).chat.generate({ chatId: CHAT, guided });
+
+    expect(generate).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      guided,
+    });
+    expect(result.messages).toEqual([MESSAGE]);
+  });
+
+  test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
+    const generate = vi
+      .fn<ChatService["generate"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { generate } },
+    });
+
+    await expect(caller(ctx).chat.generate({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
 // The per-message ACTION cluster's four verbs — all were fully implemented in domain/chat but never
 // exposed on this router (the same MISSING-API shape selectVariant/abort were in). Each is a thin
 // pass-through; the leak-free NOT_FOUND collapse is proven once per verb (the same shape every other

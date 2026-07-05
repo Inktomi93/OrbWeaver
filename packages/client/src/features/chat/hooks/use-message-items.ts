@@ -8,7 +8,7 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { useTurnPhase } from "#state";
+import { isLiveTurnPhase, useTurnPhase } from "#state";
 
 /** The synthetic key for the appended ghost (at most one live ghost per chat → a constant is stable). */
 const GHOST_APPEND_KEY = "__ghost__";
@@ -30,7 +30,7 @@ export function useMessageItems(
   const phase = useTurnPhase(chatId);
   const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
 
-  const live = phase === "pending" || phase === "streaming";
+  const live = isLiveTurnPhase(phase);
   if (!live) {
     return base;
   }
