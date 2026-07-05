@@ -1,7 +1,7 @@
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
-import { Component, useSyncExternalStore } from "react";
+import { Component } from "react";
 import { Streamdown } from "streamdown";
-import { cn } from "#lib";
+import { cn, usePrefersReducedMotion } from "#lib";
 import { MARKDOWN_MATH_PLUGIN } from "./math";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid";
 import {
@@ -30,26 +30,9 @@ const MAX_RENDER_LENGTH = 20_000;
 const STREAMING_ANIMATION = { animation: "fadeIn", sep: "word" } as const;
 
 // ── prefers-reduced-motion ───────────────────────────────────────────────────────────────────────
-// Streamdown checks reduced-motion for NOBODY (verified in the 2.5 source) — the seal owns it. Same
-// matchMedia + useSyncExternalStore shape as charts/chart.tsx and stream/use-smooth-text.ts. FLAGGED:
-// this is the 3rd copy of this exact hook; the §13.0 "3+ and changing together" litmus says extract to
-// @orb/ui/lib, but that file is out of this task's disjoint set — tracked as follow-up #41, kept local
-// here rather than reaching outside scope.
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-
-function subscribeReducedMotion(onChange: () => void): () => void {
-  const mql = globalThis.matchMedia(REDUCED_MOTION_QUERY);
-  mql.addEventListener("change", onChange);
-  return (): void => mql.removeEventListener("change", onChange);
-}
-
-function getReducedMotionSnapshot(): boolean {
-  return globalThis.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot);
-}
+// Streamdown checks reduced-motion for NOBODY (verified in the 2.5 source) — the seal owns it, via
+// the shared `usePrefersReducedMotion` (`#lib`; matchMedia + useSyncExternalStore, one home for the
+// hook this file, charts/chart.tsx, and stream/use-smooth-text.ts all used to fork identically).
 
 export interface MarkdownProps {
   /**

@@ -14,7 +14,7 @@
 // (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`.
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -42,6 +42,8 @@ export interface MessageRowProps {
   readonly personas?: ReadonlyMap<PersonaId, PersonaAttribution> | undefined;
   /** The chat's currently active persona — the fallback for legacy USER rows with a null `personaId`. */
   readonly activePersonaId?: PersonaId | null | undefined;
+  /** Navigate to a forked chat (threaded to the row's Fork action) — the route maps it to `selectChat`. */
+  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
@@ -52,6 +54,7 @@ export function MessageRow({
   participants,
   personas,
   activePersonaId,
+  onChatForked,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
@@ -101,7 +104,7 @@ export function MessageRow({
           <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
         )}
       </Stack>
-      {editing ? null : <MessageActionsRow message={message} />}
+      {editing ? null : <MessageActionsRow message={message} onChatForked={onChatForked} />}
       {showSwipes && role === "assistant" && !editing ? <SwipeStrip message={message} /> : null}
     </Stack>
   );

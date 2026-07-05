@@ -4,6 +4,15 @@
 // `createGatedStore` (hook-shaped singletons) and `createEntityDraftStore` (persist-shaped,
 // per-entity vanilla factories).
 
+export type { DraftSeed } from "./active-chat-store";
+export {
+  commitDraft,
+  selectChat,
+  startNewChat,
+  useActiveChatHandle,
+  useActiveDraftSeed,
+  useActiveSessionKey,
+} from "./active-chat-store";
 export type { ChatHandle } from "./chat-handle";
 export { committedChat, draftChat, isCommitted } from "./chat-handle";
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";

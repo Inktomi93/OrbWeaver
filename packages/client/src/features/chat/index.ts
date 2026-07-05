@@ -5,6 +5,8 @@
 // pair directly if it needs the transcript alone); the reducer deps (`busDeps`) are assembled at that
 // root (a feature may not import the write store).
 
+export type { ChatListAnchorProps } from "./anchors/chat-list-anchor";
+export { ChatListAnchor } from "./anchors/chat-list-anchor";
 export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor";
 export type { ComposerProps } from "./components/composer";
@@ -18,6 +20,8 @@ export { useSendMessage } from "./hooks/use-send-message";
 export type { UseStopTurnResult } from "./hooks/use-stop-turn";
 export { useStopTurn } from "./hooks/use-stop-turn";
 export { isContinueEligible } from "./lib/continue-on-empty";
+export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface";
+export { ChatListSurface } from "./surfaces/chat-list-surface";
 export type { ChatRoomSurfaceProps } from "./surfaces/chat-room-surface";
 export { ChatRoomSurface } from "./surfaces/chat-room-surface";
 export type { MessageListSurfaceProps } from "./surfaces/message-list-surface";

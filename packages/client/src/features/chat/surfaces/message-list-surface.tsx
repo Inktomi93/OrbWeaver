@@ -44,10 +44,16 @@ export interface MessageListSurfaceProps {
   readonly handle: ChatHandle;
   /** The reducer deps, assembled at the composition root (stream + invalidate + onWarning). */
   readonly busDeps: ChatBusDeps;
+  /** Navigate to a forked chat (threaded to each row's Fork action) — route maps it to `selectChat`. */
+  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
 /** The scrolling chat transcript for one chat (or an empty draft). */
-export function MessageListSurface({ handle, busDeps }: MessageListSurfaceProps): ReactElement {
+export function MessageListSurface({
+  handle,
+  busDeps,
+  onChatForked,
+}: MessageListSurfaceProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   useChatBus(chatId, busDeps);
   const chatStyle = useChatStyle();
@@ -61,7 +67,7 @@ export function MessageListSurface({ handle, busDeps }: MessageListSurfaceProps)
       fallback={<LoadingRows />}
       renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
     >
-      <ChatThread chatId={chatId} chatStyle={chatStyle} />
+      <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} />
     </QueryBoundary>
   );
 }
@@ -69,10 +75,11 @@ export function MessageListSurface({ handle, busDeps }: MessageListSurfaceProps)
 interface ChatThreadProps {
   readonly chatId: ChatId;
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
+  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
 /** The committed-chat transcript — suspends on the canon read, then merges the live ghost. */
-function ChatThread({ chatId, chatStyle }: ChatThreadProps): ReactElement {
+function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): ReactElement {
   const trpc = useTRPC();
   const { data: messages } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId }));
   const phase = useTurnPhase(chatId);
@@ -90,6 +97,7 @@ function ChatThread({ chatId, chatStyle }: ChatThreadProps): ReactElement {
         message={item.view}
         chatStyle={chatStyle}
         showSwipes={item.view.id === lastAssistantId}
+        onChatForked={onChatForked}
       />
     );
 

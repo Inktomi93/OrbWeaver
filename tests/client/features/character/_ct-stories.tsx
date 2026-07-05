@@ -15,6 +15,7 @@ import {
 import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 // ── Pure-render story (no data layer) ───────────────────────────────────────────────────────────
@@ -33,7 +34,9 @@ export interface CharacterCardStoryProps {
   readonly selected?: boolean;
 }
 
-/** The bare `<CharacterCard>` — drives avatar-fallback/tags/archived/selected rendering in isolation. */
+/** The bare `<CharacterCard>` — drives avatar-fallback/tags/archived/selected rendering in isolation,
+ *  plus the start-chat action: clicking it records the id into a visible marker so a CT can assert the
+ *  seam fires with the right character id (the callback closure runs in-browser, inside this story). */
 export function CharacterCardStory({
   name = "Aria Nightshade",
   archived = false,
@@ -41,6 +44,8 @@ export function CharacterCardStory({
   tags = [],
   selected = false,
 }: CharacterCardStoryProps): ReactElement {
+  const [startedId, setStartedId] = useState<string | null>(null);
+  const [toggledId, setToggledId] = useState<string | null>(null);
   return (
     <div style={{ width: 360 }}>
       <CharacterCard
@@ -51,9 +56,12 @@ export function CharacterCardStory({
           avatarHash,
           tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
         }}
-        onToggleSelect={(): void => undefined}
+        onStartChat={setStartedId}
+        onToggleSelect={setToggledId}
         selected={selected}
       />
+      <p data-testid="started-id">{startedId ?? ""}</p>
+      <p data-testid="toggled-id">{toggledId ?? ""}</p>
     </div>
   );
 }

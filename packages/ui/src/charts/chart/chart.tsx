@@ -13,29 +13,13 @@
 // palette from `@orb/ui/tokens`); this wrapper is palette-agnostic.
 import ReactEChartsCore from "echarts-for-react/lib/core";
 import type { ReactElement } from "react";
-import { useSyncExternalStore } from "react";
-import { cn } from "#lib";
+import { cn, usePrefersReducedMotion } from "#lib";
 import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup";
 import { echartsCore } from "./echarts-setup";
 import { mergeChartOption } from "./merge-option";
 import { chartVariants } from "./variants";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const DEFAULT_HEIGHT = 240;
-
-function subscribeReducedMotion(onChange: () => void): () => void {
-  const mql = globalThis.matchMedia(REDUCED_MOTION_QUERY);
-  mql.addEventListener("change", onChange);
-  return (): void => mql.removeEventListener("change", onChange);
-}
-
-function getReducedMotionSnapshot(): boolean {
-  return globalThis.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
-function usePrefersReducedMotion(): boolean {
-  return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot);
-}
 
 export interface ChartProps {
   /** Bar/line series + grid/tooltip/dataset/aria — the v1 chart family. */

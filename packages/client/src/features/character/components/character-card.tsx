@@ -7,10 +7,13 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the character-library-surface.tsx precedent).
+import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { MouseEvent, ReactElement } from "react";
 import { initialsFor } from "../lib/initials";
 
 export interface CharacterCardItem {
@@ -30,6 +33,9 @@ export interface CharacterCardProps {
   /** Toggles the row's local selected/highlighted state — a stub today (no editor exists yet; the
    *  character-detail/editor surface is a later task). */
   readonly onToggleSelect: (id: string) => void;
+  /** Start a new chat seeded with this character (the library → chat seam). Renders the primary
+   *  "start chat" action; `stopPropagation` keeps it from also firing the card's select. */
+  readonly onStartChat: (id: string) => void;
 }
 
 /** One character row — the library list's `renderItem` output (see `<VirtualList>` in the surface). */
@@ -37,12 +43,20 @@ export function CharacterCard({
   character,
   selected,
   onToggleSelect,
+  onStartChat,
 }: CharacterCardProps): ReactElement {
   const visibleTags = character.tags.filter((tag) => !tag.isHiddenOnCard);
   const hasChips = character.archived || visibleTags.length > 0;
   // `exactOptionalPropertyTypes`: `src?: string` rejects an explicit `undefined` — omit the prop
   // entirely (rather than pass `src={undefined}`) so a missing avatar falls through to the fallback.
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
+
+  // The card is itself a `role="button"` select target; the start-chat action is a nested real
+  // <button>, so it stops propagation to fire ONLY the chat seam, never also the card's select.
+  const startChat = (event: MouseEvent): void => {
+    event.stopPropagation();
+    onStartChat(character.id);
+  };
 
   return (
     <Card
@@ -75,6 +89,15 @@ export function CharacterCard({
             </Row>
           ) : null}
         </Stack>
+        <Button
+          type="button"
+          intent="primary"
+          size="icon"
+          aria-label={`Start chat with ${character.name}`}
+          onClick={startChat}
+        >
+          <Icon icon={MessagesSquare} size="sm" />
+        </Button>
       </Row>
     </Card>
   );
