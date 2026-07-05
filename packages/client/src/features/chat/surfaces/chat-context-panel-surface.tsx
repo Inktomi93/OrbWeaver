@@ -25,6 +25,7 @@ import { QueryBoundary, useTRPC } from "#data";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
+import { RosterPanel } from "../components/roster-panel";
 import { resolveViewerIsHost } from "../lib/roster";
 
 export interface ChatContextPanelProps {
@@ -63,6 +64,10 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
     <Tabs defaultValue="overrides">
       <TabsList>
         <TabsTab value="overrides">Overrides</TabsTab>
+        {/* Roster (group controls, task #29) — host-only, mirroring the Preview gate: mute /
+            talkativeness / force-turn are host authority (substrate/auth/matrix.ts), so a member never
+            sees the tab. The cast bar (chat-room-surface) is the member-visible glance surface. */}
+        {isHost ? <TabsTab value="roster">Roster</TabsTab> : null}
         {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
         <TabsTab value="injections">Injections</TabsTab>
         <TabsIndicator />
@@ -71,6 +76,12 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
       <TabsPanel value="overrides">
         <RoomOverridesForm chatId={chatId} roomOverrides={chat.roomOverrides} isHost={isHost} />
       </TabsPanel>
+
+      {isHost ? (
+        <TabsPanel value="roster">
+          <RosterPanel chatId={chatId} />
+        </TabsPanel>
+      ) : null}
 
       {isHost ? (
         <TabsPanel value="preview">

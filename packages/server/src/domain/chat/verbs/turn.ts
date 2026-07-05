@@ -565,8 +565,12 @@ function createSend(ctx: ChatContext, deps: TurnDeps): ChatService["send"] {
 }
 
 // ── forceCharacterTurn (host-only — force a specific roster character to speak) ──────────────────────────────
-/** `forceCharacterTurn` — host-only. Force a present, eligible roster character to speak next (per-speaker; no
- *  user row). A non-member / muted / absent target is a leak-free NOT_FOUND. */
+/** `forceCharacterTurn` — host-only. Force a PRESENT roster character to speak next (per-speaker; no user row).
+ *  Eligibility here is PRESENCE ONLY (`leftSeq === null`) — a MUTED (`disabled`) member is STILL force-summonable
+ *  (D16/#29: mute is passive arbitration exclusion — it holds a member out of `natural`/`smart` auto-selection —
+ *  NOT a block on an explicit host override; `isArbiterEligible` stays the stricter present-AND-not-muted predicate
+ *  for auto-selection, and this presence check is the deliberately-distinct force-turn predicate, NOT a dedup miss).
+ *  A non-member / left / unknown target is a leak-free NOT_FOUND. */
 function createForceCharacterTurn(
   ctx: ChatContext,
   deps: TurnDeps,
@@ -587,14 +591,12 @@ function createForceCharacterTurn(
     const target = room.castNames.find(
       (c) => c.ref.kind === "character" && c.ref.characterId === characterId,
     );
-    const eligible = room.candidates.some(
-      (c) =>
-        c.ref.kind === "character" &&
-        c.ref.characterId === characterId &&
-        c.leftSeq === null &&
-        !c.disabled,
+    // PRESENCE-only (leftSeq === null) — NOT `isArbiterEligible` (which also excludes muted): a host CAN
+    // force-turn a muted member (#29). The distinct predicate is intentional, not a dedup candidate.
+    const present = room.candidates.some(
+      (c) => c.ref.kind === "character" && c.ref.characterId === characterId && c.leftSeq === null,
     );
-    if (target === undefined || !eligible) {
+    if (target === undefined || !present) {
       throw new ChatNotFoundError(chatId);
     }
     const connection = await deps.resolveConnection({ runAsUserId: identity.runAsUserId, chatId });

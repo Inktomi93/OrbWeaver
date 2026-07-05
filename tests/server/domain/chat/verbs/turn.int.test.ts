@@ -176,7 +176,13 @@ beforeEach(async () => {
 async function seedRoom(
   policy: string,
   charKeys: readonly string[],
-  opts: { output?: string; autoMode?: boolean; autoModeMaxTurns?: number } = {},
+  opts: {
+    output?: string;
+    autoMode?: boolean;
+    autoModeMaxTurns?: number;
+    /** Character keys seeded MUTED (`disabled: true`) — #29's force-turn-on-muted pin. */
+    disabledKeys?: readonly string[];
+  } = {},
 ): Promise<{ host: UserId; chatId: ChatId; chars: CharacterId[]; names: Record<string, string> }> {
   const host = await seedUser(db, "host");
   const group: Record<string, unknown> = {
@@ -193,7 +199,13 @@ async function seedRoom(
   for (const k of charKeys) {
     // biome-ignore lint/performance/noAwaitInLoops: sequential fixture seeding — deterministic ids + join order.
     const cid = await seedCharacter(db, host, k);
-    await seedParticipant(db, { chatId, key: k, characterId: cid, joinSeq: 0 });
+    await seedParticipant(db, {
+      chatId,
+      key: k,
+      characterId: cid,
+      joinSeq: 0,
+      disabled: opts.disabledKeys?.includes(k) ?? false,
+    });
     chars.push(cid);
     names[cid] = k;
   }
@@ -509,6 +521,45 @@ describe("forceCharacterTurn — host-only", () => {
         characterId: castId<CharacterId>("character_ghost"),
       }),
     ).rejects.toBeInstanceOf(ChatNotFoundError);
+  });
+
+  // #29 decision: force-turn ALLOWS a muted target. Mute (`disabled`) is passive arbitration exclusion
+  // — it keeps a member out of `natural`/`smart` AUTO-selection — but a host CAN still explicitly summon
+  // them. The two predicates are deliberately distinct: `isArbiterEligible` (present AND not muted) gates
+  // auto-selection; forceCharacterTurn's target check is PRESENCE-only.
+  test("a MUTED-but-present member is still force-summonable (drives a turn voiced by them)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], {
+      disabledKeys: ["bryn"],
+    });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.forceCharacterTurn({
+      principal: principal(host),
+      chatId,
+      characterId: chars[1] as CharacterId,
+    });
+
+    expect(outcome.messages).toHaveLength(1);
+    expect(outcome.messages[0]?.role).toBe("assistant");
+    expect(outcome.messages[0]?.characterId).toBe(chars[1]);
+  });
+
+  test("the SAME muted member is excluded from a `natural` auto-round (send picks only the enabled one)", async () => {
+    // aria enabled, bryn muted → the eligible set is {aria}; a normal send never voices bryn (the
+    // arbitration-exclusion half of the #29 decision — force-turn overrides, auto-selection does not).
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], {
+      disabledKeys: ["bryn"],
+    });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hi all" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants.length).toBeGreaterThan(0);
+    for (const m of assistants) {
+      expect(m.characterId).toBe(chars[0]);
+      expect(m.characterId).not.toBe(chars[1]);
+    }
   });
 });
 

@@ -10,7 +10,9 @@ export const TEST_IDS = {
   composer: "composer",
   composerSend: "composer-send",
   composerWand: "composer-wand",
+  speakAsSelect: "speak-as-select",
   messageList: "message-list",
+  chatCastBar: "chat-cast-bar",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;

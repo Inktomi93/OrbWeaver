@@ -1,0 +1,83 @@
+// The chat CAST BAR (task #29 — the group roster GLANCE strip). A thin, READ-ONLY row of one chip per
+// character participant (Avatar + name), mounted in the CONTENT region above the transcript
+// (chat-room-surface.tsx) — NOT a shell region (the shell is domain-agnostic, UI-Arch §4.1; the cast bar
+// is chat-domain content composed into the CONTENT slot the route already wires). Per-member CONTROLS
+// (mute · talkativeness · force-turn) live in the CONTEXT-panel Roster tab (roster-panel.tsx) + speak-as
+// in the composer (speak-as-select.tsx) — this strip is presence-at-a-glance only, no mutations.
+//
+// SIZE-GATED (D16 — solo is the roster-of-1 degenerate case, not an `isGroup` branch): renders `null`
+// for a roster of ≤1 character, so a 1:1 chat shows no bar. A muted (`disabled`) member still appears,
+// dimmed (`opacity-50`) — mute is passive arbitration exclusion, the member is still in the room.
+//
+// The roster read is `chat.getChat`'s `ChatDetail.participants` — the SAME query the message-list +
+// CONTEXT panel already suspend on for this chat, so this shares the warm cache (no extra fetch). A
+// non-suspense `useQuery` degrades to `null` until the cache is populated (a glance strip need not
+// suspend the whole room); the room only mounts this for a COMMITTED chat (a draft has no server roster).
+
+import type { ParticipantView } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
+import { Avatar } from "@orb/ui/avatar";
+import { Row } from "@orb/ui/layout";
+import { cn } from "@orb/ui/lib";
+import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
+import type { ReactElement } from "react";
+import { useTRPC } from "#data";
+import { testId } from "#lib";
+import { initialsForAttribution } from "../lib/attribution";
+
+export interface ChatCastBarProps {
+  /** A COMMITTED chat id — the room mounts this only for a committed chat (a draft has no server roster). */
+  readonly chatId: ChatId;
+}
+
+/** A character participant — narrowed from the roster (a human/agent/observer seat has no place here). */
+type CharacterParticipant = ParticipantView & {
+  readonly characterId: NonNullable<ParticipantView["characterId"]>;
+};
+
+function isCharacter(p: ParticipantView): p is CharacterParticipant {
+  return p.kind === "character" && p.characterId !== null;
+}
+
+/** The read-only cast strip — one chip per character; `null` for a roster of ≤1 (solo). */
+export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
+  const trpc = useTRPC();
+  // Non-suspense: this glance strip degrades to `null` until the (usually already-warm) getChat cache
+  // populates, rather than suspending the whole chat pane on its own account.
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const cast = (chat?.participants ?? []).filter(isCharacter);
+
+  // Size-gate (D16 roster-of-1): a solo chat shows no cast bar.
+  if (cast.length <= 1) {
+    return null;
+  }
+
+  return (
+    <Row
+      gap="field"
+      align="center"
+      className="flex-wrap px-block py-row"
+      data-testid={testId("chatCastBar")}
+      aria-label="Cast"
+    >
+      {cast.map((member) => (
+        <Row
+          key={member.id}
+          gap="row"
+          align="center"
+          data-slot="cast-chip"
+          data-muted={member.disabled ? "" : undefined}
+          className={cn(member.disabled && "opacity-50")}
+        >
+          <Avatar size="sm" fallbackDelay={0}>
+            {initialsForAttribution(member.displayName)}
+          </Avatar>
+          <Text as="span" size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>
+            {member.displayName}
+          </Text>
+        </Row>
+      ))}
+    </Row>
+  );
+}

@@ -32,6 +32,7 @@ import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { isContinueEligible } from "../lib/continue-on-empty";
 import { ComposerWand } from "./composer-wand";
+import { SpeakAsSelect } from "./speak-as-select";
 
 export interface ComposerProps {
   readonly handle: ChatHandle;
@@ -97,6 +98,9 @@ export function Composer({
             draftSeed={draftSeed}
             onCommitted={onCommitted}
           />
+          {/* Speak-as (task #29) — summon a specific character to speak (chat.generate's
+              speakerCharacterId). Size-gates itself to `null` for a solo/draft chat. */}
+          <SpeakAsSelect handle={handle} />
           <Textarea
             aria-label="Message"
             placeholder={continueEligible ? "Continue, or type a message…" : "Type a message…"}

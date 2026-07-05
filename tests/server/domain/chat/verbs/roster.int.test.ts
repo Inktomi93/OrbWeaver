@@ -258,6 +258,57 @@ describe("setParticipantDisabled — host mute", () => {
   });
 });
 
+describe("setParticipantTalkativeness — host sets the 0–1 arbitration weight", () => {
+  test("the host sets a present character's talkativeness; the column + view reflect it", async () => {
+    const host = await seedUser(db, "host");
+    const characterId = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
+    const roster = createRoster(
+      makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }),
+      {
+        emit,
+      },
+    );
+
+    const view = await roster.setParticipantTalkativeness({
+      principal: principal(host),
+      chatId,
+      characterId,
+      talkativeness: 0.8,
+    });
+    expect(view.talkativeness).toBe(0.8);
+    const [row] = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.characterId, characterId));
+    expect(row?.talkativeness).toBe(0.8);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("a non-host member is refused with not_host", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const characterId = await seedCharacter(db, host, "aria");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    await seedParticipant(db, { chatId, key: "c", characterId, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    await expect(
+      roster.setParticipantTalkativeness({
+        principal: principal(member),
+        chatId,
+        characterId,
+        talkativeness: 0.9,
+      }),
+    ).rejects.toMatchObject({ code: "not_host" });
+    expect(emitted).toEqual([]);
+  });
+});
+
 describe("kick — host removes a member", () => {
   test("the member's leftSeq is stamped + a kicked notification is delivered", async () => {
     const host = await seedUser(db, "host");

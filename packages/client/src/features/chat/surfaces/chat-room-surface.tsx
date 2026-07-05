@@ -28,6 +28,7 @@ import { QueryBoundary, useTRPC } from "#data";
 import type { ChatHandle } from "#state";
 import { committedChat, isCommitted } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
+import { ChatCastBar } from "../components/chat-cast-bar";
 import { Composer } from "../components/composer";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { MessageListSurface } from "./message-list-surface";
@@ -63,6 +64,10 @@ export function ChatRoomSurface({
 
   return (
     <Stack gap="block" className="h-full">
+      {/* The cast bar (task #29) — a read-only group-roster glance strip above the transcript; it
+          size-gates itself to `null` for a solo (≤1-character) chat, and only reads a COMMITTED chat's
+          roster (a draft has no server roster yet). */}
+      {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
       <Stack className="min-h-0 flex-1">
         <MessageThreadAnchor>
           <MessageListSurface busDeps={busDeps} handle={handle} onChatForked={onChatForked} />
