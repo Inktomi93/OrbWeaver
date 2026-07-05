@@ -6,11 +6,12 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { MiddlewareHandler } from "hono";
+import type { ErrorHandler, MiddlewareHandler } from "hono";
 import { getLog, getRequestUserId, recordRequest, runInRequest } from "./logger";
-import { withRequestSpan } from "./tracing";
+import { recordThrownRequest, withRequestSpan } from "./tracing";
 
 const DEBUG_PREFIX = "/api/_debug";
+const INTERNAL_ERROR_STATUS = 500;
 
 // Caps reuse-from-header to 128 chars + a conservative charset so a client can't inject log-line content
 // or terminal escapes via a malicious X-Request-Id. A 36-char UUID fits; Caddy's hex/short-id also pass.
@@ -72,4 +73,26 @@ export const observability: MiddlewareHandler = (c, next) => {
       ...(userId !== undefined ? { userId } : {}),
     });
   });
+};
+
+/**
+ * The Hono `app.onError` counterpart of `observability` — the THROWN (non-Response) request path. Hono's
+ * compose() catches a handler throw at ITS origin dispatch frame (BELOW the `observability` middleware), so
+ * the throw never rejects the middleware's `next()`: the request-root span would seal as "ok" and Hono's
+ * DEFAULT onError logs via raw `console.error` (bypassing pino + the log ring). This handler runs at that
+ * origin frame, while the root span is still active in the same await chain, and:
+ *   1. records the throw on the root span (`recordThrownRequest`: status→error + the `exception` event) so
+ *      /api/_debug/traces shows `status: "error"` instead of a mislabeled "ok";
+ *   2. logs ONE pino `request.thrown` error line (the `err` serializer renders the error's type + message
+ *      + stack) so /api/_debug/errors + the log ring see it — replacing Hono's console.error bypass;
+ *   3. returns the SAME 500 text Hono's default onError returns — this is an OBSERVABILITY fix, NOT an
+ *      error-contract change; the client-visible response is unchanged.
+ * tRPC throws NEVER reach here: the fetch adapter converts a procedure/createContext throw into a Response
+ * before Hono's onError sees it (already recorded by the transport tracing middleware) — so no double-log.
+ * Mounted by `entry/app` via `app.onError`.
+ */
+export const observabilityErrorHandler: ErrorHandler = (err, c) => {
+  recordThrownRequest(err);
+  getLog().error({ err }, "request.thrown");
+  return c.text("Internal Server Error", INTERNAL_ERROR_STATUS);
 };

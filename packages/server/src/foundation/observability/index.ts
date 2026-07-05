@@ -37,7 +37,7 @@ export {
   runInRequest,
   securityEvent,
 } from "./logger";
-export { observability } from "./middleware";
+export { observability, observabilityErrorHandler } from "./middleware";
 export {
   addSpanEvent,
   getTraceByRequestId,
@@ -45,6 +45,7 @@ export {
   type RequestTrace,
   type RequestTraceTotals,
   recentTraces,
+  recordThrownRequest,
   type SerializedSpan,
   type SerializedSpanEvent,
   type SpanAttrs,
