@@ -21,17 +21,18 @@
   // NODE-side `tests/ui/tokens/*.test.ts` (which imports the node `tokens.build.ts`) stays in here.
   "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true, "jsx": "react-jsx" },
   "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"],
-  // Browser tsx (the `.ct.tsx` specs, their `.fixtures.tsx`/story/`_ct-stories.tsx` helpers, the
-  // `tests/support/ct` shared CT COMPONENTS) import `@orb/ui`/`@orb/client` and would drag dom-only
-  // source into this node program — exclude every browser tsx. The node-side CT plumbing
-  // (`tests/support/ct/*.ts`, e.g. route-trpc.ts) STAYS in here (the `.tsx`-only glob), as does the
+  // Browser tsx under tests/ui, tests/client, and tests/support/ct import `@orb/ui`/`@orb/client` and
+  // would drag dom-only source into this node program — exclude the whole browser-tsx SURFACE by
+  // DIRECTORY, not by filename suffix. (A mis-named `-fixture.tsx` outlier slipped the old suffix globs
+  // and landed here mis-libbed — checked without dom, and never checked WITH it; D62 boundary hardening.)
+  // Every `.tsx` in those three trees is browser and owned with dom by ui/client tsconfig. The node-side
+  // CT plumbing (`tests/support/ct/*.ts`, e.g. route-trpc.ts) STAYS here (`.ts`, not `.tsx`), as does the
   // node `tests/ui/tokens/*.test.ts`.
   "exclude": [
     "packages/ui/src",
     "packages/client/src",
-    "tests/**/*.ct.tsx",
-    "tests/**/*.fixtures.tsx",
-    "tests/**/_ct-stories.tsx",
+    "tests/ui/**/*.tsx",
+    "tests/client/**/*.tsx",
     "tests/support/ct/**/*.tsx",
     "playwright"
   ]

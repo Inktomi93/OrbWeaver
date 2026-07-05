@@ -9,16 +9,17 @@
     "jsx": "react-jsx"
   },
   // Also typecheck the BROWSER tests the root aggregator excludes (it's node-only — dom-BodyInit
-  // would break server there): the `.ct.tsx` + `.fixtures.tsx` mirror under tests/ui, the ui-owned
-  // CT provider stack (ONLY ct-providers.tsx — ct-data-providers.tsx is CLIENT-owned and typechecked
-  // by packages/client/tsconfig.json; sweeping it here would drag @orb/client→@orb/server types into
-  // this program, upward-cake), and the CT harness in playwright/. This is the program with dom that
-  // owns @orb/ui — no blind spot. (The node `tests/ui/tokens/*.test.ts` stays in the aggregator.)
+  // would break server there): EVERY browser tsx under tests/ui, matched by DIRECTORY not filename
+  // suffix — a mis-named `-fixture.tsx` outlier must never fall through to the node aggregator and be
+  // checked without dom (D62 tsconfig-boundary hardening). Plus the ui-owned CT provider stack (ONLY
+  // ct-providers.tsx — ct-data-providers.tsx is CLIENT-owned and typechecked by packages/client/
+  // tsconfig.json; sweeping it here would drag @orb/client→@orb/server types into this program,
+  // upward-cake), and the CT harness in playwright/. This is the dom program that owns @orb/ui — no
+  // blind spot. (The node-side `tests/ui/tokens/*.test.ts` — a `.ts`, not `.tsx` — stays in the aggregator.)
   "include": [
     "src",
     "../../reset.d.ts",
-    "../../tests/ui/**/*.ct.tsx",
-    "../../tests/ui/**/*.fixtures.tsx",
+    "../../tests/ui/**/*.tsx",
     "../../tests/support/ct/ct-providers.tsx",
     "../../playwright/**/*.tsx",
     "../../playwright/**/*.d.ts"
