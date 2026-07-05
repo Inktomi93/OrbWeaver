@@ -1,12 +1,13 @@
 // Unit: per-row attribution resolution (features/chat/lib/attribution, #21 §12.4). Pins the trust
-// rules: assistant rows resolve `characterId` against the roster; a null `characterId` in a
-// multi-character room is "Narrator" (never `participants[0]`); user rows resolve `personaId`,
-// falling back to the chat's active persona for legacy rows; everything else renders no chrome.
+// rules: assistant rows resolve `characterId` against the per-chat macro-name PRODUCER (the SAME map
+// the row's `{{char}}` macro reads); a null `characterId` in a multi-character room is "Narrator"
+// (never `participants[0]`); user rows resolve `personaId` against the producer, falling back to the
+// viewing participant's active persona for legacy rows; everything else renders no chrome.
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PersonaAttribution } from "../../../../../packages/client/src/features/chat/lib/attribution";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import {
   initialsForAttribution,
   resolveRowAttribution,
@@ -39,7 +40,7 @@ function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantV
   };
 }
 
-test("assistant row with no roster threaded gets no attribution chrome (solo-chat default)", () => {
+test("assistant row with no roster/producer threaded gets no attribution chrome (solo-chat default)", () => {
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: ALICE_ID,
@@ -48,25 +49,31 @@ test("assistant row with no roster threaded gets no attribution chrome (solo-cha
   expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
 });
 
-test("assistant row resolves name + avatar + color from the roster by characterId", () => {
+test("assistant row resolves name from the producer + avatar/color from the roster by characterId", () => {
   const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([
+    [ALICE_ID, { name: "Alice" }],
+  ]);
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: ALICE_ID,
     personaId: null,
     participants,
+    characterNamesById,
   });
   expect(result.name).toBe("Alice");
   expect(result.tokens).not.toBeNull();
 });
 
-test("a characterId absent from the roster gets no chrome (not a crash, not char[0])", () => {
-  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]);
+test("a characterId absent from the producer gets no chrome (not a crash, not char[0])", () => {
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([
+    [ALICE_ID, { name: "Alice" }],
+  ]);
   const result = resolveRowAttribution({
     role: "assistant",
     characterId: BOB_ID,
     personaId: null,
-    participants,
+    characterNamesById,
   });
   expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
 });
@@ -118,29 +125,31 @@ test("a non-character participant (human/agent/observer) never counts toward mul
   expect(result.name).toBeNull();
 });
 
-test("user row resolves the message's own personaId against the persona library", () => {
-  const personas = new Map<PersonaId, PersonaAttribution>([
-    [NATE_PERSONA_ID, { name: "Alex", avatarAssetId: null }],
+test("user row resolves the message's own personaId against the producer", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
   ]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: NATE_PERSONA_ID,
-    personas,
+    personaNamesById,
   });
   expect(result.name).toBe("Alex");
   expect(result.tokens).toBeNull();
+  // The producer carries names only (no avatar) — a persona row's avatar always degrades to initials.
+  expect(result.avatarAssetId).toBeNull();
 });
 
-test("user row with a null personaId falls back to the chat's active persona (legacy rows)", () => {
-  const personas = new Map<PersonaId, PersonaAttribution>([
-    [NATE_PERSONA_ID, { name: "Alex", avatarAssetId: null }],
+test("user row with a null personaId falls back to the viewing participant's active persona (legacy rows)", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
   ]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: null,
-    personas,
+    personaNamesById,
     activePersonaId: NATE_PERSONA_ID,
   });
   expect(result.name).toBe("Alex");
@@ -148,15 +157,15 @@ test("user row with a null personaId falls back to the chat's active persona (le
 
 test("the message's OWN personaId wins over the active persona (historical author, not current)", () => {
   const oldPersonaId = castId<PersonaId>("persona_old");
-  const personas = new Map<PersonaId, PersonaAttribution>([
-    [oldPersonaId, { name: "Old Persona", avatarAssetId: null }],
-    [NATE_PERSONA_ID, { name: "Alex", avatarAssetId: null }],
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [oldPersonaId, { name: "Old Persona", description: "" }],
+    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
   ]);
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: oldPersonaId,
-    personas,
+    personaNamesById,
     activePersonaId: NATE_PERSONA_ID,
   });
   expect(result.name).toBe("Old Persona");

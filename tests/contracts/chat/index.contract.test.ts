@@ -5,6 +5,7 @@ import type {
   AssemblePersona,
   AssembleTrace,
   AssembleWorldEntry,
+  CharacterNameEntry,
   ChatBusEvent,
   ChatDeltaEvent,
   ChatInjection,
@@ -14,9 +15,12 @@ import type {
   MessageSlot,
   MessageView,
   ParticipantView,
+  PersonaNameEntry,
   SectionPreview,
 } from "@orb/contracts/chat";
 import {
+  buildCharacterNameMap,
+  buildPersonaNameMap,
   CHAT_BUS_EVENT_TYPES,
   contentSpansToBlocks,
   createInviteSchema,
@@ -36,7 +40,7 @@ import {
   toolCallRecordSchema,
 } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "../../support/fixtures";
@@ -516,4 +520,34 @@ test("toolCallRecordSchema refuses a structurally wrong record (no cast-shaped r
       durationMs: null,
     }).success,
   ).toBe(false);
+});
+
+// ── buildCharacterNameMap / buildPersonaNameMap (Chat-Macro-Resolution.md §1 producer) ────────────────
+// The wire-array → `ReadonlyMap` rebuild that feeds `@orb/kit/macro`'s `resolveRowMacros`.
+
+test("buildCharacterNameMap rebuilds a characterId → {name} lookup from the wire array", () => {
+  const ariaId = castId<CharacterId>(mintTypeId(ID_PREFIX.character));
+  const kaiId = castId<CharacterId>(mintTypeId(ID_PREFIX.character));
+  const entries: CharacterNameEntry[] = [
+    { id: ariaId, name: "Aria" },
+    { id: kaiId, name: "Kai" },
+  ];
+  const map = buildCharacterNameMap(entries);
+  expect(map.get(ariaId)).toEqual({ name: "Aria" });
+  expect(map.get(kaiId)).toEqual({ name: "Kai" });
+  expect(map.size).toBe(2);
+});
+
+test("buildPersonaNameMap rebuilds a personaId → {name, description} lookup from the wire array", () => {
+  const maraId = castId<PersonaId>(mintTypeId(ID_PREFIX.persona));
+  const entries: PersonaNameEntry[] = [
+    { id: maraId, name: "Mara", description: "a wandering scholar" },
+  ];
+  const map = buildPersonaNameMap(entries);
+  expect(map.get(maraId)).toEqual({ name: "Mara", description: "a wandering scholar" });
+});
+
+test("buildCharacterNameMap / buildPersonaNameMap: an empty wire array rebuilds an empty map", () => {
+  expect(buildCharacterNameMap([]).size).toBe(0);
+  expect(buildPersonaNameMap([]).size).toBe(0);
 });

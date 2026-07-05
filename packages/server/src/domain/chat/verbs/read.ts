@@ -29,7 +29,7 @@
 //                              `turn.ts` uses; contract/foreign.ts). The CHAT-INTERNAL half (canon/injections/
 //                              vars/metadata/memory/regex-tier) `gatherAssembleContext` reads itself.
 
-import type { ParticipantView } from "@orb/contracts/chat";
+import type { ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -65,12 +65,13 @@ import type {
   ChatLineageView,
   ChatStreamReplayEvent,
   ChatSummary,
+  MessagesPage,
   MessageVariantSummary,
-  MessageView,
   SectionPreview,
   StreamEventBounds,
 } from "../contract/views";
 import { gateLineagePerAncestor, requireParticipant } from "../guard";
+import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   listMemberChats,
   loadAncestorChain,
@@ -135,9 +136,16 @@ interface PreviewInputs {
 
 // ── view mappers ────────────────────────────────────────────────────────────────
 
-/** Map a loaded chat row + its resolved roster → `ChatDetail` (metadata sub-blobs applied to defaults; the
- *  same projection `fork.ts`/`start-chat.ts` use — one shape, no drift). */
-function toChatDetail(chat: ChatRowView, participants: readonly ParticipantView[]): ChatDetail {
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (metadata sub-blobs
+ *  applied to defaults; the same projection `fork.ts`/`invites.ts`/`start-chat.ts` use — one shape, no
+ *  drift). `macroNames` is the participant-scoped {@link ChatMacroNameProducer} (Chat-Macro-Resolution.md
+ *  §1) — always resolved from the SAME `participants` set passed in (one query, no drift between the
+ *  roster shown and the names it backs). */
+function toChatDetail(
+  chat: ChatRowView,
+  participants: readonly ParticipantView[],
+  macroNames: ChatMacroNameProducer,
+): ChatDetail {
   return {
     id: chat.id,
     title: chat.title,
@@ -154,6 +162,7 @@ function toChatDetail(chat: ChatRowView, participants: readonly ParticipantView[
     compactedAtSeq: chat.compactedAtSeq,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
+    macroNames,
   };
 }
 
@@ -332,7 +341,8 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
-    return toChatDetail(membership.chat, participants);
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
+    return toChatDetail(membership.chat, participants, macroNames);
   };
 }
 
@@ -341,21 +351,26 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
-/** `listMessages` — a paged canon read (D26 — each slot joined to its selected variant), chronological. The
- *  `excludedFromPrompt` (hidden) flag rides each `MessageView` (the client renders the held-out state); a
- *  member sees the full room canon (D18). */
-function createListMessages(ctx: ChatContext): ChatService["listMessages"] {
+/** `listMessages` — a paged canon read (D26 — each slot joined to its selected variant), chronological, +
+ *  the page's {@link ChatMacroNameProducer} (Chat-Macro-Resolution.md §1/§3: participant-scoped names UNION
+ *  this page's own loaded rows' `characterId`/`personaId` stamps — covers a since-switched persona whose id
+ *  isn't any participant's CURRENT active persona). The `excludedFromPrompt` (hidden) flag rides each
+ *  `MessageView` (the client renders the held-out state); a member sees the full room canon (D18). */
+function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
   return async ({
     principal,
     chatId,
     beforeSeq,
     limit,
-  }: ListMessagesParams): Promise<MessageView[]> => {
+  }: ListMessagesParams): Promise<MessagesPage> => {
     await requireParticipant(ctx, principal, chatId);
     const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
     const page = await loadMessagesPage(ctx.db, chatId, beforeSeq, pageSize);
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
-    return page.reverse();
+    const messages = page.reverse();
+    const participants = await deps.loadParticipantViews(chatId);
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
+    return { messages, macroNames };
   };
 }
 
@@ -522,7 +537,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
-    listMessages: createListMessages(ctx),
+    listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
     replayStreamEvents: createReplayStreamEvents(ctx),

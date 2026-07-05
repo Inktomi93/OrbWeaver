@@ -13,7 +13,7 @@ import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import type { ChatId, ModelId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type {
@@ -21,6 +21,7 @@ import type {
   RunChatTurnOp,
 } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type {
+  HistoryMacroNames,
   TurnRequest,
   TurnStreamChunk,
 } from "../../../../../packages/server/src/domain/chat/contract/results";
@@ -52,7 +53,13 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
 }
 
 const rowOf = (role: "user" | "assistant", content: string): MessageView =>
-  ({ role, content, excludedFromPrompt: false, characterId: null }) as unknown as MessageView;
+  ({
+    role,
+    content,
+    excludedFromPrompt: false,
+    characterId: null,
+    personaId: null,
+  }) as unknown as MessageView;
 
 const userRow = (content: string): MessageView => rowOf("user", content);
 
@@ -229,6 +236,127 @@ describe("runTurnPipeline — request shaping + fit", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.droppedCount).toBeGreaterThan(0);
+  });
+});
+
+// ── History macro resolution (resolve-on-READ; D26/D51 — storage stays raw, every prompt build re-resolves) ──
+const ARIA = castId<CharacterId>("char_aria");
+const KAI = castId<CharacterId>("char_kai");
+
+const assistantRow = (content: string, characterId: CharacterId): MessageView =>
+  ({
+    role: "assistant",
+    content,
+    excludedFromPrompt: false,
+    characterId,
+    personaId: null,
+  }) as unknown as MessageView;
+
+const userRowWithPersona = (content: string, personaId: PersonaId): MessageView =>
+  ({
+    role: "user",
+    content,
+    excludedFromPrompt: false,
+    characterId: null,
+    personaId,
+  }) as unknown as MessageView;
+
+/** Flatten every wire history row's text parts into one string (the assembled prompt the model sees). */
+const historyText = (req: TurnRequest): string =>
+  req.history
+    .flatMap((h) => h.content)
+    .flatMap((p) => (p.type === "text" ? [p.text] : []))
+    .join("\n");
+
+/** Build the {@link HistoryMacroNames} producer `args.historyMacroNames` takes — the test-local stand-in
+ *  for the engine's `loadChatMacroNameProducer` + `buildCharacterNameMap`/`buildPersonaNameMap`
+ *  (Chat-Macro-Resolution.md §1). */
+function macroNamesOf(
+  chars: readonly { id: CharacterId; name: string }[] = [],
+  personas: readonly { id: PersonaId; name: string; description?: string }[] = [],
+): HistoryMacroNames {
+  return {
+    characterNamesById: new Map(chars.map((c) => [c.id, { name: c.name }])),
+    personaNamesById: new Map(
+      personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }]),
+    ),
+  };
+}
+
+const MARA = castId<PersonaId>("persona_mara");
+const ZARA = castId<PersonaId>("persona_zara");
+
+describe("runTurnPipeline — history macro resolution", () => {
+  test("a stored {{char}} in a history row resolves via the PRODUCER to that row's own speaker, not the current turn's", async () => {
+    // Current turn speaker is Kai; a past assistant row STAMPED characterId=ARIA must resolve {{char}} to
+    // the producer's Aria — the row's own stamp, never the ctx's current speaker (`cast`/`castCharacterIds`
+    // no longer drive this resolution; only the producer does).
+    const ctx = ctxOf({ character: { name: "Kai", description: "the rogue" } });
+    const { args } = baseArgs({
+      assembleContext: ctx,
+      canon: [assistantRow("{{char}} waves", ARIA)],
+      historyMacroNames: macroNamesOf([
+        { id: KAI, name: "Kai" },
+        { id: ARIA, name: "Aria" },
+      ]),
+    });
+    const result = await runTurnPipeline(args);
+    const text = historyText(result.request);
+    expect(text).toContain("Aria waves");
+    expect(text).not.toContain("Kai waves");
+  });
+
+  test("a stored {{user}} in a history row resolves via the PRODUCER to THAT row's own stamped persona — never the active NOR the pinned anchor", async () => {
+    // Chat anchored to Nyx (pinned); the current speaker's active persona is Zara; the row is stamped
+    // personaId=Mara (the Chat-Macro-Resolution.md §6 3-way-distinct fixture). The stamp wins over BOTH
+    // axes — PD-100: the row's personaId is the macro subject now, not just attribution chrome.
+    const ctx = ctxOf({
+      pinnedPersona: { name: "Nyx", description: "the frozen anchor POV" },
+      activePersona: { name: "Zara", description: "the live active persona" },
+    });
+    const { args } = baseArgs({
+      assembleContext: ctx,
+      canon: [userRowWithPersona("{{user}} nods", MARA)],
+      historyMacroNames: macroNamesOf([], [{ id: MARA, name: "Mara" }]),
+    });
+    const result = await runTurnPipeline(args);
+    const text = historyText(result.request);
+    expect(text).toContain("Mara nods");
+    expect(text).not.toContain("Zara nods");
+    expect(text).not.toContain("Nyx nods");
+  });
+
+  test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", async () => {
+    const { args } = baseArgs({
+      canon: [
+        userRowWithPersona("{{user}} waves", ZARA),
+        userRowWithPersona("{{user}} nods", MARA),
+      ],
+      historyMacroNames: macroNamesOf(
+        [],
+        [
+          { id: ZARA, name: "Zara" },
+          { id: MARA, name: "Mara" },
+        ],
+      ),
+    });
+    const result = await runTurnPipeline(args);
+    const text = historyText(result.request);
+    expect(text).toContain("Zara waves");
+    expect(text).toContain("Mara nods");
+  });
+
+  test("a null personaId stamp falls back to the ACTIVE persona (the ctx default, no producer entry needed)", async () => {
+    const { args } = baseArgs({ canon: [userRow("{{user}} nods")] });
+    const result = await runTurnPipeline(args);
+    // `baseArgs`' ctxOf sets `activePersona: { name: "Alex", ... }` — the null-stamp floor.
+    expect(historyText(result.request)).toContain("Alex nods");
+  });
+
+  test("a plain-text history row (no macros) passes through unchanged — inert for the common case", async () => {
+    const { args } = baseArgs({ canon: [userRow("just an ordinary line, no braces")] });
+    const result = await runTurnPipeline(args);
+    expect(historyText(result.request)).toContain("just an ordinary line, no braces");
   });
 });
 

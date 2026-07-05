@@ -15,6 +15,7 @@ import {
   MessageListSurface,
   MessageThreadAnchor,
 } from "@orb/client/features/chat";
+import type { MessageRenderContext } from "@orb/client/lib";
 import type { ChatHandle } from "@orb/client/state";
 import {
   cancelEditingMessage,
@@ -24,7 +25,13 @@ import {
   startEditingMessage,
   useTurnPhase,
 } from "@orb/client/state";
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type {
+  CharacterNameEntry,
+  MessageView,
+  ParticipantView,
+  PersonaNameEntry,
+} from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -39,19 +46,22 @@ import { MessageEditTextarea } from "../../../../packages/client/src/features/ch
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
-import type { PersonaAttribution } from "../../../../packages/client/src/features/chat/lib/attribution";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
-/** A persona library entry, keyed inline — the CT-serializable shape (a `Map` prop does NOT survive
- *  the Playwright CT mount boundary: props cross a serialization wire, and `Map`/`Set` instances
- *  arrive empty on the other side with no error. Plain arrays of plain objects are the safe shape;
- *  the `Map` the row actually needs is built HERE, inside the story component that executes
- *  post-mount in the real browser context — never at the `.ct.tsx` call site). */
-export interface PersonaAttributionEntry extends PersonaAttribution {
+/** A persona macro-name producer entry, keyed inline — the CT-serializable shape (a `Map` prop does
+ *  NOT survive the Playwright CT mount boundary: props cross a serialization wire, and `Map`/`Set`
+ *  instances arrive empty on the other side with no error. Plain arrays of plain objects are the safe
+ *  shape; the `ReadonlyMap`s the row actually needs are built HERE, inside the story component that
+ *  executes post-mount in the real browser context — never at the `.ct.tsx` call site — via the REAL
+ *  `@orb/contracts/chat` producer builders, so a story feeds `MessageRow` exactly the shape the
+ *  production surface would). */
+export interface PersonaNameStoryEntry {
   readonly id: PersonaId;
+  readonly name: string;
+  readonly description?: string;
 }
 
 export interface MessageRowStoryProps {
@@ -62,14 +72,15 @@ export interface MessageRowStoryProps {
   /** #21 attribution — the row's server-stamped speaker (assistant) / historical author (user). */
   readonly characterId?: CharacterId | null;
   readonly personaId?: PersonaId | null;
-  /** CT-serializable roster (see `PersonaAttributionEntry` — arrays, not `Map`s, cross the wire). */
+  /** CT-serializable roster (arrays, not `Map`s, cross the wire). */
   readonly participants?: readonly ParticipantView[];
-  readonly personas?: readonly PersonaAttributionEntry[];
+  /** CT-serializable macro-name producer entries (see `PersonaNameStoryEntry`). */
+  readonly personas?: readonly PersonaNameStoryEntry[];
   readonly activePersonaId?: PersonaId | null;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
- *  #21 attribution-chrome CT's mount point (roster/persona maps are optional pass-throughs). */
+ *  #21 attribution-chrome CT's mount point (roster/producer maps are optional pass-throughs). */
 export function MessageRowStory({
   chatStyle,
   messageRole = "assistant",
@@ -90,10 +101,18 @@ export function MessageRowStory({
             )
             .map((p) => [p.characterId, p] as const),
         );
-  const personasMap =
-    personas === undefined
-      ? undefined
-      : new Map(personas.map(({ id, ...rest }) => [id, rest] as const));
+  // The story's own producer, built with the REAL contracts builders (never a hand-rolled Map) so
+  // `MessageRow` sees exactly the shape `message-list-surface.tsx` would merge from the wire.
+  const characterNameEntries: CharacterNameEntry[] = (participants ?? [])
+    .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
+    .map((p) => ({ id: p.characterId, name: p.displayName }));
+  const personaNameEntries: PersonaNameEntry[] = (personas ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? "",
+  }));
+  const characterNamesById = buildCharacterNameMap(characterNameEntries);
+  const personaNamesById = buildPersonaNameMap(personaNameEntries);
 
   return (
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
@@ -105,7 +124,8 @@ export function MessageRowStory({
           message={makeMessageView({ role: messageRole, content, characterId, personaId })}
           chatStyle={chatStyle}
           participants={participantsMap}
-          personas={personasMap}
+          characterNamesById={characterNamesById}
+          personaNamesById={personaNamesById}
           activePersonaId={activePersonaId}
         />
       </MessageThreadAnchor>
@@ -172,16 +192,22 @@ export interface MessageContentSpansStoryProps {
 
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
  *  in isolation, without the row's attribution chrome. Also the macro-resolution CT's mount point
- *  (`characterName`/`userName` build a minimal `renderContext` when supplied). */
+ *  (`characterName`/`userName` build a minimal `renderContext` when supplied — as the `speakerCharName`/
+ *  `activePersonaName` DEFAULTS, with empty producer maps, matching a chat with no roster wired). */
 export function MessageContentSpansStory({
   content,
   characterName,
   userName,
 }: MessageContentSpansStoryProps): ReactElement {
-  const renderContext =
+  const renderContext: MessageRenderContext | undefined =
     characterName === undefined && userName === undefined
       ? undefined
-      : { characterName: characterName ?? "", userName: userName ?? "" };
+      : {
+          characterNamesById: buildCharacterNameMap([]),
+          personaNamesById: buildPersonaNameMap([]),
+          ...(characterName === undefined ? {} : { speakerCharName: characterName }),
+          ...(userName === undefined ? {} : { activePersonaName: userName }),
+        };
   return <MessageContent content={content} trust="trusted" renderContext={renderContext} />;
 }
 

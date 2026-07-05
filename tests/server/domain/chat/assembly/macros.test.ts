@@ -4,13 +4,16 @@
 // next), and the injected clock (nowMs) → deterministic output.
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowMacroStamps } from "@orb/kit/macro";
 import { describe } from "vitest";
 import {
   buildTurnMacroContext,
+  renderHistoryMacros,
   renderMacros,
 } from "../../../../../packages/server/src/domain/chat/assembly/macros";
+import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { expect, test } from "../../../../support/fixtures";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
@@ -23,6 +26,24 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
     ...over,
   };
 }
+
+/** Build the {@link HistoryMacroNames} producer from plain id/name(+description) entries — the test-local
+ *  stand-in for `persistence/macro-names.ts`'s `loadChatMacroNameProducer` + `buildCharacterNameMap`/
+ *  `buildPersonaNameMap` (Chat-Macro-Resolution.md §1). */
+function producerOf(
+  chars: readonly { id: CharacterId; name: string }[] = [],
+  personas: readonly { id: PersonaId; name: string; description?: string }[] = [],
+): HistoryMacroNames {
+  return {
+    characterNamesById: new Map(chars.map((c) => [c.id, { name: c.name }])),
+    personaNamesById: new Map(
+      personas.map((p) => [p.id, { name: p.name, description: p.description ?? "" }]),
+    ),
+  };
+}
+
+const EMPTY_PRODUCER = producerOf();
+const NO_STAMPS: RowMacroStamps = { characterId: null, personaId: null };
 
 describe("renderMacros", () => {
   test("resolves {{char}}, {{user}}, {{persona}} against the section persona", () => {
@@ -88,6 +109,108 @@ describe("renderMacros", () => {
     const b = renderMacros("{{date}}", ctx, null);
     expect(a).toBe(b);
     expect(a).toMatch(ISO_DATE_RE);
+  });
+});
+
+const ARIA = castId<CharacterId>("char_aria");
+const NYX = castId<PersonaId>("persona_nyx");
+const ZARA = castId<PersonaId>("persona_zara");
+const MARA = castId<PersonaId>("persona_mara");
+
+describe("renderHistoryMacros", () => {
+  test("{{char}} binds to the ROW'S OWN speaker via the producer, not the ctx primary", () => {
+    // Active speaker is Kai (the ctx default); a past row stamped `characterId: ARIA` must still resolve
+    // {{char}} to the producer's Aria — the row's OWN stamp, never the ctx's current speaker.
+    const ctx = ctxOf({ character: { name: "Kai", description: "the rogue" } });
+    const producer = producerOf([{ id: ARIA, name: "Aria" }]);
+    const stamps: RowMacroStamps = { characterId: ARIA, personaId: null };
+    expect(renderHistoryMacros("{{char}} waves", stamps, ctx, { producer })).toBe("Aria waves");
+  });
+
+  test("a null characterId stamp falls through to speakerCharName, then the ctx default (charForSpeaker)", () => {
+    const ctx = ctxOf({ character: { name: "Aria", description: "a bold knight" } });
+    expect(renderHistoryMacros("{{char}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe(
+      "Aria nods",
+    );
+    // An explicit speakerCharName (the turn's current speaker/cast default) overrides the ctx default.
+    expect(
+      renderHistoryMacros("{{char}} nods", NO_STAMPS, ctx, {
+        producer: EMPTY_PRODUCER,
+        speakerCharName: "Kai",
+      }),
+    ).toBe("Kai nods");
+  });
+
+  test("two rows with DIFFERENT personaId stamps each resolve {{user}} to their OWN persona", () => {
+    const ctx = ctxOf();
+    const producer = producerOf(
+      [],
+      [
+        { id: ZARA, name: "Zara", description: "the active one" },
+        { id: MARA, name: "Mara", description: "an older persona" },
+      ],
+    );
+    const rowZara: RowMacroStamps = { characterId: null, personaId: ZARA };
+    const rowMara: RowMacroStamps = { characterId: null, personaId: MARA };
+    expect(renderHistoryMacros("{{user}} nods", rowZara, ctx, { producer })).toBe("Zara nods");
+    expect(renderHistoryMacros("{{user}} nods", rowMara, ctx, { producer })).toBe("Mara nods");
+  });
+
+  test("the 3-way-distinct fixture: anchor=Nyx, active=Zara, a row stamped personaId=Mara → {{user}} resolves to Mara", () => {
+    // Chat-Macro-Resolution.md §6's regression fixture: the PINNED anchor and the ACTIVE persona are both
+    // distinct from the row's own stamped author — the stamp wins over BOTH (PD-100: it is the macro subject
+    // now, not just attribution chrome).
+    const ctx = ctxOf({
+      pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
+      activePersona: { name: "Zara", description: "the live active persona" },
+    });
+    const producer = producerOf([], [{ id: MARA, name: "Mara", description: "an older persona" }]);
+    const stamps: RowMacroStamps = { characterId: null, personaId: MARA };
+    expect(renderHistoryMacros("{{user}} waves", stamps, ctx, { producer })).toBe("Mara waves");
+  });
+
+  test("a null personaId stamp falls back to the ACTIVE persona, never the pinned anchor", () => {
+    const ctx = ctxOf({
+      pinnedPersona: { name: "Nyx", description: "the frozen anchor" },
+      activePersona: { name: "Zara", description: "the live active persona" },
+    });
+    expect(renderHistoryMacros("{{user}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe(
+      "Zara nods",
+    );
+  });
+
+  test("{{user}} falls back to 'User' with a null personaId stamp AND no active persona", () => {
+    expect(
+      renderHistoryMacros("{{user}} speaks", NO_STAMPS, ctxOf(), { producer: EMPTY_PRODUCER }),
+    ).toBe("User speaks");
+  });
+
+  test("{{persona}} resolves the row's own persona's DESCRIPTION (distinct from {{user}}'s name)", () => {
+    const producer = producerOf([], [{ id: NYX, name: "Nyx", description: "a wandering scholar" }]);
+    const stamps: RowMacroStamps = { characterId: null, personaId: NYX };
+    expect(renderHistoryMacros("{{persona}}", stamps, ctxOf(), { producer })).toBe(
+      "a wandering scholar",
+    );
+  });
+
+  test("plain text (no macros) passes through byte-identical — inert for the common case", () => {
+    const plain = "just an ordinary line, no braces here";
+    expect(
+      renderHistoryMacros(plain, NO_STAMPS, ctxOf(), {
+        producer: EMPTY_PRODUCER,
+        speakerCharName: "Aria",
+      }),
+    ).toBe(plain);
+  });
+
+  test("<speaker> narrator tags are left intact (the parser only touches {{…}})", () => {
+    const ctx = ctxOf({ character: { name: "Kai", description: "" } });
+    expect(
+      renderHistoryMacros("<speaker>Aria</speaker>{{char}} smiles", NO_STAMPS, ctx, {
+        producer: EMPTY_PRODUCER,
+        speakerCharName: "Aria",
+      }),
+    ).toBe("<speaker>Aria</speaker>Aria smiles");
   });
 });
 

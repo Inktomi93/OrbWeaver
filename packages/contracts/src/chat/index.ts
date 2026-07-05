@@ -41,7 +41,7 @@ import type {
 } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
-import type { VarOp } from "@orb/kit/macro";
+import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
@@ -447,6 +447,61 @@ export interface MessageView {
   contextWindow: number | null;
   costUsd: number | null;
   ttftMs: number | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE CHAT MACRO NAME PRODUCER (Chat-Macro-Resolution.md §1) — a chat read's member-gated id→name maps,
+// so a client can DERIVE per-row `{{char}}`/`{{user}}`/`{{persona}}` names via `@orb/kit/macro`'s
+// `resolveRowMacros` (§2). Rows stay id-only (`MessageView.characterId`/`personaId` above) — this is the
+// PRODUCER, never a per-row denormalized name (the neo hard-link this doctrine deliberately avoids).
+// Names only, not the full entities: any chat member already sees who authored each line (the attribution
+// chrome), so a co-participant's persona/character NAME is not a secret this needs to gate further.
+//
+// Wire-serializable as ARRAYS, not `Map`s: this transport is raw JSON (no superjson transformer wired on
+// the tRPC link here), and a `Map` doesn't survive a JSON round-trip. `buildCharacterNameMap`/
+// `buildPersonaNameMap` rebuild the `ReadonlyMap` shape `resolveRowMacros` takes, on whichever side reads
+// the wire array (client DISPLAY today; server ASSEMBLE builds its own map straight from its DB join —
+// no wire hop — but may reuse these builders if it ever needs the same array shape).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** One character name entry (§1) — the array form of a `characterNamesById` producer map. */
+export interface CharacterNameEntry {
+  readonly id: CharacterId;
+  readonly name: string;
+}
+
+/** One persona name entry (§1) — the array form of a `personaNamesById` producer map. `description`
+ *  backs the row `{{persona}}` macro (distinct from `{{user}}`, which resolves to `name`). */
+export interface PersonaNameEntry {
+  readonly id: PersonaId;
+  readonly name: string;
+  readonly description: string;
+}
+
+/** Rebuild the `characterNamesById` lookup `resolveRowMacros` (`@orb/kit/macro`) takes, from the wire
+ *  array. Pure; last-write-wins on a duplicate id (a producer is expected to be pre-deduped — this never
+ *  throws on a malformed input, it just lets the later entry win). */
+export function buildCharacterNameMap(
+  entries: readonly CharacterNameEntry[],
+): ReadonlyMap<CharacterId, RowCharacterName> {
+  return new Map(entries.map((e) => [e.id, { name: e.name }]));
+}
+
+/** Rebuild the `personaNamesById` lookup `resolveRowMacros` (`@orb/kit/macro`) takes, from the wire
+ *  array. Pure; last-write-wins on a duplicate id (see {@link buildCharacterNameMap}). */
+export function buildPersonaNameMap(
+  entries: readonly PersonaNameEntry[],
+): ReadonlyMap<PersonaId, RowPersonaName> {
+  return new Map(entries.map((e) => [e.id, { name: e.name, description: e.description }]));
+}
+
+/** The producer a chat read returns (§1) — `personaNamesById`/`characterNamesById` scoped to ONE chat,
+ *  covering every id the chat references (participants' personas/characters AND any `personaId`/
+ *  `characterId` a stored message carries, incl. since-switched personas). Member-gated: any chat member
+ *  may read this (see the header note — names only, not a permission-spine change). */
+export interface ChatMacroNameProducer {
+  readonly characterNames: readonly CharacterNameEntry[];
+  readonly personaNames: readonly PersonaNameEntry[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

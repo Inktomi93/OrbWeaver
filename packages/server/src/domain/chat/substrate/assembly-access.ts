@@ -14,6 +14,7 @@ import { buildAssembleContext as buildAssembleContextImpl } from "../assembly/co
 import { fitHistoryToWindow } from "../assembly/history-budget";
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
+  renderHistoryMacros as renderHistoryMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
 } from "../assembly/macros";
 import { shape } from "../assembly/shape";
@@ -56,6 +57,15 @@ export function buildTurnMacroContext(
   ...args: Parameters<typeof buildTurnMacroContextImpl>
 ): ReturnType<typeof buildTurnMacroContextImpl> {
   return buildTurnMacroContextImpl(...args);
+}
+
+/** SHAPE (canon pre-pass): resolve `{{…}}` in a stored history row's body (resolve-on-READ; D26/D51 keep
+ *  storage raw). `{{char}}` binds to the row's OWN speaker, `{{user}}`/`{{persona}}` to the ACTIVE persona
+ *  (card=pin / user-facing=active) — the client DISPLAY parity split. The legal `engine/ → assembly/` bridge. */
+export function renderHistoryMacros(
+  ...args: Parameters<typeof renderHistoryMacrosImpl>
+): ReturnType<typeof renderHistoryMacrosImpl> {
+  return renderHistoryMacrosImpl(...args);
 }
 
 /** Resolve a guided-action TEMPLATE against the turn ctx (the guided steering resolver; PD-63).

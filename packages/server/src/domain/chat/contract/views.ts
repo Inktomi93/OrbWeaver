@@ -14,6 +14,7 @@ import type {
   AssembleTrace,
   ChatBusEvent,
   ChatInjection,
+  ChatMacroNameProducer,
   GroupConfig,
   MessageView,
   OpeningPolicy,
@@ -24,6 +25,7 @@ import type { ChatId, ChatInjectionId, MessageVariantId, WorldEntryId } from "@o
 
 export type {
   AssembledPrompt,
+  ChatMacroNameProducer,
   InvitePreview,
   InviteView,
   MessageView,
@@ -72,6 +74,23 @@ export interface ChatDetail {
   readonly compactedAtSeq: number | null;
   readonly createdAt: number;
   readonly updatedAt: number;
+  /** The chat-macro name PRODUCER (Chat-Macro-Resolution.md §1), member-gated, covering every participant's
+   *  seat/active-persona id — the client derives `{{char}}`/`{{user}}`/`{{persona}}` history names from this
+   *  via `@orb/kit/macro`'s `resolveRowMacros` + `@orb/contracts/chat`'s `buildCharacterNameMap`/
+   *  `buildPersonaNameMap`. Does NOT cover a loaded page's message-stamped ids beyond the roster (a
+   *  since-switched persona) — `listMessages`'s `MessagesPage.macroNames` covers that half; the client
+   *  merges both as it paginates back. */
+  readonly macroNames: ChatMacroNameProducer;
+}
+
+/** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`
+ *  window + the page's macro name producer: participant-scoped names (the `ChatDetail.macroNames` floor)
+ *  UNION this page's own loaded rows' `characterId`/`personaId` stamps (covers a since-switched persona whose
+ *  id isn't any participant's CURRENT active persona but is still stamped on an older row in THIS page). The
+ *  client merges producers across pages as it paginates backward, accumulating full coverage. */
+export interface MessagesPage {
+  readonly messages: readonly MessageView[];
+  readonly macroNames: ChatMacroNameProducer;
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor

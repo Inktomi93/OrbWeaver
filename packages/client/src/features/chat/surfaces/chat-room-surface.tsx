@@ -107,9 +107,11 @@ function ComposerSlot(props: ComposerSlotProps): ReactElement {
 /** The ONE `useSuspenseQuery` call — same key `MessageListSurface` reads, shared cache (see header). */
 function ComposerTailGate(props: ComposerSlotProps & { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
-  const { data: messages } = useSuspenseQuery(
+  // `chat.listMessages` returns `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md
+  // §1/§3) — this read only needs the tail role, never the macro-name producer.
+  const { data: messagesPage } = useSuspenseQuery(
     trpc.chat.listMessages.queryOptions({ chatId: props.chatId }),
   );
-  const tailRole: MessageRole | null = messages.at(-1)?.role ?? null;
+  const tailRole: MessageRole | null = messagesPage.messages.at(-1)?.role ?? null;
   return <Composer {...props} tailRole={tailRole} />;
 }

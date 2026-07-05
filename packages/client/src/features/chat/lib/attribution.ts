@@ -1,30 +1,29 @@
 // Per-row attribution resolution (#21, §12.4 attribution rules) — a PURE function so it's unit
 // testable without mounting `<MessageRow>`. NEVER parses attribution from body text:
 //
-//  - ASSISTANT rows resolve the server-stamped `characterId` against the roster (`ParticipantView`
-//    map threaded from the surface, multi-character rooms only). A null `characterId` in a
+//  - ASSISTANT rows resolve the server-stamped `characterId` against the roster: the NAME comes from
+//    the per-chat macro-name PRODUCER (`characterNamesById`, Chat-Macro-Resolution.md §1 — the SAME
+//    map `resolveRowMacros`'s `{{char}}` reads for this row, so badge and macro agree by construction);
+//    avatar + the per-speaker color token are separate roster CHROME (`participants`, multi-character
+//    rooms only — the producer carries names only, never avatars). A null `characterId` in a
 //    multi-character room is a neutral "Narrator" — never `participants[0]` (that would silently
 //    misattribute a merged/narrator turn to whichever character happens to be first in the map).
 //  - USER rows resolve `message.personaId` (the correct historical author across a mid-chat persona
-//    switch), falling back to the chat's currently active persona for legacy rows with a null
-//    `personaId`.
+//    switch) against the SAME producer's `personaNamesById`, falling back to `activePersonaId` (the
+//    viewing participant's CURRENT persona, §4) for legacy rows with a null `personaId`. No avatar:
+//    the producer is names-only and the owner-scoped `persona.list` read that used to supply one is
+//    gone (Chat-Macro-Resolution.md — that read was the cross-owner bug); a persona row renders its
+//    initials fallback until a member-gated persona-avatar surface exists.
 //  - SYSTEM rows and any id that doesn't resolve in the supplied roster render NO attribution chrome
-//    (this is also the solo-chat default when no roster is threaded at all — `participants`/`personas`
-//    are optional, so a caller that hasn't wired the roster yet gets the pre-#21 no-chrome behavior).
+//    (this is also the solo-chat default when no roster/producer is threaded at all — `participants`/
+//    `characterNamesById`/`personaNamesById` degrade gracefully to "nothing resolves").
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SpeakerColorTokens } from "./speaker-color";
 import { colorForCharacter } from "./speaker-color";
-
-/** The minimal persona projection attribution needs (name + optional avatar reference). No
- *  `PersonaView` read-model exists in `@orb/contracts` yet — this is a deliberately small local
- *  shape a caller can build from whatever persona data it has, rather than a wire type. */
-export interface PersonaAttribution {
-  readonly name: string;
-  readonly avatarAssetId: AssetId | null;
-}
 
 export interface RowAttribution {
   /** `null` = render no attribution chrome. */
@@ -47,11 +46,16 @@ export interface ResolveRowAttributionInput {
   readonly role: MessageRole;
   readonly characterId: CharacterId | null;
   readonly personaId: PersonaId | null;
-  /** The roster, keyed by id — threaded from the surface. Absent/empty in a solo chat. */
+  /** The roster, keyed by id — threaded from the surface. Absent/empty in a solo chat. Supplies
+   *  assistant-row AVATAR/COLOR chrome + the solo/multi-character count; the NAME comes from
+   *  `characterNamesById` below. */
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
-  /** The persona library, keyed by id — resolves a USER row's historical author. */
-  readonly personas?: ReadonlyMap<PersonaId, PersonaAttribution> | undefined;
-  /** The chat's currently active persona — the fallback for legacy rows with a null `personaId`. */
+  /** The per-chat macro-name producer (Chat-Macro-Resolution.md §1) — the ONE source for both this
+   *  badge's name and the row's `{{char}}`/`{{user}}` macro subject. */
+  readonly characterNamesById?: ReadonlyMap<CharacterId, RowCharacterName> | undefined;
+  readonly personaNamesById?: ReadonlyMap<PersonaId, RowPersonaName> | undefined;
+  /** The viewing participant's currently active persona — the fallback for legacy rows with a null
+   *  `personaId` (Chat-Macro-Resolution.md §4; never the chat's `anchorPersonaId` pin). */
   readonly activePersonaId?: PersonaId | null | undefined;
 }
 
@@ -68,24 +72,25 @@ export function resolveRowAttribution(input: ResolveRowAttributionInput): RowAtt
 
 function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttribution {
   const personaId = input.personaId ?? input.activePersonaId ?? null;
-  const persona = personaId === null ? undefined : input.personas?.get(personaId);
+  const persona = personaId === null ? undefined : input.personaNamesById?.get(personaId);
   if (persona === undefined) {
     return NO_ATTRIBUTION;
   }
-  return { name: persona.name, avatarAssetId: persona.avatarAssetId, tokens: null };
+  return { name: persona.name, avatarAssetId: null, tokens: null };
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
   if (input.characterId === null) {
     return isMultiCharacterRoom(input.participants) ? NARRATOR_ATTRIBUTION : NO_ATTRIBUTION;
   }
-  const participant = input.participants?.get(input.characterId);
-  if (participant === undefined) {
+  const name = input.characterNamesById?.get(input.characterId)?.name;
+  if (name === undefined) {
     return NO_ATTRIBUTION;
   }
+  const participant = input.participants?.get(input.characterId);
   return {
-    name: participant.displayName,
-    avatarAssetId: participant.avatarAssetId,
+    name,
+    avatarAssetId: participant?.avatarAssetId ?? null,
     tokens: colorForCharacter(input.characterId),
   };
 }

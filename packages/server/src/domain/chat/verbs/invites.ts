@@ -24,6 +24,7 @@
 import { randomBytes } from "node:crypto";
 import type {
   ChatBusEvent,
+  ChatMacroNameProducer,
   GroupConfig,
   InvitePreview,
   InviteView,
@@ -54,6 +55,7 @@ import {
   redeemInviteAtomic,
   revokeInvite as revokeInvitePersist,
 } from "../persistence/invites";
+import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
 
 /** The collaborators the invite verbs close over (see the file header VERB DEPS note). Inlined
@@ -97,9 +99,14 @@ function modeLabel(group: GroupConfig): string {
   return `${group.output} · ${group.policy}`;
 }
 
-/** Map a loaded chat row + its resolved roster → the `ChatDetail` read-model (the metadata sub-blobs applied
- *  to their defaults — never raw). The roster `ParticipantView[]` is resolved by the root (FLAG above). */
-function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantView[]): ChatDetail {
+/** Map a loaded chat row + its resolved roster + macro name producer → the `ChatDetail` read-model (the
+ *  metadata sub-blobs applied to their defaults — never raw; the same projection `read.ts`/`fork.ts`/
+ *  `start-chat.ts` use). The roster `ParticipantView[]` is resolved by the root (FLAG above). */
+function toChatDetail(
+  chat: LoadedChatRow,
+  participants: readonly ParticipantView[],
+  macroNames: ChatMacroNameProducer,
+): ChatDetail {
   return {
     id: chat.id,
     title: chat.title,
@@ -116,6 +123,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
     compactedAtSeq: chat.compactedAtSeq,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
+    macroNames,
   };
 }
 
@@ -254,7 +262,8 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    return { chat: toChatDetail(chat, participants), participant };
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
+    return { chat: toChatDetail(chat, participants, macroNames), participant };
   };
 }
 

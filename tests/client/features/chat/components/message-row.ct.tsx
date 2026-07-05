@@ -129,13 +129,15 @@ test("a null characterId in a multi-character room shows a neutral Narrator, unc
   await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
 });
 
-test("user row resolves the message's personaId against the persona library", async ({ mount }) => {
+test("user row resolves the message's personaId against the macro-name producer", async ({
+  mount,
+}) => {
   const component = await mount(
     <MessageRowStory
       chatStyle="bubble"
       messageRole="user"
       personaId={NATE_PERSONA_ID}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex", avatarAssetId: null }]}
+      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
     />,
   );
   await expect(component.locator(ATTRIBUTION)).toContainText("Alex");
@@ -155,7 +157,7 @@ test("a message with {{char}}/{{user}} resolves real names once the roster + act
       content="{{char}} waves at {{user}}."
       characterId={ALICE_ID}
       participants={[alice()]}
-      personas={[{ id: NATE_PERSONA_ID, name: "Alex", avatarAssetId: null }]}
+      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
       activePersonaId={NATE_PERSONA_ID}
     />,
   );
@@ -164,7 +166,23 @@ test("a message with {{char}}/{{user}} resolves real names once the roster + act
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
 });
 
-test("no roster/persona threaded: {{char}}/{{user}} macros still render literally (pre-existing gap, not a regression)", async ({
+// The row's OWN stamps are what the atom resolves against — not "whoever is speaking right now" — so a
+// row stamped for a DIFFERENT cast member than the turn's current speaker still resolves to ITS OWN
+// speaker (Chat-Macro-Resolution.md §2's "a past line by Aria stays Aria" rule).
+test("a row's own characterId wins over another roster member also present", async ({ mount }) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      content="{{char}} nods."
+      characterId={BOB_ID}
+      participants={[alice(), bob()]}
+    />,
+  );
+  await expect(component.getByText("Bob nods.")).toBeVisible();
+});
+
+test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('Character'/'User'), never left literal", async ({
   mount,
 }) => {
   const component = await mount(
@@ -175,5 +193,7 @@ test("no roster/persona threaded: {{char}}/{{user}} macros still render literall
       characterId={ALICE_ID}
     />,
   );
-  await expect(component.getByText("{{char}} waves at {{user}}.")).toBeVisible();
+  await expect(component.getByText("Character waves at User.")).toBeVisible();
+  await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
+  await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
 });

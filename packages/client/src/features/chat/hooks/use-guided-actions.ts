@@ -154,7 +154,9 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
     trpc.chat.listMessages.queryOptions({ chatId: id }),
   );
   const tailAssistantMessageId = useMemo<MessageId | null>(() => {
-    const tail = tailQuery.data?.at(-1);
+    // `chat.listMessages` returns `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md
+    // §1/§3) — this read only needs the tail message, never the macro-name producer.
+    const tail = tailQuery.data?.messages.at(-1);
     return tail !== undefined && tail.role === "assistant" ? tail.id : null;
   }, [tailQuery.data]);
 

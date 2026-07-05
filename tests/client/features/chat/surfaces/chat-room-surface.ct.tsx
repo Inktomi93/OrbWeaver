@@ -1,11 +1,14 @@
 // CT: the composed chat-room pane (transcript + composer) — the surface that was untested before this
 // task. Two shapes: a SEEDED DRAFT (the new-chat-with-character landing) renders the empty transcript +
 // the live composer WITHOUT ever reading the server (the ChatHandle discriminant is the gate — no
-// `listMessages` call for a draft, skipToken in spirit); a COMMITTED chat reads canon (routeTrpc stubs
-// `chat.listMessages`) and renders the rows beside the composer.
+// `listMessages` call for a draft, skipToken in spirit); a COMMITTED chat reads canon + roster
+// (routeTrpc stubs `chat.listMessages`/`chat.getChat`) and renders the rows beside the composer.
 //
 // NOTE: `chat.listMessages` is stubbed at the NETWORK (routeTrpc) — the draft case asserts it is NEVER
-// hit (the surface must not fetch for a chat with no server row yet).
+// hit (the surface must not fetch for a chat with no server row yet). `chat.listMessages` returns
+// `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md §1/§3) — every stub wraps via
+// `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `macroNames` floor
+// (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -13,7 +16,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatRoomSurfaceStory } from "../_ct-stories";
-import { makeMessageView } from "../fixtures";
+import { makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
 const CANON = [
   makeMessageView({
@@ -30,6 +33,18 @@ const CANON = [
   }),
 ];
 
+const ROSTER_STUB = {
+  "chat.getChat": (): {
+    participants: never[];
+    anchorPersonaId: null;
+    macroNames: ReturnType<typeof makeMacroNameProducer>;
+  } => ({
+    participants: [],
+    anchorPersonaId: null,
+    macroNames: makeMacroNameProducer(),
+  }),
+};
+
 test("a seeded draft renders the empty transcript + the live composer, with no server read", async ({
   mount,
   page,
@@ -38,7 +53,7 @@ test("a seeded draft renders the empty transcript + the live composer, with no s
   await routeTrpc(page, {
     "chat.listMessages": () => {
       listMessagesCalls += 1;
-      return [];
+      return makeMessagesPage([]);
     },
   });
 
@@ -56,7 +71,10 @@ test("a committed chat reads canon and renders the rows beside the composer", as
   mount,
   page,
 }) => {
-  await routeTrpc(page, { "chat.listMessages": CANON });
+  await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage(CANON),
+    ...ROSTER_STUB,
+  });
 
   const component = await mount(<ChatRoomSurfaceStory committed={true} />);
 

@@ -27,6 +27,7 @@ import {
   seedChat,
   seedMessage,
   seedParticipant,
+  seedPersona,
   seedStreamEvent,
   seedUser,
 } from "../_support";
@@ -181,6 +182,8 @@ describe("read — single reads", () => {
     expect(detail.participants.some((p) => p.role === "host" && p.userId === me)).toBe(true);
     expect(detail.group.output).toBe("per-speaker"); // DEFAULT_GROUP_CONFIG applied
     expect(detail.opening).toBeNull();
+    // The participant-scoped macro name producer (Chat-Macro-Resolution.md §1) covers the roster's character.
+    expect(detail.macroNames.characterNames.some((c) => c.name === "room_char")).toBe(true);
   });
 
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {
@@ -196,12 +199,25 @@ describe("read — single reads", () => {
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     const all = await listMessages({ principal: principal(me), chatId });
-    expect(all.map((m) => m.content)).toEqual(["first", "second", "third"]);
-    expect(all[1]?.excludedFromPrompt).toBe(true);
+    expect(all.messages.map((m) => m.content)).toEqual(["first", "second", "third"]);
+    expect(all.messages[1]?.excludedFromPrompt).toBe(true);
 
     // Paging: a backward window before seq 3 returns the older two, still chronological.
     const page = await listMessages({ principal: principal(me), chatId, beforeSeq: 3, limit: 1 });
-    expect(page.map((m) => m.content)).toEqual(["second"]);
+    expect(page.messages.map((m) => m.content)).toEqual(["second"]);
+  });
+
+  test("listMessages' macroNames covers the roster's character AND a message-stamped persona not on the roster (Chat-Macro-Resolution.md §1)", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+    const oldPersona = await seedPersona(db, me, "old_persona");
+    // A since-switched persona: stamped on a message but not any participant's CURRENT active persona.
+    await seedMessage(db, chatId, 1, { role: "user", personaId: oldPersona, content: "hi" });
+
+    const { listMessages } = createRead(makeChatContext(db), makeDeps());
+    const { macroNames } = await listMessages({ principal: principal(me), chatId });
+    expect(macroNames.characterNames.some((c) => c.name === "room_char")).toBe(true);
+    expect(macroNames.personaNames.some((p) => p.id === oldPersona)).toBe(true);
   });
 
   test("listMessageVariants returns the full sibling set ordered by idx, no content", async () => {

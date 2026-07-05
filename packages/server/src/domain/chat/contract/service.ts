@@ -110,6 +110,7 @@ import type {
   ChatStreamReplayEvent,
   ChatSummary,
   InvitePreview,
+  MessagesPage,
   MessageVariantSummary,
   MessageView,
   ParticipantView,
@@ -139,8 +140,9 @@ export interface ChatService {
   readonly previewSection: (params: PreviewSectionParams) => Promise<SectionPreview>;
   /** The assembled prompt for the NEXT real turn (no generation). */
   readonly peekPrompt: (params: PeekPromptParams) => Promise<AssembledPrompt>;
-  /** Paged canon read — each slot joined to its selected variant (D26). */
-  readonly listMessages: (params: ListMessagesParams) => Promise<MessageView[]>;
+  /** Paged canon read — each slot joined to its selected variant (D26) + the page's macro name producer
+   *  (Chat-Macro-Resolution.md §1/§3). */
+  readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
   /** The full sibling-variant set for one slot (D26) — `{variantId, idx}[]` ordered by idx, no content.
    *  `MessageView` carries only the SELECTED variant; this fills the gap for the swipe strip's step-target
    *  resolver (was MISSING-API). */

@@ -12,7 +12,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ComposerStory } from "../_ct-stories";
-import { COMPOSER_CHAT_ID, makeMessageView } from "../fixtures";
+import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
 
 test("the wand trigger is disabled on an empty draft", async ({ mount }) => {
   const component = await mount(<ComposerStory />);
@@ -74,7 +74,7 @@ test("Guided swipe fires chat.swipe with the tail assistant messageId + guidance
 }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
-    "chat.listMessages": () => [tail],
+    "chat.listMessages": () => makeMessagesPage([tail]),
     "chat.swipe": () => ({ ok: true }),
   });
   const component = await mount(<ComposerStory />);
@@ -99,7 +99,7 @@ test("Guided continue fires chat.continueTurn with the tail assistant messageId 
 }) => {
   const tail = makeMessageView({ chatId: COMPOSER_CHAT_ID, role: "assistant" });
   const trpc = await routeTrpc(page, {
-    "chat.listMessages": () => [tail],
+    "chat.listMessages": () => makeMessagesPage([tail]),
     "chat.continueTurn": () => ({ ok: true }),
   });
   const component = await mount(<ComposerStory />);
