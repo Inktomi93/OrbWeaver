@@ -2,7 +2,9 @@
 // a real libSQL db: member-gated coverage (participants' seat/active-persona ids UNION a loaded set of
 // message rows' stamps), dedup across the two sources, and the empty-input no-query floor.
 
+import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
 import { loadChatMacroNameProducer } from "../../../../../packages/server/src/domain/chat/persistence/macro-names";
 import { freshDb } from "../../../../support/db";
@@ -73,5 +75,77 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
       characterNames: [],
       personaNames: [],
     });
+  });
+});
+
+// ── task #59 S6: multi-human — the producer is MEMBER-gated (any id the chat references), never
+// OWNER-scoped. `loadChatMacroNameProducer` takes no caller/owner argument at all; these pin that a
+// persona owned by a DIFFERENT user than the chat's host still resolves (names only, per §1's header —
+// a co-participant's persona name is not a secret), and that each participant's own row-stamped persona
+// resolves independently through the shared atom.
+describe("persistence/macro-names — multi-human coverage is member-gated, not owner-gated (§1)", () => {
+  test("a persona owned by a DIFFERENT user than the chat's host still resolves (no owner filter)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const hostPersona = await seedPersona(db, host, "host_pov");
+    const memberPersona = await seedPersona(db, member, "member_pov");
+    await seedChat(db, "a");
+
+    const producer = await loadChatMacroNameProducer(db, {
+      participants: [
+        { characterId: null, activePersonaId: hostPersona },
+        { characterId: null, activePersonaId: memberPersona },
+      ],
+    });
+
+    // Both resolve — the loader has no notion of "whose chat this is"; it resolves whatever ids the
+    // membership layer already collected. A member's OWN persona is not gated behind the host's ownership.
+    expect(new Set(producer.personaNames.map((p) => p.name))).toEqual(
+      new Set(["host_pov", "member_pov"]),
+    );
+    expect(producer.personaNames.map((p) => p.id)).toEqual(
+      expect.arrayContaining([hostPersona, memberPersona]),
+    );
+  });
+
+  test("rows stamped with DIFFERENT participants' personaIds each resolve {{user}} to THEIR OWN persona", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const hostPersona = await seedPersona(db, host, "nova");
+    const memberPersona = await seedPersona(db, member, "juno");
+    await seedChat(db, "a");
+
+    // The producer covers cross-participant names via the message-stamped half of §1's coverage union.
+    const producer = await loadChatMacroNameProducer(db, {
+      messages: [
+        { characterId: null, personaId: hostPersona },
+        { characterId: null, personaId: memberPersona },
+      ],
+    });
+    const characterNamesById = buildCharacterNameMap(producer.characterNames);
+    const personaNamesById = buildPersonaNameMap(producer.personaNames);
+
+    // Each row's OWN stamp resolves independently through the shared atom (Chat-Macro-Resolution.md §2) —
+    // the host's row is never retargeted to the member's persona or vice versa.
+    expect(
+      resolveRowMacros(
+        "{{user}} waves",
+        { characterId: null, personaId: hostPersona },
+        {
+          characterNamesById,
+          personaNamesById,
+        },
+      ),
+    ).toBe("nova waves");
+    expect(
+      resolveRowMacros(
+        "{{user}} waves",
+        { characterId: null, personaId: memberPersona },
+        {
+          characterNamesById,
+          personaNamesById,
+        },
+      ),
+    ).toBe("juno waves");
   });
 });
