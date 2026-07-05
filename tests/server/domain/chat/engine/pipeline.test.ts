@@ -91,6 +91,9 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     connection: CONNECTION,
     intent: {} satisfies UserIntent,
     kind: "send",
+    // D17: the engine-derived consent verdict the pipeline stamps onto the built TurnRequest (a self-triggered
+    // owner turn here — inert for the vllm CONNECTION, but the field is non-optional on the args).
+    ownerConsented: true,
     chatId: castId<ChatId>("chat_a"),
     onDelta: (d: ChatDeltaEvent): void => {
       deltas.push(d);

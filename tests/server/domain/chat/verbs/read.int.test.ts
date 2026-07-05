@@ -21,6 +21,7 @@ import { createRead } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import {
+  addVariant,
   makeChatContext,
   seedCharacter,
   seedChat,
@@ -203,6 +204,32 @@ describe("read — single reads", () => {
     expect(page.map((m) => m.content)).toEqual(["second"]);
   });
 
+  test("listMessageVariants returns the full sibling set ordered by idx, no content", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const v1 = await addVariant(db, messageId, 1, "second take");
+
+    const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
+    const variants = await listMessageVariants({ principal: principal(me), chatId, messageId });
+    expect(variants).toStrictEqual([
+      { variantId, idx: 0 },
+      { variantId: v1, idx: 1 },
+    ]);
+  });
+
+  test("listMessageVariants is leak-free NOT_FOUND for a foreign-chat messageId (member of the caller's chat, not this slot's)", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+    const other = await seedRoom("other", me);
+    const { messageId } = await seedMessage(db, other, 1);
+
+    const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
+    await expect(
+      listMessageVariants({ principal: principal(me), chatId, messageId }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
+  });
+
   test("listParticipants returns the present roster", async () => {
     const me = await seedUser(db, "me");
     const chatId = await seedRoom("room", me);
@@ -297,6 +324,7 @@ describe("read — default-deny (membership chokepoint)", () => {
     const me = await seedUser(db, "me");
     const stranger = await seedUser(db, "stranger");
     const chatId = await seedRoom("room", me);
+    const { messageId } = await seedMessage(db, chatId, 1);
 
     const read = createRead(makeChatContext(db), makeDeps());
     const p = principal(stranger);
@@ -304,6 +332,9 @@ describe("read — default-deny (membership chokepoint)", () => {
     await expect(read.listMessages({ principal: p, chatId })).rejects.toBeInstanceOf(
       ChatNotFoundError,
     );
+    await expect(
+      read.listMessageVariants({ principal: p, chatId, messageId }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
     await expect(read.listParticipants({ principal: p, chatId })).rejects.toBeInstanceOf(
       ChatNotFoundError,
     );

@@ -12,7 +12,7 @@
 // the reasoning trace. It wears the assistant skin so the ghost reads as an in-progress assistant
 // message that swaps to the canonical row on turn-complete.
 
-import { repairStreamingTail } from "@orb/kit/fix-markdown";
+import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { ChatId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
@@ -44,10 +44,11 @@ export function GhostMessageRow({
   const reasoning = useGhostReasoning(chatId);
   const thinking = useGhostThinking(chatId);
   const paced = useSmoothText(text, { enabled: streaming, cps: GHOST_CPS });
-  // The repair guard applies only while still streaming (repairStreamingTail's contract, kit
-  // fix-markdown header) — once the turn settles, the ghost's last paint no longer matters (the
-  // canonical row takes over via the separate settled fixMarkdown pipeline).
-  const repaired = streaming ? repairStreamingTail(paced) : paced;
+  // #38: Streamdown 2.5 (inside `@orb/ui/markdown` with `mode="streaming"`) repairs the streaming
+  // markdown tail itself (unterminated fences / torn emphasis) — so the only pre-pass the seal still
+  // needs is holding a TORN `<speaker>` tag (Streamdown does not). Applies only while streaming; once
+  // settled the canonical row takes over via the separate settled pipeline.
+  const held = streaming ? holdTornSpeaker(paced) : paced;
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   return (
     <Stack
@@ -61,10 +62,12 @@ export function GhostMessageRow({
           It swaps to the shrink-to-fit canonical MessageRow on turn-complete. */}
       <Stack gap="row" data-slot="message-bubble" className={cn(skin.inner("assistant"), "w-full")}>
         {reasoning.length > 0 ? <ReasoningBlock reasoning={reasoning} thinking={thinking} /> : null}
-        {repaired.length === 0 ? (
+        {held.length === 0 ? (
           <StreamShimmer label="Generating a reply…" />
         ) : (
-          <Markdown trust="trusted">{repaired}</Markdown>
+          <Markdown trust="trusted" mode={streaming ? "streaming" : "static"}>
+            {held}
+          </Markdown>
         )}
       </Stack>
     </Stack>

@@ -42,9 +42,12 @@ function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly Invalid
   // The room read + the message list + the chat list (recency/preview all move on any canon change).
   // Cheap + precise: getChat + listMessages are input-scoped to THIS chat; listChats is path-scoped.
   // listMessages is the chat message-list surface's read (W-17); a canon mutation refetches it.
+  // listMessageVariants is the swipe strip's step-target resolver (path-scoped — a swipe/select/delete may
+  // touch any slot's sibling set, and the read is cheap/gated so a broad path invalidate is fine here too).
   return [
     trpc.chat.getChat.queryFilter({ chatId }),
     trpc.chat.listMessages.pathFilter(),
+    trpc.chat.listMessageVariants.pathFilter(),
     trpc.chat.listChats.pathFilter(),
   ];
 }

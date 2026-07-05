@@ -49,6 +49,14 @@ export function resolveTurnIdentity(params: {
   };
 }
 
+/** By-proxy = the host funds the turn but someone ELSE triggered it (`triggeredBy ≠ runAsUserId`, D19). A
+ *  `max-pro-sub` credential is unconstructable except for the box's one global owner (`credentials.resolve` →
+ *  `mintMaxProSub` → `requireOwner`), so for a hosted turn `runAsUserId` IS the owner — a NON-proxy hosted
+ *  turn is therefore the owner speaking on their own box (owner-initiated). File-local (the ONE by-proxy home). */
+function isByProxy(identity: TurnIdentity): boolean {
+  return identity.triggeredBy !== identity.runAsUserId;
+}
+
 /**
  * The max-pro-sub by-proxy refusal. Throws `ChatOperationError('consent_required')`
  * when a hosted-credential (`max-pro-sub`) turn is triggered by someone OTHER than the funding host and the
@@ -60,11 +68,25 @@ export function assertMaxProSubConsent(params: {
   readonly identity: TurnIdentity;
   readonly ownerConsent: boolean;
 }): void {
-  const byProxy = params.identity.triggeredBy !== params.identity.runAsUserId;
-  if (params.source === MAX_PRO_SUB && byProxy && !params.ownerConsent) {
+  if (params.source === MAX_PRO_SUB && isByProxy(params.identity) && !params.ownerConsent) {
     throw new ChatOperationError(
       CHAT_OP_CODES.consentRequired,
       "a non-owner-triggered max-pro-sub turn requires explicit owner consent",
     );
   }
+}
+
+/**
+ * Derive the D17 owner-consent VALUE the infra firewall re-verifies at dispatch (the `ownerConsented` field
+ * on `FirewallRequest`). This carries an ALREADY-ENFORCED verdict, never a fresh claim: it is called AFTER
+ * {@link assertMaxProSubConsent} at the engine belt, so a by-proxy non-consented hosted turn has already
+ * thrown. `true` iff the turn is owner-initiated (NON-proxy — the owner speaking on their own box, since
+ * `max-pro-sub` implies `runAsUserId` is the owner) OR the owner has consented to non-owner use. The infra
+ * belt still fail-closes on the source axis independently — this only supplies the consent axis. PURE.
+ */
+export function resolveOwnerConsented(params: {
+  readonly identity: TurnIdentity;
+  readonly ownerConsent: boolean;
+}): boolean {
+  return !isByProxy(params.identity) || params.ownerConsent;
 }

@@ -90,7 +90,7 @@ describe("createDefaultCharacterSeeder", () => {
     await seeder.ensureSeeded(actor);
 
     const list = await svc.list({ principal: actor });
-    expect(list.map((c) => c.handle).sort()).toEqual([...ALL_HANDLES].sort());
+    expect(list.items.map((c) => c.handle).sort()).toEqual([...ALL_HANDLES].sort());
     expect(latch.marks).toHaveLength(1);
   });
 
@@ -134,7 +134,7 @@ describe("createDefaultCharacterSeeder", () => {
     }).ensureSeeded(actor);
 
     const list = await svc.list({ principal: actor });
-    expect(list).toHaveLength(ALL_HANDLES.length); // no duplicates
+    expect(list.items).toHaveLength(ALL_HANDLES.length); // no duplicates
     expect(latch.marks).toHaveLength(1); // the second run short-circuited on the latch
   });
 
@@ -160,8 +160,8 @@ describe("createDefaultCharacterSeeder", () => {
 
     // No duplicate Assistant — the rerun resolved the existing row; the other 4 cards were created.
     const list = await svc.list({ principal: actor });
-    expect(list).toHaveLength(ALL_HANDLES.length);
-    expect(list.filter((c) => c.handle === WELCOME_ASSISTANT_HANDLE)).toHaveLength(1);
+    expect(list.items).toHaveLength(ALL_HANDLES.length);
+    expect(list.items.filter((c) => c.handle === WELCOME_ASSISTANT_HANDLE)).toHaveLength(1);
     // The latch lands with the EXISTING Assistant id (resolved via findByHandle), not a fresh one.
     expect(latch.marks[0]?.welcomeAssistantId).toBe(existingAssistantId);
   });

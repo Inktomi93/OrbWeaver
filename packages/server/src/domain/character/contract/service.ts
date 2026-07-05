@@ -40,8 +40,8 @@ import type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params";
-import type { CharacterRef, SnapshotRef, SnapshotSummary } from "./results";
-import type { CharacterDetail, CharacterSummary } from "./views";
+import type { CharacterRef, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
+import type { CharacterDetail } from "./views";
 
 /**
  * Best-effort reap of avatar assets that a deleted character may have orphaned. The avatar FK is
@@ -97,8 +97,9 @@ export interface CharacterService {
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;
   /** One owned character by id. Throws `CharacterNotFoundError` when missing OR not the caller's. */
   readonly get: (params: GetCharacterParams) => Promise<CharacterDetail>;
-  /** The caller's NON-synthetic characters, newest first (synthetic group buckets excluded — invariant 3). */
-  readonly list: (params: ListCharactersParams) => Promise<CharacterSummary[]>;
+  /** The caller's NON-synthetic characters, newest-first, cursor-paged (synthetic group buckets
+   *  excluded — invariant 3). */
+  readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
   /** Edit the live card IN PLACE (always safe — no CAS/COW; D28). Recomputes `contentHash`; emits
    *  `character.updated`. Throws `CharacterNotFoundError` when not owned/found. */
   readonly update: (params: UpdateCharacterParams) => Promise<CharacterDetail>;

@@ -65,7 +65,12 @@ describe("persistence/queries", () => {
     });
     await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: "foreign" });
 
-    const rows = await listOwnedCharactersWithAvatar(db, owner);
+    const rows = await listOwnedCharactersWithAvatar(db, {
+      ownerId: owner,
+      limit: 10,
+      cursor: undefined,
+      cursorId: undefined,
+    });
     expect(rows.map((r) => summaryOf(r, []).handle)).toEqual(["real"]);
   });
 
@@ -92,6 +97,52 @@ describe("persistence/queries", () => {
       throw new Error("expected the owned row");
     }
     expect(cardOf(row).greetings).toEqual([]);
+  });
+});
+
+describe("listOwnedCharactersWithAvatar — keyset paging", () => {
+  test("orders createdAt DESC, id DESC and honors limit", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: "owner" });
+    await seedRawCharacter(db, { id: "character_a", ownerId: owner, handle: "a", createdAt: 100 });
+    await seedRawCharacter(db, { id: "character_b", ownerId: owner, handle: "b", createdAt: 200 });
+    await seedRawCharacter(db, { id: "character_c", ownerId: owner, handle: "c", createdAt: 300 });
+
+    const rows = await listOwnedCharactersWithAvatar(db, {
+      ownerId: owner,
+      limit: 2,
+      cursor: undefined,
+      cursorId: undefined,
+    });
+    expect(rows.map((r) => r.character.handle)).toEqual(["c", "b"]);
+  });
+
+  test("the (createdAt, id) cursor excludes rows at-or-after the boundary, id DESC tiebreak", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: "owner" });
+    // Two rows share createdAt=100 — createdAt alone can't order them; id DESC does ("character_y" >
+    // "character_x" lexicographically).
+    await seedRawCharacter(db, { id: "character_x", ownerId: owner, handle: "x", createdAt: 100 });
+    await seedRawCharacter(db, { id: "character_y", ownerId: owner, handle: "y", createdAt: 100 });
+    await seedRawCharacter(db, { id: "character_z", ownerId: owner, handle: "z", createdAt: 200 });
+
+    // Cursor = the "z" row (200, character_z) → strictly older than it: y then x (tie broken by id).
+    const rows = await listOwnedCharactersWithAvatar(db, {
+      ownerId: owner,
+      limit: 10,
+      cursor: 200,
+      cursorId: castId<CharacterId>("character_z"),
+    });
+    expect(rows.map((r) => r.character.handle)).toEqual(["y", "x"]);
+
+    // Cursor = the "y" row (100, character_y) → only "x" remains (same createdAt, lower id).
+    const secondPage = await listOwnedCharactersWithAvatar(db, {
+      ownerId: owner,
+      limit: 10,
+      cursor: 100,
+      cursorId: castId<CharacterId>("character_y"),
+    });
+    expect(secondPage.map((r) => r.character.handle)).toEqual(["x"]);
   });
 });
 

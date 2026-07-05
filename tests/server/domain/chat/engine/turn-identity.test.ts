@@ -7,6 +7,7 @@ import { describe } from "vitest";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import {
   assertMaxProSubConsent,
+  resolveOwnerConsented,
   resolveTurnIdentity,
 } from "../../../../../packages/server/src/domain/chat/engine/turn-identity";
 import { expect, test } from "../../../../support/fixtures";
@@ -77,5 +78,53 @@ describe("assertMaxProSubConsent — the by-proxy belt (fail-closed)", () => {
 
   test("a non-hosted source (vllm) by proxy → not gated (local compute is count-budgeted, not consented)", () => {
     expect(() => consent({ source: "vllm" })).not.toThrow();
+  });
+});
+
+const ownerConsented = (over: {
+  triggeredBy?: UserId;
+  runAsUserId?: UserId;
+  ownerConsent?: boolean;
+}): boolean =>
+  resolveOwnerConsented({
+    identity: {
+      triggeredBy: over.triggeredBy ?? CALLER,
+      runAsUserId: over.runAsUserId ?? HOST,
+    },
+    ownerConsent: over.ownerConsent ?? false,
+  });
+
+describe("resolveOwnerConsented — the D17 verdict as a VALUE (post-belt)", () => {
+  test("SELF-triggered (triggeredBy === runAsUserId) → true even without owner consent (owner-initiated)", () => {
+    expect(ownerConsented({ triggeredBy: HOST, ownerConsent: false })).toBe(true);
+  });
+
+  test("BY-PROXY without owner consent → false (the belt would have refused a hosted turn already)", () => {
+    expect(ownerConsented({ triggeredBy: CALLER, ownerConsent: false })).toBe(false);
+  });
+
+  test("BY-PROXY WITH owner consent → true (the owner consented to non-owner use)", () => {
+    expect(ownerConsented({ triggeredBy: CALLER, ownerConsent: true })).toBe(true);
+  });
+
+  // The load-bearing pairing: whenever the max-pro-sub belt does NOT throw, the derived verdict is true —
+  // the two independent D17 checks (the throwing assert + the value the firewall re-verifies) never disagree.
+  test("NEVER disagrees with assertMaxProSubConsent on a max-pro-sub turn", () => {
+    const cases: readonly { triggeredBy: UserId; ownerConsent: boolean }[] = [
+      { triggeredBy: HOST, ownerConsent: false }, // self-triggered: passes belt, verdict true
+      { triggeredBy: HOST, ownerConsent: true }, // self-triggered + consent: passes belt, verdict true
+      { triggeredBy: CALLER, ownerConsent: true }, // by-proxy + consent: passes belt, verdict true
+    ];
+    for (const c of cases) {
+      // The belt does not throw for any of these …
+      expect(() =>
+        consent({ triggeredBy: c.triggeredBy, ownerConsent: c.ownerConsent }),
+      ).not.toThrow();
+      // … and the value the firewall re-verifies is affirmatively true (no independent disagreement).
+      expect(ownerConsented(c)).toBe(true);
+    }
+    // The one refused shape: by-proxy, no consent — the belt throws AND the verdict is false (both deny).
+    expect(() => consent({ triggeredBy: CALLER, ownerConsent: false })).toThrow(ChatOperationError);
+    expect(ownerConsented({ triggeredBy: CALLER, ownerConsent: false })).toBe(false);
   });
 });

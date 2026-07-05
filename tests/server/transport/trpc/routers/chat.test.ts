@@ -166,6 +166,46 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
   });
 });
 
+describe("chat.listMessageVariants — the swipe strip's step-target resolver (D26 full sibling set)", () => {
+  test("a thin pass-through: chatId/messageId reach the verb with the resolved Principal", async () => {
+    const variants = [
+      { variantId: castId<MessageVariantId>("message_variant_1"), idx: 0 },
+      { variantId: castId<MessageVariantId>("message_variant_2"), idx: 1 },
+    ];
+    const listMessageVariants = vi.fn<ChatService["listMessageVariants"]>(async () => variants);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { listMessageVariants } },
+    });
+
+    const result = await caller(ctx).chat.listMessageVariants({
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+    });
+
+    expect(listMessageVariants).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      messageId: MESSAGE.id,
+    });
+    expect(result).toEqual(variants);
+  });
+
+  test("a foreign-chat messageId surfaces the verb's leak-free NOT_FOUND", async () => {
+    const listMessageVariants = vi
+      .fn<ChatService["listMessageVariants"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { listMessageVariants } },
+    });
+
+    await expect(
+      caller(ctx).chat.listMessageVariants({ chatId: CHAT, messageId: MESSAGE.id }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
 describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire-through)", () => {
   test("a thin pass-through: chatId/messageId/variantId reach the verb with the resolved Principal", async () => {
     const variantId = castId<MessageVariantId>("message_variant_2");

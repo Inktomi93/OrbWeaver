@@ -33,9 +33,9 @@ describe("bulkRemove", () => {
       characterIds: [a.id, b.id, foreign.id, castId<CharacterId>("character_ghost")],
     });
 
-    expect(await svc.list({ principal: principal(owner) })).toHaveLength(0);
+    expect((await svc.list({ principal: principal(owner) })).items).toHaveLength(0);
     // the foreign character survives (skipped, not deleted)
-    expect(await svc.list({ principal: principal(other) })).toHaveLength(1);
+    expect((await svc.list({ principal: principal(other) })).items).toHaveLength(1);
     expect(h.audits.filter((entry) => entry.entry.action === "character.remove")).toHaveLength(2);
   });
 });

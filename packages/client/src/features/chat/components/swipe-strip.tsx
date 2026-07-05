@@ -13,10 +13,11 @@
 // pending the verb; `chat.selectVariant` is now wired on the transport).
 //
 // Both directions resolve their TARGET variant id through `useVariantHistory` (hooks/use-variant-
-// history.ts) — the wire has no verb that enumerates a slot's sibling variant ids (`MessageView` carries
-// only the SELECTED one, D26), so a step is only possible to an idx this mount has actually observed.
-// See that hook's header for the full MISSING-API note; the practical effect is that both chevrons are
-// disabled when the target hasn't been seen yet (never a dead click to an unresolvable id).
+// history.ts) — `MessageView` carries only the SELECTED variant per slot (D26), so the hook fetches the
+// real sibling list (`chat.listMessageVariants`, gated on `variantCount > 1`) and resolves ANY idx from it,
+// including one this mount has never rendered (a cold page load mid-way through a multi-variant slot). A
+// chevron stays disabled only while the real answer is unknown (still loading) or genuinely out of range —
+// never a dead click to an unresolvable id.
 //
 // Keyboard: Arrow-Left/Right drive the same two handlers via `useSwipeKeyboardNav` (hooks/use-swipe-
 // keyboard-nav.ts) — see that hook's header for the composer-focus gating note.
@@ -54,6 +55,7 @@ const useSwipeMutation = createEntityMutation<SwipeVars, unknown>({
   invalidates: (trpc, vars) => [
     trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
     trpc.chat.listMessages.pathFilter(),
+    trpc.chat.listMessageVariants.pathFilter(),
   ],
   errorToast: "Couldn't generate that swipe.",
 });
@@ -63,6 +65,7 @@ const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown
   invalidates: (trpc, vars) => [
     trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
     trpc.chat.listMessages.pathFilter(),
+    trpc.chat.listMessageVariants.pathFilter(),
   ],
   errorToast: "Couldn't switch to that variant.",
 });

@@ -11,6 +11,7 @@ import {
   loadMaxMessageSeq,
   loadMemberChat,
   loadMessagesPage,
+  loadMessageVariantSummaries,
   replayChatEvents,
   replayStreamEvents,
   streamEventBounds,
@@ -138,6 +139,28 @@ describe("persistence/queries — canon reads (D26)", () => {
 
     const tail = await loadMessagesPage(db, chatId, undefined, 2);
     expect(tail.map((m) => m.seq)).toStrictEqual([5, 4]);
+  });
+
+  test("loadMessageVariantSummaries returns the full sibling set ordered by idx, no content", async () => {
+    const chatId = await seedChat(db, "a");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1);
+    const v1 = await addVariant(db, messageId, 1, "second");
+    const v2 = await addVariant(db, messageId, 2, "third");
+
+    const rows = await loadMessageVariantSummaries(db, chatId, messageId);
+    expect(rows).toStrictEqual([
+      { variantId, idx: 0 },
+      { variantId: v1, idx: 1 },
+      { variantId: v2, idx: 2 },
+    ]);
+  });
+
+  test("loadMessageVariantSummaries is chat-scoped: a foreign chat's messageId matches nothing", async () => {
+    const chatId = await seedChat(db, "a");
+    const other = await seedChat(db, "b");
+    const { messageId } = await seedMessage(db, chatId, 1);
+
+    expect(await loadMessageVariantSummaries(db, other, messageId)).toStrictEqual([]);
   });
 });
 

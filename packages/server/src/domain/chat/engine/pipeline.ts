@@ -88,6 +88,9 @@ interface RunTurnPipelineArgs {
   readonly connection: ResolvedConnection;
   readonly intent: UserIntent;
   readonly kind: TurnKind;
+  /** The D17 owner-consent verdict the engine derived (`resolveOwnerConsented`, post-belt) — threaded onto the
+   *  built `TurnRequest` so the infra firewall re-verifies it. `true` = owner-initiated / owner-consented. */
+  readonly ownerConsented: boolean;
   readonly chatId: ChatId;
   /** A synthetic trailing user turn (regen/continue); null for a plain send (the canon tail is the user row). */
   readonly appendUserTurn?: string | null | undefined;
@@ -357,6 +360,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     history,
     intent: args.intent,
     kind: args.kind,
+    // D17: carry the engine's already-enforced consent verdict onto the request the infra firewall re-verifies.
+    ownerConsented: args.ownerConsented,
     cacheBreakpointFromEnd: shaped.cacheBreakpointFromEnd ?? null,
     signal: args.signal,
   };

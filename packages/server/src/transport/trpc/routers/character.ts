@@ -22,7 +22,28 @@ export const characterRouter = t.router({
       ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId }),
     ),
 
-  list: authedProcedure.query(({ ctx }) => ctx.services.character.list({ principal: ctx.auth })),
+  // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `cursor` rides as
+  // ONE `{createdAt, id}` object field (not a `cursor`/`cursorId` sibling pair) — tRPC's
+  // `infiniteQueryOptions` threads exactly one `cursor` field through as the page param, overwriting it
+  // wholesale on every next-page fetch (`domain/character/contract/params.ts` `CharacterListCursor`).
+  list: authedProcedure
+    .input(
+      z
+        .object({
+          cursor: z
+            .object({ createdAt: z.number().int(), id: brandedId<CharacterId>() })
+            .optional(),
+          limit: z.number().int().optional(),
+        })
+        .optional(),
+    )
+    .query(({ ctx, input }) =>
+      ctx.services.character.list({
+        principal: ctx.auth,
+        ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
+        ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+      }),
+    ),
 
   update: authedProcedure
     .input(z.object({ characterId: brandedId<CharacterId>(), input: updateCharacterSchema }))

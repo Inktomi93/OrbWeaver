@@ -18,6 +18,7 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
 import type {
   TurnPrep,
+  TurnRequest,
   TurnStreamChunk,
 } from "../../../../../packages/server/src/domain/chat/contract/results";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
@@ -203,6 +204,30 @@ describe("createTurnEngine — happy path", () => {
     await h.engine.runTurn(prepOf(chatId));
     const history = await loadCanonHistory(db, chatId);
     expect(history.map((m) => m.seq)).toEqual([1, 2]);
+  });
+
+  test("D17: a self-triggered (owner) max-pro-sub turn threads ownerConsented:true onto the built TurnRequest", async () => {
+    // The owner speaking on their own box (triggeredBy === runAsUserId): the consent belt does not throw, and
+    // the engine derives ownerConsented:true and stamps it on the TurnRequest the infra firewall re-verifies —
+    // the field being false is exactly what refused every owner max-pro-sub turn before this belt was wired.
+    const chatId = await seedChat(db, "consent");
+    let captured: TurnRequest | null = null;
+    const capturing: ChatContext["runChatTurn"] = (req) => {
+      captured = req;
+      return OK_TURN(req);
+    };
+    const h = harness(db, { runChatTurn: capturing });
+
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        connection: connectionOf("max-pro-sub"),
+        triggeredBy: HOST,
+        runAsUserId: HOST,
+      }),
+    );
+
+    expect(captured).not.toBeNull();
+    expect((captured as unknown as TurnRequest).ownerConsented).toBe(true);
   });
 });
 

@@ -15,6 +15,7 @@ export type {
   BulkArchiveParams,
   BulkRemoveParams,
   CharacterImportProvenance,
+  CharacterListCursor,
   CreateCharacterParams,
   DuplicateCharacterParams,
   FindByHandleParams,
@@ -31,7 +32,12 @@ export type {
   UpdateCharacterParams,
 } from "./contract/params";
 // CharacterRef is what the injected synthetic mint/find ops return.
-export type { CharacterRef, SnapshotRef, SnapshotSummary } from "./contract/results";
+export type {
+  CharacterRef,
+  ListCharactersResult,
+  SnapshotRef,
+  SnapshotSummary,
+} from "./contract/results";
 // The entry root assembles the context from these types.
 export type {
   AttachCardTagOp,

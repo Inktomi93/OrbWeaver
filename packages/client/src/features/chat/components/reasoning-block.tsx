@@ -20,7 +20,7 @@
 // thinking ends the trace is settled (no more reasoning deltas expected), so it renders as-is, same as
 // the answer body gates its own repair pass on `streaming`.
 
-import { repairStreamingTail } from "@orb/kit/fix-markdown";
+import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as react's Suspense in query-boundary.tsx).
 import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
@@ -63,7 +63,9 @@ export function ReasoningBlock({ reasoning, thinking }: ReasoningBlockProps): Re
   const expanded = override ?? thinking;
   const label = thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`;
   const paced = useSmoothText(reasoning, { enabled: thinking, cps: REASONING_CPS });
-  const repaired = thinking ? repairStreamingTail(paced) : paced;
+  // #38: Streamdown 2.5 repairs the streaming tail itself (mode="streaming"); only the torn-`<speaker>`
+  // hold-back remains unique to us. Applies while thinking; settled traces render as-is.
+  const held = thinking ? holdTornSpeaker(paced) : paced;
 
   return (
     <Collapsible open={expanded} onOpenChange={(next): void => setOverride(next)}>
@@ -76,10 +78,12 @@ export function ReasoningBlock({ reasoning, thinking }: ReasoningBlockProps): Re
         </Row>
       </CollapsibleTrigger>
       <CollapsiblePanel>
-        {repaired.length === 0 ? (
+        {held.length === 0 ? (
           <StreamShimmer label="Reading the reasoning trace…" />
         ) : (
-          <Markdown trust="trusted">{repaired}</Markdown>
+          <Markdown trust="trusted" mode={thinking ? "streaming" : "static"}>
+            {held}
+          </Markdown>
         )}
       </CollapsiblePanel>
     </Collapsible>

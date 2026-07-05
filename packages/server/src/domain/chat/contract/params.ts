@@ -125,6 +125,12 @@ export interface ListMessagesParams extends ChatScopedParams {
 
 export interface ListParticipantsParams extends ChatScopedParams {}
 
+/** `listMessageVariants` — the full sibling-variant set for one slot (D26), no content: just enough
+ *  (`{variantId, idx}[]`) to resolve an idx the caller hasn't rendered yet to its variant id. The swipe
+ *  strip's step-target resolver (`MessageView` carries only the SELECTED variant — this read fills the
+ *  gap, was MISSING-API before the chat-surface lane's swipe follow-up). */
+export interface ListMessageVariantsParams extends MessageScopedParams {}
+
 /** `replayStreamEvents` — resume the SSE token log from a cursor (late-subscriber ramp-up). */
 export interface ReplayStreamEventsParams extends ChatScopedParams {
   /** Replay strictly after this `seq`; absent ⇒ from the start of the retained window. */
