@@ -214,6 +214,56 @@ chunk, never inlined in a feature).
   TSX explicitly (a react-hooks error hid this session). `biome-ignore` ≠ `eslint-disable`.
 - The bind-mount shares `.git` with the host — don't run git ops from both sides at once.
 
+## Hard-won wisdom (2026-07-04c chat-app build — future-you: read BEFORE rediscovering)
+
+**REAL Claude generation WORKS in-container — the whole recipe (this unblocks live chat + streaming gifs):**
+- The `agent-sdk` provider backend authenticates via the HOST Claude Code login (`apiKeySource:"none"` = the
+  Max/Pro sub), NO API key. `api.anthropic.com` is firewall-allowed; OpenRouter is BLOCKED. So orbweaver streams
+  real Claude with zero key. Cheap check: `POST /api/trpc/connection.testClaudeAuth` (a mutation → POST) → `{ok:true}`.
+- Point chat at it: `POST /api/trpc/settings.updateUserSettingsSection` with a **RAW batched body** `{"0":{...}}`
+  (the tRPC transport is NOT superjson — do NOT wrap in `{"json":...}`), section=`routing`,
+  patch=`{roleDefaults:{chat:{api:"agent-sdk",source:"max-pro-sub",model:"claude-haiku-4-5-20251001"}}}`. (Set in dev DB.)
+- **A chat NEEDS a character to reply** — a character-less chat commits the user msg but generates NO assistant turn
+  (no speaker). Start via `chat.startChat({characterIds:[...]})` (the boot seeder seeds default characters). Single-user
+  dev auto-owns every request (no login). D17 owner-consent is wired (owner-initiated turns pass; 2026-07-04c).
+- Verified live: pick a seeded character → chat → `claude-haiku-4-5` replies in-persona, streams into the ghost row.
+
+**Self-verify the UI yourself (don't guess — snap/record are agent eyes):**
+- `pnpm snap <route> [--text]` = static/ARIA/DEADCSS (0 page-errors + deadcss=0 = healthy). `pnpm record` = streaming/
+  animation gif. **To DRIVE the composer in a Playwright script: `pressSequentially` + press Enter — NOT `fill`**
+  (`fill` sets the DOM value but does NOT drive React's controlled `onChange`, so Send stays disabled; the composer
+  sends on Enter). The dev TanStack-devtools float button OVERLAPS the composer Send → use `--jsclick`/Enter, not a click.
+  Import `@playwright/test` (not `playwright`); run scripts FROM /workspace so node_modules resolves.
+- The design MOCKUP is runnable in-container: esbuild-compile `reference/design/neo-tavern/*.jsx` (unpkg/React CDN is
+  firewall-blocked) → serve → snap against it. Recipe in `scratch/chat-surface-lane.md`.
+
+**Orchestrator crew playbook (what worked — repeat it):**
+- **Plan-first checkpoint for BIG/architectural/security/@orb/ui-seal lanes** (app-shell, streamdown, consent,
+  active-chat). The plans caught real issues + builders reverse-engineered runtime behavior (Streamdown's minified
+  defaults, the owner-only-credential invariant). **Build-through for small well-specified lanes.** Every plan this
+  session was excellent — trust the crew, but review the plan on the load-bearing ones.
+- **Builders flag gaps HONESTLY (missing-API) instead of hacking** — this is THE thing that makes green mean something.
+  Not once did a Sonnet-5 builder stub improperly. Trust their green checkmarks BECAUSE of this discipline.
+- **Parallel lanes: keep file sets PROVABLY disjoint + ONE merged verify** (`pnpm check` + targeted node/CT, account
+  for the message-list CT flake #33), OR `isolation:"worktree"`. **HOLD commits until a co-running wave settles** — the
+  pre-commit hook runs the WHOLE-tree `pnpm check`, so ANY in-progress sibling file breaks the commit. Commit the wave
+  once all lanes land + a full merged verify passes. (Downside: a big bundled commit; upside: never a red tree.)
+
+**RECURRING PATTERN — domain is AHEAD of the transport router (wire thin-through, don't assume missing):** a feature's
+read/write verb almost always EXISTS in `domain/<x>/` but is NOT exposed on the tRPC router. Happened ~9× this session
+(listMessages · selectVariant · abort · editMessage · setMessageHidden · deleteMessages · forkChat · listMessageVariants
+· character pagination). SWEEP `domain/<x>/contract/service.ts` + the verbs FIRST; if it exists, wire a thin pass-through
+procedure (member/owner-gated IN the domain, mirror the sibling proc) + a transport test. Some bus events are also
+declared-never-emitted (PD-117) — the server emit may lag. Also: some reads are UNPAGED (character.list, listChats) →
+`useSuspenseQuery` not `createCollectionSurface` until a `{items,nextCursor}` cursor is added.
+
+**Foundation-primitive lesson:** the client factories (createEntityMutation/useGatedQuery/createCollectionSurface) were
+built against an older TanStack + NEVER typechecked against a real tRPC consumer → 3 latent type-bugs surfaced the moment
+the chat surface consumed them. **Build a real consumer early to validate a foundation primitive** (a mock hides the
+variance). Small gotchas: `@orb/ui/src/lib/` compiles WITHOUT the DOM lib (use structural DOM types for a browser hook
+there); tRPC `infiniteQueryOptions` needs a SINGLE `cursor` object field (not sibling cursor/cursorId); the Streamdown
+seal overrides `remarkPlugins` ONLY, never `rehypePlugins` (or the `allowedTags` additive-schema merge silently breaks).
+
 ## The `/reference/` corpus (gitignored, read-only)
 
 The docs cite neo/ST evidence one-line (e.g. "`tool-calling.js:565`"). Those targets are
