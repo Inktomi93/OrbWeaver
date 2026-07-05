@@ -27,11 +27,17 @@ test("clamps at min: decrement disables at the floor", async ({ mount, page }) =
   await expect(decrement).toBeEnabled();
 });
 
-test("stepper buttons meet the touch floor", async ({ mount, page }) => {
-  await mount(<NumberField defaultValue={0} />);
-  const box = await page.getByLabel("Increase").boundingBox();
-  expect(box?.width).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-  expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+// The ≥44px floor is a COARSE-pointer guarantee (D62 P1) — steppers narrow on fine pointers, so this
+// runs under an emulated coarse pointer (hasTouch → pointer:coarse, the tokens/index.ct.tsx precedent).
+test.describe("coarse pointer — the touch floor", () => {
+  test.use({ hasTouch: true });
+
+  test("stepper buttons meet the touch floor", async ({ mount, page }) => {
+    await mount(<NumberField defaultValue={0} />);
+    const box = await page.getByLabel("Increase").boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+    expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+  });
 });
 
 test("onValueChange reports the parsed number", async ({ mount, page }) => {

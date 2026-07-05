@@ -9,6 +9,7 @@ import type {
 } from "@base-ui/react/dialog";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ReactElement } from "react";
+import type { VariantProps } from "tailwind-variants";
 import { dialogVariants } from "./variants";
 
 const slots = dialogVariants();
@@ -35,7 +36,9 @@ export function DialogTrigger<Payload = unknown>(props: BaseTriggerProps<Payload
   return <BaseDialog.Trigger {...props} />;
 }
 
-export interface DialogPopupProps extends Omit<BasePopupProps, "className"> {
+export interface DialogPopupProps
+  extends Omit<BasePopupProps, "className">,
+    VariantProps<typeof dialogVariants> {
   className?: string;
   /** Portal target — render the overlay into a specific container (default: document.body). */
   container?: BasePortalProps["container"];
@@ -56,16 +59,19 @@ export interface DialogPopupProps extends Omit<BasePopupProps, "className"> {
  * Spec: ui-package-design §6.1 dictate — Root/Trigger/Portal/Backdrop/Popup/Title/Description/Close.
  */
 export function DialogPopup(props: DialogPopupProps): ReactElement {
-  const { className, children, container, keepMounted, forceRender, ...rest } = props;
+  const { className, children, container, keepMounted, forceRender, size, ...rest } = props;
+  // The size variant reshapes BOTH the viewport (full drops its gutter) and the popup (width clamp /
+  // full-bleed), so compute a per-call slot set; backdrop is size-independent but reads cleanly here too.
+  const sized = dialogVariants({ size });
   return (
     <BaseDialog.Portal container={container} keepMounted={keepMounted}>
       <BaseDialog.Backdrop
-        className={slots.backdrop()}
+        className={sized.backdrop()}
         data-slot="dialog-backdrop"
         forceRender={forceRender}
       />
-      <BaseDialog.Viewport className={slots.viewport()} data-slot="dialog-viewport">
-        <BaseDialog.Popup className={slots.popup({ className })} data-slot="dialog-popup" {...rest}>
+      <BaseDialog.Viewport className={sized.viewport()} data-slot="dialog-viewport">
+        <BaseDialog.Popup className={sized.popup({ className })} data-slot="dialog-popup" {...rest}>
           {children}
         </BaseDialog.Popup>
       </BaseDialog.Viewport>

@@ -111,6 +111,10 @@ const FIXTURES: Record<string, { path: string; src: string }> = {
     path: "packages/client/src/features/x/surfaces/w.tsx",
     src: 'export const C = () => <div className="w-64" />;\n',
   },
+  "no-arbitrary-tw-values": {
+    path: "packages/client/src/features/x/surfaces/a.tsx",
+    src: 'export const C = () => <div className="p-[13px]" />;\n',
+  },
   "no-raw-clock": {
     path: "f.ts",
     // assembled likewise so this file carries no literal ambient-clock call for the test-determinism gate.

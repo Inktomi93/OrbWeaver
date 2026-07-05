@@ -1,0 +1,92 @@
+// Plugin: no-arbitrary-tw-values
+// Severity: error
+// ──────────────────────────────────────────────────────────────────────────────
+// Catches:    Arbitrary-VALUE Tailwind utilities carrying a RAW measurement literal —
+//             a bracket `X-[…]` whose content holds a length/number-with-unit
+//             (`p-[13px]`, `text-[10.5px]`, `w-[560px]`, `tracking-[.08em]`,
+//             `top-[7px]`, `min-[600px]:flex`) or a hex color (`bg-[#0af]`) — inside:
+//               • JSX `className="..."` attributes
+//               • `cn(...)` / `clsx(...)` / `cva(...)` / `tv(...)` call-arg strings
+//
+// Rationale:  The token-gate family (no-raw-spacing / no-raw-typography /
+//             no-raw-container-widths / no-color-literals) each closes ONE bracket
+//             escape; this widens the family to the GENERAL rule: if a value is worth
+//             using it's worth a token. A raw measurement or hex in a bracket bypasses
+//             the whole token system — D62 design-enforcement §3.2.
+//
+//               ❌ <div className="p-[13px]">       ✅ intent token: p-block / a --spacing-* var
+//               ❌ <Dialog className="max-w-[560px]"> ✅ max-w-(--width-dialog-md)  (token var shorthand)
+//               ❌ <span className="text-[10.5px]">  ✅ text-micro  (the type-scale token)
+//
+// NOT caught (deliberately — these carry NO raw measurement/hex literal, so the
+//             content guard skips them; they are legitimate Tailwind, not escapes):
+//               • variant/selector brackets: `data-[orientation=vertical]:`,
+//                 `group-data-[panel-open]:`, `has-[:focus-visible]:`, `aria-[…]:`
+//               • arbitrary content: `content-['']`, `before:content-['\2014']`
+//               • TOKEN-VAR references: `w-(--anchor-width)` (the `(…)` shorthand, not
+//                 a bracket) and `translate-x-[calc(var(--a)-var(--b))]` (calc of vars,
+//                 no bare literal). Compose token math from vars, never raw lengths.
+//
+// Scope:      packages/{client,ui}/src minus the layout/ + markdown/ seals (layout
+//             DEFINES the scale; markdown owns prose chrome incl. `max-h-[60cqh]`),
+//             via the in-rule `$filename` guard — NOT per-line suppressions. No
+//             directory is exempt from a boundary rule (D43 §11.0); those two paths
+//             are the token-DEFINING/prose seals, mirroring the rest of the family.
+//
+// Refs:       docs/architecture/proposed/design-enforcement.md §3.2
+//             docs/architecture/core/UI-Gates-and-Lessons.md §8 (the D62 PLANNED set)
+//             tools/grit/no-raw-spacing-in-features.grit (the sibling it widens)
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// GritQL note: identical className-string shape to the raw-value trio. The shared
+// BAD fragment is a bracket `-\[…\]` whose content matches EITHER a number (incl.
+// leading-dot decimals) immediately followed by a CSS unit, OR a `#hex` color — so
+// unit-less variant brackets and var/calc references never fire. `[^\]]` (escaped)
+// bounds the bracket body. `bubble` makes each inner literal in a cn/clsx/cva/tv call
+// match independently.
+
+language js
+
+predicate in_substrate_scope() {
+  $filename <: r".*/packages/(?:client|ui)/src/.*",
+  $filename <: not or {
+    r".*/packages/ui/src/layout/.*",
+    r".*/packages/ui/src/markdown/.*"
+  }
+}
+
+or {
+  JsxAttribute() as $attr where {
+    in_substrate_scope(),
+    $attr <: r"^className=\"[^\"]*-\[[^\]]*(?:(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|svh|dvh|lvh|svw|dvw|lvw|ch|ex|cm|mm|in|pt|pc|fr|deg|grad|rad|turn|cqw|cqh|cqi|cqb|cqmin|cqmax)|#[0-9a-fA-F]{3,8})[^\]]*\][^\"]*\"$",
+    register_diagnostic(span=$attr, message="arbitrary-value utility with a raw measurement/hex in className (e.g. p-[13px], text-[10.5px], max-w-[560px]) — mint or reuse a token and reference it (an intent token, or the `(--token)` var shorthand for a one-off). See docs/architecture/proposed/design-enforcement.md §3.2.", severity="error")
+  },
+  `cn($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[[^\]]*(?:(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|svh|dvh|lvh|svw|dvw|lvw|ch|ex|cm|mm|in|pt|pc|fr|deg|grad|rad|turn|cqw|cqh|cqi|cqb|cqmin|cqmax)|#[0-9a-fA-F]{3,8})[^\]]*\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary-value utility with a raw measurement/hex in cn() — mint or reuse a token (an intent token, or the `(--token)` var shorthand). See docs/architecture/proposed/design-enforcement.md §3.2.", severity="error")
+    }
+  },
+  `clsx($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[[^\]]*(?:(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|svh|dvh|lvh|svw|dvw|lvw|ch|ex|cm|mm|in|pt|pc|fr|deg|grad|rad|turn|cqw|cqh|cqi|cqb|cqmin|cqmax)|#[0-9a-fA-F]{3,8})[^\]]*\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary-value utility with a raw measurement/hex in clsx() — mint or reuse a token (an intent token, or the `(--token)` var shorthand). See docs/architecture/proposed/design-enforcement.md §3.2.", severity="error")
+    }
+  },
+  `cva($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[[^\]]*(?:(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|svh|dvh|lvh|svw|dvw|lvw|ch|ex|cm|mm|in|pt|pc|fr|deg|grad|rad|turn|cqw|cqh|cqi|cqb|cqmin|cqmax)|#[0-9a-fA-F]{3,8})[^\]]*\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary-value utility with a raw measurement/hex in cva() — mint or reuse a token (an intent token, or the `(--token)` var shorthand). See docs/architecture/proposed/design-enforcement.md §3.2.", severity="error")
+    }
+  },
+  `tv($args)` where {
+    in_substrate_scope(),
+    $args <: contains bubble `$str` as $lit where {
+      $lit <: r"^\"[^\"]*-\[[^\]]*(?:(?:\d+\.?\d*|\.\d+)(?:px|rem|em|%|vh|vw|vmin|vmax|svh|dvh|lvh|svw|dvw|lvw|ch|ex|cm|mm|in|pt|pc|fr|deg|grad|rad|turn|cqw|cqh|cqi|cqb|cqmin|cqmax)|#[0-9a-fA-F]{3,8})[^\]]*\][^\"]*\"$",
+      register_diagnostic(span=$lit, message="arbitrary-value utility with a raw measurement/hex in tv() — mint or reuse a token (an intent token, or the `(--token)` var shorthand). See docs/architecture/proposed/design-enforcement.md §3.2.", severity="error")
+    }
+  }
+}

@@ -8,7 +8,8 @@ export interface SkeletonProps
     VariantProps<typeof skeletonVariants> {}
 
 /**
- * Skeleton — a muted, `animate-pulse` loading placeholder. The caller owns the box: size it via
+ * Skeleton — a muted, shimmer-swept loading placeholder (D62 UIP-309; static under
+ * `prefers-reduced-motion`). The caller owns the box: size it via
  * `className` (`<Skeleton className="h-control-md w-full" />`). Design prefers skeletons over
  * spinners for layout loading (ui-package-design §6.1). Decorative by default (`aria-hidden`).
  *

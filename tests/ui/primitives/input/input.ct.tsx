@@ -10,11 +10,22 @@ import { expect, test } from "@playwright/experimental-ct-react";
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;
 
-test("wears the bg-input token and meets the touch floor", async ({ mount }) => {
+test("wears the bg-input token", async ({ mount }) => {
   const input = await mount(<Input />);
-  const box = await input.boundingBox();
-  expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
   await expect(input).toHaveCSS("background-color", TOKENS["color.input"].value);
+});
+
+// The ≥44px floor is a COARSE-pointer guarantee (D62 P1) — the input height narrows on fine pointers,
+// so this runs under an emulated coarse pointer (hasTouch → pointer:coarse, the tokens/index.ct.tsx
+// precedent). Without it the default Desktop-Chrome CT is fine and the height is 28, not the floor.
+test.describe("coarse pointer — the touch floor", () => {
+  test.use({ hasTouch: true });
+
+  test("meets the touch floor", async ({ mount }) => {
+    const input = await mount(<Input />);
+    const box = await input.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+  });
 });
 
 test("typing updates the value and fires onValueChange", async ({ mount }) => {

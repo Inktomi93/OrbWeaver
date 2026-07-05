@@ -262,7 +262,10 @@ export default tseslint.config(
       "better-tailwindcss": { entryPoint: "packages/ui/src/styles/globals.css" },
     },
     rules: {
-      "better-tailwindcss/no-unknown-classes": "error",
+      // `orb-*` are the kit's own bespoke component classes (keyframe animations Tailwind utilities
+      // can't express — e.g. `orb-skeleton-shimmer`, D62 UIP-309), defined in globals.css and composed
+      // by name; they are legitimately not Tailwind utilities, so the unknown-class check ignores them.
+      "better-tailwindcss/no-unknown-classes": ["error", { ignore: ["^orb-"] }],
       "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
       "better-tailwindcss/no-deprecated-classes": "error",
     },
@@ -293,6 +296,11 @@ export default tseslint.config(
     ignores: [
       "packages/client/src/features/app-shell/**",
       "packages/client/src/state/**",
+      // The brand mark — a hand-authored inline-SVG geometry painter (the sanctioned no-inline-svg
+      // exception), RE-HOMED here from app-shell chrome by D62/§13.9 as the cross-cutting display
+      // seam. Like app-shell it legitimately paints (className on the raw <svg>); it is the ONE lib/
+      // painter, exempted by exact path — never a lib/** wildcard.
+      "packages/client/src/lib/weave-glyph.tsx",
       "**/*.test.{ts,tsx}",
     ],
     rules: {

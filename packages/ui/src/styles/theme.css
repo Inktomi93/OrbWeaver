@@ -85,6 +85,9 @@
   --container-cq-sm: 24rem;
   --container-cq-md: 32rem;
   --container-cq-lg: 48rem;
+  --width-dialog-sm: 25rem;
+  --width-dialog-md: 35rem;
+  --width-dialog-lg: 45rem;
   --z-base: 0;
   --z-raised: 10;
   --z-overlay: 40;
@@ -94,6 +97,7 @@
   --motion-fast: 130ms;
   --motion-base: 220ms;
   --motion-layout: 360ms;
+  --motion-shimmer: 1300ms;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 

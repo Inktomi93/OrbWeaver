@@ -2,7 +2,12 @@ import type { ReactElement, ReactNode } from "react";
 import { emptyStateVariants } from "./variants";
 
 export interface EmptyStateProps {
-  /** Optional glyph slot — an `@orb/ui/icons` `<Icon>`, or the brand Weave glyph. */
+  /**
+   * Brand-glyph slot (D62) — the client fills it with the Weave glyph for the teaching moment. Renders
+   * UNSTYLED (keeps its own color) and, when supplied, takes the head slot INSTEAD of `icon`.
+   */
+  decoration?: ReactNode;
+  /** Optional muted glyph slot — an `@orb/ui/icons` `<Icon>`. Superseded by `decoration` when both set. */
   icon?: ReactNode;
   title: ReactNode;
   description?: ReactNode;
@@ -18,11 +23,12 @@ export interface EmptyStateProps {
  *
  * Usage:
  * ```tsx
- * <EmptyState icon={<Icon icon={Search} size="lg" />} title="No characters yet"
+ * <EmptyState decoration={<WeaveGlyph size={48} />} title="No characters yet"
  *   description="Weave your first one to begin." action={<Button>New character</Button>} />
  * ```
  */
 export function EmptyState({
+  decoration,
   icon,
   title,
   description,
@@ -30,13 +36,24 @@ export function EmptyState({
   className,
 }: EmptyStateProps): ReactElement {
   const slots = emptyStateVariants();
+  // The head slot: `decoration` (brand glyph, unstyled) WINS over `icon` (muted chrome) when both set.
+  let head: ReactElement | null = null;
+  if (decoration !== undefined) {
+    head = (
+      <div className={slots.decoration()} data-slot="empty-state-decoration">
+        {decoration}
+      </div>
+    );
+  } else if (icon !== undefined) {
+    head = (
+      <div className={slots.icon()} data-slot="empty-state-icon">
+        {icon}
+      </div>
+    );
+  }
   return (
     <div className={slots.root({ className })} data-slot="empty-state-root">
-      {icon === undefined ? null : (
-        <div className={slots.icon()} data-slot="empty-state-icon">
-          {icon}
-        </div>
-      )}
+      {head}
       <p className={slots.title()} data-slot="empty-state-title">
         {title}
       </p>

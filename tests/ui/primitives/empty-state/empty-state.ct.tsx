@@ -36,3 +36,34 @@ test("renders the icon slot when provided", async ({ mount, page }) => {
   await mount(<EmptyState icon={<span data-testid="glyph">*</span>} title="Empty" />);
   await expect(page.getByTestId("glyph")).toBeVisible();
 });
+
+test("renders the decoration slot (unstyled — no muted color forced on the brand glyph)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(
+    <EmptyState decoration={<span data-testid="weave">◈</span>} title="Weave your first thread" />,
+  );
+  await expect(page.getByTestId("weave")).toBeVisible();
+  const decoration = component.locator('[data-slot="empty-state-decoration"]');
+  await expect(decoration).toBeVisible();
+  // Unstyled: the decoration wrapper does NOT force the muted chrome color the icon slot applies —
+  // so a WeaveGlyph tinted via currentColor keeps its own Ember, not muted grey.
+  await expect(decoration).not.toHaveCSS("color", TOKENS["color.muted-foreground"].value);
+});
+
+test("decoration WINS over icon when both are passed (head slot is the brand glyph)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <EmptyState
+      decoration={<span data-testid="weave">◈</span>}
+      icon={<span data-testid="icon">*</span>}
+      title="Both"
+    />,
+  );
+  await expect(page.getByTestId("weave")).toBeVisible();
+  await expect(page.getByTestId("icon")).toHaveCount(0);
+  await expect(page.locator('[data-slot="empty-state-icon"]')).toHaveCount(0);
+});

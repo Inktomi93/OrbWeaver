@@ -49,13 +49,14 @@ export function Text({
   size,
   weight,
   tone,
+  transform,
   ...rest
 }: TextProps): ReactElement {
   const Component = TEXT_ELEMENTS[as];
   return (
     <Component
       data-slot="text"
-      className={cn(textVariants({ size, weight, tone }), className)}
+      className={cn(textVariants({ size, weight, tone, transform }), className)}
       {...rest}
     />
   );
@@ -82,6 +83,7 @@ export function Heading({
   size,
   weight = "semibold",
   tone,
+  transform,
   ...rest
 }: HeadingProps): ReactElement {
   const Component = HEADING_ELEMENTS[level];
@@ -89,7 +91,7 @@ export function Heading({
     <Component
       data-slot="heading"
       className={cn(
-        textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone }),
+        textVariants({ size: size ?? HEADING_SIZE_BY_LEVEL[level], weight, tone, transform }),
         className,
       )}
       {...rest}
