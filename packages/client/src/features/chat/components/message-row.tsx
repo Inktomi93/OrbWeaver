@@ -34,12 +34,18 @@ import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Avatar } from "@orb/ui/avatar";
+import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { useIsEditingMessage } from "#state";
+import {
+  toggleMessageSelected,
+  useIsEditingMessage,
+  useIsMessageSelected,
+  useSelectionActive,
+} from "#state";
 import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
@@ -120,6 +126,10 @@ export function MessageRow({
   // unmounts this row on scroll. While editing, the textarea REPLACES the read-only body; the
   // attribution chrome + swipe strip stay put (only the content slot swaps).
   const editing = useIsEditingMessage(message.id);
+  // Bulk-select mode (J6): while active, each row shows a leading checkbox and hides its per-row action
+  // cluster — the selection bar (pinned above the composer) owns the destructive action.
+  const selecting = useSelectionActive();
+  const selected = useIsMessageSelected(message.id);
   const renderContext = resolveMessageRenderContext({
     participants,
     characterNamesById,
@@ -139,7 +149,21 @@ export function MessageRow({
   );
 
   return (
-    <Stack gap="row" data-slot="message-row" data-role={role} className={skin.outer(role)}>
+    // `group` is the hover/focus hook UIP-305's message-actions-row reveals off (group-hover /
+    // group-focus-within) — the actions cluster is opacity-0 at rest until this row is hovered/focused.
+    <Stack
+      gap="row"
+      data-slot="message-row"
+      data-role={role}
+      className={cn("group", skin.outer(role))}
+    >
+      {selecting ? (
+        <Checkbox
+          aria-label="Select message"
+          checked={selected}
+          onCheckedChange={(): void => toggleMessageSelected(message.id)}
+        />
+      ) : null}
       {attribution.name === null ? null : (
         <Row gap="field" align="center" data-slot="message-attribution">
           {showInChatAvatars ? (
@@ -147,9 +171,21 @@ export function MessageRow({
               {initialsForAttribution(attribution.name)}
             </Avatar>
           ) : null}
-          <Text as="span" size="label" weight="medium" tone="muted">
-            {attribution.name}
-          </Text>
+          {/* UIP-304 speaker-name accent: a CHARACTER name (tokens present) is tinted with the per-speaker
+              ThemeScope color (`--color-speaker` → `text-speaker`) so speakers are scannable; a USER/"You"
+              row (tokens null) stays muted. `display: contents` on the scope div keeps the vars inheriting
+              with zero layout box. */}
+          {attribution.tokens === null ? (
+            <Text as="span" size="label" weight="medium" tone="muted">
+              {attribution.name}
+            </Text>
+          ) : (
+            <ThemeScope tokens={attribution.tokens} className="contents">
+              <Text as="span" size="label" weight="medium" className="text-speaker">
+                {attribution.name}
+              </Text>
+            </ThemeScope>
+          )}
         </Row>
       )}
       <Stack
@@ -167,7 +203,9 @@ export function MessageRow({
           <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
         )}
       </Stack>
-      {editing ? null : <MessageActionsRow message={message} onChatForked={onChatForked} />}
+      {editing || selecting ? null : (
+        <MessageActionsRow message={message} onChatForked={onChatForked} />
+      )}
       {showSwipes && role === "assistant" && !editing ? <SwipeStrip message={message} /> : null}
     </Stack>
   );

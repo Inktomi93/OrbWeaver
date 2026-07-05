@@ -14,6 +14,19 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
+/** `chat.addCharacterToChat` vars — add one host-owned character to the roster (J7 add-member, host-only). */
+interface AddCharacterToChatVars {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId;
+}
+
+export const useAddCharacterToChat = createEntityMutation<AddCharacterToChatVars, unknown>({
+  options: (trpc) => trpc.chat.addCharacterToChat.mutationOptions(),
+  // The added member changes the roster the cast bar + Roster tab + attribution all read from `getChat`.
+  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't add that character to the chat.",
+});
+
 /** `chat.setParticipantDisabled` vars — mute/unmute one roster character (host-only). */
 interface SetParticipantDisabledVars {
   readonly chatId: ChatId;

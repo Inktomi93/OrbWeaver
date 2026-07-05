@@ -10,6 +10,7 @@
 // not just the user row's commit — Stop/streaming state is read from `useTurnPhase`, never from
 // `isPending` here).
 
+import type { UserIntent } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useTRPC } from "#data";
@@ -25,6 +26,11 @@ export type { DraftSeed } from "#state";
 interface SendVars {
   readonly chatId: ChatId;
   readonly content: string;
+  /** The per-turn generation intent (today: `{ effort }` only — the reasoning-effort quick-control,
+   *  ux-flow-revamp §3). Omitted when the composer's effort is "auto" ⇒ the server uses the preset/model
+   *  default. The wire (`chat.send` schema) accepts `intent: z.any().optional()`, so this typed
+   *  `Partial<UserIntent>` rides it directly. */
+  readonly intent?: Partial<UserIntent> | undefined;
 }
 
 // Module-scope factory (§13.1 pattern — the returned hook has a stable identity). TData is `unknown`:
@@ -68,6 +74,9 @@ const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult
 export interface UseSendMessageOptions {
   readonly handle: ChatHandle;
   readonly draftSeed?: DraftSeed | undefined;
+  /** The per-turn generation intent to thread onto the send (today: `{ effort }` from the composer's
+   *  sticky EffortSelect). Undefined / empty ⇒ no `intent` on the wire (server default). */
+  readonly intent?: Partial<UserIntent> | undefined;
   /** Fires once a draft is promoted to a committed chat (startChat resolved) — the composition
    *  tier's seam to flip its own `ChatHandle` from `draft` to `committed`. */
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
@@ -130,7 +139,14 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
       // Subscribe BEFORE the send mutate (synchronous — no await between here and the fire), so the user
       // row's `messageCommitted` can't race past. The listener clears the composer's draft.
       unsubscribe = subscribeUserMessageCommitted(committedChatId, () => opts.onDraftCommitted?.());
-      await sendMutation.mutateAsync({ chatId: committedChatId, content: trimmed });
+      // Thread the per-turn intent only when it carries something (an empty object would send a bare
+      // `intent: {}` — harmless but noise; omit it so "auto" is a clean no-intent send).
+      const hasIntent = opts.intent !== undefined && Object.keys(opts.intent).length > 0;
+      await sendMutation.mutateAsync({
+        chatId: committedChatId,
+        content: trimmed,
+        ...(hasIntent ? { intent: opts.intent } : {}),
+      });
     } finally {
       unsubscribe?.();
     }

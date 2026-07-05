@@ -248,6 +248,14 @@ const deleteChatSchema = z.object({ chatId: brandedId<ChatId>() });
 // intent/guided steer — same `z.any()` shape as `send`/`generate` above, no dedicated wire schema yet).
 // NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
 // override block (the verb's presence-only target check, verbs/turn.ts).
+// Add a character to an existing chat's roster (J7 add-member — the cast-bar "+"). Host-only INSIDE the
+// verb (`requireHost`) + the PD-21 single-owner invariant (a foreign character reads as missing, leak-
+// free) — this router row is a thin pass-through, the same shape as the sibling roster cluster.
+const addCharacterToChatSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  characterId: brandedId<CharacterId>(),
+});
+
 const setParticipantDisabledSchema = z.object({
   chatId: brandedId<ChatId>(),
   characterId: brandedId<CharacterId>(),
@@ -369,6 +377,11 @@ export const chatRouter = t.router({
       ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input }),
     ),
   // The group-roster-controls cluster (task #29 — see the schemas' header note above). Thin pass-throughs.
+  addCharacterToChat: authedProcedure
+    .input(addCharacterToChatSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.addCharacterToChat({ principal: ctx.auth, ...input }),
+    ),
   setParticipantDisabled: authedProcedure
     .input(setParticipantDisabledSchema)
     .mutation(({ ctx, input }) =>

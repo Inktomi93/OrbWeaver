@@ -14,10 +14,10 @@
 // is `lib/continue-on-empty.ts` — real, tested groundwork the Send button doesn't yet act on (the
 // `chat.continueTurn` verb isn't on the transport — MISSING-API, flagged at its source).
 
+import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
-import { Card } from "@orb/ui/card";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver can't follow @orb/ui/icons' lucide-react re-export barrel (external .d.ts); tsc/vite resolve it fine (the swipe-strip.tsx precedent).
 import { Icon, Send, Square } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -26,13 +26,23 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
-import { isCommitted } from "#state";
+import { isCommitted, useEffort } from "#state";
 import type { DraftSeed } from "../hooks/use-send-message";
 import { useSendMessage } from "../hooks/use-send-message";
 import { useStopTurn } from "../hooks/use-stop-turn";
 import { isContinueEligible } from "../lib/continue-on-empty";
 import { ComposerWand } from "./composer-wand";
+import { EffortSelect } from "./effort-select";
 import { SpeakAsSelect } from "./speak-as-select";
+
+/** UIP-306 placeholder voice, as a pure helper (avoids a nested ternary): a draft teaches the
+ *  scene-writing flow; a continue-eligible committed tail offers continue; else the neutral prompt. */
+function resolvePlaceholder(committed: boolean, continueEligible: boolean): string {
+  if (!committed) {
+    return "Write the scene, or type a message…";
+  }
+  return continueEligible ? "Continue, or type a message…" : "Type a message…";
+}
 
 export interface ComposerProps {
   readonly handle: ChatHandle;
@@ -57,6 +67,11 @@ export function Composer({
 }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
+  // The sticky reasoning effort (active-chat-store) → the per-turn intent threaded onto Send. `null`
+  // (auto) sends NO intent so the server uses the preset/model default; a level sends `{ effort }` (the
+  // ONLY UserIntent axis the client threads today — the full config is preset-domain, L7).
+  const effort = useEffort();
+  const intent: Partial<UserIntent> | undefined = effort === null ? undefined : { effort };
   // Clear-on-commit (UI-Gates §11.1): the draft is NOT cleared optimistically in `submit` — the hook
   // fires `onDraftCommitted` only once the bus confirms the user's own row committed, and we clear HERE.
   // A send that fails pre-commit never fires it, so the draft survives for retry (no restore, no race).
@@ -65,6 +80,7 @@ export function Composer({
     draftSeed,
     onCommitted,
     onDraftCommitted: () => onChange(""),
+    intent,
   });
 
   const trimmed = value.trim();
@@ -75,6 +91,12 @@ export function Composer({
   // Stop owns the button through the whole live turn (pending/streaming) AND while stopping — it
   // stays visible (disabled + spinner) until the bus's turnAborted/turnCompleted closes the slot.
   const showStop = stopTurn.canStop || stopping;
+
+  // UIP-306 placeholder voice: a DRAFT teaches the scene-writing flow; a committed chat whose tail is the
+  // user's own turn offers continue; else the neutral prompt. (Lead-character personalization — "Write
+  // Wren's next beat…" — needs the roster threaded to the composer, a follow-up; the composer takes no
+  // roster prop today.)
+  const placeholder = resolvePlaceholder(isCommitted(handle), continueEligible);
 
   const submit = (): void => {
     if (!canSubmitText) {
@@ -95,66 +117,77 @@ export function Composer({
   };
 
   return (
+    // UIP-306: ONE rounded pill (`rounded-card` — the closest existing radius token; a textarea that grows
+    // to ~8 rows can't be pill-round). The CONTAINER takes the focus ring (`focus-within:`), the textarea
+    // is borderless/transparent inside. Same centered ≤48rem (`max-w-cq-lg`) column as the thread
+    // (message-row-variants `bubble`) so the input aligns with the prose. The raw `<footer>` stays
+    // semantic-only (no className — compose-only keystone); the pill chrome rides the layout `Row`.
     <footer data-testid={testId("composer")}>
-      <Card padding="block">
-        <Row gap="field" align="end">
-          <ComposerWand
-            handle={handle}
-            value={value}
-            onChange={onChange}
-            draftSeed={draftSeed}
-            onCommitted={onCommitted}
-            // Disable the wand while a Send is in flight (clear-on-commit reopened this window: without
-            // the optimistic clear, the draft stays populated pre-commit, so the wand could otherwise
-            // fire a guided action against it — whose own user-role `messageCommitted` could even satisfy
-            // the send's clear correlation, a double-action). One send OR one guided action at a time.
-            busy={sendMessage.isPending}
-          />
-          {/* Speak-as (task #29) — summon a specific character to speak (chat.generate's
-              speakerCharacterId). Size-gates itself to `null` for a solo/draft chat. */}
-          <SpeakAsSelect handle={handle} />
-          <Textarea
-            aria-label="Message"
-            placeholder={continueEligible ? "Continue, or type a message…" : "Type a message…"}
-            value={value}
-            onChange={(e): void => onChange(e.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={sendMessage.isPending}
-            className="flex-1"
-            rows={1}
-          />
-          {showStop ? (
-            <Button
-              type="button"
-              intent="secondary"
-              size="icon"
-              loading={stopping}
-              disabled={stopping}
-              aria-label={stopping ? "Stopping…" : "Stop generating"}
-              onClick={stopTurn.stop}
-            >
-              {stopping ? (
-                <Spinner size="sm" label="Stopping…" />
-              ) : (
-                <Icon icon={Square} size="sm" />
-              )}
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              intent="primary"
-              size="icon"
-              data-testid={testId("composerSend")}
-              disabled={!canSubmitText || sendMessage.isPending}
-              loading={sendMessage.isPending}
-              aria-label="Send message"
-              onClick={submit}
-            >
-              <Icon icon={Send} size="sm" />
-            </Button>
-          )}
-        </Row>
-      </Card>
+      <Row
+        gap="field"
+        align="center"
+        className="mx-auto w-full max-w-cq-lg rounded-card border border-border bg-input px-field py-field transition-colors duration-(--motion-fast) ease-out-expo focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+      >
+        <ComposerWand
+          handle={handle}
+          value={value}
+          onChange={onChange}
+          draftSeed={draftSeed}
+          onCommitted={onCommitted}
+          // Disable the wand while a Send is in flight (clear-on-commit reopened this window: without
+          // the optimistic clear, the draft stays populated pre-commit, so the wand could otherwise
+          // fire a guided action against it — whose own user-role `messageCommitted` could even satisfy
+          // the send's clear correlation, a double-action). One send OR one guided action at a time.
+          busy={sendMessage.isPending}
+        />
+        {/* Speak-as (task #29) — summon a specific character to speak (chat.generate's
+            speakerCharacterId). Size-gates itself to `null` for a solo/draft chat. */}
+        <SpeakAsSelect handle={handle} />
+        {/* Reasoning-effort quick-control — sticky per-turn intent (ux-flow-revamp §3). */}
+        <EffortSelect />
+        <Textarea
+          aria-label="Message"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e): void => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          disabled={sendMessage.isPending}
+          // Borderless/transparent inside the pill (the pill owns the border + focus ring); auto-grows via
+          // the primitive's native `field-sizing: content`, capped at ~8 rows then scrolls.
+          className="max-h-48 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+          rows={1}
+        />
+        {showStop ? (
+          <Button
+            type="button"
+            intent="secondary"
+            size="icon"
+            loading={stopping}
+            disabled={stopping}
+            aria-label={stopping ? "Stopping…" : "Stop generating"}
+            onClick={stopTurn.stop}
+            // Circular Stop, morphing in-place from Send so the pill doesn't reflow (UIP-306).
+            className="rounded-full"
+          >
+            {stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            intent="primary"
+            size="icon"
+            data-testid={testId("composerSend")}
+            disabled={!canSubmitText || sendMessage.isPending}
+            loading={sendMessage.isPending}
+            aria-label="Send message"
+            onClick={submit}
+            // Circular primary send (UIP-306).
+            className="rounded-full"
+          >
+            <Icon icon={Send} size="sm" />
+          </Button>
+        )}
+      </Row>
     </footer>
   );
 }
