@@ -57,9 +57,15 @@ export function Composer({
 }: ComposerProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const stopTurn = useStopTurn(chatId);
-  // `onRestoreDraft` puts the typed text back if the send fails before the user's row commits (the hook
-  // owns the pre-/post-commit phase-gate) — the textarea was cleared optimistically in `submit` below.
-  const sendMessage = useSendMessage({ handle, draftSeed, onCommitted, onRestoreDraft: onChange });
+  // Clear-on-commit (UI-Gates §11.1): the draft is NOT cleared optimistically in `submit` — the hook
+  // fires `onDraftCommitted` only once the bus confirms the user's own row committed, and we clear HERE.
+  // A send that fails pre-commit never fires it, so the draft survives for retry (no restore, no race).
+  const sendMessage = useSendMessage({
+    handle,
+    draftSeed,
+    onCommitted,
+    onDraftCommitted: () => onChange(""),
+  });
 
   const trimmed = value.trim();
   const canSubmitText = trimmed.length > 0;
@@ -74,8 +80,9 @@ export function Composer({
     if (!canSubmitText) {
       return; // continue-on-empty stays disabled until chat.continueTurn lands (missing-API)
     }
+    // No optimistic clear — the draft is cleared by `onDraftCommitted` (clear-on-commit) above, only
+    // once the bus confirms the user's row landed. A failed send thus keeps the text for retry.
     sendMessage.send(value);
-    onChange("");
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -97,6 +104,11 @@ export function Composer({
             onChange={onChange}
             draftSeed={draftSeed}
             onCommitted={onCommitted}
+            // Disable the wand while a Send is in flight (clear-on-commit reopened this window: without
+            // the optimistic clear, the draft stays populated pre-commit, so the wand could otherwise
+            // fire a guided action against it — whose own user-role `messageCommitted` could even satisfy
+            // the send's clear correlation, a double-action). One send OR one guided action at a time.
+            busy={sendMessage.isPending}
           />
           {/* Speak-as (task #29) — summon a specific character to speak (chat.generate's
               speakerCharacterId). Size-gates itself to `null` for a solo/draft chat. */}

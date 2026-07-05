@@ -1,9 +1,16 @@
 // CT: the chat composer (task #18). Drives the PRODUCTION path — routeTrpc stubs the network, the
 // component fires the real `createEntityMutation`-backed hooks. Turn-lifecycle transitions (pending/
-// streaming/stopping/aborted) are driven via the story's driver buttons (mirrors ghost-message-row.ct.tsx's
-// approach) rather than a scripted SSE body — `markStopping`'s immediate-feedback half is client-only
-// (no network round-trip involved), and the store's own `chat-stream.test.ts` already proves the DU
-// transitions; this suite proves the COMPONENT wires them correctly.
+// streaming/stopping/aborted) and the clear-on-commit signal are driven via the story's driver buttons
+// (mirrors ghost-message-row.ct.tsx's approach) rather than a scripted SSE body — `markStopping`'s
+// immediate-feedback half + the `notifyUserMessageCommitted` signal are client-only (no network round-
+// trip), and the store's own `chat-stream.test.ts` already proves the underlying transitions; this suite
+// proves the COMPONENT wires them correctly.
+//
+// CLEAR-ON-COMMIT (UI-Gates §11.1): the composer does NOT clear its draft optimistically on submit — it
+// clears only when the bus confirms the caller's own user row committed (the `drive-message-committed`
+// button stands in for that bus event). A send that fails before that commit keeps the draft for retry;
+// there is no restore logic and no race window (the removed phase-gate). To exercise the clear/keep
+// windows deterministically, `chat.send` is HELD (its listener stays alive) while the signal is driven.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
@@ -15,22 +22,45 @@ test("Send is disabled on an empty draft", async ({ mount }) => {
   await expect(component.getByRole("button", { name: "Send message" })).toBeDisabled();
 });
 
-test("committed handle: Send fires chat.send with the typed content, then clears the draft", async ({
+test("committed handle: Send fires chat.send; the draft is NOT cleared until the commit signal, then clears", async ({
   mount,
   page,
 }) => {
-  const trpc = await routeTrpc(page, { "chat.send": () => ({ ok: true }) });
-  const component = await mount(<ComposerStory />);
+  // Hold chat.send so its clear-on-commit listener stays alive (the send promise stays open for the
+  // whole turn in production; the commit signal arrives MID-flight). Registered BEFORE routeTrpc so it
+  // runs FIRST (Playwright routes are LIFO); it captures the send body then holds (never falls through
+  // to routeTrpc, so we read the captured body directly rather than routeTrpc's counter).
+  let sendBody: string | null = null;
+  await routeTrpc(page, {});
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
+    if (!isSend) {
+      await route.fallback();
+      return;
+    }
+    sendBody = req.postData();
+    // Never fulfilled — the send stays in flight; the draft-clear must ride the commit signal, not the
+    // mutation settling.
+    await new Promise<void>(() => undefined);
+  });
 
-  await component.getByLabel("Message", { exact: true }).fill("Hello there");
+  const component = await mount(<ComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+
+  await textarea.fill("Hello there");
   await component.getByRole("button", { name: "Send message" }).click();
 
-  await expect.poll(() => trpc.count("chat.send")).toBe(1);
-  expect(trpc.lastInput("chat.send")).toMatchObject({
-    chatId: COMPOSER_CHAT_ID,
-    content: "Hello there",
-  });
-  await expect(component.getByLabel("Message", { exact: true })).toHaveValue("");
+  // The send fired with the typed content (read off the intercepted request body)...
+  await expect.poll(() => sendBody).not.toBeNull();
+  expect(sendBody).toContain("Hello there");
+  expect(sendBody).toContain(COMPOSER_CHAT_ID);
+  // ...but the draft is STILL there — no optimistic clear (this is the whole point of clear-on-commit).
+  await expect(textarea).toHaveValue("Hello there");
+
+  // The bus confirms the user's own row committed → the composer clears.
+  await component.getByTestId("drive-message-committed").click();
+  await expect(textarea).toHaveValue("");
 });
 
 test("draft handle: Send lazily starts the chat, then commits the typed text as its first send", async ({
@@ -99,12 +129,13 @@ test("a second Stop click while already stopping does not fire a second chat.abo
   await expect.poll(() => trpc.count("chat.abort")).toBe(1);
 });
 
-test("a send that fails PRE-COMMIT (slot still idle) restores the cleared draft text", async ({
+test("a send that FAILS keeps the draft for retry (never cleared — no commit signal ever fires)", async ({
   mount,
   page,
 }) => {
-  // `chat.send` rejects and NO turn ever begins (no drive-begin click) → the slot stays `idle` → the
-  // hook's phase-gate treats it as a pre-commit failure and restores the composer text.
+  // `chat.send` rejects and NO commit signal is ever driven → clear-on-commit never fires → the draft
+  // survives. This is the race-free replacement for the old phase-gated restore: nothing was cleared, so
+  // nothing needs restoring.
   await routeTrpc(page, { "chat.send": () => trpcError({ message: "boom" }) });
   const component = await mount(<ComposerStory />);
   const textarea = component.getByLabel("Message", { exact: true });
@@ -112,38 +143,18 @@ test("a send that fails PRE-COMMIT (slot still idle) restores the cleared draft 
   await textarea.fill("Don't lose me");
   await component.getByRole("button", { name: "Send message" }).click();
 
-  // Optimistically cleared on submit, then restored once the send rejects with the slot still idle.
+  // The send settles as a failure (Send is clickable again, not stuck pending) and the text is intact.
+  await expect(component.getByRole("button", { name: "Send message" })).toBeEnabled();
   await expect(textarea).toHaveValue("Don't lose me");
 });
 
-test("a pre-commit send failure with a STALE terminal slot from a prior turn STILL restores", async ({
+test("the draft stays cleared after a POST-commit send failure (commit signal fired ⇒ no restore)", async ({
   mount,
   page,
 }) => {
-  // The correctness pin for the `isLiveTurnPhase` gate (vs a naive `!== "idle"`): a prior turn's slot
-  // lingers at a terminal phase (`aborted`) — it is NOT reset to idle between turns. A 2nd message that
-  // fails pre-commit must STILL restore, because that stale terminal phase is NOT a LIVE turn for this
-  // send. Drive begin→abort to leave the slot `aborted` (non-live ⇒ Send button is back), then fail send.
-  await routeTrpc(page, { "chat.send": () => trpcError({ message: "boom" }) });
-  const component = await mount(<ComposerStory />);
-  const textarea = component.getByLabel("Message", { exact: true });
-
-  await component.getByTestId("drive-begin").click(); // → pending
-  await component.getByTestId("drive-abort").click(); // → aborted (stale terminal, non-live)
-  await textarea.fill("Keep me despite the stale slot");
-  await component.getByRole("button", { name: "Send message" }).click();
-
-  await expect(textarea).toHaveValue("Keep me despite the stale slot");
-});
-
-test("a send that fails while a turn is LIVE keeps the cleared draft (post-commit, no restore)", async ({
-  mount,
-  page,
-}) => {
-  // Hold the `chat.send` response so the slot can be driven LIVE (turnStarted-equiv ⇒ the user's row
-  // committed) BEFORE the rejection lands — the real post-commit generation-failure shape. Registered
-  // BEFORE routeTrpc so it runs FIRST (Playwright routes are LIFO); it only intercepts the send mutation
-  // and falls everything else through to routeTrpc.
+  // Hold chat.send so the commit signal can be driven (draft clears) BEFORE the send rejects. The
+  // failure must NOT resurrect the already-committed-and-cleared text (the old restore bug this design
+  // removes). Registered BEFORE routeTrpc (LIFO); intercepts only chat.send.
   let releaseSend: (() => void) | undefined;
   const sendHeld = new Promise<void>((resolve) => {
     releaseSend = resolve;
@@ -169,12 +180,49 @@ test("a send that fails while a turn is LIVE keeps the cleared draft (post-commi
 
   await textarea.fill("Already committed");
   await component.getByRole("button", { name: "Send message" }).click();
-  // Move the slot LIVE while the send is still in flight (the turn "started" server-side).
-  await component.getByTestId("drive-begin").click();
-  // Release the send → it rejects with the slot LIVE ⇒ committed ⇒ NOT restored.
-  releaseSend?.();
-
+  // The user's row commits (signal) → the composer clears — while the send is still in flight.
+  await component.getByTestId("drive-message-committed").click();
   await expect(textarea).toHaveValue("");
-  // Sanity: the composer is now showing Stop (a live turn), never Send — the row did commit.
-  await expect(component.getByRole("button", { name: "Send message" })).toHaveCount(0);
+
+  // Now the send rejects (a post-commit generation failure). The cleared draft must STAY cleared — no
+  // restore. Wait for the mutation to settle (its busy state clears) before the final draft assertion;
+  // Send itself stays DISABLED because the draft is now empty (`!canSubmitText`), which is correct.
+  releaseSend?.();
+  await expect(component.getByRole("button", { name: "Send message" })).not.toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
+  await expect(textarea).toHaveValue("");
+});
+
+test("the wand is disabled while a Send is in flight (clear-on-commit reopened the pre-commit window)", async ({
+  mount,
+  page,
+}) => {
+  // Removing the optimistic clear left the draft populated during a send's pre-commit window; without a
+  // gate the wand could fire a guided action against it (its own user-role messageCommitted could even
+  // satisfy the send's clear correlation → a double-action). `busy={sendMessage.isPending}` closes it.
+  // Hold chat.send so isPending stays true for the assertion.
+  await routeTrpc(page, {});
+  await page.route("**/api/trpc/**", async (route) => {
+    const req = route.request();
+    const isSend = req.method() === "POST" && new URL(req.url()).pathname.includes("chat.send");
+    if (!isSend) {
+      await route.fallback();
+      return;
+    }
+    await new Promise<void>(() => undefined); // held — the send never settles
+  });
+
+  const component = await mount(<ComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  const wand = component.getByRole("button", { name: "Guided generations" });
+
+  // With a draft typed and no send in flight, the wand is available.
+  await textarea.fill("steer it");
+  await expect(wand).toBeEnabled();
+
+  // Fire Send — it stays in flight (held) → the wand disables even though the draft is still populated.
+  await component.getByRole("button", { name: "Send message" }).click();
+  await expect(wand).toBeDisabled();
 });

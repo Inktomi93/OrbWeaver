@@ -57,6 +57,21 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
 
     // ── Canon / attachment / lifecycle — refetch via the one seam ──
     case "messageCommitted":
+      // The composer's clear-on-commit signal (UI-Gates §11.1): a USER-role commit is the caller's own
+      // just-sent row landing durably — fire the transient signal `use-send-message` correlates against
+      // to clear the draft. Gated to `role==="user"` so the assistant's own later `messageCommitted`
+      // (same chat, same turn) can't falsely satisfy it. `view` is optional on the wire ("absent only
+      // if the row raced a delete"); a missing view is inconclusive → don't clear (benign: the draft
+      // stays, worst case a manual clear — never a wrong clear). NOTE (client-identity, task #50): the
+      // order+role match is correct for the solo / single-outstanding-send case this spine targets;
+      // disambiguating the caller's OWN row from ANOTHER human member's user row in a shared chat needs
+      // `view.authorUserId` vs the current principal — blocked on the client auth/session store (task
+      // #50), NOT fabricated here.
+      if (event.view?.role === "user") {
+        deps.stream.notifyUserMessageCommitted(event.chatId);
+      }
+      deps.invalidate(event);
+      return;
     case "messageEdited":
     case "messageHidden":
     case "variantSelected":

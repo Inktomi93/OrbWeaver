@@ -52,6 +52,10 @@ export interface ComposerWandProps {
   readonly onChange: (text: string) => void;
   readonly draftSeed?: DraftSeed | undefined;
   readonly onCommitted?: ((chatId: ChatId) => void) | undefined;
+  /** True while the composer's own Send is in flight — folds into `canOpen` so the wand can't fire a
+   *  guided action against a still-populated draft during the send's pre-commit window (the clear-on-
+   *  commit model no longer clears optimistically, so this gate is what prevents a double-action). */
+  readonly busy?: boolean | undefined;
 }
 
 /** The composer's wand trigger + dropdown — guided response/swipe/continue/impersonate (committed) or
@@ -62,16 +66,18 @@ export function ComposerWand({
   onChange,
   draftSeed,
   onCommitted,
+  busy = false,
 }: ComposerWandProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   const phase = useTurnPhase(chatId);
   // Mid-flight = a live turn (mirrors composer.tsx's own `showStop` phases) OR one of the wand's own
-  // mutations still in flight (firing a second guided action before the first settles would race).
+  // mutations still in flight (firing a second guided action before the first settles would race) OR the
+  // composer's own Send in flight (`busy` — see the prop doc: the clear-on-commit pre-commit window).
   const turnBusy = phase === "pending" || phase === "streaming" || phase === "stopping";
   const guided = useGuidedActions({ handle, draftSeed, onCommitted });
 
   const trimmed = value.trim();
-  const canOpen = trimmed.length > 0 && !turnBusy && !guided.isPending;
+  const canOpen = trimmed.length > 0 && !turnBusy && !guided.isPending && !busy;
   const canTargetTail = guided.tailAssistantMessageId !== null;
 
   /** Fire a guided action against the CURRENT draft, then clear it — the Send-button precedent
