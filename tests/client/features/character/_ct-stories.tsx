@@ -9,6 +9,7 @@
 
 import {
   CharacterCard,
+  CharacterDetailCard,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
 } from "@orb/client/features/character";
@@ -46,6 +47,7 @@ export function CharacterCardStory({
 }: CharacterCardStoryProps): ReactElement {
   const [startedId, setStartedId] = useState<string | null>(null);
   const [toggledId, setToggledId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   return (
     <div style={{ width: 360 }}>
       <CharacterCard
@@ -56,12 +58,53 @@ export function CharacterCardStory({
           avatarHash,
           tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
         }}
+        onSelect={setSelectedId}
         onStartChat={setStartedId}
         onToggleSelect={setToggledId}
         selected={selected}
       />
       <p data-testid="started-id">{startedId ?? ""}</p>
       <p data-testid="toggled-id">{toggledId ?? ""}</p>
+      <p data-testid="selected-id">{selectedId ?? ""}</p>
+    </div>
+  );
+}
+
+// ── Detail-card story (pure render — no data layer) ────────────────────────────────────────────────
+
+export interface CharacterDetailCardStoryProps {
+  readonly name?: string;
+  readonly description?: string | null;
+  readonly creatorNotes?: string | null;
+  readonly archived?: boolean;
+  readonly tags?: readonly CharacterCardStoryTag[];
+}
+
+/** The bare `<CharacterDetailCard>` — drives the read-only render (conditional description/creator-notes,
+ *  tags, archived badge, the disabled Edit) + the Start-chat seam (records the id into a visible marker). */
+export function CharacterDetailCardStory({
+  name = "Aria Nightshade",
+  description = "A wandering cartographer with a sharp tongue.",
+  creatorNotes = null,
+  archived = false,
+  tags = [],
+}: CharacterDetailCardStoryProps): ReactElement {
+  const [startedId, setStartedId] = useState<string | null>(null);
+  return (
+    <div style={{ width: 720 }}>
+      <CharacterDetailCard
+        character={{
+          id: castId<CharacterId>("char_ct_detail"),
+          name,
+          description,
+          creatorNotes,
+          archived,
+          avatarHash: null,
+          tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
+        }}
+        onStartChat={setStartedId}
+      />
+      <p data-testid="started-id">{startedId ?? ""}</p>
     </div>
   );
 }

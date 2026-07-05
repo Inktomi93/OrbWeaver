@@ -26,10 +26,8 @@ export type { DraftSeed } from "#state";
 interface SendVars {
   readonly chatId: ChatId;
   readonly content: string;
-  /** The per-turn generation intent (today: `{ effort }` only — the reasoning-effort quick-control,
-   *  ux-flow-revamp §3). Omitted when the composer's effort is "auto" ⇒ the server uses the preset/model
-   *  default. The wire (`chat.send` schema) accepts `intent: z.any().optional()`, so this typed
-   *  `Partial<UserIntent>` rides it directly. */
+  /** The per-turn generation intent, threaded onto the send when present. The wire (`chat.send` schema)
+   *  accepts `intent: z.any().optional()`, so this typed `Partial<UserIntent>` rides it directly. */
   readonly intent?: Partial<UserIntent> | undefined;
 }
 
@@ -74,8 +72,9 @@ const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult
 export interface UseSendMessageOptions {
   readonly handle: ChatHandle;
   readonly draftSeed?: DraftSeed | undefined;
-  /** The per-turn generation intent to thread onto the send (today: `{ effort }` from the composer's
-   *  sticky EffortSelect). Undefined / empty ⇒ no `intent` on the wire (server default). */
+  /** The per-turn generation intent to thread onto the send. Undefined / empty ⇒ no `intent` on the wire
+   *  (server default). Dormant today — the composer no longer supplies one; a future Presets/other
+   *  intent source is the forward seam this param stays wired for. */
   readonly intent?: Partial<UserIntent> | undefined;
   /** Fires once a draft is promoted to a committed chat (startChat resolved) — the composition
    *  tier's seam to flip its own `ChatHandle` from `draft` to `committed`. */

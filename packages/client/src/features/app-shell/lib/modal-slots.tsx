@@ -10,6 +10,7 @@
 // command / account sat as sparkles for weeks in neo) becomes a visible, greppable, counted state.
 // When a real surface is route-composed over a slot (via `AppShellProps.modals`), drop the flag here.
 
+import type { DialogPopupProps } from "@orb/ui/dialog";
 import type { ReactElement } from "react";
 import type { ModalSlotId } from "#state";
 import { SectionPlaceholder } from "../components/section-placeholder";
@@ -17,6 +18,10 @@ import { SectionPlaceholder } from "../components/section-placeholder";
 export interface ModalDef {
   /** The dialog heading (labels the popup for AT). */
   readonly title: string;
+  /** The Dialog width/presentation variant (UIP-401). Defaults to the Dialog's own `md`; `full` is the
+   *  full-bleed overlay (J11 settings). Presentation metadata of the MODAL, independent of whether the
+   *  body is the placeholder or a route-composed real surface — so it lives on the def, not the body. */
+  readonly size?: DialogPopupProps["size"];
   /** `true` when `render` is still an honest SectionPlaceholder (not a real surface) — enforced by the
    *  `modal-body-not-placeholder` gate. A route-composed real body drops this flag. */
   readonly placeholder?: boolean;
@@ -37,6 +42,11 @@ export const MODAL_SLOTS: Record<ModalSlotId, ModalDef> = {
   },
   settings: {
     title: "Settings",
+    // The settings overlay is FULL-BLEED (J11 — the Discord user-settings pattern: a left category nav +
+    // one scrolling pane column). `size` is presentation metadata on the def; the route composes the real
+    // <SettingsShell> body over this placeholder (home-page.tsx `settings` slot), so `placeholder: true`
+    // stays correct for the static fallback that never runs when the route injects the real body.
+    size: "full",
     placeholder: true,
     render: (): ReactElement => (
       <SectionPlaceholder

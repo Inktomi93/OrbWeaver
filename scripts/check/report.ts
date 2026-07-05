@@ -25,6 +25,7 @@ import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { ownerRoleSplit } from "./gates/owner-role-split.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
+import { placeholderCopyRegistry } from "./gates/placeholder-copy-registry.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { registryPairing } from "./gates/registry-pairing.ts";
 import { schemaBranding } from "./gates/schema-branding.ts";
@@ -91,6 +92,7 @@ export const ALL_CHECKS: readonly Check[] = [
   surfaceInAContainer,
   registryPairing,
   modalBodyNotPlaceholder,
+  placeholderCopyRegistry,
 ];
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact

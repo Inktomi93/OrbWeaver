@@ -6,6 +6,7 @@ import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
 import { AppShell, RAIL_SECTIONS } from "#features/app-shell";
 import {
+  CharacterDetailSurface,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
@@ -21,7 +22,7 @@ import {
   CommandPaletteSurface,
   NewChatPicker,
 } from "#features/chat";
-import { AppearanceSettingsSurface } from "#features/settings";
+import { SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   chatStream,
   commitDraft,
@@ -36,6 +37,7 @@ import {
   useActiveDraftSeed,
   useActiveSection,
   useActiveSessionKey,
+  useSelectedCharacterId,
 } from "#state";
 
 // The `/` home: the composition root + the app's central navigation seam. It mounts the four-region
@@ -70,6 +72,7 @@ export function HomePage(): ReactElement {
   const draftSeed = useActiveDraftSeed();
   const sessionKey = useActiveSessionKey();
   const activeSection = useActiveSection();
+  const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
 
   // J5 delete-of-the-active-chat: after a host deletes the chat the CONTENT is showing, the id 404s —
@@ -148,15 +151,22 @@ export function HomePage(): ReactElement {
               <CharacterLibrarySurface />
             </CharacterLibraryAnchor>
           ),
-          // CONTENT: no per-character detail surface exists yet (a later task) — an honest, intentional
-          // welcome state instead of an empty placeholder beside the grid.
-          content: <CharacterLibraryWelcome />,
+          // CONTENT branches on the selection (J9 · UI-Arch §4.2 rule 1: LIST selection drives CONTENT):
+          // a selected row shows its read-only detail card (character.get); nothing selected shows the
+          // teaching welcome. The route is the single reader of the character-selection store (§5.1).
+          content:
+            selectedCharacterId === null ? (
+              <CharacterLibraryWelcome />
+            ) : (
+              <CharacterDetailSurface characterId={selectedCharacterId} />
+            ),
         },
       }}
       // Route-composed modal bodies (over the app-shell placeholder slots — the shell stays domain-
       // agnostic): the appearance settings pane, the J2 new-chat picker, and the J4 ⌘K palette.
       modals={{
-        settings: <AppearanceSettingsSurface />,
+        theme: <ThemePickerSurface />,
+        settings: <SettingsShell />,
         newChat: <NewChatPicker />,
         command: <CommandPaletteSurface goToSections={goToSections} />,
       }}

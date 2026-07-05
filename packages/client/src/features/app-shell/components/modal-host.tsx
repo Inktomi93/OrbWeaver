@@ -26,6 +26,15 @@ export function ModalHost({ openModal, modals, onClose }: ModalHostProps): React
   }
   const def = MODAL_SLOTS[openModal];
   const injected = modals?.[openModal];
+  const body = injected ?? def.render();
+  // Full-bleed modals (J11 settings) make the popup a flex COLUMN so the header pins to the top and the
+  // body fills the remaining height (its own surface scrolls); `min-h-0` lets that inner scroll work.
+  // Non-full modals are untouched — the body renders inline exactly as before (shell tier — raw utility
+  // classes are legal HERE, §11.0).
+  const isFull = def.size === "full";
+  // `exactOptionalPropertyTypes`: spread size/className only when set — never pass an explicit `undefined`.
+  const sizeProp = def.size === undefined ? {} : { size: def.size };
+  const classProp = isFull ? { className: "flex flex-col" } : {};
   return (
     <Dialog
       open={true}
@@ -35,7 +44,7 @@ export function ModalHost({ openModal, modals, onClose }: ModalHostProps): React
         }
       }}
     >
-      <DialogPopup>
+      <DialogPopup {...sizeProp} {...classProp}>
         <header className="shell-modal-header">
           <DialogTitle>{def.title}</DialogTitle>
           <DialogClose
@@ -46,7 +55,7 @@ export function ModalHost({ openModal, modals, onClose }: ModalHostProps): React
             }
           />
         </header>
-        {injected ?? def.render()}
+        {isFull ? <div className="min-h-0 flex-1">{body}</div> : <>{body}</>}
       </DialogPopup>
     </Dialog>
   );

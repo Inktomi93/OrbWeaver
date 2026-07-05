@@ -38,6 +38,7 @@ export const avatarVariants = tv(
         sm: { root: "size-avatar-sm" },
         md: { root: "size-avatar-md" },
         lg: { root: "size-avatar-lg" },
+        hero: { root: "size-avatar-hero" },
       },
       shape: {
         round: { root: "rounded-full" },

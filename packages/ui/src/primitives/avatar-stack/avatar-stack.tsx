@@ -16,7 +16,9 @@ const DEFAULT_MAX = 4;
 // Per-item overlap offset by size — geometry keyed off avatar's own size scale, not a styling
 // AXIS, so it rides as inline style rather than a class (the icons/icon.tsx ICON_* px-table
 // precedent: "the token linkage IS this table", not a Tailwind arbitrary-value class).
-const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18 };
+// `hero` (64px) is a detail-page display size, not a stack size — but the Record must stay TOTAL over
+// AvatarSize, so it carries a proportional overlap for completeness (a stack would never use it).
+const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28 };
 
 const WORD_SPLIT_RE = /\s+/u;
 
