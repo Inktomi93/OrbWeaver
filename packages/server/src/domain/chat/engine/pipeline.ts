@@ -33,7 +33,8 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
@@ -47,6 +48,7 @@ import type {
   RunChatTurnOp,
 } from "../contract/context";
 import type {
+  HistoryMacroNames,
   TurnEconomics,
   TurnKind,
   TurnMessage,
@@ -57,6 +59,7 @@ import {
   buildPrompt,
   buildTurnMacroContext,
   fitHistory,
+  renderHistoryMacros,
   shapeContextForSpeaker,
   shapeTurn,
 } from "../substrate/assembly-access";
@@ -113,7 +116,23 @@ interface RunTurnPipelineArgs {
   /** The Principal-blind identity frame `executeToolCalls` receives (the entry adapter resolves the
    *  host Principal from `runAsUserId` — the turn-identity gate keeps principals out of this tier). */
   readonly toolExecFrame: ChatToolExecFrame;
+  /** The per-chat macro name PRODUCER (Chat-Macro-Resolution.md §1) `toShapeCanon` resolves each history
+   *  row's OWN `{{char}}`/`{{user}}`/`{{persona}}` stamps against. The engine builds this AFTER
+   *  `loadCanonHistory` (the history's distinct ids aren't known in turn PREP — `persistence/macro-names.ts`'s
+   *  `loadChatMacroNameProducer` run over `args.canon`'s ids, converted via `@orb/contracts/chat`'s
+   *  `buildCharacterNameMap`/`buildPersonaNameMap`). This file stays db-free (PURE orchestration of injected
+   *  ops/data — see the header): the engine loads it, this file only consumes the built maps. Absent ⇒ empty
+   *  maps (every row falls through to its speaker-default/active-persona floor — the pre-producer behavior). */
+  readonly historyMacroNames?: HistoryMacroNames | undefined;
 }
+
+/** The `historyMacroNames` default when a caller supplies none (a hand-built/preview pipeline call) — every
+ *  row's `{{char}}`/`{{user}}`/`{{persona}}` falls through to `renderHistoryMacros`'s own speaker-default/
+ *  active-persona floor, byte-identical to a chat with no resolvable producer entries. */
+const EMPTY_HISTORY_MACRO_NAMES: HistoryMacroNames = {
+  characterNamesById: new Map<CharacterId, RowCharacterName>(),
+  personaNamesById: new Map<PersonaId, RowPersonaName>(),
+};
 
 /** The pipeline product the engine persists — the reduced generation + the request (for `promptSnapshot`) +
  *  the §8 offset. File-local; the engine reads the inferred return. */
@@ -138,9 +157,17 @@ interface TurnPipelineResult {
 }
 
 /** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
- *  rides the assembled system block, never the messages[] wire), resolve each assistant row's authoring
- *  character name (from the cast, index-aligned with `castCharacterIds`) + each user row's persona name. */
-function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext): ShapeCanonRow[] {
+ *  rides the assembled system block, never the messages[] wire); resolve each row's `{{char}}`/`{{user}}`/
+ *  `{{persona}}` macros via `renderHistoryMacros` against ITS OWN stamps + the per-chat `macroNames` producer
+ *  (Chat-Macro-Resolution.md §1/§2 — the shared atom, so this resolves identically to client DISPLAY). The
+ *  wire `authorName` (a SHAPE concern — `namesBehavior:"completion"`'s prefixed name) still derives from
+ *  `ctx.cast`/`castCharacterIds` for an assistant row (the roster's CURRENT card name), independent of the
+ *  macro producer (which may resolve a since-left/renamed character's stamped id to its OWN historical name). */
+function toShapeCanon(
+  canon: readonly MessageView[],
+  ctx: AssembleContext,
+  macroNames: HistoryMacroNames,
+): ShapeCanonRow[] {
   const nameById = new Map<CharacterId, string>();
   const cast = ctx.cast ?? [];
   const ids = ctx.castCharacterIds ?? [];
@@ -157,15 +184,31 @@ function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext): Shap
     if (m.excludedFromPrompt || m.role === "system") {
       continue;
     }
+    const stamps = { characterId: m.characterId, personaId: m.personaId };
     if (m.role === "assistant") {
+      const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
       rows.push({
         role: "assistant",
-        content: m.content,
+        // Resolve-on-READ (D26/D51 — storage stays raw): `{{char}}` binds to THIS row's own speaker via the
+        // producer (falling back to `authorName`, the ctx-cast name, then the ctx default) — matching the
+        // client DISPLAY per-row retarget.
+        content: renderHistoryMacros(m.content, stamps, ctx, {
+          producer: macroNames,
+          speakerCharName: authorName ?? undefined,
+        }),
         characterId: m.characterId,
-        authorName: m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null,
+        authorName,
       });
     } else {
-      rows.push({ role: "user", content: m.content, authorName: userName });
+      // User/narrator rows carry no authoring character → `{{char}}` falls through to the ctx default.
+      // `{{user}}`/`{{persona}}` resolve to THIS row's own stamped `personaId` via the producer, falling back
+      // to the ACTIVE persona only when the stamp is null (a legacy/narrator row) — never the pinned anchor
+      // nor a global override of a stamped row (PD-100: the stamp is attribution AND the macro subject now).
+      rows.push({
+        role: "user",
+        content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
+        authorName: userName,
+      });
     }
   }
   return rows;
@@ -319,7 +362,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx) : [],
+    canon: assembled.sendHistory
+      ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES)
+      : [],
     appendUserTurn: args.appendUserTurn ?? null,
     injections: inChatInjections,
     // The two-axis (output × cardScope × scopedTarget); ABSENT ⇒ the single-speaker core's pinned default

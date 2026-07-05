@@ -20,6 +20,7 @@
 // root (`service.ts`, exempt). FLAGGED for that chunk.
 
 import type { ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
@@ -28,6 +29,7 @@ import type { ChatContext, DebitBudgetOp, ResolveTurnPolicyOp } from "../contrac
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
 import type {
+  HistoryMacroNames,
   TurnEconomics,
   TurnEngine,
   TurnIntent,
@@ -44,6 +46,7 @@ import {
   insertCanonMessageStatements,
 } from "../persistence/canon-write";
 import { releaseLock, tryAcquireLock } from "../persistence/lock";
+import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   loadCanonHistory,
   loadMaxMessageSeq,
@@ -356,6 +359,15 @@ async function executeTurn(
       loadCanonHistory(ctx.db, prep.chatId),
       loadMaxMessageSeq(ctx.db, prep.chatId),
     ]);
+    // Chat-Macro-Resolution.md §1: build the per-chat macro name PRODUCER from the FULL loaded canon's
+    // distinct `characterId`/`personaId` stamps — engine-side, AFTER `loadCanonHistory` (the ids aren't
+    // knowable in turn PREP). `toShapeCanon` (pipeline.ts) resolves each row's OWN `{{char}}`/`{{user}}`/
+    // `{{persona}}` against these maps via `resolveRowMacros` (the shared server/client atom).
+    const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canonAll });
+    const historyMacroNames: HistoryMacroNames = {
+      characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
+      personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
+    };
     const result = await runTurnPipeline({
       runChatTurn: ctx.runChatTurn,
       // The injected node:vm ReDoS watchdog (D53) — the RECEIVE AI_OUTPUT/REASONING regex passes run under it.
@@ -366,6 +378,7 @@ async function executeTurn(
       assembleContext: prep.assembleContext,
       // The canon scoped to the turn's context per persist mode (full / before-target / through-target).
       canon: scopeCanon(canonAll, persist, target),
+      historyMacroNames,
       connection: prep.connection,
       intent: prep.intent,
       kind: prep.kind,

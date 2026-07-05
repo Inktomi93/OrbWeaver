@@ -6,6 +6,16 @@
 //
 // NOTE: `trpc.chat.listMessages` is stubbed at the NETWORK (routeTrpc) — the tRPC proxy builds the path
 // structurally, so the CT runs even before the transport verb lands (it's being wired in parallel).
+//
+// ROSTER STUB: `ChatThread` now also suspends on `chat.getChat` (roster threading — see
+// message-list-surface.tsx's header). Every committed-chat test below stubs it with an EMPTY roster +
+// `macroNames` producer (`ROSTER_STUB`) — these CTs assert canon rendering + streaming, not
+// attribution/macro chrome (that's message-row.ct.tsx's lane); an empty roster still exercises the
+// real read + producer-merge path without pulling attribution assertions into this file's scope.
+// `chat.listMessages` now returns `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md
+// §1/§3, its shape CHANGED from a bare `MessageView[]`) — every stub below wraps via `makeMessagesPage`.
+// The owner-scoped `persona.list` read is GONE (the member-gated producer replaced it), so no stub for
+// it remains.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { MessageId } from "@orb/kit/ids";
@@ -18,7 +28,7 @@ import {
   MessageListStoppingStory,
   MessageListSurfaceStory,
 } from "../_ct-stories";
-import { CHAT_ID, makeMessageView } from "../fixtures";
+import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
 
 const USER_VIEW = makeMessageView({
   id: castId<MessageId>("msg_user"),
@@ -32,6 +42,21 @@ const AI_VIEW = makeMessageView({
   content: "Hello world",
   seq: 2,
 });
+
+// The roster stub every test below wires alongside `chat.listMessages` (see header) — an empty roster
+// + empty producer, just enough for `ChatThread`'s `chat.getChat` suspense read to resolve to a real
+// (if empty) shape rather than routeTrpc's generic `null` unlisted-procedure default.
+const ROSTER_STUB = {
+  "chat.getChat": (): {
+    participants: never[];
+    anchorPersonaId: null;
+    macroNames: ReturnType<typeof makeMacroNameProducer>;
+  } => ({
+    participants: [],
+    anchorPersonaId: null,
+    macroNames: makeMacroNameProducer(),
+  }),
+};
 
 // The scripted turn: start → two text deltas → complete (targetMessageId null → the ghost appends).
 const TURN: ChatBusEvent[] = [
@@ -57,7 +82,9 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
   let listCall = 0;
   const trpc = await routeTrpc(page, {
     // First read = just the user turn; the post-turnCompleted refetch adds the assistant reply.
-    "chat.listMessages": () => (listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
+    "chat.listMessages": () =>
+      makeMessagesPage(listCall++ === 0 ? [USER_VIEW] : [USER_VIEW, AI_VIEW]),
+    ...ROSTER_STUB,
   });
   await routeChatStream(page, { events: TURN });
 
@@ -105,7 +132,7 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
 
 test("a draft handle shows the empty state and never reads the server", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "chat.listMessages": () => [USER_VIEW],
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
   });
 
   const component = await mount(<MessageListSurfaceStory committed={false} />);
@@ -142,7 +169,10 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, { "chat.listMessages": () => [USER_VIEW] });
+  await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
   await routeChatStream(page, { events: HEAD_DELTAS });
 
   const component = await mount(<MessageListStoppingStory />);
@@ -166,7 +196,7 @@ test("a just-created chat (draft→committed) seeds lastEventId '0' and streams 
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await routeTrpc(page, { "chat.listMessages": () => [] });
+  await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([]), ...ROSTER_STUB });
   const stream = await routeChatStream(page, { events: HEAD_DELTAS });
 
   const component = await mount(<MessageListReplaySeedStory />);
@@ -189,7 +219,10 @@ test("an existing committed chat subscribes with NO replay cursor (never re-repl
   mount,
   page,
 }) => {
-  await routeTrpc(page, { "chat.listMessages": () => [USER_VIEW] });
+  await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
   const stream = await routeChatStream(page, { events: [] });
 
   const component = await mount(<MessageListSurfaceStory />); // committed=true (default)

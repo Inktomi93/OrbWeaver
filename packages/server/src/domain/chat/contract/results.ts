@@ -24,6 +24,7 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { ChatRoster } from "@orb/contracts/identity";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
 import type { ChatDetail, ChatVariables } from "./views";
@@ -159,6 +160,17 @@ export interface TurnRequest {
   /** Set WITH `tools` by the loop (`{mode:"auto"}` is the LOOP's default — 02 §2, never a translator's). */
   readonly toolChoice?: ToolChoice | undefined;
   readonly signal?: AbortSignal | undefined;
+}
+
+/** The per-chat macro name PRODUCER maps (Chat-Macro-Resolution.md §1) `assembly/macros.ts`'s
+ *  `renderHistoryMacros` (→ `@orb/kit/macro`'s `resolveRowMacros`, the shared server/client atom) needs to
+ *  resolve a canon-history row's OWN `{{char}}`/`{{user}}`/`{{persona}}` stamps. Built by the engine
+ *  (`engine/pipeline.ts` `toShapeCanon`, engine-side, AFTER `loadCanonHistory` — the history's distinct ids
+ *  aren't known in turn PREP) from `persistence/macro-names.ts`'s `loadChatMacroNameProducer` array output,
+ *  via `@orb/contracts/chat`'s `buildCharacterNameMap`/`buildPersonaNameMap`. */
+export interface HistoryMacroNames {
+  readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
+  readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
 }
 
 /** A streamed chunk from a role turn — text/reasoning deltas, then ONE terminal `final` chunk carrying the

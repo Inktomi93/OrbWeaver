@@ -1,20 +1,27 @@
 // domain/chat/assembly/macros — the chat-domain wiring over the pure `@orb/kit/macro` engine ("chat
 // orchestrates the pure kit engines, owns the order, not the engines"). This is the ONE place the macro
-// ATOM gets fed chat context. Two constructions,
+// ATOM gets fed chat context. Three constructions,
 // co-located so both the section walk (assemble.ts) AND the WI matcher (world-info consumers in
 // context.ts) import ONE renderer instead of reaching back into assemble.ts (a circular import):
 //
-//   • `renderMacros(text, ctx, persona, original?)` — the ASSEMBLE-stage renderer: a pure
+//   • `renderMacros(text, ctx, persona, original?)` — the ASSEMBLE-stage SECTION renderer: a pure
 //     AssembleContext → processMacros mapping. {{user}}/{{persona}} resolve against the section-
 //     appropriate persona (pinned for card-derived sections, active for user-authored — the
 //     dual-persona rule); `original` threads the preset Main-Prompt/Jailbreak into the two overridable
 //     markers so a card can {{original}}-wrap the preset.
+//   • `renderHistoryMacros(content, stamps, ctx, producer, speakerCharName?)` — the CANON-HISTORY-ROW
+//     resolver (Chat-Macro-Resolution.md, doc §2/§3): a thin chat-ctx adapter over `@orb/kit/macro`'s
+//     `resolveRowMacros`, the ONE shared atom server ASSEMBLE + client DISPLAY both call so they cannot
+//     diverge. Read the doctrine in full before touching this function.
 //   • `buildTurnMacroContext(args)` — the TURN-stage `MacroContext` the engine threads through regex
 //     execution (USER_INPUT/AI_OUTPUT/REASONING/WORLD_INFO) + guided-instruction resolution.
 //
-// D46 (env-by-reference): BOTH constructions point `env` at the SAME `assembleCtx.variableValues` map
-// reference, so a `{{setvar}}` in a rendered section is visible to a later section AND to a regex
-// replacement within one turn (and vice versa). There is exactly ONE env per turn — owned here.
+// D46 (env-by-reference): the SECTION + TURN-STAGE constructions point `env` at the SAME
+// `assembleCtx.variableValues` map reference, so a `{{setvar}}` in a rendered section is visible to a later
+// section AND to a regex replacement within one turn (and vice versa) — there is exactly ONE env per turn,
+// owned here. `renderHistoryMacros` does NOT thread `env` (Chat-Macro-Resolution.md §0 scopes history
+// resolution to `{{char}}`/`{{user}}`/`{{persona}}` only — the shared atom's own floor, `resolveRowMacros`,
+// never touches ChoiceBlock state).
 //
 // Determinism (testing §3 / D46): the clock seam is `nowMs`/`timezone` (no ambient `Date.now()` reaches
 // the macro engine — it reads `ctx.nowMs`); the PRNG seam is the optional `random` passed through to the
@@ -26,8 +33,9 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroContext, ProcessMacroOptions } from "@orb/kit/macro";
-import { createMacroContext, processMacros } from "@orb/kit/macro";
+import type { MacroContext, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
+import { createMacroContext, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import type { HistoryMacroNames } from "../contract/results";
 
 /** null → undefined (the MacroContext fields are `T | undefined`, not `T | null`). A function call, so it
  *  keeps the option-builder's branch count flat (vs a `?? undefined` per field). */
@@ -140,6 +148,41 @@ export function renderMacros(
   original?: string,
 ): string {
   return processMacros(text, macroOptionsFor(ctx, persona, { original }));
+}
+
+/**
+ * Resolve `{{char}}`/`{{user}}`/`{{persona}}` in a stored CANON HISTORY row's body — the resolve-on-READ seam
+ * mirroring how card fields are already macro-resolved (D26/D51: content is stored raw as a `string`, NEVER
+ * mutated; every prompt build re-resolves it here). A thin chat-ctx adapter over `@orb/kit/macro`'s
+ * `resolveRowMacros` — THE shared atom server ASSEMBLE (this call site) and client DISPLAY both call, so
+ * they cannot diverge (Chat-Macro-Resolution.md §2/§6 — read the doctrine in full before touching this):
+ *   • `{{char}}` → `stamps.characterId` resolved against `args.producer.characterNamesById` — the ROW'S OWN
+ *     speaker, not the current turn's speaker (a past line by Aria stays Aria's even when Kai is the active
+ *     speaker). Falls back to `args.speakerCharName` (the turn's current speaker/cast default — absent
+ *     resolves to `charForSpeaker(ctx)`, this function's own floor), then the atom's literal floor.
+ *   • `{{user}}`/`{{persona}}` → `stamps.personaId` resolved against `args.producer.personaNamesById` — the
+ *     ROW'S OWN author (the PD-100 send-time stamp), NEVER the pinned anchor. Falls back to
+ *     `ctx.activePersona` (the null-stamp floor — a legacy/narrator row with no personaId) — this is the
+ *     ONLY case history still touches "active": a stamped row always wins over it.
+ * Pure: one macro pass, no framing, no `<speaker>`-tag handling (the parser only touches `{{…}}`; narrator
+ * tags pass through verbatim for the downstream `speakerTagsToPlain`).
+ */
+export function renderHistoryMacros(
+  content: string,
+  stamps: RowMacroStamps,
+  ctx: AssembleContext,
+  args: {
+    readonly producer: HistoryMacroNames;
+    /** The turn's current speaker/cast `{{char}}` default — absent ⇒ `charForSpeaker(ctx)`. */
+    readonly speakerCharName?: string | undefined;
+  },
+): string {
+  return resolveRowMacros(content, stamps, {
+    characterNamesById: args.producer.characterNamesById,
+    personaNamesById: args.producer.personaNamesById,
+    speakerCharName: args.speakerCharName ?? charForSpeaker(ctx),
+    activePersonaName: ctx.activePersona?.name,
+  });
 }
 
 /**

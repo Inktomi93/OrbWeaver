@@ -43,9 +43,9 @@ describe("invalidation — the bus half (invalidate)", () => {
     const listMessagesKey = trpc.chat.listMessages.queryKey({ chatId: CHAT_ID });
     const listChatsKey = trpc.chat.listChats.queryKey();
     // A minimal stand-in cache value — this test asserts on `isInvalidated`, never the shape, so a
-    // full `ChatView` fixture would be padding; the cast documents that deliberately.
+    // full `ChatView`/`MessagesPage` fixture would be padding; the cast documents that deliberately.
     queryClient.setQueryData(getChatKey, { id: CHAT_ID } as never);
-    queryClient.setQueryData(listMessagesKey, []);
+    queryClient.setQueryData(listMessagesKey, [] as never);
     queryClient.setQueryData(listChatsKey, []);
 
     const event: ChatBusEvent = {

@@ -29,7 +29,7 @@
 // keeps its exact prior byte-for-byte render.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
@@ -114,8 +114,13 @@ export interface MessageContentProps {
   readonly renderContext?: MessageRenderContext | undefined;
   /** This row's own speaker (the message's `characterId`) — retargets `{{char}}` to THIS character
    *  in a group room; omit/null for rows with no known speaker (falls back to `renderContext`'s
-   *  default `characterName`). Ignored when `renderContext` is absent. */
+   *  `speakerCharName` default). Ignored when `renderContext` is absent. */
   readonly rowCharacterId?: CharacterId | null | undefined;
+  /** This row's own author persona (the message's `personaId`) — retargets `{{user}}`/`{{persona}}` to
+   *  THIS persona (the SAME id the #21 attribution badge resolves); omit/null for rows with no known
+   *  author (falls back to `renderContext`'s `activePersonaName` default). Ignored when `renderContext`
+   *  is absent. */
+  readonly rowPersonaId?: PersonaId | null | undefined;
 }
 
 /** Render a message body as its typed block sequence, speaker-split + colored per §12.4. Macros
@@ -126,11 +131,12 @@ export function MessageContent({
   trust,
   renderContext,
   rowCharacterId,
+  rowPersonaId,
 }: MessageContentProps): ReactElement {
   const resolvedContent =
     renderContext === undefined
       ? content
-      : renderMessageForDisplay(content, renderContext, rowCharacterId);
+      : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
   const spans = parseSpeakerSpans(resolvedContent);
 
   // Byte-identical no-op (the load-bearing case, §12.4): zero well-formed `<speaker>` markers

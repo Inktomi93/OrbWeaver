@@ -17,7 +17,7 @@
 //   • compaction checkpoint (D25): copied only when `compactedAtSeq` is within the fork point (else reset to
 //     null — a truncated fork must not carry a summary covering trimmed-away turns).
 
-import type { ChatBusEvent, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -36,6 +36,7 @@ import type { ForkResult } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type { ChatDetail } from "../contract/views";
 import { requireParticipant } from "../guard";
+import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import {
   loadChatInjections,
   loadChatRow,
@@ -61,8 +62,13 @@ type ForkVerbs = Pick<ChatService, "forkChat">;
 /** A loaded source chat row (the inferred `loadChatRow` return) — named locally (the invites.ts precedent). */
 type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
-/** Map a loaded chat row + its resolved roster → `ChatDetail` (the metadata sub-blobs applied to defaults). */
-function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantView[]): ChatDetail {
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (the metadata sub-blobs
+ *  applied to defaults; the same projection `read.ts`/`invites.ts`/`start-chat.ts` use). */
+function toChatDetail(
+  chat: LoadedChatRow,
+  participants: readonly ParticipantView[],
+  macroNames: ChatMacroNameProducer,
+): ChatDetail {
   return {
     id: chat.id,
     title: chat.title,
@@ -79,6 +85,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
     compactedAtSeq: chat.compactedAtSeq,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
+    macroNames,
   };
 }
 
@@ -326,7 +333,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       throw new ChatNotFoundError(newChatId);
     }
     const participants = await deps.loadParticipantViews(newChatId);
-    return { chat: toChatDetail(forkRow, participants) };
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
+    return { chat: toChatDetail(forkRow, participants, macroNames) };
   };
 }
 

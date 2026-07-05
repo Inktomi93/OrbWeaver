@@ -31,7 +31,12 @@
 // participant stream-attach (per-viewer, never a domain emit, never logged — the contract's `ChatBusEvent`
 // note); the domain does not emit it.
 
-import type { ChatBusEvent, OpeningPolicy, ParticipantView } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  ChatMacroNameProducer,
+  OpeningPolicy,
+  ParticipantView,
+} from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { chatParticipants, chats } from "@orb/db";
@@ -50,6 +55,7 @@ import {
   buildCommittedMessageView,
   insertCanonMessageStatements,
 } from "../persistence/canon-write";
+import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
@@ -86,9 +92,13 @@ type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 // The per-action config comes from the preset (`promptConfig.guidedActions.opening`, contract default
 // fallback); `{{input}}` is empty — startChat carries no composer steer (a steer param can ride later).
 
-/** Map a loaded chat row + its resolved roster → `ChatDetail` (metadata sub-blobs applied to defaults). The
- *  same projection `fork.ts` uses (one shape, no drift). */
-function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantView[]): ChatDetail {
+/** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (metadata sub-blobs
+ *  applied to defaults). The same projection `fork.ts`/`invites.ts`/`read.ts` use (one shape, no drift). */
+function toChatDetail(
+  chat: LoadedChatRow,
+  participants: readonly ParticipantView[],
+  macroNames: ChatMacroNameProducer,
+): ChatDetail {
   return {
     id: chat.id,
     title: chat.title,
@@ -105,6 +115,7 @@ function toChatDetail(chat: LoadedChatRow, participants: readonly ParticipantVie
     compactedAtSeq: chat.compactedAtSeq,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
+    macroNames,
   };
 }
 
@@ -441,7 +452,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       throw new ChatNotFoundError(chatId);
     }
     const participants = await deps.loadParticipantViews(chatId);
-    return { chat: toChatDetail(chatRow, participants), opening: openingOutcome };
+    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
+    return { chat: toChatDetail(chatRow, participants, macroNames), opening: openingOutcome };
   };
 }
 

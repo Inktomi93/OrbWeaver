@@ -16,6 +16,7 @@ import {
   messages,
   messageVariants,
   pendingTurns,
+  personas,
   users,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -85,6 +86,25 @@ export async function seedCharacter(db: Db, ownerId: UserId, key: string): Promi
     name: key,
     contentHash: `hash_${key}`,
     createdAt: FROZEN_AT,
+  });
+  return id;
+}
+
+/** Insert a `personas` row; returns its branded id. */
+export async function seedPersona(
+  db: Db,
+  ownerId: UserId,
+  key: string,
+  overrides: { readonly description?: string } = {},
+): Promise<PersonaId> {
+  const id = castId<PersonaId>(`persona_${key}`);
+  await db.insert(personas).values({
+    id,
+    ownerId,
+    name: key,
+    description: overrides.description ?? `${key} description`,
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
   });
   return id;
 }

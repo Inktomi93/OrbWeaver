@@ -1,31 +1,51 @@
-// The display pipeline end-to-end (pure, node-safe): macro substitution → the D53 DISPLAY regex
-// tier (markdownOnly runs, promptOnly is engine-skipped) → fixMarkdown repair; per-row {{char}}
-// re-targeting for group rows; frozen clock injected (determinism).
+// The display pipeline end-to-end (pure, node-safe): macro substitution (via `@orb/kit/macro`'s
+// `resolveRowMacros` — the ONE shared atom server ASSEMBLE also calls, Chat-Macro-Resolution.md §2) →
+// the D53 DISPLAY regex tier (markdownOnly runs, promptOnly is engine-skipped) → fixMarkdown repair;
+// per-row `{{char}}`/`{{user}}` re-targeting via the row's OWN stamps; frozen clock injected
+// (determinism).
 
 import { renderMessageForDisplay } from "@orb/client/lib";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
 const KIRA = castId<CharacterId>("char_testrenderaaaa");
+const NATE = castId<PersonaId>("persona_testrenderaaaa");
 const NOW_MS = 1_783_080_000_000; // 2026-07-03T12:00:00Z — precomputed literal
 
 const CTX = {
-  characterName: "Kira",
-  characterNamesById: new Map<CharacterId, string>([[KIRA, "Kira of the Vale"]]),
-  userName: "Nate",
-  personaDescription: "a developer",
+  characterNamesById: new Map<CharacterId, RowCharacterName>([
+    [KIRA, { name: "Kira of the Vale" }],
+  ]),
+  personaNamesById: new Map<PersonaId, RowPersonaName>([
+    [NATE, { name: "Nate", description: "a developer" }],
+  ]),
+  speakerCharName: "Kira",
+  activePersonaName: "Nate",
   nowMs: NOW_MS,
 };
 
 describe("renderMessageForDisplay", () => {
-  test("substitutes macros with the ctx values", () => {
+  test("substitutes macros with the ctx's default (null-stamp) subjects", () => {
     expect(renderMessageForDisplay("{{char}} waves at {{user}}.", CTX)).toBe("Kira waves at Nate.");
   });
 
-  test("a group row re-targets {{char}} to the row's voiced speaker", () => {
-    expect(renderMessageForDisplay("{{char}} nods.", CTX, KIRA)).toBe("Kira of the Vale nods.");
+  test("a row's own stamps retarget {{char}}/{{user}} to ITS speaker/author via the producer", () => {
+    expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KIRA, NATE)).toBe(
+      "Kira of the Vale nods at Nate.",
+    );
+  });
+
+  test("no producer entry + no ctx default floors to kit's own literal ('Character'/'User')", () => {
+    const bareCtx = {
+      characterNamesById: new Map<CharacterId, RowCharacterName>(),
+      personaNamesById: new Map<PersonaId, RowPersonaName>(),
+    };
+    expect(renderMessageForDisplay("{{char}} greets {{user}}.", bareCtx)).toBe(
+      "Character greets User.",
+    );
   });
 
   test("runs markdownOnly display scripts; the engine skips promptOnly on DISPLAY", () => {

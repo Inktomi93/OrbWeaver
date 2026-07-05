@@ -5,7 +5,7 @@
 // draft-tolerant subscribe + the kicked-member cutoff), and the per-yield gate runs on EVERY live event.
 // Driven through the real ladder via `createCaller` (authed); the live bus is transport module state.
 
-import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -132,9 +132,16 @@ const MESSAGE: MessageView = {
   ttftMs: null,
 };
 
+// The empty producer fixture (Chat-Macro-Resolution.md §1) — this router test only proves the wire-through,
+// not the producer's own resolution (that's `persistence/macro-names.int.test.ts` + `read.int.test.ts`).
+const EMPTY_MACRO_NAMES: ChatMacroNameProducer = { characterNames: [], personaNames: [] };
+
 describe("chat.listMessages — the paged canon read (D26), member-gated", () => {
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {
-    const listMessages = vi.fn<ChatService["listMessages"]>(async () => [MESSAGE]);
+    const listMessages = vi.fn<ChatService["listMessages"]>(async () => ({
+      messages: [MESSAGE],
+      macroNames: EMPTY_MACRO_NAMES,
+    }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { listMessages } },
@@ -148,7 +155,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
       beforeSeq: 10,
       limit: 20,
     });
-    expect(result).toEqual([MESSAGE]);
+    expect(result).toEqual({ messages: [MESSAGE], macroNames: EMPTY_MACRO_NAMES });
   });
 
   test("a non-member gets the leak-free NOT_FOUND the verb's requireParticipant gate throws (the getChat collapse)", async () => {
@@ -511,6 +518,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       compactedAtSeq: null,
       createdAt: 0,
       updatedAt: 0,
+      macroNames: EMPTY_MACRO_NAMES,
     },
   };
 

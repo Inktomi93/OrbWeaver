@@ -6,23 +6,24 @@
 // canon-only and holds no per-token subscription.
 //
 // ATTRIBUTION (#21, §12.4): name/avatar/color resolve from the row's SERVER-STAMPED `characterId`
-// (assistant) or `message.personaId` (user) against the roster/persona maps threaded from the surface
-// (`lib/attribution` — pure, unit-tested there) — NEVER parsed from body text. `participants`/
-// `personas` are OPTIONAL: a caller that hasn't wired the roster yet (or a solo chat with no roster)
-// gets the pre-#21 no-chrome render, so this is additive, not a breaking prop. Trust is `trusted` (own
-// AI output / own input) — other-participant `untrusted` routing lands with the multi-human wave
-// (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`.
+// (assistant) or `message.personaId` (user) against the roster + the per-chat macro-name PRODUCER
+// threaded from the surface (`lib/attribution` — pure, unit-tested there) — NEVER parsed from body
+// text. `participants` is OPTIONAL: a caller that hasn't wired the roster yet (or a solo chat with no
+// roster) gets the pre-#21 no-chrome render, so this is additive, not a breaking prop. Trust is
+// `trusted` (own AI output / own input) — other-participant `untrusted` routing lands with the
+// multi-human wave (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`.
 //
-// MACRO DISPLAY PASS: the SAME `participants`/`personas`/`activePersonaId` roster this row already
+// MACRO DISPLAY PASS: the SAME `characterNamesById`/`personaNamesById` producer this row already
 // threads for attribution ALSO builds the `MessageRenderContext` `<MessageContent>` needs to resolve
 // `{{char}}`/`{{user}}` (`lib/message-render-context` — pure data-shaping, reusing this resolution
-// rather than a second lookup). `rowCharacterId` is this row's own `message.characterId` (retargets
-// `{{char}}` to the row's voiced speaker in a group room). Same additive default as attribution: when
-// NEITHER map is threaded at all, `resolveMessageRenderContext` returns `undefined` and `content`
-// renders UNCHANGED (never a "" macro-erasure) — see that helper's header for why.
+// rather than a second lookup). `rowCharacterId`/`rowPersonaId` are this row's own
+// `message.characterId`/`message.personaId` — the SAME stamps `resolveRowMacros` (`@orb/kit/macro`)
+// resolves against the producer, so the attribution badge and the macro subject agree by construction
+// (Chat-Macro-Resolution.md §0/§6).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Avatar } from "@orb/ui/avatar";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -30,7 +31,6 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { useIsEditingMessage } from "#state";
-import type { PersonaAttribution } from "../lib/attribution";
 import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
@@ -45,11 +45,15 @@ export interface MessageRowProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   /** The surface passes true ONLY for the tail assistant message (the swipe-eligible row). */
   readonly showSwipes?: boolean;
-  /** The character roster, keyed by id — threaded from the surface (multi-character rooms only). */
+  /** The character roster, keyed by id — threaded from the surface (assistant-row avatar/color chrome
+   *  + the solo/multi-character count; multi-character rooms only). */
   readonly participants?: ReadonlyMap<CharacterId, ParticipantView> | undefined;
-  /** The persona library, keyed by id — resolves a USER row's historical author. */
-  readonly personas?: ReadonlyMap<PersonaId, PersonaAttribution> | undefined;
-  /** The chat's currently active persona — the fallback for legacy USER rows with a null `personaId`. */
+  /** The per-chat macro-name producer (Chat-Macro-Resolution.md §1) — the ONE source for BOTH the
+   *  attribution badge's name and the row's `{{char}}`/`{{user}}` macro subject. */
+  readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
+  readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
+  /** The viewing participant's currently active persona id — the fallback subject for legacy USER rows
+   *  with a null `personaId` (§4; never the chat's `anchorPersonaId` pin). */
   readonly activePersonaId?: PersonaId | null | undefined;
   /** Navigate to a forked chat (threaded to the row's Fork action) — the route maps it to `selectChat`. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
@@ -61,7 +65,8 @@ export function MessageRow({
   chatStyle,
   showSwipes = false,
   participants,
-  personas,
+  characterNamesById,
+  personaNamesById,
   activePersonaId,
   onChatForked,
 }: MessageRowProps): ReactElement {
@@ -72,7 +77,8 @@ export function MessageRow({
     characterId: message.characterId,
     personaId: message.personaId,
     participants,
-    personas,
+    characterNamesById,
+    personaNamesById,
     activePersonaId,
   });
   // Edit-in-place (PD-119): the mode flag lives in the EXTERNAL draft store, keyed by message id — a
@@ -80,7 +86,12 @@ export function MessageRow({
   // unmounts this row on scroll. While editing, the textarea REPLACES the read-only body; the
   // attribution chrome + swipe strip stay put (only the content slot swaps).
   const editing = useIsEditingMessage(message.id);
-  const renderContext = resolveMessageRenderContext({ participants, personas, activePersonaId });
+  const renderContext = resolveMessageRenderContext({
+    participants,
+    characterNamesById,
+    personaNamesById,
+    viewerActivePersonaId: activePersonaId,
+  });
   const content = editing ? (
     <MessageEditTextarea message={message} />
   ) : (
@@ -89,6 +100,7 @@ export function MessageRow({
       trust="trusted"
       renderContext={renderContext}
       rowCharacterId={message.characterId}
+      rowPersonaId={message.personaId}
     />
   );
 
