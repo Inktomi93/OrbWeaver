@@ -13,9 +13,14 @@ export const buttonVariants = tv({
   variants: {
     intent: {
       primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+      // D62 P5: `secondary` is BORDERED — a 1px `--color-border` outline over a transparent surface;
+      // hover fills `--accent`. NOT a new `outline` intent (P5 keeps the intent set small). The `border`
+      // 1px is Tailwind's untokenized default (the dialog/avatar `border border-border` precedent).
       secondary:
-        "bg-secondary text-secondary-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
-      ghost: "text-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+        "border border-border bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+      // D62 P5: `ghost` defaults MUTED (mockup) — text-muted-foreground at rest, accent on hover.
+      ghost:
+        "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
       destructive:
         "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
     },

@@ -86,6 +86,9 @@ export const TOKENS = {
   "container.cq-sm": { cssVar: "--container-cq-sm", value: "24rem" },
   "container.cq-md": { cssVar: "--container-cq-md", value: "32rem" },
   "container.cq-lg": { cssVar: "--container-cq-lg", value: "48rem" },
+  "width.dialog-sm": { cssVar: "--width-dialog-sm", value: "25rem" },
+  "width.dialog-md": { cssVar: "--width-dialog-md", value: "35rem" },
+  "width.dialog-lg": { cssVar: "--width-dialog-lg", value: "45rem" },
   "z.base": { cssVar: "--z-base", value: "0" },
   "z.raised": { cssVar: "--z-raised", value: "10" },
   "z.overlay": { cssVar: "--z-overlay", value: "40" },
@@ -95,6 +98,7 @@ export const TOKENS = {
   "motion.fast": { cssVar: "--motion-fast", value: "130ms" },
   "motion.base": { cssVar: "--motion-base", value: "220ms" },
   "motion.layout": { cssVar: "--motion-layout", value: "360ms" },
+  "motion.shimmer": { cssVar: "--motion-shimmer", value: "1300ms" },
   "ease.out-expo": { cssVar: "--ease-out-expo", value: "cubic-bezier(0.16, 1, 0.3, 1)" },
 } as const;
 

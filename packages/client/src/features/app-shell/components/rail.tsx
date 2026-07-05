@@ -6,10 +6,10 @@
 // RAIL_SECTIONS row (rail-slots.ts), never bespoke JSX here.
 
 import type { ReactElement } from "react";
+import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
 import { ACCOUNT_ACTION, RAIL_ACTIONS, RAIL_SECTIONS } from "../lib/rail-slots";
 import { RailButton } from "./rail-button";
-import { WeaveGlyph } from "./weave-glyph";
 
 export interface RailProps {
   readonly activeSection: SectionId;

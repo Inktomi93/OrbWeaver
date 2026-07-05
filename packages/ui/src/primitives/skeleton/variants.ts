@@ -1,9 +1,11 @@
 import { tv } from "tailwind-variants";
 
-// The skeleton skin — a muted, pulsing placeholder; the caller sizes it via className. The
-// "silk shimmer" (DESIGN.md) is a later flourish — v1 is a plain `animate-pulse` (ui-package-design §6.1).
+// The skeleton skin — a muted placeholder the caller sizes via className, with the shimmer sweep
+// (D62 UIP-309). The `orb-skeleton-shimmer` class (globals.css) paints the moving muted→accent→muted
+// gradient over the `bg-muted` base; under `prefers-reduced-motion` it drops to the flat `bg-muted`
+// fill (the class self-neutralizes) — reduced-motion-safe by construction, no JS motion hook needed.
 export const skeletonVariants = tv({
-  base: "block animate-pulse bg-muted",
+  base: "orb-skeleton-shimmer block bg-muted",
   variants: {
     variant: {
       rect: "rounded-control",

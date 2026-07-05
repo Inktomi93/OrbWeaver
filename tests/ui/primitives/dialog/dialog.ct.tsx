@@ -113,6 +113,60 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
   await expect(trigger).toBeFocused();
 });
 
+const ROOT_PX = 16;
+const widthPx = (path: "width.dialog-sm" | "width.dialog-md" | "width.dialog-lg"): string =>
+  `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
+
+test("the size variants clamp the popup to the dialog-width tokens (default = md)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup size="sm">
+        <DialogTitle>Small</DialogTitle>
+      </DialogPopup>
+    </Dialog>,
+  );
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS(
+    "max-width",
+    widthPx("width.dialog-sm"),
+  );
+});
+
+test("the default popup (no size prop) is the md width token", async ({ mount, page }) => {
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup>
+        <DialogTitle>Default</DialogTitle>
+      </DialogPopup>
+    </Dialog>,
+  );
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCSS(
+    "max-width",
+    widthPx("width.dialog-md"),
+  );
+});
+
+test("size=full is a full-bleed presentation — no width cap, no radius, no border", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup size="full">
+        <DialogTitle>Full bleed</DialogTitle>
+      </DialogPopup>
+    </Dialog>,
+  );
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect(popup).toHaveCSS("max-width", "none");
+  await expect(popup).toHaveCSS("border-top-left-radius", "0px");
+  await expect(popup).toHaveCSS("border-top-width", "0px");
+  // The viewport drops its gutter padding so the popup truly fills the screen.
+  await expect(page.locator('[data-slot="dialog-viewport"]')).toHaveCSS("padding-top", "0px");
+});
+
 // createHandle: open the dialog imperatively (no trigger) with a payload via handle.openWithPayload;
 // the payload reaches the Root render-function children (harness in ./dialog-handle.fixtures).
 test("opens imperatively via a handle and routes the payload to content", async ({

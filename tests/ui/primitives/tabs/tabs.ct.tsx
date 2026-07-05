@@ -1,6 +1,8 @@
 // CT: the tabs seal — click and arrow keys move selection (roving tabindex + activate-on-focus
-// from Base UI), panels swap with aria-selected tracking.
+// from Base UI), panels swap with aria-selected tracking. The active marker is a 2px primary underline
+// (D62 UIP-307), not a segmented pill.
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
 function fixture(): ReturnType<typeof Tabs> {
@@ -51,6 +53,21 @@ test("the indicator is present and tracks the active tab", async ({ mount, page 
       indicator.evaluate((el) => getComputedStyle(el).getPropertyValue("--active-tab-left")),
     )
     .not.toBe(leftOnOne);
+});
+
+test("the indicator is a 2px primary UNDERLINE and the list is a bordered track, not a pill (D62)", async ({
+  mount,
+  page,
+}) => {
+  await mount(fixture());
+  const indicator = page.getByTestId("tab-indicator");
+  // A 2px (h-0.5) bar filled with the primary token — the underline, not a full-height pill.
+  await expect(indicator).toHaveCSS("height", "2px");
+  await expect(indicator).toHaveCSS("background-color", TOKENS["color.primary"].value);
+  // The list lost its segmented-pill `--muted` fill and gained a hairline bottom-border track.
+  const list = page.locator('[data-slot="tabs-list"]');
+  await expect(list).not.toHaveCSS("background-color", TOKENS["color.muted"].value);
+  await expect(list).toHaveCSS("border-bottom-width", "1px");
 });
 
 test("Home/End jump to the first/last tab", async ({ mount, page }) => {

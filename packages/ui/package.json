@@ -35,6 +35,7 @@
     "./histogram": "./src/charts/histogram/index.ts",
     "./icons": "./src/primitives/icons/index.ts",
     "./input": "./src/primitives/input/index.ts",
+    "./kbd": "./src/primitives/kbd/index.ts",
     "./layout": "./src/layout/index.ts",
     "./lib": "./src/lib/index.ts",
     "./lightbox": "./src/content/lightbox/index.ts",

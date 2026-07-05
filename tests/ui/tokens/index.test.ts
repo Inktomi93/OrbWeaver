@@ -5,6 +5,7 @@
 // fails `pnpm test`.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { TOKENS } from "@orb/ui/tokens";
 import { generateArtifacts } from "../../../packages/ui/tokens.build.ts";
 import { expect, test } from "../../support/fixtures";
 
@@ -84,8 +85,69 @@ test("the load-bearing token names exist (scrim · chart ramp · the D44 §12.1 
     "--spacing-avatar-sm",
     "--spacing-avatar-md",
     "--spacing-avatar-lg",
+    "--width-dialog-sm",
+    "--width-dialog-md",
+    "--width-dialog-lg",
+    "--motion-shimmer",
   ];
   for (const name of required) {
     expect(themeCss, `${name} must be emitted into @theme`).toContain(`${name}:`);
   }
+});
+
+// The AA guard for the Avatar deterministic fallback hue (D62): the ONE foreground
+// (`--color-primary-foreground`) must clear WCAG AA (≥4.5:1, small text) against ALL FIVE chart hues
+// it pairs with — a hard ship-gate. A token-VALUE invariant (reads only TOKENS, browser-independent),
+// so it lives with the other token invariants. Math: oklch → linear sRGB (Björn Ottosson's OKLab
+// matrix) → relative luminance → the WCAG contrast ratio. Any hue regressing below 4.5 (a token
+// retune) goes red before a low-contrast avatar can ship.
+const AA_SMALL_TEXT = 4.5;
+const OKLCH_RE = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/u;
+
+function parseOklch(value: string): readonly [number, number, number] {
+  const m = OKLCH_RE.exec(value);
+  if (m === null) {
+    throw new Error(`token is not an oklch literal: ${value}`);
+  }
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+function relLuminance([L, C, hDeg]: readonly [number, number, number]): number {
+  const h = (hDeg * Math.PI) / 180;
+  const a = C * Math.cos(h);
+  const b = C * Math.sin(h);
+  const l = (L + 0.396_337_777_4 * a + 0.215_803_757_3 * b) ** 3;
+  const m = (L - 0.105_561_345_8 * a - 0.063_854_172_8 * b) ** 3;
+  const s = (L - 0.089_484_177_5 * a - 1.291_485_548 * b) ** 3;
+  const lin = [
+    4.076_741_662_1 * l - 3.307_711_591_3 * m + 0.230_969_929_2 * s,
+    -1.268_438_004_6 * l + 2.609_757_401_1 * m - 0.341_319_396_5 * s,
+    -0.004_196_086_3 * l - 0.703_418_614_7 * m + 1.707_614_701 * s,
+  ].map((v) => Math.max(0, Math.min(1, v)));
+  const [lr = 0, lg = 0, lb = 0] = lin;
+  return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+}
+
+function contrast(fg: string, bg: string): number {
+  const lf = relLuminance(parseOklch(fg));
+  const lb = relLuminance(parseOklch(bg));
+  const [hi, lo] = lf > lb ? [lf, lb] : [lb, lf];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const HUE_TOKENS = [
+  "color.chart-1",
+  "color.chart-2",
+  "color.chart-3",
+  "color.chart-4",
+  "color.chart-5",
+] as const;
+
+test.each(
+  HUE_TOKENS,
+)("%s clears AA (≥4.5:1) against --color-primary-foreground (the avatar fallback-hue guard)", (hue) => {
+  const ratio = contrast(TOKENS["color.primary-foreground"].value, TOKENS[hue].value);
+  expect(ratio, `${hue} vs primary-foreground = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(
+    AA_SMALL_TEXT,
+  );
 });

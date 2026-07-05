@@ -24,3 +24,19 @@ body {
 #root {
   isolation: isolate;
 }
+
+/* WeaveGlyph silk-shimmer breathe (D62 — lib/weave-glyph.tsx `anim`) — a slow opacity pulse for the
+ * empty-state "Weave your first thread" hero moment. REDUCED-MOTION: the unlayered floor in @orb/ui
+ * globals.css freezes this to a static glyph, so no per-rule override is needed. Token/literal-free. */
+@keyframes orb-weave-shimmer {
+  0%,
+  100% {
+    opacity: 0.82;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.orb-weave-shimmer {
+  animation: orb-weave-shimmer 3s ease-in-out infinite;
+}

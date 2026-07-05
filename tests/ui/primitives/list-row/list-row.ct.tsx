@@ -114,18 +114,27 @@ test("title and subtitle truncate with the full text recoverable via the title a
   await expect(page.getByText(longSubtitle)).toHaveAttribute("title", longSubtitle);
 });
 
-test("compact density is shorter than the default density", async ({ mount, page }) => {
-  const compact = await mount(<ListRow density="compact" title="Elara" />);
-  const compactHeight = await page
-    .locator('[data-slot="list-row-body"]')
-    .evaluate((el) => el.getBoundingClientRect().height);
-  await compact.unmount();
-  const defaultRow = await mount(<ListRow title="Elara" />);
-  const defaultHeight = await page
-    .locator('[data-slot="list-row-body"]')
-    .evaluate((el) => el.getBoundingClientRect().height);
-  await defaultRow.unmount();
-  expect(compactHeight).toBeLessThan(defaultHeight);
+// Density rides the control-height min-heights (compact = min-h-control-sm, default = min-h-control-md),
+// which are pointer-CONDITIONAL (D62 P1): at coarse they are 44/48 (the min-h dominates and the rows
+// differ); at fine they narrow to 28/34, both BELOW this row's ~35px content height, so the min-h is
+// inert and the two collapse to the same content-driven height. The density RELATIONSHIP is therefore
+// asserted under a coarse pointer (hasTouch → pointer:coarse, the tokens/index.ct.tsx precedent).
+test.describe("coarse pointer — density heights", () => {
+  test.use({ hasTouch: true });
+
+  test("compact density is shorter than the default density", async ({ mount, page }) => {
+    const compact = await mount(<ListRow density="compact" title="Elara" />);
+    const compactHeight = await page
+      .locator('[data-slot="list-row-body"]')
+      .evaluate((el) => el.getBoundingClientRect().height);
+    await compact.unmount();
+    const defaultRow = await mount(<ListRow title="Elara" />);
+    const defaultHeight = await page
+      .locator('[data-slot="list-row-body"]')
+      .evaluate((el) => el.getBoundingClientRect().height);
+    await defaultRow.unmount();
+    expect(compactHeight).toBeLessThan(defaultHeight);
+  });
 });
 
 test("renders the leading slot", async ({ mount, page }) => {

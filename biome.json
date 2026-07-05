@@ -36,6 +36,7 @@
     "./tools/grit/testid-typed-only.grit",
     "./tools/grit/no-media-queries-in-features.grit",
     "./tools/grit/no-raw-container-widths.grit",
+    "./tools/grit/no-arbitrary-tw-values.grit",
     "./tools/grit/no-manual-token-estimate.grit"
   ],
   "vcs": {

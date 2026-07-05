@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // assertion stays token-driven, never a hardcoded rem/px literal (contract §4.2 spirit).
 const ROOT_PX = 16;
 const sizePx = (
-  path: "text.body" | "text.label" | "text.title" | "text.headline" | "text.code",
+  path: "text.body" | "text.label" | "text.title" | "text.headline" | "text.code" | "text.micro",
 ): string => `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
 
 test("Text body default lands the body size + foreground tone tokens on a <p>", async ({
@@ -91,4 +91,27 @@ test("code size rides the code token and switches to the mono font stack", async
   await expect(text).toHaveCSS("font-size", sizePx("text.code"));
   const family = await text.evaluate((el) => getComputedStyle(el).fontFamily);
   expect(family.toLowerCase()).toContain("mono");
+});
+
+test("size=micro rides the micro type + tracking tokens (the section-label voice)", async ({
+  mount,
+}) => {
+  const text = await mount(<Text size="micro">members</Text>);
+  await expect(text).toHaveCSS("font-size", sizePx("text.micro"));
+  // The micro tracking token is applied (not the default "normal").
+  const tracking = await text.evaluate((el) => getComputedStyle(el).letterSpacing);
+  expect(tracking).not.toBe("normal");
+});
+
+test("transform=caps uppercases while leaving other sizes intact", async ({ mount }) => {
+  const caps = await mount(
+    <Text size="micro" transform="caps">
+      members
+    </Text>,
+  );
+  await expect(caps).toHaveCSS("text-transform", "uppercase");
+  // The transform is orthogonal to size — default (no transform) stays none.
+  await caps.unmount();
+  const plain = await mount(<Text size="micro">members</Text>);
+  await expect(plain).toHaveCSS("text-transform", "none");
 });

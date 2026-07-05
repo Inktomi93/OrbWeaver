@@ -84,21 +84,28 @@ test("Enter and Space toggle pressed from the keyboard", async ({ mount, page })
   await expect(control).toHaveAttribute("aria-pressed", "false");
 });
 
-test("every size meets the 44px touch floor; lg is taller than sm", async ({ mount }) => {
-  const small = await mount(
-    <Toggle aria-label="Bold" size="sm">
-      B
-    </Toggle>,
-  );
-  const smallBox = await small.boundingBox();
-  expect(smallBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-  await small.unmount();
-  const large = await mount(
-    <Toggle aria-label="Bold" size="lg">
-      B
-    </Toggle>,
-  );
-  const largeBox = await large.boundingBox();
-  expect(largeBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
-  expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
+// The ≥44px floor is a COARSE-pointer guarantee (D62 P1) — control heights narrow on fine pointers,
+// so this runs under an emulated coarse pointer (hasTouch → pointer:coarse, the tokens/index.ct.tsx
+// precedent). Without it the default Desktop-Chrome CT is fine and the heights are 28/40, not the floor.
+test.describe("coarse pointer — the touch floor", () => {
+  test.use({ hasTouch: true });
+
+  test("every size meets the 44px touch floor; lg is taller than sm", async ({ mount }) => {
+    const small = await mount(
+      <Toggle aria-label="Bold" size="sm">
+        B
+      </Toggle>,
+    );
+    const smallBox = await small.boundingBox();
+    expect(smallBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+    await small.unmount();
+    const large = await mount(
+      <Toggle aria-label="Bold" size="lg">
+        B
+      </Toggle>,
+    );
+    const largeBox = await large.boundingBox();
+    expect(largeBox?.height).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+    expect(largeBox?.height ?? 0).toBeGreaterThan(smallBox?.height ?? 0);
+  });
 });
