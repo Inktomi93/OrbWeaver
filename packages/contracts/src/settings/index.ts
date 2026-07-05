@@ -23,6 +23,11 @@ import { credentialSourceSchema } from "#credentials";
 import { regexScriptSchema } from "#regex";
 // memory retrieval-mode axis is single-homed in #search; settings derives its enum (no inline re-spell).
 import { MEMORY_RETRIEVAL_MODES } from "#search";
+// chatStyle/density are single-homed in #theme (the ThemeOverride wire clamp, paired with @orb/ui's
+// ThemeScope render clamp — D44 §12.5). `appearance` DERIVES them here, never re-spells the members
+// (the §3.4 themes-design snippet inlined a third `z.enum(["bubble","flat","document"])` copy — a
+// one-home violation; this import is the fix the coordinator approved).
+import { THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
 import { defineVersionedConfig } from "#versioned-config";
 
 // The chat role's `source` is the canonical `ChatSource`/`CredentialSource` axis (D31). Connection
@@ -396,6 +401,72 @@ const profileSchema = z
   })
   .prefault({});
 
+// ── Appearance (D44 §12.1 — the NON-color display surface; the committed §3.4 zod shape) ──
+// DISPLAY-ONLY: every knob lands as a root `data-*` attr / CSS var read by the shell + the message
+// render — it NEVER touches stored content (the content-processing knobs are PRESET territory, D53,
+// per §12.1 "OUT"). User/AppSettings-level, not per-character; a per-character COLOR theme layers on
+// top via the resolution order. `movingUI`/`waifuMode` are OUT (§12.1); sampling/instruct live on
+// preset/connection. Additive namespace → `.prefault({})`, per-field `.catch()` → NO version bump.
+
+// avatarSize/avatarShape/messageActions are enumerated INLINE below (not exported tuples): `sm/md/lg`
+// and `round/square` are generic control-scale members shared by unrelated ui axes (spinner/button/
+// avatar sizes), so promoting them to a canonical `AVATAR_SIZES` tuple would (wrongly) force every
+// sm/md/lg union to import it — the `no-inline-union-redecl` gate flags exactly that collision. These
+// axes are single-consumer (this schema); the client form authors its own labelled Select options and
+// pins their `value`s to the `AppearanceSettings` field type via `satisfies`. chatStyle/density DO
+// derive from #theme — those ARE a shared cross-package axis with a real canonical home (D44 §12.5).
+
+// Sizing bounds/defaults (named — `noMagicNumbers`). chatWidthPct feeds the §11.1
+// `clamp(680px, Xdvw, 100dvw)` root var (the CSS floor makes the schema min cosmetic); fontScale is
+// the global text-size multiplier. These numeric defaults are §3.4 LEANs (settle at the Phase-6 panel
+// build); the SHAPE (field names, enums) is committed.
+const CHAT_WIDTH_PCT_MIN = 30;
+const CHAT_WIDTH_PCT_MAX = 100; // the §11.1 clamp caps at 100dvw
+const CHAT_WIDTH_PCT_DEFAULT = 60;
+const FONT_SCALE_MIN = 0.8;
+const FONT_SCALE_MAX = 1.5;
+const FONT_SCALE_DEFAULT = 1;
+
+const appearanceSchema = z
+  .object({
+    // Sizing
+    chatWidthPct: z
+      .number()
+      .int()
+      .min(CHAT_WIDTH_PCT_MIN)
+      .max(CHAT_WIDTH_PCT_MAX)
+      .catch(CHAT_WIDTH_PCT_DEFAULT)
+      .default(CHAT_WIDTH_PCT_DEFAULT),
+    fontScale: z
+      .number()
+      .min(FONT_SCALE_MIN)
+      .max(FONT_SCALE_MAX)
+      .catch(FONT_SCALE_DEFAULT)
+      .default(FONT_SCALE_DEFAULT),
+    avatarSize: z.enum(["sm", "md", "lg"]).catch("md").default("md"),
+    avatarShape: z.enum(["round", "square"]).catch("round").default("round"),
+    density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"), // §4 data-density axis
+    // Message style (§12.1 — ST chatDisplay's 3 modes; the #theme-homed union)
+    chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
+    // Per-message metadata visibility (§12.1 — "THE gap ST has and we lacked"; each → a data-*)
+    showTimestamps: z.boolean().catch(true).default(true),
+    showGenerationTimer: z.boolean().catch(false).default(false),
+    showTokenCount: z.boolean().catch(false).default(false),
+    showMessageId: z.boolean().catch(false).default(false),
+    showModelIcon: z.boolean().catch(false).default(false),
+    showInChatAvatars: z.boolean().catch(true).default(true),
+    messageActions: z.enum(["expanded", "hover"]).catch("hover").default("hover"),
+    // Effects (§12.1 — blur/shadow default OFF per the no-glass seed; manual reduced-motion beyond
+    // the OS pref, §4a)
+    blurEffects: z.boolean().catch(false).default(false),
+    shadowEffects: z.boolean().catch(false).default(false),
+    reducedMotion: z.boolean().catch(false).default(false),
+  })
+  .prefault({});
+
+/** The resolved appearance prefs (every field present — the namespace `.prefault({})`s to defaults). */
+export type AppearanceSettings = z.infer<typeof appearanceSchema>;
+
 export const userSettingsSchema = z.object({
   // Carried in the blob (self-describes its version). The DB also pins a `user_settings.schemaVersion`
   // COLUMN, which the service threads as `storedVersion` and which BEATS this in-blob value (so a client
@@ -416,6 +487,9 @@ export const userSettingsSchema = z.object({
   regexScripts: z.array(regexScriptSchema).catch([]).default([]),
   workloads: workloadsSchema,
   profile: profileSchema,
+  /** Display-only appearance prefs (D44 §12.1). Additive namespace, NO version bump — the lenient
+   *  parser prefaults it; each knob is a root `data-*`/CSS-var read by the shell + message render. */
+  appearance: appearanceSchema,
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -432,11 +506,17 @@ export const USER_SETTINGS_SECTIONS = [
   "onboarding",
   "workloads",
   "profile",
+  "appearance",
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 
 /** The fully-defaulted settings object (what a brand-new / empty user resolves to). */
 export const DEFAULT_USER_SETTINGS: UserSettings = userSettingsSchema.parse({});
+
+/** The fully-defaulted appearance prefs — the client's fallback while `getUserSettings` loads (the
+ *  render seams read this so an unauthed/pending state degrades to the ST-parity defaults, never a
+ *  flicker of undefined). Derived from the ONE schema (never a hand-kept mirror). */
+export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = DEFAULT_USER_SETTINGS.appearance;
 
 // Lift chain: maps a stored blob at version N → N+1.
 const USER_SETTINGS_LIFTS: Record<

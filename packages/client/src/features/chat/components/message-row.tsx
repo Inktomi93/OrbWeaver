@@ -11,7 +11,10 @@
 // text. `participants` is OPTIONAL: a caller that hasn't wired the roster yet (or a solo chat with no
 // roster) gets the pre-#21 no-chrome render, so this is additive, not a breaking prop. Trust is
 // `trusted` (own AI output / own input) — other-participant `untrusted` routing lands with the
-// multi-human wave (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`.
+// multi-human wave (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`; the
+// avatar chrome (`avatarSize`/`avatarShape`/`showInChatAvatars`) flows from `useMessageAppearance`
+// (both read the synced `UserSettings.appearance` blob, D44 §12.1 — live-swappable). `showInChatAvatars`
+// hides the avatar IMAGE only; the speaker NAME stays (ST "show avatars in chat" parity).
 //
 // MACRO DISPLAY PASS: the SAME `characterNamesById`/`personaNamesById` producer this row already
 // threads for attribution ALSO builds the `MessageRenderContext` `<MessageContent>` needs to resolve
@@ -43,6 +46,13 @@ export interface MessageRowProps {
   readonly message: MessageView;
   /** The active appearance — keyed off the skin table so only a painted style is accepted. */
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
+  /** Attribution avatar size (appearance pref, §12.1). Default `md` (the schema default). */
+  readonly avatarSize?: "sm" | "md" | "lg" | undefined;
+  /** Attribution avatar shape (appearance pref, §12.1). Default `round`. */
+  readonly avatarShape?: "round" | "square" | undefined;
+  /** Show the attribution avatar image (appearance pref, §12.1). Default `true`; false keeps the
+   *  speaker name and drops only the avatar. */
+  readonly showInChatAvatars?: boolean | undefined;
   /** The surface passes true ONLY for the tail assistant message (the swipe-eligible row). */
   readonly showSwipes?: boolean;
   /** The character roster, keyed by id — threaded from the surface (assistant-row avatar/color chrome
@@ -63,6 +73,9 @@ export interface MessageRowProps {
 export function MessageRow({
   message,
   chatStyle,
+  avatarSize = "md",
+  avatarShape = "round",
+  showInChatAvatars = true,
   showSwipes = false,
   participants,
   characterNamesById,
@@ -108,9 +121,11 @@ export function MessageRow({
     <Stack gap="row" data-slot="message-row" data-role={role} className={skin.outer(role)}>
       {attribution.name === null ? null : (
         <Row gap="field" align="center" data-slot="message-attribution">
-          <Avatar size="sm" fallbackDelay={0}>
-            {initialsForAttribution(attribution.name)}
-          </Avatar>
+          {showInChatAvatars ? (
+            <Avatar size={avatarSize} shape={avatarShape} fallbackDelay={0}>
+              {initialsForAttribution(attribution.name)}
+            </Avatar>
+          ) : null}
           <Text as="span" size="label" weight="medium" tone="muted">
             {attribution.name}
           </Text>

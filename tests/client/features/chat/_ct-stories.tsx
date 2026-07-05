@@ -77,6 +77,10 @@ export interface MessageRowStoryProps {
   /** CT-serializable macro-name producer entries (see `PersonaNameStoryEntry`). */
   readonly personas?: readonly PersonaNameStoryEntry[];
   readonly activePersonaId?: PersonaId | null;
+  /** #31 appearance — the attribution-avatar chrome knobs (default to the schema defaults). */
+  readonly avatarSize?: "sm" | "md" | "lg";
+  readonly avatarShape?: "round" | "square";
+  readonly showInChatAvatars?: boolean;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -90,6 +94,9 @@ export function MessageRowStory({
   participants,
   personas,
   activePersonaId,
+  avatarSize,
+  avatarShape,
+  showInChatAvatars,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -123,6 +130,9 @@ export function MessageRowStory({
         <MessageRow
           message={makeMessageView({ role: messageRole, content, characterId, personaId })}
           chatStyle={chatStyle}
+          avatarSize={avatarSize}
+          avatarShape={avatarShape}
+          showInChatAvatars={showInChatAvatars}
           participants={participantsMap}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}

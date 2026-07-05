@@ -154,6 +154,69 @@ test("additive namespaces (onboarding/groupDefaults/workloads/profile) read defa
   expect(parsed.groupDefaults).toEqual(DEFAULT_GROUP_CONFIG);
 });
 
+// ── appearance (D44 §12.1) — the additive display-only namespace ──
+
+test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no version bump)", () => {
+  const parsed = parseUserSettings({});
+  // Sizing + message style
+  expect(parsed.appearance.chatWidthPct).toBe(60);
+  expect(parsed.appearance.fontScale).toBe(1);
+  expect(parsed.appearance.avatarSize).toBe("md");
+  expect(parsed.appearance.avatarShape).toBe("round");
+  expect(parsed.appearance.density).toBe("comfortable");
+  expect(parsed.appearance.chatStyle).toBe("bubble"); // the ST-parity default
+  // Metadata visibility (timestamps + in-chat avatars ON; the rest OFF)
+  expect(parsed.appearance.showTimestamps).toBe(true);
+  expect(parsed.appearance.showInChatAvatars).toBe(true);
+  expect(parsed.appearance.showTokenCount).toBe(false);
+  expect(parsed.appearance.messageActions).toBe("hover");
+  // Effects default OFF (the no-glass seed)
+  expect(parsed.appearance.blurEffects).toBe(false);
+  expect(parsed.appearance.shadowEffects).toBe(false);
+  expect(parsed.appearance.reducedMotion).toBe(false);
+  // Additive: an empty blob still parses as the pinned v2 (no bump for the new namespace).
+  expect(parsed.schemaVersion).toBe(SCHEMA_VERSION_V2);
+});
+
+test("UserSettings.appearance self-heals per-field: a garbage knob degrades to its default (.catch)", () => {
+  // storedVersion = the current version (the `user_settings.schemaVersion` column) so the v1→v2 lift
+  // is skipped and the per-field `.catch` on the CURRENT schema is what's exercised (a real re-parse
+  // of a stored v2 row — a versionless blob would instead lift-then-default, dropping this namespace).
+  const parsed = parseUserSettings(
+    {
+      appearance: {
+        chatStyle: "hologram", // not a THEME_CHAT_STYLES member → catch → "bubble"
+        avatarSize: "enormous", // not sm/md/lg → catch → "md"
+        chatWidthPct: 5000, // over the max → catch → 60
+        fontScale: 99, // over the max → catch → 1
+        showTimestamps: "yes", // not a boolean → catch → true (the default)
+        density: "roomy", // not a THEME_DENSITIES member → catch → "comfortable"
+      },
+    },
+    USER_SETTINGS_SCHEMA_VERSION,
+  );
+  expect(parsed.appearance.chatStyle).toBe("bubble");
+  expect(parsed.appearance.avatarSize).toBe("md");
+  expect(parsed.appearance.chatWidthPct).toBe(60);
+  expect(parsed.appearance.fontScale).toBe(1);
+  expect(parsed.appearance.showTimestamps).toBe(true);
+  expect(parsed.appearance.density).toBe("comfortable");
+});
+
+test("UserSettings.appearance keeps valid overrides while healing invalid siblings", () => {
+  const parsed = parseUserSettings(
+    { appearance: { chatStyle: "document", avatarShape: "square", chatWidthPct: "bad" } },
+    USER_SETTINGS_SCHEMA_VERSION,
+  );
+  expect(parsed.appearance.chatStyle).toBe("document");
+  expect(parsed.appearance.avatarShape).toBe("square");
+  expect(parsed.appearance.chatWidthPct).toBe(60); // the healed sibling
+});
+
+test("USER_SETTINGS_SECTIONS includes appearance (section-patchable via updateUserSettingsSection)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("appearance");
+});
+
 // ── LogLevel is the ONE tuple (foundation/env mirrors it) + section unions ──
 
 test("LOG_LEVELS is the canonical tuple and userSettingsSchema round-trips the defaults", () => {

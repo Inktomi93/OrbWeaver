@@ -12,7 +12,7 @@
 
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
-import type { SectionId } from "#state";
+import type { ModalSlotId, SectionId } from "#state";
 import {
   closeModal,
   openModal,
@@ -27,6 +27,7 @@ import { PanelChrome } from "../components/panel-chrome";
 import { Rail } from "../components/rail";
 import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
+import { useDensity } from "../hooks/use-density";
 import { useShellLayout } from "../hooks/use-shell-layout";
 import "./shell.css";
 
@@ -41,10 +42,16 @@ export interface AppShellProps {
   readonly sections: Partial<Record<SectionId, SectionSlot>>;
   /** The CONTEXT (right detail) panel body — undefined today (no entity-detail surface wired yet). */
   readonly contextPanel?: ReactNode;
+  /** Route-composed modal bodies (id-keyed), rendered over the `MODAL_SLOTS` placeholders. The shell
+   *  stays domain-agnostic: it forwards a ReactNode slot, never importing a feature (§4.1). */
+  readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
 }
 
-export function AppShell({ sections, contextPanel }: AppShellProps): ReactElement {
+export function AppShell({ sections, contextPanel, modals }: AppShellProps): ReactElement {
   const layout = useShellLayout();
+  // The global density axis (§4) — stamped on the shell root; a compact override tightens spacing
+  // tokens for the whole subtree (shell.css). Live-swappable via the appearance settings panel.
+  const density = useDensity();
   const slot = sections[layout.activeSection];
   const listContent = slot?.list ?? (
     <SectionPlaceholder title={`${layout.activeSectionLabel} list`} />
@@ -66,6 +73,7 @@ export function AppShell({ sections, contextPanel }: AppShellProps): ReactElemen
         className="shell-grid"
         data-list-mode={layout.listMode}
         data-context-mode={layout.contextMode}
+        data-density={density}
       >
         <Rail
           activeSection={layout.activeSection}
@@ -123,7 +131,7 @@ export function AppShell({ sections, contextPanel }: AppShellProps): ReactElemen
           />
         ) : null}
 
-        <ModalHost openModal={layout.openModalId} onClose={closeModal} />
+        <ModalHost openModal={layout.openModalId} modals={modals} onClose={closeModal} />
       </div>
     </TooltipProvider>
   );

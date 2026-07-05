@@ -69,4 +69,26 @@ describe("updateUserSettingsSection", () => {
       (await h.svc.getUserSettings({ principal: principal(b, "user") })).config.memory.enabled,
     ).toBe(false);
   });
+
+  test("the appearance section patches + deep-merges (D44 §12.1 display prefs round-trip)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_appearance" });
+    const p = principal(u, "user");
+    // Two partial patches on the same section: the second must not clobber the first (deep-merge).
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "appearance", patch: { chatStyle: "flat", avatarSize: "lg" } },
+    });
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "appearance", patch: { showInChatAvatars: false } },
+    });
+    const view = await h.svc.getUserSettings({ principal: p });
+    expect(view.config.appearance.chatStyle).toBe("flat");
+    expect(view.config.appearance.avatarSize).toBe("lg"); // survived the second patch
+    expect(view.config.appearance.showInChatAvatars).toBe(false);
+    // An untouched knob keeps its §12.1 default.
+    expect(view.config.appearance.density).toBe("comfortable");
+  });
 });
