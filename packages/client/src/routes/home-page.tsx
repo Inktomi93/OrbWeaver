@@ -4,7 +4,7 @@ import type { ChatBusDeps } from "#data";
 import { createInvalidation, useTRPC } from "#data";
 import { AppShell } from "#features/app-shell";
 import { CharacterLibraryAnchor, CharacterLibrarySurface } from "#features/character";
-import { ChatListAnchor, ChatListSurface, ChatRoomSurface } from "#features/chat";
+import { ChatContextPanel, ChatListAnchor, ChatListSurface, ChatRoomSurface } from "#features/chat";
 import { AppearanceSettingsSurface } from "#features/settings";
 import {
   chatStream,
@@ -83,6 +83,10 @@ export function HomePage(): ReactElement {
         },
       }}
       modals={{ settings: <AppearanceSettingsSurface /> }}
+      // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
+      // Mounted ONLY for a COMMITTED chat (a draft has no server row for the reads/writes to target);
+      // a draft or non-chat section falls back to the shell's honest placeholder.
+      contextPanel={activeChatId === null ? undefined : <ChatContextPanel chatId={activeChatId} />}
     />
   );
 }

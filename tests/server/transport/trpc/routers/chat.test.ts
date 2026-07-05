@@ -7,7 +7,7 @@
 
 import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
@@ -557,5 +557,261 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
     await expect(caller(ctx).chat.forkChat({ chatId: CHAT })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+});
+
+// The CONTEXT-panel cluster (task #28 — room-overrides · preview-request · manual injections): all were
+// fully implemented in domain/chat (verbs/roster.ts, verbs/read.ts, verbs/chat-lifecycle.ts) — host/member
+// gated via substrate/auth/matrix.ts — but never exposed on this router (the same MISSING-API shape the
+// clusters above were in). Thin pass-throughs; the leak-free NOT_FOUND collapse is the verb's own gate.
+
+describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #28 wire-through, host-only)", () => {
+  test("a thin pass-through: chatId/overrides reach the verb with the resolved Principal", async () => {
+    const overrides = { mainPrompt: "Be terse.", scenario: "A rainy dock at midnight." };
+    const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>(async () => overrides);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setRoomOverrides } },
+    });
+
+    const result = await caller(ctx).chat.setRoomOverrides({ chatId: CHAT, overrides });
+
+    expect(setRoomOverrides).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      overrides,
+    });
+    expect(result).toEqual(overrides);
+  });
+
+  test("a stray key is stripped at the boundary (roomOverridesSchema.strict allowlist) — the verb sees only the four fields", async () => {
+    const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>(async () => ({}));
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setRoomOverrides } },
+    });
+
+    // A rogue field must fail the strict wire schema before ever reaching the verb (a host-only allowlist).
+    await expect(
+      caller(ctx).chat.setRoomOverrides({
+        chatId: CHAT,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema input to prove the strict boundary rejects it.
+        overrides: { mainPrompt: "ok", rogue: "nope" } as any,
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(setRoomOverrides).not.toHaveBeenCalled();
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const setRoomOverrides = vi
+      .fn<ChatService["setRoomOverrides"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { setRoomOverrides } },
+    });
+
+    await expect(
+      caller(ctx).chat.setRoomOverrides({ chatId: CHAT, overrides: { mainPrompt: "x" } }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("chat.previewAssembly — the assembled-prompt preview + trace (task #28 wire-through, host-only)", () => {
+  const Preview: Awaited<ReturnType<ChatService["previewAssembly"]>> = {
+    prompt: {
+      static: "SYSTEM: be helpful",
+      dynamic: "",
+      afterHistory: [],
+      sendHistory: true,
+      trace: {
+        staticSections: ["main_prompt"],
+        dynamicSections: [],
+        worldInfoIncluded: 0,
+        worldInfoDropped: [],
+        matchedKeys: [],
+        compactSummaryIncluded: false,
+        memoryIncluded: false,
+        guidedInstructionIncluded: false,
+        staticCacheBusters: [],
+        chatInjectionsIncluded: 0,
+        afterHistorySections: [],
+        overrideSources: { mainPrompt: "room override" },
+      },
+    },
+    trace: {
+      staticSections: ["main_prompt"],
+      dynamicSections: [],
+      worldInfoIncluded: 0,
+      worldInfoDropped: [],
+      matchedKeys: [],
+      compactSummaryIncluded: false,
+      memoryIncluded: false,
+      guidedInstructionIncluded: false,
+      staticCacheBusters: [],
+      chatInjectionsIncluded: 0,
+      afterHistorySections: [],
+      overrideSources: { mainPrompt: "room override" },
+    },
+  };
+
+  test("a thin pass-through: chatId reaches the verb with the resolved Principal; the preview+trace return verbatim", async () => {
+    const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { previewAssembly } },
+    });
+
+    const result = await caller(ctx).chat.previewAssembly({ chatId: CHAT });
+
+    expect(previewAssembly).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+    });
+    expect(result).toEqual(Preview);
+  });
+
+  test("a non-host gets the verb's leak-free NOT_FOUND (the host-only debug-surface gate)", async () => {
+    const previewAssembly = vi
+      .fn<ChatService["previewAssembly"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { previewAssembly } },
+    });
+
+    await expect(caller(ctx).chat.previewAssembly({ chatId: CHAT })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+});
+
+describe("chat.setChatInjection / listChatInjections / deleteChatInjection — the manual-injections CRUD (task #28 wire-through)", () => {
+  const InjectionId = castId<ChatInjectionId>("chat_injection_1");
+  const InjectionView: Awaited<ReturnType<ChatService["listChatInjections"]>>[number] = {
+    id: InjectionId,
+    position: "in_chat",
+    depth: 2,
+    role: "system",
+    content: "Remember: it is raining.",
+  };
+
+  test("setChatInjection CREATE (no id): the authored fields reach the verb with the resolved Principal", async () => {
+    const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setChatInjection } },
+    });
+
+    const result = await caller(ctx).chat.setChatInjection({
+      chatId: CHAT,
+      position: "in_chat",
+      depth: 2,
+      role: "system",
+      content: "Remember: it is raining.",
+    });
+
+    expect(setChatInjection).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      position: "in_chat",
+      depth: 2,
+      role: "system",
+      content: "Remember: it is raining.",
+    });
+    expect(result).toEqual(InjectionView);
+  });
+
+  test("setChatInjection UPDATE (id present): the id reaches the verb (upsert)", async () => {
+    const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setChatInjection } },
+    });
+
+    await caller(ctx).chat.setChatInjection({
+      chatId: CHAT,
+      id: InjectionId,
+      position: "before_prompt",
+      depth: 0,
+      role: "user",
+      content: "updated",
+    });
+
+    expect(setChatInjection).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: CHAT, id: InjectionId, position: "before_prompt" }),
+    );
+  });
+
+  test("setChatInjection rejects an off-axis position before the verb (the wire enum)", async () => {
+    const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setChatInjection } },
+    });
+
+    await expect(
+      caller(ctx).chat.setChatInjection({
+        chatId: CHAT,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately off-enum to prove the wire schema rejects it.
+        position: "somewhere" as any,
+        depth: 0,
+        role: "system",
+        content: "x",
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(setChatInjection).not.toHaveBeenCalled();
+  });
+
+  test("listChatInjections: a thin pass-through returning the splice-ordered list (member-gated)", async () => {
+    const listChatInjections = vi.fn<ChatService["listChatInjections"]>(async () => [
+      InjectionView,
+    ]);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { listChatInjections } },
+    });
+
+    const result = await caller(ctx).chat.listChatInjections({ chatId: CHAT });
+
+    expect(listChatInjections).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+    });
+    expect(result).toEqual([InjectionView]);
+  });
+
+  test("deleteChatInjection: chatId/injectionId reach the verb with the resolved Principal (host-only)", async () => {
+    const deleteChatInjection = vi.fn<ChatService["deleteChatInjection"]>(async () => undefined);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { deleteChatInjection } },
+    });
+
+    const result = await caller(ctx).chat.deleteChatInjection({
+      chatId: CHAT,
+      injectionId: InjectionId,
+    });
+
+    expect(deleteChatInjection).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      injectionId: InjectionId,
+    });
+    expect(result).toBeUndefined();
+  });
+
+  test("a non-host deleting an injection gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const deleteChatInjection = vi
+      .fn<ChatService["deleteChatInjection"]>()
+      .mockRejectedValue(new ChatNotFoundError(CHAT));
+    const ctx = makeContext({
+      auth: principal("user", { userId: NON_MEMBER }),
+      services: { chat: { deleteChatInjection } },
+    });
+
+    await expect(
+      caller(ctx).chat.deleteChatInjection({ chatId: CHAT, injectionId: InjectionId }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
