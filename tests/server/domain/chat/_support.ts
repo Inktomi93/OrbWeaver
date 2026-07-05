@@ -316,6 +316,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
+    // D44 §12.0 — default to the safe floor (untrusted; external media gated). Overridable per test.
+    resolveRenderPolicy: () => Promise.resolve({ trustHtml: false, forbidExternalMedia: true }),
     resolveImageUrl: notStubbed,
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,

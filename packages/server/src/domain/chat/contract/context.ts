@@ -18,7 +18,13 @@
 // precise param/result shapes (the rich search hit/result + the embeddings store-params are not on the seam node).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent, GroupConfig, RoomOverrides, ToolCallRecord } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  GroupConfig,
+  RenderPolicy,
+  RoomOverrides,
+  ToolCallRecord,
+} from "@orb/contracts/chat";
 import type { ChatSource, ResolvedConnection, RoutableChat } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { AgentSourceKind, Can, ChatRoster, Principal } from "@orb/contracts/identity";
@@ -135,6 +141,17 @@ export type GetCardOp = (params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
 }) => Promise<CharacterCard | null>;
+
+/** Resolve a roster member's content-render policy (D44 §12.0 — `override ?? global`). The entry root
+ *  closes over `settings.getEffectiveConfig()` (the deployment floor) + the per-character tri-state
+ *  overrides; `characterId: null` (a human seat) resolves to the global floor alone. The result feeds
+ *  `ParticipantView.renderPolicy` — the ONE resolution home (the client never re-resolves). */
+export type ResolveRenderPolicyOp = (params: {
+  /** The host owner (a character's cards belong to the host). `null` (no resolvable host) ⇒ the op falls
+   *  back to the global floor — fail-closed, never a throw into roster assembly. */
+  readonly ownerId: UserId | null;
+  readonly characterId: CharacterId | null;
+}) => Promise<RenderPolicy>;
 
 /** `users.resolveUserPublics` — resolve a human participant's display fields (the entry root decorates this). */
 export type ResolveUserPublicsOp = (
@@ -360,6 +377,8 @@ export interface ChatContext {
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
+  /** D44 §12.0 — resolve a roster member's content-render policy (`override ?? global`). */
+  readonly resolveRenderPolicy: ResolveRenderPolicyOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;

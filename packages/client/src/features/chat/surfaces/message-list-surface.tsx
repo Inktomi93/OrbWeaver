@@ -54,7 +54,11 @@ import { useChatStyle } from "../hooks/use-chat-style";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { messageItemKey, useMessageItems } from "../hooks/use-message-items";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
-import { buildParticipantsById, resolveViewerActivePersonaId } from "../lib/roster";
+import {
+  buildParticipantsById,
+  resolveViewerActivePersonaId,
+  resolveViewerUserId,
+} from "../lib/roster";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 96;
@@ -118,6 +122,9 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   const characterNamesById = buildCharacterNameMap(producers.flatMap((p) => p.characterNames));
   const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
+  // The viewing principal (D44 §12.0 render-trust "own input" comparand) — the first-human-seat proxy
+  // until real auth (#50). Read ONCE here, threaded to each row (rows stay prop-driven, not per-row).
+  const viewerUserId = resolveViewerUserId(chatDetail.participants);
   // Per-message avatar chrome from the synced appearance pref (§12.1) — read ONCE here, threaded to
   // each row as props (rows stay prop-driven + Compiler-memoized, never a per-row query).
   const messageAppearance = useMessageAppearance();
@@ -147,6 +154,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}
         activePersonaId={activePersonaId}
+        viewerUserId={viewerUserId}
         onChatForked={onChatForked}
       />
     );

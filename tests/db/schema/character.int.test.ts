@@ -76,6 +76,8 @@ test("characters insert→select round-trips (branded id + always-a-list default
   expect(rows[0]?.synthetic).toBe(false);
   // forbidExternalMedia is the tri-state — absent ⇒ null (inherit deployment default).
   expect(rows[0]?.forbidExternalMedia).toBeNull();
+  // trustHtml (D44 §12.0) is the same tri-state — absent on create ⇒ null (inherit the deployment default).
+  expect(rows[0]?.trustHtml).toBeNull();
   // Always-a-list columns default to `[]`, never null (the parseStringArray asymmetry).
   expect(parseStringArray(rows[0]?.greetings)).toEqual([]);
   expect(rows[0]?.regexScripts).toEqual([]);

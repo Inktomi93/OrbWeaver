@@ -852,6 +852,20 @@ export const talkativenessSchema = z
   .catch(TALKATIVENESS_DEFAULT)
   .default(TALKATIVENESS_DEFAULT);
 
+/** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3) — `override ?? global`. The chat
+ *  domain resolves each character's tri-state overrides against the deployment effective config at
+ *  roster-build time (the ONE resolution home — never re-resolved client-side); the client READS these to
+ *  pick the markdown render trust tier + gate external media for content THIS participant authored. Both
+ *  fields are non-null (already resolved). */
+export interface RenderPolicy {
+  /** `true` = this participant's card/message HTML renders TRUSTED (rich HTML + Mermaid). Floor: `false`
+   *  (untrusted — the D21 safe default; an admin-global or per-character opt-in escalates). */
+  readonly trustHtml: boolean;
+  /** `true` = external (http/https) media in this participant's content is gated behind click-to-load
+   *  (the load itself is the tracking-pixel/exfil — D44 §12.3). */
+  readonly forbidExternalMedia: boolean;
+}
+
 /** The roster read-model (one `chat_participants` row, resolved for display). `kind` is the XOR
  *  discriminator (`userId` set for `human`, `characterId` for `character`); `talkativeness`/`disabled` feed
  *  arbitration + `{{groupNotMuted}}`; `leftSeq` null = present (the "present-and-contributing" predicate). */
@@ -875,6 +889,11 @@ export interface ParticipantView {
   handle: Handle | null;
   /** The avatar asset (the floor — always member-visible via the D21 blob route's roster exception). */
   avatarAssetId: AssetId | null;
+  /** The RESOLVED content-render policy for content THIS participant authored (D44 §12.0 — see
+   *  {@link RenderPolicy}). ALWAYS server-populated on the `getChat`/roster read; declared OPTIONAL so a
+   *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
+   *  untrusted + gate-external safe floor), never fails open. */
+  renderPolicy?: RenderPolicy;
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the

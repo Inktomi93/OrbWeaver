@@ -91,6 +91,14 @@ function makeService(names: Readonly<Record<string, string>>): {
     mintSyntheticGroupCharacter: () =>
       Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
     resolveUserPublics: () => Promise.resolve(null),
+    // D44 §12.0 — a CHARACTER seat opted into trusted HTML; humans resolve to the untrusted floor. Proves
+    // the resolved policy is threaded onto ParticipantView (the client's render-trust data source).
+    resolveRenderPolicy: ({ characterId }) =>
+      Promise.resolve(
+        characterId === null
+          ? { trustHtml: false, forbidExternalMedia: true }
+          : { trustHtml: true, forbidExternalMedia: false },
+      ),
   });
   const deps: ChatServiceDeps = {
     emit: (event) => {
@@ -187,5 +195,9 @@ describe("createChatService — assembly", () => {
     const charRow = roster.find((p) => p.characterId !== null);
     expect(hostRow?.role).toBe("host");
     expect(charRow?.displayName).toBe("aria"); // resolved via ctx.getCard
+    // D44 §12.0 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
+    // never re-resolves): the opted-in character carries trusted; the human seat the untrusted floor.
+    expect(charRow?.renderPolicy).toEqual({ trustHtml: true, forbidExternalMedia: false });
+    expect(hostRow?.renderPolicy).toEqual({ trustHtml: false, forbidExternalMedia: true });
   });
 });

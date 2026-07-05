@@ -53,6 +53,57 @@ test("a preamble before the first marker renders as an un-themed narrator span",
   await expect(component.getByText("Well then.")).toBeVisible();
 });
 
+// ── D44 §12.0 render-trust guardrails (#25) ───────────────────────────────────────────────────────
+
+test("GUARDRAIL: <speaker> coloring SURVIVES the untrusted render tier (non-regression)", async ({
+  mount,
+}) => {
+  // The persona feature: a merged-narrator body's per-speaker colors come from the UPSTREAM speaker-span
+  // split (`parseSpeakerSpans` → per-span `<ThemeScope>`), which runs BEFORE the markdown seal — so the
+  // untrusted policy (which drops the `<speaker>` literal passthrough) does NOT regress the coloring,
+  // because the markers never reach Streamdown on the settled path. Mount at `untrusted` and prove the
+  // ThemeScope wrappers + routed text are still there.
+  const component = await mount(
+    <MessageContentSpansStory
+      trust="untrusted"
+      content="<speaker>Alice</speaker>Hi!<speaker>Bob</speaker>Hey Alice."
+    />,
+  );
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(2);
+  const text = await component.innerText();
+  expect(text.indexOf("Hi!")).toBeLessThan(text.indexOf("Hey Alice."));
+});
+
+test("GUARDRAIL: an external image is GATED (click-to-load, no auto-fetch) when allowExternal=false", async ({
+  mount,
+}) => {
+  // D44 §12.3 — an external `![](https://…)` projects to a `media` block routed through `<MessageMedia>`;
+  // with the resolved gate closed it renders the click-to-load placeholder and issues NO network request
+  // (never a raw <img>). Mounts untrusted + gated (the safe floor).
+  const component = await mount(
+    <MessageContentSpansStory
+      trust="untrusted"
+      allowExternal={false}
+      content="look ![evil](https://tracker.example/pixel.png) here"
+    />,
+  );
+  // The gated placeholder (a button), NOT a loaded <img>.
+  await expect(component.locator('[data-slot="message-media-placeholder"]')).toHaveCount(1);
+  await expect(component.locator("img")).toHaveCount(0);
+});
+
+test("an external image LOADS (renders an <img>) when allowExternal=true", async ({ mount }) => {
+  const component = await mount(
+    <MessageContentSpansStory
+      trust="untrusted"
+      allowExternal={true}
+      content="look ![ok](https://cdn.example/ok.png) here"
+    />,
+  );
+  await expect(component.locator('[data-slot="message-media"]')).toHaveCount(1);
+  await expect(component.locator('[data-slot="message-media-placeholder"]')).toHaveCount(0);
+});
+
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
 
 test("with no renderContext, {{char}}/{{user}} render LITERALLY — the pre-fix default", async ({

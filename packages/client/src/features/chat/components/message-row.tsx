@@ -9,9 +9,15 @@
 // (assistant) or `message.personaId` (user) against the roster + the per-chat macro-name PRODUCER
 // threaded from the surface (`lib/attribution` — pure, unit-tested there) — NEVER parsed from body
 // text. `participants` is OPTIONAL: a caller that hasn't wired the roster yet (or a solo chat with no
-// roster) gets the pre-#21 no-chrome render, so this is additive, not a breaking prop. Trust is
-// `trusted` (own AI output / own input) — other-participant `untrusted` routing lands with the
-// multi-human wave (§11.6). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`; the
+// roster) gets the pre-#21 no-chrome render, so this is additive, not a breaking prop.
+//
+// RENDER TRUST (#25, D44 §12.0 — UNTRUSTED BY DEFAULT): the row resolves its render policy via
+// `resolveRowRenderPolicy` (`lib/render-trust`, pure) — `trusted` ONLY for the viewer's OWN input
+// (role==="user" AND `authorUserId` === `viewerUserId`) OR a character/global that opted in (the resolved
+// `ParticipantView.renderPolicy.trustHtml`); everything else — assistant/LLM, other participant, system —
+// is `untrusted`. This replaced the pre-#25 hardcoded `trust="trusted"` (which rendered LLM/imported
+// content as trusted — the indirect-prompt-injection hole). `viewerUserId` is the first-human-seat proxy
+// (`resolveViewerUserId`) until real auth (#50). SEAM (#31): `chatStyle` flows from the surface's `useChatStyle`; the
 // avatar chrome (`avatarSize`/`avatarShape`/`showInChatAvatars`) flows from `useMessageAppearance`
 // (both read the synced `UserSettings.appearance` blob, D44 §12.1 — live-swappable). `showInChatAvatars`
 // hides the avatar IMAGE only; the speaker NAME stays (ST "show avatars in chat" parity).
@@ -25,7 +31,7 @@
 // (Chat-Macro-Resolution.md §0/§6).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Avatar } from "@orb/ui/avatar";
 import { Row, Stack } from "@orb/ui/layout";
@@ -37,6 +43,7 @@ import { useIsEditingMessage } from "#state";
 import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
+import { resolveRowRenderPolicy } from "../lib/render-trust";
 import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
 import { MessageEditTextarea } from "./message-edit-textarea";
@@ -65,6 +72,10 @@ export interface MessageRowProps {
   /** The viewing participant's currently active persona id — the fallback subject for legacy USER rows
    *  with a null `personaId` (§4; never the chat's `anchorPersonaId` pin). */
   readonly activePersonaId?: PersonaId | null | undefined;
+  /** The VIEWING principal's user id (D44 §12.0 render-trust — the "own input" comparand). Threaded from
+   *  the surface (`resolveViewerUserId`, the first-human-seat proxy until #50). Absent/null ⇒ no row can be
+   *  "own input", so everything stays untrusted (the fail-closed safe floor). */
+  readonly viewerUserId?: UserId | null | undefined;
   /** Navigate to a forked chat (threaded to the row's Fork action) — the route maps it to `selectChat`. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
@@ -81,6 +92,7 @@ export function MessageRow({
   characterNamesById,
   personaNamesById,
   activePersonaId,
+  viewerUserId,
   onChatForked,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
@@ -93,6 +105,15 @@ export function MessageRow({
     characterNamesById,
     personaNamesById,
     activePersonaId,
+  });
+  // D44 §12.0 — the RESOLVED render policy (untrusted by default). This is THE per-message trust decision:
+  // own-user input OR an opted-in character → trusted; else untrusted. Replaces the pre-#25 `trust="trusted"`.
+  const render = resolveRowRenderPolicy({
+    role,
+    authorUserId: message.authorUserId,
+    characterId: message.characterId,
+    viewerUserId: viewerUserId ?? null,
+    participants,
   });
   // Edit-in-place (PD-119): the mode flag lives in the EXTERNAL draft store, keyed by message id — a
   // component-local `useState` here would silently drop mid-edit when the windowed message-list
@@ -110,7 +131,7 @@ export function MessageRow({
   ) : (
     <MessageContent
       content={message.content}
-      trust="trusted"
+      render={render}
       renderContext={renderContext}
       rowCharacterId={message.characterId}
       rowPersonaId={message.personaId}

@@ -46,5 +46,8 @@ describe("flagEdits", () => {
     expect(flagEdits({ forbidExternalMedia: null } as UpdateCharacterInput)).toEqual({
       forbidExternalMedia: null,
     });
+    // D44 §12.0 — the render-trust flag rides the SAME present-only carry (null clears, not dropped).
+    expect(flagEdits({ trustHtml: null } as UpdateCharacterInput)).toEqual({ trustHtml: null });
+    expect(flagEdits({ trustHtml: true } as UpdateCharacterInput)).toEqual({ trustHtml: true });
   });
 });
