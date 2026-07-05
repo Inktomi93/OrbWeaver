@@ -299,6 +299,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               capability: req.connection.capability,
               params: req.intent,
               systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+              // D17: the engine's enforced owner-consent verdict → the firewall's `ownerConsented` re-verify.
+              ownerConsented: req.ownerConsented,
               prompt: req.history
                 .map((m) => {
                   const prefix = m.role === "assistant" ? "Assistant" : "User";
@@ -319,6 +321,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
               capability: req.connection.capability,
               params: req.intent,
               systemPrompt: { static: req.prompt.static, dynamic: req.prompt.dynamic },
+              // D17: the engine's enforced owner-consent verdict → the firewall's `ownerConsented` re-verify.
+              ownerConsented: req.ownerConsented,
               // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
               history: req.history as any,
               historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,

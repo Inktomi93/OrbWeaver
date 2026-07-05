@@ -144,6 +144,12 @@ export interface TurnRequest {
   /** The recorded generation params (sampling/effort/budget) for this turn. */
   readonly intent: UserIntent;
   readonly kind: TurnKind;
+  /** The D17 owner-consent VALUE the infra credential firewall re-verifies (`FirewallRequest.ownerConsented`).
+   *  The engine derives it (`resolveOwnerConsented`) AFTER the in-lock `assertMaxProSubConsent` belt, so it
+   *  carries an already-enforced verdict — `true` for an owner-initiated turn (or owner-consented non-owner
+   *  use), `false` otherwise. Non-optional: the engine ALWAYS computes it. The infra belt still fail-closes on
+   *  the SOURCE axis independently; this only supplies the consent axis (belt-and-suspenders, one direction). */
+  readonly ownerConsented: boolean;
   /** The §8 rolling-pair cache breakpoint offset from the tail (computed in SHAPE; the runner only PLACES
    *  the `cache_control` tag here). Null ⇒ no safe boundary this round. */
   readonly cacheBreakpointFromEnd: number | null;

@@ -101,8 +101,15 @@ export function repairStreamingTail(text: string): string {
 
 /** Strip a trailing `<speaker…>` open tag that has no `</speaker>` close after it (a torn narrator
  *  span mid-stream). A complete `<speaker>…</speaker>` is left intact. Cheap fast-path: no
- *  `<speaker` present → return as-is. */
-function holdTornSpeaker(text: string): string {
+ *  `<speaker` present → return as-is.
+ *
+ *  EXPORTED (#38): the streaming markdown seal calls this DIRECTLY rather than the full
+ *  {@link repairStreamingTail}. Streamdown 2.5's own `parseIncompleteMarkdown` already runs `remend`
+ *  internally in streaming mode, so the `remend(text)` half of `repairStreamingTail` is redundant on
+ *  that path — but Streamdown's repair does NOT balance/hold a fully-open custom `<speaker>` tag
+ *  awaiting its close (verified: remend's html-tag handling only truncates a still-open *opening* tag
+ *  scan). This hold-back is therefore the genuinely-unique piece the seal keeps. */
+export function holdTornSpeaker(text: string): string {
   SPEAKER_OPEN_TAG.lastIndex = 0;
   let lastOpenIndex = NOT_FOUND;
   for (const m of text.matchAll(SPEAKER_OPEN_TAG)) {

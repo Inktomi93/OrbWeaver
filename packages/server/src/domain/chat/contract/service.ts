@@ -57,6 +57,7 @@ import type {
   ListChatsParams,
   ListForksParams,
   ListMessagesParams,
+  ListMessageVariantsParams,
   ListParticipantsParams,
   MoveMessageParams,
   NominateHostHandoffParams,
@@ -109,6 +110,7 @@ import type {
   ChatStreamReplayEvent,
   ChatSummary,
   InvitePreview,
+  MessageVariantSummary,
   MessageView,
   ParticipantView,
   SectionPreview,
@@ -139,6 +141,12 @@ export interface ChatService {
   readonly peekPrompt: (params: PeekPromptParams) => Promise<AssembledPrompt>;
   /** Paged canon read — each slot joined to its selected variant (D26). */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessageView[]>;
+  /** The full sibling-variant set for one slot (D26) — `{variantId, idx}[]` ordered by idx, no content.
+   *  `MessageView` carries only the SELECTED variant; this fills the gap for the swipe strip's step-target
+   *  resolver (was MISSING-API). */
+  readonly listMessageVariants: (
+    params: ListMessageVariantsParams,
+  ) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
   readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantView[]>;
   /** Resume the SSE token log from a cursor (late-subscriber ramp-up). */

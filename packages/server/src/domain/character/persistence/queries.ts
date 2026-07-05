@@ -26,7 +26,7 @@ import {
   tags,
 } from "@orb/db";
 import type { CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SnapshotSummary } from "../contract/results";
 import type { CharacterDetail, CharacterSummary } from "../contract/views";
@@ -78,18 +78,43 @@ export async function loadCharacterWithAvatarById(
   return rows[0];
 }
 
-/** The owner's NON-synthetic characters + avatars, newest first (synthetic group buckets excluded —
- *  every user-facing query filters `synthetic = false`). */
+// The library keyset page args (file-local — types-in-contract forbids an exported shape here; the
+// `list` verb owns the public `ListCharactersParams`/`CharacterListCursor` contract shapes).
+interface ListOwnedPageInput {
+  readonly ownerId: UserId;
+  readonly limit: number;
+  /** `createdAt` of the previous page's last row (the keyset cursor); paired with `cursorId` — pass
+   *  both or neither (the `domain/assets` `(uploadedAt, id)` precedent). */
+  readonly cursor: number | undefined;
+  /** `id` of that same row — the deterministic tiebreak. `createdAt` is NOT unique (a frozen clock in
+   *  tests, or a bulk import, can stamp many rows with the identical millisecond), so a single-column
+   *  cursor would skip/dupe rows on a tie; `id` breaks it. */
+  readonly cursorId: CharacterId | undefined;
+}
+
+/** The owner's NON-synthetic characters + avatars, `ORDER BY createdAt DESC, id DESC`, keyset-paged
+ *  (synthetic group buckets excluded — every user-facing query filters `synthetic = false`). The cursor
+ *  predicate is `createdAt < :cursor OR (createdAt = :cursor AND id < :cursorId)` — no offset (which
+ *  skips/dupes rows under concurrent writes). Fetches exactly `limit` rows; the caller (the `list` verb)
+ *  derives `nextCursor` from whether a full page came back. */
 export async function listOwnedCharactersWithAvatar(
   db: Db,
-  ownerId: UserId,
+  input: ListOwnedPageInput,
 ): Promise<CharacterWithAvatar[]> {
+  const keyset =
+    input.cursor !== undefined && input.cursorId !== undefined
+      ? or(
+          lt(characters.createdAt, input.cursor),
+          and(eq(characters.createdAt, input.cursor), lt(characters.id, input.cursorId)),
+        )
+      : undefined;
   const rows = await db
     .select({ character: characters, avatar: assets })
     .from(characters)
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)))
-    .orderBy(desc(characters.createdAt));
+    .where(and(eq(characters.ownerId, input.ownerId), eq(characters.synthetic, false), keyset))
+    .orderBy(desc(characters.createdAt), desc(characters.id))
+    .limit(input.limit);
   return rows;
 }
 

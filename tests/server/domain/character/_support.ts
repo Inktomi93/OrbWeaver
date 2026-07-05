@@ -145,6 +145,10 @@ interface SeedRawCharacterOverrides {
   readonly importHash?: string | null;
   readonly contentHash?: string;
   readonly avatarAssetId?: AssetId | null;
+  /** Overrides the default frozen instant — the `list` keyset-cursor tests pin exact `(createdAt, id)`
+   *  boundaries this way (the CRUD wire always stamps `ctx.now()`, so a raw insert is the only way to
+   *  author a deliberate createdAt tie or ordering). */
+  readonly createdAt?: number;
 }
 
 /** Insert a flat `characters` row DIRECTLY (bypassing the service) — for seeding import-provenance /
@@ -164,7 +168,7 @@ export async function seedRawCharacter(
     importHash: overrides.importHash ?? null,
     contentHash: overrides.contentHash ?? "seed_content_hash",
     avatarAssetId: overrides.avatarAssetId ?? null,
-    createdAt: FROZEN_AT,
+    createdAt: overrides.createdAt ?? FROZEN_AT,
   });
   return id;
 }

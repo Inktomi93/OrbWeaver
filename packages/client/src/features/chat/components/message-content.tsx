@@ -44,7 +44,9 @@ function renderBlock(block: MessageContentBlock, key: string, trust: Trust): Rea
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "markdown":
       return (
-        <Markdown key={key} trust={trust}>
+        // `static` — a settled canon body: no incomplete-markdown repair, no reveal fade. The live
+        // streaming path is the ghost row (ghost-message-row.tsx), not this settled projection.
+        <Markdown key={key} trust={trust} mode="static">
           {block.md}
         </Markdown>
       );

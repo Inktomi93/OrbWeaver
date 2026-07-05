@@ -40,7 +40,25 @@ export interface GetCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
-export interface ListCharactersParams extends CharacterActorParams {}
+/** The library-list keyset cursor — `(createdAt, id)` (§ persistence/queries.ts header: `createdAt` alone
+ *  is NOT unique — a frozen test clock or a bulk import can stamp many rows with the identical
+ *  millisecond — so `id` is the deterministic tiebreak). Wire-shaped as ONE object field (not the
+ *  `cursor`/`cursorId` sibling-field pair the `domain/assets` precedent uses) because tRPC's
+ *  `infiniteQueryOptions` threads exactly one `cursor` field through as the page param
+ *  (`@trpc/tanstack-react-query` `ExtractCursorType<TInput> = TInput["cursor"]`) — a second sibling field
+ *  would go stale across pages (the client only ever overwrites `cursor`). */
+export interface CharacterListCursor {
+  readonly createdAt: number;
+  readonly id: CharacterId;
+}
+
+export interface ListCharactersParams extends CharacterActorParams {
+  /** Newest-first cursor — fetch the page of owned characters strictly older than this; omit for the
+   *  first (newest) page. */
+  readonly cursor?: CharacterListCursor;
+  /** Page size; the verb clamps to a sane max. */
+  readonly limit?: number;
+}
 
 export interface UpdateCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;

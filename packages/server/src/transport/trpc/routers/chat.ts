@@ -38,6 +38,16 @@ const listMessagesSchema = z.object({
   limit: z.number().optional(),
 });
 
+// The swipe strip's step-target resolver (chat-surface-lane follow-up to #19): `ChatService.listMessageVariants`
+// (domain/chat/verbs/read.ts createListMessageVariants) returns the full sibling-variant set for a slot —
+// `{variantId, idx}[]`, no content — so a step to an idx this session hasn't rendered (e.g. a cold page
+// load) resolves through the real list instead of only what `useVariantHistory` observed live. Member-gated
+// (a read, unlike `selectVariant`'s author-or-host — see `substrate/auth/matrix.ts`).
+const listMessageVariantsSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  messageId: brandedId<MessageId>(),
+});
+
 const sendSchema = z.object({
   chatId: brandedId<ChatId>(),
   content: z.string(),
@@ -129,6 +139,12 @@ export const chatRouter = t.router({
   listMessages: authedProcedure
     .input(listMessagesSchema)
     .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
+  // The swipe strip's step-target resolver (see the schema's header note above).
+  listMessageVariants: authedProcedure
+    .input(listMessageVariantsSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.chat.listMessageVariants({ principal: ctx.auth, ...input }),
+    ),
   send: authedProcedure
     .input(sendSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.send({ principal: ctx.auth, ...input })),

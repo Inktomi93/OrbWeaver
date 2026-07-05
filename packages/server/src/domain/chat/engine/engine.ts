@@ -57,7 +57,7 @@ import { assistantTurnDelta } from "../substrate/stats-delta";
 import { debitTurnBudget } from "./budget";
 import { runTurnPipeline } from "./pipeline";
 import { committedOutcome } from "./result";
-import { assertMaxProSubConsent } from "./turn-identity";
+import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity";
 
 /** The non-ctx engine deps wired at the composition root (FLAG[bus/budget-not-on-ctx] — see header). */
 interface EngineDeps {
@@ -312,9 +312,18 @@ async function executeTurn(
 ): Promise<TurnOutcome> {
   // §9 security belts (BEFORE any turnStarted): consent + budget debit attributed to triggeredBy.
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);
+  const identity = { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId };
   assertMaxProSubConsent({
     source: prep.connection.credential.source,
-    identity: { triggeredBy: prep.triggeredBy, runAsUserId: prep.runAsUserId },
+    identity,
+    ownerConsent: policy.allowNonOwnerMaxProSub,
+  });
+  // D17: the ENFORCED consent verdict as a VALUE (this line runs only AFTER the assert above did NOT throw),
+  // threaded onto the built `TurnRequest` so the infra credential firewall re-verifies it (belt-and-suspenders,
+  // one direction: domain derives, infra verifies). Owner-initiated (non-proxy) ⇒ true; the max-pro-sub mint
+  // gate makes `runAsUserId` the owner, so non-proxy on a hosted turn is the owner speaking on their own box.
+  const ownerConsented = resolveOwnerConsented({
+    identity,
     ownerConsent: policy.allowNonOwnerMaxProSub,
   });
   await debitTurnBudget(deps.debitBudget, prep.triggeredBy, policy.budget);
@@ -360,6 +369,8 @@ async function executeTurn(
       connection: prep.connection,
       intent: prep.intent,
       kind: prep.kind,
+      // D17: the enforced owner-consent verdict → the built TurnRequest → the infra firewall re-verify.
+      ownerConsented,
       chatId: prep.chatId,
       appendUserTurn: prep.appendUserTurn,
       groupNudge: prep.groupNudge,

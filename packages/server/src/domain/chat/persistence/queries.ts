@@ -611,6 +611,24 @@ export async function chatEventBounds(db: Db, chatId: ChatId): Promise<StreamEve
 
 // ── chunk-13 reads: canon-edit ownership / move · compaction window · variables · injections · fork-copy ──
 
+/** The full sibling-variant set for one slot, ordered by `idx` ascending (`listMessageVariants` — D26: no
+ *  content, just enough to resolve an idx to its variant id). Chat-scoped via the `messages` join: a
+ *  foreign-chat `messageId` matches nothing, so the verb collapses an empty result to a leak-free NOT_FOUND
+ *  (the same `loadSlotInChat` collapse `verbs/edit.ts` uses — every committed slot has ≥1 variant, so an
+ *  empty result unambiguously means "no such slot in this chat"). */
+export async function loadMessageVariantSummaries(
+  db: Db,
+  chatId: ChatId,
+  messageId: MessageId,
+): Promise<{ variantId: MessageVariantId; idx: number }[]> {
+  return await db
+    .select({ variantId: messageVariants.id, idx: messageVariants.idx })
+    .from(messageVariants)
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(and(eq(messages.chatId, chatId), eq(messageVariants.messageId, messageId)))
+    .orderBy(asc(messageVariants.idx));
+}
+
 /** The owning slot of a variant (`selectVariant` ownership belt — D26: a `selectedVariantId` may only point
  *  at a SIBLING of the slot). Returns the variant's `messageId`, or `undefined` for an unknown variant; the
  *  verb verifies it equals the target slot before flipping the pointer (never selects a foreign chat's swipe). */

@@ -1,46 +1,52 @@
-// `useVariantHistory` — a per-message, per-mount memory of the `idx -> variantId` pairs the swipe
-// strip has actually OBSERVED through its own `MessageView` prop. The wire has no verb that enumerates
-// a slot's SIBLING variant ids — `listMessages`/`getChat` return only the SELECTED variant per slot
-// (D26: `MessageView` is the slot ⋈ its selected variant, never the full `message_variants` set). So a
-// step-BACK to an idx this tab has never actually shown (e.g. a cold page load sitting mid-way through a
-// slot with 3 variants) is NOT resolvable client-side — MISSING-API (a `listMessageVariants`-shaped read
-// would remove the limit; flagged, not hacked around here). Within a single mount, though, every idx the
-// user has actually SEEN (the initial selection + every subsequent swipe/selectVariant) is remembered, so
-// back-and-forth navigation across a live session works without any extra wire surface.
+// `useVariantHistory` — the swipe strip's step-target resolver: `idx -> variantId` for one message slot.
+// FIXED (was per-mount-observed-only, MISSING-API — see the git history / scratch note for the prior
+// shape): the wire now has `chat.listMessageVariants` (domain/chat/verbs/read.ts createListMessageVariants),
+// the full sibling-variant set for a slot (D26 — `{variantId, idx}[]`, no content), so a step to an idx this
+// tab has never rendered (e.g. a cold page load sitting mid-way through a multi-variant slot) resolves
+// correctly instead of only what this mount happened to observe live.
+//
+// GATED (`useGatedQuery`/skipToken, §13.1 — the hard rule for a conditional fetch): the list is fetched ONLY
+// when the slot actually HAS siblings (`variantCount > 1`) — a single-variant slot has nothing to step to,
+// so the query never fires for the common case. The CURRENT selection is always known synchronously (folded
+// into the returned map even before the fetch resolves / while gated off), so the presently-shown idx never
+// reads as "unseen" for a one-frame gap.
 
 import type { MessageView } from "@orb/contracts/chat";
-import type { MessageId, MessageVariantId } from "@orb/kit/ids";
-import { useEffect, useRef, useState } from "react";
+import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import { useMemo } from "react";
+import { useGatedQuery, useTRPC } from "#data";
 
 export interface VariantHistory {
-  /** The sibling variant id at `idx`, if this mount has observed it — `undefined` otherwise. */
+  /** The sibling variant id at `idx`, or `undefined` if the real list hasn't resolved it (still loading, or
+   *  a genuinely out-of-range idx). */
   readonly get: (idx: number) => MessageVariantId | undefined;
 }
 
-/** Tracks the `idx -> variantId` pairs seen for ONE message slot across the swipe strip's lifetime;
- *  resets when `message.id` changes (a different slot has an unrelated variant history). */
+/** The gate key — present only when the slot has more than one variant (a step target could exist). */
+interface GateKey {
+  readonly chatId: ChatId;
+  readonly messageId: MessageId;
+}
+
+/** Resolves the full `idx -> variantId` map for ONE message slot, gated on `variantCount > 1`. */
 export function useVariantHistory(message: MessageView): VariantHistory {
-  // The lazy initializer captures the FIRST render's pair synchronously (before any paint), so the
-  // currently-shown idx is always known immediately — no one-frame gap where even the current variant
-  // looks "unseen".
-  const [seen, setSeen] = useState<ReadonlyMap<number, MessageVariantId>>(
-    () => new Map([[message.selectedVariantIdx, message.selectedVariantId]]),
+  const trpc = useTRPC();
+  const { chatId, id: messageId, variantCount, selectedVariantIdx, selectedVariantId } = message;
+
+  const gateKey: GateKey | undefined = variantCount > 1 ? { chatId, messageId } : undefined;
+  const query = useGatedQuery(gateKey, ({ chatId: gChatId, messageId: gMessageId }: GateKey) =>
+    trpc.chat.listMessageVariants.queryOptions({ chatId: gChatId, messageId: gMessageId }),
   );
-  const trackedMessageId = useRef<MessageId>(message.id);
 
-  useEffect(() => {
-    if (trackedMessageId.current !== message.id) {
-      trackedMessageId.current = message.id;
-      setSeen(new Map([[message.selectedVariantIdx, message.selectedVariantId]]));
-      return;
+  return useMemo<VariantHistory>(() => {
+    const byIdx = new Map<number, MessageVariantId>(
+      (query.data ?? []).map((v) => [v.idx, v.variantId] as const),
+    );
+    // The current selection is always known immediately (the `MessageView` prop itself), even before the
+    // fetch resolves or while gated off — no one-frame gap where the shown idx looks "unseen".
+    if (!byIdx.has(selectedVariantIdx)) {
+      byIdx.set(selectedVariantIdx, selectedVariantId);
     }
-    setSeen((prev) => {
-      if (prev.get(message.selectedVariantIdx) === message.selectedVariantId) {
-        return prev; // already recorded — skip the no-op Map clone
-      }
-      return new Map(prev).set(message.selectedVariantIdx, message.selectedVariantId);
-    });
-  }, [message.id, message.selectedVariantIdx, message.selectedVariantId]);
-
-  return { get: (idx) => seen.get(idx) };
+    return { get: (idx): MessageVariantId | undefined => byIdx.get(idx) };
+  }, [query.data, selectedVariantIdx, selectedVariantId]);
 }

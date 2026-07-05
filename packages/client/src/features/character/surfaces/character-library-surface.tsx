@@ -1,33 +1,29 @@
 // THE character library surface (UI-Arch §2.1 CONSUMER tier) — a browse/grid of the caller's owned
-// characters: a search box (`useDeferredValue`) over a virtualized list of `<CharacterCard>` rows, with
-// the loading/error/empty states every read needs. Selecting a row only highlights it today (a stub — the
-// character detail/editor surface is a later task; per the build brief this file does NOT fabricate one).
+// characters: a search box (`useDeferredValue`) over a virtualized, INFINITELY-paged list of
+// `<CharacterCard>` rows, wired through the `createCollectionSurface` factory (UI-Primitives §13.1/§13.2 —
+// the mandated browse primitive; a hand-wired query+list+filter is the review flag).
 //
-// MISSING-API NOTE (flagged for the coordinator, per the build brief's "genuinely absent → report, don't
-// invent" instruction): `UI-Primitives-and-Reuse.md` §13.1 prescribes `createCollectionSurface` (the
-// `useInfiniteQuery` + `maxPages` + tail-fetch machine) for every browse view. It is NOT used here because
-// `trpc.character.list` cannot satisfy it — `character.list` (transport/trpc/routers/character.ts) takes
-// NO input and its domain verb (`domain/character/verbs/list.ts` → `ListCharactersParams = {principal}`,
-// `domain/character/persistence/queries.ts` `listOwnedCharactersWithAvatar`) has no cursor/limit at ALL;
-// it returns the owner's FULL character array in one shot. `createCollectionSurface`'s `query` config
-// literally calls `t.character.list.infiniteQueryOptions(...)` — a method the tRPC proxy only exposes for
-// a procedure whose input carries a cursor, so this doesn't even type-check against the current shape.
-// Wiring real pagination needs a domain change (a cursor/limit param + a bounded, ordered query + a
-// `{items, nextCursor}` result — the `domain/notifications/verbs/list.ts` shape is the established
-// sibling precedent), which lives in `packages/server/src/domain/character/**` — outside this task's
-// disjoint file set (only the ROUTER was in-scope for a THIN pass-through, and there is nothing on the
-// domain side yet to pass through). Slicing the array in the router itself would put business logic in
-// the transport tier (`Tier-4-Transport.md`: "Thin: validate → ctx.services.character.<verb> → map
-// errors" — pagination is not a validate/map step), so that's not a legal workaround either.
+// PAGING: `character.list` is keyset-paged (`domain/character/verbs/list.ts` — the `domain/notifications`
+// `{items, nextCursor}` shape; the cursor itself is the `domain/assets` `(createdAt, id)` compound-keyset
+// precedent, collapsed into ONE `cursor` object field because tRPC's `infiniteQueryOptions` threads
+// exactly one `cursor` field through as the page param — see the router's own header note). `maxPages`
+// bounds the client-side cache to a sliding window (UI-Lib-TanStack-Query.md §4) so a long scroll session
+// doesn't grow the in-memory page list unboundedly; `getPreviousPageParam` is a permanent no-op (the
+// library only ever scrolls forward) — `maxPages` requires BOTH direction getters even though this surface
+// never calls `fetchPreviousPage`.
 //
-// Interim (this file): the full unpaged list via `useSuspenseQuery` + `<QueryBoundary>` — the SAME
-// pattern `features/chat/surfaces/message-list-surface.tsx` already uses (its own header flags the same
-// `useGatedQuery` type-compat gap) and the one `tests/client/data/_ct-stories.tsx`
-// (`trpc.tag.listTags.queryOptions()`) exercises for another zero-input list read. Search still runs
-// through `useDeferredValue` client-side (§4a) — there is no server-side search param either, so this is
-// filtering the one page already in hand, not a second missing verb.
+// SEARCH DECISION: stays CLIENT-SIDE over the loaded pages (`useDeferredValue` + `filterCharacters`), same
+// as before the swap. `character.list` has no server-side `search` param — adding one is a real domain
+// change (a new query condition, not a transport pass-through) and is out of scope for this pass; moving
+// search server-side later is a clean follow-up (the search box already isolates the concern).
+//
+// LOADING/EMPTY/ERROR: `createCollectionSurface` uses a plain (non-suspense) `useInfiniteQuery`, so this
+// surface reads `isPending`/`error`/`isEmpty` off the returned collection directly instead of the
+// `<QueryBoundary>` suspense handshake the old unpaged read used. NOTE: the factory does not expose a
+// `refetch`/retry handle (by design — §13.1's litmus keeps the wiring surface minimal), so the error state
+// here is read-only (no Retry button); a future factory revision could add one, but that is
+// `create-collection-surface.ts` territory, outside this surface's file.
 
-import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the rail-slots.ts / spinner.tsx precedent).
 import { Icon, Search, Users } from "@orb/ui/icons";
@@ -36,10 +32,11 @@ import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useDeferredValue, useState } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import type { Trpc } from "#data";
+import { createCollectionSurface, useTRPC } from "#data";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCard } from "../components/character-card";
 import { filterCharacters } from "../lib/filter-characters";
@@ -47,17 +44,52 @@ import { filterCharacters } from "../lib/filter-characters";
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
+/** Server-clamped page size (`domain/character/verbs/list.ts` DEFAULT_LIMIT/MAX_LIMIT — this just picks
+ *  the per-fetch page size within that bound). */
+const PAGE_LIMIT = 30;
+/** The sliding-window cache bound (UI-Lib-TanStack-Query.md §4) — old pages drop as new ones load. */
+const MAX_PAGES = 5;
+
+type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
+type CharacterLibraryItem = CharacterListPage["items"][number];
+
+/** The one machine for this browse view (§13.1) — infinite query + `maxPages` + `keepPreviousData` +
+ *  the virtual-list tail-fetch guard + selection, all baked. `query`/`itemsOf`/`idOf` are annotated
+ *  (rather than passing explicit type args to `createCollectionSurface`) so `TPageParam`/`TKey` stay
+ *  INFERRED from the real tRPC proxy return type — explicit args on a subset of the factory's generics
+ *  would default the rest instead of inferring them, breaking the `TRPCQueryKey` branding. */
+const useCharacterLibraryCollection = createCollectionSurface({
+  query: (trpc: Trpc, _params: void) =>
+    trpc.character.list.infiniteQueryOptions(
+      { limit: PAGE_LIMIT },
+      {
+        // `initialCursor` (NOT `initialPageParam` — that's the factory's OUTPUT, auto-derived from
+        // this + the input's own `cursor`, per `@trpc/tanstack-react-query`'s infiniteQueryOptions).
+        initialCursor: null,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+        // The library never scrolls backward; `maxPages` still requires both direction getters.
+        getPreviousPageParam: () => undefined,
+        maxPages: MAX_PAGES,
+      },
+    ),
+  itemsOf: (page: CharacterListPage) => page.items,
+  idOf: (item: CharacterLibraryItem) => item.id,
+});
 
 export interface CharacterLibrarySurfaceProps {
   readonly ariaLabel?: string;
 }
 
-/** The character library: search + the virtualized card list. */
+/** The character library: search + the virtualized, infinitely-paged card list. */
 export function CharacterLibrarySurface({
   ariaLabel = "Character library",
 }: CharacterLibrarySurfaceProps): ReactElement {
+  const trpc = useTRPC();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
+  const collection = useCharacterLibraryCollection({ trpc }, undefined);
+
+  const filtered: readonly CharacterCardItem[] = filterCharacters(collection.items, deferredQuery);
 
   return (
     <Stack className="h-full min-h-0" gap="block">
@@ -68,31 +100,50 @@ export function CharacterLibrarySurface({
         value={query}
       />
       <Stack className="min-h-0 flex-1">
-        <QueryBoundary
-          fallback={<LoadingRows />}
-          renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
-        >
-          <CharacterList ariaLabel={ariaLabel} query={deferredQuery} />
-        </QueryBoundary>
+        <CharacterLibraryBody
+          ariaLabel={ariaLabel}
+          error={collection.error}
+          filtered={filtered}
+          isEmpty={collection.isEmpty}
+          isPending={collection.isPending}
+          listProps={collection.listProps}
+          query={deferredQuery}
+          selection={collection.selection}
+        />
       </Stack>
     </Stack>
   );
 }
 
-interface CharacterListProps {
-  readonly query: string;
+interface CharacterLibraryBodyProps {
   readonly ariaLabel: string;
+  readonly query: string;
+  readonly isPending: boolean;
+  readonly isEmpty: boolean;
+  readonly error: unknown | null;
+  readonly filtered: readonly CharacterCardItem[];
+  readonly listProps: ReturnType<typeof useCharacterLibraryCollection>["listProps"];
+  readonly selection: ReturnType<typeof useCharacterLibraryCollection>["selection"];
 }
 
-/** Suspends on the full owned-character read, then filters + renders it virtualized. */
-function CharacterList({ query, ariaLabel }: CharacterListProps): ReactElement {
-  const trpc = useTRPC();
-  const { data: characters } = useSuspenseQuery(trpc.character.list.queryOptions());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const filtered: readonly CharacterCardItem[] = filterCharacters(characters, query);
-
-  if (characters.length === 0) {
+/** Loading → error → empty (no characters at all) → no-matches (a search with zero hits) → the list. */
+function CharacterLibraryBody({
+  ariaLabel,
+  query,
+  isPending,
+  isEmpty,
+  error,
+  filtered,
+  listProps,
+  selection,
+}: CharacterLibraryBodyProps): ReactElement {
+  if (isPending) {
+    return <LoadingRows />;
+  }
+  if (error !== null) {
+    return <ErrorState />;
+  }
+  if (isEmpty) {
     return (
       <EmptyState
         description="Weave your first one to begin."
@@ -111,24 +162,22 @@ function CharacterList({ query, ariaLabel }: CharacterListProps): ReactElement {
     );
   }
 
-  const toggleSelect = (id: string): void => {
-    setSelectedId((prev) => (prev === id ? null : id));
-  };
-
   return (
     // VirtualList itself has no aria surface (a bare scroll div) — the labelled region wraps it.
     <Stack aria-label={ariaLabel} className="h-full min-h-0" role="list">
       <VirtualList
         className="h-full"
+        endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="row"
         getItemKey={(item): string => item.id}
         items={filtered}
+        onEndApproach={listProps.onEndApproach}
         renderItem={(item): ReactNode => (
           <CharacterCard
             character={item}
-            onToggleSelect={toggleSelect}
-            selected={item.id === selectedId}
+            onToggleSelect={selection.toggle}
+            selected={selection.isSelected(item.id)}
           />
         )}
       />
@@ -147,14 +196,11 @@ function LoadingRows(): ReactElement {
   );
 }
 
-/** The read-error surface — the QueryBoundary retry actually refetches (the reset handshake). */
-function ErrorState({ onRetry }: { readonly onRetry: () => void }): ReactElement {
+/** The read-error surface. No Retry button: `createCollectionSurface` exposes no refetch handle. */
+function ErrorState(): ReactElement {
   return (
     <Stack align="center" gap="row" justify="center" padding="section">
       <Text tone="muted">Couldn't load the character library.</Text>
-      <Button intent="ghost" onClick={onRetry}>
-        Retry
-      </Button>
     </Stack>
   );
 }

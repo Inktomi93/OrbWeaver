@@ -252,7 +252,7 @@ describe("default-card seeder wiring (PD-32)", () => {
 
     // 5 cards through the real create path.
     const list = await result.services.character.list({ principal: actor });
-    expect(list).toHaveLength(5);
+    expect(list.items).toHaveLength(5);
 
     // The persisted latch is set + the welcome-assistant id points at the seeded Assistant.
     const settings = await result.services.settings.getUserSettings({ principal: actor });

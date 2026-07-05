@@ -4,7 +4,9 @@
 // recorded in ui-package-design §3/§10). Streamdown runs rehype-sanitize + rehype-harden by DEFAULT,
 // so `trusted` is the permissive default and `untrusted` TIGHTENS via an element allowlist + a url
 // blocker. Pure (no JSX) so the component file stays component-export-only.
-import type { UrlTransform } from "streamdown";
+import remarkGfm from "remark-gfm";
+import type { AllowedTags, StreamdownProps, UrlTransform } from "streamdown";
+import { defaultRemarkPlugins } from "streamdown";
 
 /**
  * The Tier-A element allowlist (D44 §12.2): structural + text-formatting + tables + details/summary +
@@ -98,3 +100,37 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
   }
   return value;
 };
+
+/**
+ * The remark-plugin list for BOTH trust tiers — Streamdown's own `defaultRemarkPlugins` with ONLY the
+ * `gfm` entry re-pinned to `{ singleTilde: false }` (§11.6 the deferred fix). remark-gfm defaults
+ * `singleTilde: true`, which strikes through prose like `10~20°C`; disabling single-tilde keeps `~~x~~`
+ * strikethrough while leaving a lone `~` literal. This overrides ONLY `remarkPlugins` — never
+ * `rehypePlugins` — because Streamdown's `allowedTags` schema-merge is gated on `rehypePlugins` still
+ * being its default reference (verified in the 2.5 source); touching rehype would silently drop
+ * `allowedTags`. `codeMeta` (the other default remark entry) is preserved by the spread.
+ */
+export const MARKDOWN_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = Object.values(
+  {
+    ...defaultRemarkPlugins,
+    gfm: [remarkGfm, { singleTilde: false }],
+  },
+);
+
+/**
+ * TRUSTED-only custom-tag passthrough (D44 §12.4 — the `<speaker>` wire format). Adds `<speaker>` to
+ * Streamdown's sanitize schema (no attributes permitted) so a raw `<speaker>NAME</speaker>` that
+ * reaches the renderer on the streaming ghost/reasoning path renders its NAME as literal text instead
+ * of being mangled by markdown parsing. NOT applied to `untrusted` — that allowlist is intentionally
+ * blind to our internal marker, and imported/foreign content has no business carrying it. On the
+ * SETTLED trusted path the feature (`message-content.tsx`) has already consumed every `<speaker>` into
+ * per-span `<ThemeScope>` colors upstream, so this is a belt-and-braces literal-render fallback there.
+ */
+export const TRUSTED_ALLOWED_TAGS: AllowedTags = { speaker: [] };
+
+/**
+ * The tags whose children Streamdown treats as plain text (no markdown/child-element parsing). Pairs
+ * with {@link TRUSTED_ALLOWED_TAGS} (Streamdown requires a `literalTagContent` tag to also be in
+ * `allowedTags`) so a `<speaker>` name containing markdown-significant characters renders verbatim.
+ */
+export const TRUSTED_LITERAL_TAG_CONTENT: readonly string[] = ["speaker"];

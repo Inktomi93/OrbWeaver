@@ -110,6 +110,13 @@ catalog:
   "@tanstack/react-virtual": ^3.14.5
   # Streamdown ≥2.5 — the D43 §6.3.1 version-floor build gate.
   streamdown: ^2.5.0
+  # KaTeX math stack for @orb/ui/markdown's plugins.math (Streamdown ships mermaid bundled but NOT
+  #   katex — these three are the math plugin's parse (remark-math) + render (rehype-katex) + the
+  #   stylesheet/typesetting engine (katex). remark-gfm (^4 above) is also a @orb/ui direct dep for the
+  #   singleTilde:false override.
+  katex: ^0.16.25
+  "remark-math": ^6.0.0
+  "rehype-katex": ^7.0.1
   codemirror: ^6.0.2
   "@codemirror/lang-css": ^6.3.1
   # jsdiff (docs said v8+; current major is 9 — same modern TS surface).

@@ -48,6 +48,7 @@ import type {
   ListChatsParams,
   ListForksParams,
   ListMessagesParams,
+  ListMessageVariantsParams,
   ListParticipantsParams,
   PeekPromptParams,
   PreviewAssemblyParams,
@@ -64,6 +65,7 @@ import type {
   ChatLineageView,
   ChatStreamReplayEvent,
   ChatSummary,
+  MessageVariantSummary,
   MessageView,
   SectionPreview,
   StreamEventBounds,
@@ -77,6 +79,7 @@ import {
   loadChatMessageStats,
   loadForkChildren,
   loadMessagesPage,
+  loadMessageVariantSummaries,
   streamEventBounds as loadStreamBounds,
   replayStreamEvents as loadStreamReplay,
 } from "../persistence/queries";
@@ -108,6 +111,7 @@ type ReadVerbs = Pick<
   | "previewSection"
   | "peekPrompt"
   | "listMessages"
+  | "listMessageVariants"
   | "listParticipants"
   | "replayStreamEvents"
   | "replayChatEvents"
@@ -349,6 +353,24 @@ function createListMessages(ctx: ChatContext): ChatService["listMessages"] {
   };
 }
 
+/** `listMessageVariants` — the full sibling-variant set for one slot (D26), ordered by idx, no content
+ *  (the swipe strip's step-target resolver — `MessageView` carries only the SELECTED variant per slot). A
+ *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND (the persistence join scopes it). */
+function createListMessageVariants(ctx: ChatContext): ChatService["listMessageVariants"] {
+  return async ({
+    principal,
+    chatId,
+    messageId,
+  }: ListMessageVariantsParams): Promise<MessageVariantSummary[]> => {
+    await requireParticipant(ctx, principal, chatId);
+    const rows = await loadMessageVariantSummaries(ctx.db, chatId, messageId);
+    if (rows.length === 0) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return rows;
+  };
+}
+
 /** `listParticipants` — the resolved present roster (`ParticipantView[]`). */
 function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["listParticipants"] {
   return async ({ principal, chatId }: ListParticipantsParams): Promise<ParticipantView[]> => {
@@ -495,6 +517,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     previewSection: createPreviewSection(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
     listMessages: createListMessages(ctx),
+    listMessageVariants: createListMessageVariants(ctx),
     listParticipants: createListParticipants(ctx, deps),
     replayStreamEvents: createReplayStreamEvents(ctx),
     streamEventBounds: createStreamEventBounds(ctx),

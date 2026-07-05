@@ -20,7 +20,7 @@ import type {
   ParticipantView,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type { ChatId, ChatInjectionId, WorldEntryId } from "@orb/kit/ids";
+import type { ChatId, ChatInjectionId, MessageVariantId, WorldEntryId } from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
@@ -80,6 +80,15 @@ export interface ChatDetail {
 export interface ChatLineageView {
   /** Oldest ancestor → … → this chat. Membership-gated per ancestor (omitted where not a member). */
   readonly chain: readonly ChatSummary[];
+}
+
+/** One sibling variant's identity + position (listMessageVariants) — NO content, just enough to resolve an
+ *  idx to its variant id. Ordered by `idx` ascending. The swipe strip's step-target resolver: `MessageView`
+ *  carries only the SELECTED variant per slot (D26), so reaching an idx this session hasn't rendered
+ *  (e.g. a cold page load mid-way through a multi-variant slot) needs this read. */
+export interface MessageVariantSummary {
+  readonly variantId: MessageVariantId;
+  readonly idx: number;
 }
 
 /** The assembly preview (previewAssembly) — the BUILD product for a hypothetical turn + the debug trace.
