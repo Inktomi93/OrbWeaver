@@ -20,10 +20,14 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+import { cn } from "#lib";
+import { useIsEditingMessage } from "#state";
 import type { PersonaAttribution } from "../lib/attribution";
 import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
+import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
+import { MessageEditTextarea } from "./message-edit-textarea";
 import { SwipeStrip } from "./swipe-strip";
 
 export interface MessageRowProps {
@@ -59,7 +63,16 @@ export function MessageRow({
     personas,
     activePersonaId,
   });
-  const content = <MessageContent content={message.content} trust="trusted" />;
+  // Edit-in-place (PD-119): the mode flag lives in the EXTERNAL draft store, keyed by message id — a
+  // component-local `useState` here would silently drop mid-edit when the windowed message-list
+  // unmounts this row on scroll. While editing, the textarea REPLACES the read-only body; the
+  // attribution chrome + swipe strip stay put (only the content slot swaps).
+  const editing = useIsEditingMessage(message.id);
+  const content = editing ? (
+    <MessageEditTextarea message={message} />
+  ) : (
+    <MessageContent content={message.content} trust="trusted" />
+  );
 
   return (
     <Stack gap="row" data-slot="message-row" data-role={role} className={skin.outer(role)}>
@@ -73,14 +86,23 @@ export function MessageRow({
           </Text>
         </Row>
       )}
-      <Stack gap="row" data-slot="message-bubble" className={skin.inner(role)}>
+      <Stack
+        gap="row"
+        data-slot="message-bubble"
+        // Hide-from-AI dims the row (still user-visible, per §12.4 — the toggle holds it out of
+        // assembly, it does not hide it from the reader) — the standard Tailwind opacity utility
+        // (the same `opacity-50` scale every disabled-state variant in @orb/ui already uses), never a
+        // raw inline-style value.
+        className={cn(skin.inner(role), message.excludedFromPrompt && "opacity-50")}
+      >
         {attribution.tokens === null ? (
           content
         ) : (
           <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
         )}
       </Stack>
-      {showSwipes && role === "assistant" ? <SwipeStrip message={message} /> : null}
+      {editing ? null : <MessageActionsRow message={message} />}
+      {showSwipes && role === "assistant" && !editing ? <SwipeStrip message={message} /> : null}
     </Stack>
   );
 }

@@ -9,7 +9,14 @@ import type { ChatBusDeps } from "@orb/client/data";
 import { createInvalidation, useTRPC } from "@orb/client/data";
 import { Composer, MessageListSurface, MessageThreadAnchor } from "@orb/client/features/chat";
 import type { ChatHandle } from "@orb/client/state";
-import { chatStream, committedChat, draftChat, useTurnPhase } from "@orb/client/state";
+import {
+  cancelEditingMessage,
+  chatStream,
+  committedChat,
+  draftChat,
+  startEditingMessage,
+  useTurnPhase,
+} from "@orb/client/state";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -17,9 +24,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
+import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
+import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
@@ -80,15 +89,68 @@ export function MessageRowStory({
       : new Map(personas.map(({ id, ...rest }) => [id, rest] as const));
 
   return (
-    <MessageThreadAnchor>
-      <MessageRow
-        message={makeMessageView({ role: messageRole, content, characterId, personaId })}
-        chatStyle={chatStyle}
-        participants={participantsMap}
-        personas={personasMap}
-        activePersonaId={activePersonaId}
+    // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
+    // data layer (`useTRPC`) even though these CTs never click a mutating action — the provider must
+    // exist regardless (the swipe-strip.tsx precedent: any tRPC-reading leaf needs CtDataProviders).
+    <CtDataProviders>
+      <MessageThreadAnchor>
+        <MessageRow
+          message={makeMessageView({ role: messageRole, content, characterId, personaId })}
+          chatStyle={chatStyle}
+          participants={participantsMap}
+          personas={personasMap}
+          activePersonaId={activePersonaId}
+        />
+      </MessageThreadAnchor>
+    </CtDataProviders>
+  );
+}
+
+export interface MessageActionsRowStoryProps {
+  readonly message?: MessageView;
+}
+
+/** The actions row in isolation — Edit/Hide/Delete/Fork/Copy, gated per role (message-actions-row.tsx). */
+export function MessageActionsRowStory({
+  message,
+}: MessageActionsRowStoryProps = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <MessageActionsRow message={message ?? makeMessageView()} />
+    </CtDataProviders>
+  );
+}
+
+interface MessageEditTextareaStoryInnerProps {
+  readonly message: MessageView;
+}
+
+/** Drives the external edit-draft store (PD-119) so the textarea mounts already "in edit mode" —
+ *  the same store `<MessageActionsRow>`'s Edit button flips in the real row. */
+function MessageEditTextareaStoryInner({
+  message,
+}: MessageEditTextareaStoryInnerProps): ReactElement {
+  useEffect(() => {
+    startEditingMessage(message.id, message.content);
+    return (): void => cancelEditingMessage(message.id);
+  }, [message.id, message.content]);
+  return <MessageEditTextarea message={message} />;
+}
+
+export interface MessageEditTextareaStoryProps {
+  readonly message?: MessageView;
+}
+
+/** The edit-in-place textarea in isolation, pre-seeded into edit mode via the real draft store. */
+export function MessageEditTextareaStory({
+  message,
+}: MessageEditTextareaStoryProps = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <MessageEditTextareaStoryInner
+        message={message ?? makeMessageView({ content: "Hello there" })}
       />
-    </MessageThreadAnchor>
+    </CtDataProviders>
   );
 }
 

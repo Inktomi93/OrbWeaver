@@ -23,6 +23,7 @@ export {
   Eye,
   EyeOff,
   FlaskConical,
+  GitFork,
   GripVertical,
   ImageOff,
   Info,
