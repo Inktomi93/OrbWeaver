@@ -1,3 +1,4 @@
+import type { Range } from "@tanstack/react-virtual";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useImperativeHandle, useLayoutEffect, useRef } from "react";
@@ -40,16 +41,42 @@ function prefersReducedMotion(): boolean {
 export interface MessageListHandle {
   /** Whether the viewport is currently pinned to the tail (virtual-core's own scroll-end threshold). */
   readonly isAtEnd: () => boolean;
+  /**
+   * Pixel distance between the current scroll position and the TRUE end of the list
+   * (virtual-core's own `getDistanceFromEnd` — accounts for measured vs. estimated row sizes the
+   * same way `isAtEnd` does). Drives a "reading history" / "N new messages" readout; this seal only
+   * reports the number — the feature composes the copy, threshold, and badge/button.
+   */
+  readonly getDistanceFromEnd: () => number;
   /** The "jump to latest" action — imperatively scrolls to the last item. */
   readonly scrollToEnd: () => void;
 }
 
-// FLAG[PD-119]: this seal is pure WINDOWED virtualization — rows mount/unmount on scroll, and a
-// stable `getItemKey` does NOT keep an off-screen row mounted. There is NO no-recycle / keep-mounted
-// path for stateful rows (a Tier-B `sandbox-frame` iframe reloads on scroll-back; edit-in-place local
-// state drops — neo's virtualizer footgun). UI-Gates §11.3 / UI-Theming §12.2 over-claimed this as
-// built; the docs were corrected 2026-07-04c. Until the keep-mounted capability lands (PD-119),
-// stateful-row consumers MUST hoist row state to an external store keyed by message id.
+// FLAG[PD-119]: this seal is pure WINDOWED virtualization BY DEFAULT — rows mount/unmount on
+// scroll, and a stable `getItemKey` alone does NOT keep an off-screen row mounted (a Tier-B
+// `sandbox-frame` iframe reloads on scroll-back; edit-in-place local state drops — neo's
+// virtualizer footgun). UI-Gates §11.3 / UI-Theming §12.2 over-claimed this as built; the docs
+// were corrected 2026-07-04c.
+//
+// 2026-07-04d re-audit (Task #26): the generic MECHANISM for keep-mounted now exists here — the
+// `rangeExtractor` passthrough below is the SAME escape hatch already sealed + CT-proven on
+// `virtual-list` ("rangeExtractor passthrough: a custom extractor's forced index stays mounted
+// off-screen"). Forcing extra indices into the rendered range keeps them REAL mounted DOM nodes at
+// their correct absolute position regardless of scroll distance, because `measurementsCache`
+// covers every index up front (verified against the shipped `@tanstack/virtual-core@3.17.3`
+// `dist/esm/index.js` — `resizeItem`/`getVirtualItems` place items by absolute index, not by
+// proximity to the current viewport). That much is zero-risk and landed dormant (unused unless a
+// caller supplies one).
+//
+// What's still UNBUILT here, deliberately NOT guessed (that's task #25's job): the POLICY of WHICH
+// rows get pinned (the currently-edited row only? every row with a live iframe? a capped set?),
+// how a caller expresses that policy (a `rangeExtractor` runs in INDEX space — a real consumer
+// needs to translate its own "pinned ids" into indices from `items` itself, and cap the pinned set
+// so it can't silently defeat virtualization), and how that interacts with `anchorTo: "end"` under
+// heavy pinning. Guessing that shape now risks locking in the wrong API before #25's actual
+// consumer exists. Until #25 lands, stateful-row consumers MUST ALSO keep hoisting row state to an
+// external store keyed by message id — the `rangeExtractor` mechanism only stops the unmount, it
+// does not, by itself, solve state loss.
 export interface MessageListProps<T> {
   readonly items: readonly T[];
   /**
@@ -68,6 +95,36 @@ export interface MessageListProps<T> {
   readonly gapToken?: MessageListGapToken;
   /** How close to the true end (px) still counts as "pinned" for `followOnAppend`/`isAtEnd`. */
   readonly scrollEndThreshold?: number;
+  /**
+   * Overrides which indices render for the current scroll range — the SAME `rangeExtractor` escape
+   * hatch sealed on `virtual-list` (see its own doc), passed straight through unmodified. Lets a
+   * caller force additional indices to stay mounted outside the normal overscan window (the
+   * PD-119 keep-mounted MECHANISM — see the FLAG above for what's built vs. still a task-#25
+   * policy decision). Omit for the library default (a plain overscan-padded contiguous range);
+   * this seal does not invent its own pinning policy.
+   */
+  readonly rangeExtractor?: (range: Range) => number[];
+  /**
+   * Passthrough for virtual-core's `useCachedMeasurements` (verified against the shipped
+   * `dist/esm/index.js`'s default `measureElement`: when true, EVERY measurement call — the
+   * mount-time ref AND every ResizeObserver-driven resize alike — short-circuits to the cached
+   * size (or the initial `estimateSize` guess if nothing is cached yet); the real DOM box is never
+   * read. That is a STATIC, unconditional bypass, not an automatic "cache while hidden, measure
+   * while visible" switch — so a caller must flip this prop itself across renders. That's exactly
+   * how it's meant to be driven: virtual-core re-applies `setOptions` on every render (verified in
+   * `@tanstack/react-virtual`'s `useVirtualizer` — `instance.setOptions(resolvedOptions)` runs
+   * unconditionally each call), so passing a value that changes across renders takes effect live,
+   * not just at mount.
+   *
+   * The intended composition (§4a/§5.1): the chat feature keeps this list mounted-but-hidden via
+   * React 19's `<Activity>` on pane flip-away, and passes `true` only while its OWN mode is
+   * `"hidden"`. A hidden pane's layout collapse fires the ResizeObserver with a size-0 entry, which
+   * — without this flag — would wipe every row's measured height and force a re-measure +
+   * scroll-jump when the pane comes back. With it, the last-good cached height rides through
+   * untouched. Default `false` so a normal VISIBLE list keeps re-measuring growing streaming rows
+   * for real.
+   */
+  readonly useCachedMeasurements?: boolean;
   readonly renderItem: (item: T, index: number) => ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
   readonly className?: string;
@@ -79,7 +136,8 @@ export interface MessageListProps<T> {
    * attach to. Pair this ref with that hook at the call site.
    */
   readonly scrollContainerRef?: Ref<HTMLDivElement>;
-  /** Imperative handle (`isAtEnd`/`scrollToEnd`) — React 19 ref-as-prop, no `forwardRef`. */
+  /** Imperative handle (`isAtEnd`/`getDistanceFromEnd`/`scrollToEnd`) — React 19 ref-as-prop, no
+   *  `forwardRef`. */
   readonly ref?: Ref<MessageListHandle>;
 }
 
@@ -111,6 +169,16 @@ export interface MessageListProps<T> {
  * - **`role="log"` + `aria-live="polite"`** on the stable scroll wrapper (the log-viewer.tsx
  *   precedent) — assistive tech announces arriving messages without depending on the windowed rows
  *   themselves, which mount/unmount as the reader scrolls.
+ * - **`isAtEnd()` / `getDistanceFromEnd()` / `scrollToEnd()`** on the imperative handle are the
+ *   "jump to latest" / reading-history primitives (§A.4/§F.6) — plain numbers/actions only; the
+ *   chat feature composes the badge copy, the threshold, and the button.
+ * - **`useCachedMeasurements` / `rangeExtractor`** complete the seal against the full TanStack
+ *   Virtual option surface (Task #26 audit). `useCachedMeasurements` (default `false`) is the
+ *   `<Activity>`-hidden-pane measurement-cache freeze (§4a/§5.1 — see its prop doc for the exact,
+ *   source-verified semantics — it is a static bypass a caller must toggle live, not a "smart"
+ *   hidden-only mode). `rangeExtractor` is the generic keep-mounted-off-screen escape hatch already
+ *   sealed + CT-proven on `virtual-list`; it's dormant here (PD-119 — see the FLAG above) until a
+ *   real consumer (task #25) supplies its own pinning policy.
  *
  * Usage:
  * ```tsx
@@ -130,6 +198,8 @@ export function MessageList<T>({
   overscan = DEFAULT_OVERSCAN,
   gapToken,
   scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
+  rangeExtractor,
+  useCachedMeasurements = false,
   renderItem,
   className,
   scrollContainerRef,
@@ -152,13 +222,25 @@ export function MessageList<T>({
     overscan,
     gap: gapToken === undefined ? 0 : gapPxFor(gapToken),
     getItemKey: (index) => getItemKey(itemAt(index), index),
+    // Conditionally spread (not a bare `rangeExtractor` key): `exactOptionalPropertyTypes`
+    // distinguishes an omitted optional property from one explicitly set to `undefined` — the same
+    // guard virtual-list uses for its own optional passthroughs.
+    ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
     // The chat-thread anchor pair (verified against virtual-core@3.17's pendingScrollAnchor path):
     // `followOnAppend` only fires when the viewport was already at the end AND the item count grew
     // AND the last key actually changed — so it never fights a reader who scrolled up.
     anchorTo: "end",
     followOnAppend: prefersReducedMotion() ? true : "smooth",
     scrollEndThreshold,
+    // `<Activity>`-hidden-pane measurement freeze (§4a/§5.1) — see the prop doc above for the
+    // exact, source-verified semantics. Defaults false so a visible list always measures for real.
+    useCachedMeasurements,
     directDomUpdates: true,
+    // Transform mode wraps every row in its own compositor layer (a NEW stacking context) that can
+    // break `position:fixed`/portaled descendants. Message rows are the future home of Tier-B
+    // `sandbox-frame` iframes and portaled overlays (edit-in-place, PD-119/#25); `position` mode
+    // (plain `top` writes, no stacking context) is the correct default for THIS seal, even at the
+    // cost of transform mode's own compositor-layer scroll smoothness.
     directDomUpdatesMode: "position",
     useFlushSync: false,
   });
@@ -176,6 +258,7 @@ export function MessageList<T>({
     ref,
     (): MessageListHandle => ({
       isAtEnd: () => virtualizer.isAtEnd(),
+      getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
       scrollToEnd: () =>
         virtualizer.scrollToEnd({ behavior: prefersReducedMotion() ? "auto" : "smooth" }),
     }),

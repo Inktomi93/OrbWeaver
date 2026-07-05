@@ -4,8 +4,11 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   AppendableList,
+  CachedMeasurementsList,
   DerivedItemsMessageList,
+  HandleExposingList,
   PrependableList,
+  RangeExtractorMessageList,
   UnboundedMessageList,
 } from "./message-list.fixtures";
 
@@ -200,4 +203,99 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   );
   expect(behaviors.length).toBeGreaterThan(0);
   expect(behaviors.at(-1)).toBe("auto");
+});
+
+// PD-119 mechanism (Task #26): the SAME rangeExtractor escape hatch already sealed + CT-proven on
+// virtual-list, wired through this seal too.
+test("rangeExtractor passthrough: a forced index stays mounted even off-screen of the bottom-anchored viewport", async ({
+  mount,
+}) => {
+  const component = await mount(<RangeExtractorMessageList itemCount={200} />);
+  // Bottom-anchored: the viewport sits at the tail on mount, far from index 0.
+  await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
+  // Only the custom rangeExtractor forcing index 0 into the range keeps it mounted off-screen.
+  await expect(component.getByText("Message 0", { exact: true })).toHaveCount(1);
+});
+
+// §A.4/§F.6 "jump to latest" / reading-history primitives on the imperative handle.
+test("isAtEnd/getDistanceFromEnd report the true pinned state, then reflect scrolling away", async ({
+  mount,
+  page,
+}) => {
+  const initialCount = 200;
+  const component = await mount(
+    <HandleExposingList
+      initialCount={initialCount}
+      rowHeightPx={ROW_HEIGHT_PX}
+      listHeightPx={LIST_HEIGHT_PX}
+    />,
+  );
+  await expect(component.getByText(`Message ${initialCount - 1}`, { exact: true })).toBeVisible();
+
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("true");
+  // Bottom-anchored at mount — the true distance from the end is (near enough) zero.
+  const pinnedDistance = Number(await component.getByTestId("distance-from-end").innerText());
+  expect(pinnedDistance).toBeLessThanOrEqual(2);
+
+  // Scroll well away from the tail.
+  await component.getByText(`Message ${initialCount - 1}`, { exact: true }).hover();
+  await page.mouse.wheel(0, -((initialCount * ROW_HEIGHT_PX) / 2));
+  const midIndex = Math.floor(initialCount / 2);
+  await expect(component.getByText(`Message ${midIndex}`, { exact: true })).toBeVisible();
+
+  await component.getByTestId("read-status").click();
+  await expect(component.getByTestId("is-at-end")).toHaveText("false");
+  const scrolledDistance = Number(await component.getByTestId("distance-from-end").innerText());
+  expect(scrolledDistance).toBeGreaterThan(0);
+});
+
+// The exact `useCachedMeasurements` semantics verified against the shipped virtual-core source
+// (message-list.tsx's own prop doc): a STATIC bypass, not an automatic hidden-only mode — it
+// discards EVERY measurement, including a genuine resize, while true, and resumes real
+// measurement the instant it's set back to false.
+test("useCachedMeasurements discards a real resize while true, and resumes measuring once false", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<CachedMeasurementsList />);
+  const viewport = component.locator('[data-slot="message-list-viewport"]');
+
+  async function viewportHeight(): Promise<number> {
+    const box = await viewport.boundingBox();
+    if (box === null) {
+      throw new Error("message-list CT: missing bounding box for the measured viewport");
+    }
+    return box.height;
+  }
+
+  // Two animation-frame turns — the ResizeObserver callback queue (and any React commit it
+  // schedules) is flushed by this point in every evergreen browser; a real, un-discarded resize
+  // is reliably reflected by here without resorting to an arbitrary sleep.
+  async function flushResizeObserver(): Promise<void> {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        }),
+    );
+  }
+
+  // Baseline: NOT frozen — a real resize of row 0 (40 -> 140) is measured for real.
+  await component.getByTestId("bump-row0").click();
+  await expect.poll(viewportHeight).toBeGreaterThan(200);
+  const grownHeight = await viewportHeight();
+
+  // Freeze, then resize AGAIN (140 -> 240) — the ResizeObserver still fires, but `measureElement`
+  // must discard the real entry and keep returning the CACHED (140) size, so the total measured
+  // height must not move.
+  await component.getByTestId("toggle-frozen").click();
+  await component.getByTestId("bump-row0").click();
+  await flushResizeObserver();
+  expect(await viewportHeight()).toBe(grownHeight);
+
+  // Unfreeze, then a NEW real resize (240 -> 340) is measured for real again.
+  await component.getByTestId("toggle-frozen").click();
+  await component.getByTestId("bump-row0").click();
+  await expect.poll(viewportHeight).toBeGreaterThan(grownHeight);
 });
