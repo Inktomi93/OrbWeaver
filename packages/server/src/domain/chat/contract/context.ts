@@ -259,6 +259,16 @@ export type GeneratePictureOp = (p: {
  *  starter's active persona anchors the room; the card `{{user}}` POV is theirs from message one). */
 export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
+/** `persona` connections — the ST/neo character-lock hop (D62): the persona to auto-anchor a new chat
+ *  founded on exactly ONE character with exactly ONE `character_personas` connection (owner-scoped —
+ *  a foreign persona can never leak in). Ambiguity (0 or 2+ connections) or a group founding ⇒ null,
+ *  falling through to {@link ResolveDefaultPersonaOp}. Precedence in `startChat`: explicit anchor
+ *  beats connected beats default. */
+export type ResolveConnectedPersonaOp = (
+  userId: UserId,
+  characterIds: readonly CharacterId[],
+) => Promise<PersonaId | null>;
+
 /** `persona.verifyPersonaOwned` — does `personaId` belong to `ownerId`? The persona-reattribution ownership
  *  belt (Chat-Macro-Resolution §5): a user's line may be re-stamped only to a persona that user OWNS (checked
  *  against the ROW's `authorUserId`, never the acting host's id). Wired at the root to a sanctioned one-column
@@ -399,6 +409,8 @@ export interface ChatContext {
   readonly generatePicture: GeneratePictureOp;
   /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
+  /** The character-lock hop (D62) — connected persona for a solo-character founding (null = no hop). */
+  readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
   /** Does a `personaId` belong to a given `ownerId`? The `reattributePersona` ownership belt (§5). */
   readonly verifyPersonaOwned: VerifyPersonaOwnedOp;
   // ── memory substrate (consumed by memory/) ──

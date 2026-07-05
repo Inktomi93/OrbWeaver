@@ -12,6 +12,7 @@ import {
   canonicalTagsOf,
   cardOf,
   detailOf,
+  ensureAssetOwned,
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
@@ -23,6 +24,10 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
     const current = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
     if (current === undefined) {
       throw new CharacterNotFoundError(characterId);
+    }
+    if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
+      // D21 cross-root belt: the FK proves the asset exists, never that it's the caller's.
+      await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
     }
 
     if (Object.keys(input).length > 0) {

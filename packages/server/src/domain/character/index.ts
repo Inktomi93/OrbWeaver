@@ -8,7 +8,11 @@
 // built `CharacterService` + the injected settings latch ops (boot + the app first-request hook share it).
 
 // Mapped to tRPC codes at the transport boundary.
-export { CharacterNotFoundError, CharacterOperationError } from "./contract/errors";
+export {
+  AssetNotFoundError,
+  CharacterNotFoundError,
+  CharacterOperationError,
+} from "./contract/errors";
 // The transport names these at its boundary.
 export type {
   BulkAddCardTagParams,

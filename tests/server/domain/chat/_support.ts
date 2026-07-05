@@ -349,6 +349,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),
+    // The character-lock hop (D62): default "no connection" — the connected-anchor tests override
+    // with a resolver fake (the REAL join is the composition root's; op fakes keep tests op-shaped).
+    resolveConnectedPersona: () => Promise.resolve(null),
     // Default = the REAL ownership read against the seeded `personas` (mirrors the root's `verifyPersonaOwned`)
     // so the `reattributePersona` tests need no per-test override; a test may override to force a verdict.
     verifyPersonaOwned: async ({ ownerId, personaId }) => {

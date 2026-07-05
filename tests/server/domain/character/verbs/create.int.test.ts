@@ -2,11 +2,15 @@
 // provenance is null (app-authored), `character.updated` is emitted (the indexer re-embeds), and a per-owner
 // handle collision throws `CharacterOperationError("handle_conflict")`.
 
-import { CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
+import {
+  AssetNotFoundError,
+  CharacterOperationError,
+  createCharacterService,
+} from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 describe("create", () => {
   test("mints an owned card with a content hash, null provenance, and emits character.updated", async () => {
@@ -103,5 +107,22 @@ describe("create", () => {
       input: { handle: "shared", name: "B", description: "y" },
     });
     expect(bDetail.handle).toBe("shared");
+  });
+
+  test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — no row, no emit)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createCharacterService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const other = await seedUser(db, { handle: "other" });
+    const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
+
+    await expect(
+      svc.create({
+        principal: principal(owner),
+        input: { handle: "thief", name: "Thief", description: "x", avatarAssetId: foreign },
+      }),
+    ).rejects.toBeInstanceOf(AssetNotFoundError);
+    expect(h.events).toHaveLength(0);
   });
 });

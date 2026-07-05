@@ -5,7 +5,11 @@
 import { personas } from "@orb/db";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
+import {
+  AssetNotFoundError,
+  createPersonaService,
+  PersonaNotFoundError,
+} from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -89,5 +93,54 @@ describe("update", () => {
         input: { name: "x" },
       }),
     ).rejects.toThrow(PersonaNotFoundError);
+  });
+
+  test("patches title + starred (D62 riders); null clears the title", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const created = await svc.create({
+      principal: principal(owner),
+      input: { name: "Wren", title: "Old Title", description: "d" },
+    });
+
+    const starred = await svc.update({
+      principal: principal(owner),
+      personaId: created.id,
+      input: { starred: true, title: "New Title" },
+    });
+    expect(starred.starred).toBe(true);
+    expect(starred.title).toBe("New Title");
+
+    const cleared = await svc.update({
+      principal: principal(owner),
+      personaId: created.id,
+      input: { title: null },
+    });
+    expect(cleared.title).toBeNull();
+    expect(cleared.starred).toBe(true);
+  });
+
+  test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — nothing written)", async () => {
+    const db = await freshDb();
+    const svc = createPersonaService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const other = await seedUser(db, { handle: "other" });
+    const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
+    const created = await svc.create({
+      principal: principal(owner),
+      input: { name: "Mine", description: "d" },
+    });
+
+    await expect(
+      svc.update({
+        principal: principal(owner),
+        personaId: created.id,
+        input: { avatarAssetId: foreign },
+      }),
+    ).rejects.toBeInstanceOf(AssetNotFoundError);
+
+    const [row] = await db.select().from(personas).where(eq(personas.id, created.id));
+    expect(row?.avatarAssetId).toBeNull();
   });
 });

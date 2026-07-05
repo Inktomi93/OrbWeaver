@@ -14,7 +14,11 @@ import type { AssetId, PersonaId } from "@orb/kit/ids";
 export interface PersonaDetail {
   readonly id: PersonaId;
   readonly name: string;
+  /** Display subtitle for pickers/lists (ST persona "title") — never injected into the prompt. */
+  readonly title: string | null;
   readonly description: string;
+  /** Favorite flag — pickers sort/highlight starred first (mirrors `characters.starred`). */
+  readonly starred: boolean;
   readonly avatarAssetId: AssetId | null;
   /** sha-256 of the avatar blob (CAS key) — joined from `assets`, null when no avatar attached. */
   readonly avatarHash: string | null;

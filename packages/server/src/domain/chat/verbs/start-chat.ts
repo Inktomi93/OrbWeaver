@@ -365,10 +365,15 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const now = ctx.now();
     const chatId = ctx.newChatId();
     const hostUserId = principal.userId;
-    // The anchor default-seed (decided): no explicit anchor => the STARTER's user-level
-    // active persona (`seeds.defaultPersonaId`, root-validated -- stale/unowned collapses to null). The
-    // card {{user}} POV is the starter's from message one; an explicit anchor always wins.
-    const anchor = anchorPersonaId ?? (await ctx.resolveDefaultPersona(hostUserId));
+    // The anchor seed chain (D62 — ST/neo persona-lock precedence): explicit anchor > the CONNECTED
+    // persona (solo-character founding with exactly one `character_personas` connection — the
+    // character-lock hop; ambiguity/group => null) > the STARTER's user-level active persona
+    // (`seeds.defaultPersonaId`, root-validated -- stale/unowned collapses to null). The card {{user}}
+    // POV is the starter's from message one; an explicit anchor always wins.
+    const anchor =
+      anchorPersonaId ??
+      (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
+      (await ctx.resolveDefaultPersona(hostUserId));
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
     // PD-21: every founding character must be the HOST's (owner-scoped read) — no foreign ghost seats.

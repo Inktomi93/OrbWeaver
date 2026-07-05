@@ -12,17 +12,23 @@ import { and, eq } from "drizzle-orm";
 import { PersonaNotFoundError } from "../contract/errors";
 import type { UpdatePersonaParams } from "../contract/params";
 import type { PersonaContext, PersonaService } from "../contract/service";
-import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
+import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
 import { normalizeWriteMetadata } from "../substrate/metadata";
 
 export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
   return async ({ principal, personaId, input }: UpdatePersonaParams) => {
     const ownerId = principal.userId;
+    if (input.avatarAssetId !== null && input.avatarAssetId !== undefined) {
+      // D21 cross-root belt: the FK proves the asset exists, never that it's the caller's.
+      await ensureAssetOwned(ctx.db, ownerId, input.avatarAssetId);
+    }
     const metadata =
       input.metadata === undefined ? undefined : normalizeWriteMetadata(input.metadata);
     const edits = stripUndefined({
       name: input.name,
+      title: input.title,
       description: input.description,
+      starred: input.starred,
       avatarAssetId: input.avatarAssetId,
       metadata,
     });

@@ -124,7 +124,9 @@ surface (J4) opened in "characters mode", or NT's dedicated dialog
 `surfaces/new-chat-surface.tsx`: search + rows + Enter-to-start). Picking a character calls
 `startNewChat({characterIds: [id]})` → draft room whose header/hero shows the chosen character
 (greeting flow arrives with the server's greeting support; until then the composer placeholder
-names them, punchlist UIP-306). The characterless draft remains reachable ONLY as an explicit "Blank chat"
+names them, punchlist UIP-306). **Greeting-lane carry-note (ST `retriggerFirstMessageOnEmptyChat`):**
+when greetings land, a persona change on an EMPTY chat must re-render the greeting — its `{{user}}`
+resolved against the old persona; without the re-render the character greets the wrong name. The characterless draft remains reachable ONLY as an explicit "Blank chat"
 row at the bottom of the picker (assistant-style chats are legitimate; they just can't be the
 default trapdoor).
 

@@ -9,7 +9,7 @@
 // answer (no foreign-existence leak), mirroring the owner-scoped persona reads.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
 
 export class PersonaNotFoundError extends DomainNotFoundError {
   public readonly personaId: PersonaId;
@@ -25,6 +25,18 @@ export class CharacterNotFoundError extends DomainNotFoundError {
   constructor(characterId: CharacterId) {
     super("character", characterId);
     this.characterId = characterId;
+    this.name = this.constructor.name;
+  }
+}
+
+/** Thrown by create/update when a supplied `avatarAssetId` is missing OR not the caller's — the D21
+ *  cross-root belt (assets are per-user; the FK alone proves existence, never ownership). Same
+ *  leak-free collapse as the gates above (see persistence/queries.ts `ensureAssetOwned`). */
+export class AssetNotFoundError extends DomainNotFoundError {
+  public readonly assetId: AssetId;
+  constructor(assetId: AssetId) {
+    super("asset", assetId);
+    this.assetId = assetId;
     this.name = this.constructor.name;
   }
 }
