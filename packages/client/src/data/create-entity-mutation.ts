@@ -36,7 +36,7 @@ type BaseMutationOptions<TVars, TData, TError = DefaultError> = Required<
 > &
   Pick<UseMutationOptions<TData, TError, TVars>, "mutationFn">;
 
-export interface EntityMutationConfig<TVars, TData, TRead> {
+interface EntityMutationBase<TVars, TData, TRead> {
   /** `(t) => t.character.update.mutationOptions()` — the proxy is the one mutationKey/Fn source. */
   readonly options: (trpc: Trpc) => BaseMutationOptions<TVars, TData>;
   /**
@@ -48,11 +48,39 @@ export interface EntityMutationConfig<TVars, TData, TRead> {
     readonly readKey: (trpc: Trpc, vars: TVars) => QueryKey;
     readonly update: (old: TRead | undefined, vars: TVars) => TRead | undefined;
   };
-  /** Filters reconciled on settle (success AND error) — routed through the central seam. */
-  readonly invalidates: (trpc: Trpc, vars: TVars) => readonly InvalidateFilter[];
   /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). */
   readonly errorToast?: string | ((error: unknown) => string);
 }
+
+/**
+ * The FRESHNESS SOURCE — the mutation-vs-bus rule (data/invalidation.ts) made a compile-time XOR: a
+ * mutation reconciles its post-write cache from EXACTLY ONE of two places, and this union forces the
+ * choice (there is no third "both" state — doing both IS the storm a send fired 4-5×/message).
+ *   • `busDriven: true` — the server verb emits a canon `ChatBusEvent` on the OPEN chat, so the SSE bus
+ *     (staleTime: Infinity, UI-Gates §11.1) runs the invalidation. The mutation invalidates NOTHING of
+ *     its own; supplying `invalidates` is a TYPE ERROR here (the `never`). The greppable, self-enforcing
+ *     successor to `invalidates: () => []` — a regression re-adding an invalidate cannot compile.
+ *   • `invalidates` — REQUIRED when not bus-driven: the filters for keys NO delivered bus event covers
+ *     (a different chat's `listChats` on create/fork, a `listChatInjections` no event touches, any
+ *     non-chat entity). A config that supplies NEITHER fails to typecheck.
+ */
+type FreshnessSource<TVars> =
+  | { readonly busDriven: true; readonly invalidates?: never }
+  | {
+      readonly busDriven?: false;
+      /** Filters reconciled on settle (success AND error) — routed through the central seam. */
+      readonly invalidates: (trpc: Trpc, vars: TVars) => readonly InvalidateFilter[];
+    };
+
+export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<
+  TVars,
+  TData,
+  TRead
+> &
+  FreshnessSource<TVars>;
+
+/** A `busDriven` mutation reconciles via the SSE bus, not itself — its settle invalidates nothing. */
+const NO_INVALIDATION = (): readonly InvalidateFilter[] => [];
 
 export interface EntityMutationResult<TVars, TData> {
   readonly mutate: (vars: TVars) => void;
@@ -108,8 +136,10 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         }
       },
       onSettled: (_data, _error, vars) => {
-        // ALWAYS reconcile (success or error) — the optimistic value is never trusted as final.
-        invalidation.invalidateFilters(config.invalidates(trpc, vars));
+        // ALWAYS reconcile (success or error) — the optimistic value is never trusted as final. A
+        // `busDriven` config carries no `invalidates` (the SSE bus reconciles it) → an empty filter set.
+        const invalidates = config.invalidates ?? NO_INVALIDATION;
+        invalidation.invalidateFilters(invalidates(trpc, vars));
       },
     });
 

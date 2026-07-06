@@ -18,7 +18,8 @@
 // The bus is the freshness path (`staleTime: Infinity`; the client subscribes to the OPEN chat's stream
 // — `use-chat-bus.ts` — and every canon change on that chat emits a `ChatBusEvent` that runs its filters
 // above). So a chat mutation whose server verb emits such an event on the chat you're viewing must NOT
-// ALSO invalidate the keys that event covers: `invalidates: () => []`. Doing both double-refetched the
+// ALSO invalidate the keys that event covers: it declares `busDriven: true` (createEntityMutation) —
+// which makes `invalidates` a compile error, not just an empty function. Doing both double-refetched the
 // SAME keys (a send fired getChat/listMessages/listChats 4-5× — the observed storm). Verified by the
 // exhaustive contract test (tests/client/data/invalidation.test.ts). A mutation KEEPS an `invalidates`
 // entry ONLY for a key NO delivered bus event covers — i.e.:

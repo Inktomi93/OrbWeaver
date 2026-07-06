@@ -51,29 +51,29 @@ interface GuidedSlotVars {
 // Module-scope factories (§13.1 pattern — the returned hooks have a stable identity). BUS-DRIVEN (TData
 // `unknown`, never read back here): every one of these is a turn on the OPEN chat whose verb emits a canon
 // event on it — generate/continue/impersonate → messageCommitted+turnCompleted, swipe → turnCompleted (all
-// → chatReads) — delivered by the active subscription → the seam refetches. So `invalidates` is EMPTY on all
-// four: re-invalidating the bus's own keys just double-refetched (the mutation-vs-bus rule, invalidation.ts).
+// → chatReads) — delivered by the active subscription → the seam refetches. So all four are `busDriven`:
+// re-invalidating the bus's own keys just double-refetched (the mutation-vs-bus rule, invalidation.ts).
 const useGuidedGenerateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't generate a guided response.",
 });
 
 const useGuidedSwipeMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't generate that guided swipe.",
 });
 
 const useGuidedContinueMutation = createEntityMutation<GuidedSlotVars, unknown>({
   options: (trpc) => trpc.chat.continueTurn.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't continue with that guidance.",
 });
 
 const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknown>({
   options: (trpc) => trpc.chat.impersonate.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't impersonate with that guidance.",
 });
 

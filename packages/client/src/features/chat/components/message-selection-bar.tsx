@@ -38,11 +38,11 @@ interface DeleteVars {
 }
 
 // Module-scope factory (§13.1) — BUS-DRIVEN: `deleteMessages` emits messagesDeleted (→ chatReads) on the
-// OPEN chat, delivered by the active subscription → the seam refetches. `invalidates` empty; the removed
+// OPEN chat, delivered by the active subscription → the seam refetches. `busDriven`; the removed
 // keys were a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
 const useDeleteMessages = createEntityMutation<DeleteVars, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't delete the selected messages.",
 });
 
