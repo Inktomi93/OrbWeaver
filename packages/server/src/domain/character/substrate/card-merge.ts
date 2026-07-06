@@ -37,6 +37,7 @@ export function mergeCard(base: CharacterCard, input: UpdateCharacterInput): Cha
     cardVersion: keep(input.cardVersion, base.cardVersion),
     regexScripts: keepList(input.regexScripts, base.regexScripts),
     extensions: keep(input.extensions, base.extensions),
+    residualData: keep(input.residualData, base.residualData ?? null),
     avatarAssetId: keep(input.avatarAssetId, base.avatarAssetId),
     refinery: base.refinery,
   };

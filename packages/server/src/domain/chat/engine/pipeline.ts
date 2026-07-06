@@ -14,8 +14,8 @@
 //   4. REQUEST — assemble the `TurnRequest` (connection + prompt + fitted history + intent + kind + the
 //                breakpoint offset). The runner translates THIS into its sealed request (we never see it).
 //   5. REDUCE  — iterate `runChatTurn(req)`: fan text/reasoning deltas to `onDelta`, fold the terminal
-//                `final` chunk's economics. ONE model call + reduce — NO D48 tool-recurse loop (that is the
-//                NEXT chunk; the seam is "a single drain of the async iterable").
+//                `final` chunk's economics, then the D48 tool-recurse loop (PD-54 — `runRecurseLoop`, step 5):
+//                recurse on `finishReason:"tool"` up to `toolRecurseLimit`, aggregating prose/usage across depths.
 //
 // SINGLE-SPEAKER CORE: output is pinned `per-speaker` / `merged` (no narrator, no scoped egocentric fold) —
 // the arbitration/auto-mode chunk extends this to resolve `output`/`cardScope`/`scopedTargetId` per the
@@ -33,7 +33,7 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -154,6 +154,9 @@ interface TurnPipelineResult {
   /** True when tools were ATTACHED but `capability.tools` is absent — dropped, the turn ran tool-less
    *  (the engine emits the `tools_unsupported` warning once; D48/D51's domain-side gate). */
   readonly toolsUnsupported: boolean;
+  /** The WI entries that FIRED this turn (budget-survived) — `ctx.wiTrace.entryIds` (assembly/context.ts,
+   *  D50 pt-2). The engine emits `worldInfoActivated {chatId, entryIds}` once per turn when non-empty. */
+  readonly worldInfoEntryIds: readonly WorldEntryId[];
 }
 
 /** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
@@ -236,7 +239,7 @@ function fitBudget(
 }
 
 /** Drain the role's stream: text/reasoning deltas → accumulate + fan out; the terminal `final` → economics.
- *  ONE drain, no tool-recurse (D48 is the NEXT chunk). The runner's `final.content`/`reasoning` (when given)
+ *  ONE drain per model call; the D48 recurse loop (`runRecurseLoop`) calls this once per depth. The runner's `final.content`/`reasoning` (when given)
  *  are the authoritative text; the accumulated deltas are the fallback. */
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
@@ -431,6 +434,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     imageDropped,
     toolRecords: loop.records,
     toolsUnsupported: attach.unsupported,
+    worldInfoEntryIds: ctx.wiTrace?.entryIds ?? [],
   };
 }
 

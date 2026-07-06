@@ -122,6 +122,7 @@ export function cardToCreateInput(
     cardVersion: card.cardVersion,
     regexScripts: card.regexScripts,
     extensions: card.extensions,
+    residualData: card.residualData,
     avatarAssetId,
     depthPrompt: card.depthPrompt,
   };

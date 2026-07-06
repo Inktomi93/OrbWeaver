@@ -62,6 +62,7 @@ function cardWith(name: string, greeting: string): CharacterCard {
     cardVersion: null,
     regexScripts: [],
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
   };

@@ -42,6 +42,7 @@ const regexScriptsParser = z.array(regexScriptSchema).catch([]);
 const depthPromptParser = cardDepthPromptSchema.nullable().catch(null);
 const refineryParser = refinerySignalsSchema.nullable().catch(null);
 const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null);
+const residualDataParser = z.record(z.string(), z.unknown()).nullable().catch(null);
 
 // Row + the joined avatar asset (null when none). The hash lives on `assets` (the CAS key); `characters`
 // carries only `avatarAssetId`. File-local: the verbs chain `load…` → `detailOf` without naming it.
@@ -271,6 +272,7 @@ export function cardOf(src: CharacterCard): CharacterCard {
     cardVersion: src.cardVersion,
     regexScripts: regexScriptsParser.parse(src.regexScripts),
     extensions: extensionsParser.parse(src.extensions),
+    residualData: residualDataParser.parse(src.residualData),
     avatarAssetId: src.avatarAssetId,
     refinery: refineryParser.parse(src.refinery),
   };

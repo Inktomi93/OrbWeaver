@@ -147,21 +147,6 @@ CREATE TABLE `buddy_turns` (
 );
 --> statement-breakpoint
 CREATE INDEX `buddy_turns_user_created_idx` ON `buddy_turns` (`user_id`,`created_at`);--> statement-breakpoint
-CREATE TABLE `card_evolution_proposals` (
-	`id` text PRIMARY KEY NOT NULL,
-	`character_id` text NOT NULL,
-	`chat_id` text,
-	`changes` text NOT NULL,
-	`source_span` text,
-	`status` text DEFAULT 'pending' NOT NULL,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`resolved_at` integer,
-	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "card_evolution_proposals_status_check" CHECK(status in ('pending', 'accepted', 'dismissed', 'superseded'))
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `card_evolution_proposals_pending_unique` ON `card_evolution_proposals` (`character_id`,`chat_id`) WHERE status = 'pending';--> statement-breakpoint
 CREATE TABLE `character_personas` (
 	`character_id` text NOT NULL,
 	`persona_id` text NOT NULL,
@@ -207,6 +192,7 @@ CREATE TABLE `characters` (
 	`card_version` text,
 	`regex_scripts` text DEFAULT '[]' NOT NULL,
 	`extensions` text,
+	`residual_data` text,
 	`avatar_asset_id` text,
 	`refinery` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -216,6 +202,21 @@ CREATE TABLE `characters` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `characters_owner_handle_unique` ON `characters` (`owner_id`,`handle`);--> statement-breakpoint
 CREATE INDEX `characters_owner_idx` ON `characters` (`owner_id`);--> statement-breakpoint
+CREATE TABLE `card_evolution_proposals` (
+	`id` text PRIMARY KEY NOT NULL,
+	`character_id` text NOT NULL,
+	`chat_id` text,
+	`changes` text NOT NULL,
+	`source_span` text,
+	`status` text DEFAULT 'pending' NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`resolved_at` integer,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "card_evolution_proposals_status_check" CHECK(status in ('pending', 'accepted', 'dismissed', 'superseded'))
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `card_evolution_proposals_pending_unique` ON `card_evolution_proposals` (`character_id`,`chat_id`) WHERE status = 'pending';--> statement-breakpoint
 CREATE TABLE `chat_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -405,6 +406,25 @@ CREATE TABLE `pending_turns` (
 );
 --> statement-breakpoint
 CREATE INDEX `pending_turns_chat_idx` ON `pending_turns` (`chat_id`);--> statement-breakpoint
+CREATE TABLE `user_credentials` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`provider` text NOT NULL,
+	`ciphertext` text NOT NULL,
+	`iv` text NOT NULL,
+	`tag` text NOT NULL,
+	`active` integer DEFAULT true NOT NULL,
+	`revoked_at` integer,
+	`metadata` text,
+	`label` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "user_credentials_provider_check" CHECK(provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai'))
+);
+--> statement-breakpoint
+CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_credentials_active_unique` ON `user_credentials` (`owner_id`,`provider`) WHERE "user_credentials"."active" = 1;--> statement-breakpoint
 CREATE TABLE `crew_chats` (
 	`chat_id` text PRIMARY KEY NOT NULL,
 	`config` text,
@@ -467,25 +487,6 @@ CREATE TABLE `crew_plots` (
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `user_credentials` (
-	`id` text PRIMARY KEY NOT NULL,
-	`owner_id` text NOT NULL,
-	`provider` text NOT NULL,
-	`ciphertext` text NOT NULL,
-	`iv` text NOT NULL,
-	`tag` text NOT NULL,
-	`active` integer DEFAULT true NOT NULL,
-	`revoked_at` integer,
-	`metadata` text,
-	`label` text,
-	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
-	CONSTRAINT "user_credentials_provider_check" CHECK(provider in ('openrouter', 'anthropic', 'openai', 'google_vertex', 'custom_openai'))
-);
---> statement-breakpoint
-CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `user_credentials_active_unique` ON `user_credentials` (`owner_id`,`provider`) WHERE "user_credentials"."active" = 1;--> statement-breakpoint
 CREATE TABLE `character_keyword_profiles` (
 	`id` text PRIMARY KEY NOT NULL,
 	`character_id` text NOT NULL,

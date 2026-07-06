@@ -48,6 +48,7 @@ const APP_CARD: CharacterCard = {
   cardVersion: "1.2",
   regexScripts: [FULL_SCRIPT],
   extensions: { favColor: "ink-black" },
+  residualData: null,
   avatarAssetId: null,
   refinery: { score: 87, analysis: { tone: "consistent" } },
 };

@@ -13,7 +13,9 @@
 // D28 adaptations vs neo: there is no `currentVersionId` / `character_versions` — the card is read straight
 // off the flat `characters` row; the book walk re-keys to `character_books.characterId`; the card's `tags`
 // come from `character_tags WHERE status='accepted'` (NOT the deleted `proposedTags`); `creator` /
-// `cardVersion` / `regexScripts` / `extensions` / `depthPrompt` are typed columns (no `raw` blob).
+// `cardVersion` / `regexScripts` / `extensions` / `residualData` / `depthPrompt` are typed columns (no `raw`
+// blob). `residualData` (PD-127) re-emits the preserved top-level `data.*` residuals `buildCardV3` writes at
+// the `data` root.
 
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
@@ -154,6 +156,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         cardVersion: charRow.cardVersion,
         tags: acceptedTags,
         extensions: parseRecord(charRow.extensions),
+        residualData: parseRecord(charRow.residualData),
         regexScripts: charRow.regexScripts,
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
       },

@@ -46,7 +46,7 @@ import type {
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -75,6 +75,10 @@ interface InjectionCandidate {
   ignoreBudget: boolean;
   priority: number;
   entryId: string;
+  /** Set ONLY for a WI-origin candidate (the real `worldEntries` PK) — user/guided candidates use a
+   *  synthetic `entryId` (`"user:0"`/`"guided"`) and leave this unset. `worldInfoActivated` (D50 pt-2)
+   *  reports exactly the budget-surviving entries carrying this field. */
+  worldEntryId?: WorldEntryId;
   bucket: "before" | "after" | null;
 }
 
@@ -171,12 +175,12 @@ function wiCandidate(
   content: string,
   args: WiConversionArgs,
 ): InjectionCandidate {
-  const entryId = entry.id ?? entry.content;
   const meta = {
     tokens: estimateTokens(content),
     ignoreBudget: entry.ignoreBudget === true,
     priority: entry.priority,
-    entryId,
+    entryId: entry.id,
+    worldEntryId: entry.id,
   };
   if (entry.inject !== null && entry.inject !== undefined) {
     const injection: ChatInjection = {
@@ -591,6 +595,9 @@ export async function buildAssembleContext(
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);
+  // D50 pt-2: the entries that actually FIRED this turn — WI-origin candidates (`worldEntryId` set) that
+  // survived the budget pass. `worldInfoActivated`'s emit site (engine.ts) reads this off `wiTrace`.
+  const entryIds = kept.flatMap((c) => (c.worldEntryId !== undefined ? [c.worldEntryId] : []));
 
   return {
     ...base,
@@ -606,6 +613,7 @@ export async function buildAssembleContext(
       included: chatInjections.length + beforeParts.length + afterParts.length,
       dropped,
       matchedKeys: wi.matchedKeys,
+      entryIds,
     },
   };
 }

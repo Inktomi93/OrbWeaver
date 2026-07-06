@@ -15,14 +15,14 @@ updated: 2026-07-05
 > with **chat + memory LAST** behind the differential oracle. The cake was validated at resolve-time on
 > the empty tree (Phase 0) before any feature code existed.
 >
-> **Progress (2026-07-05): Phases 0–5 BUILT** (all checkpoints green) — with ONE Phase-5 seam still open:
-> the **OpenAI-path tool-loop (D48)** is not built (`domain/chat/engine/pipeline.ts` marks it the next
-> chunk). **Phase 6 IN PROGRESS:** `@orb/ui` built + the primitive fleet integrated; the client
+> **Progress (2026-07-06): Phases 0–5 BUILT** (all checkpoints green) — including the **D48 tool-loop**
+> (the chat-domain recurse loop `runRecurseLoop` + `domain/tool-use` registry, PD-54 T1–T4; the earlier
+> "one Phase-5 seam still open" note is CLEARED). **Phase 6 IN PROGRESS:** `@orb/ui` built + the primitive fleet integrated; the client
 > feature-slice scaffold + gates landed and the base site boots; **the D62 revamp lanes L0–L6 are all
 > LANDED** (`fa0d2e3` · `18383f8` · `0076f31` · `1f3a967` · `3cad8a0` · `ab54d38` · `9de07ab`) — the
 > whole shell/polish revamp is done, desktop + mobile. **Remaining Phase-6 work = L7 parity buildout**
 > (Presets first) + the §8 micro-polish. **Phase 7 PARTIAL:** `domain/imagery` + gallery v1/v2 landed
-> early (D47#1/D49#2); tool-use · databank · expressions pending. **Phase 8 not started.** The **D60
+> early (D47#1/D49#2); **tool-use BUILT** (D48/PD-54 — registry + recurse loop; the structured-output/MCP registrant extensions land with crew/buddy); databank · expressions pending. **Phase 8 not started.** The **D60
 > agent-principal waves** ride alongside: AP0–AP2 landed; the AP3+ seat wave is pending (PD-17).
 > Remaining targets: the `ready` rows in `Core-Audits-and-Debt.md`.
 >
@@ -61,10 +61,12 @@ law now lives:
   `ChatBusEvent` emit) are shaped into the turn pipeline. The build conditions + esoterica map:
   `Core-Planning-and-Checklists.md §C`. **The built `domain/chat` code is the authoritative design.**
 
-**One Phase-5 seam still open:** the **OpenAI-path tool-loop (D48)** — the chat-domain-owned recurse
-loop is NOT built (`domain/chat/engine/pipeline.ts` marks it the next chunk); the D48 wire/contract
-gates (tool history role, content parts, request fields, `ToolCallRecord`) are the prerequisite work it
-lands against. It reconciles with the agent-sdk path into ONE `domain/tool-use` registry (Phase 7).
+**The Phase-5 D48 seam is now CLOSED (PD-54, 2026-07-04, T1–T4):** the **OpenAI-path tool-loop** — the
+chat-domain-owned recurse loop `runRecurseLoop` (`domain/chat/engine/pipeline.ts`) + the `domain/tool-use`
+registry — IS built; the D48 wire/contract gates (tool history role, content parts, request fields,
+`ToolCallRecord`) landed as its prerequisite. (Remaining extensions — structured-output/`response_format`
+for crew, `project-mcp` for buddy — land with those domain waves, not the core loop.) It reconciled the
+OpenAI-path and agent-sdk paths into the ONE `domain/tool-use` registry as planned.
 
 ---
 

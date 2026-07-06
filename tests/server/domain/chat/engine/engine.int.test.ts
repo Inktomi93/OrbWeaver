@@ -10,7 +10,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, messageVariants } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ChatId, ModelId, UserId } from "@orb/kit/ids";
+import type { ChatId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -207,6 +207,33 @@ describe("createTurnEngine — happy path", () => {
     const t = types(h.events);
     expect(t).toContain("reasoningStreamDone");
     expect(t.indexOf("reasoningStreamDone")).toBeLessThan(t.indexOf("turnCompleted"));
+  });
+
+  test("D50 pt-2 (PD-117): a turn whose assembled WI pool fired entries emits worldInfoActivated with them", async () => {
+    const chatId = await seedChat(db, "wi");
+    const firedId = castId<WorldEntryId>("world_entry_dragon");
+    const h = harness(db);
+
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        assembleContext: {
+          ...ASSEMBLE_CTX,
+          wiTrace: { included: 1, dropped: [], matchedKeys: [], entryIds: [firedId] },
+        },
+      }),
+    );
+
+    const wi = h.events.find((e) => e.type === "worldInfoActivated");
+    expect(wi).toMatchObject({ type: "worldInfoActivated", chatId, entryIds: [firedId] });
+  });
+
+  test("D50 pt-2: a turn with an empty WI pool never emits worldInfoActivated", async () => {
+    const chatId = await seedChat(db, "wi-empty");
+    const h = harness(db);
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    expect(types(h.events)).not.toContain("worldInfoActivated");
   });
 
   test("D45: a non-vision turn carrying an embedded image ref emits image_dropped once", async () => {

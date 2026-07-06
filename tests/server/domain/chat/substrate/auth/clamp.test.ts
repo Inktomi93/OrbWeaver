@@ -29,6 +29,7 @@ const FULL_CARD: CharacterCard = {
   cardVersion: "1.0",
   regexScripts: [],
   extensions: null,
+  residualData: null,
   avatarAssetId: AVATAR,
   refinery: null,
 };

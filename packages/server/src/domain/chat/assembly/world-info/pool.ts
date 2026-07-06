@@ -35,7 +35,7 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import {
   resolveEntryInjection,
   resolveEntryPosition,
@@ -59,7 +59,7 @@ interface WorldInfoPoolTarget {
 
 /** One book-expansion row — the uniform shape across all four scopes (the shared SELECT projection). */
 interface BookExpansionRow {
-  id: string;
+  id: WorldEntryId;
   content: string;
   enabled: boolean | null;
   priority: number | null;
@@ -107,15 +107,13 @@ function fromBookExpansion(
   };
 }
 
-/** Dedup the four-source pool by entry id (first wins). The id is always present (the `worldEntries` PK);
- *  the content fallback only matters for hand-built fixtures. */
+/** Dedup the four-source pool by entry id (first wins). The id is always present — the `worldEntries` PK. */
 function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorldEntry[] {
-  const seen = new Map<string, AssembleWorldEntry>();
+  const seen = new Map<WorldEntryId, AssembleWorldEntry>();
   for (const source of sources) {
     for (const entry of source) {
-      const key = entry.id ?? entry.content;
-      if (!seen.has(key)) {
-        seen.set(key, entry);
+      if (!seen.has(entry.id)) {
+        seen.set(entry.id, entry);
       }
     }
   }
