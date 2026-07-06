@@ -2,11 +2,16 @@
 // primitive so the transport maps them to NOT_FOUND uniformly, while callers/tests can discriminate the
 // specific entity past the base (`rejects.toBeInstanceOf(PersonaNotFoundError)`).
 //
-// `CharacterNotFoundError` is thrown by the connection/createFromCharacter verbs when the referenced
+// `PersonaCharacterNotFoundError` is thrown by the connection/createFromCharacter verbs when the referenced
 // character is missing OR not the caller's — the persona domain reads the `characters` table directly for
 // the ownership gate (a sanctioned SCHEMA read, not a character-domain runtime import — see
 // persistence/queries.ts `ensureCharacterOwned`). "not yours" and "doesn't exist" collapse into one
 // answer (no foreign-existence leak), mirroring the owner-scoped persona reads.
+//
+// Named distinctly from `domain/character`'s OWN `CharacterNotFoundError` (PD-125) — two domains can't
+// share an error class under the cake (no cross-domain import), but a same-named class in each would let
+// an `instanceof`/name identity check silently match the wrong domain's error. The `Persona` prefix makes
+// the two unambiguous at every call site and in any error-identity check.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
@@ -20,7 +25,7 @@ export class PersonaNotFoundError extends DomainNotFoundError {
   }
 }
 
-export class CharacterNotFoundError extends DomainNotFoundError {
+export class PersonaCharacterNotFoundError extends DomainNotFoundError {
   public readonly characterId: CharacterId;
   constructor(characterId: CharacterId) {
     super("character", characterId);

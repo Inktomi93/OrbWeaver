@@ -1,7 +1,7 @@
 // verb: createFromCharacter — mint a persona from an owned character's card (ST convertCharacterToPersona).
 // Copies name/description/avatar; when `swapMacros`, the description's `{{char}}`/`{{user}}` invert (the
 // player's POV). Reads the FLAT `characters` row directly (D28 — no version table; a SANCTIONED schema read
-// that also gates ownership in one round-trip: a foreign/absent character → `CharacterNotFoundError`).
+// that also gates ownership in one round-trip: a foreign/absent character → `PersonaCharacterNotFoundError`).
 //
 // NON-LOSSY: the row stores `sourceCharacterId` + `swapMacros` provenance in the
 // typed metadata, so the swap decision is recoverable (a persona minted from a card can re-derive its
@@ -10,7 +10,7 @@
 
 import { characters, personas } from "@orb/db";
 import { eq } from "drizzle-orm";
-import { CharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
+import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
 import type { CreateFromCharacterParams } from "../contract/params";
 import type { PersonaContext, PersonaService } from "../contract/service";
 import { detailOf, loadOwnedPersonaWithAvatar } from "../persistence/queries";
@@ -35,7 +35,7 @@ export function createCreateFromCharacter(
       .limit(LIMIT_ONE);
     const card = rows[0];
     if (card === undefined || card.ownerId !== ownerId) {
-      throw new CharacterNotFoundError(characterId);
+      throw new PersonaCharacterNotFoundError(characterId);
     }
 
     const source = card.description ?? "";

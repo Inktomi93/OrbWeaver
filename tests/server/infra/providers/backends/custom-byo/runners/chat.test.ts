@@ -126,6 +126,25 @@ describe("createCustomByoBackend — request mapping", () => {
     ]);
   });
 
+  test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype, legit keys still merge (PD-101 Layer 2)", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      capturedBody =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"delta":{"content":"x"}}]}', "data: [DONE]"]);
+    });
+
+    const poison = JSON.parse(
+      '{"reasoning_effort":"high","__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1}}',
+    ) as Record<string, unknown>;
+    await runTurn(makeRequest({ customParameters: poison }));
+
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect(capturedBody["polluted"]).toBeUndefined();
+    expect(capturedBody["reasoning_effort"]).toBe("high");
+    expect(capturedBody["nested"]).toEqual({ ok: 1 });
+  });
+
   test("omits the Authorization header for a keyless (apiKey:null) endpoint", async () => {
     let capturedHeaders = new Headers();
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {

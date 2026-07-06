@@ -8,8 +8,8 @@
 
 export type { CharacterLibraryAnchorProps } from "./anchors/character-library-anchor";
 export { CharacterLibraryAnchor } from "./anchors/character-library-anchor";
-export type { CharacterCardItem, CharacterCardProps } from "./components/character-card";
-export { CharacterCard } from "./components/character-card";
+export type { CharacterCardItem, CharacterCardTileProps } from "./components/character-card";
+export { CharacterCardTile } from "./components/character-card";
 export type {
   CharacterDetailCardProps,
   CharacterDetailItem,

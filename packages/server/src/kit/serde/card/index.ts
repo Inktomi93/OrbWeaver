@@ -175,6 +175,42 @@ function residualExtensions(data: RawCard): Record<string, unknown> | null {
   return Object.keys(rest).length > 0 ? rest : null;
 }
 
+// Every field with a typed home on `CharacterCard`/`ExportCardFields` — MINUS from the top-level `data.*`
+// object to isolate genuinely-unknown keys (PD-127). Kept as a Set (not destructured) because the raw
+// `data` object is typed `RawCard` (fixed shape), not a generic record.
+const PROMOTED_DATA_KEYS = new Set([
+  "name",
+  "description",
+  "personality",
+  "scenario",
+  "first_mes",
+  "mes_example",
+  "system_prompt",
+  "post_history_instructions",
+  "creator",
+  "creator_notes",
+  "character_version",
+  "alternate_greetings",
+  "extensions",
+  "regex_scripts",
+  "tags",
+  "character_book",
+]);
+
+/** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
+ *  {@link residualExtensions}, which only covers `data.extensions.*`). ST-V3 puts real fields here
+ *  (`source`, `creation_date`, `creator_notes_multilingual`, `nickname`, `group_only_greetings`) that have
+ *  no typed home yet; this stops import→export from silently eating them. Null when nothing is left. */
+function residualData(data: RawCard): Record<string, unknown> | null {
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+    if (!PROMOTED_DATA_KEYS.has(key)) {
+      rest[key] = value;
+    }
+  }
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
 // ST stamps this placeholder in `creator_notes`; strip it so it doesn't ride into the canonical card.
 const ST_CREATOR_NOTES_PLACEHOLDER = "Creator's notes go here.";
 
@@ -217,6 +253,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
     cardVersion: nullIfEmpty(str(data.character_version)),
     regexScripts: parseRegexScripts(data),
     extensions: residualExtensions(data),
+    residualData: residualData(data),
     avatarAssetId: null,
     refinery: null,
   };
@@ -272,7 +309,10 @@ export function cardContentHash(card: CharacterCard): string {
 /** The live-card columns the card emitter projects to the V3 wire (the OUT-emitter input). `greetings[0]`
  *  is the first message; the rest are alternate greetings. `tags` are the ACCEPTED `character_tags` names
  *  (pending tags are NOT serialized). The typed promotions (`creator` / `cardVersion` /
- *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob. */
+ *  `regexScripts` / `extensions` / `depthPrompt`) are read straight off the flat row — no `raw` blob.
+ *  `residualData` (PD-127) is the preserved top-level `data.*` blob — re-emitted at the `data` root. There
+ *  is NO backing `characters` column yet (hygiene-only at the serde boundary), so it's optional — an
+ *  export call site that predates PD-127 doesn't need to source it from anywhere. */
 export interface ExportCardFields {
   readonly name: string;
   readonly description: string | null;
@@ -287,6 +327,7 @@ export interface ExportCardFields {
   readonly cardVersion: string | null;
   readonly tags: string[];
   readonly extensions: Record<string, unknown> | null;
+  readonly residualData?: Record<string, unknown> | null;
   readonly regexScripts: RegexScript[];
   readonly depthPrompt: CardDepthPrompt | null;
 }
@@ -369,6 +410,8 @@ export function buildCardV3(
     ...(fields.depthPrompt ? { depth_prompt: fields.depthPrompt } : {}),
   };
   const data: Record<string, unknown> = {
+    // Preserved top-level `data.*` residuals FIRST (PD-127) — the typed keys below always win on collision.
+    ...(fields.residualData ?? {}),
     name: fields.name,
     description: fields.description ?? "",
     personality: fields.personality ?? "",

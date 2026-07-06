@@ -17,7 +17,7 @@ import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import {
   AssetNotFoundError,
-  CharacterNotFoundError,
+  PersonaCharacterNotFoundError,
   PersonaNotFoundError,
 } from "../contract/errors";
 import type { PersonaDetail } from "../contract/views";
@@ -85,7 +85,7 @@ export async function listConnectedPersonasWithAvatar(
 }
 
 /** Gate: the character must belong to the caller. Reads `characters.ownerId` directly (the sanctioned
- *  schema read). A foreign/absent character collapses to {@link CharacterNotFoundError} (no existence leak). */
+ *  schema read). A foreign/absent character collapses to {@link PersonaCharacterNotFoundError} (no existence leak). */
 export async function ensureCharacterOwned(
   db: Db,
   ownerId: UserId,
@@ -97,7 +97,7 @@ export async function ensureCharacterOwned(
     .where(eq(characters.id, characterId))
     .limit(LIMIT_ONE);
   if (rows[0]?.ownerId !== ownerId) {
-    throw new CharacterNotFoundError(characterId);
+    throw new PersonaCharacterNotFoundError(characterId);
   }
 }
 
