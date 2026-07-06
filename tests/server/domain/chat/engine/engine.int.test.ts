@@ -174,6 +174,41 @@ describe("createTurnEngine — happy path", () => {
     expect(t).toContain("delta");
   });
 
+  test("PD-117: a turn with NO reasoning channel never emits reasoningStreamDone", async () => {
+    const chatId = await seedChat(db, "noreason");
+    const h = harness(db); // OK_TURN carries no "reasoning" chunk kind
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    expect(types(h.events)).not.toContain("reasoningStreamDone");
+  });
+
+  test("PD-117: a turn WITH a reasoning channel emits reasoningStreamDone BEFORE turnCompleted", async () => {
+    const chatId = await seedChat(db, "reason");
+    const h = harness(db, {
+      runChatTurn: scripted([
+        { kind: "reasoning", text: "thinking..." },
+        { kind: "text", text: "Hi" },
+        {
+          kind: "final",
+          economics: {
+            content: "Hi there",
+            reasoning: "thinking...",
+            tokensIn: 4,
+            tokensOut: 2,
+            model: "test-model",
+          },
+        },
+      ]),
+    });
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    const t = types(h.events);
+    expect(t).toContain("reasoningStreamDone");
+    expect(t.indexOf("reasoningStreamDone")).toBeLessThan(t.indexOf("turnCompleted"));
+  });
+
   test("D45: a non-vision turn carrying an embedded image ref emits image_dropped once", async () => {
     // The model has no `input.vision` (CAPABILITY) → the engine strips the image part + warns once. The ref
     // rides a synthetic user turn (appendUserTurn), so no canon seeding is needed; the drop short-circuits

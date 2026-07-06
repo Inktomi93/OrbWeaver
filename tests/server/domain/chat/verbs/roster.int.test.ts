@@ -21,7 +21,10 @@ import {
   ChatNotFoundError,
   ChatOperationError,
 } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
+import {
+  createRoster,
+  setParticipantActivePersona,
+} from "../../../../../packages/server/src/domain/chat/verbs/roster";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import {
@@ -30,6 +33,7 @@ import {
   seedCharacter,
   seedChat,
   seedParticipant,
+  seedPersona,
   seedUser,
 } from "../_support";
 
@@ -762,5 +766,94 @@ describe("seatAgent — the ONE agent-seat chokepoint (D60, doc 04 §3)", () => 
     const rows = await agentRows(chatId);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.leftSeq).toBeNull();
+  });
+});
+
+describe("setParticipantActivePersona — the chat-domain write persona.setActivePersona calls (PD-120)", () => {
+  test("flips a present human's activePersonaId + emits personaSwitched with from/to", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const personaId = await seedPersona(db, host, "a");
+
+    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
+    expect(row?.activePersonaId).toBe(personaId);
+    expect(emitted).toEqual([{ type: "personaSwitched", chatId, from: null, to: personaId }]);
+  });
+
+  test("reports the prior persona as `from` on a second switch", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const first = await seedPersona(db, host, "a");
+    const second = await seedPersona(db, host, "b");
+    await seedParticipant(db, {
+      chatId,
+      key: "h",
+      userId: host,
+      role: "host",
+      activePersonaId: first,
+    });
+
+    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId: second });
+
+    expect(emitted).toEqual([{ type: "personaSwitched", chatId, from: first, to: second }]);
+  });
+
+  test("clearing back to null is a valid switch (to: null)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const personaId = await seedPersona(db, host, "a");
+    await seedParticipant(db, {
+      chatId,
+      key: "h",
+      userId: host,
+      role: "host",
+      activePersonaId: personaId,
+    });
+
+    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId: null });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
+    expect(row?.activePersonaId).toBeNull();
+    expect(emitted).toEqual([{ type: "personaSwitched", chatId, from: personaId, to: null }]);
+  });
+
+  test("a target that is not a PRESENT participant is refused with participant_not_found — no emit", async () => {
+    const host = await seedUser(db, "host");
+    const stranger = await seedUser(db, "stranger");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const personaId = await seedPersona(db, host, "a");
+
+    const err = await setParticipantActivePersona(db, emit, {
+      chatId,
+      targetUserId: stranger,
+      personaId,
+    }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("participant_not_found");
+    expect(emitted).toEqual([]);
+  });
+
+  test("a LEFT participant (leftSeq set) is treated as not-present — refused, no emit", async () => {
+    const host = await seedUser(db, "host");
+    const former = await seedUser(db, "former");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "f", userId: former, role: "member", leftSeq: 3 });
+    const personaId = await seedPersona(db, former, "a");
+
+    const err = await setParticipantActivePersona(db, emit, {
+      chatId,
+      targetUserId: former,
+      personaId,
+    }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("participant_not_found");
+    expect(emitted).toEqual([]);
   });
 });

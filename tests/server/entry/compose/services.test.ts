@@ -22,6 +22,7 @@ import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
+import { subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
 import { createFrozenClock } from "../../../support/clock";
 import { freshDb } from "../../../support/db";
@@ -512,6 +513,77 @@ describe("notifications fan-out (PD-23) — record (durable) → publishNotifica
       expect(inbox.items.find((i) => i.type === "kicked")?.seq).toBe(live.value?.seq);
     } finally {
       // Pre-arm the terminal next() so the abort's AbortError rejection is HANDLED (no unhandled noise).
+      const closed = iter.next().catch(() => undefined);
+      ac.abort();
+      await closed;
+    }
+  });
+});
+
+describe("persona.setActivePersona → chat bus (PD-120)", () => {
+  test("flips activePersonaId, persists to chat_events, and fans personaSwitched onto the live channel", async () => {
+    const db = await freshDb();
+    const clock = createFrozenClock();
+    const result = await createServices({
+      db,
+      now: clock.now,
+      ownerId: castId<UserId>("u_owner"),
+      secretBoxKey: null,
+      casDir: tmpdir(),
+      variantDir: tmpdir(),
+      sessionSecret: "test-session-secret-at-least-32-chars",
+      vllmDisabled: true,
+    });
+    const host = await seedUser(db, { handle: "host" });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    await db.insert(chats).values({ id: chatId, createdAt: clock.now(), updatedAt: clock.now() });
+    await db.insert(chatParticipants).values({
+      id: castId<ChatParticipantId>("chat_participant_h"),
+      chatId,
+      kind: "human",
+      userId: host,
+      role: "host",
+      joinSeq: 0,
+      joinedAt: clock.now(),
+    });
+    const persona = await result.services.persona.create({
+      principal: principal(host),
+      input: { name: "Nate", description: "the user" },
+    });
+
+    // Tail the room's LIVE channel BEFORE persona flips it (subscribeChatEvents buffers from call time —
+    // the same `on()` precedent the notifications test above uses).
+    const ac = new AbortController();
+    const iter = subscribeChatEvents(chatId, ac.signal)[Symbol.asyncIterator]();
+    const nextLive = iter.next();
+    try {
+      await result.services.persona.setActivePersona({
+        principal: principal(host),
+        chatId,
+        targetUserId: host,
+        personaId: persona.id,
+      });
+
+      // LIVE half: personaSwitched arrives with a durable seq (persona composes BEFORE chat.ts's own bus
+      // instance, so this proves the second createChatBus still writes the SAME chat_events log + the ONE
+      // transport publishChatEvent singleton still fans it out — see services.ts's PD-120 comment).
+      const live = await nextLive;
+      expect(live.done).toBe(false);
+      expect(live.value?.event).toEqual({
+        type: "personaSwitched",
+        chatId,
+        from: null,
+        to: persona.id,
+      });
+      expect(live.value?.seq).toBeGreaterThan(0);
+
+      // DURABLE half: the row write committed (the participant's activePersonaId actually flipped).
+      const [row] = await db
+        .select()
+        .from(chatParticipants)
+        .where(eq(chatParticipants.userId, host));
+      expect(row?.activePersonaId).toBe(persona.id);
+    } finally {
       const closed = iter.next().catch(() => undefined);
       ac.abort();
       await closed;

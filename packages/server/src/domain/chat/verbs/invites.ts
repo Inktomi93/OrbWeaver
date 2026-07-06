@@ -129,7 +129,16 @@ function toChatDetail(
 
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered HASH, return the raw token ONCE for
  *  the `/join/:token` link (never raw again; never in an `InviteView`). Share-link by default; a targeted
- *  invite resolves `invitedHandle` → `invitedUserId` (PD-66 — file header). */
+ *  invite resolves `invitedHandle` → `invitedUserId` (PD-66 — file header).
+ *
+ *  PD-105: a TARGETED invite additionally delivers the durable `invite` notification (the per-user inbox
+ *  the per-chat bus can't reach — the invitee isn't a member yet, so there's no room to fan a bus event
+ *  into). Fired AFTER persist (`ctx.emitNotification`, the ONE write chokepoint every producer inherits —
+ *  `notifications.record`). The event carries `inviteId` (the decline/preview-by-id handle), NEVER the raw
+ *  token — the schema makes that type-level unrepresentable (accept stays token-authenticated via the
+ *  `/join/:token` link the host shares out-of-band; the notification's `inviteId` only backs `declineInvite`,
+ *  which is genuinely inviteId-keyed). A share-link invite (a null `invitedUserId`) has no single recipient
+ *  to notify — skipped, matching `recipientUserId`'s mandatory-field schema. */
 function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
@@ -170,6 +179,17 @@ function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
       status: "pending",
       createdAt: at,
     });
+    // PD-105: a targeted invite delivers the durable `invite` notification AFTER the persist above commits —
+    // a share-link invite (no single `invitedUserId`) has nobody to notify.
+    if (invitedUserId !== null) {
+      await ctx.emitNotification({
+        type: "invite",
+        recipientUserId: invitedUserId,
+        chatId,
+        inviteId,
+        invitedByHandle: principal.handle,
+      });
+    }
     const invite: InviteView = {
       id: inviteId,
       chatId,

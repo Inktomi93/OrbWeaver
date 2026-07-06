@@ -7,6 +7,7 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -195,6 +196,65 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("invite_target_unknown");
     expect(resolveCalled).toBe(false);
+  });
+});
+
+describe("createInvite — PD-105 the targeted-invite notification", () => {
+  function recordingCtx(notes: NotificationEvent[]): ReturnType<typeof makeChatContext> {
+    return makeChatContext(db, {
+      resolveHandle: (h) => Promise.resolve(h === "bob" ? castId<UserId>("user_bob") : null),
+      emitNotification: (event) => {
+        notes.push(event);
+        return Promise.resolve();
+      },
+    });
+  }
+
+  test("a targeted invite emits `invite` AFTER persist, carrying inviteId + the host's handle", async () => {
+    const host = await seedUser(db, "host");
+    const bob = await seedUser(db, "bob");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const notes: NotificationEvent[] = [];
+    const invites = createInvites(recordingCtx(notes), makeDeps());
+
+    const { invite } = await invites.createInvite({
+      principal: principal(host),
+      chatId,
+      input: { invitedHandle: castId<Handle>("bob") },
+    });
+
+    expect(invite.invitedUserId).toBe(bob);
+    expect(notes).toEqual([
+      {
+        type: "invite",
+        recipientUserId: bob,
+        chatId,
+        inviteId: invite.id,
+        invitedByHandle: principal(host).handle,
+      },
+    ]);
+    // The notification NEVER carries the raw token (type-level unrepresentable — the schema declares no
+    // field for it); the row is already persisted (durable-first) by the time the notification fires.
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    expect(row).toBeDefined();
+  });
+
+  test("a share-link invite (no invitedUserId) notifies nobody — no single recipient", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const notes: NotificationEvent[] = [];
+    const invites = createInvites(recordingCtx(notes), makeDeps());
+
+    const { invite } = await invites.createInvite({
+      principal: principal(host),
+      chatId,
+      input: {},
+    });
+
+    expect(invite.invitedUserId).toBeNull();
+    expect(notes).toEqual([]);
   });
 });
 

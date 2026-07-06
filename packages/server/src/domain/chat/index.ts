@@ -44,3 +44,7 @@ export { reclaimChatLocksOnBoot } from "./persistence/lock";
 export { createChatService } from "./service";
 // The PD-41 corpus sweeps (the workloads runner-env's memory/group-character backfill ops).
 export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill";
+// PD-120: the chat-domain roster write persona's `setActivePersona` calls directly (persona composes
+// BEFORE chat at the entry root — see `entry/compose/services.ts` — so this is a plain function, not a
+// `ChatService` verb; the `requireAuthorOrHost` precedent above).
+export { setParticipantActivePersona } from "./verbs/roster";
