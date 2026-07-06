@@ -6,7 +6,7 @@
 // (no ambient clock) + `castId` ids (no unseeded mint).
 
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { UserSettings } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { users, workloads } from "@orb/db";
@@ -126,7 +126,7 @@ export function makeRunnerContext(
     db: {} as Db,
     userId: castId<UserId>("user_owner"),
     roleClients: {} as RoleClients,
-    loadUserSettings: () => Promise.resolve({} as UserSettings),
+    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
     env,
     now: () => T0,
     ...overrides,
@@ -144,7 +144,7 @@ export function makeRunnerDeps(
     db,
     env,
     bindRoleClients: () => Promise.resolve({} as RoleClients),
-    loadUserSettings: () => Promise.resolve({} as UserSettings),
+    loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
     audit: () => Promise.resolve(),
     now: () => T0,
     heartbeatMs: 0,
