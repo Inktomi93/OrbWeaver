@@ -66,7 +66,7 @@ export function ChatRoomSurface({
   };
 
   return (
-    <Stack gap="block" className="h-full">
+    <Stack gap="block" className="h-full px-block pb-block">
       {/* The cast bar (task #29) — a read-only group-roster glance strip above the transcript; it
           size-gates itself to `null` for a solo (≤1-character) chat, and only reads a COMMITTED chat's
           roster (a draft has no server roster yet). */}
