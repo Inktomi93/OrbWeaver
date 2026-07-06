@@ -15,7 +15,7 @@ import { tv } from "#lib";
 export const dialogVariants = tv({
   slots: {
     backdrop:
-      "fixed inset-0 z-(--z-modal) bg-scrim transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
+      "fixed inset-0 z-(--z-modal) bg-scrim backdrop-blur-sm transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
     // Viewport gutter is set PER-SIZE (below), never in the base — else `full`'s `p-0` and the base
     // `p-gutter` are two padding classes tailwind-merge can't dedupe (custom `gutter` scale), and the
     // gutter wins. One padding class per size = a clean override.
@@ -30,6 +30,10 @@ export const dialogVariants = tv({
       sm: { viewport: "p-gutter", popup: "max-w-(--width-dialog-sm)" },
       md: { viewport: "p-gutter", popup: "max-w-(--width-dialog-md)" },
       lg: { viewport: "p-gutter", popup: "max-w-(--width-dialog-lg)" },
+      // The large SHELL modal (settings + other nav-plus-content modals): fills the gutter-padded,
+      // blurred viewport (`h-full`) so it takes most of the screen, but stays a centered CARD (keeps
+      // the base radius/border/shadow) capped at the xl width — not the edge-to-edge `full` bleed.
+      xl: { viewport: "p-gutter", popup: "h-full max-w-(--width-dialog-xl)" },
       full: { viewport: "p-0", popup: "h-full w-full max-w-none rounded-none border-0" },
     },
   },

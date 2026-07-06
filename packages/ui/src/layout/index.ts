@@ -6,6 +6,8 @@
 
 export type { ContainerProps } from "./container";
 export { Container } from "./container";
+export type { GridProps } from "./grid";
+export { Grid } from "./grid";
 export type { RowProps } from "./row";
 export { Row } from "./row";
 export type { SectionProps } from "./section";

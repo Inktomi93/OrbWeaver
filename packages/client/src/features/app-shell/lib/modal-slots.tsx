@@ -47,11 +47,12 @@ export const MODAL_SLOTS: Record<ModalSlotId, ModalDef> = {
   },
   settings: {
     title: "Settings",
-    // The settings overlay is FULL-BLEED (J11 — the Discord user-settings pattern: a left category nav +
-    // one scrolling pane column). `size` is presentation metadata on the def; the route composes the real
-    // <SettingsShell> body over this placeholder (home-page.tsx `settings` slot), so `placeholder: true`
-    // stays correct for the static fallback that never runs when the route injects the real body.
-    size: "full",
+    // The settings overlay is a LARGE `xl` MODAL (Nate's call — a centered card over a blurred backdrop
+    // that takes most of the screen, NOT edge-to-edge full-bleed): a left category nav + one scrolling
+    // pane column. `size` is presentation metadata on the def; the route composes the real <SettingsShell>
+    // body over this placeholder (home-page.tsx `settings` slot), so `placeholder: true` stays correct for
+    // the static fallback that never runs when the route injects the real body.
+    size: "xl",
     placeholder: true,
     render: (): ReactElement => (
       <SectionPlaceholder

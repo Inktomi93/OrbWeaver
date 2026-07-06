@@ -55,6 +55,25 @@ export const sectionVariants = tv({
 });
 
 /**
+ * `<Grid>` skin — responsive AUTO-FIT columns: children tile into as many columns as fit at the min
+ * column width, then reflow as space shrinks (down to one). No fixed column count, so adding/removing/
+ * reordering items just reflows — the "content fills and sorts" layout for settings-style panes. The
+ * arbitrary track template lives HERE (layout/ is the gate-allowlisted home for structural values, the
+ * same exemption `no-raw-spacing` grants); `min(…,100%)` stops a wide min from overflowing a narrow pane.
+ */
+export const gridVariants = tv({
+  base: "grid",
+  variants: {
+    gap: GAP,
+    cols: {
+      auto: "grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
+      wide: "grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
+    },
+  },
+  defaultVariants: { cols: "auto" },
+});
+
+/**
  * `<Container>` skin. `size` must stay on the `--container-cq-*` token scale, never raw widths
  * (gate no-raw-container-widths).
  */
