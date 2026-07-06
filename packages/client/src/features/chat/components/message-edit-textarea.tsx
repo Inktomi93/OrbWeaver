@@ -44,14 +44,12 @@ interface EditMessageVars {
   readonly content: string;
 }
 
-// Module-scope factory → a stable hook identity (§13.1). Bus-driven cache refresh (`messageEdited` →
-// invalidate); `invalidates` is the settle-time backstop, same shape as swipe-strip.tsx's mutations.
+// Module-scope factory → a stable hook identity (§13.1). BUS-DRIVEN: `editMessage` emits messageEdited
+// (→ chatReads) on the OPEN chat, delivered by the active subscription → the seam refetches. `invalidates`
+// empty — re-invalidating those keys was a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
 const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
   options: (trpc) => trpc.chat.editMessage.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  invalidates: () => [],
   errorToast: "Couldn't save that edit.",
 });
 
