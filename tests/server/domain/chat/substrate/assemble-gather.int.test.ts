@@ -51,6 +51,7 @@ function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
     cardVersion: null,
     regexScripts,
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
   };

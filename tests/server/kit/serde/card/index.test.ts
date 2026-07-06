@@ -39,6 +39,7 @@ function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {
     cardVersion: null,
     regexScripts: [],
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
     ...overrides,

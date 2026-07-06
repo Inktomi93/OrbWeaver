@@ -43,6 +43,30 @@ async function guardAvatarOwned(
   }
 }
 
+/** Apply the wire input's defaults → the full `CharacterCard` to flatten + insert. Extracted (like
+ *  `provenanceColumns`/`guardAvatarOwned`) to keep the verb closure under the cognitive-complexity gate. */
+function cardFromInput(input: CreateCharacterParams["input"]): CharacterCard {
+  return {
+    name: input.name,
+    description: input.description,
+    personality: input.personality ?? null,
+    scenario: input.scenario ?? null,
+    greetings: input.greetings ?? [],
+    exampleMessages: input.exampleMessages ?? null,
+    systemPrompt: input.systemPrompt ?? null,
+    postHistoryInstructions: input.postHistoryInstructions ?? null,
+    depthPrompt: input.depthPrompt ?? null,
+    creatorNotes: input.creatorNotes ?? null,
+    creator: input.creator ?? null,
+    cardVersion: input.cardVersion ?? null,
+    regexScripts: input.regexScripts ?? [],
+    extensions: input.extensions ?? null,
+    residualData: input.residualData ?? null,
+    avatarAssetId: input.avatarAssetId ?? null,
+    refinery: null,
+  };
+}
+
 export function createCreate(ctx: CharacterContext): CharacterService["create"] {
   return async ({ principal, input, provenance }: CreateCharacterParams) => {
     const ownerId = principal.userId;
@@ -51,24 +75,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
     const characterId = ctx.newCharacterId();
     const { importedFrom, importHash } = provenanceColumns(provenance);
 
-    const card: CharacterCard = {
-      name: input.name,
-      description: input.description,
-      personality: input.personality ?? null,
-      scenario: input.scenario ?? null,
-      greetings: input.greetings ?? [],
-      exampleMessages: input.exampleMessages ?? null,
-      systemPrompt: input.systemPrompt ?? null,
-      postHistoryInstructions: input.postHistoryInstructions ?? null,
-      depthPrompt: input.depthPrompt ?? null,
-      creatorNotes: input.creatorNotes ?? null,
-      creator: input.creator ?? null,
-      cardVersion: input.cardVersion ?? null,
-      regexScripts: input.regexScripts ?? [],
-      extensions: input.extensions ?? null,
-      avatarAssetId: input.avatarAssetId ?? null,
-      refinery: null,
-    };
+    const card = cardFromInput(input);
 
     await insertCharacter(ctx.db, {
       id: characterId,

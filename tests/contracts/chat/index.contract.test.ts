@@ -388,6 +388,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
   const character: AssembleCharacter = { name: "Aria", description: "a bard" };
   const persona: AssemblePersona = { name: "Alice", description: "the user" };
   const entry: AssembleWorldEntry = {
+    id: mintTypeId(ID_PREFIX.worldEntry),
     content: "the kingdom of Eld",
     scope: "always",
     keys: [],

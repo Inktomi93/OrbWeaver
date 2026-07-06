@@ -1,7 +1,7 @@
 // .int tests for schema/character (D28 — flat card + opaque snapshot log). Real libSQL :memory: via
 // freshDb (FK PRAGMA ON). Covers: insert→select round-trip (branded id survives, always-a-list defaults),
-// the card-content JSON round-trips through the @orb/db/kit read-seam (greetings, extensions, depthPrompt,
-// refinery, a non-empty regexScripts), the snapshot opaque-blob round-trip, the CASCADE on character delete
+// the card-content JSON round-trips through the @orb/db/kit read-seam (greetings, extensions, residualData,
+// depthPrompt, refinery, a non-empty regexScripts), the snapshot opaque-blob round-trip, the CASCADE on character delete
 // (snapshots + character_personas junction both vanish), the per-owner unique(ownerId, handle) namespace
 // (same-owner dup collides → kind "unique"; a different owner with the same handle coexists), the
 // avatar SET NULL on asset delete (the character survives), and card_evolution_proposals (D59 rider) —
@@ -83,7 +83,7 @@ test("characters insert→select round-trips (branded id + always-a-list default
   expect(rows[0]?.regexScripts).toEqual([]);
 });
 
-test("card-content JSON columns round-trip (greetings, extensions, depthPrompt, refinery, regexScripts)", async () => {
+test("card-content JSON columns round-trip (greetings, extensions, residualData, depthPrompt, refinery, regexScripts)", async () => {
   const db = await freshDb();
   const ownerId = await seedOwner(db, "user_char_b", "char-owner-b");
   const id = castId<CharacterId>("character_content");
@@ -111,6 +111,7 @@ test("card-content JSON columns round-trip (greetings, extensions, depthPrompt, 
     name: "Greeter",
     greetings: ["Hello there", "Hi again"],
     extensions: { vendorKey: 42 },
+    residualData: { source: ["https://example.com/card"], nickname: "Ari" },
     depthPrompt,
     refinery,
     regexScripts: [regexScript],
@@ -119,6 +120,7 @@ test("card-content JSON columns round-trip (greetings, extensions, depthPrompt, 
   const rows = await db.select().from(characters).where(eq(characters.id, id));
   expect(parseStringArray(rows[0]?.greetings)).toEqual(["Hello there", "Hi again"]);
   expect(rows[0]?.extensions).toEqual({ vendorKey: 42 });
+  expect(rows[0]?.residualData).toEqual({ source: ["https://example.com/card"], nickname: "Ari" });
   // depthPrompt + refinery are nullable JSON blobs — round-trip through the @orb/db/kit read-seam parser.
   expect(parseRecord(rows[0]?.depthPrompt)).toEqual(depthPrompt);
   expect(parseRecord(rows[0]?.refinery)).toEqual(refinery);
@@ -145,6 +147,7 @@ test("character_snapshots stores ONE opaque card blob and round-trips", async ()
     cardVersion: null,
     regexScripts: [],
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
   };

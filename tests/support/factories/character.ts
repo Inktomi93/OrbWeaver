@@ -47,6 +47,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     cardVersion: null,
     regexScripts: [],
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
     createdAt: FROZEN_AT_MS,

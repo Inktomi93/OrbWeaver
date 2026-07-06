@@ -6,7 +6,8 @@
 // `avatarAssetId` / `refinery`. There is NO `raw` blob (§7.3 lossiness fix — every known field has a typed
 // home, so an app-authored card round-trips identically to an imported one), NO `character_version` integer
 // counter, NO `currentVersionId`. `residualData` (PD-127) is the top-level-`data.*` sibling of `extensions`
-// (which is scoped to `data.extensions.*`) — hygiene-only preservation, not yet promoted/assembled.
+// (which is scoped to `data.extensions.*`) — hygiene-only preservation, backed by the `characters.residual_data`
+// column.
 //
 // Cross-boundary: the tRPC router validates `create`/`update` against these AND the client form runs the same
 // schemas, so client and server can never disagree about what's valid. The same `createCharacterSchema` gates
@@ -106,11 +107,10 @@ export const characterCardSchema = z.object({
   extensions: z.record(z.string(), z.unknown()).nullable(),
   /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — e.g. ST-V3's `source` /
    *  `creation_date` / `creator_notes_multilingual` / `nickname` / `group_only_greetings`, none of which have
-   *  a typed column yet. Hygiene-only preservation at the serde boundary (`kit/serde/card`) — there is NO
-   *  backing `characters` column yet, so this is `.optional()` (unlike every other card field): a `character`
-   *  row builder that predates PD-127 doesn't carry it, and defaults to "no residual" until a column lands.
-   *  Distinct from `extensions` (that's `data.extensions.*`, this is `data.*`). */
-  residualData: z.record(z.string(), z.unknown()).nullable().optional(),
+   *  a typed column yet. Hygiene-only preservation, backed by the `characters.residual_data` column (PD-127)
+   *  — matches `extensions`'s treatment exactly (nullable, not optional). Distinct from `extensions` (that's
+   *  `data.extensions.*`, this is `data.*`). */
+  residualData: z.record(z.string(), z.unknown()).nullable(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   /** CardRefinery pipeline signals (derived, not authored). */
   refinery: refinerySignalsSchema.nullable(),

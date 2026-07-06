@@ -148,8 +148,10 @@ export interface AssemblePersona {
  *  primitive (`@orb/kit/injection`, D32) — set ⇒ the always-scope entry splices into history instead of
  *  rendering into the system half. */
 export interface AssembleWorldEntry {
-  /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC). Optional for fixtures. */
-  id?: string;
+  /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC), and the identity
+   *  `worldInfoActivated` reports as "fired this turn" (D50 pt-2). Always present — every pool source is
+   *  the `worldEntries` PK read (`assembly/world-info/pool.ts`); there is no fixture path that omits it. */
+  id: WorldEntryId;
   content: string;
   scope: WorldInfoScope;
   keys: string[];
@@ -321,11 +323,14 @@ export interface AssembleContext {
    *  the verb/root supplies it, assembly carries it through. Applied at SEND (USER_INPUT, in `buildAssembleContext`)
    *  and RECEIVE (AI_OUTPUT/REASONING, in `engine/pipeline`). Absent ⇒ no host-tier regex this turn. */
   hostTierRegexScripts?: readonly RegexScript[] | undefined;
-  /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. */
+  /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `entryIds` is the
+   *  budget-survived, actually-fired WI entries this turn — the engine emits `worldInfoActivated` from it
+   *  (D50 pt-2); it is NOT `matchedKeys` (those are keyword strings, not entry identity). */
   wiTrace?: {
     included: number;
     dropped: { id: string; reason: "budget" }[];
     matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
+    entryIds: WorldEntryId[];
   };
 }
 

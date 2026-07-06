@@ -1,6 +1,7 @@
 // domain/chat/engine/engine — the turn LIFECYCLE shell. SINGLE-SPEAKER CORE: one resolved speaker per turn — NO multi-speaker arbitration /
 // auto-mode (the engine TAKES the resolved speaker on `TurnPrep`; the "who/how-many speaks" chunk wraps this)
-// and NO D48 tool-recurse (the pipeline does one model call + reduce). Those seams are left clean.
+// (that "who/how-many speaks" seam is left clean). The D48 tool-recurse loop IS built (PD-54 — `pipeline.ts`
+// `runRecurseLoop`): the pipeline recurses on `finishReason:"tool"` up to `toolRecurseLimit`.
 //
 // THE LIFECYCLE (read top to bottom in `executeTurn`):
 //   acquire lock (per-chat; stale-steal — persistence/lock) → IN-LOCK: the §9 security belts (max-pro-sub
@@ -425,6 +426,16 @@ async function executeTurn(
     // reasoning channel never had a "thinking" affordance to close.
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
+    }
+    // D50 pt-2 (PD-117): which WI entries fired this turn (assembly/context.ts's budget-survived pool) —
+    // ST WORLD_INFO_ACTIVATED, the "which lore fired" automation hook. Empty pool ⇒ no emit (no lore fired
+    // is not an activation event).
+    if (result.worldInfoEntryIds.length > 0) {
+      await deps.emit({
+        type: "worldInfoActivated",
+        chatId: prep.chatId,
+        entryIds: [...result.worldInfoEntryIds],
+      });
     }
     const view = await commitGeneration({
       ctx,

@@ -7,7 +7,8 @@
 //
 // Card content rides FLAT on the row (D28): the typed promotions `regexScripts` (RegexScript[], the typed
 // column — no `raw` leak), `depthPrompt` (the shared `{depth, role?}` directive + note), `extensions`
-// (residual vendor keys), and `refinery` (derived pipeline signals) are JSON columns read through the
+// (residual `data.extensions.*` vendor keys), `residualData` (PD-127 — residual TOP-LEVEL `data.*` keys,
+// `extensions`'s sibling), and `refinery` (derived pipeline signals) are JSON columns read through the
 // `@orb/db/kit` parse-seam. `greetings`/`regexScripts` are ALWAYS-A-LIST columns (default `[]`, never null —
 // the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file, re-import dedup) is
 // DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
@@ -86,6 +87,10 @@ export const characters = sqliteTable(
       .default(sql`'[]'`),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
     extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
+    // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — the sibling of
+    // `extensions` above, scoped to `data.*` instead of `data.extensions.*` (e.g. ST-V3 `source` /
+    // `creation_date` / `creator_notes_multilingual` / `nickname` / `group_only_greetings`).
+    residualData: text("residual_data", { mode: "json" }).$type<Record<string, unknown>>(),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
     avatarAssetId: text("avatar_asset_id")
       .$type<AssetId>()

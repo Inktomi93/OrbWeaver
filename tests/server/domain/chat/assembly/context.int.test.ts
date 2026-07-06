@@ -40,6 +40,7 @@ function cardOf(name: string): CharacterCard {
     cardVersion: null,
     regexScripts: [],
     extensions: null,
+    residualData: null,
     avatarAssetId: null,
     refinery: null,
   };
@@ -145,10 +146,13 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
       key: "dragon",
       matchedLatestUserMessage: true,
     });
+    // D50 pt-2: the fired entry's real id lands in the trace `worldInfoActivated` reads.
+    expect(fired.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_k")]);
 
     // No pending text + not in the recent window → does NOT fire (keyword gate holds).
     const quiet = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     expect(quiet.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(quiet.wiTrace?.entryIds).toEqual([]);
   });
 });
 
@@ -216,6 +220,9 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
     expect(out.worldInfoBefore).not.toContain("BBBBBBBB"); // lower priority dropped
     expect((out.chatInjections ?? []).map((i) => i.content)).toContain("OPERATOR"); // spared (ignoreBudget)
     expect(out.wiTrace?.dropped).toContainEqual({ id: "world_entry_lo", reason: "budget" });
+    // D50 pt-2: `entryIds` is the budget-SURVIVED fired set — the kept entry's real id, not the dropped one,
+    // and never the synthetic `user:*`/`guided` ids of the operator injection.
+    expect(out.wiTrace?.entryIds).toEqual([castId<WorldEntryId>("world_entry_hi")]);
   });
 });
 
