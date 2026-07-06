@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The macro-textarea skin. The textarea rides the shared textarea skin (composed via
 // `#primitives/textarea`, not reimplemented) with a monospace override so `{{macro}}` markers

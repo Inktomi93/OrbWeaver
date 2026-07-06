@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The autocomplete skin — the InputGroup carries the text-input token box (border/bg/height) so the
 // native Clear button can sit flush inside it; the input fills the box transparently. The popup rides

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Diff segment skin (ui-package-design §6.1 — "add/remove intent tokens").

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The empty-state skin — a centered teaching stack on the section rhythm (ui-package-design §6.1).
 // The DESIGN.md "Weave" moment: (decoration | icon) → title → description → action, copy owned by the

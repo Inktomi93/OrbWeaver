@@ -1,6 +1,6 @@
 // @orb/ui/meter variants — 1-D magnitude skins (D52/D58; rpg-design/11 §2). The danger state is a
 // TOKEN SWAP (primary → destructive intent), never a color calculation.
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * The Base UI Meter.Root wrapper skin — the role="meter" container that holds the optional

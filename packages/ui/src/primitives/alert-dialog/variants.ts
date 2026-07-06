@@ -1,13 +1,4 @@
-import { tv } from "tailwind-variants";
-
-// Teach tailwind-merge the type-scale tokens (recorded tailwind-variants-v3 delta — see dialog).
-const twMergeConfig = {
-  extend: {
-    classGroups: {
-      "font-size": [{ text: ["display", "headline", "title", "body", "label", "code"] }],
-    },
-  },
-};
+import { tv } from "#lib";
 
 /**
  * Slot classes for the alert-dialog overlay stack (ui-package-design §5). Mirrors the dialog skin:
@@ -16,18 +7,15 @@ const twMergeConfig = {
  * cancel/confirm buttons — the confirm slot wears the destructive intent (a `Button variant`), not
  * a color literal.
  */
-export const alertDialogVariants = tv(
-  {
-    slots: {
-      backdrop:
-        "fixed inset-0 z-(--z-modal) bg-scrim transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
-      viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto p-gutter",
-      popup:
-        "w-full max-w-cq-sm rounded-card border border-border bg-popover p-section text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
-      title: "text-title leading-title font-semibold",
-      description: "mt-field text-body leading-body text-muted-foreground",
-      actions: "mt-section flex items-center justify-end gap-row",
-    },
+export const alertDialogVariants = tv({
+  slots: {
+    backdrop:
+      "fixed inset-0 z-(--z-modal) bg-scrim transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
+    viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto p-gutter",
+    popup:
+      "w-full max-w-cq-sm rounded-card border border-border bg-popover p-section text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+    title: "text-title leading-title font-semibold",
+    description: "mt-field text-body leading-body text-muted-foreground",
+    actions: "mt-section flex items-center justify-end gap-row",
   },
-  { twMergeConfig },
-);
+});

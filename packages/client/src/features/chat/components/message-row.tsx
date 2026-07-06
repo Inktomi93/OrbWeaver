@@ -152,6 +152,13 @@ export function MessageRow({
     // `group` is the hover/focus hook UIP-305's message-actions-row reveals off (group-hover /
     // group-focus-within) — the actions cluster is opacity-0 at rest until this row is hovered/focused.
     <Stack
+      // `article` makes each message a countable/navigable unit (AT + Playwright `getByRole("article")`
+      // + agent nav); `data-message-id` is the stable per-message targeting handle (tests/automation
+      // address a specific message without scraping text). `aria-label` names the article by its speaker
+      // when the attribution shows one (grouped consecutive messages omit it — they inherit visually).
+      role="article"
+      aria-label={attribution.name ?? undefined}
+      data-message-id={message.id}
       gap="row"
       data-slot="message-row"
       data-role={role}

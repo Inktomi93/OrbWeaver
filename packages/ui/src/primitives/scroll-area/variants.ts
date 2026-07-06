@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Slot classes for the scroll-area (ui-package-design §5). Base UI hands us hover/scroll state on

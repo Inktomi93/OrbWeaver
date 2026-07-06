@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The badge/chip/pill skin — status token PAIRS on a rounded-full pill (ui-package-design §6.1).
 // There is no `info` color token (see theme.css), so `info` rides the accent surface pair — the

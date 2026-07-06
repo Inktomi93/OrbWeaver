@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The highlighted-text seal — plain body copy with real `<mark>` runs (ui-primitive carve-out
 // work-order item 11). The mark rides the dedicated `highlight` token pair (a highlighter-yellow,

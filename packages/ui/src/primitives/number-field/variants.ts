@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The number-field skin. Steppers are full size-touch-target squares (the ≥44px law — the brief's
 // touch floor applies to the increment/decrement buttons, §4b axis 3); rings go inset because the

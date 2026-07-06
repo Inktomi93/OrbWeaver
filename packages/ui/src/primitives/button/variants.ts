@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The button skin — tokens only (ui-package-design §5; D43 §11.4: no components/ui exemption).
 // Sizes ride the control-height tokens, so the ≥44px touch floor holds by construction (§4b axis 3).

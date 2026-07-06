@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * `<StatFigure>` skin — big number + optional delta + optional sparkline. The delta color is an

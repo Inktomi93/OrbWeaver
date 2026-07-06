@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The settings-surface row skin: label docked left, control docked right, an optional
 // info-glyph tooltip trigger, and an optional disabled-with-reason note (ui-package-design §6.1;

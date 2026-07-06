@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Slot classes for SaveBar (ui-package-design §6.1, work-order #22). Layout chrome ONLY: title +

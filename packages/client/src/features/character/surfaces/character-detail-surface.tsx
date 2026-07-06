@@ -8,6 +8,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -28,9 +29,9 @@ export function CharacterDetailSurface({ characterId }: CharacterDetailSurfacePr
       renderError={(_error, retry): ReactElement => (
         <Text tone="muted">
           Couldn't load this character.{" "}
-          <button type="button" onClick={retry}>
+          <Button intent="ghost" onClick={retry}>
             Retry
-          </button>
+          </Button>
         </Text>
       )}
     >

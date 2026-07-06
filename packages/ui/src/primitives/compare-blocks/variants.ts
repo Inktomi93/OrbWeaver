@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * The compare-blocks skin (work order item 8): before/after pairs get the FULL intent-token pair

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The grouped-controls skin — a reset <fieldset> (native border/padding/margin stripped) with a
 // Legend styled like the field label (ui-package-design §5).

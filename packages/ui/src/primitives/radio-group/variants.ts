@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The radio-group skin — a vertical stack of labeled options (rpg-design/11 §16, "who runs the
 // game"). Each item is a circle: bg-input/border-border at rest, primary fill + a light dot when

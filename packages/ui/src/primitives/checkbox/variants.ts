@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The checkbox skin — bg-input/border-border at rest; checked and indeterminate both flip to the
 // primary token with a glyph. The ::before pseudo lifts the hit area to the full touch-target

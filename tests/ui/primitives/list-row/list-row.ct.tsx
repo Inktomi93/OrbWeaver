@@ -141,3 +141,18 @@ test("renders the leading slot", async ({ mount, page }) => {
   await mount(<ListRow leading={<span data-testid="glyph">*</span>} title="Elara" />);
   await expect(page.getByTestId("glyph")).toBeVisible();
 });
+
+// Regression guard: the leading slot (avatar initials / icon) is DECORATIVE — it must NOT leak into
+// the row's accessible name. Before the `aria-hidden` on the leading wrapper, a fallback avatar made a
+// chat row announce as "UC Untitled chat owner, Niko" instead of "Untitled chat, owner Niko". The
+// leading glyph is still VISIBLE (in the DOM) but hidden from the accessibility tree, so `getByRole`
+// (Playwright, screen readers, agent nav) resolves the row by its title alone.
+test("leading slot is aria-hidden — its text never leaks into the row's accessible name", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ListRow clickable={true} leading={<span>ZZ</span>} title="Elara" />);
+  await expect(page.getByText("ZZ")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Elara", exact: true })).toBeVisible();
+  await expect(page.getByRole("button")).toHaveAccessibleName("Elara");
+});

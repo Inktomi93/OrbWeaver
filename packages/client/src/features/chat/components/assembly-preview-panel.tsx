@@ -12,6 +12,7 @@ import type { AssembleTrace } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -30,9 +31,9 @@ export function AssemblyPreviewPanel({ chatId }: AssemblyPreviewPanelProps): Rea
       renderError={(_error, retry): ReactElement => (
         <Stack gap="block">
           <Text tone="muted">Couldn't assemble the preview.</Text>
-          <button type="button" onClick={retry}>
+          <Button intent="ghost" onClick={retry}>
             Retry
-          </button>
+          </Button>
         </Stack>
       )}
     >

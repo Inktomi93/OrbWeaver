@@ -1,15 +1,4 @@
-import { tv } from "tailwind-variants";
-
-// Teach tailwind-merge the type-scale tokens: by default it classifies unknown `text-*` values as
-// COLORS, so `text-label` + `text-muted-foreground` "conflict" and the size token is silently
-// dropped (recorded tailwind-variants-v3 delta — hoist to #lib if a third copy appears).
-const twMergeConfig = {
-  extend: {
-    classGroups: {
-      "font-size": [{ text: ["display", "headline", "title", "body", "label", "code"] }],
-    },
-  },
-};
+import { tv } from "#lib";
 
 /**
  * Slot classes for the avatar (ui-package-design §5). Sizes ride the DISPLAY-avatar tokens
@@ -25,40 +14,37 @@ const twMergeConfig = {
  * `avatar.tsx`, so a given character always lands the same color; a loaded image covers the fallback,
  * so the hue only paints when initials show.
  */
-export const avatarVariants = tv(
-  {
-    slots: {
-      root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none",
-      image: "size-full object-cover",
-      fallback:
-        "flex size-full items-center justify-center text-label leading-label font-medium uppercase",
+export const avatarVariants = tv({
+  slots: {
+    root: "relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-muted align-middle select-none",
+    image: "size-full object-cover",
+    fallback:
+      "flex size-full items-center justify-center text-label leading-label font-medium uppercase",
+  },
+  variants: {
+    size: {
+      sm: { root: "size-avatar-sm" },
+      md: { root: "size-avatar-md" },
+      lg: { root: "size-avatar-lg" },
+      hero: { root: "size-avatar-hero" },
     },
-    variants: {
-      size: {
-        sm: { root: "size-avatar-sm" },
-        md: { root: "size-avatar-md" },
-        lg: { root: "size-avatar-lg" },
-        hero: { root: "size-avatar-hero" },
-      },
-      shape: {
-        round: { root: "rounded-full" },
-        square: { root: "rounded-control" },
-      },
-      // The 5 chart hues as fallback surfaces, each paired with the dark primary-foreground text
-      // (AA-verified against all five — see the doc-comment above). String keys so VariantProps stays
-      // string-typed; `avatar.tsx` computes the bucket and always passes it.
-      hue: {
-        "1": { fallback: "bg-chart-1 text-primary-foreground" },
-        "2": { fallback: "bg-chart-2 text-primary-foreground" },
-        "3": { fallback: "bg-chart-3 text-primary-foreground" },
-        "4": { fallback: "bg-chart-4 text-primary-foreground" },
-        "5": { fallback: "bg-chart-5 text-primary-foreground" },
-      },
+    shape: {
+      round: { root: "rounded-full" },
+      square: { root: "rounded-control" },
     },
-    defaultVariants: {
-      size: "md",
-      shape: "round",
+    // The 5 chart hues as fallback surfaces, each paired with the dark primary-foreground text
+    // (AA-verified against all five — see the doc-comment above). String keys so VariantProps stays
+    // string-typed; `avatar.tsx` computes the bucket and always passes it.
+    hue: {
+      "1": { fallback: "bg-chart-1 text-primary-foreground" },
+      "2": { fallback: "bg-chart-2 text-primary-foreground" },
+      "3": { fallback: "bg-chart-3 text-primary-foreground" },
+      "4": { fallback: "bg-chart-4 text-primary-foreground" },
+      "5": { fallback: "bg-chart-5 text-primary-foreground" },
     },
   },
-  { twMergeConfig },
-);
+  defaultVariants: {
+    size: "md",
+    shape: "round",
+  },
+});

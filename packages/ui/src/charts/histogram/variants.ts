@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /** `<Histogram>` wrapper skin — just the heading rhythm above the `<Chart>` canvas. */
 export const histogramVariants = tv({

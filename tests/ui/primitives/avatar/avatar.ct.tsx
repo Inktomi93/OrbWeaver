@@ -41,6 +41,25 @@ test("falls back when no image source is given", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="avatar-image"]')).toHaveCount(0);
 });
 
+// The initials fallback is DECORATIVE: still visible in the DOM, but aria-hidden so its letters never
+// leak into an accessible name (chat rows / message rows / cast bars all sit avatars beside a real text
+// label). A fallback-only avatar contributes NO accessible text — identity comes from the adjacent
+// label, or an `aria-label` when the avatar is the sole content of a control.
+test("the initials fallback is decorative (aria-hidden) — visible but not in the a11y name", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <button aria-label="Open the owner's profile" type="button">
+      <Avatar alt="Alex">NT</Avatar>
+    </button>,
+  );
+  const fallback = page.locator('[data-slot="avatar-fallback"]');
+  await expect(fallback).toBeVisible();
+  await expect(fallback).toHaveAttribute("aria-hidden", "true");
+  await expect(page.getByRole("button")).toHaveAccessibleName("Open the owner's profile");
+});
+
 test("shape variants map to the radius tokens", async ({ mount, page }) => {
   await mount(<Avatar alt="Round avatar">R</Avatar>);
   const root = page.locator('[data-slot="avatar-root"]');

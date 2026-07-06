@@ -97,7 +97,12 @@ export function ListRow({
         data-slot="list-row-body"
       >
         {leading === undefined ? null : (
-          <div className={slots.leading()} data-slot="list-row-leading">
+          // The leading slot (avatar/icon) is DECORATIVE in the row contract — the title/subtitle are
+          // the row's accessible name. `aria-hidden` keeps a fallback avatar's initials (or an image's
+          // alt) from leaking into the name (a chat row was announcing "UC Untitled chat owner, Niko"
+          // instead of "Untitled chat, owner Niko"). Leading never holds its own interactive content
+          // (that would nest inside the role="button" body — the a11y footgun this seal avoids).
+          <div className={slots.leading()} data-slot="list-row-leading" aria-hidden={true}>
             {leading}
           </div>
         )}

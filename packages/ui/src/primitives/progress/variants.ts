@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Slot classes for the progress bar (ui-package-design §5). Distinct from `<Meter>` (magnitude):

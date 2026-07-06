@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Separator skin — a token-colored hairline rule (`bg-border`, D43 §11.4). Orientation picks which
