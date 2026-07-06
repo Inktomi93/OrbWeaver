@@ -30,10 +30,19 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";
+import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
 import type { Trpc } from "./trpc";
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
 export type InvalidateFilter = InvalidateQueryFilters;
+
+/** The tRPC filter's dotted path (`queryKey [["chat","getChat"], …] → "chat.getChat"`) — the readable
+ *  key name the `[bus]` dev log + its dup alarm key off. Dev-only; shape-tolerant (never throws). */
+function filterKeyName(filter: InvalidateFilter): string {
+  const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey;
+  const path = Array.isArray(queryKey) ? queryKey[0] : undefined;
+  return Array.isArray(path) ? path.join(".") : "?";
+}
 
 export interface Invalidation {
   /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget. */
@@ -126,6 +135,12 @@ export function createInvalidation(deps: {
 }): Invalidation {
   const invalidateFilters = (filters: readonly InvalidateFilter[]): void => {
     for (const filter of filters) {
+      // [bus] dev alarm: same key twice inside the window is the storm signature. Catches BOTH a
+      // doubled bus delivery AND a mutation re-invalidating a key the bus already covers (both paths
+      // route here). IS_DEV-guarded so the name extraction folds out of prod.
+      if (IS_DEV) {
+        busDupCheck(filterKeyName(filter));
+      }
       // Fire-and-forget by design: refetch failures surface on the queries' own error state.
       void deps.queryClient.invalidateQueries(filter);
     }
@@ -138,7 +153,13 @@ export function createInvalidation(deps: {
         e: ChatBusEvent,
         t: Trpc,
       ) => readonly InvalidateFilter[];
-      invalidateFilters(handler(event, deps.trpc));
+      const filters = handler(event, deps.trpc);
+      // [bus] dev log: this canon event → the exact keys it refetched (the attribution the [trpc]
+      // channel can't give — it never sees the stream). Folds out of prod with IS_DEV.
+      if (IS_DEV) {
+        busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
+      }
+      invalidateFilters(filters);
     },
     invalidateFilters,
   };

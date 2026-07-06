@@ -2,7 +2,8 @@
 // ONE Intl site), notify (the ONE toast seam), message-render (the ONE display pipeline),
 // download-json (the ONE export-click helper), view-transition (the ONE hand-rolled VT wrapper),
 // test-ids (the typed registry), dev-flag (the ONE dev/prod discriminant), log-clock + trpc-devlog
-// (the [trpc] console channel — ships, its ERROR lines fire in prod), render-profiler (the [perf]
+// (the [trpc] console channel — ships, its ERROR lines fire in prod), bus-devlog (the [bus] console
+// channel — the SSE bus's peer to [trpc]; IS_DEV-gated, prod-inert), render-profiler (the [perf]
 // commit half — prod-inert), probe-mode (the harness-determinism flag — ships, runtime-gated,
 // features read it to freeze wall-clock-relative text under snap), error-boundary + client-error-report
 // (PD-58: the app-level catch + its pure report-payload builder — both ship in prod; the tRPC wire call
@@ -14,6 +15,7 @@
 export type { TimeLib, TimeLibConfig } from "@orb/kit/time";
 export { createTimeLib } from "@orb/kit/time";
 export { cn } from "@orb/ui/lib";
+export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
 export type { ClientErrorPayload } from "./client-error-report";
 export { buildClientErrorPayload } from "./client-error-report";
 export { IS_DEV } from "./dev-flag";
