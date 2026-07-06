@@ -23,8 +23,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useTRPC } from "#data";
-import { useInvalidation } from "../hooks/use-invalidation";
+import { useInvalidation, useTRPC } from "#data";
 import {
   useForceCharacterTurn,
   useSetParticipantDisabled,

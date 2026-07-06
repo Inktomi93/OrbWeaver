@@ -40,7 +40,7 @@ import {
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import {
   committedChat,
   enterSelectionMode,
@@ -51,7 +51,6 @@ import {
 } from "#state";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
 import { useGuidedActions } from "../hooks/use-guided-actions";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 /** Label per impersonate person word (the composer-wand `PERSON_LABEL` precedent — a `Record` dispatch,
  *  spine §5.5, so a new person word fails `tsc` here). */

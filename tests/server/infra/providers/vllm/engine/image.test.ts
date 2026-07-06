@@ -9,7 +9,9 @@ describe("sniffMime", () => {
   test("recognizes the formats CAS assets hold by their magic bytes", () => {
     expect(sniffMime(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe("image/png");
     expect(sniffMime(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
-    expect(sniffMime(new Uint8Array([0x47, 0x49, 0x46, 0x38]))).toBe("image/gif");
+    // Full 6-byte GIF89a magic — the unified @orb/kit/image-sniff table (PD-123) requires the complete
+    // "GIF87a"/"GIF89a" tag, not vllm's old 3-byte "GIF" prefix (a real GIF always carries all six).
+    expect(sniffMime(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBe("image/gif");
   });
 
   test("recognizes WEBP by its marker at offset 8 (RIFF....WEBP)", () => {

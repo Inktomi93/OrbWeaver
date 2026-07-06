@@ -13,10 +13,9 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
-import { createEntityMutation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted, subscribeUserMessageCommitted } from "#state";
-import { useInvalidation } from "./use-invalidation";
 
 // `DraftSeed` now lives in `state/active-chat-store.ts` (state owns the seed like it owns `ChatHandle`
 // — one-directional flow). Re-exported here so this hook's own consumers (composer.tsx,

@@ -24,14 +24,13 @@ import { Stack } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { createEntityMutation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import {
   exitSelectionMode,
   readSelectedMessageIds,
   useSelectedCount,
   useSelectionActive,
 } from "#state";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 interface DeleteVars {
   readonly chatId: ChatId;

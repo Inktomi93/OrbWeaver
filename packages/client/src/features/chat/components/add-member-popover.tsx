@@ -26,8 +26,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
-import { useInvalidation } from "../hooks/use-invalidation";
+import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useAddCharacterToChat } from "../hooks/use-roster-mutations";
 import { initialsForAttribution } from "../lib/attribution";
 

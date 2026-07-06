@@ -21,3 +21,4 @@ export { createAppQueryClient } from "./query-client";
 export type { Trpc } from "./trpc";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc";
 export { useGatedQuery } from "./use-gated-query";
+export { useInvalidation } from "./use-invalidation";

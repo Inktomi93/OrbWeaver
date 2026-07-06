@@ -15,9 +15,9 @@ import type { AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@or
 import type { Db } from "@orb/db";
 import { assets, galleryItems } from "@orb/db";
 import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
+import { sniffMime } from "@orb/kit/image-sniff";
 import { and, desc, eq, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
-import { sniffMime } from "../substrate/mime";
 
 const LIMIT_ONE = 1;
 const OCTET_STREAM = "application/octet-stream";

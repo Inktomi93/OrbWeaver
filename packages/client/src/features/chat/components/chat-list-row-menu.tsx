@@ -28,14 +28,13 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import {
   useArchiveChat,
   useDeleteChat,
   useStarChat,
   useUpdateChatTitle,
 } from "../hooks/use-chat-row-mutations";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 export interface ChatListRowMenuProps {
   readonly chatId: ChatId;

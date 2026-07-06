@@ -7,48 +7,28 @@
 //
 // base64 data URIs score/embed IDENTICALLY to remote URLs (measured cosine 1.000000) AND keep the loopback
 // engine off the network, so we always send data URIs rather than passing a URL through.
+//
+// MIME SNIFF (PD-123): the signature table is `@orb/kit/image-sniff`'s `sniffMime` — the SAME table the
+// assets domain uses (PD-29/D61 B5a: "infra and assets share ONE table"). That shared helper is STRICT
+// (unrecognized bytes → `application/octet-stream`, never a guess). This site's own images are NOT
+// necessarily CAS-validated (vision-turn / rerank / image-embed inputs can be arbitrary caller bytes), and
+// an `octet-stream` data URI would silently break the vision model's image decode — so the png default
+// stays HERE, applied locally to kit's strict result, rather than baked into the shared primitive.
 
 import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import type { ImageInput } from "@orb/contracts/role-clients";
+import { sniffMime as sniffMimeStrict } from "@orb/kit/image-sniff";
 
 const DEFAULT_MIME = "image/png";
-const HEX_CHARS_PER_BYTE = 2;
-// RIFF<size>WEBP — the "WEBP" marker sits 8 bytes in, not at the file head.
-const WEBP_MARKER_OFFSET = 8;
+const OCTET_STREAM = "application/octet-stream";
 
-/** One magic-byte signature: the hex of the identifying leading bytes at a fixed offset. Hex (not numeric
- *  literals) keeps the file-format magic out of `noMagicNumbers`'s way — the bytes are data, not constants. */
-interface MagicSignature {
-  readonly mime: string;
-  readonly at: number;
-  readonly hex: string;
-}
-
-const SIGNATURES: readonly MagicSignature[] = [
-  { mime: "image/png", at: 0, hex: "8950" },
-  { mime: "image/jpeg", at: 0, hex: "ffd8" },
-  { mime: "image/gif", at: 0, hex: "474946" },
-  { mime: "image/webp", at: WEBP_MARKER_OFFSET, hex: "574542" },
-];
-
-function matches(bytes: Uint8Array, sig: MagicSignature): boolean {
-  const end = sig.at + sig.hex.length / HEX_CHARS_PER_BYTE;
-  if (bytes.length < end) {
-    return false;
-  }
-  return Buffer.from(bytes.subarray(sig.at, end)).toString("hex") === sig.hex;
-}
-
-/** Magic-byte MIME sniff for the image formats CAS assets hold; defaults to png (the dominant card format,
- *  and CAS assets are validated images, so a miss is a safe fallback rather than a corruption). */
+/** Magic-byte MIME sniff for the image formats this engine sends; defaults to png (the dominant card
+ *  format) on an unrecognized signature — unlike the shared strict primitive, a miss here is a safe
+ *  fallback for the data-URI path rather than a corruption signal (see header). */
 export function sniffMime(bytes: Uint8Array): string {
-  for (const sig of SIGNATURES) {
-    if (matches(bytes, sig)) {
-      return sig.mime;
-    }
-  }
-  return DEFAULT_MIME;
+  const detected = sniffMimeStrict(bytes);
+  return detected === OCTET_STREAM ? DEFAULT_MIME : detected;
 }
 
 /** {@link ImageInput} (bytes or a filesystem path) → a base64 data URI the engine consumes directly. */

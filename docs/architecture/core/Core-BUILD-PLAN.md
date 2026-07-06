@@ -15,14 +15,16 @@ updated: 2026-07-05
 > with **chat + memory LAST** behind the differential oracle. The cake was validated at resolve-time on
 > the empty tree (Phase 0) before any feature code existed.
 >
-> **Progress (2026-07-03): Phases 0–5 BUILT** (all checkpoints green) — with ONE Phase-5 seam still open:
+> **Progress (2026-07-05): Phases 0–5 BUILT** (all checkpoints green) — with ONE Phase-5 seam still open:
 > the **OpenAI-path tool-loop (D48)** is not built (`domain/chat/engine/pipeline.ts` marks it the next
 > chunk). **Phase 6 IN PROGRESS:** `@orb/ui` built + the primitive fleet integrated; the client
-> feature-slice scaffold + gates landed and the base site boots; the feature surfaces are the remaining
-> work. **Phase 7 PARTIAL:** `domain/imagery` + gallery v1/v2 landed early (D47#1/D49#2); tool-use ·
-> databank · expressions pending. **Phase 8 not started.** The **D60 agent-principal waves** ride
-> alongside: AP0–AP2 landed; the AP3+ seat wave is pending (PD-17). Remaining targets: the `ready` rows
-> in `Core-Audits-and-Debt.md`.
+> feature-slice scaffold + gates landed and the base site boots; **the D62 revamp lanes L0–L6 are all
+> LANDED** (`fa0d2e3` · `18383f8` · `0076f31` · `1f3a967` · `3cad8a0` · `ab54d38` · `9de07ab`) — the
+> whole shell/polish revamp is done, desktop + mobile. **Remaining Phase-6 work = L7 parity buildout**
+> (Presets first) + the §8 micro-polish. **Phase 7 PARTIAL:** `domain/imagery` + gallery v1/v2 landed
+> early (D47#1/D49#2); tool-use · databank · expressions pending. **Phase 8 not started.** The **D60
+> agent-principal waves** ride alongside: AP0–AP2 landed; the AP3+ seat wave is pending (PD-17).
+> Remaining targets: the `ready` rows in `Core-Audits-and-Debt.md`.
 >
 > Phases 6–8 depend only on Phase 5 — parallel post-chat tracks; the numbering is suggested priority
 > (make chat usable → features → scripting), not a hard chain.
@@ -79,7 +81,7 @@ D44 gates, tokens → Tailwind `@theme`. **`@orb/client`** scaffold — the feat
 `client-structure`/`component-size`/feature-isolation gates, vite entry + hand-written router tree; the
 base site boots.
 
-**Remaining — the D62 lane sequence (ledger D62; step-level detail lives in the D62 program docs:
+**The D62 lane sequence (ledger D62; step-level detail lives in the D62 program docs:
 `proposed/ui-polish-punchlist.md` · `proposed/ux-flow-revamp.md` (J1–J12 + the parity map) ·
 `proposed/design-enforcement.md`). The standing rules for every lane:** feature-slice ·
 surfaces/anchors · `state:files` · intent tokens · container-driven layout (`@media` only in
@@ -88,34 +90,38 @@ brief cites its law rows (§4.1–§4.3), ends with verify snaps, updates the go
 same commit, and pastes the §4.3 Tier-C checklist. Lanes L0→L4 are strictly ordered; L5/L6 hang off
 L1/L2; L7 tracks server-domain availability.
 
-1. **L0 — tokens** (dispatchable NOW; rulings P1/P2 decided): the corrected Hearth palette
+**L0–L6 are LANDED (2026-07-05)** — the whole shell/polish revamp, desktop + mobile. The seven rows
+below are now the history record (each ends with its landing commit); **L7 is the only remaining
+Phase-6 lane.**
+
+1. **L0 — tokens — DONE (`fa0d2e3`).** Rulings P1/P2 decided: the corrected Hearth palette
    (UIP-101) · pointer-conditional control heights (UIP-102 — coarse 44px floor / fine 28-34-40) ·
    the micro/tracking type pair · the avatar display-size trio · `--color-info`/`--glow`/
    `--shadow-overlay`. Same commit: `touch-target-floor` re-scope + the §4b axis-3/`tokens.json`
    `$description` wording + AA re-check.
-2. **L1 — primitive deltas** (`ux-flow-revamp.md` §4, under the §13.7/§13.8 contract): new `kbd` ·
+2. **L1 — primitive deltas — DONE (`18383f8`)** (`ux-flow-revamp.md` §4, under the §13.7/§13.8 contract): new `kbd` ·
    `Text` micro/caps · `Avatar` sizes+hue · `Dialog` widths+`full` · `EmptyState` action/decoration ·
    `Skeleton` shimmer · `Button` secondary-bordered/ghost-muted (P5) · Tabs underline · weave-glyph
    re-home to `client/src/lib/`. Plus the remaining client-foundation belts: the D62 lanes are
    feature agents, so per §11.7 ALL §8-PARKED belts + the D62 design-gate set activate in/with this
    wave. **The CI browser lane activates here** (ci.yml has none — install browsers + run
    `playwright test`; prerequisite for the ARIA/screenshot goldens).
-3. **L2 — shell chrome** (punchlist §2 + J3 header slot): rail polish + grouped sections ·
+3. **L2 — shell chrome — DONE (`0076f31`)** (punchlist §2 + J3 header slot): rail polish + grouped sections ·
    kill the triple-title (panel header = list header row) · topbar identity header + ⌘K chip ·
    context-panel header · the document-scroll-leak fix (UIP-205) · `SECTION_PANEL_DEFAULTS`.
-4. **L3 — flow spine** (J1/J2/J4/J5): the landing surface (`{kind:landing}` — the committed
+4. **L3 — flow spine — DONE (`1f3a967`)** (J1/J2/J4/J5): the landing surface (`{kind:landing}` — the committed
    welcome screen, P4) · the new-chat character picker (multi-select founds groups —
    `startChat(characterIds[])` already plural) · the real ⌘K palette over `@orb/ui/command` ·
    chat-list `ListRow` rows + search + row kebab (**this lane routes the four chat-lifecycle
    procedures** — title/star/archive/delete exist on `ChatService` but not in
    `transport/trpc/routers/chat.ts`; thin pass-through, D62). ARIA + screenshot goldens land on
    these states in the same lane.
-5. **L4 — chat room** (J3/J6/J7 + punchlist §3): the 65–75ch thread column · hover-reveal message
+5. **L4 — chat room — DONE (`3cad8a0`)** (J3/J6/J7 + punchlist §3): the 65–75ch thread column · hover-reveal message
    actions (+ coarse-pointer/`:focus-within` fallbacks) · pill composer · chat header ⋯ options
    menu · bulk-select (`selection-bar` + `state/message-selection-store.ts`) · cast-bar `+`
    add-member · **reasoning-block effort picker** (D41 data exists) · **inline image display**
    (`message-media` wiring) · **token-counter panel** (CONTEXT tab, over `@orb/kit/tokens`).
-6. **L5 — sections & modals** (J8–J11 + punchlist §4/§5): distinct Weave placeholders per section ·
+6. **L5 — sections & modals — DONE (`ab54d38`)** (J8–J11 + punchlist §4/§5): distinct Weave placeholders per section ·
    character detail card (J9; the editor is its own follow-on lane — `createSavedEntityForm`, with
    `proposed/character-snapshot-ux.md` + the parity-map satellite dialogs riding it) · corpus
    interim search (J10) · the settings full-bleed overlay shell (J11 — Appearance pane migrates
@@ -123,11 +129,12 @@ L1/L2; L7 tracks server-domain availability.
    descriptor-driven params half when credentials UI arrives) · the interim theme picker
    (Hearth/Mocha/Light) — the full theme EDITOR rides **`proposed/themes-design.md`** (server
    `themes` entity + `createSavedEntityForm`) as a follow-on.
-7. **L6 — mobile** (J12, P3): bottom tab bar (Chats · Characters · Corpus · You) · land-on-CONTENT ·
+7. **L6 — mobile — DONE (`9de07ab`)** (J12, P3): bottom tab bar (Chats · Characters · Corpus · You) · land-on-CONTENT ·
    sheet polish · `interactive-widget=resizes-content` + safe-area audit · the §4.1 `MOBILE:`
    D-ledger amendment ships in this lane.
-8. **L7 — parity growth** (the `ux-flow-revamp.md` §3 map is the authority; each row cites its
-   decided home; build by product priority as server domains allow): **Presets section** (P6; +
+8. **L7 — parity growth — REMAINING (the only open Phase-6 lane)** (the `ux-flow-revamp.md` §3 map is
+   the authority; each row cites its decided home; build by product priority as server domains
+   allow): **Presets section** (P6; +
    prompt-manager Prompt tab; **`proposed/preset-form-mapper-elimination.md`** is a lane rule for
    its editor — no flat-form mapper) → **World Info section** (P6; four activation sources per the
    map) → **character EDITOR** (+ import UI over the built card parsers; tag management modal —
@@ -150,8 +157,9 @@ goldens (ARIA + screenshots) ARE the visual-regression gate this phase committed
 
 **✅ Checkpoint:** the full stack runs end-to-end; client component + e2e tests green (incl. the
 shell-structure goldens); the UI-boundary physics hold (an app→raw-primitive import fails to
-resolve); L0–L5 landed = the app opens on the landing, every section has a distinct surface or
-teaching state, and no modal ships a sparkle placeholder.
+resolve); **L0–L6 landed** = the app opens on the landing, every section has a distinct surface or
+teaching state, no modal ships a sparkle placeholder, and mobile reflows to the bottom tab bar.
+**Remaining for the phase: L7 parity growth** (Presets first) + the §8 micro-polish.
 
 ---
 

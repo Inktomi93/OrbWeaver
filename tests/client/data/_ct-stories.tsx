@@ -7,17 +7,17 @@
 import {
   createCollectionSurface,
   createEntityMutation,
-  createInvalidation,
   QueryBoundary,
   useGatedQuery,
+  useInvalidation,
   useTRPC,
 } from "@orb/client/data";
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
 import { CtDataProviders } from "../../support/ct/ct-data-providers";
 
 // The suspending read under test: a REAL procedure (`echo` — transport/trpc/router.ts loose public
@@ -72,6 +72,48 @@ export function GatedQueryStory({ chatId }: { readonly chatId: ChatId | null }):
   return (
     <CtDataProviders>
       <GatedReader chatId={chatId} />
+    </CtDataProviders>
+  );
+}
+
+// ── useInvalidation — the hoisted React accessor (data/use-invalidation.ts, PD-124): proves the
+//    hook itself wires the LIVE `useTRPC()`/`useQueryClient()` context into `createInvalidation`
+//    end-to-end (never a hand-built `{ queryClient, trpc }` pair), the exact seam every feature
+//    (chat + settings) now shares instead of each re-deriving it. ─────────────────────────────────
+
+function InvalidationReader({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const { invalidate } = useInvalidation();
+  const query = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  return (
+    <div>
+      <p data-testid="invalidation-state">{query.data.title ?? "untitled"}</p>
+      <button
+        type="button"
+        onClick={(): void => {
+          const event: ChatBusEvent = {
+            type: "messageCommitted",
+            chatId,
+            messageId: castId("msg_ctinvalidation01"),
+          };
+          invalidate(event);
+        }}
+      >
+        invalidate
+      </button>
+    </div>
+  );
+}
+
+export function InvalidationStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary
+        fallback={<p>loading…</p>}
+        renderError={(e): ReactElement => <p>{String(e)}</p>}
+      >
+        <InvalidationReader chatId={chatId} />
+      </QueryBoundary>
     </CtDataProviders>
   );
 }
@@ -156,11 +198,7 @@ const useCreateTagOptimistic = createEntityMutation<CreateTagVars, TagView, TagV
 
 function TagCreateOptimisticInner(): ReactElement {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const invalidation = useMemo(
-    () => createInvalidation({ queryClient, trpc }),
-    [queryClient, trpc],
-  );
+  const invalidation = useInvalidation();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTags.queryOptions());
   const mutation = useCreateTagOptimistic({ trpc, invalidation });
 
@@ -203,11 +241,7 @@ const useCreateTagVariables = createEntityMutation<CreateTagVars, TagView>({
 
 function TagCreateVariablesInner(): ReactElement {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
-  const invalidation = useMemo(
-    () => createInvalidation({ queryClient, trpc }),
-    [queryClient, trpc],
-  );
+  const invalidation = useInvalidation();
   const mutation = useCreateTagVariables({ trpc, invalidation });
 
   return (
