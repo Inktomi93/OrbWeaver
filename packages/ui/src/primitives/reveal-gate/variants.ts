@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * Slot classes for the reveal-gate (ui-package-design §6.1 / work-order #17). This is a

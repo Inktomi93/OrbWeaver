@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The avatar-stack skin — a flex row of overlapping `<Avatar>`s (contract §6.1 item 9). The ring
 // is the overlap SEPARATOR (each avatar's edge reads clean against the next), not a color signal.

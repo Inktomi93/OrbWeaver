@@ -17,6 +17,10 @@ import type { PanelMode, PanelName } from "#state";
 
 export interface PanelChromeProps {
   readonly panel: PanelName;
+  /** Accessible name for the panel's `complementary` landmark — distinguishes the LIST aside from the
+   *  CONTEXT aside for AT + Playwright/agent nav (`getByRole("complementary", { name })`). The route
+   *  passes the section label for LIST and "Details" for CONTEXT. */
+  readonly label?: string;
   /** Header content — an entity/detail header node. `undefined` renders NO header row (the LIST panel:
    *  its list surface owns the title, the topbar owns the collapse — UIP-202). */
   readonly header?: ReactNode;
@@ -31,6 +35,7 @@ export interface PanelChromeProps {
 
 export function PanelChrome({
   panel,
+  label,
   header,
   collapseLabel,
   mode,
@@ -41,6 +46,7 @@ export function PanelChrome({
   return (
     <aside
       className="shell-panel"
+      aria-label={label}
       data-panel-mode={mode}
       data-panel-side={panel}
       // A collapsed panel is translated off-screen: hide it from AT + the tab order so a keyboard

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The sortable skin (ui-package-design §6.1 item 15; contract §2). @dnd-kit/react drives the
 // FLIP-style reposition transform + isDragging/isDropping state as inline styles/data-* — the tv()

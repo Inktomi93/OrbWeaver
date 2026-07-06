@@ -15,6 +15,7 @@
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
+import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -77,9 +78,9 @@ export function AppearanceSettingsSurface(): ReactElement {
       renderError={(_error, retry): ReactElement => (
         <Text tone="muted">
           Couldn't load your appearance settings.{" "}
-          <button type="button" onClick={retry}>
+          <Button intent="ghost" onClick={retry}>
             Retry
-          </button>
+          </Button>
         </Text>
       )}
     >

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The list-row skin — the slot-based entity row every list surface composes (library, presets,
 // rules, plugins, databank docs, rosters — ui-package-design §12 Wave-3-C). `body` is the ONE

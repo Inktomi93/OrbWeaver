@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The textarea skin — the Input token skin, multi-line: a min-height on the control-lg scale and
 // native `field-sizing: content` autosize (the 2026 CSS way — D54; no JS measuring).

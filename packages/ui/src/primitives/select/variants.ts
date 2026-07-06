@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The select skin — slots across the sealed anatomy (trigger in-flow; positioner/popup portaled).
 // Popup rides bg-popover + z-(--z-overlay) (the stacking contract); items meet the touch floor.

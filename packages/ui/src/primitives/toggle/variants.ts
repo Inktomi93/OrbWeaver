@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The toggle skin — a pressable on/off button (bold/italic-style controls). Muted at rest; the
 // pressed state (data-pressed) flips to bg-accent (or bg-primary for the primary intent). Sizes

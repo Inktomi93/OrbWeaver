@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The crossfade-image skin — a `bg-muted` box (so a null/not-yet-loaded src still reads as a
 // placeholder, not a hole) housing two absolutely-positioned `<img>` layers stacked on top of each

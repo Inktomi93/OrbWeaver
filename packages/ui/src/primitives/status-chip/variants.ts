@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The status-chip skin — a layout wrapper around a composed Badge/Spinner/Button (contract §6.1
 // item 7). Badge/Spinner already own their own token-color skins; this variant only sizes the

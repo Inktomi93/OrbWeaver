@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // Card is a generic SURFACE, not a domain card — features (character cards, config panels)
 // compose it (ui-package-design §6.1).

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The media-grid cell skin (ui-package-design §6.1 / work-order #6). Cells are square (aspect
 // reserved by the grid host, not by the image) so nothing shifts while thumbnails lazy-load. The

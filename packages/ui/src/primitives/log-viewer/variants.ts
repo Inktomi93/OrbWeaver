@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The log-viewer skin (ui-package-design §6.1 item 12 — a read-only monospace panel; NOT the
 // code-editor seal). `level` tints a line's text; its glyph inherits the same color via

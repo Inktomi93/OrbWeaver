@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // Pressed state lives on the child <Toggle>s themselves — don't add a pressed variant here.
 export const toggleGroupVariants = tv({

@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 /**
  * The tool-call-block skin (work order item 14 / D48) — a card-surface `<details>` disclosure.

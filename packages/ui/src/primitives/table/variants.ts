@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The table skin — a hand-rolled data-grid (NO @tanstack/react-table: v8's useReactTable returns
 // an interior-mutable instance the React Compiler can only tolerate behind "use no memo", which

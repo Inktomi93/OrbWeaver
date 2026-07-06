@@ -1,7 +1,7 @@
 // @orb/ui/layout variants — the intent-token mapping layer (UI-Arch §4; ui-package-design §6.1).
 // layout/ is the gate-allowlisted home that DEFINES the spacing-intent mapping: gap/padding variant
 // unions here are the ONLY place the intent scale is written; features consume the variants.
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 const GAP = {
   field: "gap-field",

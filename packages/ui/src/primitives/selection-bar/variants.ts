@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The selection-bar skin — bulk-action chrome (ui-package-design §12 Wave 3-C; work-order #21).
 // `placement` swaps sticky-to-scroll-container (pinned to a list's bottom edge, e.g. a message or

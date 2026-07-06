@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The color-field skin: `swatch` is the plain chip (shared by the display-only ColorSwatch and the
 // editable ColorField's trigger), `swatchTrigger` adds the button affordance (focus ring, disabled,

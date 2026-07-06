@@ -22,6 +22,7 @@
 // `ChatCastBar`'s identical `cast.length <= 1 → null` size-gate for the member-visible glance strip.
 
 import type { ChatId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -48,9 +49,9 @@ export function ChatContextPanel({ chatId }: ChatContextPanelProps): ReactElemen
       renderError={(_error, retry): ReactElement => (
         <Text tone="muted">
           Couldn't load chat details.{" "}
-          <button type="button" onClick={retry}>
+          <Button intent="ghost" onClick={retry}>
             Retry
-          </button>
+          </Button>
         </Text>
       )}
     >
@@ -123,9 +124,9 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
           renderError={(_error, retry): ReactElement => (
             <Text tone="muted">
               Couldn't load injections.{" "}
-              <button type="button" onClick={retry}>
+              <Button intent="ghost" onClick={retry}>
                 Retry
-              </button>
+              </Button>
             </Text>
           )}
         >

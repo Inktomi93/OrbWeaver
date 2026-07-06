@@ -91,10 +91,16 @@ export function Avatar(props: AvatarProps): ReactElement {
           src={src}
         />
       )}
+      {/* The initials fallback is a DECORATIVE visual stand-in for a missing image — it is `aria-hidden`
+          so its letters never leak into an accessible name (a chat row announced "UC Untitled chat…",
+          a message row "N Niko"). The real identity is always adjacent text or, when an image loads,
+          the `Image` `alt` (untouched). An avatar that IS the sole label of a control must carry its own
+          `aria-label` — initials were never a usable name anyway. */}
       <BaseAvatar.Fallback
         className={slots.fallback()}
         data-slot="avatar-fallback"
         delay={fallbackDelay}
+        aria-hidden={true}
       >
         {children}
       </BaseAvatar.Fallback>

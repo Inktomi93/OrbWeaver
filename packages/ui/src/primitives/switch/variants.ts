@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The switch skin. The visible track is h-section × w-touch-target; the ::before pseudo extends
 // the hit area to a full size-touch-target square, so the ≥44px touch floor holds without a giant

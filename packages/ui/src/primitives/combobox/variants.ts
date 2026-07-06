@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The multi-select combobox skin — chips render as pills flowing inline with the draft input
 // inside ONE wrapping box (`chips` rides `contents` so its children become direct flex items of

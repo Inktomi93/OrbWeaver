@@ -1,4 +1,4 @@
-import { tv } from "tailwind-variants";
+import { tv } from "#lib";
 
 // The dropzone skin. The native `<input type="file">` is the topmost element (absolutely
 // positioned, opacity-0, covering the full box) so every click/keyboard/drop interaction lands on

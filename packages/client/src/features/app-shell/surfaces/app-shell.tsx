@@ -105,7 +105,7 @@ export function AppShell({
 
         {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
             toggle owns the collapse. */}
-        <PanelChrome panel="list" mode={layout.listMode}>
+        <PanelChrome panel="list" label={layout.activeSectionLabel} mode={layout.listMode}>
           <RegionAnchor region="list">{listContent}</RegionAnchor>
         </PanelChrome>
 
@@ -121,13 +121,16 @@ export function AppShell({
             onToggleFocus={layout.toggleFocus}
             onOpenCommand={(): void => openModal("command")}
           />
-          <div className="shell-content">
+          {/* CONTENT is the ONE `main` landmark (a11y + Playwright/agent nav: "jump to main",
+              `getByRole("main")`) — the topbar banner is its sibling, never inside it. */}
+          <main className="shell-content">
             <RegionAnchor region="content">{content}</RegionAnchor>
-          </div>
+          </main>
         </div>
 
         <PanelChrome
           panel="context"
+          label="Details"
           header={
             contextHeader ?? (
               <Text size="label" weight="medium" tone="muted">
