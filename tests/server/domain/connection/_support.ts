@@ -124,6 +124,9 @@ export function makeConnHarness(db: Db): ConnHarness {
     get vllmAvailable(): boolean {
       return vllmAvailable;
     },
+    // Mirrors the compose `requireOwner`-over-`can` boolean; test code may spell the role (the
+    // owner-role-split gate scans only packages/server/src).
+    isOwner: (p) => p.role === "owner",
   };
 
   return {
