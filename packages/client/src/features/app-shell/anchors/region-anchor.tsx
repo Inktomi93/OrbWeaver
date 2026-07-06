@@ -7,6 +7,7 @@
 
 import { Container } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
+import { RenderProfiler } from "#lib";
 
 // File-local, tuple-derived (Spine string-union discipline §5.5 — declared once, not an inline
 // re-spelled union; not exported — callers pass the literal `region="content"`).
@@ -21,7 +22,9 @@ export interface RegionAnchorProps {
 export function RegionAnchor({ region, children }: RegionAnchorProps): ReactElement {
   return (
     <Container name={region} className="shell-region-fill">
-      {children}
+      {/* Per-region <Profiler> boundary → the render heatmap (`window.__orb.renders()`, dev-only; bare
+          children in prod). Gives content/list/context render frequency + cost with one wrapper. */}
+      <RenderProfiler id={`region:${region}`}>{children}</RenderProfiler>
     </Container>
   );
 }

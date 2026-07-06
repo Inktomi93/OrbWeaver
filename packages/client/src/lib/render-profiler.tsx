@@ -19,6 +19,7 @@ import type { ProfilerOnRenderCallback, ReactNode } from "react";
 import { Profiler } from "react";
 import { IS_DEV } from "./dev-flag";
 import { logClock } from "./log-clock";
+import { recordRender } from "./render-stats";
 
 const SLOW_COMMIT_MS = 12;
 
@@ -26,6 +27,10 @@ const PERF_STYLE = "color:#c60;font-weight:bold";
 const MUTED_STYLE = "color:#888";
 
 const onRender: ProfilerOnRenderCallback = (id, phase, actualDuration) => {
+  // Every commit feeds the render heatmap (render-stats.ts → `window.__orb.renders()`): the DATA behind
+  // React DevTools' "highlight updates" overlay, which isn't page-hookable for an agent.
+  recordRender(id, phase, actualDuration);
+  // Slow commits ALSO warn to the `[perf]` console channel (the long-task tracer's commit-attribution peer).
   if (actualDuration < SLOW_COMMIT_MS) {
     return;
   }
