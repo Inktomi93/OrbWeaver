@@ -1,7 +1,9 @@
-// character-card — one library row: avatar + name + the accepted (non-hidden-on-card) tag chips, plus an
-// "Archived" badge when applicable (`character.list` returns archived rows too — persistence/queries.ts —
-// so the row stays honest about it rather than silently hiding data). Pure leaf, no data fetching (props
+// CharacterCardTile — one library row: avatar + name + the accepted (non-hidden-on-card) tag chips, plus
+// an "Archived" badge when applicable (`character.list` returns archived rows too — persistence/queries.ts
+// — so the row stays honest about it rather than silently hiding data). Pure leaf, no data fetching (props
 // in, `onToggleSelect` out) — composed ONLY from `@orb/ui` primitives (compose-only, UI-Primitives §13).
+// Named `*Tile` (not `CharacterCard`) — PD-126: `@orb/contracts` owns `CharacterCard` as the ST wire-card
+// wire type; this is the React collection-row component, disambiguated to avoid the same-name collision.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
@@ -27,7 +29,7 @@ export interface CharacterCardItem {
   readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
 }
 
-export interface CharacterCardProps {
+export interface CharacterCardTileProps {
   readonly character: CharacterCardItem;
   readonly selected: boolean;
   /** DORMANT bulk-select seam (a future character-bulk-ops lane wires it, the message-selection precedent):
@@ -45,12 +47,12 @@ export interface CharacterCardProps {
 /** One character row — the library list's `renderItem` output (see `<VirtualList>` in the surface). */
 // `onToggleSelect` is intentionally NOT destructured — it's the dormant bulk-select seam (kept on the
 // interface for the future bulk-ops lane, unwired today). The card's primary click drives `onSelect`.
-export function CharacterCard({
+export function CharacterCardTile({
   character,
   selected,
   onSelect,
   onStartChat,
-}: CharacterCardProps): ReactElement {
+}: CharacterCardTileProps): ReactElement {
   const visibleTags = character.tags.filter((tag) => !tag.isHiddenOnCard);
   const hasChips = character.archived || visibleTags.length > 0;
   // `exactOptionalPropertyTypes`: `src?: string` rejects an explicit `undefined` — omit the prop

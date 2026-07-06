@@ -132,6 +132,79 @@ describe("cardFromJson", () => {
   });
 });
 
+describe("residualData (PD-127 — unknown top-level data.* keys)", () => {
+  test("cardFromJson captures unknown top-level data.* keys ST-V3 puts there", () => {
+    const v3 = {
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: {
+        name: "Aria",
+        source: ["https://example.com/aria.png"],
+        creation_date: 1_700_000_000,
+        creator_notes_multilingual: { en: "hi", fr: "salut" },
+        nickname: "Ari",
+        group_only_greetings: ["*waves to the group*"],
+      },
+    };
+    const card = cardFromJson(v3, "fallback");
+    expect(card.residualData).toEqual({
+      source: ["https://example.com/aria.png"],
+      creation_date: 1_700_000_000,
+      creator_notes_multilingual: { en: "hi", fr: "salut" },
+      nickname: "Ari",
+      group_only_greetings: ["*waves to the group*"],
+    });
+  });
+
+  test("no residual data.* keys → null (not an empty object)", () => {
+    const card = cardFromJson({ data: { name: "Bram" } }, "fallback");
+    expect(card.residualData).toBeNull();
+  });
+
+  test("round-trip: import → export preserves unknown top-level data.* keys byte-for-byte", () => {
+    const imported = cardFromJson(
+      {
+        spec: "chara_card_v3",
+        spec_version: "3.0",
+        data: {
+          name: "Aria",
+          source: ["https://example.com/aria.png"],
+          nickname: "Ari",
+          group_only_greetings: ["*waves to the group*"],
+        },
+      },
+      "fallback",
+    );
+
+    const exported = buildCardV3(
+      {
+        ...fullFields(),
+        name: imported.name,
+        extensions: imported.extensions,
+        residualData: imported.residualData ?? null,
+      },
+      [],
+    );
+
+    expect(exported.data["source"]).toEqual(["https://example.com/aria.png"]);
+    expect(exported.data["nickname"]).toBe("Ari");
+    expect(exported.data["group_only_greetings"]).toEqual(["*waves to the group*"]);
+
+    // re-import the exported card — the residual survives a second round-trip untouched.
+    const reimported = cardFromJson(exported, "fallback");
+    expect(reimported.residualData).toEqual(imported.residualData);
+  });
+
+  test("typed columns win on key collision (a stale residual can't shadow a real field)", () => {
+    const card = buildCardV3(
+      { ...fullFields(), residualData: { name: "Stale Name", description: "Stale desc" } },
+      [],
+    );
+    expect(card.data.name).toBe(fullFields().name);
+    expect(card.data.description).toBe(fullFields().description);
+  });
+});
+
 describe("cardContentHash", () => {
   test("is deterministic + independent of key insertion order", () => {
     const a = baseCard();

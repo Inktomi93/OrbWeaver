@@ -1,6 +1,6 @@
 // THE character library surface (UI-Arch §2.1 CONSUMER tier) — a browse/grid of the caller's owned
 // characters: a search box (`useDeferredValue`) over a virtualized, INFINITELY-paged list of
-// `<CharacterCard>` rows, wired through the `createCollectionSurface` factory (UI-Primitives §13.1/§13.2 —
+// `<CharacterCardTile>` rows, wired through the `createCollectionSurface` factory (UI-Primitives §13.1/§13.2 —
 // the mandated browse primitive; a hand-wired query+list+filter is the review flag).
 //
 // PAGING: `character.list` is keyset-paged (`domain/character/verbs/list.ts` — the `domain/notifications`
@@ -41,7 +41,7 @@ import type { Trpc } from "#data";
 import { createCollectionSurface, useTRPC } from "#data";
 import { selectCharacter, setActiveSection, startNewChat, useSelectedCharacterId } from "#state";
 import type { CharacterCardItem } from "../components/character-card";
-import { CharacterCard } from "../components/character-card";
+import { CharacterCardTile } from "../components/character-card";
 import { filterCharacters } from "../lib/filter-characters";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
@@ -202,7 +202,7 @@ function CharacterLibraryBody({
         items={filtered}
         onEndApproach={listProps.onEndApproach}
         renderItem={(item): ReactNode => (
-          <CharacterCard
+          <CharacterCardTile
             character={item}
             onSelect={onSelect}
             onStartChat={onStartChat}

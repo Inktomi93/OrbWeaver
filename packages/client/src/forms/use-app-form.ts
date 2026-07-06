@@ -10,7 +10,7 @@
 
 import { createFormHook } from "@tanstack/react-form";
 import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-chrome";
-import { NumberField } from "./bound-fields/number-field";
+import { BoundNumberField } from "./bound-fields/number-field";
 import { SelectField } from "./bound-fields/select-field";
 import { SwitchField } from "./bound-fields/switch-field";
 import { TextField } from "./bound-fields/text-field";
@@ -23,7 +23,7 @@ export const { useAppForm, withForm, withFieldGroup } = createFormHook({
   fieldComponents: {
     TextField,
     TextareaField,
-    NumberField,
+    NumberField: BoundNumberField,
     SelectField,
     SwitchField,
   },

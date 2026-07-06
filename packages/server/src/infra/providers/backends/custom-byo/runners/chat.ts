@@ -22,6 +22,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatHistoryMessage, ChatRequest, ChatResult } from "../../../contract";
 import { ProviderError } from "../../../contract";
 import type {
@@ -30,7 +31,6 @@ import type {
   StreamReduceOptions,
 } from "../../kit";
 import {
-  applyIncludeExclude,
   buildOpenAiSamplingFields,
   chatHistoryText,
   mapChatCompletionToTurnResult,
@@ -60,7 +60,7 @@ type ChatCompletionsRequest = Extract<ChatRequest, { readonly api: "chat-complet
 const CHAT_COMPLETIONS_PATH = "/chat/completions";
 const JSON_CONTENT_TYPE = "application/json";
 const SYSTEM_ROLE = "system";
-const TRAILING_SLASH_RE = /\/$/;
+const TRAILING_SLASH_RE = /\/$/u;
 
 // ── The response map (the user-declared response transform — §1a) ──────────────────────────────────
 // The response-side counterpart to the request-side include/exclude: the user describes a reply shape by
@@ -278,13 +278,12 @@ function buildMessages(req: ChatCompletionsRequest): readonly Record<string, unk
 }
 
 // Build the request body: the OpenAI base (model/messages/stream/sampling), then the preset's
-// `customParameters` overlaid (user wins — the one request-body overlay decided + present today).
+// `customParameters` DEEP-merged in (user wins — the one request-body overlay decided + present today).
 //
 // FLAG[PD-13]: the per-endpoint `includeBody`/`excludeBody` transforms (§1a request mappings) have NO
-// contract home yet (v1 deferral: the credential metadata carries only baseUrl/model/headers). When
-// they land on the credential/metadata they apply here as the second `applyIncludeExclude` layer; the
-// `customParameters` overlay is shallow because the deep-merge proto-pollution defense
-// (`server/kit/custom-parameters.deepMergeRequestBody`) is itself a separate scaffold target, not built.
+// contract home yet (v1 deferral: the credential metadata carries only baseUrl/model/headers). When they
+// land on the credential/metadata they apply here as the second `applyIncludeExclude` layer, downstream of
+// the customParameters merge below.
 function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
   const base: Record<string, unknown> = {
     model: req.model,
@@ -301,7 +300,14 @@ function buildBody(req: ChatCompletionsRequest): Record<string, unknown> {
       ? { response_format: rawResponseFormat(req.responseFormat) }
       : {}),
   };
-  return applyIncludeExclude(base, req.customParameters ?? null, null);
+  // Layer 2 (PD-101): `req.customParameters` is `patch` — user wins at any leaf, incl. nested objects
+  // (e.g. a deep `reasoning: {...}` override), and `__proto__`/`constructor`/`prototype` are no-ops
+  // regardless of which side carries them. `applyIncludeExclude` (below, still imported) becomes the
+  // second layer once the FLAG[PD-13] per-endpoint include/exclude transforms land on the credential
+  // metadata — it is NOT the customParameters overlay path, so it is not called here today.
+  return req.customParameters === undefined
+    ? base
+    : deepMergeRequestBody(base, req.customParameters);
 }
 
 // The request headers: JSON content-type, optional bearer auth, then the user's per-endpoint header

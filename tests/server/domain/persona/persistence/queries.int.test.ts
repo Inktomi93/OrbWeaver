@@ -10,7 +10,7 @@ import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
-  CharacterNotFoundError,
+  PersonaCharacterNotFoundError,
   PersonaNotFoundError,
 } from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
 import {
@@ -108,11 +108,11 @@ describe("ownership gates", () => {
     const other = await seedUser(db, { handle: "other" });
     const character = await seedCharacter(db, { ownerId: owner });
     await expect(ensureCharacterOwned(db, other, character)).rejects.toThrow(
-      CharacterNotFoundError,
+      PersonaCharacterNotFoundError,
     );
     await expect(
       ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost")),
-    ).rejects.toThrow(CharacterNotFoundError);
+    ).rejects.toThrow(PersonaCharacterNotFoundError);
     await expect(ensureCharacterOwned(db, owner, character)).resolves.toBeUndefined();
   });
 });

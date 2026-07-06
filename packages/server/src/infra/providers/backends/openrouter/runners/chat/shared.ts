@@ -21,6 +21,7 @@ import type {
 import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { errorMessage } from "@orb/kit/error-message";
+import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import type { ChatCompletionStreamChunk, ReasoningRequest } from "../../../../backends/kit";
 import {
   cacheControlBlock,
@@ -279,9 +280,13 @@ export function resolveProviderPreferences(
 // ── customParameters overlay ───────────────────────────────────────────────────────────────────────
 /**
  * Overlay the user's `customParameters` UNDER the runner-owned request (owned wins — a preset can never
- * override `model`/`messages`/`provider`/reasoning, the security firewall). Spreading the typed `owned`
- * LAST means every field it declares takes its type, so only custom-only keys survive as extras — the
- * merged object stays a valid request. Generic over the chat-completions + responses request shapes.
+ * override `model`/`messages`/`provider`/reasoning, the security firewall). Layer 2 (PD-101): the merge is
+ * a DEEP merge via `deepMergeRequestBody` (`base` = customParameters, `patch` = owned — owned wins at
+ * every leaf, incl. inside nested objects like a custom `reasoning` block), and any
+ * `__proto__`/`constructor`/`prototype` key is dropped regardless of which side carries it — a shallow
+ * `{...customParameters, ...owned}` gave the same top-level precedence but let an unrecognized nested
+ * object from `customParameters` through untouched. Generic over the chat-completions + responses request
+ * shapes (the cast back to `T` is safe: `owned`'s own keys always win, so the result satisfies `T`).
  */
 export function mergeCustomParameters<T extends Record<string, unknown>>(
   owned: T,
@@ -290,7 +295,7 @@ export function mergeCustomParameters<T extends Record<string, unknown>>(
   if (customParameters === undefined) {
     return owned;
   }
-  return { ...customParameters, ...owned };
+  return deepMergeRequestBody(customParameters, owned) as T;
 }
 
 // ── Error helpers ─────────────────────────────────────────────────────────────────────────────────

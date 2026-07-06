@@ -78,7 +78,7 @@ export interface PersonaService {
   readonly remove: (params: RemovePersonaParams) => Promise<RemovePersonaResult>;
   /** Mint a persona from an owned character's card (copies name/description/avatar). When `swapMacros`,
    *  the description's `{{char}}`/`{{user}}` invert (persona POV). Stores `sourceCharacterId`/`swapMacros`
-   *  provenance (non-lossy). Throws {@link CharacterNotFoundError} when the character isn't owned/found. */
+   *  provenance (non-lossy). Throws {@link PersonaCharacterNotFoundError} when the character isn't owned/found. */
   readonly createFromCharacter: (params: CreateFromCharacterParams) => Promise<PersonaDetail>;
   /** Connect a persona to a character (idempotent). Both must be owned by the caller. */
   readonly connectToCharacter: (params: ConnectParams) => Promise<void>;

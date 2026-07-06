@@ -202,6 +202,24 @@ describe("mergeCustomParameters", () => {
     const owned = { model: "m" };
     expect(mergeCustomParameters(owned, undefined)).toBe(owned);
   });
+
+  test("owned wins even inside a nested object customParameters also sets (deep merge, PD-101)", () => {
+    expect(
+      mergeCustomParameters(
+        { model: "owned", reasoning: { effort: "high", enabled: true } },
+        { reasoning: { effort: "low", extra: "x" } },
+      ),
+    ).toEqual({ model: "owned", reasoning: { effort: "high", enabled: true, extra: "x" } });
+  });
+
+  test("a __proto__/constructor-carrying customParameters does not pollute Object.prototype (PD-101 Layer 2)", () => {
+    const poison = JSON.parse(
+      '{"__proto__":{"polluted":true},"nested":{"constructor":{"polluted":true},"ok":1},"topOk":1}',
+    ) as Record<string, unknown>;
+    const merged = mergeCustomParameters({ model: "owned" }, poison);
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    expect(merged).toEqual({ model: "owned", nested: { ok: 1 }, topOk: 1 });
+  });
 });
 
 describe("isMandatoryReasoningRejection", () => {

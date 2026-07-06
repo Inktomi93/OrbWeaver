@@ -8,7 +8,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useFieldContext } from "../contexts";
 import { fieldErrorText } from "./field-error";
 
-export interface NumberFieldProps {
+export interface BoundNumberFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
   readonly min?: number;
@@ -17,14 +17,14 @@ export interface NumberFieldProps {
   readonly disabled?: boolean;
 }
 
-export function NumberField({
+export function BoundNumberField({
   label,
   description,
   min,
   max,
   step,
   disabled,
-}: NumberFieldProps): ReactElement {
+}: BoundNumberFieldProps): ReactElement {
   const field = useFieldContext<number | null>();
   const error = fieldErrorText(field.state.meta.errors);
   return (
