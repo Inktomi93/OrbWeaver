@@ -64,9 +64,13 @@ export interface AssetsContext {
    *  determinism seam as `newAssetId`). */
   readonly newGalleryItemId: () => GalleryItemId;
   /**
-   * (PD-28) Roster-avatar exception: given the CALLER's userId and a blob hash, returns the UserId of
-   * a co-participant in any shared chat who owns that hash, or `undefined` when no such user exists.
-   * Optional — absent on non-HTTP/DR/workload callers that never need the roster gate.
+   * (PD-28 / D21, amended) Roster-avatar REFERENCE-CHECK — NOT a hash→any-owner oracle (PD-107). Given
+   * the CALLER's userId and a blob hash, returns the `assets.ownerId` of that hash ONLY IF it is the
+   * `avatarAssetId` of a CHARACTER rostered (`kind='character'`, present) in a chat where the caller is a
+   * PRESENT member; `undefined` otherwise (a co-participant's non-avatar asset, a character outside the
+   * caller's chats, a left caller/character all miss). Returns the ASSET owner (the CAS-partition key for
+   * the downstream bytes read), never a bare-hash existence signal. Optional — absent on non-HTTP/DR/
+   * workload callers that never need the roster gate. (Sprite-set widening is deferred — PD-56.)
    */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
   /**

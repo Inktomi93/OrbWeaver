@@ -41,6 +41,7 @@ import { batchMany } from "@orb/db/kit";
 import type { SessionId, TypeIdOf, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import { can, createAdminService, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
@@ -294,30 +295,46 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .limit(1);
       return rows.length > 0;
     },
-    // PD-28: roster-avatar exception — caller may fetch an avatar owned by a chat co-participant.
-    // Resolves in two queries: (1) find the candidate owner of the hash, (2) confirm both users share
-    // a present-membership (`leftSeq IS NULL`) chat. Returns the co-owning userId or undefined.
+    // PD-28 / D21 (amended 2026-07-02): the roster-avatar reference-check — NOT a hash→any-owner oracle
+    // (PD-107). Returns an owner ONLY IF `hash` is the asset-hash of the `avatarAssetId` of a CHARACTER
+    // that is rostered (`kind='character'`, present — `leftSeq IS NULL`) in a chat where `callerId` is a
+    // PRESENT member (`leftSeq IS NULL`). The join proves the asset IS that rostered character's avatar, so
+    // no bare-hash existence probe survives: a co-participant's non-avatar asset (card/export), a character
+    // in a chat the caller isn't in, and a left caller/character all miss. Returns `assets.ownerId` (NOT
+    // `characters.ownerId`) — the CAS bytes live in the ASSET owner's partition, so the downstream
+    // `metadataForOwnerAndHash`/`cas.read(ownerId, hash)` must key off the asset owner; this also removes any
+    // dependence on the unenforced `characters.ownerId === assets.ownerId` invariant. `undefined` otherwise.
+    // SPRITE-SET EXTENSION POINT (PD-56, deferred): when `character_sprites` lands, D21's exception widens
+    // from `avatarAssetId` to the sprite set — add a UNION arm joining `character_sprites.assetId = assets.id`
+    // under the same rostered-character + present-caller gate. v1 constrains to `avatarAssetId` only.
     loadCoParticipantOwner: async (callerId, hash) => {
-      const assetRows = await db
+      // Self-join `chat_participants` twice: `rosterChar` = the character's own present roster row;
+      // `callerSeat` = the caller's own present membership of THAT SAME chat.
+      const rosterChar = alias(chatParticipants, "roster_char");
+      const callerSeat = alias(chatParticipants, "caller_seat");
+      const rows = await db
         .select({ ownerId: assetsTable.ownerId })
         .from(assetsTable)
+        .innerJoin(charactersTable, eq(charactersTable.avatarAssetId, assetsTable.id))
+        .innerJoin(
+          rosterChar,
+          and(
+            eq(rosterChar.characterId, charactersTable.id),
+            eq(rosterChar.kind, "character"),
+            isNull(rosterChar.leftSeq),
+          ),
+        )
+        .innerJoin(
+          callerSeat,
+          and(
+            eq(callerSeat.chatId, rosterChar.chatId),
+            eq(callerSeat.userId, callerId),
+            isNull(callerSeat.leftSeq),
+          ),
+        )
         .where(eq(assetsTable.hash, hash))
         .limit(1);
-      const candidateOwner = assetRows[0]?.ownerId;
-      if (candidateOwner === undefined || candidateOwner === callerId) {
-        return; // Same owner → handled by the owner path; or no match at all.
-      }
-      const ownerChatRows = await db
-        .select({ chatId: chatParticipants.chatId })
-        .from(chatParticipants)
-        .where(and(eq(chatParticipants.userId, candidateOwner), isNull(chatParticipants.leftSeq)));
-      const ownerChatIds = new Set(ownerChatRows.map((r) => r.chatId));
-      const callerChatRows = await db
-        .select({ chatId: chatParticipants.chatId })
-        .from(chatParticipants)
-        .where(and(eq(chatParticipants.userId, callerId), isNull(chatParticipants.leftSeq)));
-      const shared = callerChatRows.some((r) => ownerChatIds.has(r.chatId));
-      return shared ? candidateOwner : undefined;
+      return rows[0]?.ownerId;
     },
   });
   const character = createCharacterService({
