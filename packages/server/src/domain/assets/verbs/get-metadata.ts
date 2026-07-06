@@ -2,11 +2,13 @@
 // has permission to view, or `undefined` (→ 404) when it doesn't exist OR isn't accessible (the two
 // collapse — no foreign-existence leak). Normal path: owner-scoped off `principal.userId`.
 //
-// PD-28 — roster-avatar membership exception: if the owner-scoped lookup misses AND the context
-// supplies a `loadCoParticipantOwner` op, we fall back to checking whether any co-participant owns
-// the hash. If so, their `ownerId` is returned alongside the metadata so the blob route reads from
-// the correct per-user CAS partition. No path is constructed here (a pure hash lookup), so no
-// `isAssetHash` guard is needed — a non-hash simply matches no row.
+// PD-28 / D21 — roster-avatar REFERENCE-CHECK (NOT a hash→any-owner oracle, PD-107): if the owner-scoped
+// lookup misses AND the context supplies a `loadCoParticipantOwner` op, we fall back to it. That op returns
+// an owner ONLY IF the hash is the `avatarAssetId` of a CHARACTER rostered in a chat the caller is a present
+// member of (never a bare co-participant hash match) — so a co-participant's non-avatar asset yields nothing
+// here. On a hit, that ASSET owner's `ownerId` is returned with the metadata so the blob route reads from the
+// correct per-user CAS partition. No path is constructed here (a pure hash lookup), so no `isAssetHash` guard
+// is needed — a non-hash simply matches no row.
 
 import type { GetMetadataParams } from "../contract/params";
 import type { AssetMetadata } from "../contract/results";

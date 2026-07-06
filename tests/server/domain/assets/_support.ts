@@ -14,14 +14,25 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
-import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { characters, users } from "@orb/db";
-import type { AssetId, CharacterId, ExternalId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
+import { assets, characters, chatParticipants, chats, users } from "@orb/db";
+import type {
+  AssetId,
+  CharacterId,
+  ChatId,
+  ChatParticipantId,
+  ExternalId,
+  GalleryItemId,
+  Handle,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "../../../../packages/server/src/domain/assets/contract/service.ts";
@@ -82,6 +93,36 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
         .limit(1);
       return rows.length > 0;
+    },
+    // PD-107 roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl) so the
+    // security property — a rostered character's avatar in a chat the caller is present in, NOT a bare hash
+    // oracle — is exercised against the real seeded DB, not a fake.
+    loadCoParticipantOwner: async (callerId: UserId, hash: string): Promise<UserId | undefined> => {
+      const rosterChar = alias(chatParticipants, "roster_char");
+      const callerSeat = alias(chatParticipants, "caller_seat");
+      const rows = await db
+        .select({ ownerId: assets.ownerId })
+        .from(assets)
+        .innerJoin(characters, eq(characters.avatarAssetId, assets.id))
+        .innerJoin(
+          rosterChar,
+          and(
+            eq(rosterChar.characterId, characters.id),
+            eq(rosterChar.kind, "character"),
+            isNull(rosterChar.leftSeq),
+          ),
+        )
+        .innerJoin(
+          callerSeat,
+          and(
+            eq(callerSeat.chatId, rosterChar.chatId),
+            eq(callerSeat.userId, callerId),
+            isNull(callerSeat.leftSeq),
+          ),
+        )
+        .where(eq(assets.hash, hash))
+        .limit(1);
+      return rows[0]?.ownerId;
     },
   };
   return {
@@ -170,4 +211,51 @@ export async function seedCharacter(
     name: overrides.name ?? "Test Character",
   });
   return id;
+}
+
+/** Insert a bare `chats` row (D18: no ownerId — authority is the host participant). Returns the id. */
+export async function seedChatRow(db: Db, id: string): Promise<ChatId> {
+  const chatId = castId<ChatId>(id);
+  await db.insert(chats).values({ id: chatId, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  return chatId;
+}
+
+interface SeedParticipantOverrides {
+  readonly id?: string;
+  readonly userId?: UserId;
+  readonly characterId?: CharacterId;
+  readonly role?: ParticipantRole;
+  /** Set to mark the participant as DEPARTED (the present-membership gate keys on `leftSeq IS NULL`). */
+  readonly leftSeq?: number;
+}
+
+/** Insert a `chat_participants` row of the given `kind` (human/agent → userId, character → characterId).
+ *  Supports the multi-human / multi-character / departed-member rosters the `seedChat` factory's single
+ *  `withHost`/`withCharacter` opt-ins can't express (PD-107 needs those). */
+export async function seedParticipant(
+  db: Db,
+  chatId: ChatId,
+  kind: ParticipantKind,
+  overrides: SeedParticipantOverrides = {},
+): Promise<void> {
+  await db.insert(chatParticipants).values({
+    id: castId<ChatParticipantId>(overrides.id ?? `chat_participant_${kind}_${chatId}`),
+    chatId,
+    kind,
+    userId: overrides.userId,
+    characterId: overrides.characterId,
+    role: overrides.role ?? "member",
+    joinedAt: FROZEN_AT,
+    joinSeq: 0,
+    leftSeq: overrides.leftSeq,
+  });
+}
+
+/** Point a character's `avatarAssetId` at a stored asset id (the D21 reference the check gates on). */
+export async function setCharacterAvatar(
+  db: Db,
+  characterId: CharacterId,
+  avatarAssetId: AssetId,
+): Promise<void> {
+  await db.update(characters).set({ avatarAssetId }).where(eq(characters.id, characterId));
 }

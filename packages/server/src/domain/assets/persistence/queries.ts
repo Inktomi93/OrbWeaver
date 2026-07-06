@@ -5,11 +5,12 @@
 // so `persistence-no-io` holds: this file does no direct fetch/http/node I/O.
 //
 // Every USER-FACING read is owner-scoped (the `ownerId` predicate is part of the WHERE, never a post-filter),
-// so a non-owner can never receive another user's row. The roster-avatar exception (PD-28) departs from this
-// only at the `metadataForOwnerAndHash` call — the VERB has already resolved the owning co-participant
-// (via the injected `loadCoParticipantOwner` op) and passes the confirmed owner, so this is a trusted lookup,
-// not an ownership bypass. `ownerId` is `principal.userId` (§7.1) on the normal path; the `no-direct-users-
-// read` chokepoint holds throughout.
+// so a non-owner can never receive another user's row. The roster-avatar exception (PD-28 / D21) departs from
+// this only at the `metadataForOwnerAndHash` call — the VERB has already resolved the avatar's owner via the
+// injected `loadCoParticipantOwner` reference-check (the hash must be a rostered character's `avatarAssetId`
+// in a chat the caller is present in — NOT a bare co-participant hash oracle, PD-107) and passes that
+// confirmed owner, so this is a trusted lookup, not an ownership bypass. `ownerId` is `principal.userId`
+// (§7.1) on the normal path; the `no-direct-users-read` chokepoint holds throughout.
 
 import type { AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
@@ -106,9 +107,10 @@ export async function metadataForOwnedHash(
   return rows[0];
 }
 
-/** The `{mime,size}` of a SPECIFIC OWNER'S asset with this hash (the PD-28 roster-avatar path: the
- *  caller has already been confirmed as a co-participant of the owner; we just read their metadata).
- *  The verb resolves the owning co-participant via `loadCoParticipantOwner` BEFORE calling this. */
+/** The `{mime,size}` of a SPECIFIC OWNER'S asset with this hash (the PD-28 / D21 roster-avatar path: the
+ *  hash has already been confirmed as a rostered character's `avatarAssetId` in a chat the caller is
+ *  present in, and `ownerId` is that avatar asset's owner; we just read its metadata). The verb resolves
+ *  the avatar owner via the `loadCoParticipantOwner` reference-check BEFORE calling this. */
 export async function metadataForOwnerAndHash(
   db: Db,
   ownerId: UserId,
