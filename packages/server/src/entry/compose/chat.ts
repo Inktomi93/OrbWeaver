@@ -61,7 +61,7 @@ import { applyStatsDelta } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
-import { getLog } from "#foundation/observability";
+import { recordMemoryLog } from "#foundation/observability";
 import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
@@ -651,11 +651,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // FLAG[PD-71]: `search.corpus` needs a resolved owner that `MemoryQueryOptions` can't
     // carry (the op-shape mismatch the search slice flagged). Recall does NOT call this yet → permissive [].
     searchCorpus: () => Promise.resolve([]),
-    // FLAG[PD-72]: no dedicated MemoryLog sink in foundation/observability — a thin structured-log
-    // closure over the pino logger (greppable on `memory.build`/`memory.recall`).
-    log: (entry) => {
-      getLog().debug({ memory: entry }, entry.event);
-    },
+    // PD-72: the dedicated MemoryLog sink (foundation/observability/memory-log.ts) — a thin `memory: true`-
+    // tagged `getLog().debug` closure, mirroring recordClientError/securityEvent; greppable on the `event`
+    // string (`memory.build`/`memory.recall`). The concrete `MemoryLogEntry` flows into the foundation-local
+    // record shape (the cake forbids foundation importing the domain type).
+    log: (entry) => recordMemoryLog(entry),
     getGroupConfig: (rawMetadata) => getGroupConfig(rawMetadata),
     getRoomOverrides: (rawMetadata) => getRoomOverrides(rawMetadata),
     resolvePromptVariables,

@@ -37,6 +37,7 @@ export {
   runInRequest,
   securityEvent,
 } from "./logger";
+export { type MemoryLogRecord, recordMemoryLog } from "./memory-log";
 export { observability, observabilityErrorHandler } from "./middleware";
 export {
   addSpanEvent,
