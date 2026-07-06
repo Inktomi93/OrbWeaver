@@ -98,6 +98,10 @@ export interface ConnectionContext {
    *  resolved to `vllm` onto the in-process `local-light` tier (the generation roles never fall back —
    *  local-light has no generation). The ONE input the resolver reads for the no-GPU derive fallback. */
   readonly vllmAvailable: boolean;
+  /** Owner-ness of the acting principal, via the admin `requireOwner` seam (D17 — connection never spells
+   *  the role lattice; `owner-role-split`). Read by `resolveRole('chat')` for the owner-conditional default:
+   *  an unconfigured owner falls back to `max-pro-sub`, a non-owner to the local `vllm` box model. */
+  readonly isOwner: (principal: Principal) => boolean;
 }
 
 /** What `createConnectionService` receives from the entry root. Identical to {@link ConnectionContext} —

@@ -20,7 +20,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     expect(h.credentialCalls).toContain("local-light");
   });
 
-  test("the chat role defaults to the local engine when no roleDefault is set", async () => {
+  test("a NON-owner chat defaults to the local vllm engine when no roleDefault is set", async () => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
@@ -28,6 +28,16 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
 
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
+  });
+
+  test("the OWNER's chat defaults to their max-pro-sub (agent-sdk) when no roleDefault is set", async () => {
+    const h = makeConnHarness(await freshDb());
+    const svc = createConnectionService(h.ctx);
+
+    const conn = await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
+
+    expect(conn.api).toBe("agent-sdk");
+    expect(conn.credential.source).toBe("max-pro-sub");
   });
 
   test("an agent-sdk chat roleDefault heals the model to the curated id + the curated capability", async () => {

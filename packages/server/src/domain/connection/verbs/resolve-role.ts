@@ -35,8 +35,9 @@ interface RouteSelection {
   readonly chatModel: boolean;
 }
 
-// Defaults (named — no magic strings). The chat/agent/summarize roles default to the local engine; agent
-// defaults to the owner's sub; generateImage is hosted-only. A role with NO roleDefault entry reads these.
+// Defaults (named — no magic strings). agent → the owner's sub; summarize/embed/rerank/imageEmbed → the
+// local engine; generateImage → hosted (openrouter); chat is OWNER-CONDITIONAL (owner → sub, else local —
+// see the selector). A role with NO roleDefault entry reads these.
 const DEFAULT_CHAT_API: ChatApi = "chat-completions";
 const DEFAULT_LOCAL_SOURCE: ChatSource = "vllm";
 const DEFAULT_AGENT_SOURCE: ChatSource = "max-pro-sub";
@@ -49,11 +50,18 @@ const ROLE_SELECTORS: {
   readonly [K in ResolveRoleParams["role"]]: (
     roleDefaults: RoleDefaults,
     override: AgentOverride | undefined,
+    isOwner: boolean,
   ) => RouteSelection;
 } = {
-  chat: (rd, ov) => ({
-    api: ov?.api ?? rd.chat?.api ?? DEFAULT_CHAT_API,
-    source: ov?.source ?? rd.chat?.source ?? DEFAULT_LOCAL_SOURCE,
+  // The UNCONFIGURED chat default is owner-conditional (2026-07-06): the box owner falls back to their
+  // `max-pro-sub` (agent-sdk) — the premium user-facing model — while everyone else falls to the local
+  // vllm box model (`max-pro-sub` is owner-only, D17, and would throw for a non-owner). A configured
+  // `roleDefaults.chat` or a per-agent override still wins per-field; on a fresh/reset box both fields
+  // fall together to the coherent owner pair (agent-sdk + max-pro-sub) or (chat-completions + vllm).
+  chat: (rd, ov, isOwner) => ({
+    api: ov?.api ?? rd.chat?.api ?? (isOwner ? "agent-sdk" : DEFAULT_CHAT_API),
+    source:
+      ov?.source ?? rd.chat?.source ?? (isOwner ? DEFAULT_AGENT_SOURCE : DEFAULT_LOCAL_SOURCE),
     model: ov?.model ?? rd.chat?.model ?? null,
     chatModel: true,
   }),
@@ -157,7 +165,11 @@ export function createResolveRole(ctx: ConnectionContext): ConnectionService["re
     const settings = await ctx.loadUserSettings(params.principal.userId);
     const selection = applyVllmFallback(
       params.role,
-      ROLE_SELECTORS[params.role](settings.routing.roleDefaults, params.agentOverride),
+      ROLE_SELECTORS[params.role](
+        settings.routing.roleDefaults,
+        params.agentOverride,
+        ctx.isOwner(params.principal),
+      ),
       ctx.vllmAvailable,
     );
     assertCoherent(selection.api, selection.source);

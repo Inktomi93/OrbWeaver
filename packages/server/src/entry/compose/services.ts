@@ -251,6 +251,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     accountCredits: (req): Promise<AccountCredits> => diagnostics.accountCredits(req),
     generationCost: (req): Promise<GenerationCost> => diagnostics.generationCost(req),
     vllmAvailable,
+    // Owner-ness via the admin seam (non-throwing boolean over `requireOwner`) — the resolver's
+    // owner-conditional chat default (owner → max-pro-sub, else vllm) without re-spelling the D17 lattice.
+    isOwner: (principal) => {
+      try {
+        requireOwner(principal);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   });
 
   // ── The per-owner RoleClients binder (the ONE binder — no vLLM floor): pre-bound to the connection service
