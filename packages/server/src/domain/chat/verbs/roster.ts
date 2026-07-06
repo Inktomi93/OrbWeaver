@@ -44,10 +44,11 @@ import {
   roomOverridesSchema,
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
+import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
@@ -399,6 +400,51 @@ async function updateCharacterParticipant(
   }
   const card = await ctx.getCard({ ownerId, characterId });
   return characterParticipantView(row, card);
+}
+
+/** `setParticipantActivePersona` — flip a HUMAN participant's active persona for this room (PD-120). NOT a
+ *  `ChatService` verb: persona owns the `principal`-facing surface (`persona.setActivePersona`) and already
+ *  cleared `requireChatAuthorOrHost` before calling this — this op is the chat-domain write + emit chokepoint
+ *  persona's compose binding calls directly (the `requireAuthorOrHost` precedent, guard.ts). Callable outside
+ *  a full `ChatContext`/`ChatService` instance (persona composes before chat at the entry root — see
+ *  `entry/compose/services.ts`), so it takes a minimal `db` + injected `emit` rather than `ChatContext`.
+ *
+ *  A miss (target not a PRESENT participant of this chat) is a real caller error — persona already validated
+ *  `targetUserId`/`chatId` via its own gate, so a 0-rows write here means a race (the target left mid-call) or
+ *  a caller bug; either way it must surface, not silently no-op (`ChatOperationError('participant_not_found')`
+ *  — the caller already knows this chat exists, so the coded refusal leaks nothing, per the sibling
+ *  `updateCharacterParticipant` precedent above). Emits `personaSwitched` (PD-117) after the write commits. */
+export async function setParticipantActivePersona(
+  db: Db,
+  emit: EmitChatEvent,
+  params: {
+    readonly chatId: ChatId;
+    readonly targetUserId: UserId;
+    readonly personaId: PersonaId | null;
+  },
+): Promise<void> {
+  const { chatId, targetUserId, personaId } = params;
+  const targetRow = and(
+    eq(chatParticipants.chatId, chatId),
+    eq(chatParticipants.userId, targetUserId),
+    isNull(chatParticipants.leftSeq),
+  );
+  // Read the prior value first (SQLite's `UPDATE … RETURNING` only surfaces the POST-write row, and the bus
+  // event carries `from` — the pre-switch persona a client reducer might diff against).
+  const before = await db
+    .select({ activePersonaId: chatParticipants.activePersonaId })
+    .from(chatParticipants)
+    .where(targetRow)
+    .limit(1);
+  const prior = before.at(0);
+  if (prior === undefined) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.participantNotFound,
+      `chat ${chatId}: user ${targetUserId} is not a present participant`,
+    );
+  }
+  await db.update(chatParticipants).set({ activePersonaId: personaId }).where(targetRow);
+  await emit({ type: "personaSwitched", chatId, from: prior.activePersonaId, to: personaId });
 }
 
 /** `setParticipantDisabled` — host-only mute/unmute (cards/WI still contribute; excluded from arbitration). */

@@ -419,6 +419,13 @@ async function executeTurn(
     if (result.toolsUnsupported) {
       await deps.emit({ type: "warning", chatId: prep.chatId, code: "tools_unsupported" });
     }
+    // PD-117: the reasoning channel's stream ended (the drain loop in `reduceStream` exited) — a display
+    // affordance ONLY (client reducer: "the slot keeps buffering until terminal"), distinct from
+    // `turnCompleted` (fires after persist below). Gated on `result.reasoning !== null` — a turn with no
+    // reasoning channel never had a "thinking" affordance to close.
+    if (result.reasoning !== null) {
+      await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
+    }
     const view = await commitGeneration({
       ctx,
       deps,

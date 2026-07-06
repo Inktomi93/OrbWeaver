@@ -85,7 +85,14 @@ import {
   createProviderExecutor,
 } from "#infra/providers";
 import { createCas, createVariantCache } from "#infra/storage";
-import { requireAuthorOrHost, requireHost, requireParticipant } from "../../domain/chat";
+import {
+  createChatBus,
+  requireAuthorOrHost,
+  requireHost,
+  requireParticipant,
+  setParticipantActivePersona,
+} from "../../domain/chat";
+import { publishChatEvent } from "../../transport/trpc";
 import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
@@ -413,6 +420,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     });
   }
 
+  // PD-120: persona's chat-table write needs the chat bus's durable-first emit, but persona composes BEFORE
+  // `buildChatService` (chat.ts) — chat needs persona.get for its own turn assembly, so the two can't reorder
+  // (a genuine cycle). A second `createChatBus` instance here is NOT a second event log: `chat_events.seq` is
+  // a DB-correlated subquery (no per-instance state), so both instances append to the SAME durable table —
+  // only the in-process replay RING is per-instance, and this instance's ring is never read (this closure
+  // only ever emits, it doesn't subscribe). Live fan-out still goes through the one transport `publishChatEvent`
+  // singleton, so a connected SSE stream sees `personaSwitched` exactly like any other chat bus event.
+  const personaSwitchBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
   const persona = createPersonaService({
     db,
     now,
@@ -422,10 +437,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
-      await db
-        .update(chatParticipants)
-        .set({ activePersonaId: personaId })
-        .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, targetUserId)));
+      await setParticipantActivePersona(
+        db,
+        async (event) => {
+          const seq = await personaSwitchBus.emit(event);
+          publishChatEvent({ seq, event });
+        },
+        { chatId, targetUserId, personaId },
+      );
     },
   });
   const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
