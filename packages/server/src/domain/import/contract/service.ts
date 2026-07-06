@@ -3,10 +3,14 @@
 //   • ImportContext   the explicit DI bundle the verbs close over (NOT `ReturnType<>` — §7.4 /
 //                     no-context-returntype; the conventional re-export home is context.ts)
 //   • ImportService   the verb interface (the front door re-exports the type)
-//   • the FOUR injected cross-feature op TYPES (boundaries-are-physics: the runtime is wired at the
+//   • the SIX injected cross-feature op TYPES (boundaries-are-physics: the runtime is wired at the
 //     composition root; import sideways-imports neither character, assets, nor tag — domain-no-cross-feature):
 //       - CreateImportedCharacter   character.create + the import-provenance stamp
-//       - FindCharacterByImportHash  the re-import dedup oracle (a character read, owner-scoped)
+//       - FindCharacterByImportHash  the byte-identical re-import dedup oracle (a character read, owner-scoped)
+//       - FindCharacterByHandle      the (ownerId, handle) re-import match oracle (PD-108 — completes the
+//                                    dedup: an edited/second same-name card resolves here instead of
+//                                    dead-ending on the unique constraint)
+//       - UpdateImportedCharacter    character.update, edit-in-place (D28) for the handle-match re-import
 //       - StoreImportAsset           assets.store for the card/avatar PNG (one blob, both roles)
 //       - AttachImportedCardTag      tag.attachCardTagByName (source:'card', status:'pending') for card.tags
 //
@@ -24,8 +28,13 @@
 // FLAG[PD-43]: `FindCharacterByImportHash` likewise needs a character-provided lookup by
 // `(ownerId, importHash)` — character has no such read today. Both are character follow-ups; import
 // declares the TYPES it needs and the root binds the runtime (it never reads the `characters` table — §7.1).
+//
+// PD-108: `FindCharacterByHandle` + `UpdateImportedCharacter` close the re-import dead-end. Both are
+// type-only here too — the root binds them to the ALREADY-BUILT `character.findByHandle` (the seeder's
+// partial-rerun precedent, owner-scoped) and `character.update` (D28 edit-in-place); no character-domain
+// change was needed for either.
 
-import type { CreateCharacterInput } from "@orb/contracts/character";
+import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportCharacterInput } from "./params";
 import type { ImportCharacterResult, ImportedCharacterRef } from "./results";
@@ -52,6 +61,34 @@ export type FindCharacterByImportHash = (args: {
   readonly ownerId: UserId;
   readonly importHash: string;
 }) => Promise<CharacterId | null>;
+
+/**
+ * The (ownerId, handle) re-import match oracle (PD-108): the id of the caller's existing character that
+ * already carries `handle`, or null. Injected type-only (the root binds `character.findByHandle` — the
+ * same owner-scoped read the default-card seeder already injects); import never reads the `characters`
+ * table itself. Fires only after `FindCharacterByImportHash` misses (a byte-identical re-import is handled
+ * by that faster, cheaper path first).
+ */
+export type FindCharacterByHandle = (args: {
+  readonly ownerId: UserId;
+  readonly handle: string;
+}) => Promise<CharacterId | null>;
+
+/**
+ * Edit an existing character's card IN PLACE (D28 — always safe; no CAS/COW) for the handle-match re-import
+ * path (PD-108): an edited card, or a second card sharing a handle, updates the existing row instead of
+ * dead-ending on `characters_owner_handle_unique`. Injected type-only; the root binds it to
+ * `character.update` (which recomputes `contentHash` and emits `character.updated` itself — import stamps
+ * no provenance columns on an update, matching `character.update`'s existing contract). `input` is the
+ * SAME flattened `CreateCharacterInput` the create path validates (a structural subset of
+ * `UpdateCharacterInput` — every field explicit, so the update is a full content replace, not a partial
+ * merge of stale fields).
+ */
+export type UpdateImportedCharacter = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly input: UpdateCharacterInput;
+}) => Promise<void>;
 
 /**
  * CAS-store the card/avatar PNG bytes and return the asset id (one blob serves both the card + the avatar
@@ -82,13 +119,16 @@ export type AttachImportedCardTag = (args: {
  * interface (not `ReturnType<typeof …>`) per §7.4 + the `no-context-returntype` gate.
  *   - `ownerId` — the resolved principal id (ImportServiceDeps, collapsed — identity is
  *     resolved ONCE at the edge, never re-resolved inside the domain). Import reads no `users` row.
- *   - `createCharacter` / `findByImportHash` / `storeAsset` / `attachCardTag` — the injected cross-feature
- *     ops (type-only; the root binds the character / assets / tag runtimes).
+ *   - `createCharacter` / `findByImportHash` / `findByHandle` / `updateCharacter` / `storeAsset` /
+ *     `attachCardTag` — the injected cross-feature ops (type-only; the root binds the character / assets /
+ *     tag runtimes).
  */
 export interface ImportContext {
   readonly ownerId: UserId;
   readonly createCharacter: CreateImportedCharacter;
   readonly findByImportHash: FindCharacterByImportHash;
+  readonly findByHandle: FindCharacterByHandle;
+  readonly updateCharacter: UpdateImportedCharacter;
   readonly storeAsset: StoreImportAsset;
   readonly attachCardTag: AttachImportedCardTag;
 }
@@ -97,8 +137,12 @@ export interface ImportService {
   /**
    * Import one ST character card (PNG-embedded ccv3/chara JSON, or a bare V2/V3 JSON card): parse →
    * flatten to the canonical card → validate against `createCharacterSchema` → dedup by the whole-file
-   * `importHash` → store the PNG as the avatar (PNG cards only) → create with import provenance. Idempotent
-   * by `importHash` (a byte-identical re-import returns the existing character, `created:false`).
+   * `importHash` → (PD-108) match `(ownerId, handle)` → store the PNG as the avatar (PNG cards only) →
+   * create with import provenance, or edit-in-place (D28) when the handle already matches an owned
+   * character. Idempotent by `importHash` (a byte-identical re-import returns the existing character,
+   * `created:false`); an edited or second same-name card resolves via the handle match instead of dead-
+   * ending on the per-owner handle unique constraint (also `created:false` — the row was updated, not
+   * inserted). A genuinely new handle still inserts (`created:true`).
    * @throws {@link ImportCardError} When the bytes carry no readable/valid card.
    */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;

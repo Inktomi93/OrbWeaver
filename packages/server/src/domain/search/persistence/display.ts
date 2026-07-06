@@ -8,7 +8,7 @@
 // Owner-scoped in the WHERE (the hits are already owner-scoped, but the enrichment re-asserts it so a
 // crafted id list can never read across owners). Never reads the `users` table.
 
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
@@ -30,7 +30,7 @@ interface CharacterDisplayRow {
  * LEFT-joined: a card with no computed summary yet yields `null` facets.
  */
 export async function resolveCharacterDisplay(
-  db: Db,
+  db: ReadOnlyDb,
   ownerId: UserId,
   characterIds: readonly CharacterId[],
 ): Promise<CharacterDisplayRow[]> {

@@ -17,6 +17,8 @@ export {
 } from "./auth-routes";
 export type { BlobAssetsPort, BlobCasPort, BlobDeps } from "./blob";
 export { registerBlob } from "./blob";
+export type { ExportDeps } from "./export";
+export { registerExport } from "./export";
 export type { HealthzDeps } from "./healthz";
 export { registerHealthz } from "./healthz";
 export { securityHeaders } from "./security-headers";

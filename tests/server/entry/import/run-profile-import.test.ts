@@ -1,7 +1,9 @@
 // entry/import/run-profile-import — the bulk-import driver. Pins the load-bearing behavior: it builds the
 // per-owner ImportService over the entry-supplied character/assets ops, stamps import provenance on create,
 // dedups a byte-identical re-import, scopes the dedup lookup to the principal's userId, and ISOLATES a bad
-// card (the batch continues; the failure is recorded, never thrown).
+// card (the batch continues; the failure is recorded, never thrown). PD-108's handle-match edit-in-place is
+// pinned at the domain level (`tests/server/domain/import/verbs/import-character.test.ts`); the driver
+// tests here stub `update`/`findByHandle` as no-match/no-op (a miss) since none of these cases exercise it.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
@@ -32,6 +34,16 @@ const SHA256_HEX = /^[0-9a-f]{64}$/u;
 const noopAssets: ImportAssetPort = {
   store: (): Promise<{ assetId: AssetId }> =>
     Promise.resolve({ assetId: castId<AssetId>("ast_x") }),
+};
+
+// PD-108's handle-match edit-in-place is pinned at the domain level; these driver tests don't exercise it —
+// `update` never fires (no test seeds a handle match) and `findByHandle` always misses.
+const neverUpdate: Pick<ImportCharacterPort, "update"> = {
+  update: (): Promise<{ id: CharacterId }> =>
+    Promise.resolve({ id: castId<CharacterId>("chr_unused") }),
+};
+const noHandleMatch: Pick<ImportCharacterPort, "findByHandle"> = {
+  findByHandle: (): Promise<null> => Promise.resolve(null),
 };
 
 interface TagAttachCall {
@@ -73,6 +85,8 @@ describe("runProfileImport", () => {
         });
         return Promise.resolve({ id: castId<CharacterId>("chr_a") });
       },
+      ...neverUpdate,
+      ...noHandleMatch,
       findByImportHash: (): Promise<null> => Promise.resolve(null),
     };
     let stores = 0;
@@ -113,6 +127,8 @@ describe("runProfileImport", () => {
       },
       findByImportHash: (): Promise<{ characterId: CharacterId }> =>
         Promise.resolve({ characterId: castId<CharacterId>("chr_existing") }),
+      ...neverUpdate,
+      ...noHandleMatch,
     };
 
     const result = await runProfileImport({
@@ -133,6 +149,8 @@ describe("runProfileImport", () => {
       create: (): Promise<{ id: CharacterId }> =>
         Promise.resolve({ id: castId<CharacterId>("chr_ok") }),
       findByImportHash: (): Promise<null> => Promise.resolve(null),
+      ...neverUpdate,
+      ...noHandleMatch,
     };
 
     const result = await runProfileImport({
@@ -162,6 +180,8 @@ describe("runProfileImport", () => {
         seenOwner = p.ownerId;
         return Promise.resolve(null);
       },
+      ...neverUpdate,
+      ...noHandleMatch,
     };
 
     await runProfileImport({
@@ -180,6 +200,8 @@ describe("runProfileImport", () => {
       create: (): Promise<{ id: CharacterId }> =>
         Promise.resolve({ id: castId<CharacterId>("chr_tagged") }),
       findByImportHash: (): Promise<null> => Promise.resolve(null),
+      ...neverUpdate,
+      ...noHandleMatch,
     };
     const tagged =
       '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tagged","description":"x","tags":["bard","fantasy"]}}';

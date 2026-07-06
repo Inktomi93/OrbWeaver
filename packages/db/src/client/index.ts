@@ -20,6 +20,15 @@ import * as schema from "#schema";
 export type Db = LibSQLDatabase<typeof schema>;
 
 /**
+ * The read-only projection of {@link Db} — `select` (the query builder) + `query` (the relational API).
+ * Omits every write-capable member (`insert`/`update`/`delete`/`run`/`all`/`get`/`values`/`transaction`/
+ * `batch` — several of which can execute arbitrary SQL, not just typed writes). A domain whose context
+ * types `db` as `ReadOnlyDb` gets a COMPILE-TIME guarantee it cannot issue a write (PD-102) — `tsc` fails
+ * the moment a write call is attempted, closing the gap a prose "read-only" claim can't.
+ */
+export type ReadOnlyDb = Pick<Db, "select" | "query">;
+
+/**
  * The OTel injection seam: `server/observability` passes a wrapper that decorates the libSQL client with
  * tracing. db never imports observability — the wrapper arrives here. Identity when omitted.
  */

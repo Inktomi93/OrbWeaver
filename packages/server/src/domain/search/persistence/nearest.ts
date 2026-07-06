@@ -15,7 +15,7 @@
 //   • SPACE  — `character_embeddings.model = ?` (the active embed model = the `(model, dim)` space tag;
 //     providers.md §2b/§11 — compare ONLY within one space).
 
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
@@ -51,7 +51,7 @@ export function toVectorBlob(v: Float32Array): Uint8Array {
  * query, owner-scoped — ascending by raw distance. CSLS hub-adjust + rerank happen in the verb over these.
  */
 export async function nearestCharacters(
-  db: Db,
+  db: ReadOnlyDb,
   params: NearestCharactersParams,
 ): Promise<NearestCharacter[]> {
   const distance = sql<number>`vector_distance_cos(${characterEmbeddings.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
