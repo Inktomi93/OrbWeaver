@@ -68,17 +68,17 @@ interface ForkVars {
 // Module-scope factories → stable hook identities (§13.1). Every settle reconciles through the
 // BUS-DRIVEN (mutation-vs-bus rule, invalidation.ts): both act on the OPEN chat, and their verbs emit a
 // canon event on it — setMessageHidden → messageHidden, deleteMessages → messagesDeleted (both → chatReads)
-// — delivered by the active subscription → the seam refetches. `invalidates` empty; the removed keys were a
+// — delivered by the active subscription → the seam refetches. `busDriven`; the removed keys were a
 // redundant backstop. (Fork is DIFFERENT — it creates a chat you're not yet subscribed to; it keeps below.)
 const useHideMutation = createEntityMutation<HideVars, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't change that message's visibility.",
 });
 
 const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't delete that message.",
 });
 

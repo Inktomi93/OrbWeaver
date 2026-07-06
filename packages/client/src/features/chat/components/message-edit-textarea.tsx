@@ -45,11 +45,11 @@ interface EditMessageVars {
 }
 
 // Module-scope factory → a stable hook identity (§13.1). BUS-DRIVEN: `editMessage` emits messageEdited
-// (→ chatReads) on the OPEN chat, delivered by the active subscription → the seam refetches. `invalidates`
-// empty — re-invalidating those keys was a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
+// (→ chatReads) on the OPEN chat, delivered by the active subscription → the seam refetches. `busDriven`
+// — re-invalidating those keys was a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
 const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
   options: (trpc) => trpc.chat.editMessage.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't save that edit.",
 });
 

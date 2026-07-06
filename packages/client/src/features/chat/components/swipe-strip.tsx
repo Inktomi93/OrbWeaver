@@ -50,18 +50,18 @@ interface SelectVariantVars {
 // (TData `unknown`, not consumed here): both act on the OPEN chat, and their server verbs emit a canon
 // event on it — `swipe` runs a turn (turnCompleted → chatReads), `selectVariant` emits variantSelected
 // (→ chatReads) — which the active subscription delivers and the invalidation seam turns into the exact
-// same refetch. So `invalidates` is EMPTY: re-invalidating the bus's own keys just double-refetched them
+// same refetch. So both are `busDriven`: re-invalidating the bus's own keys just double-refetched them
 // (the mutation-vs-bus rule — data/invalidation.ts). NOTE: no optimistic `onMutate` here — the bus IS the
 // update path (never a manual cache patch); the removed lines were a redundant "settle-time backstop".
 const useSwipeMutation = createEntityMutation<SwipeVars, unknown>({
   options: (trpc) => trpc.chat.swipe.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't generate that swipe.",
 });
 
 const useSelectVariantMutation = createEntityMutation<SelectVariantVars, unknown>({
   options: (trpc) => trpc.chat.selectVariant.mutationOptions(),
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't switch to that variant.",
 });
 

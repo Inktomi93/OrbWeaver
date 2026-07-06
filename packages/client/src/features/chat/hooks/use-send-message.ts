@@ -34,13 +34,13 @@ interface SendVars {
 // the sent turn is bus-driven (messageCommitted/turnStarted/…), never read back from this mutation.
 const useSendMutation = createEntityMutation<SendVars, unknown>({
   options: (trpc) => trpc.chat.send.mutationOptions(),
-  // NO mutation-side invalidation: `send` is bus-driven. The turn emits `messageCommitted` (the user's
+  // `busDriven` — NO mutation-side invalidation: `send` is bus-driven. The turn emits `messageCommitted` (the user's
   // message) and `turnCompleted` (the reply), each of which runs the full `chatReads` invalidation
   // (getChat + listMessages + listMessageVariants + listChats) through the SSE bus — the sanctioned
   // freshness path (UI-Gates §11.1; `staleTime: Infinity`, the bus drives freshness). Invalidating the
   // same keys here too just double-refetched them (the observed 4-5×/send storm). The bus is authoritative
   // and also covers other participants' turns; a self-only mutation invalidate is a strict, redundant subset.
-  invalidates: () => [],
+  busDriven: true,
   errorToast: "Couldn't send your message.",
 });
 
