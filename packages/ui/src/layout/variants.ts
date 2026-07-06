@@ -46,10 +46,13 @@ export const rowVariants = tv({
   variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
 });
 
-/** `<Section>` skin (ui-package-design §6.1). */
+/** `<Section>` skin (ui-package-design §6.1). NO external `py` — a Section pads its OWN content
+ *  (heading + `gap-block` between fields) but leaves BETWEEN-section spacing to the container's `gap`
+ *  (the flex/grid model — padding-as-margin double-counts against `gap`, which floated sections apart
+ *  with a weird gap in the settings grid). Space sections via `<Stack gap>` / `<Grid gap>`, not here. */
 export const sectionVariants = tv({
   slots: {
-    root: "flex flex-col gap-block py-section",
+    root: "flex flex-col gap-block",
     heading: "font-medium text-foreground text-title leading-title",
   },
 });
