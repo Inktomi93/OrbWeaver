@@ -48,7 +48,10 @@ export function SettingsShell(): ReactElement {
 
   return (
     <Container className="h-full">
-      <Row className="h-full min-h-0" gap="section">
+      {/* align="start": top-align the nav + content. `<Row>` defaults to `items-center`, which in a tall
+          settings modal floats both columns vertically-centered (a big dead gap above the search + below
+          the pane). They fill the height and scroll on their own — anchor them to the top. */}
+      <Row align="start" className="h-full min-h-0" gap="section">
         <Stack className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto" gap="section">
           <Input
             aria-label="Search settings"
