@@ -42,7 +42,6 @@ import {
   backfillGroupCharacters,
   backfillMemory,
   createActiveTurns,
-  createChatBus,
   createChatService,
   getGroupConfig,
   getRoomOverrides,
@@ -66,7 +65,7 @@ import { getLog } from "#foundation/observability";
 import type { ChatDeltaEvent, ChatRequest, ChatResult } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit";
-import { publishChatEvent, publishNotification } from "../../transport/trpc";
+import { publishNotification } from "../../transport/trpc";
 import { resolveImageRefToUrl } from "./resolve-image-ref";
 
 /** Per-chat turn-lock TTL (ms), sized for one turn — the lock auto-expires so a crashed holder's lock is
@@ -90,6 +89,10 @@ export interface ChatComposeInput {
   readonly toolUse?: ToolUseService | undefined;
   readonly db: Db;
   readonly now: () => number;
+  /** PD-128: the ONE chat bus's durable-first emit (`bus.emit` → transport `publishChatEvent`), built at the
+   *  composition root (`services.ts`) and injected so chat does NOT construct a second `createChatBus`. The
+   *  SAME wrapper backs persona's active-persona write, so persona/chat/world-info all share one bus + ring. */
+  readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
   /** The lock-holder tag for this replica (also used by the boot lock reclaim — one source of truth). */
   readonly holder: string;
   /** The invite-token pepper (mirrors sessions). */
@@ -173,7 +176,7 @@ function buildChatToolOps(
 }
 
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
-  const { db, now } = input;
+  const { db, now, emitChatEvent } = input;
 
   // The frozen-host → `Principal` bridge (see the file header). For the ROLE-IRRELEVANT ops (getCard /
   // persona.get / mint — gated on `userId` only) the cheap synthetic principal is correct + avoids a per-call
@@ -658,19 +661,15 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     resolvePromptVariables,
   };
 
-  const bus = createChatBus({ db, now, newEventId: chatCtx.newEventId });
-  // DURABLE-FIRST live fan-out (the streamMessages SSE half): the domain bus assigns the per-chat `seq`
-  // (the `chat_events` INSERT commits first), THEN the same cursor-stamped event goes to the transport
-  // per-chat live channel — a dead live path never loses an event (the subscription replays by `seq`).
-  // ONE wrapper for every emitter (verbs + the world-info ride-along), so WI events stream too.
-  const emitAndPublish = async (event: ChatBusEvent): Promise<void> => {
-    const seq = await bus.emit(event);
-    publishChatEvent({ seq, event });
-  };
+  // PD-128: the durable-first emit is the injected `emitChatEvent` (the ONE bus built at services.ts) — chat
+  // no longer constructs its own `createChatBus`. It wraps `bus.emit` → transport `publishChatEvent`: the
+  // domain bus assigns the per-chat `seq` (the `chat_events` INSERT commits first), THEN the cursor-stamped
+  // event goes to the transport per-chat live channel (a dead live path never loses an event — the
+  // subscription replays by `seq`). The SAME wrapper backs the verbs, the world-info ride-along, AND persona.
   const memberBudget = createMemberBudget(db, { windowMs: MEMBER_BUDGET_WINDOW_MS, now });
 
   const chatDeps: ChatServiceDeps = {
-    emit: emitAndPublish,
+    emit: emitChatEvent,
     activeTurns: createActiveTurns(),
     // The PROD seed (D46): the eval path injects a seeded PRNG; at the entry root the real entropy source is
     // sanctioned (this is the composition root, not determinism-gated domain code).
@@ -751,7 +750,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
 
   return {
     service: createChatService(chatCtx, chatDeps),
-    emitBusEvent: emitAndPublish,
+    emitBusEvent: emitChatEvent,
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
