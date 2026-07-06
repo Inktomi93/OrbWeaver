@@ -170,6 +170,17 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
   return rows.map((r) => toAttachmentView(r.book, null));
 }
 
+/** The reverse of `listChatBooks` — every chat a book is attached to (PD-89: the entry-verb fan-out target).
+ *  A book attached to zero chats returns `[]` (empty fan-out is correct, not an error — a
+ *  character/persona/global-scoped book has no reverse mapping and never reaches here). */
+export async function listChatIdsForBook(db: Db, bookId: WorldBookId): Promise<ChatId[]> {
+  const rows = await db
+    .select({ chatId: chatBooks.chatId })
+    .from(chatBooks)
+    .where(eq(chatBooks.worldBookId, bookId));
+  return rows.map((r) => r.chatId);
+}
+
 /** Books attached to a persona, newest first, owner-scoped via the book. Role is null. */
 export async function listPersonaBooks(
   db: Db,
