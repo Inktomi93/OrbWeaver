@@ -27,20 +27,22 @@ const LIFECYCLE_STYLE = "color:#06c";
 const WARN_STYLE = "color:#c60;font-weight:bold";
 const MUTED_STYLE = "color:#888";
 
-// Same key re-invalidated within this window = the storm signature. Short enough to IGNORE the
-// legitimate spread-out refetches (a `messageCommitted` and its turn's later `turnCompleted` are
-// SECONDS apart — two real moments, not a double), tight enough to catch a doubled delivery or a
-// mutation re-invalidating a bus-covered key (those land within a few ms of each other).
+// The dup alarm's burst window. A normal turn legitimately hits each `chatReads` key TWICE — the
+// terminal `messageCommitted` and the `turnCompleted` ~ms after it BOTH refetch (two distinct real
+// events, not a double delivery). So the alarm counts within this window and only fires ABOVE that
+// baseline (DUP_ALARM_MIN): a key hammered 3+× is the real storm signature — a doubled delivery, a
+// mutation re-invalidating a bus-covered key, or a new-chat replay tax stacking up.
 const DUP_WINDOW_MS = 250;
+const DUP_ALARM_MIN = 3;
 
 // `shortId` shape: leave ids this short (or unprefixed) whole; otherwise keep this many trailing chars.
 const SHORT_ID_WHOLE_MAX = 12;
 const SHORT_ID_TAIL = 5;
 
 let liveSubscriptions = 0;
-// key → last-invalidate wall-clock ms. Bounded: the key set is the handful of tRPC query paths, so
-// this never grows past a few entries (no eviction needed).
-const lastInvalidateAt = new Map<string, number>();
+// key → the current burst (count + when it started). Bounded: the key set is the handful of tRPC
+// query paths, so this never grows past a few entries (no eviction needed).
+const invalidateBursts = new Map<string, { count: number; firstAt: number }>();
 
 function clockMs(): number {
   return performance.timeOrigin + performance.now();
@@ -106,19 +108,28 @@ export function busInvalidate(type: string, chatId: string, keys: readonly strin
 }
 
 /**
- * One call per invalidated key (bus OR mutation side — both route through `invalidateFilters`). Warns
- * when the SAME key was invalidated within `DUP_WINDOW_MS`: the storm signature. Purely an alarm.
+ * One call per invalidated key (bus OR mutation side — both route through `invalidateFilters`). Counts
+ * same-key invalidations inside a burst window and logs ONCE when the count crosses `DUP_ALARM_MIN`
+ * (above the commit+complete baseline) — the storm signature. Uses `console.info` (styled), NOT
+ * `console.warn`: warn drags a full StrictMode stack trace into the console on every hit — the exact
+ * spam this channel exists to avoid.
  */
 export function busDupCheck(key: string): void {
   if (!IS_DEV) {
     return;
   }
   const now = clockMs();
-  const prev = lastInvalidateAt.get(key);
-  lastInvalidateAt.set(key, now);
-  if (prev !== undefined && now - prev < DUP_WINDOW_MS) {
-    console.warn(
-      `%c${logClock()} [bus] %c⚠ duplicate invalidate ${key} ×2 in ${Math.round(now - prev)}ms%c — event delivered twice, or a mutation re-invalidating a bus-covered key?`,
+  const burst = invalidateBursts.get(key);
+  if (burst === undefined || now - burst.firstAt >= DUP_WINDOW_MS) {
+    invalidateBursts.set(key, { count: 1, firstAt: now });
+    return;
+  }
+  burst.count += 1;
+  // Log exactly once per burst — at the crossing — so a 5× storm is one line, not three. `console.info`
+  // (not `warn`) so Chrome doesn't staple a StrictMode stack trace under every line.
+  if (burst.count === DUP_ALARM_MIN) {
+    console.info(
+      `%c${logClock()} [bus] %c⚠ ${key} invalidated ${burst.count}× in ${Math.round(now - burst.firstAt)}ms%c — above the commit+complete baseline (doubled delivery, or a mutation re-invalidating a bus-covered key)`,
       PREFIX_STYLE,
       WARN_STYLE,
       MUTED_STYLE,
