@@ -20,10 +20,14 @@ interface AddCharacterToChatVars {
   readonly characterId: CharacterId;
 }
 
+// All four roster mutations are BUS-DRIVEN on the OPEN chat (the mutation-vs-bus rule, invalidation.ts):
+// the roster verbs emit `chatUpdated` (add/mute/talkativeness) — or a turn (`forceCharacterTurn`) — on the
+// chat you're in, delivered by the active subscription; `chatUpdated`/turn events → chatReads, which covers
+// `getChat` (+ `listMessages`). So `invalidates` is empty — the cast bar + Roster tab read from `getChat`,
+// refreshed by the bus, not a redundant mutation-side invalidate.
 export const useAddCharacterToChat = createEntityMutation<AddCharacterToChatVars, unknown>({
   options: (trpc) => trpc.chat.addCharacterToChat.mutationOptions(),
-  // The added member changes the roster the cast bar + Roster tab + attribution all read from `getChat`.
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: () => [],
   errorToast: "Couldn't add that character to the chat.",
 });
 
@@ -36,7 +40,7 @@ interface SetParticipantDisabledVars {
 
 export const useSetParticipantDisabled = createEntityMutation<SetParticipantDisabledVars, unknown>({
   options: (trpc) => trpc.chat.setParticipantDisabled.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: () => [],
   errorToast: "Couldn't update the member's mute state.",
 });
 
@@ -52,7 +56,7 @@ export const useSetParticipantTalkativeness = createEntityMutation<
   unknown
 >({
   options: (trpc) => trpc.chat.setParticipantTalkativeness.mutationOptions(),
-  invalidates: (trpc, vars) => [trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  invalidates: () => [],
   errorToast: "Couldn't update the member's talkativeness.",
 });
 
@@ -65,9 +69,7 @@ interface ForceCharacterTurnVars {
 
 export const useForceCharacterTurn = createEntityMutation<ForceCharacterTurnVars, unknown>({
   options: (trpc) => trpc.chat.forceCharacterTurn.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  // Bus-driven: summoning a member runs a turn (turnCompleted → chatReads) on the OPEN chat.
+  invalidates: () => [],
   errorToast: "Couldn't summon that member to speak.",
 });

@@ -13,6 +13,20 @@
 // carrier); v1 deliberately invalidates anyway (targeted-invalidate + background refetch is the
 // documented model — UI-Lib-TanStack-Query.md §F-3); when the chat feature lands its read model it
 // upgrades the relevant rows to `setQueryData` patches HERE, in the one chokepoint.
+//
+// ── THE MUTATION-VS-BUS RULE (freshness has ONE driver, not two) ──────────────────────────────────
+// The bus is the freshness path (`staleTime: Infinity`; the client subscribes to the OPEN chat's stream
+// — `use-chat-bus.ts` — and every canon change on that chat emits a `ChatBusEvent` that runs its filters
+// above). So a chat mutation whose server verb emits such an event on the chat you're viewing must NOT
+// ALSO invalidate the keys that event covers: `invalidates: () => []`. Doing both double-refetched the
+// SAME keys (a send fired getChat/listMessages/listChats 4-5× — the observed storm). Verified by the
+// exhaustive contract test (tests/client/data/invalidation.test.ts). A mutation KEEPS an `invalidates`
+// entry ONLY for a key NO delivered bus event covers — i.e.:
+//   • it acts on a DIFFERENT chat than the one subscribed (chat-row rename/star/archive/delete, and
+//     startChat/forkChat which create a chat you're not yet subscribed to → keep `listChats`); or
+//   • it invalidates a read no `chatReads`/`chatUpdated` covers (e.g. `listChatInjections`).
+// The reducer (`apply-chat-bus-event.ts`) + this map are BOTH exhaustive, so "which event a verb emits"
+// is the only per-mutation fact to check; the audit table lives in the mutation files' own headers.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";

@@ -21,10 +21,9 @@ interface AbortVars {
 // (`turnAborted` closes the slot); nothing here reads the mutation's own resolved value.
 const useAbortMutation = createEntityMutation<AbortVars, unknown>({
   options: (trpc) => trpc.chat.abort.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  // BUS-DRIVEN: `abort` emits turnAborted (→ chatReads) on the OPEN chat, delivered by the active
+  // subscription → the seam refetches. `invalidates` empty (mutation-vs-bus rule, invalidation.ts).
+  invalidates: () => [],
   errorToast: "Couldn't stop generation.",
 });
 

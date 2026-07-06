@@ -66,26 +66,24 @@ interface ForkVars {
 }
 
 // Module-scope factories → stable hook identities (§13.1). Every settle reconciles through the
-// central invalidation seam; the bus's own re-fold (messageHidden/messagesDeleted/chatCreated) is the
-// primary path, this is the backstop, same posture as swipe-strip.tsx.
+// BUS-DRIVEN (mutation-vs-bus rule, invalidation.ts): both act on the OPEN chat, and their verbs emit a
+// canon event on it — setMessageHidden → messageHidden, deleteMessages → messagesDeleted (both → chatReads)
+// — delivered by the active subscription → the seam refetches. `invalidates` empty; the removed keys were a
+// redundant backstop. (Fork is DIFFERENT — it creates a chat you're not yet subscribed to; it keeps below.)
 const useHideMutation = createEntityMutation<HideVars, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  invalidates: () => [],
   errorToast: "Couldn't change that message's visibility.",
 });
 
 const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  invalidates: () => [],
   errorToast: "Couldn't delete that message.",
 });
 
+// KEEP: `forkChat` emits `chatCreated` on a NEW chat the caller is NOT subscribed to (like startChat), so
+// the bus can't refresh the list here — the mutation-side `listChats` invalidate is the only refresh.
 const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],

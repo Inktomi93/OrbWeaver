@@ -36,10 +36,9 @@ interface SpeakAsGenerateVars {
 // the guided-generate precedent (use-guided-actions.ts).
 const useSpeakAsGenerate = createEntityMutation<SpeakAsGenerateVars, unknown>({
   options: (trpc) => trpc.chat.generate.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  // BUS-DRIVEN: `generate` runs a turn (messageCommitted + turnCompleted → chatReads) on the OPEN chat,
+  // delivered by the active subscription. `invalidates` empty (mutation-vs-bus rule, invalidation.ts).
+  invalidates: () => [],
   errorToast: "Couldn't generate that response.",
 });
 

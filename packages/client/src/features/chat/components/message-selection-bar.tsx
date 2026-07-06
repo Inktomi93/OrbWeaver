@@ -37,14 +37,12 @@ interface DeleteVars {
   readonly messageIds: MessageId[];
 }
 
-// Module-scope factory (§13.1) — the bus's `messagesDeleted` re-fold is the primary refresh; the
-// central-seam invalidate is the settle backstop (the message-actions-row precedent).
+// Module-scope factory (§13.1) — BUS-DRIVEN: `deleteMessages` emits messagesDeleted (→ chatReads) on the
+// OPEN chat, delivered by the active subscription → the seam refetches. `invalidates` empty; the removed
+// keys were a redundant backstop (the mutation-vs-bus rule, invalidation.ts).
 const useDeleteMessages = createEntityMutation<DeleteVars, unknown>({
   options: (trpc) => trpc.chat.deleteMessages.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.chat.getChat.queryFilter({ chatId: vars.chatId }),
-    trpc.chat.listMessages.pathFilter(),
-  ],
+  invalidates: () => [],
   errorToast: "Couldn't delete the selected messages.",
 });
 
