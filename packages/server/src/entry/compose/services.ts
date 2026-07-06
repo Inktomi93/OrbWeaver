@@ -19,6 +19,7 @@
 //   • tag.requireParticipant — chat membership gate is PD-19 (chat is P5).
 //   • import — its service is PER-OWNER (`ImportContext.ownerId`), built by the `entry/import` driver later.
 
+import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { DomainEvent } from "@orb/contracts/events";
@@ -447,14 +448,20 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     });
   }
 
-  // PD-120: persona's chat-table write needs the chat bus's durable-first emit, but persona composes BEFORE
-  // `buildChatService` (chat.ts) — chat needs persona.get for its own turn assembly, so the two can't reorder
-  // (a genuine cycle). A second `createChatBus` instance here is NOT a second event log: `chat_events.seq` is
-  // a DB-correlated subquery (no per-instance state), so both instances append to the SAME durable table —
-  // only the in-process replay RING is per-instance, and this instance's ring is never read (this closure
-  // only ever emits, it doesn't subscribe). Live fan-out still goes through the one transport `publishChatEvent`
-  // singleton, so a connected SSE stream sees `personaSwitched` exactly like any other chat bus event.
-  const personaSwitchBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
+  // PD-128: the ONE chat bus. persona's active-persona write needs the chat bus's durable-first emit, but
+  // persona composes BEFORE `buildChatService` (chat needs `persona.get` for turn assembly — a genuine cycle),
+  // so the bus is built HERE, early — it needs only {db, now, newEventId}, all available — and threaded into
+  // BOTH persona's write AND `buildChatService`. ONE durable-first emit, ONE replay ring (bus.ts
+  // FLAG[bus-not-on-ctx]: service builds ONE bus). This replaces the former split — a `personaSwitchBus` here
+  // + a second `createChatBus` inside chat.ts — whose per-instance ring had zero readers today but was a
+  // latent per-chat `seq`-gap trap the moment the transport ever reads the ring for a resume window (PD-128).
+  const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
+  const emitChatEvent = async (event: ChatBusEvent): Promise<void> => {
+    // Durable-first: the bus assigns the per-chat `seq` (the `chat_events` INSERT commits first), THEN the
+    // cursor-stamped event goes to the transport live channel — a dead live path never loses an event.
+    const seq = await chatBus.emit(event);
+    publishChatEvent({ seq, event });
+  };
   const persona = createPersonaService({
     db,
     now,
@@ -464,14 +471,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },
     setChatActivePersona: async (chatId, targetUserId, personaId) => {
-      await setParticipantActivePersona(
-        db,
-        async (event) => {
-          const seq = await personaSwitchBus.emit(event);
-          publishChatEvent({ seq, event });
-        },
-        { chatId, targetUserId, personaId },
-      );
+      await setParticipantActivePersona(db, emitChatEvent, { chatId, targetUserId, personaId });
     },
   });
   const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
@@ -631,6 +631,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     toolUse,
     db,
     now,
+    emitChatEvent, // PD-128: the ONE bus, built above — chat no longer constructs its own.
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
     // The PD-73 frozen-host → Principal bridge (sessions is the sanctioned users reader).
