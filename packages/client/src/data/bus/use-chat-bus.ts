@@ -11,8 +11,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken } from "@tanstack/react-query";
 import { useSubscription } from "@trpc/tanstack-react-query";
-import { useState } from "react";
-import { notify } from "#lib";
+import { useEffect, useState } from "react";
+import { busSubscribe, busUnsubscribe, notify } from "#lib";
 import { useTRPC } from "../trpc";
 import type { ChatBusDeps } from "./apply-chat-bus-event";
 import { applyChatBusEvent } from "./apply-chat-bus-event";
@@ -64,6 +64,17 @@ export function useChatBus(chatId: ChatId | null, deps: ChatBusDeps): void {
   }
   const seededForThisChat = chatId !== null && seededChatId === chatId;
   const input = subscriptionInput(chatId, seededForThisChat);
+  // [bus] dev log — mirror the subscription's OWN lifecycle. Same deps as tRPC's internal subscribe
+  // effect (`hashKey(queryKey)` moves iff `chatId` or the seed flips), so this attach/detach tracks
+  // the real re-subscribes: a fresh chat's seed re-subscribe, a chat-switch detach, and — the reason
+  // it exists — a `live` count that climbs past 1 when the subscription is opened more than once.
+  useEffect((): (() => void) | undefined => {
+    if (chatId === null) {
+      return;
+    }
+    busSubscribe(chatId, seededForThisChat);
+    return (): void => busUnsubscribe(chatId);
+  }, [chatId, seededForThisChat]);
   useSubscription(
     trpc.chat.streamMessages.subscriptionOptions(input, {
       onData: (envelope) => {
