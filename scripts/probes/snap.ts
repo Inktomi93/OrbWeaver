@@ -419,6 +419,15 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
   } else if (!resp.ok()) {
     navError = `HTTP ${resp.status()}`;
   }
+  // Default readiness gate: agent-bridge.ts sets `data-app-ready` on <html> once the initial reads
+  // settle — independent of the never-idle SSE stream. Wait for it so snaps capture the SETTLED app,
+  // not mid-hydration skeletons (the "lists sit on skeletons forever" friction). Graceful: a non-app
+  // page or an old build that never sets it just falls through (the app self-sets within ~3s), so this
+  // only ever adds real load-wait, never a hang.
+  await page
+    .locator("html[data-app-ready]")
+    .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
+    .catch(() => undefined);
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {
     await page

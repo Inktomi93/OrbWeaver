@@ -44,6 +44,29 @@ let liveSubscriptions = 0;
 // query paths, so this never grows past a few entries (no eviction needed).
 const invalidateBursts = new Map<string, { count: number; firstAt: number }>();
 
+// A bounded ring of the recent canon events (the same ones logged to `[bus]`), so an agent/test can
+// READ the chat-bus history via `window.__orb.bus()` (agent-bridge.ts) instead of scraping the console
+// — the browser-side peer to the server observability. Dev-only (only `busInvalidate` writes it, and
+// that early-returns in prod), capped so it never grows unbounded on a long session.
+const BUS_RING_CAP = 64;
+export interface BusEventRecord {
+  readonly at: number;
+  readonly type: string;
+  readonly chatId: string;
+  readonly keys: readonly string[];
+}
+const busEventLog: BusEventRecord[] = [];
+
+/** The recent canon-event ring (newest last) — agent/test introspection via `window.__orb.bus()`. */
+export function busEventRing(): readonly BusEventRecord[] {
+  return busEventLog;
+}
+
+/** The live subscription count (a value climbing past 1 for one open chat = a double-subscription). */
+export function busLiveCount(): number {
+  return liveSubscriptions;
+}
+
 function clockMs(): number {
   return performance.timeOrigin + performance.now();
 }
@@ -105,6 +128,10 @@ export function busInvalidate(type: string, chatId: string, keys: readonly strin
     EVENT_STYLE,
     MUTED_STYLE,
   );
+  busEventLog.push({ at: clockMs(), type, chatId, keys });
+  if (busEventLog.length > BUS_RING_CAP) {
+    busEventLog.shift();
+  }
 }
 
 /**
