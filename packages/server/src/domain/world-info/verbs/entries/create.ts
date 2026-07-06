@@ -4,13 +4,19 @@
 // loose record validated at transport; the column is typed `EntryMetadata`) so a non-transport caller can't
 // smuggle an unvalidated blob past the type — `null` clears. Column defaults are applied explicitly so the
 // returned view matches the stored row without a re-read.
+//
+// PD-89: a new entry joins the WI pool of every chat the book is attached to — fan out `wiEntryAttached` over
+// `listChatIdsForBook` (empty fan-out when the book is attached to zero chats is correct, not an error; the
+// chat-scope-only rule — book attached at character/persona/global has no reverse mapping and never reaches
+// this fan-out, per the `WiBusEvent` doc comment in contracts/world-info).
 
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
+import { resolveEntryScope } from "@orb/kit/world-info";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { CreateEntryParams } from "../../contract/params";
 import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
-import { loadOwnedBook } from "../../persistence/queries";
+import { listChatIdsForBook, loadOwnedBook } from "../../persistence/queries";
 
 export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEntry"] {
   return async ({ principal, bookId, input }: CreateEntryParams) => {
@@ -54,6 +60,13 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEnt
       },
       at,
     );
+
+    const scope = resolveEntryScope(metadata, keys !== null && keys.length > 0);
+    const chatIds = await listChatIdsForBook(ctx.db, bookId);
+    for (const chatId of chatIds) {
+      // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential so per-chat ordering stays deterministic (the start-chat.ts seeded-greetings precedent).
+      await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
+    }
 
     return {
       id: entryId,

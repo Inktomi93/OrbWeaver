@@ -3,16 +3,25 @@
 // allow a cross-tenant write): the entry must belong to a book the caller owns. `metadata` is coerced through
 // `entryMetadataSchema` when set (the input is a loose write-record; the column is typed) and passed as
 // `null` to clear. The audit logs field NAMES only (content can be 100KB of RP — never the values).
+//
+// PD-89: `wiEntryScopeChanged` fans out over `listChatIdsForBook` ONLY when the edit touched a field that can
+// move the entry's runtime scope/activation — `keys` (the keyword-vs-always heuristic input), `enabled`, or
+// `metadata` (carries `scopeMode`, the explicit override read by `resolveEntryScope`). A `title`/`description`/
+// `content`/`priority`/`ignoreBudget`-only edit does NOT invalidate a chat's WI pool and emits nothing — mirrors
+// the attachment verbs' "only a REAL change emits" discipline.
 
 import type { EntryMetadata } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
+import { resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { UpdateEntryParams } from "../../contract/params";
 import type { WorldInfoContext, WorldInfoService } from "../../contract/service";
-import { loadOwnedEntry, toEntryView } from "../../persistence/queries";
+import { listChatIdsForBook, loadOwnedEntry, toEntryView } from "../../persistence/queries";
+
+const SCOPE_AFFECTING_FIELDS = ["keys", "enabled", "metadata"] as const;
 
 export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEntry"] {
   return async ({ principal, entryId, input }: UpdateEntryParams) => {
@@ -69,6 +78,23 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
       },
       at,
     );
+
+    const scopeChanged = SCOPE_AFFECTING_FIELDS.some((field) => field in edits);
+    if (scopeChanged) {
+      const scope = resolveEntryScope(updated.metadata, (updated.keys?.length ?? 0) > 0);
+      const chatIds = await listChatIdsForBook(ctx.db, updated.worldBookId);
+      for (const chatId of chatIds) {
+        // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential (create.ts precedent).
+        await ctx.emitWiEvent({
+          // biome-ignore lint/security/noSecrets: a discriminator literal, not a secret.
+          type: "wiEntryScopeChanged",
+          chatId,
+          surface: "chat",
+          entryId,
+          scope,
+        });
+      }
+    }
 
     return toEntryView(updated);
   };
