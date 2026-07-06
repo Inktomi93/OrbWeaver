@@ -90,6 +90,7 @@ export const TOKENS = {
   "width.dialog-sm": { cssVar: "--width-dialog-sm", value: "25rem" },
   "width.dialog-md": { cssVar: "--width-dialog-md", value: "35rem" },
   "width.dialog-lg": { cssVar: "--width-dialog-lg", value: "45rem" },
+  "width.dialog-xl": { cssVar: "--width-dialog-xl", value: "65rem" },
   "width.sidebar-sm": { cssVar: "--width-sidebar-sm", value: "13.75rem" },
   "z.base": { cssVar: "--z-base", value: "0" },
   "z.raised": { cssVar: "--z-raised", value: "10" },

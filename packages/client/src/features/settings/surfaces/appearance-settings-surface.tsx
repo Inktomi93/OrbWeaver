@@ -16,7 +16,7 @@
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import { Button } from "@orb/ui/button";
-import { Section, Stack } from "@orb/ui/layout";
+import { Grid, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -110,51 +110,54 @@ function AppearanceForm(): ReactElement {
 
   return (
     <Stack key={mountKey} gap="section">
-      <Text size="label" tone="muted">
+      {/* Grid: the sections tile into as many columns as fit and reflow — the pane FILLS the wide
+          settings modal and new sections just flow in, no fixed layout to maintain. */}
+      <Grid cols="wide" gap="gutter">
+        <Section heading="Message style">
+          <form.AppField name="chatStyle">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Chat display"
+                description="Bubble tints each message; flat is full-width; document is a centered manuscript column."
+                items={CHAT_STYLE_ITEMS}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="density">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Density"
+                description="Compact tightens spacing throughout the app."
+                items={DENSITY_ITEMS}
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Avatars">
+          <form.AppField name="showInChatAvatars">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show avatars in chat"
+                description="Hide to show only the speaker's name on each message."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="avatarSize">
+            {(field): ReactElement => (
+              <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} />
+            )}
+          </form.AppField>
+          <form.AppField name="avatarShape">
+            {(field): ReactElement => (
+              <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />
+            )}
+          </form.AppField>
+        </Section>
+      </Grid>
+      <Text size="micro" tone="muted" transform="caps">
         Changes save automatically and sync across your devices.
       </Text>
-
-      <Section heading="Message style">
-        <form.AppField name="chatStyle">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Chat display"
-              description="Bubble tints each message; flat is full-width; document is a centered manuscript column."
-              items={CHAT_STYLE_ITEMS}
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="density">
-          {(field): ReactElement => (
-            <field.SelectField
-              label="Density"
-              description="Compact tightens spacing throughout the app."
-              items={DENSITY_ITEMS}
-            />
-          )}
-        </form.AppField>
-      </Section>
-
-      <Section heading="Avatars">
-        <form.AppField name="showInChatAvatars">
-          {(field): ReactElement => (
-            <field.SwitchField
-              label="Show avatars in chat"
-              description="Hide to show only the speaker's name on each message."
-            />
-          )}
-        </form.AppField>
-        <form.AppField name="avatarSize">
-          {(field): ReactElement => (
-            <field.SelectField label="Avatar size" items={AVATAR_SIZE_ITEMS} />
-          )}
-        </form.AppField>
-        <form.AppField name="avatarShape">
-          {(field): ReactElement => (
-            <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />
-          )}
-        </form.AppField>
-      </Section>
     </Stack>
   );
 }
