@@ -63,7 +63,7 @@ export interface ChatLandingSurfaceProps {
 export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement {
   return (
     <Stack className="h-full min-h-0 overflow-y-auto" align="center" padding="section">
-      <Stack className="w-full max-w-prose" gap="section">
+      <Stack className="w-full max-w-cq-lg" gap="section">
         <QueryBoundary
           fallback={<LandingSkeleton />}
           renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
