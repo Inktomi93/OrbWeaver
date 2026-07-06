@@ -83,6 +83,10 @@ export const providerMetadataSchema = z.union([
       model: z.string().optional(),
       /** Per-endpoint request headers the runner applies. */
       headers: z.record(z.string(), z.string()).optional(),
+      /** User-declared context window (tokens) for the BYO model. Without this the budgeting layer has
+       *  no ceiling to work from — a 2M-context model silently gets treated as whatever the default
+       *  budget assumes (the D4 footgun). Trusted user input, not probed from the endpoint. */
+      contextWindow: z.number().int().positive().optional(),
     })
     .loose(),
   // `project` (NOT `projectId`) — Google's identifier is an assigned string, not a branded id.
@@ -163,6 +167,8 @@ export type LocalLightCredential = CredentialBrand & {
  * User-defined OpenAI-compatible endpoint. The active `custom_openai` row IS the endpoint selection.
  * `apiKey` is `null` for no-auth local servers; `headers` carries the per-endpoint request transform
  * resolved from the credential's metadata. (Request/response body transforms are v1-deferred, FLAG[PD-12].)
+ * `contextWindow` is the user-declared BYO context ceiling (PD-112) — undefined until the form/metadata
+ * supplies one; the budgeting consumer is a later surface.
  */
 export type CustomOpenAiCredential = CredentialBrand & {
   readonly source: "custom_openai";
@@ -170,6 +176,7 @@ export type CustomOpenAiCredential = CredentialBrand & {
   readonly apiKey: string | null;
   readonly headers: Record<string, string> | null;
   readonly credentialId: UserCredentialId;
+  readonly contextWindow: number | undefined;
 };
 
 /**

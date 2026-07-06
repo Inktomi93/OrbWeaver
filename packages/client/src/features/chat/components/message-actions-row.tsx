@@ -45,10 +45,9 @@ import { Button } from "@orb/ui/button";
 import { Copy, Eye, EyeOff, GitFork, Icon, Pencil, Trash2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { createEntityMutation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 interface HideVars {
   readonly chatId: ChatId;

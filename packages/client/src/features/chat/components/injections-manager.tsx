@@ -23,11 +23,10 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
 import type { InjectionFormValues } from "../hooks/use-injection-row-form";
 import { toInjectionForm, useInjectionRowForm } from "../hooks/use-injection-row-form";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 /** One persisted injection row (the `chat.listChatInjections` element — `ChatInjection` + its id). */
 interface InjectionRowData extends ChatInjection {

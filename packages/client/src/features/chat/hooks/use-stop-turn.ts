@@ -9,10 +9,9 @@
 // makes a genuinely-raced double network call harmless).
 
 import type { ChatId } from "@orb/kit/ids";
-import { createEntityMutation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { TurnSlot } from "#state";
 import { chatStream, useTurnPhase } from "#state";
-import { useInvalidation } from "./use-invalidation";
 
 interface AbortVars {
   readonly chatId: ChatId;

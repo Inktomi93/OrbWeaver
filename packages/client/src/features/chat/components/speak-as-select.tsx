@@ -21,11 +21,10 @@ import { Button } from "@orb/ui/button";
 import { Drama, Icon } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { createEntityMutation, useGatedQuery, useTRPC } from "#data";
+import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted, useTurnPhase } from "#state";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
 interface SpeakAsGenerateVars {

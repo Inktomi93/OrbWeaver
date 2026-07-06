@@ -25,10 +25,9 @@
 import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
-import { createEntityMutation, useGatedQuery, useTRPC } from "#data";
+import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted } from "#state";
-import { useInvalidation } from "./use-invalidation";
 
 /** The wire shape every guided verb accepts as its `guided` param (domain `GuidedSteer`, mirrored
  *  client-side — the router validates it as `z.any()`, so this is a type-only contract, not a schema). */

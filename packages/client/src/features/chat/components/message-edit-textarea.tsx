@@ -35,9 +35,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
-import { createEntityMutation, useTRPC } from "#data";
+import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 interface EditMessageVars {
   readonly chatId: ChatId;

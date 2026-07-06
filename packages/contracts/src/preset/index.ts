@@ -28,6 +28,7 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS } from "#connection";
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 
@@ -75,8 +76,9 @@ export type Quality = (typeof QUALITY_LEVELS)[number];
 
 // Effort — the UNION of every effort value any supported runner accepts. DISTINCT from
 // `contracts/connection.EffortLevel` (the model-capability descriptor, which excludes `none`): this is
-// the user-INTENT effort vocabulary, where `none` = thinking-disabled.
-export const EFFORT_LEVELS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+// the user-INTENT effort vocabulary, where `none` = thinking-disabled. DERIVED from connection's set
+// (never redeclared) so the two can't diverge — `none` is the only member this tier adds.
+export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export const effortLevelSchema = z.enum(EFFORT_LEVELS);
 

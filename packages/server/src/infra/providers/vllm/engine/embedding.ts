@@ -12,6 +12,13 @@
 //
 // MRL: vectors are matryoshka — slicing the leading `dim` coords then re-L2-normalizing yields the same
 // vector the server would return for `dimensions: dim` (truncation-valid by construction).
+//
+// L2-NORM (PD-122): the normalize step delegates to `@orb/kit/vector-math`'s `l2Normalize` — the SAME
+// primitive the local-light backend uses. The knowledge-cluster local↔hosted embedding swap depends on
+// byte-identical L2-norm on both paths (a cosine≈1.0 probe guards exactly this divergence); two
+// hand-rolled copies was the risk the probe fears.
+
+import { l2Normalize } from "@orb/kit/vector-math";
 
 /** Cookbook default instruction — documents / generic representation. */
 export const DOC_INSTRUCTION = "Represent the user's input.";
@@ -29,16 +36,10 @@ export function truncateToDim(vec: readonly number[], dim: number): number[] {
 }
 
 /** L2-normalize into a cosine-ready `Float32Array` (a truncated vector is no longer unit-length). The
- *  `<ArrayBuffer>` arg matches the EmbedResult contract's vector type (libSQL's `vector_idx` format). */
+ *  `<ArrayBuffer>` arg matches the EmbedResult contract's vector type (libSQL's `vector_idx` format);
+ *  `l2Normalize` allocates a fresh `new Float32Array(dim)` (genuinely ArrayBuffer-backed) but its kit
+ *  signature widens the buffer type to `ArrayBufferLike`, so this re-narrows to the true runtime type
+ *  (same pattern as local-light's `normalizeVector` — the other consumer of this ONE primitive). */
 export function normalizeVector(vec: readonly number[]): Float32Array<ArrayBuffer> {
-  let sumSquares = 0;
-  for (const x of vec) {
-    sumSquares += x * x;
-  }
-  const norm = Math.sqrt(sumSquares);
-  const out = new Float32Array(vec.length);
-  for (let i = 0; i < vec.length; i += 1) {
-    out[i] = norm > 0 ? (vec[i] ?? 0) / norm : 0;
-  }
-  return out;
+  return l2Normalize(Float32Array.from(vec)) as Float32Array<ArrayBuffer>;
 }

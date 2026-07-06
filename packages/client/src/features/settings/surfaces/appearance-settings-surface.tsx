@@ -20,9 +20,8 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, QueryBoundary, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
-import { useInvalidation } from "../hooks/use-invalidation";
 
 // ── Labelled Select options — each `value` pinned to the AppearanceSettings field union (`satisfies`),
 // so a typo'd value is a tsc error, not a silently-unselectable option. chatStyle/density values come

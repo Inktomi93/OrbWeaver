@@ -1,9 +1,10 @@
-// substrate: sniffMime — the magic-byte sniff (esoterica #7). Pins each recognized signature + the
+// kit/image-sniff — sniffMime: the pure magic-byte sniff shared by the assets domain and the vllm backend
+// (PD-123; the promoted successor to assets' substrate/mime table). Pins each recognized signature + the
 // octet-stream sentinel for unknown/short input (the upload boundary's "never a valid claimed mime").
 
+import { sniffMime } from "@orb/kit/image-sniff";
 import { describe } from "vitest";
-import { sniffMime } from "../../../../../packages/server/src/domain/assets/substrate/mime.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../support/fixtures";
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
@@ -30,6 +31,8 @@ describe("sniffMime", () => {
   });
 
   test("a buffer too short for a signature does not false-match", () => {
+    // A bare 4-byte "GIF8" (or "RIFF") is NOT a valid image — strict tables require the full tag.
+    expect(sniffMime(new Uint8Array([0x47, 0x49, 0x46, 0x38]))).toBe("application/octet-stream");
     expect(sniffMime(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBe("application/octet-stream");
     expect(sniffMime(new Uint8Array([]))).toBe("application/octet-stream");
   });

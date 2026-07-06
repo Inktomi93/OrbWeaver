@@ -100,7 +100,8 @@ export const reasoningModeSchema = z.enum(REASONING_MODES);
 
 /** The model's REAL effort levels. Deliberately EXCLUDES `'none'` (the neo `EFFORT_LEVELS` carried it
  *  as a doubled-up off-switch): the on/off decision is `reasoning.enabled`, so a level is never also a
- *  kill-switch. */
+ *  kill-switch. CANONICAL — `contracts/preset.EFFORT_LEVELS` (the user-intent vocabulary) DERIVES from
+ *  this set (`["none", ...EFFORT_LEVELS]`) rather than redeclaring it, so the two can't diverge again. */
 export const EFFORT_LEVELS = ["minimal", "low", "medium", "high", "xhigh", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 export const effortLevelSchema = z.enum(EFFORT_LEVELS);
