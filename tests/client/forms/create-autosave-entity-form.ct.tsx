@@ -69,3 +69,25 @@ test("a field unmounting mid-debounce flushes its pending edit via onFieldUnmoun
   // submit directly (`handleSubmit()`), not the (much later) natural debounce timer.
   await expect(savedState).toContainText('"text":"flushed value"');
 });
+
+// The complement — the setRoomOverrides({})-on-open regression, empirically traced to `onFieldUnmount`
+// (NOT onChange): a field unmounting on an UNTOUCHED form must NOT flush its seed. React StrictMode's dev
+// double-invoke (mount→unmount→remount) unmounts fields on EVERY mount, and in prod any tab-away before an
+// edit does the same — without the `!isDefaultValue` guard, that flush autosaved the untouched seed to the
+// server (room-overrides wrote `{}` on every chat-open).
+test("a field unmounting on an UNTOUCHED form does NOT flush its seed (the setRoomOverrides({}) bug)", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AutosaveUnmountFlushStory />);
+
+  const savedState = page.getByTestId("unmount-flush-saved-state");
+  await expect(savedState).toHaveText("{}");
+
+  // Unmount the field with NO prior edit. `onFieldUnmount` fires SYNCHRONOUSLY in the unmount commit, so a
+  // BROKEN guard has already written the untouched seed (`{"text":""}`) to the save signal by the time this
+  // click resolves — this assertion would then fail. The `!isDefaultValue` guard skips it; the signal stays
+  // empty. (Deterministic, no wait: the flush is synchronous, not the 5s debounce.)
+  await page.getByRole("button", { name: "unmount field" }).click();
+  await expect(savedState).toHaveText("{}");
+});

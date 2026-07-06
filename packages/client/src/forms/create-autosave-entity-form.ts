@@ -128,23 +128,35 @@ export function createAutosaveEntityForm<TValues extends object>(
           formApi,
         }: {
           formApi: {
-            state: { values: TValues; isValid: boolean };
+            state: { values: TValues; isValid: boolean; isDefaultValue: boolean };
             handleSubmit: () => Promise<void>;
           };
         }) => {
           config.draft?.setDraft(entityId, formApi.state.values);
-          if (formApi.state.isValid) {
+          // Save ONLY a genuine change, never the untouched seed. `onFieldUnmount` below is the load-bearing
+          // case (see it), but this listener carries the SAME guard for symmetry. `!isDefaultValue` = the
+          // documented NON-persistent "differs from the seed right now" flag (the one the Unsaved pill uses,
+          // NOT persistent `isDirty`): untouched ⇒ isDefaultValue true ⇒ skip.
+          if (formApi.state.isValid && !formApi.state.isDefaultValue) {
             void formApi.handleSubmit();
           }
         },
         onChangeDebounceMs: config.debounceMs ?? DEFAULT_DEBOUNCE_MS,
-        // A field unmounting mid-debounce flushes its pending edit (the unprosed reference hook).
+        // A field unmounting flushes its pending edit (the unprosed reference hook) — but ONLY a real edit,
+        // never an untouched seed. WHY the guard is load-bearing here (empirically traced): a field can
+        // unmount with the form still AT ITS SEED — most visibly React StrictMode's dev double-invoke
+        // (mount→unmount→remount fires this on every mount), and in prod any tab-away before an edit. Without
+        // `!isDefaultValue`, that flush AUTOSAVES the seed to the server — the `setRoomOverrides({})`-on-open
+        // bug (every chat-open wrote empty room overrides). Untouched ⇒ isDefaultValue true ⇒ skip.
         onFieldUnmount: ({
           formApi,
         }: {
-          formApi: { state: { isValid: boolean }; handleSubmit: () => Promise<void> };
+          formApi: {
+            state: { isValid: boolean; isDefaultValue: boolean };
+            handleSubmit: () => Promise<void>;
+          };
         }) => {
-          if (formApi.state.isValid) {
+          if (formApi.state.isValid && !formApi.state.isDefaultValue) {
             void formApi.handleSubmit();
           }
         },
