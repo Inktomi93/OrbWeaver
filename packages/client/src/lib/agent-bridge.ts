@@ -17,6 +17,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog";
 import { busEventRing, busLiveCount } from "./bus-devlog";
 import { IS_DEV } from "./dev-flag";
+import { perfMeasureFromLoad, recentMeasures } from "./perf-marks";
 
 const READY_ATTR = "data-app-ready";
 const READY_FALLBACK_MS = 3000;
@@ -37,6 +38,8 @@ export function installAppReadySignal(queryClient: QueryClient): void {
     }
     settled = true;
     el.setAttribute(READY_ATTR, "");
+    // `orb:app-ready` = navigation-start → hydrated-and-settled (User Timing track + __orb.perf()).
+    perfMeasureFromLoad("app-ready");
     markReady();
   };
   const check = (): void => {
@@ -80,6 +83,8 @@ export interface OrbDebugHandle {
   readonly bus: () => { readonly live: number; readonly events: readonly BusEventRecord[] };
   /** DOM-derived shell state (active section · panel modes · whether a chat room is open). */
   readonly shell: () => ShellSnapshot;
+  /** The recorded `orb:*` User Timing measures (name → ms): app-ready, turn latency/TTFT, etc. */
+  readonly perf: () => ReadonlyArray<{ name: string; ms: number }>;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
 }
@@ -129,6 +134,7 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
       total: queryClient.getQueryCache().getAll().length,
       fetching: queryClient.isFetching(),
     },
+    perf: recentMeasures(),
   });
-  globalThis.__orb = { ready, isReady, queries, bus, shell, snap };
+  globalThis.__orb = { ready, isReady, queries, bus, shell, perf: recentMeasures, snap };
 }
