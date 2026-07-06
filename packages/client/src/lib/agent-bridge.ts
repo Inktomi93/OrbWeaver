@@ -150,4 +150,15 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
     renders: renderHeatmap,
     snap,
   };
+  // One-line discovery hint on load (dev only) so this isn't a forgotten seam — the console channels
+  // ([bus]/[trpc]/[perf]) + this handle are easy to miss otherwise. Points at the README for the rest.
+  console.info(
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .shell();  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "color:#e0a; font-weight:bold",
+    "color:#888",
+    "color:#0a7; font-weight:bold",
+    "color:#888",
+    "color:#06c",
+    "color:#888",
+  );
 }
