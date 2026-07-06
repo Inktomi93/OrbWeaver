@@ -18,6 +18,7 @@ import type { BusEventRecord } from "./bus-devlog";
 import { busEventRing, busLiveCount } from "./bus-devlog";
 import { IS_DEV } from "./dev-flag";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks";
+import { renderHeatmap } from "./render-stats";
 
 const READY_ATTR = "data-app-ready";
 const READY_FALLBACK_MS = 3000;
@@ -85,6 +86,8 @@ export interface OrbDebugHandle {
   readonly shell: () => ShellSnapshot;
   /** The recorded `orb:*` User Timing measures (name → ms): app-ready, turn latency/TTFT, etc. */
   readonly perf: () => ReadonlyArray<{ name: string; ms: number }>;
+  /** The render heatmap: which <Profiler>-wrapped surfaces re-render, how often, how expensive. */
+  readonly renders: () => ReturnType<typeof renderHeatmap>;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
 }
@@ -135,6 +138,16 @@ export function installAgentDebugHandle(queryClient: QueryClient): void {
       fetching: queryClient.isFetching(),
     },
     perf: recentMeasures(),
+    renders: renderHeatmap(),
   });
-  globalThis.__orb = { ready, isReady, queries, bus, shell, perf: recentMeasures, snap };
+  globalThis.__orb = {
+    ready,
+    isReady,
+    queries,
+    bus,
+    shell,
+    perf: recentMeasures,
+    renders: renderHeatmap,
+    snap,
+  };
 }
