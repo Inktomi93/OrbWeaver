@@ -227,6 +227,10 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The consistent LIST/CONTEXT content inset (was 0 — the header, search, and rows all crowded the
+     panel edges). One token-scaled gutter so every panel surface breathes the same, Discord-like. */
+  padding-inline: var(--spacing-row);
+  padding-block: var(--spacing-row);
 }
 
 /* ── CONTENT column (topbar + hero) ───────────────────────────────────────────────────────────── */
