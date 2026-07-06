@@ -9,7 +9,7 @@
 // (D18), never `users`.
 
 import type { BlockKey } from "@orb/contracts/search";
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -43,7 +43,7 @@ interface NearestDigestsParams {
 /** The closest digest blocks (ascending raw distance) in `model`'s space, scoped per the belts. CSLS
  *  hub-adjust + minScore + optional rerank happen in the verb over these rows. */
 export async function nearestDigests(
-  db: Db,
+  db: ReadOnlyDb,
   params: NearestDigestsParams,
 ): Promise<NearestDigest[]> {
   const distance = sql<number>`vector_distance_cos(${chatDigests.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
@@ -96,7 +96,7 @@ interface NearestSegmentsParams {
 
 /** The closest verbatim segment blocks (ascending raw distance) in `model`'s space, scoped to `chatIds`. */
 export async function nearestSegments(
-  db: Db,
+  db: ReadOnlyDb,
   params: NearestSegmentsParams,
 ): Promise<NearestSegment[]> {
   const distance = sql<number>`vector_distance_cos(${chatSegments.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;

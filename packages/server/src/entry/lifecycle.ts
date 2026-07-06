@@ -267,6 +267,7 @@ export function createLifecycle(): Lifecycle {
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,
+      exportService: built.exportService,
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,

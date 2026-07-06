@@ -16,6 +16,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { Hono } from "hono";
+import type { ExportService } from "#domain/export";
 import { env } from "#foundation/env";
 import {
   observability,
@@ -38,6 +39,7 @@ import type {
 import {
   registerAuthRoutes,
   registerBlob,
+  registerExport,
   registerHealthz,
   registerUpload,
   securityHeaders,
@@ -75,6 +77,10 @@ export interface AppDeps {
   readonly assets: BlobAssetsPort & UploadAssetsPort & ImportAssetPort;
   readonly cas: BlobCasPort;
   readonly character: ImportCharacterPort;
+  /** The export front door (PD-109) — composed at `services.ts` but kept OFF the transport `Services`
+   *  bundle (export has no tRPC procedure, only this HTTP registrar), so it's threaded through separately,
+   *  the same way `character`/`cas` are pulled out of the composed bundle above. */
+  readonly exportService: ExportService;
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
@@ -204,6 +210,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     character: deps.character,
     tag: deps.services.tag,
   });
+  registerExport(app, { export: deps.exportService });
   // The auth mint routes (login, logout, oidc callback).
   // OIDC and local modes are strictly gated by the supplied deps (fail-closed).
   registerAuthRoutes(plain, {

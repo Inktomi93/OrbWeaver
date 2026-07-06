@@ -1,10 +1,13 @@
 // entry/import/run-profile-import — the bulk-import COMPOSITION DRIVER (core/Tier-5-Entry.md §layout "import/";
 // DECISIONS-LEDGER §7 D3). It is the one place that constructs the PER-OWNER `ImportService` (import is
 // `ImportContext.ownerId`-scoped, built per request — services.ts §"import — its service is PER-OWNER")
-// and wires the FOUR cross-feature injected ops the import verbs declared type-only (boundaries-are-
+// and wires the SIX cross-feature injected ops the import verbs declared type-only (boundaries-are-
 // physics: `domain/import` sideways-imports neither character, assets, nor tag — the runtime is supplied HERE):
 //   • createCharacter  → `character.create` + the import-provenance stamp (PD-43, now landed) → map `.id`
-//   • findByImportHash → `character.findByImportHash` → `ref?.characterId ?? null` (the re-import oracle)
+//   • findByImportHash → `character.findByImportHash` → `ref?.characterId ?? null` (the byte-identical oracle)
+//   • findByHandle     → `character.findByHandle` → `ref?.characterId ?? null` (PD-108 — the ALREADY-BUILT
+//     seeder partial-rerun read, reused verbatim for the (ownerId, handle) re-import match)
+//   • updateCharacter  → `character.update` (D28 edit-in-place) — the PD-108 handle-match write path
 //   • storeAsset       → `assets.store` (kind `avatar`; trusted import → `enforceMagic:false`) → `.assetId`
 //   • attachCardTag    → `tag.attachCardTagByName` (source:'card', status:'pending') — the `card.tags` carry
 // The HTTP multipart upload route DELEGATES here (D3); a future `import-st` job runner is the second caller.
@@ -25,23 +28,33 @@
 //     the import CONTEXT only when the chats wave lands (`proposed/import-st-profile-waves.md`, PD-78);
 //     this card slice's `ImportContext` carries none, so no post-import reconcile/emit runs here yet.
 
-import type { CreateCharacterInput } from "@orb/contracts/character";
+import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportContext } from "#domain/import";
 import { createImportService } from "#domain/import";
 
-/** The `character` front-door slice the driver wires the import create/dedup ops to. */
+/** The `character` front-door slice the driver wires the import create/dedup/edit-in-place ops to. */
 export interface ImportCharacterPort {
   readonly create: (params: {
     readonly principal: Principal;
     readonly input: CreateCharacterInput;
     readonly provenance?: { readonly importedFrom: string | null; readonly importHash: string };
   }) => Promise<{ readonly id: CharacterId }>;
+  readonly update: (params: {
+    readonly principal: Principal;
+    readonly characterId: CharacterId;
+    readonly input: UpdateCharacterInput;
+  }) => Promise<{ readonly id: CharacterId }>;
   readonly findByImportHash: (params: {
     readonly ownerId: UserId;
     readonly importHash: string;
+  }) => Promise<{ readonly characterId: CharacterId } | null>;
+  /** PD-108 — the ALREADY-BUILT default-card seeder's partial-rerun read, reused for the re-import match. */
+  readonly findByHandle: (params: {
+    readonly ownerId: UserId;
+    readonly handle: string;
   }) => Promise<{ readonly characterId: CharacterId } | null>;
 }
 
@@ -122,6 +135,13 @@ export async function runProfileImport(deps: ProfileImportDeps): Promise<Profile
     findByImportHash: async ({ importHash }) => {
       const ref = await character.findByImportHash({ ownerId: principal.userId, importHash });
       return ref?.characterId ?? null;
+    },
+    findByHandle: async ({ handle }) => {
+      const ref = await character.findByHandle({ ownerId: principal.userId, handle });
+      return ref?.characterId ?? null;
+    },
+    updateCharacter: async ({ characterId, input }) => {
+      await character.update({ principal, characterId, input });
     },
     storeAsset: async ({ bytes, mime }) => {
       const stored = await assets.store({

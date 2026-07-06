@@ -4,6 +4,7 @@
 // + tests reference the DI bundle by the canonical name. The bundle is ASSEMBLED at the entry composition
 // root (db + the required `roleClients` bundle, filled per-role via `connection.resolveRole`) and handed to
 // `createSearchService` — search sideways-imports none of those (domain-no-cross-feature). search is
-// READ-ONLY: the bundle carries no write path to any vector table (invariant #3).
+// READ-ONLY: `db` is typed `ReadOnlyDb` (`@orb/db` — `select`/`query` only), so a write call is a `tsc`
+// error, not just a behavioral convention (invariant #3, PD-102).
 
 export type { SearchContext } from "./contract/service";

@@ -63,6 +63,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     assets: stub,
     cas: stub,
     character: stub,
+    exportService: stub,
     sessions: stub,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,

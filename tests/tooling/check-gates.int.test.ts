@@ -171,8 +171,10 @@ function writeFixtures(): void {
     'export const elevated = (p: { role: string }): boolean => p.role === "admin";\n',
   );
   // bus-coverage: a DEFERRED-allowlisted member gaining an emit-site literal → the STALE arm fires
-  // (proves the contracts-parse + corpus scan + both ratchet directions are alive).
-  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "personaSwitched";\n');
+  // (proves the contracts-parse + corpus scan + both ratchet directions are alive). Must name a member
+  // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), so
+  // this uses `chatOpened` (stream-attach synthesis still unbuilt; keep this in sync with bus-coverage.ts).
+  fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "chatOpened";\n');
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(
     `${D}/character/__g_mcv.ts`,

@@ -41,7 +41,7 @@
 //   a partial surface).
 
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { Db } from "@orb/db";
+import type { ReadOnlyDb } from "@orb/db";
 import type {
   CorpusParams,
   DigestsParams,
@@ -61,11 +61,12 @@ import type {
  * The DI bundle the search verbs close over (wired at the entry composition root; surfaced through
  * `context.ts`). `db` routes the vector + display reads through `persistence/`; `roleClients` is the
  * required bound-callable inference bundle (embed + rerank + the embed-model space tag). search
- * sideways-imports no sibling runtime (domain-no-cross-feature) and is READ-ONLY (invariant #3 — the
- * bundle carries no write path to any vector table).
+ * sideways-imports no sibling runtime (domain-no-cross-feature) and is READ-ONLY (invariant #3 —
+ * `db`'s `ReadOnlyDb` type (`@orb/db`) carries only `select`/`query`; a write call is a `tsc` error,
+ * not merely a behavioral convention — PD-102).
  */
 export interface SearchContext {
-  readonly db: Db;
+  readonly db: ReadOnlyDb;
   readonly roleClients: RoleClients;
 }
 

@@ -166,4 +166,86 @@ describe("importCharacter", () => {
     ).rejects.toBeInstanceOf(ImportCardError);
     expect(h.creates).toHaveLength(0);
   });
+
+  // ── PD-108 — re-import of an edited / second same-name card ─────────────────────────────────────────
+
+  test("re-importing an EDITED card (same handle, different bytes+content) edits the existing row in place — no failure, no insert", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const existingId = castId<CharacterId>("character_existing");
+    // The owner already has a character at the "aria" handle (e.g. from a prior import or app-authored
+    // create) — the importHash dedup oracle is EMPTY (this file's bytes were never seen before).
+    h.setExistingHandle("aria", existingId);
+
+    const editedCard = JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: {
+        name: "Aria",
+        description: "A wandering bard, now retired.",
+        first_mes: "Welcome back.",
+      },
+    });
+
+    const result = await svc.importCharacter({
+      card: { bytes: encoder.encode(editedCard), filename: "Aria.json" },
+    });
+
+    // Edit-in-place (D28): NOT created, NOT a failure — the existing row is targeted for update.
+    expect(result.created).toBe(false);
+    expect(result.characterId).toBe(existingId);
+    expect(h.creates).toHaveLength(0);
+    expect(h.updates).toHaveLength(1);
+    const update = h.updates[0];
+    if (update === undefined) {
+      throw new Error("expected a recorded update call");
+    }
+    expect(update.ownerId).toBe(h.ownerId);
+    expect(update.characterId).toBe(existingId);
+    expect(update.input.description).toBe("A wandering bard, now retired.");
+    expect(update.input.greetings).toEqual(["Welcome back."]);
+  });
+
+  test("a second same-name card resolves via the (ownerId, handle) match — no unique-constraint failure", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const existingId = castId<CharacterId>("character_existing");
+    h.setExistingHandle("aria", existingId);
+
+    // A DIFFERENT card that happens to share the derived handle ("aria") — the exact PD-108 dead-end case
+    // (would have tripped `characters_owner_handle_unique` on a blind insert).
+    const secondCard = JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: { name: "Aria", description: "An entirely different bard." },
+    });
+
+    const result = await svc.importCharacter({
+      card: { bytes: encoder.encode(secondCard), filename: "aria-2.json" },
+    });
+
+    expect(result.created).toBe(false);
+    expect(result.characterId).toBe(existingId);
+    expect(h.creates).toHaveLength(0);
+    expect(h.updates).toHaveLength(1);
+  });
+
+  test("a brand-new card (no importHash or handle match) still inserts", async () => {
+    const h = makeHarness();
+    const svc = createImportService(h.ctx);
+    const newCard = JSON.stringify({
+      spec: "chara_card_v3",
+      spec_version: "3.0",
+      data: { name: "Bram", description: "A blacksmith." },
+    });
+
+    const result = await svc.importCharacter({
+      card: { bytes: encoder.encode(newCard), filename: "bram.json" },
+    });
+
+    expect(result.created).toBe(true);
+    expect(h.creates).toHaveLength(1);
+    expect(h.updates).toHaveLength(0);
+    expect(h.findsByHandle.at(-1)?.handle).toBe("bram");
+  });
 });
