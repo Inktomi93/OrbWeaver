@@ -1,0 +1,134 @@
+// Agent / automation bridge (UI-Arch §2.1 lib/ — cross-cutting util) — the BROWSER-side introspection
+// seam so Playwright, the `snap` probe, and agent browser-driving read app state directly instead of
+// scraping the DOM. The server observability (`foundation/observability`) covers the server; this is
+// its client peer. Two installs, wired once from `main.tsx`:
+//
+//   • installAppReadySignal — sets `data-app-ready` on <html> the first time the query cache goes idle
+//     AFTER the initial reads have started. SSE subscriptions are NOT queries, so this fires with the
+//     chat-bus stream still open: a stable wait target (`page.waitForSelector("html[data-app-ready]")`,
+//     `pnpm snap / --wait "html[data-app-ready]"`) that never hangs on the never-idle SSE connection —
+//     the exact friction that timed out live screenshots. Also resolves the `ready` promise. Installed
+//     in BOTH dev + prod (a tiny attribute that also serves CI e2e); a 3s fallback means it never hangs.
+//
+//   • installAgentDebugHandle — DEV-ONLY `globalThis.__orb`: one eval returns the shell/query/bus
+//     snapshot, bridging the existing `[bus]` ring (bus-devlog.ts) + the QueryClient. IS_DEV-folded out.
+
+import type { QueryClient } from "@tanstack/react-query";
+import type { BusEventRecord } from "./bus-devlog";
+import { busEventRing, busLiveCount } from "./bus-devlog";
+import { IS_DEV } from "./dev-flag";
+
+const READY_ATTR = "data-app-ready";
+const READY_FALLBACK_MS = 3000;
+
+let markReady = (): void => undefined;
+/** Resolves once the app has hydrated and its initial reads have settled (see installAppReadySignal). */
+export const ready: Promise<void> = new Promise<void>((resolve) => {
+  markReady = resolve;
+});
+
+export function installAppReadySignal(queryClient: QueryClient): void {
+  const el = document.documentElement;
+  const cache = queryClient.getQueryCache();
+  let settled = false;
+  const finish = (): void => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    el.setAttribute(READY_ATTR, "");
+    markReady();
+  };
+  const check = (): void => {
+    if (queryClient.isFetching() === 0) {
+      finish();
+    }
+  };
+  const unsubscribe = cache.subscribe(check);
+  // Stop listening once ready is reached (via the settle path OR the fallback timer).
+  void ready.finally(unsubscribe);
+  // Give Suspense two frames to kick off the initial reads (isFetching → >0) before the first idle
+  // check, so we don't fire on the pre-fetch idle window. rAF²≈ after the first paint + effects.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(check);
+  });
+  // An app with no initial reads is still "ready" after the grace — never hang a waiter.
+  setTimeout(finish, READY_FALLBACK_MS);
+}
+
+interface QuerySummary {
+  readonly key: unknown;
+  readonly status: string;
+  readonly fetch: string;
+  readonly stale: boolean;
+  readonly updatedAt: number;
+}
+
+interface ShellSnapshot {
+  readonly section: string | null;
+  readonly panels: ReadonlyArray<{ side: string | null; mode: string | null }>;
+  readonly chatOpen: boolean;
+}
+
+export interface OrbDebugHandle {
+  /** Resolves when `data-app-ready` is set (initial reads settled). */
+  readonly ready: Promise<void>;
+  readonly isReady: () => boolean;
+  /** The full query cache as plain rows (key · status · fetchStatus · stale · updatedAt). */
+  readonly queries: () => readonly QuerySummary[];
+  /** The chat-bus: live subscription count + the recent canon-event ring (bus-devlog). */
+  readonly bus: () => { readonly live: number; readonly events: readonly BusEventRecord[] };
+  /** DOM-derived shell state (active section · panel modes · whether a chat room is open). */
+  readonly shell: () => ShellSnapshot;
+  /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
+  readonly snap: () => Record<string, unknown>;
+}
+
+declare global {
+  // `var` is required here: ambient global augmentation must use `var` to attach to `globalThis`
+  // (let/const do not) — the sanctioned pattern for a `globalThis.__orb` handle.
+  var __orb: OrbDebugHandle | undefined;
+}
+
+export function installAgentDebugHandle(queryClient: QueryClient): void {
+  if (!IS_DEV) {
+    return;
+  }
+  const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
+  const shell = (): ShellSnapshot => ({
+    section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
+    panels: [...document.querySelectorAll(".shell-panel")].map((p) => ({
+      side: p.getAttribute("data-panel-side"),
+      mode: p.getAttribute("data-panel-mode"),
+    })),
+    // biome-ignore lint/security/noSecrets: a CSS attribute selector, not a credential (entropy false-positive).
+    chatOpen: document.querySelectorAll('[role="article"]').length > 0,
+  });
+  const queries = (): readonly QuerySummary[] =>
+    queryClient
+      .getQueryCache()
+      .getAll()
+      .map(
+        (q): QuerySummary => ({
+          key: q.queryKey,
+          status: q.state.status,
+          fetch: q.state.fetchStatus,
+          stale: q.isStale(),
+          updatedAt: q.state.dataUpdatedAt,
+        }),
+      );
+  const bus = (): { readonly live: number; readonly events: readonly BusEventRecord[] } => ({
+    live: busLiveCount(),
+    events: busEventRing(),
+  });
+  const snap = (): Record<string, unknown> => ({
+    ready: isReady(),
+    shell: shell(),
+    bus: { live: busLiveCount(), events: busEventRing().length },
+    queries: {
+      total: queryClient.getQueryCache().getAll().length,
+      fetching: queryClient.isFetching(),
+    },
+  });
+  globalThis.__orb = { ready, isReady, queries, bus, shell, snap };
+}

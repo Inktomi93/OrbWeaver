@@ -29,6 +29,7 @@ import {
   TRPCProvider,
 } from "#data";
 import { AppErrorBoundary, buildClientErrorPayload } from "#lib";
+import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
 import { router } from "./routes/router";
 import "./styles/globals.css";
 
@@ -126,3 +127,9 @@ createRoot(rootEl).render(
     </QueryClientProvider>
   </StrictMode>,
 );
+
+// Agent/automation bridge (agent-bridge.ts): the `data-app-ready` wait signal (dev + prod) + the
+// dev-only `globalThis.__orb` introspection handle. Installed AFTER render so the query cache exists
+// and the readiness check observes the initial reads.
+installAppReadySignal(queryClient);
+installAgentDebugHandle(queryClient);
