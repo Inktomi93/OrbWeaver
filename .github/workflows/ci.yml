@@ -1,14 +1,11 @@
 name: ci
 
+# Auto-triggers DISABLED (2026-07-05, Alex): the real gate is local `pnpm check` at the pre-commit +
+# pre-push lefthook hooks — CI-on-push just re-ran the same suite. Kept as MANUAL-only (`workflow_dispatch`)
+# so it can be run on demand from the Actions tab; re-enable auto-runs by restoring the `push`/`pull_request`
+# triggers below.
 on:
-  push:
-    branches: [main]
-  pull_request:
-
-# Cancel superseded runs on the same ref (a force-push / rapid pushes don't pile up).
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 jobs:
   check:
