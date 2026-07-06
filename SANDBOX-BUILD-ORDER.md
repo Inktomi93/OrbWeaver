@@ -1,4 +1,4 @@
-# Sandbox build-order scratch (2026-07-05 — D62 UI/UX REVAMP committed; next = the D62 lanes, L0 first)
+# Sandbox build-order scratch (2026-07-05c — D62 UI/UX REVAMP DONE through L6; next = L7 parity buildout + §8 micro-polish)
 
 > **SCRATCH, not law.** A session-handoff note for dev-container Claude sessions: the agreed
 > build order + operational context as of `f133379` + the UNCOMMITTED D62 doc set (see FIRST
@@ -14,19 +14,51 @@
 > modals + shell topbar + CONTEXT panel tabs [overrides·preview·injections·roster] + cast bar +
 > speak-as + wand + inline media + untrusted-default render trust — commits `1e94b90`→`f133379`).
 > **NEXT = the D62 lanes, in order, L0 first (no blockers — all rulings pre-decided).**
+>
+> **UPDATE 2026-07-05c (container session, Opus) — the D62 lanes L0–L6 are ALL LANDED + COMMITTED;
+> the whole shell/polish revamp is DONE (the FIRST ACTIONS below are done).** The app opens on a real
+> landing, every surface is a designed thing (chat-list · chat room + pill composer · character detail
+> · full-bleed settings · theme picker), section placeholders are distinct, and the rail reflows to a
+> bottom tab bar on mobile (verified LIVE at 390×844 — You drawer + panel sheets work). Lane→commit:
+> **L0** `fa0d2e3` tokens · **L1** `18383f8` primitive deltas + `no-arbitrary-tw-values` gate · **L2**
+> `0076f31` shell chrome + `registry-pairing`/`modal-body-not-placeholder` gates · **L3** `1f3a967`
+> flow spine (+ server title/star/archive/delete pass-throughs) · **L4** `3cad8a0` chat room · **L5**
+> `ab54d38` sections/modals + `placeholder-copy-registry` gate (ALSO pulled the composer effort picker
+> — Nate's call: effort's config home is the Presets Reasoning tab, L7; server `UserIntent.effort`→
+> `resolveEffort` wiring + the send `intent` seam kept) · **L6** `9de07ab` mobile reflow. Plus
+> verification hardening: directory-based tsconfig browser-tsx boundaries (`5189d5e`) + `pnpm test:ct`
+> gated at pre-push via `CT_GATE` retries (`0dd888d`). **NEXT = L7 parity buildout (Presets section
+> FIRST) + the §8 micro-polish (task #82).** The L0–L7 lane detail below is now a HISTORY record for
+> L0–L6; only the L7 row is live.
 
-## FIRST ACTION for the next container session (do these before any lane)
+## FIRST ACTIONS — all DONE (2026-07-05c); NEXT ACTIONS below
 
-1. **Commit the D62 doc set** (it is sitting UNCOMMITTED in the shared working tree — see
-   `git status`: 8 modified core docs + 7 new docs; all `check:docs`-green). Docs-only commit,
-   message shape: `docs(d62): UI/UX revamp program — region law §4.2/§4.3, rulings P1–P6, lane
-   sequencing, program docs`. Nothing else is dirty; do NOT bundle code into it.
-2. **Fix the dev DB once** (blocks every populated screen): the local `orbweaver.db` predates
-   `characters.trust_html` (the baseline was regenerated in place, so the migrator thinks it ran).
-   `sqlite3 orbweaver.db "ALTER TABLE characters ADD COLUMN trust_html integer;"` — matches the
-   shipped baseline exactly. Consider the punchlist §0 note about a boot schema-drift guard
-   (surface to Nate as a PD candidate; don't invent a migration system).
-3. Then open the L0 lane (below).
+1. ~~Commit the D62 doc set~~ — **DONE** (`1528cc6`, docs-only, `check:docs`-green).
+2. ~~Fix the dev DB~~ — **DONE** (deleted the stale `orbweaver.db`; next `stack start` recreates it
+   fresh with `characters.trust_html`). The boot schema-drift guard is still a live PD candidate.
+3. ~~Open L0~~ — **L0–L6 ALL LANDED** (see the UPDATE block above for the lane→commit map).
+
+### NEXT ACTIONS for the next session
+- **L7 parity buildout — Presets section FIRST** (the full generation-config editor: Sampling ·
+  Output · Quality · **Reasoning** · Templates · Post-process · Compaction · Prompt — and the config
+  home for the effort dial pulled from the composer in L5). `domain/preset` server is BUILT; this is
+  a client-surface lane. Then World Info · character editor · Connections · Corpus hub · gallery ·
+  /imagine (revamp §3 map order). Rides `rail-slots.ts` (a new `presets` section entry) + the
+  §4.2 region grid (LIST = preset rows + CRUD; CONTENT = the tabbed editor).
+- **§8 micro-polish (task #82):** gate the TanStack devtools FAB (it overlaps the mobile You tab AND
+  the desktop composer Send in every snap), `::selection` color, thin scrollbars, focus-ring audit,
+  streaming caret/typing dots — plus two mobile follow-ups: character-library selection should close
+  the mobile list sheet (route-wire it like chat-list's `setMobileSheet(null)`), and decide
+  `{{char}}` raw-vs-resolved in the character detail card description.
+- **Standalone follow-ups still valid** (feature/backfill — the D62 lanes were POLISH, so these are
+  untouched and stand): **#50** client auth (login + `beforeLoad` gate) · **#67** composer image
+  attach + `assetId`→URL resolver (the asset-media producer; the #25 render seam awaits it) · **#68**
+  HTML-card producer + per-character `cardTrust` (the other #25 seam) · **#72** admin settings surface
+  (NOW has a home = the L5 settings overlay's "Admin"/"System" placeholder panes) · **#78** ChatSummary
+  last-message preview + viewer-role (kebab gating) · **#74** destructive-color AA (3.65:1) · **#62 #63
+  #64 #66 #69 #71** chat polish/backfills · **#32** chat slot registries · **#42** buddy ownerConsented.
+  **#65** appearance fast-follows is PARTLY done (L4 shipped the hover-actions half; remaining =
+  per-message metadata row, effects, chatWidth/fontScale shell vars, manual reduced-motion).
 
 ## Read order (cold session → productive, in this exact order)
 
@@ -114,9 +146,12 @@ BUILD-PLAN Phase 6 checkpoint (app opens on the landing; every section distinct;
 ## Where the tree is (so you don't re-derive it)
 
 - **Phases 0–5 BUILT** (D48 tool-loop chunk still the open Phase-5 seam). **Phase 6:** foundation +
-  chat surface + app-shell + context panel + roster/cast/media/trust ALL LANDED through `f133379`;
-  the D62 lanes are what remains. Gate/grit live-state ground truth:
-  `Core-Enforcement-Active-Gates.md` (do not trust stale counts in old notes — read the registry).
+  chat surface + app-shell + the ENTIRE D62 UI/UX revamp (lanes L0–L6, through `9de07ab`) ALL LANDED
+  — polished + responsive across every built surface, desktop and mobile. What remains in Phase 6 is
+  **L7 parity BUILDOUT** (features into the finished shell, Presets first) + the §8 micro-polish.
+  Gate/grit live-state ground truth: `Core-Enforcement-Active-Gates.md` — now includes the D62 gates
+  (`registry-pairing`, `modal-body-not-placeholder`, `placeholder-copy-registry`,
+  `no-arbitrary-tw-values`, `touch-target-floor` per-pointer). Do not trust stale counts; read the registry.
 - **AP3 voicing chain still OPEN** (PD-17) — another session's lane unless Nate says otherwise.
   Automation A1–A3 remains agent-able as a parallel non-UI lane; Wave 2+ (rpg, chat-crew, Phase-7
   grafts) unchanged from the 07-04 order, now sequenced behind/alongside the D62 client lanes per
