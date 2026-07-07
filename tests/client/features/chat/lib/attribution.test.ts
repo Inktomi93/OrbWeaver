@@ -39,6 +39,7 @@ function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantV
     displayName: "Alice",
     handle: null,
     avatarAssetId: null,
+    avatarHash: null,
     ...overrides,
   };
 }
@@ -49,11 +50,13 @@ test("assistant row with no roster/producer threaded gets no attribution chrome 
     characterId: ALICE_ID,
     personaId: null,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
 });
 
 test("assistant row resolves name from the producer + avatar/color from the roster by characterId", () => {
-  const participants = new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]);
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", avatarHash: "hash_alice" })],
+  ]);
   const characterNamesById = new Map<CharacterId, RowCharacterName>([
     [ALICE_ID, { name: "Alice" }],
   ]);
@@ -65,6 +68,7 @@ test("assistant row resolves name from the producer + avatar/color from the rost
     characterNamesById,
   });
   expect(result.name).toBe("Alice");
+  expect(result.avatarHash).toBe("hash_alice");
   expect(result.tokens).not.toBeNull();
 });
 
@@ -78,7 +82,7 @@ test("a characterId absent from the producer gets no chrome (not a crash, not ch
     personaId: null,
     characterNamesById,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
 });
 
 test("null characterId in a MULTI-character room resolves to a neutral Narrator", () => {
@@ -104,7 +108,7 @@ test("null characterId in a SOLO room (one character participant) gets no chrome
     personaId: null,
     participants,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
 });
 
 test("a non-character participant (human/agent/observer) never counts toward multi-character", () => {
@@ -140,8 +144,26 @@ test("user row resolves the message's own personaId against the producer", () =>
   });
   expect(result.name).toBe("Alex");
   expect(result.tokens).toBeNull();
-  // The producer carries names only (no avatar) — a persona row's avatar always degrades to initials.
+  // `avatarAssetId` stays null for a user row (the field is character-only); the IMAGE comes from the
+  // separate `personaAvatarsById` producer — absent here, so it degrades to initials.
   expect(result.avatarAssetId).toBeNull();
+  expect(result.avatarHash).toBeNull();
+});
+
+test("user row resolves the avatar HASH from the separate personaAvatarsById producer (#67)", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([
+    [NATE_PERSONA_ID, { name: "Alex", description: "" }],
+  ]);
+  const personaAvatarsById = new Map<PersonaId, string | null>([[NATE_PERSONA_ID, "hash_nate"]]);
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: NATE_PERSONA_ID,
+    personaNamesById,
+    personaAvatarsById,
+  });
+  expect(result.name).toBe("Alex");
+  expect(result.avatarHash).toBe("hash_nate");
 });
 
 test("user row with a null personaId falls back to the viewing participant's active persona (legacy rows)", () => {
@@ -231,7 +253,7 @@ test("the message's OWN personaId wins over the active persona (historical autho
 
 test("system rows never get attribution chrome", () => {
   const result = resolveRowAttribution({ role: "system", characterId: null, personaId: null });
-  expect(result).toEqual({ name: null, avatarAssetId: null, tokens: null });
+  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
 });
 
 test("initials take the first letter of up to two words", () => {

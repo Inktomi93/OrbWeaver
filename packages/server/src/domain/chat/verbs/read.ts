@@ -29,7 +29,11 @@
 //                              `turn.ts` uses; contract/foreign.ts). The CHAT-INTERNAL half (canon/injections/
 //                              vars/metadata/memory/regex-tier) `gatherAssembleContext` reads itself.
 
-import type { ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import type {
+  ChatMacroNameProducer,
+  ParticipantView,
+  PersonaAvatarEntry,
+} from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -85,6 +89,7 @@ import {
   replayStreamEvents as loadStreamReplay,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildPrompt, previewSection } from "../substrate/assembly-access";
 
@@ -145,6 +150,7 @@ function toChatDetail(
   chat: ChatRowView,
   participants: readonly ParticipantView[],
   macroNames: ChatMacroNameProducer,
+  personaAvatars: readonly PersonaAvatarEntry[],
 ): ChatDetail {
   return {
     id: chat.id,
@@ -163,6 +169,7 @@ function toChatDetail(
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     macroNames,
+    personaAvatars,
   };
 }
 
@@ -342,7 +349,8 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    return toChatDetail(membership.chat, participants, macroNames);
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    return toChatDetail(membership.chat, participants, macroNames, personaAvatars);
   };
 }
 
@@ -370,7 +378,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const messages = page.reverse();
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
-    return { messages, macroNames };
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants, messages });
+    return { messages, macroNames, personaAvatars };
   };
 }
 

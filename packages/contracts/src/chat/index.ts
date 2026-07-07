@@ -535,6 +535,26 @@ export interface ChatMacroNameProducer {
   readonly personaNames: readonly PersonaNameEntry[];
 }
 
+/** One persona AVATAR entry — the array form of a `personaAvatarsById` producer map, SAME coverage
+ *  algorithm as {@link ChatMacroNameProducer}'s `personaNames` (every participant's active persona UNION
+ *  every stored message row's `personaId` stamp) but a DELIBERATELY SEPARATE type: the macro-name
+ *  producer (`RowPersonaName`, `@orb/kit/macro`) is "names only, never the full entity" (chat-macro-
+ *  resolution §1) — avatar chrome is a display concern the macro engine must never carry. Fed to
+ *  `resolveRowAttribution`'s USER-row path (`features/chat/lib/attribution.ts`), never to
+ *  `resolveRowMacros`. */
+export interface PersonaAvatarEntry {
+  readonly id: PersonaId;
+  readonly avatarHash: string | null;
+}
+
+/** Rebuild the `personaAvatarsById` lookup `resolveRowAttribution` takes, from the wire array. Pure;
+ *  last-write-wins on a duplicate id (mirrors {@link buildPersonaNameMap}). */
+export function buildPersonaAvatarMap(
+  entries: readonly PersonaAvatarEntry[],
+): ReadonlyMap<PersonaId, string | null> {
+  return new Map(entries.map((e) => [e.id, e.avatarHash]));
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE CHAT STREAM DELTA + THE CHAT BUS UNION
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -895,6 +915,10 @@ export interface ParticipantView {
   handle: Handle | null;
   /** The avatar asset (the floor — always member-visible via the D21 blob route's roster exception). */
   avatarAssetId: AssetId | null;
+  /** The CAS hash of `avatarAssetId` (`assets.hash`, joined server-side) — `blobUrl(avatarHash)` is the
+   *  renderable `<img src>`; `null` when `avatarAssetId` is null OR the asset row is gone. Kept a SIBLING
+   *  field (never derived client-side — the client has no id→hash resolver, #67). */
+  avatarHash: string | null;
   /** The RESOLVED content-render policy for content THIS participant authored (D44 §12.0 — see
    *  {@link RenderPolicy}). ALWAYS server-populated on the `getChat`/roster read; declared OPTIONAL so a
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
@@ -922,6 +946,9 @@ export interface MemberCardView {
   // ── name-avatar floor (always present) ───────────────────────────────────
   name: string;
   avatarAssetId: AssetId | null;
+  /** The CAS hash of `avatarAssetId` — see {@link ParticipantView.avatarHash}. Same always-present floor
+   *  as `avatarAssetId` (never clamped by `visibility`). */
+  avatarHash: string | null;
   // ── sheet (>= `sheet`) ───────────────────────────────────────────────────
   description: string | null;
   personality: string | null;

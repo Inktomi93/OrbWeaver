@@ -37,6 +37,7 @@ import type {
   GroupConfigInput,
   OpeningPolicy,
   ParticipantView,
+  PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
 import {
@@ -65,6 +66,7 @@ import {
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow } from "../persistence/queries";
 import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster";
+import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { resolveGuidedActionText } from "../substrate/assembly-access";
 import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../substrate/stats-delta";
@@ -105,6 +107,7 @@ function toChatDetail(
   chat: LoadedChatRow,
   participants: readonly ParticipantView[],
   macroNames: ChatMacroNameProducer,
+  personaAvatars: readonly PersonaAvatarEntry[],
 ): ChatDetail {
   return {
     id: chat.id,
@@ -123,6 +126,7 @@ function toChatDetail(
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     macroNames,
+    personaAvatars,
   };
 }
 
@@ -520,7 +524,11 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     }
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    return { chat: toChatDetail(chatRow, participants, macroNames), opening: openingOutcome };
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    return {
+      chat: toChatDetail(chatRow, participants, macroNames, personaAvatars),
+      opening: openingOutcome,
+    };
   };
 }
 

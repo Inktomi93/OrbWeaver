@@ -44,9 +44,12 @@ export function clampMemberCard(input: {
   readonly tags: string[] | null;
   /** Resolved world-info entry contents (caller-supplied; clamped at `sheet+lore`). */
   readonly lore: string[] | null;
+  /** The CAS hash of `card.avatarAssetId` (caller-resolved — this function is pure, no I/O; mirrors
+   *  `tags`/`lore`). Same always-present floor as `avatarAssetId` (never clamped by `visibility`). */
+  readonly avatarHash: string | null;
   readonly visibility: MemberCardVisibility;
 }): MemberCardView {
-  const { characterId, card, tags, lore, visibility } = input;
+  const { characterId, card, tags, lore, avatarHash, visibility } = input;
   const r = rank(visibility);
   const atSheet = r >= rank("sheet");
   const atLore = r >= rank("sheet+lore");
@@ -56,6 +59,7 @@ export function clampMemberCard(input: {
     visibility,
     name: card.name,
     avatarAssetId: card.avatarAssetId,
+    avatarHash,
     description: atSheet ? card.description : null,
     personality: atSheet ? card.personality : null,
     scenario: atSheet ? card.scenario : null,

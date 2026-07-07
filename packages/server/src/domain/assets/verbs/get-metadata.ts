@@ -4,11 +4,13 @@
 //
 // PD-28 / D21 — roster-avatar REFERENCE-CHECK (NOT a hash→any-owner oracle, PD-107): if the owner-scoped
 // lookup misses AND the context supplies a `loadCoParticipantOwner` op, we fall back to it. That op returns
-// an owner ONLY IF the hash is the `avatarAssetId` of a CHARACTER rostered in a chat the caller is a present
-// member of (never a bare co-participant hash match) — so a co-participant's non-avatar asset yields nothing
-// here. On a hit, that ASSET owner's `ownerId` is returned with the metadata so the blob route reads from the
-// correct per-user CAS partition. No path is constructed here (a pure hash lookup), so no `isAssetHash` guard
-// is needed — a non-hash simply matches no row.
+// an owner ONLY IF the hash is the `avatarAssetId` of EITHER a CHARACTER rostered in a chat the caller is a
+// present member of, OR a PERSONA that is a co-participant HUMAN's current `activePersonaId` in a chat the
+// caller is ALSO a present member of (the multi-human group sibling case — see the op's wiring comment,
+// `entry/compose/services.ts`) — never a bare co-participant hash match, so a co-participant's non-avatar
+// asset yields nothing here. On a hit, that ASSET owner's `ownerId` is returned with the metadata so the
+// blob route reads from the correct per-user CAS partition. No path is constructed here (a pure hash
+// lookup), so no `isAssetHash` guard is needed — a non-hash simply matches no row.
 
 import type { GetMetadataParams } from "../contract/params";
 import type { AssetMetadata } from "../contract/results";

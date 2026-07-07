@@ -1,7 +1,16 @@
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
-import { ASSET_KINDS, assetKindSchema, BLOB_ROUTE, blobUrl } from "@orb/contracts/assets";
+import type { AssetKind, StoredAsset, VariantKind } from "@orb/contracts/assets";
+import {
+  ASSET_KINDS,
+  assetKindSchema,
+  BLOB_ROUTE,
+  blobPortraitUrl,
+  blobUrl,
+  storedAssetSchema,
+  VARIANT_KINDS,
+  variantKindSchema,
+} from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 // ── The upload `kind` axis ───────────────────────────────────────────────────
@@ -68,4 +77,46 @@ test("StoredAsset pins the upload-response shape: assetId+hash+size+created, no 
   // `created: false` is the within-user dedup signal (the blob already existed).
   const deduped: StoredAsset = { ...stored, created: false };
   expect(deduped.created).toBe(false);
+});
+
+test("storedAssetSchema parses a well-formed upload response and rejects a malformed one", () => {
+  // A REAL minted TypeID (not the loose `castId` cast SAMPLE_ASSET_ID above) — `assetIdSchema` validates
+  // shape+prefix, so the schema-parse test needs a genuinely well-formed id.
+  const mintedAssetId = mintTypeId(ID_PREFIX.asset);
+  const parsed = storedAssetSchema.parse({
+    assetId: mintedAssetId,
+    hash: SAMPLE_HASH,
+    size: 4096,
+    created: true,
+  });
+  expect(parsed.assetId).toBe(mintedAssetId);
+  expect(
+    storedAssetSchema.safeParse({ assetId: "not_an_asset_id", hash: SAMPLE_HASH }).success,
+  ).toBe(false);
+});
+
+// ── The variant KIND axis (#67 Phase 1 — the portrait smart-crop variant) ────
+test("VARIANT_KINDS is exactly [icon, portrait] and variantKindSchema derives from it", () => {
+  expect(VARIANT_KINDS).toEqual(["icon", "portrait"]);
+  expect(variantKindSchema.options).toEqual(VARIANT_KINDS);
+});
+
+test("variantKindSchema round-trips every valid kind and rejects non-members", () => {
+  for (const kind of VARIANT_KINDS) {
+    expect(variantKindSchema.parse(kind)).toBe(kind);
+  }
+  expect(variantKindSchema.safeParse("thumbnail").success).toBe(false);
+  expect(variantKindSchema.safeParse("").success).toBe(false);
+});
+
+const VARIANT_KIND_SEEN: Record<VariantKind, true> = { icon: true, portrait: true };
+test("VariantKind has no member beyond the tuple (exhaustive over VARIANT_KINDS)", () => {
+  expect(Object.keys(VARIANT_KIND_SEEN).sort()).toEqual([...VARIANT_KINDS].sort());
+});
+
+test("blobPortraitUrl composes the portrait variant route, distinct from the plain blobUrl", () => {
+  const url = blobPortraitUrl(SAMPLE_HASH, 400);
+  expect(url).toBe(`/api/blob/${SAMPLE_HASH}?v=portrait&w=400`);
+  expect(url.startsWith(blobUrl(SAMPLE_HASH))).toBe(true);
+  expect(url).not.toBe(blobUrl(SAMPLE_HASH));
 });

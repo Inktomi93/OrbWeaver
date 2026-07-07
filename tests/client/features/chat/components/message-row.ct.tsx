@@ -46,6 +46,7 @@ function alice(): ParticipantView {
     displayName: "Alice",
     handle: null,
     avatarAssetId: null,
+    avatarHash: null,
   };
 }
 

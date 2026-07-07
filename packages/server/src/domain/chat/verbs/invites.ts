@@ -29,6 +29,7 @@ import type {
   InvitePreview,
   InviteView,
   ParticipantView,
+  PersonaAvatarEntry,
 } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { isReservedAgentHandle } from "@orb/contracts/identity";
@@ -57,6 +58,7 @@ import {
 } from "../persistence/invites";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatRow, loadMemberChat } from "../persistence/queries";
+import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 
 /** The collaborators the invite verbs close over (see the file header VERB DEPS note). Inlined
  *  + non-exported (the `types-in-contract` gate); the root builds a matching object literal. */
@@ -106,6 +108,7 @@ function toChatDetail(
   chat: LoadedChatRow,
   participants: readonly ParticipantView[],
   macroNames: ChatMacroNameProducer,
+  personaAvatars: readonly PersonaAvatarEntry[],
 ): ChatDetail {
   return {
     id: chat.id,
@@ -124,6 +127,7 @@ function toChatDetail(
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     macroNames,
+    personaAvatars,
   };
 }
 
@@ -283,7 +287,8 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       throw new ChatNotFoundError(chatId);
     }
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    return { chat: toChatDetail(chat, participants, macroNames), participant };
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    return { chat: toChatDetail(chat, participants, macroNames, personaAvatars), participant };
   };
 }
 

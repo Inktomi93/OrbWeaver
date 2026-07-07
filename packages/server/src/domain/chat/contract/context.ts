@@ -38,6 +38,7 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
+  AssetId,
   CharacterId,
   ChatEventId,
   ChatId,
@@ -187,6 +188,13 @@ export type ResolveImageUrlOp = (params: {
   readonly chatId: ChatId;
   readonly ref: ContentImageRef;
 }) => Promise<string | null>;
+
+/** `assets.assetCasRefById` narrowed to just the hash — the roster/attribution AVATAR-CHROME resolver
+ *  (`ParticipantView.avatarHash` / `MemberCardView.avatarHash` / the persona-avatar producer). UN-PRINCIPAL
+ *  by design (D20, the `assetCasRefById` posture): a hash is not a secret (the D21 owner-gate on the actual
+ *  BYTES lives at the blob route), so this is a bare id→hash lookup, never an existence/ownership oracle.
+ *  `null` for a null id or a gone row — never throws. */
+export type ResolveAssetHashOp = (assetId: AssetId | null) => Promise<string | null>;
 
 /** A handle to a synthetic group-character identity row (chat consumes character's `CharacterRef` shape
  *  cross-feature; declared structurally so chat takes no `→ character` server edge). */
@@ -408,6 +416,8 @@ export interface ChatContext {
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;
   readonly resolveImageUrl: ResolveImageUrlOp;
+  /** The `ParticipantView`/`MemberCardView` avatar-hash bridge (see {@link ResolveAssetHashOp}). */
+  readonly resolveAssetHash: ResolveAssetHashOp;
   readonly applyStatsDelta: ApplyStatsDeltaOp;
   readonly summarize: SummarizeOp;
   /** The summarizer model's resolved context window (tokens) — the memory build's token-guard reads it to fit

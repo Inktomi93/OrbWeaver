@@ -8,6 +8,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
+  assets,
   characters,
   chatEvents,
   chatParticipants,
@@ -22,6 +23,7 @@ import {
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type {
+  AssetId,
   CharacterId,
   ChatEventId,
   ChatId,
@@ -95,7 +97,7 @@ export async function seedPersona(
   db: Db,
   ownerId: UserId,
   key: string,
-  overrides: { readonly description?: string } = {},
+  overrides: { readonly description?: string; readonly avatarAssetId?: AssetId } = {},
 ): Promise<PersonaId> {
   const id = castId<PersonaId>(`persona_${key}`);
   await db.insert(personas).values({
@@ -103,8 +105,29 @@ export async function seedPersona(
     ownerId,
     name: key,
     description: overrides.description ?? `${key} description`,
+    avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
+  });
+  return id;
+}
+
+/** Insert a minimal `assets` row (the #67 persona-avatar-hash join target); returns its branded id. */
+export async function seedAsset(
+  db: Db,
+  ownerId: UserId,
+  key: string,
+  overrides: { readonly hash?: string } = {},
+): Promise<AssetId> {
+  const id = castId<AssetId>(`asset_${key}`);
+  await db.insert(assets).values({
+    id,
+    ownerId,
+    kind: "avatar",
+    mime: "image/png",
+    size: 1,
+    hash: overrides.hash ?? `hash_${key}`,
+    uploadedAt: FROZEN_AT,
   });
   return id;
 }
@@ -321,6 +344,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // D44 §12.1/§12.5 — default to no override. Overridable per test.
     resolveThemeOverride: () => Promise.resolve(null),
     resolveImageUrl: notStubbed,
+    // Called UNCONDITIONALLY by `loadParticipantViews` on every roster-view build (never opt-in like
+    // `resolveImageUrl`) — defaults to "nothing resolves" (mirrors `resolveThemeOverride`'s safe-floor
+    // default), not `notStubbed`, or every existing roster test would need an override for a field it
+    // never asserts on. A test asserting `avatarHash` overrides with a resolver fake.
+    resolveAssetHash: () => Promise.resolve(null),
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,
     // The assemble gather calls this every round (round-level recall over the shared bucket); default to

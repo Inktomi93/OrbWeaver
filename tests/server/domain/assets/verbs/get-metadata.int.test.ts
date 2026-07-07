@@ -16,8 +16,10 @@ import {
   seedCharacter,
   seedChatRow,
   seedParticipant,
+  seedPersona,
   seedUser,
   setCharacterAvatar,
+  setPersonaAvatar,
 } from "../_support.ts";
 
 const PNG = "image/png";
@@ -197,6 +199,70 @@ describe("getMetadata — PD-107 roster-avatar reference-check", () => {
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
     const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: "a".repeat(64) });
+    expect(meta).toBeUndefined();
+  });
+});
+
+// PD-28 widened (2026-07-07): the SIBLING persona arm — a multi-human group chat's OTHER member's persona
+// avatar must resolve for co-participants too (not just a rostered character's), or their avatar 404s and
+// falls back to initials. Same reference-check discipline: the join proves the asset IS that co-participant's
+// CURRENT persona avatar, never a bare hash→owner oracle.
+describe("getMetadata — PD-28 persona-sibling reference-check (multi-human group)", () => {
+  test("a co-participant's persona avatar in a shared group chat resolves for the other member", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const personaOwner = await seedUser(db, { handle: "persona_owner" });
+    const caller = await seedUser(db, { handle: "caller" });
+    const avatar = await svc.store({
+      principal: principal(personaOwner),
+      bytes: pngBytes(11, 22, 33),
+      kind: "avatar",
+      mime: PNG,
+    });
+    const persona = await seedPersona(db, personaOwner, { name: "Alter Ego" });
+    await setPersonaAvatar(db, persona, avatar.assetId);
+
+    const chat = await seedChatRow(db, "chat_group_shared");
+    await seedParticipant(db, chat, "human", {
+      id: "cp_persona_owner",
+      userId: personaOwner,
+      role: "host",
+      activePersonaId: persona,
+    });
+    await seedParticipant(db, chat, "human", { id: "cp_caller", userId: caller, role: "member" });
+
+    const meta = await svc.getMetadata({ principal: principal(caller), hash: avatar.hash });
+    expect(meta).toEqual({ mime: PNG, size: avatar.size, ownerId: personaOwner });
+  });
+
+  test("a persona avatar NOT sharing a chat with the caller still 404s (no leak)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const personaOwner = await seedUser(db, { handle: "persona_owner_2" });
+    const caller = await seedUser(db, { handle: "caller_2" });
+    const avatar = await svc.store({
+      principal: principal(personaOwner),
+      bytes: pngBytes(44, 55, 66),
+      kind: "avatar",
+      mime: PNG,
+    });
+    const persona = await seedPersona(db, personaOwner, { name: "Elsewhere" });
+    await setPersonaAvatar(db, persona, avatar.assetId);
+
+    // The persona-holder's chat does NOT include the caller.
+    const chat = await seedChatRow(db, "chat_elsewhere_2");
+    await seedParticipant(db, chat, "human", {
+      id: "cp_persona_owner_2",
+      userId: personaOwner,
+      role: "host",
+      activePersonaId: persona,
+    });
+
+    const meta = await svc.getMetadata({ principal: principal(caller), hash: avatar.hash });
     expect(meta).toBeUndefined();
   });
 });

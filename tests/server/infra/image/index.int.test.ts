@@ -9,6 +9,8 @@ import { expect, test } from "../../../support/fixtures";
 const SRC_WIDTH = 400;
 const SRC_HEIGHT = 300;
 const VARIANT_WIDTH = 96;
+const PORTRAIT_WIDTH = 200;
+const PORTRAIT_HEIGHT = 300;
 
 const adapter = createImageAdapter();
 
@@ -71,6 +73,35 @@ describe("format normalization", () => {
   test("transform can normalize to png", async () => {
     const out = await adapter.transform(pngSource, { width: VARIANT_WIDTH, format: "png" });
     expect((await adapter.probe(out)).format).toBe("png");
+  });
+});
+
+// §B.4 — the 2:3 fixed-box smart crop (the portrait variant). Proves against REAL sharp that supplying
+// width+height+fit:'cover' produces the EXACT target box (a genuine crop of a differently-shaped source,
+// never a stretch), and that the width-only path is unaffected.
+describe("portrait crop (width + height + fit:'cover')", () => {
+  test("crops a landscape source to the exact 2:3 box (webp)", async () => {
+    // pngSource is 400x300 landscape — a naive resize would never yield 200x300; a cover-crop does.
+    const out = await adapter.transform(pngSource, {
+      width: PORTRAIT_WIDTH,
+      height: PORTRAIT_HEIGHT,
+      fit: "cover",
+      position: "attention",
+    });
+    const info = await adapter.probe(out);
+    expect(info.format).toBe("webp");
+    expect(info.width).toBe(PORTRAIT_WIDTH);
+    expect(info.height).toBe(PORTRAIT_HEIGHT);
+    // The 2:3 ratio is exact (the whole point — a fixed presence box, not a source-aspect resize).
+    expect(info.width / info.height).toBeCloseTo(2 / 3, 5);
+  });
+
+  test("the width-only path still preserves the source aspect (no crop leak into the icon ladder)", async () => {
+    const out = await adapter.transform(pngSource, { width: VARIANT_WIDTH });
+    const info = await adapter.probe(out);
+    // 400x300 → width 96 preserves 4:3, never forced to 2:3.
+    expect(info.width).toBe(VARIANT_WIDTH);
+    expect(info.width / info.height).toBeCloseTo(SRC_WIDTH / SRC_HEIGHT, 5);
   });
 });
 

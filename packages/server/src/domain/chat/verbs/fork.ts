@@ -17,7 +17,12 @@
 //   • compaction checkpoint (D25): copied only when `compactedAtSeq` is within the fork point (else reset to
 //     null — a truncated fork must not carry a summary covering trimmed-away turns).
 
-import type { ChatBusEvent, ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  ChatMacroNameProducer,
+  ParticipantView,
+  PersonaAvatarEntry,
+} from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -45,6 +50,7 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { foldChain } from "../substrate/runtime-variables";
 import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
@@ -68,6 +74,7 @@ function toChatDetail(
   chat: LoadedChatRow,
   participants: readonly ParticipantView[],
   macroNames: ChatMacroNameProducer,
+  personaAvatars: readonly PersonaAvatarEntry[],
 ): ChatDetail {
   return {
     id: chat.id,
@@ -86,6 +93,7 @@ function toChatDetail(
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
     macroNames,
+    personaAvatars,
   };
 }
 
@@ -334,7 +342,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     }
     const participants = await deps.loadParticipantViews(newChatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    return { chat: toChatDetail(forkRow, participants, macroNames) };
+    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
+    return { chat: toChatDetail(forkRow, participants, macroNames, personaAvatars) };
   };
 }
 

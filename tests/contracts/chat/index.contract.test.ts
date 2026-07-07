@@ -291,6 +291,7 @@ test("ParticipantView pins the roster row (membership-scoped; XOR human/characte
     displayName: "Alice",
     handle: SAMPLE_HANDLE,
     avatarAssetId: null,
+    avatarHash: null,
   };
   expect(human.role).toBe("host");
   expect(human.leftSeq).toBeNull();
@@ -302,6 +303,7 @@ test("MemberCardView is a level-clamped projection — full-only fields null at 
     visibility: "sheet",
     name: "Aria",
     avatarAssetId: null,
+    avatarHash: null,
     description: "a wandering bard",
     personality: "cheerful",
     scenario: null,

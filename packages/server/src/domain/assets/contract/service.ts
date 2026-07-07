@@ -64,13 +64,16 @@ export interface AssetsContext {
    *  determinism seam as `newAssetId`). */
   readonly newGalleryItemId: () => GalleryItemId;
   /**
-   * (PD-28 / D21, amended) Roster-avatar REFERENCE-CHECK — NOT a hash→any-owner oracle (PD-107). Given
-   * the CALLER's userId and a blob hash, returns the `assets.ownerId` of that hash ONLY IF it is the
-   * `avatarAssetId` of a CHARACTER rostered (`kind='character'`, present) in a chat where the caller is a
-   * PRESENT member; `undefined` otherwise (a co-participant's non-avatar asset, a character outside the
-   * caller's chats, a left caller/character all miss). Returns the ASSET owner (the CAS-partition key for
-   * the downstream bytes read), never a bare-hash existence signal. Optional — absent on non-HTTP/DR/
-   * workload callers that never need the roster gate. (Sprite-set widening is deferred — PD-56.)
+   * (PD-28 / D21, amended 2026-07-07) Roster-avatar REFERENCE-CHECK — NOT a hash→any-owner oracle
+   * (PD-107). Given the CALLER's userId and a blob hash, returns the `assets.ownerId` of that hash ONLY IF
+   * it is the `avatarAssetId` of EITHER (a) a CHARACTER rostered (`kind='character'`, present) in a chat
+   * where the caller is a PRESENT member, OR (b) a PERSONA that is a present HUMAN co-participant's CURRENT
+   * `activePersonaId` in a chat where the caller is ALSO a present member (the multi-human group sibling
+   * case — a co-participant's OWN persona avatar); `undefined` otherwise (a co-participant's non-avatar
+   * asset, an identity outside the caller's chats, a left caller/identity all miss on both arms). Returns
+   * the ASSET owner (the CAS-partition key for the downstream bytes read), never a bare-hash existence
+   * signal. Optional — absent on non-HTTP/DR/workload callers that never need the roster gate. (Sprite-set
+   * widening is deferred — PD-56.)
    */
   readonly loadCoParticipantOwner?: (callerId: UserId, hash: string) => Promise<UserId | undefined>;
   /**

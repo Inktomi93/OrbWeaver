@@ -131,11 +131,15 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
 
 /** One resolved `chat_participants` row (the persistence read shape) → the `ParticipantView` read-model. A
  *  CHARACTER participant: `displayName`/`avatarAssetId` come from the live card (D28), `handle` is null (a
- *  character has no public handle). A null card (gone mid-delete) degrades the name to "" — never an error. */
-function characterParticipantView(
+ *  character has no public handle). A null card (gone mid-delete) degrades the name to "" — never an error.
+ *  `resolveAssetHash` is `ctx.resolveAssetHash` (the `ParticipantView.avatarHash` bridge) — threaded as a
+ *  param rather than a `ChatContext` closure so this stays a pure-ish mapper the caller controls. */
+async function characterParticipantView(
   row: typeof chatParticipants.$inferSelect,
   card: CharacterCard | null,
-): ParticipantView {
+  resolveAssetHash: ChatContext["resolveAssetHash"],
+): Promise<ParticipantView> {
+  const avatarAssetId = card?.avatarAssetId ?? null;
   return {
     id: row.id,
     chatId: row.chatId,
@@ -152,7 +156,8 @@ function characterParticipantView(
     joinHistoryVisibility: row.joinHistoryVisibility,
     displayName: card?.name ?? "",
     handle: null,
-    avatarAssetId: card?.avatarAssetId ?? null,
+    avatarAssetId,
+    avatarHash: await resolveAssetHash(avatarAssetId),
   };
 }
 
@@ -291,6 +296,7 @@ function createAddCharacterToChat(
         joinHistoryVisibility: "from-join",
       },
       card,
+      ctx.resolveAssetHash,
     );
   };
 }
@@ -317,6 +323,7 @@ function agentParticipantView(row: typeof chatParticipants.$inferSelect): Partic
     displayName: "",
     handle: null,
     avatarAssetId: null,
+    avatarHash: null,
   };
 }
 
@@ -399,7 +406,7 @@ async function updateCharacterParticipant(
     );
   }
   const card = await ctx.getCard({ ownerId, characterId });
-  return characterParticipantView(row, card);
+  return characterParticipantView(row, card, ctx.resolveAssetHash);
 }
 
 /** `setParticipantActivePersona` — flip a HUMAN participant's active persona for this room (PD-120). NOT a

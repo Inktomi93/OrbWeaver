@@ -38,8 +38,12 @@
 // out of this file set). The equivalent-and-compiling path is the QueryBoundary + useSuspenseQuery
 // canonical, gated by the ChatHandle discriminant. Swap back once `useGatedQuery` is realigned.
 
-import type { ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import {
+  buildCharacterNameMap,
+  buildPersonaAvatarMap,
+  buildPersonaNameMap,
+} from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
@@ -148,6 +152,13 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   ];
   const characterNamesById = buildCharacterNameMap(producers.flatMap((p) => p.characterNames));
   const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
+  // The persona AVATAR-chrome producer — the SAME chat-floor ∪ page-stamped merge as the names above, but
+  // a SEPARATE array (Chat-Macro-Resolution.md §1: names-only, never denormalized with display fields; #67).
+  const personaAvatarEntries: readonly PersonaAvatarEntry[] = [
+    ...chatDetail.personaAvatars,
+    ...messagesPage.personaAvatars,
+  ];
+  const personaAvatarsById = buildPersonaAvatarMap(personaAvatarEntries);
   const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
   // The viewing principal (D44 §12.0 render-trust "own input" comparand) — the first-human-seat proxy
   // until real auth (#50). Read ONCE here, threaded to each row (rows stay prop-driven, not per-row).
@@ -183,6 +194,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         participants={participants}
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}
+        personaAvatarsById={personaAvatarsById}
         activePersonaId={activePersonaId}
         viewerUserId={viewerUserId}
         onChatForked={onChatForked}
