@@ -6,9 +6,15 @@
 import { createSettingsContext } from "./context";
 import type { SettingsService, SettingsServiceDeps } from "./contract/service";
 import { createAppSettings } from "./verbs/app-settings";
+import { createCreateTheme } from "./verbs/create-theme";
+import { createDuplicateTheme } from "./verbs/duplicate-theme";
+import { createGetTheme } from "./verbs/get-theme";
 import { createGetUserSettings } from "./verbs/get-user-settings";
 import { createGlobalSettings } from "./verbs/global-settings";
+import { createListThemes } from "./verbs/list-themes";
 import { createLoadUserSettings } from "./verbs/load-user-settings";
+import { createRemoveTheme } from "./verbs/remove-theme";
+import { createUpdateTheme } from "./verbs/update-theme";
 import { createUpdateUserSettings } from "./verbs/update-user-settings";
 import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section";
 
@@ -27,5 +33,11 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
     updateAppSettings: appSettings.updateAppSettings,
     getEffectiveConfig: ctx.getEffectiveConfig,
     reloadEffectiveConfig: ctx.reloadEffectiveConfig,
+    listThemes: createListThemes(ctx).listThemes,
+    getTheme: createGetTheme(ctx).getTheme,
+    createTheme: createCreateTheme(ctx).createTheme,
+    duplicateTheme: createDuplicateTheme(ctx).duplicateTheme,
+    updateTheme: createUpdateTheme(ctx).updateTheme,
+    removeTheme: createRemoveTheme(ctx).removeTheme,
   };
 }

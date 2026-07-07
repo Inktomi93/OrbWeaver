@@ -443,6 +443,24 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         return global;
       }
     },
+    // D44 §12.1/§12.5 — resolve a roster member's RAW theme override: the character's own column, unmerged
+    // (NOT `override ?? global` like `resolveRenderPolicy` above — themes-design.md §1: chat assembly never
+    // reads the `themes` table; `character > global > default` is a client `<ThemeScope>` nesting concern).
+    // A human seat or a card that's gone/unreadable resolves to `null` (mirrors `getCard`'s null-tolerance).
+    resolveThemeOverride: async ({ ownerId, characterId }) => {
+      if (characterId === null || ownerId === null) {
+        return null;
+      }
+      try {
+        const detail = await input.character.get({
+          principal: hostPrincipal(ownerId),
+          characterId,
+        });
+        return detail.themeOverride;
+      } catch {
+        return null;
+      }
+    },
     mintSyntheticGroupCharacter: (params) => input.character.mintSyntheticGroupCharacter(params),
     findSyntheticGroupCharacter: (params) => input.character.findSyntheticGroupCharacter(params),
     resolveUserPublics: async (userId, personaId) => {

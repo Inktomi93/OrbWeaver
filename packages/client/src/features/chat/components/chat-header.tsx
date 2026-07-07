@@ -33,8 +33,10 @@ export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;
 }
 
-/** A character participant (only characters carry an avatar/name in the identity cluster). */
-type CharacterParticipant = ParticipantView & {
+/** A character participant (only characters carry an avatar/name in the identity cluster). `Omit` (not a
+ *  same-key intersection — a known TS assignability footgun that gets harder for the checker to prove as
+ *  `ParticipantView` grows optional fields, silently losing the `.filter` narrow). */
+type CharacterParticipant = Omit<ParticipantView, "characterId"> & {
   readonly characterId: NonNullable<ParticipantView["characterId"]>;
 };
 
@@ -50,7 +52,11 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   // to a neutral title until the (usually warm) getChat cache populates.
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const title = chat?.title ?? "Untitled chat";
-  const cast = (chat?.participants ?? []).filter(isCharacter);
+  // The explicit cast (not relying on the `.filter` narrowing overload) sidesteps a TS generic-inference
+  // limitation: as `ParticipantView` grows optional fields (`renderPolicy?`/`themeOverride?`), the checker
+  // stops proving `CharacterParticipant extends ParticipantView` for the `filter<S extends T>` overload
+  // and silently falls back to the non-narrowing one. `isCharacter` still does the real runtime filtering.
+  const cast = (chat?.participants ?? []).filter(isCharacter) as readonly CharacterParticipant[];
   const characterIds: readonly CharacterId[] = cast.map((c) => c.characterId);
   const isHost = chat === undefined ? false : resolveViewerIsHost(chat.participants);
 

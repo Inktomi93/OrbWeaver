@@ -172,7 +172,7 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.showTokenCount).toBe(false);
   expect(parsed.appearance.messageActions).toBe("hover");
   // Effects default OFF (the no-glass seed)
-  expect(parsed.appearance.blurEffects).toBe(false);
+  expect(parsed.appearance.blurSurfaces).toEqual([]);
   expect(parsed.appearance.shadowEffects).toBe(false);
   expect(parsed.appearance.reducedMotion).toBe(false);
   // Additive: an empty blob still parses as the pinned v2 (no bump for the new namespace).

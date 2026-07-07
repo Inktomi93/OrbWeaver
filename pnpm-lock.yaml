@@ -15,6 +15,9 @@ catalogs:
     '@biomejs/biome':
       specifier: ^2.5.1
       version: 2.5.1
+    '@codemirror/autocomplete':
+      specifier: ^6.20.3
+      version: 6.20.3
     '@codemirror/lang-css':
       specifier: ^6.3.1
       version: 6.3.1
@@ -648,6 +651,9 @@ importers:
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@codemirror/autocomplete':
+        specifier: 'catalog:'
+        version: 6.20.3
       '@codemirror/lang-css':
         specifier: 'catalog:'
         version: 6.3.1

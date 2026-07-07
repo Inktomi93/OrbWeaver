@@ -52,11 +52,14 @@ export interface RowSkin {
 const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 
 export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
-  // UIP-304: the whole row is a centered ≤48rem (`--container-cq-lg`) reading column (`mx-auto
-  // max-w-cq-lg`), with the per-role bubble aligned user-right / assistant-left WITHIN it — so a bubble
-  // never spans a 1920px viewport, and the composer's own `max-w-cq-lg` column aligns with it.
+  // UIP-304: the whole row is a centered reading column capped at the shell's `--width-shell-content`
+  // var (`mx-auto max-w-(--width-shell-content)` — the settings §11.1 clamp(680px, chatWidthPct dvw,
+  // 100dvw), stamped at the app-shell root and inherited down; the CSS-var Tailwind shorthand, not a
+  // raw bracketed literal, so `no-arbitrary-tw-values` doesn't fire), with the per-role bubble aligned
+  // user-right / assistant-left WITHIN it — so a bubble never spans a 1920px viewport, and the
+  // composer's own matching column aligns with it.
   bubble: {
-    outer: (role) => cx("mx-auto w-full max-w-cq-lg", alignFor(role)),
+    outer: (role) => cx("mx-auto w-full max-w-(--width-shell-content)", alignFor(role)),
     inner: (role) => cx("max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]),
   },
   // `flat` is full-width by design (UIP-304) — but padded on the SECTION scale, not the tighter block

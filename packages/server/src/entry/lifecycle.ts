@@ -44,6 +44,7 @@ import {
   seedDefaultCharacters,
   seedDefaultPreset,
   seedOwner,
+  seedThemes,
 } from "./boot";
 import { createServices } from "./compose";
 import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
@@ -165,6 +166,7 @@ export function createLifecycle(): Lifecycle {
     // 8. the idempotent boot packs + the single-replica lock reclaim. The default-character pack seeds the
     //    owner over the ONE seeder instance the app first-request hook also drives (shared memo + latch).
     await seedDefaultPreset({ db, now });
+    await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await reclaimLocksOnBoot({ db, now, holder });
 

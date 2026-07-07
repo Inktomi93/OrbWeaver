@@ -9,20 +9,26 @@
 
 import type { EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { AuditEntry } from "#foundation/observability";
 // Type-only cross-feature edge (sanctioned — `domain-no-cross-feature` exempts type-only): the guard op
 // SHAPES admin owns; the runtime ops are injected at the root. Admin's `guard.ts` impl is NOT imported.
 import type { RequireAdmin, RequireOwner } from "../../admin/contract/guard";
 import type {
+  CreateThemeParams,
+  DuplicateThemeParams,
   GetAppSettingsParams,
+  GetThemeParams,
   GetUserSettingsParams,
+  ListThemesParams,
+  RemoveThemeParams,
   UpdateAppSettingsParams,
+  UpdateThemeParams,
   UpdateUserSettingsParams,
   UpdateUserSettingsSectionParams,
 } from "./params";
-import type { GlobalSettingView, UserSettingsView } from "./views";
+import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views";
 
 /**
  * The DI bundle every verb closes over, wired at the composition root (`service.ts` / `context.ts`).
@@ -44,6 +50,9 @@ export interface SettingsContext {
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
   readonly serializeUserWrite: <T>(ownerId: UserId, run: () => Promise<T>) => Promise<T>;
+  /** The INJECTED id minter for the themes library (`mintTypeId(ID_PREFIX.theme)` in prod; seeded in
+   *  tests) — the preset/character/tag `newXId` precedent. */
+  readonly newThemeId: () => ThemeId;
   /** The floor-merge read side, bound from the `effective-config/` subsystem at the composition root
    *  (context.ts is a composition surface — the one place allowed to reach the subsystem).
    *  `getEffectiveConfig` is the SYNC cache read; `reloadEffectiveConfig` rebuilds the cache (called by
@@ -64,6 +73,7 @@ export interface SettingsServiceDeps {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
+  readonly newThemeId: () => ThemeId;
 }
 
 /**
@@ -106,4 +116,22 @@ export interface SettingsService {
   readonly getEffectiveConfig: () => EffectiveAppConfig;
   /** Rebuild the cache from the stored override (boot + after every admin write); rebinds `logger.level`. */
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
+
+  // ── Themes library (themes-design.md §4) ──
+  /** The caller's own themes PLUS every seed palette, as views. */
+  readonly listThemes: (params: ListThemesParams) => Promise<ThemeView[]>;
+  /** One theme readable by this owner (their own OR any seed); throws `ThemeNotFoundError`. */
+  readonly getTheme: (params: GetThemeParams) => Promise<ThemeView>;
+  /** Write a new OWNED theme from scratch. Runs `themeOverrideSchema.parse` + the css-validator at the
+   *  write boundary; a taken `(ownerId, name)` throws `DomainConflictError`. */
+  readonly createTheme: (params: CreateThemeParams) => Promise<ThemeView>;
+  /** Copy-to-customize: source = any readable row (own or seed) → a NEW owned row (fresh id, deep-copied
+   *  `override`/`css`, name de-duped by numeric suffix under the unique index). Throws
+   *  `ThemeNotFoundError` when the source isn't readable. */
+  readonly duplicateTheme: (params: DuplicateThemeParams) => Promise<ThemeView>;
+  /** Patch an OWNED theme (never a seed — `fetchOwned` can't match a NULL owner, so this 404s on a seed
+   *  id). Runs the same write-boundary validation as `createTheme`. Throws `ThemeNotFoundError`. */
+  readonly updateTheme: (params: UpdateThemeParams) => Promise<ThemeView>;
+  /** Delete an OWNED theme (never a seed). Throws `ThemeNotFoundError` when unowned/missing/a seed. */
+  readonly removeTheme: (params: RemoveThemeParams) => Promise<void>;
 }

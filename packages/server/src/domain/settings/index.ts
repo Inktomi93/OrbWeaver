@@ -7,6 +7,12 @@
 // `@orb/contracts/settings` (cross-boundary) — callers import them from there directly, NOT this door.
 
 export type {
+  CreateThemeParams,
+  DuplicateThemeParams,
+  GetThemeParams,
+  ListThemesParams,
+  RemoveThemeParams,
+  UpdateThemeParams,
   UpdateUserSettingsInput,
   UpdateUserSettingsSectionInput,
 } from "./contract/params";
@@ -15,5 +21,6 @@ export type {
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service";
-export type { GlobalSettingView, UserSettingsView } from "./contract/views";
+export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views";
+export { ensureSeedThemes } from "./seed-themes";
 export { createSettingsService } from "./service";

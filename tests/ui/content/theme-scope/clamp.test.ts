@@ -12,9 +12,34 @@ test("legal colors pass through to their custom properties", () => {
   });
   expect(vars["--color-primary"]).toBe("oklch(0.7 0.1 60)");
   expect(vars["--color-user-bubble"]).toBe("#112233");
-  expect(vars["--color-user-bubble-foreground"]).toBe("rgba(255,255,255,0.9)");
   expect(vars["--color-narration"]).toBe("hsl(30, 40%, 60%)");
   expect(vars["--color-speaker"]).toBe("currentColor");
+});
+
+test("a bubble/surface FOREGROUND is DERIVED from its bg for contrast, never taken from the picked .fg", () => {
+  const { vars } = clampThemeTokens({
+    userBubble: { bg: "#112233", fg: "rgba(255,255,255,0.9)" }, // .fg is IGNORED — the picker never sets fg
+    background: "oklch(0.158 0.006 60)",
+  });
+  // Derived from the bubble bg via relative-color-syntax (browser computes the actual value at render).
+  expect(vars["--color-user-bubble-foreground"]).toContain("oklch(from #112233");
+  expect(vars["--color-user-bubble-foreground"]).not.toBe("rgba(255,255,255,0.9)");
+  // The base surface derives the neutral ramp + the neutral foregrounds (so "background white" ⇒ dark text).
+  expect(vars["--color-sidebar"]).toContain("oklch(from oklch(0.158 0.006 60)");
+  expect(vars["--color-card"]).toContain("oklch(from oklch(0.158 0.006 60)");
+  expect(vars["--color-foreground"]).toContain("oklch(from oklch(0.158 0.006 60)");
+});
+
+test("the border derives from the base surface, but an explicit borderColor WINS", () => {
+  // Derived when unset — a low-alpha contrast hairline off the base.
+  const derived = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
+  expect(derived.vars["--color-border"]).toContain("oklch(from oklch(0.158 0.006 60)");
+  // Explicit border color takes over verbatim.
+  const explicit = clampThemeTokens({
+    background: "oklch(0.158 0.006 60)",
+    borderColor: "#334455",
+  });
+  expect(explicit.vars["--color-border"]).toBe("#334455");
 });
 
 test("hostile color values are DROPPED (url/expression/injection/js)", () => {

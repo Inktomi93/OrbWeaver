@@ -48,6 +48,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
+import { messageActionsRevealClass } from "../lib/message-actions-reveal";
 
 interface HideVars {
   readonly chatId: ChatId;
@@ -100,10 +101,17 @@ export interface MessageActionsRowProps {
   /** Navigate to the forked chat once `forkChat` resolves (the route maps this to `selectChat`).
    *  Optional — a row without it still forks + notifies, just doesn't switch the active chat. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  /** The `messageActions` appearance pref (D44 §12.1) — `"hover"` (default) is today's reveal-on-hover
+   *  posture; `"expanded"` keeps the cluster always visible. */
+  readonly messageActions?: "expanded" | "hover" | undefined;
 }
 
 /** The always-available per-message action affordance: Edit · Hide-from-AI · Delete · Fork · Copy. */
-export function MessageActionsRow({ message, onChatForked }: MessageActionsRowProps): ReactElement {
+export function MessageActionsRow({
+  message,
+  onChatForked,
+  messageActions,
+}: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const hide = useHideMutation({ trpc, invalidation });
@@ -167,7 +175,7 @@ export function MessageActionsRow({ message, onChatForked }: MessageActionsRowPr
       align="center"
       justify="end"
       data-slot="message-actions-row"
-      className="pointer-events-none opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
+      className={messageActionsRevealClass(messageActions)}
     >
       {editable ? (
         <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>

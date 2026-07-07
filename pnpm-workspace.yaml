@@ -128,6 +128,10 @@ catalog:
   #   it directly for EditorState.readOnly (state-gates paste/drop/command inserts; EditorView.editable
   #   alone only toggles contentEditable).
   "@codemirror/state": ^6.7.0
+  # @codemirror/autocomplete: pinned direct (was transitive via `codemirror`'s basicSetup, same
+  #   @codemirror/lint reasoning) — WS3 exposes a `completions` prop on the code-editor seal
+  #   (autocompletion/completionSource) for the theme editor's CSS var inline autocomplete.
+  "@codemirror/autocomplete": ^6.20.3
   # cmdk: the command-palette seal (primitives/command/). 1.1.1 (2025-03-14, mature).
   cmdk: ^1.1.1
   # @dnd-kit/react + helpers: the MODERN rewrite (0.5.0, 2026-06-11) for the sortable seal. NEVER

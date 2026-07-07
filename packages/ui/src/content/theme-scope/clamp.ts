@@ -7,6 +7,7 @@
 // injection); a dimension snaps to the token scale; a font must be allowlisted. Anything that fails is
 // DROPPED (the inherited token shows through) — never applied raw. This is what makes ThemeScope safe
 // where SillyTavern's raw `--SmartTheme*` vars are not.
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -31,12 +32,26 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document"] as const;
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
+/** D49 §3 — mirrors `@orb/contracts/theme` `THEME_BACKGROUND_FITS` (the pairing test asserts equal). */
+export const THEME_SCOPE_BACKGROUND_FITS = ["cover", "contain"] as const;
 const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;
 const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
+const BACKGROUND_FITS = THEME_SCOPE_BACKGROUND_FITS;
 
 const colorToken = z.string().refine(isSafeColor);
 const bubble = z.object({ bg: colorToken.optional(), fg: colorToken.optional() });
+
+// D49 §3 — the ui-local twin of `backgroundImageSourceSchema` (contracts/theme/override.ts). ui deps
+// kit only (the cake) — `@orb/kit/ids` is reachable here, so the asset id stays branded exactly like
+// the wire twin (the pairing test asserts identical top-level KEYS, not internal branding, but nothing
+// stops matching it exactly where kit makes that free).
+const backgroundImageSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
+  z.object({ kind: z.literal("external"), url: z.url() }),
+  z.object({ kind: z.literal("seeded"), id: z.string().regex(/^[a-z0-9-]+$/) }),
+]);
+export type ThemeScopeBackgroundImageSource = z.infer<typeof backgroundImageSourceSchema>;
 
 /** The ui-local override shape callers pass (loose — every field optional; failures drop per-field). */
 export const themeScopeTokensSchema = z.object({
@@ -51,6 +66,10 @@ export const themeScopeTokensSchema = z.object({
   font: z.enum(THEME_FONT_ALLOWLIST).optional(),
   radius: z.enum(RADII).optional(),
   background: colorToken.optional(),
+  backgroundImage: backgroundImageSourceSchema.optional(),
+  backgroundFit: z.enum(BACKGROUND_FITS).optional(),
+  backgroundDim: z.number().min(0).max(1).optional(),
+  borderColor: colorToken.optional(),
   chatStyle: z.enum(CHAT_STYLES).optional(),
   density: z.enum(DENSITIES).optional(),
 });
@@ -58,16 +77,100 @@ export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys, only
- * validated values) plus the two attribute axes (chatStyle/density are `data-*`, not custom props).
+ * validated values) plus the non-custom-property axes (chatStyle/density are `data-*`;
+ * backgroundImage/backgroundFit/backgroundDim are consumed by the ROOT-ONLY fixed-position background
+ * layer, D49 §3 — deliberately NOT a `--*` var, since `url()` values don't belong in an inherited
+ * custom property spread across nested per-speaker ThemeScopes; only the app-root reads it).
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
   readonly chatStyle?: (typeof CHAT_STYLES)[number];
   readonly density?: (typeof DENSITIES)[number];
+  readonly backgroundImage?: ThemeScopeBackgroundImageSource;
+  readonly backgroundFit?: (typeof BACKGROUND_FITS)[number];
+  readonly backgroundDim?: number;
 }
 
 function fontStack(font: ThemeFont): string {
   return font === "Geist" ? "Geist, ui-sans-serif, system-ui, sans-serif" : `${font}, serif`;
+}
+
+/**
+ * Every `--*` custom property `clampThemeTokens` can emit into `ClampedTheme.vars` — the themeable
+ * surface (WS0). MUST stay in sync with the `put()`/`vars[...]` assignments below (the emit-surface
+ * test in tests/ui/content/theme-scope/emit-surface.test.ts calls `clampThemeTokens` with every field
+ * populated and asserts the actual output keys match this list exactly, so a drift fails loudly).
+ * Exported so that test reads the surface structurally instead of re-parsing this file.
+ */
+export const THEME_SCOPE_EMIT_VARS = [
+  "--color-primary",
+  "--color-ring",
+  "--color-user-bubble",
+  "--color-user-bubble-foreground",
+  "--color-ai-bubble",
+  "--color-ai-bubble-foreground",
+  "--color-system-bubble",
+  "--color-system-bubble-foreground",
+  "--color-speaker",
+  "--color-dialogue",
+  "--color-narration",
+  "--color-prose-body",
+  "--color-background",
+  // The neutral surface RAMP, DERIVED from `background` (below) — a user picks ONE base surface and the
+  // sidebar/panel/card/popover chrome derives coherently; they never hand-pick the neutral ramp.
+  "--color-sidebar",
+  "--color-surface-raised",
+  "--color-card",
+  "--color-popover",
+  // The neutral FOREGROUNDS, DERIVED for contrast from the surface they sit on (light surface → dark
+  // text, dark surface → light text) — so "set the background white" can never yield invisible text. The
+  // picker never sets these; they're computed. (Bubble foregrounds — also derived — reuse the keys above.)
+  "--color-foreground",
+  "--color-card-foreground",
+  "--color-popover-foreground",
+  "--color-sidebar-foreground",
+  // The UI border — an explicit `borderColor` when set, else DERIVED from the base surface (a low-alpha
+  // contrast hairline, so it stays visible on light AND dark bases).
+  "--color-border",
+  "--font-sans",
+  "--radius-card",
+] as const;
+
+// OKLCH lightness deltas of the neutral surface ramp RELATIVE to the base `background` (they match
+// Hearth's authored deltas vs its 0.158 background: sidebar 0.132, surface-raised 0.185, card 0.205,
+// popover 0.245). Applied via CSS relative-color-syntax so ANY base color format works and the browser
+// does the math; same hue + chroma, only L shifts.
+const RAMP_DL_SIDEBAR = -0.026;
+const RAMP_DL_SURFACE_RAISED = 0.027;
+const RAMP_DL_CARD = 0.047;
+const RAMP_DL_POPOVER = 0.087;
+const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]> = [
+  ["--color-sidebar", RAMP_DL_SIDEBAR],
+  ["--color-surface-raised", RAMP_DL_SURFACE_RAISED],
+  ["--color-card", RAMP_DL_CARD],
+  ["--color-popover", RAMP_DL_POPOVER],
+];
+
+// Contrast-safe FOREGROUND derivation (readability floor — a foreground is NEVER picked, always derived
+// from the surface it sits on). Via relative-color-syntax: L flips light↔dark around a pivot with a steep
+// step, so any surface lighter than the pivot gets near-black text and any darker gets near-white — "set
+// everything white" is physically unable to produce invisible text. Chroma 0 = neutral text, hue kept for
+// a faint warmth. min/max keep it off pure black/white (matches the design's off-white/near-black).
+const FG_PIVOT_L = 0.62; // surfaces above this L read as "light" → dark text
+const FG_STEEPNESS = 1000; // razor-thin transition band around the pivot
+const FG_L_MIN = 0.22; // darkest derived text (near-black, on light surfaces)
+const FG_L_MAX = 0.96; // lightest derived text (off-white, on dark surfaces)
+// The contrast lightness expression (light surface → low L, dark surface → high L), shared by the
+// foreground (opaque) and the derived border (low-alpha hairline).
+const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
+const BORDER_ALPHA = 0.14; // a subtle hairline — visible on either polarity, never a hard line
+/** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
+function foregroundOn(surface: string): string {
+  return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
+}
+/** A subtle contrast border DERIVED from `surface` (the foreground contrast tone at low alpha). */
+function borderOn(surface: string): string {
+  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${BORDER_ALPHA})`;
 }
 
 /**
@@ -86,17 +189,45 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   };
   put("--color-primary", t.accent);
   put("--color-ring", t.accent);
-  put("--color-user-bubble", t.userBubble?.bg);
-  put("--color-user-bubble-foreground", t.userBubble?.fg);
-  put("--color-ai-bubble", t.aiBubble?.bg);
-  put("--color-ai-bubble-foreground", t.aiBubble?.fg);
-  put("--color-system-bubble", t.systemBubble?.bg);
-  put("--color-system-bubble-foreground", t.systemBubble?.fg);
   put("--color-speaker", t.speaker);
   put("--color-dialogue", t.dialogueColor);
   put("--color-narration", t.narrationColor);
   put("--color-prose-body", t.bodyColor);
-  put("--color-background", t.background);
+  // Bubbles: the picker sets each bubble's BG; the FG is DERIVED from that bg for contrast (never picked),
+  // so a light bubble bg always gets dark text. (Any `.fg` the override carries is intentionally ignored.)
+  const putBubble = (bg: string, bgVar: string, fgVar: string): void => {
+    vars[bgVar] = bg;
+    vars[fgVar] = foregroundOn(bg);
+  };
+  if (t.userBubble?.bg !== undefined) {
+    putBubble(t.userBubble.bg, "--color-user-bubble", "--color-user-bubble-foreground");
+  }
+  if (t.aiBubble?.bg !== undefined) {
+    putBubble(t.aiBubble.bg, "--color-ai-bubble", "--color-ai-bubble-foreground");
+  }
+  if (t.systemBubble?.bg !== undefined) {
+    putBubble(t.systemBubble.bg, "--color-system-bubble", "--color-system-bubble-foreground");
+  }
+  if (t.background !== undefined) {
+    // The base surface (already isSafeColor-validated) + the derived neutral ramp + the derived neutral
+    // foregrounds. Relative-color-syntax (`oklch(from <base> calc(l ± Δ) c h)`) keeps the derivation
+    // portable (any input format) and the stored override small (it carries only `background`). A seed
+    // palette's [data-theme] block overrides these with its hand-tuned values; a custom theme derives them
+    // here so its whole chrome — surfaces AND text — tracks the one base surface color coherently + legibly.
+    vars["--color-background"] = t.background;
+    for (const [name, deltaL] of SURFACE_RAMP_DELTAS) {
+      vars[name] = `oklch(from ${t.background} calc(l + ${deltaL}) c h)`;
+    }
+    const fg = foregroundOn(t.background);
+    vars["--color-foreground"] = fg;
+    vars["--color-card-foreground"] = fg;
+    vars["--color-popover-foreground"] = fg;
+    vars["--color-sidebar-foreground"] = fg;
+    // The border derives from the base surface too — UNLESS the user set an explicit borderColor (below).
+    vars["--color-border"] = borderOn(t.background);
+  }
+  // An explicit border color WINS over the derived hairline (ST parity).
+  put("--color-border", t.borderColor);
   if (t.font !== undefined) {
     vars["--font-sans"] = fontStack(t.font);
   }
@@ -107,5 +238,11 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     vars,
     ...(t.chatStyle === undefined ? {} : { chatStyle: t.chatStyle }),
     ...(t.density === undefined ? {} : { density: t.density }),
+    // D49 §3 — passed through validated-but-unresolved (no `--*` var; see the ClampedTheme doc above).
+    // The app-root background layer resolves `backgroundImage` to a URL (seeded/external are direct;
+    // asset awaits the #67 resolver) and applies `backgroundFit`/`backgroundDim` itself.
+    ...(t.backgroundImage === undefined ? {} : { backgroundImage: t.backgroundImage }),
+    ...(t.backgroundFit === undefined ? {} : { backgroundFit: t.backgroundFit }),
+    ...(t.backgroundDim === undefined ? {} : { backgroundDim: t.backgroundDim }),
   };
 }

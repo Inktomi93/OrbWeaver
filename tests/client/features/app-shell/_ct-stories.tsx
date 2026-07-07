@@ -19,6 +19,7 @@
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ReactElement } from "react";
+import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
@@ -49,5 +50,19 @@ export function RailStory(): ReactElement {
       onSelectSection={(): void => undefined}
       onOpenModal={(): void => undefined}
     />
+  );
+}
+
+/** CustomThemeStyle in isolation — the owner's custom-CSS injection (Layer 1). The css prop is injected
+ *  unlayered + last-in-<head>; the probes prove it wins: `.shell-rail` (shell.css already styles it) and
+ *  `.bg-primary` (a `@layer utilities` class reading `var(--color-primary)`, which a `:root` redefine in
+ *  the injected CSS overrides). */
+export function CustomThemeStyleStory({ css }: { readonly css: string }): ReactElement {
+  return (
+    <div>
+      <CustomThemeStyle css={css} />
+      <div className="shell-rail" data-testid="rail-probe" style={{ width: 20, height: 20 }} />
+      <div className="bg-primary" data-testid="primary-probe" style={{ width: 20, height: 20 }} />
+    </div>
   );
 }

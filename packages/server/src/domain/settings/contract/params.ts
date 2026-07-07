@@ -8,6 +8,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contracts/settings";
+import type { CreateThemeInput, UpdateThemeInput } from "@orb/contracts/theme";
+import type { ThemeId } from "@orb/kit/ids";
 
 /** Whole-blob replace input. The persisted `schemaVersion` COLUMN is service-owned (pinned to the current
  *  code constant; it is what reads thread as `storedVersion`, beating any in-blob value — a client can't
@@ -49,4 +51,36 @@ export interface UpdateAppSettingsParams extends AppSettingsActorParams {
   /** The partial override blob. `requireAdmin` always; touching a D17 governance field additionally
    *  requires `requireOwner` (the verb's admin-vs-owner split). */
   readonly partial: AppSettings;
+}
+
+// ── Themes library (themes-design.md §4) — owner-only, D21 single-owned family. Reads resolve owned ∪
+// seeds; writes go through plain `fetchOwned(caller)`, so a seed row is un-mutable BY CONSTRUCTION. ──
+
+export interface ThemeActorParams {
+  readonly principal: Principal;
+}
+
+export interface ListThemesParams extends ThemeActorParams {}
+
+export interface GetThemeParams extends ThemeActorParams {
+  readonly id: ThemeId;
+}
+
+export interface CreateThemeParams extends ThemeActorParams {
+  readonly input: CreateThemeInput;
+}
+
+export interface DuplicateThemeParams extends ThemeActorParams {
+  readonly id: ThemeId;
+  /** Optional caller-supplied name; defaults to `"<source> copy"` (de-duped by numeric suffix). */
+  readonly name?: string;
+}
+
+export interface UpdateThemeParams extends ThemeActorParams {
+  readonly id: ThemeId;
+  readonly input: UpdateThemeInput;
+}
+
+export interface RemoveThemeParams extends ThemeActorParams {
+  readonly id: ThemeId;
 }

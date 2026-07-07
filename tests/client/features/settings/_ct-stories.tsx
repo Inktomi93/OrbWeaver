@@ -18,14 +18,16 @@ export function SettingsShellStory(): ReactElement {
   );
 }
 
-/** The interim theme picker (J8) — pure render, no data layer; TooltipProvider so the deferred-row
- *  tooltips resolve their delay context (the shell normally provides it). */
+/** The real theme picker/library (D44 §12.1) — wrapped in the data layer (its `listThemes` +
+ *  `getUserSettings` reads are stubbed per-test via routeTrpc) + TooltipProvider for the row chrome. */
 export function ThemePickerStory(): ReactElement {
   return (
-    <TooltipProvider>
-      <div style={{ width: 480 }}>
-        <ThemePickerSurface />
-      </div>
-    </TooltipProvider>
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ width: 560 }}>
+          <ThemePickerSurface />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
   );
 }

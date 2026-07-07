@@ -91,4 +91,34 @@ describe("updateUserSettingsSection", () => {
     // An untouched knob keeps its §12.1 default.
     expect(view.config.appearance.density).toBe("comfortable");
   });
+
+  test("appearance.elevation patches (default flat; ramp is opt-in)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_elevation" });
+    const p = principal(u, "user");
+    expect((await h.svc.getUserSettings({ principal: p })).config.appearance.elevation).toBe(
+      "flat",
+    );
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "appearance", patch: { elevation: "ramp" } },
+    });
+    const view = await h.svc.getUserSettings({ principal: p });
+    expect(view.config.appearance.elevation).toBe("ramp");
+  });
+
+  test("the theme section patches (themes-design.md §3.3 — selectedThemeId round-trip)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_theme" });
+    const p = principal(u, "user");
+    expect((await h.svc.getUserSettings({ principal: p })).config.theme.selectedThemeId).toBeNull();
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "theme", patch: { selectedThemeId: "theme_00000000000000000000000002" } },
+    });
+    const view = await h.svc.getUserSettings({ principal: p });
+    expect(view.config.theme.selectedThemeId).toBe("theme_00000000000000000000000002");
+  });
 });

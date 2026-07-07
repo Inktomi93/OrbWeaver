@@ -5,6 +5,7 @@
 // explicit clear. The always-a-list columns (`greetings`/`regexScripts`) treat `null` as "clear to []".
 
 import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/character";
+import type { ThemeOverride } from "@orb/contracts/theme";
 
 /** `undefined` ⇒ leave unchanged; any other value (incl. `null`) ⇒ the new value (a `null` clears). */
 function keep<T>(edit: T | undefined, current: T): T {
@@ -49,6 +50,7 @@ export function flagEdits(input: UpdateCharacterInput): {
   archived?: boolean;
   forbidExternalMedia?: boolean | null;
   trustHtml?: boolean | null;
+  themeOverride?: ThemeOverride | null;
 } {
   return {
     ...(input.starred === undefined ? {} : { starred: input.starred }),
@@ -57,5 +59,6 @@ export function flagEdits(input: UpdateCharacterInput): {
       ? {}
       : { forbidExternalMedia: input.forbidExternalMedia }),
     ...(input.trustHtml === undefined ? {} : { trustHtml: input.trustHtml }),
+    ...(input.themeOverride === undefined ? {} : { themeOverride: input.themeOverride }),
   };
 }

@@ -51,6 +51,7 @@ export const ID_PREFIX = {
   worldBook: "world_book",
   worldEntry: "world_entry",
   preset: "preset",
+  theme: "theme",
   asset: "asset",
   messageVariant: "message_variant",
   chatEvent: "chat_event",
@@ -121,6 +122,7 @@ export type CharacterId = TypeIdOf<"character">;
 export type CharacterSnapshotId = TypeIdOf<"character_snapshot">;
 export type PersonaId = TypeIdOf<"persona">;
 export type PresetId = TypeIdOf<"preset">;
+export type ThemeId = TypeIdOf<"theme">;
 export type WorldBookId = TypeIdOf<"world_book">;
 export type WorldEntryId = TypeIdOf<"world_entry">;
 export type TagId = TypeIdOf<"tag">;

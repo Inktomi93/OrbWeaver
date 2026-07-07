@@ -1,0 +1,471 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - navigation [ref=e4]:
+      - link "Neo-Tavern home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+      - link "Chat" [ref=e14] [cursor=pointer]:
+        - /url: /
+        - img [ref=e15]
+      - link "Home" [ref=e18] [cursor=pointer]:
+        - /url: /home
+        - img [ref=e19]
+      - link "Corpus" [ref=e22] [cursor=pointer]:
+        - /url: /corpus
+        - img [ref=e23]
+      - button "Characters" [ref=e26]:
+        - img [ref=e27]
+      - button "Generation" [ref=e32]:
+        - img [ref=e33]
+      - button "World info" [ref=e34]:
+        - img [ref=e35]
+      - button "Connection" [ref=e38]:
+        - img [ref=e39]
+      - button "Persona" [ref=e45]:
+        - img [ref=e46]
+      - button "Settings" [ref=e49]:
+        - img [ref=e50]
+      - button "Account" [ref=e53]:
+        - generic [ref=e54]: "Y"
+    - complementary [ref=e55]:
+      - generic [ref=e57]:
+        - generic [ref=e58]:
+          - button "Storyteller default" [ref=e59]:
+            - img [ref=e61]
+            - generic [ref=e69]: Storyteller
+            - generic [ref=e70]: default
+            - img [ref=e71]
+          - button "Preset options" [ref=e73]:
+            - img
+          - button "Close" [ref=e74]:
+            - img
+        - generic [ref=e75]:
+          - generic [ref=e76]:
+            - button "Generation 32k ctx · 4k out" [ref=e77]:
+              - img [ref=e78]
+              - generic [ref=e80]: Generation
+              - generic [ref=e81]: 32k ctx · 4k out
+            - generic [ref=e82]:
+              - generic [ref=e83]:
+                - generic [ref=e84]:
+                  - generic [ref=e85]: Max context tokens
+                  - button "More info" [ref=e86]:
+                    - img [ref=e87]
+                  - generic [ref=e89]:
+                    - text: 32,000
+                    - generic [ref=e90]: tok
+                - slider [ref=e91]: "31744"
+              - generic [ref=e92]:
+                - generic [ref=e93]:
+                  - generic [ref=e94]: Max output tokens
+                  - button "More info" [ref=e95]:
+                    - img [ref=e96]
+                  - generic [ref=e98]:
+                    - text: 4,096
+                    - generic [ref=e99]: tok
+                - slider [ref=e100]: "4096"
+              - generic [ref=e101]:
+                - generic [ref=e102]:
+                  - generic [ref=e103]: Temperature
+                  - button "More info" [ref=e104]:
+                    - img [ref=e105]
+                  - generic [ref=e107]: "1.00"
+                - slider [ref=e108]: "1"
+              - button "Show advanced samplers" [ref=e109]:
+                - img
+                - text: Show advanced samplers
+          - generic [ref=e110]:
+            - button "Reasoning balanced" [ref=e111]:
+              - img [ref=e112]
+              - generic [ref=e114]: Reasoning
+              - generic [ref=e115]: balanced
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - generic [ref=e118]:
+                  - generic [ref=e119]: Quality
+                  - button "More info" [ref=e120]:
+                    - img [ref=e121]
+                - generic [ref=e123]:
+                  - button "unset" [ref=e124]
+                  - button "fast" [ref=e125]
+                  - button "balanced" [ref=e126]
+                  - button "deep" [ref=e127]
+              - generic [ref=e128]:
+                - generic [ref=e129]:
+                  - generic [ref=e130]: Effort
+                  - button "More info" [ref=e131]:
+                    - img [ref=e132]
+                - button "unset (resolver picks)" [ref=e134]:
+                  - generic [ref=e135]: unset (resolver picks)
+                  - img [ref=e136]
+              - generic [ref=e138]:
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Thinking display
+                  - button "More info" [ref=e141]:
+                    - img [ref=e142]
+                - generic [ref=e144]:
+                  - button "unset" [ref=e145]
+                  - button "summarized" [ref=e146]
+                  - button "omitted" [ref=e147]
+          - button "Compaction auto" [ref=e149]:
+            - img [ref=e150]
+            - generic [ref=e152]: Compaction
+            - generic [ref=e153]: auto
+          - generic [ref=e154]:
+            - button "Prompt sections 6 · ~1.6k tok" [ref=e155]:
+              - img [ref=e156]
+              - generic [ref=e158]: Prompt sections
+              - generic [ref=e159]: 6 · ~1.6k tok
+            - generic [ref=e161]:
+              - generic [ref=e162]:
+                - button "Add section" [ref=e163]:
+                  - img
+                  - text: Add section
+                - generic [ref=e164]: 6 sections
+              - generic [ref=e165]:
+                - button "Drag to reorder" [ref=e166]:
+                  - img [ref=e167]
+                - img [ref=e175]
+                - generic [ref=e177]: Main system
+                - generic [ref=e178]: 420t
+                - button "Edit" [ref=e180]:
+                  - img
+                - switch "Enable section" [checked] [ref=e181]
+              - generic [ref=e182]:
+                - button "Drag to reorder" [ref=e183]:
+                  - img [ref=e184]
+                - img [ref=e192]
+                - generic [ref=e194]: World lore
+                - generic [ref=e195]: always
+                - generic [ref=e196]: 880t
+                - button "Edit" [ref=e198]:
+                  - img
+                - switch "Enable section" [checked] [ref=e199]
+              - generic [ref=e200]:
+                - button "Drag to reorder" [ref=e201]:
+                  - img [ref=e202]
+                - img [ref=e210]
+                - generic [ref=e212]: Persona
+                - generic [ref=e213]: 210t
+                - button "Edit" [ref=e215]:
+                  - img
+                - switch "Enable section" [checked] [ref=e216]
+              - button "cache boundary 1.5k 0.1k" [ref=e217]:
+                - generic [ref=e219]: cache boundary
+                - generic [ref=e220]:
+                  - generic [ref=e221]: 1.5k
+                  - generic [ref=e225]: 0.1k
+              - generic [ref=e227]:
+                - button "Drag to reorder" [ref=e228]:
+                  - img [ref=e229]
+                - img [ref=e237]
+                - generic [ref=e239]: Jailbreak
+                - generic [ref=e240]: 64t
+                - button "Edit" [ref=e242]:
+                  - img
+                - switch "Enable section" [ref=e243]
+              - generic [ref=e244]:
+                - button "Drag to reorder" [ref=e245]:
+                  - img [ref=e246]
+                - img [ref=e254]
+                - generic [ref=e256]: Chat history
+                - generic [ref=e257]: —
+                - button "Edit" [ref=e259]:
+                  - img
+                - switch "Enable section" [checked] [ref=e260]
+              - generic [ref=e261]:
+                - button "Drag to reorder" [ref=e262]:
+                  - img [ref=e263]
+                - img [ref=e271]
+                - generic [ref=e273]: Post-history
+                - generic [ref=e274]: assistant
+                - generic [ref=e275]: 38t
+                - button "Edit" [ref=e277]:
+                  - img
+                - switch "Enable section" [checked] [ref=e278]
+          - button "Templates 13 fields" [ref=e280]:
+            - img [ref=e281]
+            - generic [ref=e283]: Templates
+            - generic [ref=e284]: 13 fields
+    - main [ref=e285]:
+      - generic [ref=e286]:
+        - generic [ref=e287]:
+          - button "Toggle presets" [ref=e288]:
+            - img
+          - generic [ref=e289]: S
+          - generic [ref=e290]:
+            - generic [ref=e291]: Seraphina Vale
+            - generic [ref=e292]: Ashkeeper of the Emberhold
+          - button "Claude Opus 4.8" [ref=e294]:
+            - img [ref=e296]
+            - generic [ref=e299]: Claude
+            - text: Opus 4.8
+          - button "Chat options" [ref=e300]:
+            - img
+          - button "Toggle characters" [ref=e301]:
+            - img
+        - generic [ref=e303]:
+          - generic [ref=e306]: The Emberhold · Lower Vault
+          - article [ref=e308]:
+            - generic [ref=e309]: S
+            - generic [ref=e310]:
+              - generic [ref=e311]:
+                - generic [ref=e312]: Seraphina Vale
+                - generic [ref=e313]: 9:02 AM
+                - img [ref=e314]
+              - generic [ref=e316]:
+                - paragraph [ref=e317]:
+                  - emphasis [ref=e318]: The vault door groans shut behind you, and for a breath the only light is the dull ember-glow leaking from the brazier in her hands.
+                  - text: Seraphina does not turn at once.
+                  - emphasis [ref=e319]: When she does, ash drifts from her shoulders like grey snow.
+                - paragraph [ref=e320]:
+                  - text: "\"You came down the long stair after all,\""
+                  - emphasis [ref=e321]: she says, voice low and amused.
+                  - text: "\"Most pilgrims lose their nerve at the third landing. What is it you're hunting, traveller — warmth, or the thing that burns it?\""
+              - button "thinking" [ref=e323]:
+                - img [ref=e324]
+                - generic [ref=e326]: thinking
+              - generic [ref=e327]:
+                - generic [ref=e328]:
+                  - button "Previous variant" [disabled]:
+                    - img
+                  - generic [ref=e329]: 1 / 3
+                  - button "Next variant" [ref=e330]:
+                    - img
+                - generic [ref=e331]:
+                  - button "Edit" [ref=e332]:
+                    - img
+                  - button "Copy" [ref=e333]:
+                    - img
+                  - button "Branch from here" [ref=e334]:
+                    - img
+                  - button "More message actions" [ref=e335]:
+                    - img
+          - article [ref=e336]:
+            - generic [ref=e337]: A
+            - generic [ref=e338]:
+              - generic [ref=e339]:
+                - generic [ref=e340]: Aldric
+                - generic [ref=e341]: 9:04 AM
+                - img [ref=e342]
+              - paragraph [ref=e345]: I lower my hood, careful to keep both hands where she can see them. "Neither, if I'm honest. I'm hunting a name — one the Emberhold archives are said to keep. I can pay for the candle it costs to read it."
+              - generic [ref=e347]:
+                - button "Edit" [ref=e348]:
+                  - img
+                - button "Copy" [ref=e349]:
+                  - img
+                - button "Branch from here" [ref=e350]:
+                  - img
+                - button "More message actions" [ref=e351]:
+                  - img
+          - article [ref=e352]:
+            - generic [ref=e353]: S
+            - generic [ref=e354]:
+              - generic [ref=e355]:
+                - generic [ref=e356]: Seraphina Vale
+                - generic [ref=e357]: 9:05 AM
+                - img [ref=e358]
+              - generic [ref=e360]:
+                - paragraph [ref=e361]:
+                  - emphasis [ref=e362]: That earns a real laugh — short, surprised, warmer than the brazier.
+                  - text: "\"A name. Gods, but you're a refreshing kind of fool.\""
+                  - emphasis [ref=e363]: She crosses to the reading-stone and sets the brazier in its iron cradle; the whole chamber blooms amber, and you see them now — shelves of vellum spines climbing into the dark above.
+                - paragraph [ref=e364]:
+                  - text: "\"Names cost more than candles here. But sit. Tell me whose, and I'll tell you what it'll take.\""
+                  - emphasis [ref=e365]: She gestures to the low stool across the stone, and waits.
+              - generic [ref=e366]:
+                - generic [ref=e367]:
+                  - button "Previous variant" [disabled]:
+                    - img
+                  - generic [ref=e368]: 1 / 1
+                  - button "Next variant" [ref=e369]:
+                    - img
+                - generic [ref=e370]:
+                  - button "Edit" [ref=e371]:
+                    - img
+                  - button "Copy" [ref=e372]:
+                    - img
+                  - button "Branch from here" [ref=e373]:
+                    - img
+                  - button "Regenerate" [ref=e374]:
+                    - img
+                  - button "Continue" [ref=e375]:
+                    - img
+                  - button "More message actions" [ref=e376]:
+                    - img
+        - generic [ref=e378]:
+          - generic [ref=e379]:
+            - generic [ref=e380]: Guided
+            - button "Impersonate" [ref=e381]:
+              - img [ref=e382]
+              - text: Impersonate
+            - button "Reroll opening" [ref=e385]:
+              - img [ref=e386]
+              - text: Reroll opening
+            - button "Suggest" [ref=e389]:
+              - img [ref=e390]
+              - text: Suggest
+          - generic [ref=e392]:
+            - button "Options" [ref=e393]:
+              - img
+            - textbox "Write the next beat… (⏎ to send, ⇧⏎ for a new line)" [ref=e394]
+            - button "Attach" [ref=e395]:
+              - img
+            - button "Send" [disabled]:
+              - img
+    - complementary [ref=e396]:
+      - generic [ref=e398]:
+        - generic [ref=e399]:
+          - generic [ref=e400]: Characters 10
+          - button "Import" [ref=e401]:
+            - img
+          - button "New character" [ref=e402]:
+            - img
+          - button "Close" [ref=e403]:
+            - img
+        - generic [ref=e404]:
+          - generic [ref=e405]:
+            - img [ref=e406]
+            - textbox "Fuzzy search — name, tags, description…" [ref=e409]
+          - generic [ref=e410]:
+            - button "Favorites" [ref=e411]:
+              - img [ref=e412]
+              - text: Favorites
+            - button "A–Z" [ref=e414]:
+              - img
+              - text: A–Z
+            - generic [ref=e415]:
+              - button "list" [ref=e416]:
+                - img [ref=e417]
+              - button "grid" [ref=e418]:
+                - img [ref=e419]
+          - generic [ref=e424]:
+            - button "fantasy3" [ref=e425]
+            - button "sci-fi2" [ref=e426]
+            - button "historical1" [ref=e427]
+            - button "noir1" [ref=e428]
+            - button "horror1" [ref=e429]
+            - button "cozy1" [ref=e430]
+            - button "slice-of-life1" [ref=e431]
+            - button "mentor1" [ref=e432]
+            - button "slow-burn1" [ref=e433]
+            - button "romance1" [ref=e434]
+            - button "intrigue2" [ref=e435]
+            - button "mystery1" [ref=e436]
+            - button "gruff1" [ref=e437]
+            - button "uncanny1" [ref=e438]
+            - button "comic-relief1" [ref=e439]
+            - button "monster1" [ref=e440]
+            - button "school1" [ref=e441]
+            - button "duo1" [ref=e442]
+          - generic [ref=e443]: Showing 10 of 10
+          - generic [ref=e444]:
+            - button "C Captain Reyes Hard-luck freighter captain working the Saltport run. Loyal to a crew that's mostly let her down. sci-fi gruff 1.2k · chub.ai" [ref=e445]:
+              - generic [ref=e446]: C
+              - generic [ref=e447]:
+                - generic [ref=e449]: Captain Reyes
+                - paragraph [ref=e450]: Hard-luck freighter captain working the Saltport run. Loyal to a crew that's mostly let her down.
+                - generic [ref=e451]:
+                  - generic [ref=e452]:
+                    - generic [ref=e453]: sci-fi
+                    - generic [ref=e454]: gruff
+                  - generic [ref=e455]: 1.2k · chub.ai
+            - button "D Detective Hark Rain-soaked, two cases behind, one cigarette from quitting. The city owes him nothing. noir mystery 1.1k · you" [ref=e456]:
+              - generic [ref=e457]: D
+              - generic [ref=e458]:
+                - generic [ref=e460]: Detective Hark
+                - paragraph [ref=e461]: Rain-soaked, two cases behind, one cigarette from quitting. The city owes him nothing.
+                - generic [ref=e462]:
+                  - generic [ref=e463]:
+                    - generic [ref=e464]: noir
+                    - generic [ref=e465]: mystery
+                  - generic [ref=e466]: 1.1k · you
+            - button "G Grimm Something old that wears the shape of a kindly woodsman. Mostly. horror monster 1.3k · you" [ref=e467]:
+              - generic [ref=e468]: G
+              - generic [ref=e469]:
+                - generic [ref=e471]: Grimm
+                - paragraph [ref=e472]: Something old that wears the shape of a kindly woodsman. Mostly.
+                - generic [ref=e473]:
+                  - generic [ref=e474]:
+                    - generic [ref=e475]: horror
+                    - generic [ref=e476]: monster
+                  - generic [ref=e477]: 1.3k · you
+            - button "L Lady Ashford A widow of means navigating the season's gossip with a blade behind her smile. historical romance intrigue 2.1k · chub.ai" [ref=e478]:
+              - generic [ref=e479]: L
+              - generic [ref=e480]:
+                - generic [ref=e481]:
+                  - generic [ref=e482]: Lady Ashford
+                  - img [ref=e483]
+                - paragraph [ref=e485]: A widow of means navigating the season's gossip with a blade behind her smile.
+                - generic [ref=e486]:
+                  - generic [ref=e487]:
+                    - generic [ref=e488]: historical
+                    - generic [ref=e489]: romance
+                    - generic [ref=e490]: intrigue
+                  - generic [ref=e491]: 2.1k · chub.ai
+            - button "M Mother Wren The order's archivist. Speaks rarely, remembers everything, forgives little. fantasy intrigue 1.5k · you" [ref=e492]:
+              - generic [ref=e493]: M
+              - generic [ref=e494]:
+                - generic [ref=e495]:
+                  - generic [ref=e496]: Mother Wren
+                  - img [ref=e497]
+                - paragraph [ref=e499]: The order's archivist. Speaks rarely, remembers everything, forgives little.
+                - generic [ref=e500]:
+                  - generic [ref=e501]:
+                    - generic [ref=e502]: fantasy
+                    - generic [ref=e503]: intrigue
+                  - generic [ref=e504]: 1.5k · you
+            - button "O ORACLE-9 A decommissioned diagnostic AI that has started asking questions back. sci-fi uncanny 980 · janitorai" [ref=e505]:
+              - generic [ref=e506]: O
+              - generic [ref=e507]:
+                - generic [ref=e509]: ORACLE-9
+                - paragraph [ref=e510]: A decommissioned diagnostic AI that has started asking questions back.
+                - generic [ref=e511]:
+                  - generic [ref=e512]:
+                    - generic [ref=e513]: sci-fi
+                    - generic [ref=e514]: uncanny
+                  - generic [ref=e515]: 980 · janitorai
+            - button "P Pip Greenhollow's most enthusiastic eleven-year-old tour guide. Knows every shortcut and ghost story. cozy comic-relief 640 · you" [ref=e516]:
+              - generic [ref=e517]: P
+              - generic [ref=e518]:
+                - generic [ref=e520]: Pip
+                - paragraph [ref=e521]: Greenhollow's most enthusiastic eleven-year-old tour guide. Knows every shortcut and ghost story.
+                - generic [ref=e522]:
+                  - generic [ref=e523]:
+                    - generic [ref=e524]: cozy
+                    - generic [ref=e525]: comic-relief
+                  - generic [ref=e526]: 640 · you
+            - button "S Seraphina Vale Ashkeeper of the Emberhold. Wry, watchful, keeper of names the archives would rather forget. fantasy mentor slow-burn 1.8k · you" [ref=e527]:
+              - generic [ref=e528]: S
+              - generic [ref=e529]:
+                - generic [ref=e530]:
+                  - generic [ref=e531]: Seraphina Vale
+                  - img [ref=e532]
+                - paragraph [ref=e534]: Ashkeeper of the Emberhold. Wry, watchful, keeper of names the archives would rather forget.
+                - generic [ref=e535]:
+                  - generic [ref=e536]:
+                    - generic [ref=e537]: fantasy
+                    - generic [ref=e538]: mentor
+                    - generic [ref=e539]: slow-burn
+                  - generic [ref=e540]: 1.8k · you
+            - button "S Sol & Luna Twin oracles who finish each other's prophecies. Rarely agree on what they mean. fantasy duo 2.4k · chub.ai" [ref=e541]:
+              - generic [ref=e542]: S
+              - generic [ref=e543]:
+                - generic [ref=e545]: Sol & Luna
+                - paragraph [ref=e546]: Twin oracles who finish each other's prophecies. Rarely agree on what they mean.
+                - generic [ref=e547]:
+                  - generic [ref=e548]:
+                    - generic [ref=e549]: fantasy
+                    - generic [ref=e550]: duo
+                  - generic [ref=e551]: 2.4k · chub.ai
+            - button "Y Yuki Transfer student who'd rather be anywhere but the rooftop where you keep finding her. slice-of-life school 870 · janitorai" [ref=e552]:
+              - generic [ref=e553]: "Y"
+              - generic [ref=e554]:
+                - generic [ref=e556]: Yuki
+                - paragraph [ref=e557]: Transfer student who'd rather be anywhere but the rooftop where you keep finding her.
+                - generic [ref=e558]:
+                  - generic [ref=e559]:
+                    - generic [ref=e560]: slice-of-life
+                    - generic [ref=e561]: school
+                  - generic [ref=e562]: 870 · janitorai
+  - status [ref=e563]

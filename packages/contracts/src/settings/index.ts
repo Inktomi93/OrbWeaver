@@ -316,6 +316,18 @@ const COMPUTE_THEMES_K_MAX = 100;
 /** Routing: the per-role provider assignments the Connections panel owns. */
 const routingSchema = z.object({ roleDefaults: roleDefaultsSchema }).prefault({});
 
+/** Which theme is active for this user (themes-design.md §3.3). Additive namespace — `.prefault({})`, NO
+ *  version bump (the D44 §12.1 "zero migration" commitment). The user's OVERRIDE VALUES live on the
+ *  selected `themes` ROW (the settings-homed entity), never inline here — a copy here would be a second
+ *  home that diverges from the row (one-home law); self-authoring = duplicate a seed → edit the owned
+ *  copy → select it. */
+const themeSettingsSchema = z
+  .object({
+    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted theme id degrades to the Hearth default at resolution (the profile.avatarAssetId precedent), so it stays plain; null = "the default palette" (no sentinel id leaked into contracts).
+    selectedThemeId: z.string().nullable().catch(null).default(null),
+  })
+  .prefault({});
+
 /** Seeds: values a NEW chat inherits when the caller doesn't specify. Stale ids degrade at consumption. */
 const seedsSchema = z
   .object({
@@ -432,6 +444,19 @@ const FONT_SCALE_MIN = 0.8;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_DEFAULT = 1;
 
+// WS3 (UI-Theming §12.1 effects) — the glass-effect PLACEMENT axis. Single-consumer (this schema +
+// its one client form field), so it stays an inline tuple like avatarSize/avatarShape above, not a
+// cross-package canonical (no other axis shares these four members). `messages` is available (ST
+// parity — ST blurs message bubbles) but is NOT in the default-checked set: the Reading-Surface rule
+// (Marinara DESIGN.md §4, stolen) forbids blur behind long reading text by DEFAULT — a user may still
+// opt it in.
+export const BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
+export type BlurSurface = (typeof BLUR_SURFACES)[number];
+/** The recommended starting set a client "quick enable" affordance seeds `blurSurfaces` with (pure
+ *  chrome/overlays) — the schema itself still defaults to `[]` (OFF; §12.1 "flat stays default"). The
+ *  Reading-Surface rule keeps `messages` out of this set; a user opts it in explicitly. */
+export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
+
 const appearanceSchema = z
   .object({
     // Sizing
@@ -451,6 +476,11 @@ const appearanceSchema = z
     avatarSize: z.enum(["sm", "md", "lg"]).catch("md").default("md"),
     avatarShape: z.enum(["round", "square"]).catch("round").default("round"),
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"), // §4 data-density axis
+    // Surface elevation: `flat` = orb's default composition (no layered elevation ramp — a deliberate
+    // COMPOSITION choice, not a ramp absence); `ramp` opts into the 3-tier elevation ramp (rail darkest →
+    // list/context middle → content lightest, `proposed/discord-ux-recon.md`) for users who want the
+    // layered look. Display-only; never touches stored content.
+    elevation: z.enum(["flat", "ramp"]).catch("flat").default("flat"),
     // Message style (§12.1 — ST chatDisplay's 3 modes; the #theme-homed union)
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),
     // Per-message metadata visibility (§12.1 — "THE gap ST has and we lacked"; each → a data-*)
@@ -469,8 +499,9 @@ const appearanceSchema = z
     // (note ST defaults this ON; orbweaver defaults OFF so the mis-fire doesn't bite by default).
     autoFixMarkdown: z.boolean().catch(false).default(false),
     // Effects (§12.1 — blur/shadow default OFF per the no-glass seed; manual reduced-motion beyond
-    // the OS pref, §4a)
-    blurEffects: z.boolean().catch(false).default(false),
+    // the OS pref, §4a). WS3: `blurEffects: boolean` → `blurSurfaces: BlurSurface[]` (empty = off,
+    // the PLACEMENT is user-chosen — glass-everywhere is opt-in, never default; see BLUR_SURFACES).
+    blurSurfaces: z.array(z.enum(BLUR_SURFACES)).catch([]).default([]),
     shadowEffects: z.boolean().catch(false).default(false),
     reducedMotion: z.boolean().catch(false).default(false),
   })
@@ -502,6 +533,8 @@ export const userSettingsSchema = z.object({
   /** Display-only appearance prefs (D44 §12.1). Additive namespace, NO version bump — the lenient
    *  parser prefaults it; each knob is a root `data-*`/CSS-var read by the shell + message render. */
   appearance: appearanceSchema,
+  /** Which theme is active (themes-design.md §3.3). Additive namespace, NO version bump. */
+  theme: themeSettingsSchema,
 });
 
 export type UserSettings = z.infer<typeof userSettingsSchema>;
@@ -519,6 +552,7 @@ export const USER_SETTINGS_SECTIONS = [
   "workloads",
   "profile",
   "appearance",
+  "theme",
 ] as const;
 export type UserSettingsSection = (typeof USER_SETTINGS_SECTIONS)[number];
 

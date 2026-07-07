@@ -1,15 +1,16 @@
 /* shell.css — the app-shell's layout MECHANICS (UI-Arch §4.1 + §11.1 + §4b axis 2). The shell tier is
  * the ONE place raw layout CSS + the ONE viewport @media live; feature TSX never writes @media, and the
  * clamp-overlay + grid math live HERE, not in JS. Every value references a generated token custom
- * property (--color-*, --spacing-*, --z-*, --motion-*, from @orb/ui globals.css @theme). Two local
- * layout constants (rail width, panel clamp) have no DTCG token today — they are shell-scoped CSS vars,
- * not Tailwind utilities, so they touch no token gate and stay the shell's private geometry. */
+ * property (--color-*, --spacing-*, --z-*, --motion-*, --dimension-*, from @orb/ui globals.css @theme).
+ * The two local layout constants (rail width, panel clamp) are shell-scoped CSS vars — not Tailwind
+ * utilities, so they touch no token gate — but their DEFINITIONS now reference the DTCG dimension.*
+ * tokens (WS0), so nothing visual bypasses a token. */
 
 .shell-grid {
   /* rail (fixed) | list track | content (fluid) | context track. A collapsed/overlay panel's track is
    * 0 — leftover width feeds CONTENT, never a wider chat (§4.1). */
-  --rail-w: 3.5rem; /* ~56px */
-  --panel-w: clamp(16rem, 22vw, 22rem);
+  --rail-w: var(--dimension-rail); /* ~56px */
+  --panel-w: var(--dimension-panel);
   --list-track: 0px;
   --context-track: 0px;
 
@@ -35,6 +36,14 @@
   padding-inline-start: env(safe-area-inset-left);
 }
 
+/* D49 §3 background image (WS3) — with a resolved image active, the grid's own opaque paint steps
+ * aside so the fixed-position `<ThemeBackgroundLayer>` (painted BEHIND `.shell-grid` in DOM order,
+ * app-shell.tsx) shows through every gap and any opted-in glass surface (blurSurfaces). Without an
+ * image (the default), `.shell-grid` stays fully opaque — zero visual change from today. */
+.shell-grid[data-has-bg-image] {
+  background: transparent;
+}
+
 /* DENSITY (UI-Arch section 4 — the user-pref axis, distinct from container size). data-density is
  * stamped on the shell root by AppShell from the synced appearance pref (D44 section 12.1). compact
  * tightens the four spacing INTENT tokens for the whole subtree: the gap and padding utilities all
@@ -46,6 +55,31 @@
   --spacing-row: 0.375rem;
   --spacing-block: 0.5rem;
   --spacing-section: 1rem;
+}
+
+/* ELEVATION (D44 §12.1 appearance.elevation — the user-pref axis, parallel to density). data-elevation
+ * is stamped on the shell root by AppShell from the synced appearance pref. `flat` (default) is today's
+ * composition (rail + panels share --color-sidebar, 1px region hairlines) and needs no rule. `ramp` opts
+ * into a 3-tier brightness ladder (proposed/discord-ux-recon §1): rail stays darkest (--color-sidebar),
+ * panels lift to --color-surface-raised (the new mid token), content lifts toward --color-card — and the
+ * region hairlines DROP (ramp reads depth from value steps, not borders). Repaint via the shell-scoped
+ * region vars so no per-component branching is needed. */
+.shell-grid[data-elevation="ramp"] .shell-panel {
+  background: var(--color-surface-raised);
+}
+.shell-grid[data-elevation="ramp"] .shell-panel[data-panel-side="list"],
+.shell-grid[data-elevation="ramp"] .shell-panel[data-panel-side="context"] {
+  border-inline: none;
+}
+.shell-grid[data-elevation="ramp"] .shell-panel-header {
+  border-block-end: none;
+}
+.shell-grid[data-elevation="ramp"] .shell-main {
+  background: var(--color-card);
+}
+.shell-grid[data-elevation="ramp"] .shell-topbar {
+  background: var(--color-card);
+  border-block-end: none;
 }
 
 /* A DOCKED panel occupies its grid track (pushes CONTENT); overlay/collapsed leave the track at 0. */
@@ -204,9 +238,13 @@
 .shell-panel[data-panel-mode="overlay"] {
   transform: translateX(0);
 }
-/* COLLAPSED — translated fully off its own edge: zero visual width, no reflow. */
+/* COLLAPSED — translated fully off its own edge: zero visual width, no reflow. The LIST panel opens at
+ * inset-inline-start:var(--rail-w) (flush right of the rail in overlay), so -100% alone lands its right
+ * edge at the rail's edge — a rail-width overhang whose z-overlay content covers the rail. Clear the rail
+ * offset too so it goes fully off-screen (the CONTEXT panel opens at the shell's right edge, so its plain
+ * translateX(100%) already clears; only LIST carries the rail offset). */
 .shell-panel[data-panel-side="list"][data-panel-mode="collapsed"] {
-  transform: translateX(-100%);
+  transform: translateX(calc(-100% - var(--rail-w)));
 }
 .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
   transform: translateX(100%);
@@ -218,7 +256,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-row);
-  height: 3rem;
+  height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
   border-block-end: 1px solid var(--color-sidebar-border);
 }
@@ -249,7 +287,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-row);
-  height: 3rem;
+  height: var(--dimension-chrome-row);
   padding-inline: var(--spacing-block);
   padding-inline-end: max(var(--spacing-block), env(safe-area-inset-right));
   border-block-end: 1px solid var(--color-border);
@@ -351,7 +389,7 @@
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-mode="collapsed"] {
     position: fixed;
-    inset-block: 3rem calc(var(--rail-w) + env(safe-area-inset-bottom));
+    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
     width: 100dvw;
     z-index: var(--z-modal);
     transition: transform var(--motion-base) ease;
@@ -374,6 +412,19 @@
   /* The dismiss scrim covers ONLY the sheet's own band — the topbar (dismiss/toggle) and the bottom bar
    * (tab switch) stay live above it, so a scrim tap dismisses but the chrome never goes dead. */
   .shell-scrim {
-    inset-block: 3rem calc(var(--rail-w) + env(safe-area-inset-bottom));
+    inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
+  }
+  /* WS3 D44 §12.1 blur reduction on mobile (glass + a big bg image is the jank combo, researched
+   * recipe's own guard) — this is the ONE legal viewport @media site (§4b axis 2), so the reduction
+   * rides it rather than inventing a second pointer-based media axis. Reverts to each surface's
+   * normal solid token color, same fallback shape as the prefers-reduced-transparency rule in
+   * globals.css (kept here, not there, because it's keyed off THIS breakpoint). */
+  html[data-blur-panels] .shell-panel,
+  html[data-blur-composer] [data-slot="composer"],
+  html[data-blur-modals] [data-slot="dialog-popup"],
+  html[data-blur-modals] [data-slot="alert-dialog-popup"],
+  html[data-blur-messages] [data-slot="message-bubble"] {
+    backdrop-filter: none;
+    background-color: revert;
   }
 }

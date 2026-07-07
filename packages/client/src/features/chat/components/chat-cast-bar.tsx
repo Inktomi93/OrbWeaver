@@ -33,8 +33,10 @@ export interface ChatCastBarProps {
   readonly chatId: ChatId;
 }
 
-/** A character participant — narrowed from the roster (a human/agent/observer seat has no place here). */
-type CharacterParticipant = ParticipantView & {
+/** A character participant — narrowed from the roster (a human/agent/observer seat has no place here).
+ *  `Omit` (not a same-key intersection — a known TS assignability footgun that gets harder for the
+ *  checker to prove as `ParticipantView` grows optional fields, silently losing the `.filter` narrow). */
+type CharacterParticipant = Omit<ParticipantView, "characterId"> & {
   readonly characterId: NonNullable<ParticipantView["characterId"]>;
 };
 
@@ -48,7 +50,11 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
   // Non-suspense: this glance strip degrades to `null` until the (usually already-warm) getChat cache
   // populates, rather than suspending the whole chat pane on its own account.
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const cast = (chat?.participants ?? []).filter(isCharacter);
+  // The explicit cast (not relying on the `.filter` narrowing overload) sidesteps a TS generic-inference
+  // limitation: as `ParticipantView` grows optional fields (`renderPolicy?`/`themeOverride?`), the checker
+  // stops proving `CharacterParticipant extends ParticipantView` for the `filter<S extends T>` overload
+  // and silently falls back to the non-narrowing one. `isCharacter` still does the real runtime filtering.
+  const cast = (chat?.participants ?? []).filter(isCharacter) as readonly CharacterParticipant[];
 
   // Size-gate (D16 roster-of-1): a solo chat shows no cast bar.
   if (cast.length <= 1) {

@@ -30,6 +30,29 @@ export function ReadOnlyEditor({ value }: ReadOnlyEditorProps): ReactElement {
   );
 }
 
+interface CompletionsEditorProps {
+  readonly initialValue: string;
+  readonly completions: readonly string[];
+}
+
+/** Controlled editor with a fixed `completions` vocabulary (WS3 — the theme-editor CSS var
+ *  autocomplete seam). */
+export function CompletionsEditor({
+  initialValue,
+  completions,
+}: CompletionsEditorProps): ReactElement {
+  const [value, setValue] = useState(initialValue);
+  return (
+    <CodeEditor
+      lang="css"
+      value={value}
+      onChange={setValue}
+      ariaLabel="fixture completions editor"
+      completions={completions}
+    />
+  );
+}
+
 interface DiagnosticsEditorProps {
   readonly initialValue: string;
   readonly initialDiagnostics: readonly CodeEditorDiagnostic[];
