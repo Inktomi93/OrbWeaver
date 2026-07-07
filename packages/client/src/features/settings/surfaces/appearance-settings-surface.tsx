@@ -22,7 +22,12 @@
 // schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { BLUR_SURFACES, DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings";
+import {
+  APPEARANCE_BACKGROUND_FITS,
+  BACKGROUND_IMAGE_KINDS,
+  BLUR_SURFACES,
+  DEFAULT_BLUR_SURFACES,
+} from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import { Button } from "@orb/ui/button";
 import { Grid, Section, Stack } from "@orb/ui/layout";
@@ -31,6 +36,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { listSeededBackgrounds } from "#lib";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
 
 // ── Labelled Select options — each `value` pinned to the AppearanceSettings field union (`satisfies`),
@@ -89,6 +95,34 @@ const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES.map((v
   value,
   label: BLUR_SURFACE_LABELS[value],
 }));
+
+// D63 — the app background-image picker items (moved off the theme; palette-independent). `asset` (own
+// upload) is deliberately absent from BACKGROUND_IMAGE_KINDS (PD-131 — no client asset-URL resolver/
+// upload flow exists yet); seeded/external are the two that actually resolve.
+const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
+  none: "None",
+  seeded: "Seeded",
+  external: "URL",
+};
+const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.map((value) => ({
+  value,
+  label: BACKGROUND_KIND_LABELS[value],
+}));
+const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
+  cover: "Cover (fill, crop edges)",
+  contain: "Contain (fit, may letterbox)",
+};
+const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
+  value,
+  label: BACKGROUND_FIT_LABELS[value],
+}));
+const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
+  value: bg.id,
+  label: bg.label,
+}));
+const BACKGROUND_DIM_MIN = 0;
+const BACKGROUND_DIM_MAX = 1;
+const BACKGROUND_DIM_STEP = 0.05;
 
 // Sizing bounds (mirror the contracts schema — kept local for the field min/max/step; the schema is the
 // hard clamp, these are just the input affordances).
@@ -293,6 +327,65 @@ function AppearanceForm(): ReactElement {
               />
             )}
           </form.AppField>
+        </Section>
+
+        <Section heading="Background">
+          <form.AppField name="backgroundImageKind">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Image"
+                description="A decorative photo behind the app, with a scrim so text stays readable. Pairs with Frosted glass below."
+                items={BACKGROUND_KIND_ITEMS}
+              />
+            )}
+          </form.AppField>
+          <form.Subscribe selector={(state): string => state.values.backgroundImageKind}>
+            {(kind): ReactElement | null => {
+              if (kind === "none") {
+                return null;
+              }
+              return (
+                <>
+                  {kind === "seeded" ? (
+                    <form.AppField name="backgroundSeededId">
+                      {(field): ReactElement => (
+                        <field.SelectField
+                          label="Seeded image"
+                          placeholder="Choose a background"
+                          items={SEEDED_BACKGROUND_ITEMS}
+                        />
+                      )}
+                    </form.AppField>
+                  ) : (
+                    <form.AppField name="backgroundExternalUrl">
+                      {(field): ReactElement => (
+                        <field.TextField
+                          label="Image URL"
+                          description="Loaded directly from the given host — your own client only (never shared to other viewers)."
+                        />
+                      )}
+                    </form.AppField>
+                  )}
+                  <form.AppField name="backgroundFit">
+                    {(field): ReactElement => (
+                      <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="backgroundDim">
+                    {(field): ReactElement => (
+                      <field.SliderField
+                        label="Scrim opacity"
+                        description="Darkens the image so text stays legible — never fully off."
+                        min={BACKGROUND_DIM_MIN}
+                        max={BACKGROUND_DIM_MAX}
+                        step={BACKGROUND_DIM_STEP}
+                      />
+                    )}
+                  </form.AppField>
+                </>
+              );
+            }}
+          </form.Subscribe>
         </Section>
 
         <Section heading="Effects">

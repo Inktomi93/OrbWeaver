@@ -6,7 +6,10 @@
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
+import { ShellCascadeFixture } from "../_cascade-fixtures";
 import { AppShellStory } from "../_ct-stories";
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
@@ -161,4 +164,134 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   await expect(page.getByText("App + user settings")).toBeVisible();
   // The You-sheet overflow row is gone (the slot now holds Settings, not You).
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
+});
+
+// ── Cascade-contract: glass/background beats elevation (the rendered cascade, not source text) ──
+// shell.css's `data-elevation="ramp"` fills are unlayered plain CSS living alongside globals.css's
+// `data-blur-*` glass rules and `data-has-bg-image` transparency rules — all three are specificity-
+// ranked, not `@layer`-ranked, so a regression here is a silent specificity flip, not a syntax error.
+// `ShellCascadeFixture` stamps the SAME classes/attrs/slots production stamps (data-blur-* via the
+// real `useAppearanceRootEffects` hook on `document.documentElement`, data-elevation/data-has-bg-image
+// on `.shell-grid`) and these assert the real computed cascade in a browser.
+
+/** `getComputedStyle().backgroundColor` for a `color-mix(in oklab, …)` result serializes as the
+ *  modern space-separated function with a trailing `/ <alpha>)` (e.g. `"oklab(0.13 0 0 / 0.7)"`); a
+ *  literal `transparent`/legacy `rgba()` keeps the comma form (`"rgba(0, 0, 0, 0)"`); a fully opaque
+ *  color (the elevation/baseline fills) carries no alpha component at all. Checked live (both forms
+ *  observed in this codebase's actual computed output) rather than assumed from the CSSOM spec text. */
+function bgAlpha(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => {
+    const bg = getComputedStyle(el).backgroundColor;
+    // This arrow body is serialized into a page.evaluate() browser closure — it can't reference a
+    // module-level const (evaluate ships only the function's own source, no outer-scope capture).
+    // biome-ignore lint/performance/useTopLevelRegex: literals must live right here, see above.
+    const slashMatch = bg.match(/\/\s*([\d.]+)\s*\)$/);
+    if (slashMatch !== null) {
+      return Number(slashMatch[1]);
+    }
+    if (bg.startsWith("rgba(") || bg.startsWith("hsla(")) {
+      // biome-ignore lint/performance/useTopLevelRegex: same closure constraint as above.
+      const commaMatch = bg.match(/,\s*([\d.]+)\s*\)$/);
+      return commaMatch !== null ? Number(commaMatch[1]) : 1;
+    }
+    return 1;
+  });
+}
+
+function backdropFilterOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).backdropFilter);
+}
+
+test("baseline (flat, no glass, no bg-image): surfaces are opaque, no backdrop-filter", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture />);
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe"))).toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe"))).toBe(1);
+  await expect.poll(() => backdropFilterOf(shell.getByTestId("panel-probe"))).toBe("none");
+});
+
+test("glass beats elevation: ramp + blur-panels still leaves .shell-panel translucent", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture elevation="ramp" blurSurfaces={["panels"]} />);
+  const panel = shell.getByTestId("panel-probe");
+  // THE BUG: shell.css's un-:where()'d elevation rule used to out-specificity globals.css's glass
+  // rule, so the panel painted the OPAQUE --color-surface-raised elevation fill instead of the
+  // translucent glass mix even with blur-panels on. This is the exact assertion that regression flips.
+  await expect.poll(() => bgAlpha(panel)).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(panel)).toContain("blur(");
+  await expect.poll(() => backdropFilterOf(panel)).toContain("saturate(");
+});
+
+test("glass beats elevation on composer and both dialog popup slots", async ({ mount }) => {
+  const shell = await mount(
+    <ShellCascadeFixture elevation="ramp" blurSurfaces={["composer", "modals"]} />,
+  );
+  const composer = shell.getByTestId("composer-probe");
+  await expect.poll(() => bgAlpha(composer)).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(composer)).toContain("blur(");
+
+  const dialog = shell.getByTestId("dialog-probe");
+  const alertDialog = shell.getByTestId("alert-dialog-probe");
+  await expect.poll(() => bgAlpha(dialog)).toBeLessThan(1);
+  await expect.poll(() => bgAlpha(alertDialog)).toBeLessThan(1);
+});
+
+for (const role of MESSAGE_ROLES) {
+  test(`glass beats elevation on a "${role}" message bubble (denser reading-surface fill)`, async ({
+    mount,
+  }) => {
+    const shell = await mount(
+      <ShellCascadeFixture elevation="ramp" blurSurfaces={["messages"]} messageRole={role} />,
+    );
+    // The bubble fill is the DENSER --blur-fill-dense mix (a reading surface, per globals.css) — still
+    // strictly translucent, never opaque, for every role's own base tone.
+    await expect.poll(() => bgAlpha(shell.getByTestId("bubble-probe"))).toBeLessThan(1);
+    await expect.poll(() => backdropFilterOf(shell.getByTestId("bubble-probe"))).toContain("blur(");
+  });
+}
+
+test("elevation alone (glass off) leaves .shell-panel opaque — glass is what flips it, not ramp", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
+  // Matrix cell: ramp × glass-off. Elevation-ramp's own fill (--color-surface-raised) is opaque —
+  // confirms the translucency above comes from the glass rule winning, not from ramp itself.
+  await expect.poll(() => bgAlpha(shell.getByTestId("panel-probe"))).toBe(1);
+});
+
+test("background-image beats elevation: .shell-main goes transparent, .shell-topbar stays opaque", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture elevation="ramp" hasBgImage={true} />);
+  // THE BUG: shell.css's un-:where()'d elevation rule for .shell-main used to out-specificity the
+  // has-bg-image transparent rule, burying the fixed <ThemeBackgroundLayer> under an opaque
+  // --color-card fill even with an image set. This is the exact assertion that regression flips.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(0);
+  // .shell-topbar was deliberately EXCLUDED from the transparent rule — chrome stays legible.
+  await expect.poll(() => bgAlpha(shell.getByTestId("topbar-probe"))).toBe(1);
+});
+
+test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is what flips it, not ramp", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture elevation="ramp" />);
+  // Matrix cell: ramp × bg-off. Elevation-ramp's own fill (--color-card) is opaque — confirms the
+  // transparency above comes from has-bg-image winning, not from ramp itself.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+});
+
+test("useAppearanceRootEffects lands a representative axis on <html> as a real computed effect", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ShellCascadeFixture fontScale={1.25} />);
+  // globals.css's `:root { font-size: calc(100% * var(--font-scale)) }` floor reads this custom
+  // property — proves the root-stamp hook actually reaches computed style, not just a JS assignment.
+  const fontScale = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim(),
+  );
+  expect(fontScale).toBe("1.25");
 });

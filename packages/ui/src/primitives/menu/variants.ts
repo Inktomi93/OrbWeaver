@@ -15,7 +15,7 @@ const itemBase =
  */
 export const menuVariants = tv({
   slots: {
-    positioner: "z-(--z-overlay)",
+    positioner: "z-(--z-popover)",
     popup:
       "rounded-card border border-border bg-popover p-field text-popover-foreground shadow-lg origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     item: itemBase,
@@ -28,7 +28,7 @@ export const menuVariants = tv({
     // popover-colored diamond that continues the popup edge (mirrors PopoverArrow).
     arrow: "size-row rotate-45 border border-border bg-popover",
     backdrop:
-      "fixed inset-0 z-(--z-overlay) bg-scrim transition-opacity duration-(--motion-fast) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
+      "fixed inset-0 z-(--z-popover) bg-scrim transition-opacity duration-(--motion-fast) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
     separator: "my-field border-t border-border",
     group: "",
     groupLabel: "px-row py-field text-label leading-label text-muted-foreground",

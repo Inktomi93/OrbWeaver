@@ -133,7 +133,7 @@ test("filters correctly when the parent re-renders and passes a freshly-DERIVED 
   await expect(page.getByRole("option", { name: "adventure" })).toHaveCount(0);
 });
 
-test("popup wears the popover token and the overlay z-index", async ({ mount, page }) => {
+test("popup wears the popover token and the popover z-index", async ({ mount, page }) => {
   await mount(<Combobox aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -141,7 +141,7 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
   const popup = page.locator('[data-slot="combobox-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
-  await expect(popup).toHaveCSS("z-index", "40");
+  await expect(popup).toHaveCSS("z-index", TOKENS["z.popover"].value);
 });
 
 test("the Status live region announces the filtered result count", async ({ mount, page }) => {

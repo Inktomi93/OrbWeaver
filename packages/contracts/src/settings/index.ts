@@ -443,6 +443,11 @@ const CHAT_WIDTH_PCT_DEFAULT = 60;
 const FONT_SCALE_MIN = 0.8;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_DEFAULT = 1;
+// D63 — the background scrim opacity bounds/default (named — `noMagicNumbers`). The mandatory scrim
+// (never fully off) keeps text legible over any image; ~0.45 is the D49 §3 "default ~40-50%".
+const BACKGROUND_DIM_MIN = 0;
+const BACKGROUND_DIM_MAX = 1;
+const BACKGROUND_DIM_DEFAULT = 0.45;
 
 // WS3 (UI-Theming §12.1 effects) — the glass-effect PLACEMENT axis. Single-consumer (this schema +
 // its one client form field), so it stays an inline tuple like avatarSize/avatarShape above, not a
@@ -456,6 +461,16 @@ export type BlurSurface = (typeof BLUR_SURFACES)[number];
  *  chrome/overlays) — the schema itself still defaults to `[]` (OFF; §12.1 "flat stays default"). The
  *  Reading-Surface rule keeps `messages` out of this set; a user opts it in explicitly. */
 export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
+
+// D63 (amends D49 §3) — the app background-image axes, moved OFF the theme onto appearance (palette-
+// independent). `kind` picks the source: `none` (color alone), `seeded` (a bundled placeholder from
+// `packages/client/public/backgrounds/`), or `external` (a user-supplied URL). The `asset` (own upload)
+// source is DROPPED here — no client asset-URL resolver/upload flow exists yet (#67/PD-131); the picker
+// ships seeded|external. `fit` is how the photo fills the fixed-position root layer.
+export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external"] as const;
+export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
+export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain"] as const;
+export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
 
 const appearanceSchema = z
   .object({
@@ -504,6 +519,29 @@ const appearanceSchema = z
     blurSurfaces: z.array(z.enum(BLUR_SURFACES)).catch([]).default([]),
     shadowEffects: z.boolean().catch(false).default(false),
     reducedMotion: z.boolean().catch(false).default(false),
+    // D63 (amends D49 §3): the app background image — moved off the theme; palette-independent, applied
+    // at the app root beside glass. asset deferred (#67/PD-131); picker = seeded|external.
+    backgroundImageKind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
+    // biome-ignore lint/plugin/no-raw-id: not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
+    backgroundSeededId: z
+      .string()
+      .regex(/^[a-z0-9-]*$/)
+      .catch("")
+      .default(""),
+    // URL-validated because it becomes a CSS `url()` — an invalid string degrades to "" (never an
+    // injection vector), never applied raw.
+    backgroundExternalUrl: z
+      .string()
+      .refine((s) => s === "" || z.url().safeParse(s).success)
+      .catch("")
+      .default(""),
+    backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
+    backgroundDim: z
+      .number()
+      .min(BACKGROUND_DIM_MIN)
+      .max(BACKGROUND_DIM_MAX)
+      .catch(BACKGROUND_DIM_DEFAULT)
+      .default(BACKGROUND_DIM_DEFAULT),
   })
   .prefault({});
 

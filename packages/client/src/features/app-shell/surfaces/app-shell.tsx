@@ -14,7 +14,7 @@
 // section name / "Details").
 
 import { Text } from "@orb/ui/text";
-import { clampThemeTokens, ThemeScope } from "@orb/ui/theme-scope";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { ModalSlotId, SectionId } from "#state";
@@ -31,7 +31,7 @@ import { useAppearance } from "../hooks/use-appearance";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
 import { useSelectedTheme } from "../hooks/use-selected-theme";
 import { useShellLayout } from "../hooks/use-shell-layout";
-import { resolveThemeBackgroundUrl } from "../lib/resolve-theme-background";
+import { resolveBackgroundUrl } from "../lib/resolve-theme-background";
 import { SECTION_PLACEHOLDER_COPY } from "../lib/section-placeholder-copy";
 import "./shell.css";
 
@@ -83,13 +83,12 @@ export function AppShell({
   // resolve density here (shell.css consumes data-density). A compact override tightens spacing tokens
   // for the whole subtree. chatStyle stays appearance-owned at the root (the message render reads it).
   const density = theme?.override.density ?? appearance.density;
-  // D49 §3 background image — clamp ONCE here (the ThemeScope below re-clamps for its own `--*` var
-  // spread; cheap, pure, no shared-state risk) and hand the resolved trio to the dedicated root layer.
-  const clampedTheme = clampThemeTokens(theme?.override ?? {});
+  // D63 (amends D49 §3) — the app background image is now an `appearance` setting (palette-independent),
+  // resolved from its flat fields to the URL the dedicated root layer paints.
+  const bgUrl = resolveBackgroundUrl(appearance);
   // `.shell-grid`'s own opaque `--color-background` paint must step aside for the image to show through
-  // ANYWHERE (gaps + any opted-in glass surface) — gated on the SAME resolved outcome the layer itself
-  // uses (never the raw token presence, which would punch a hole for an unresolvable `asset` source).
-  const hasBgImage = resolveThemeBackgroundUrl(clampedTheme.backgroundImage) !== null;
+  // ANYWHERE (gaps + any opted-in glass surface) — gated on the SAME resolved outcome the layer uses.
+  const hasBgImage = bgUrl !== null;
   // chatWidthPct → the §11.1 reading-column clamp var (stamped for the thread to consume).
   const shellVars: CSSProperties = {
     "--width-shell-content": `clamp(680px, ${appearance.chatWidthPct}dvw, 100dvw)`,
@@ -128,9 +127,9 @@ export function AppShell({
           so it paints underneath (shell-grid's own `isolation:isolate` stacking context wins by
           source order, not z-index). Renders nothing when no image is set. */}
       <ThemeBackgroundLayer
-        backgroundImage={clampedTheme.backgroundImage}
-        backgroundFit={clampedTheme.backgroundFit}
-        backgroundDim={clampedTheme.backgroundDim}
+        url={bgUrl}
+        fit={appearance.backgroundFit}
+        dim={appearance.backgroundDim}
       />
       {/* Layer 1 — the viewer's own theme override, applied at the app root via the ONE sanctioned path
           (<ThemeScope>, which clamps every value). `display:contents` so it adds no box: custom

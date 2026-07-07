@@ -106,6 +106,7 @@ export const TOKENS = {
   "z.overlay": { cssVar: "--z-overlay", value: "40" },
   "z.modal": { cssVar: "--z-modal", value: "50" },
   "z.toast": { cssVar: "--z-toast", value: "60" },
+  "z.popover": { cssVar: "--z-popover", value: "65" },
   "z.tooltip": { cssVar: "--z-tooltip", value: "70" },
   "motion.fast": { cssVar: "--motion-fast", value: "130ms" },
   "motion.base": { cssVar: "--motion-base", value: "220ms" },

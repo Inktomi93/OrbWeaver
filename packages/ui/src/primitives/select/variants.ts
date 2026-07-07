@@ -1,7 +1,7 @@
 import { tv } from "#lib";
 
 // The select skin — slots across the sealed anatomy (trigger in-flow; positioner/popup portaled).
-// Popup rides bg-popover + z-(--z-overlay) (the stacking contract); items meet the touch floor.
+// Popup rides bg-popover + z-(--z-popover) (the stacking contract); items meet the touch floor.
 // --available-height/--anchor-width are Base UI Positioner-provided vars, not raw values.
 export const selectVariants = tv({
   slots: {
@@ -15,9 +15,9 @@ export const selectVariants = tv({
       "data-disabled:pointer-events-none data-disabled:opacity-50",
     ],
     icon: "flex shrink-0 text-muted-foreground",
-    positioner: "z-(--z-overlay) outline-none",
+    positioner: "z-(--z-popover) outline-none",
     popup: [
-      "z-(--z-overlay) max-h-(--available-height) min-w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
+      "z-(--z-popover) max-h-(--available-height) min-w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
       // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip (the shared overlay
       // animation contract). `--transform-origin` is Base UI Positioner-provided (scale grows from
       // the trigger edge, not center).
@@ -38,7 +38,7 @@ export const selectVariants = tv({
     // Between-group divider — Base UI Select.Separator (role="separator"); bleeds to the popup edge.
     separator: "-mx-field my-field h-px bg-border",
     // Opt-in dimming layer for the modal-by-default select (theme-aware scrim, never black/50).
-    backdrop: "fixed inset-0 z-(--z-overlay) bg-scrim",
+    backdrop: "fixed inset-0 z-(--z-popover) bg-scrim",
     // Sticky hover-to-scroll affordances for long lists — Base UI ScrollUp/DownArrow. They only
     // mount when the popup overflows and are suppressed on touch input (Base UI behavior).
     scrollArrow:

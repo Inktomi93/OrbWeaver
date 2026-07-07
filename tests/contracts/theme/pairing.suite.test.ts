@@ -5,7 +5,6 @@
 // font allowlist. Tests may import both packages; the packages never import each other.
 
 import {
-  THEME_BACKGROUND_FITS,
   THEME_CHAT_STYLES,
   THEME_DENSITIES,
   THEME_FONT_ALLOWLIST,
@@ -13,7 +12,6 @@ import {
   themeOverrideSchema,
 } from "@orb/contracts/theme";
 import {
-  THEME_SCOPE_BACKGROUND_FITS,
   THEME_SCOPE_CHAT_STYLES,
   THEME_SCOPE_DENSITIES,
   THEME_SCOPE_RADII,
@@ -34,12 +32,10 @@ describe("ThemeOverride wire ↔ ThemeScope render pairing (D44 §12.5)", () => 
     expect([...THEME_FONT_ALLOWLIST]).toEqual([...UI_FONTS]);
   });
 
-  // biome-ignore lint/security/noSecrets: a test title enumerating field names, not a secret.
-  test("identical enum members: chatStyle, density, radius, backgroundFit", () => {
+  test("identical enum members: chatStyle, density, radius", () => {
     expect([...THEME_CHAT_STYLES]).toEqual([...THEME_SCOPE_CHAT_STYLES]);
     expect([...THEME_DENSITIES]).toEqual([...THEME_SCOPE_DENSITIES]);
     expect([...THEME_RADII]).toEqual([...THEME_SCOPE_RADII]);
-    expect([...THEME_BACKGROUND_FITS]).toEqual([...THEME_SCOPE_BACKGROUND_FITS]);
   });
 
   test("the clamps AGREE on a hostile value (both drop it; both keep the safe sibling)", () => {
