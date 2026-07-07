@@ -273,6 +273,48 @@ test("static mode: the SAME torn fence renders safely without white-screening (r
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
+// #34: a SETTLED body's dangling/censoring asterisk must NOT be auto-closed into a stray emphasis run
+// (the repair is streaming-only). The real greeting pattern: an intended narration italic, then a
+// censored word mid-paragraph, then more text — the exact shape that italicized "cking diagram." live.
+const GREETING_PATTERN =
+  "*A doesn't look up.*\n\nyours can't use a f*cking diagram.\n\nSo here's the deal.";
+
+test("static: a lone censoring asterisk stays literal — no stray emphasis run (the #34 fix)", async ({
+  mount,
+}) => {
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static">
+      {GREETING_PATTERN}
+    </Markdown>,
+  );
+  // The intended narration italic survives; the lone `*` in `f*cking` does NOT italicize the rest.
+  await expect(cmp.locator("em")).toHaveCount(1);
+  await expect(cmp.locator("em").first()).toHaveText("A doesn't look up.");
+  await expect(cmp).toContainText("f*cking diagram.");
+});
+
+// REGRESSION PIN: the EXACT resolved JFC greeting (3 asterisks — a paired narration italic + a lone
+// censoring `f*cking`). The seal in `static` mode renders it as CommonMark intends: the lone `*` stays
+// literal (ONE em, the paired italic). It was NOT the seal that broke this live — the client DISPLAY
+// pipeline's unconditional `fixMarkdown` appended a closing `*` UPSTREAM, handing the seal
+// `f*cking diagram.**` (an even count → a stray emphasis run). The fix gates that `fixMarkdown` behind
+// the `autoFixMarkdown` pref (default OFF, lib/message-render); this pin guards the seal's own contract.
+const JFC_GREETING =
+  "*JFC doesn't look up.*\n\nLet me save us both an hour. Users are real, and yours can't use a f*cking diagram.\n\nSo here's the deal, User: tell me what you're building.";
+
+test("static UNTRUSTED (the greeting's real tier): the censoring asterisk stays literal — ONE italic", async ({
+  mount,
+}) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {JFC_GREETING}
+    </Markdown>,
+  );
+  await expect(cmp.locator("em")).toHaveCount(1);
+  await expect(cmp.locator("em").first()).toHaveText("JFC doesn't look up.");
+  await expect(cmp).toContainText("f*cking diagram.");
+});
+
 test("streaming: a complete message still renders its markdown (bold + list)", async ({
   mount,
 }) => {

@@ -75,10 +75,18 @@ describe("renderMessageForDisplay", () => {
     expect(out).toBe("The blade gleams.");
   });
 
-  test("repairs LLM markdown artifacts (unclosed emphasis) via fixMarkdown", () => {
-    const out = renderMessageForDisplay("*She pauses", CTX);
-    // The exact repair belongs to kit/fix-markdown's own tests; here we pin that the display
-    // pipeline APPLIES it: the output is not the raw broken input.
+  test("does NOT run fixMarkdown by default — a censoring lone asterisk survives as authored (#34)", () => {
+    // The ST auto-fix is OPT-IN (autoFixMarkdown, default off): running it on a settled body auto-closes
+    // a deliberate lone asterisk into a stray emphasis run (`f*ck` → italic). Off ⇒ render as-authored.
+    expect(renderMessageForDisplay("you can't use a f*cking diagram.", CTX)).toBe(
+      "you can't use a f*cking diagram.",
+    );
+  });
+
+  test("runs fixMarkdown when autoFixMarkdown is ON (the ST auto_fix_generated_markdown opt-in)", () => {
+    const out = renderMessageForDisplay("*She pauses", { ...CTX, autoFixMarkdown: true });
+    // The exact repair belongs to kit/fix-markdown's own tests; here we pin that the opt-in APPLIES it:
+    // the output is no longer the raw broken input.
     expect(out).not.toBe("*She pauses");
     expect(out).toContain("She pauses");
   });

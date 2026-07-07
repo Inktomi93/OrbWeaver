@@ -93,6 +93,10 @@ export interface MessageRowProps {
    *  and Fork/Delete/Hide are suppressed (no server row). The BODY + attribution render identically to a
    *  committed row — only the action seam differs. Absent ⇒ a normal committed row. */
   readonly greeting?: GreetingBinding | undefined;
+  /** ST `auto_fix_generated_markdown` parity (the appearance pref, threaded from the surface) — flows into
+   *  the render context so the display pipeline's `fixMarkdown` auto-fix is gated (default OFF: a settled
+   *  body renders as-authored, so a censoring `f*ck` isn't auto-closed into a stray italic run). */
+  readonly autoFixMarkdown?: boolean | undefined;
 }
 
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
@@ -110,6 +114,7 @@ export function MessageRow({
   viewerUserId,
   onChatForked,
   greeting,
+  autoFixMarkdown,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
@@ -145,6 +150,7 @@ export function MessageRow({
     characterNamesById,
     personaNamesById,
     viewerActivePersonaId: activePersonaId,
+    autoFixMarkdown,
   });
   const content = editing ? (
     <MessageEditTextarea

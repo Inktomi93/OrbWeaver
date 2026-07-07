@@ -461,6 +461,13 @@ const appearanceSchema = z
     showModelIcon: z.boolean().catch(false).default(false),
     showInChatAvatars: z.boolean().catch(true).default(true),
     messageActions: z.enum(["expanded", "hover"]).catch("hover").default("hover"),
+    // Markdown auto-fix on SETTLED messages (ST `auto_fix_generated_markdown` parity — a display-only
+    // knob, NOT generation post-processing which lives on the preset per D53). Streaming ALWAYS repairs
+    // (a mid-token-flash necessity); this toggles the same repair on settled bodies. Default OFF: a settled
+    // body has complete markdown, so "repairing" a deliberate lone asterisk (censoring — `f*ck`) or
+    // trailing `*` only mis-fires into a stray emphasis run. ON = ST-style auto-close for the power user
+    // (note ST defaults this ON; orbweaver defaults OFF so the mis-fire doesn't bite by default).
+    autoFixMarkdown: z.boolean().catch(false).default(false),
     // Effects (§12.1 — blur/shadow default OFF per the no-glass seed; manual reduced-motion beyond
     // the OS pref, §4a)
     blurEffects: z.boolean().catch(false).default(false),

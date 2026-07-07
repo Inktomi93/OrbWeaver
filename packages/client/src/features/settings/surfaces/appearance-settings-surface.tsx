@@ -8,8 +8,8 @@
 // re-render live — flipping chatStyle here flips the message rendering with no reload (the §12.1 payoff).
 //
 // V1 SCOPE (NO DEAD TOGGLES): only the knobs wired end-to-end get a field — chatStyle, avatarSize,
-// avatarShape, showInChatAvatars, density. The schema is COMPLETE (all 15 knobs persist); the deferred
-// knobs' fields land WITH their render consumers (a persisted-but-inert toggle would be a soft shim).
+// avatarShape, showInChatAvatars, density, autoFixMarkdown. The schema is COMPLETE (all knobs persist);
+// the deferred knobs' fields land WITH their render consumers (a persisted-but-inert toggle is a shim).
 // The form's value type is the FULL `AppearanceSettings`, so the unshown knobs round-trip their server
 // values unchanged on every patch.
 
@@ -129,6 +129,14 @@ function AppearanceForm(): ReactElement {
                 label="Density"
                 description="Compact tightens spacing throughout the app."
                 items={DENSITY_ITEMS}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="autoFixMarkdown">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Auto-fix unfinished formatting"
+                description="Close a dangling *italic*/**bold** on settled messages (SillyTavern-style). Off keeps a lone asterisk — e.g. a censored word — literal."
               />
             )}
           </form.AppField>

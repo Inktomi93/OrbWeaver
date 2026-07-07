@@ -15,6 +15,9 @@ export interface MessageAppearance {
   readonly avatarSize: AppearanceSettings["avatarSize"];
   readonly avatarShape: AppearanceSettings["avatarShape"];
   readonly showInChatAvatars: AppearanceSettings["showInChatAvatars"];
+  /** ST `auto_fix_generated_markdown` parity — apply the incomplete-markdown repair to SETTLED bodies
+   *  too (default OFF; streaming always repairs regardless). Threaded to `MessageContent`'s markdown seal. */
+  readonly autoFixMarkdown: AppearanceSettings["autoFixMarkdown"];
 }
 
 export function useMessageAppearance(): MessageAppearance {
@@ -25,5 +28,6 @@ export function useMessageAppearance(): MessageAppearance {
     avatarSize: appearance.avatarSize,
     avatarShape: appearance.avatarShape,
     showInChatAvatars: appearance.showInChatAvatars,
+    autoFixMarkdown: appearance.autoFixMarkdown,
   };
 }

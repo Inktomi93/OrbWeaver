@@ -47,11 +47,6 @@ import type { RowRenderPolicy } from "../lib/render-trust";
 import { colorForCharacter } from "../lib/speaker-color";
 import { MessageMediaBlock } from "./message-media-block";
 
-/** The render trust tier (D44 §12.0 — untrusted by DEFAULT). `trusted` only for the viewer's OWN input or
- *  a character/global that opted in; `untrusted` for all LLM / imported / other-participant / system
- *  content. Resolved per-row upstream (`resolveRowRenderPolicy`), never hand-picked here. */
-type Trust = "trusted" | "untrusted";
-
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
 }
@@ -62,15 +57,16 @@ function assertNever(value: never): never {
 function renderBlock(
   block: MessageContentBlock,
   key: string,
-  trust: Trust,
-  allowExternal: boolean,
+  render: RowRenderPolicy,
 ): ReactElement {
+  const { trust, allowExternal } = render;
   switch (block.kind) {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "markdown":
       return (
-        // `static` — a settled canon body: no incomplete-markdown repair, no reveal fade. The live
-        // streaming path is the ghost row (ghost-message-row.tsx), not this settled projection.
+        // `static` — a settled canon body: the seal's incomplete-markdown repair stays off (streaming-only).
+        // The ST-parity settled-body auto-fix is applied UPSTREAM (renderMessageForDisplay's `fixMarkdown`,
+        // gated by the `autoFixMarkdown` pref), never here.
         <Markdown key={key} trust={trust} mode="static">
           {block.md}
         </Markdown>
@@ -108,24 +104,20 @@ function renderBlock(
 // block keys ACROSS spans when more than one exists; the no-op call passes `""` so its block keys
 // (`${index}-${block.kind}`) match the pre-#21 keys exactly. `listKey` is set directly on creation
 // (never serializes to the DOM — harmless to pass `undefined` for the no-op call).
-function renderSegment(
-  text: string,
-  render: RowRenderPolicy,
-  keyPrefix: string,
-  listKey?: string,
-): ReactElement {
+interface SegmentContext {
+  readonly render: RowRenderPolicy;
+  readonly keyPrefix: string;
+  readonly listKey?: string | undefined;
+}
+
+function renderSegment(text: string, ctx: SegmentContext): ReactElement {
   const blocks = toContentBlocks(text);
   return (
-    <Stack key={listKey} gap="row">
+    <Stack key={ctx.listKey} gap="row">
       {/* Block order is fully determined by `text` and never reorders independently, so the
           positional index IS each block's stable identity (no natural id exists in the render model). */}
       {blocks.map((block, index) =>
-        renderBlock(
-          block,
-          `${keyPrefix}${index}-${block.kind}`,
-          render.trust,
-          render.allowExternal,
-        ),
+        renderBlock(block, `${ctx.keyPrefix}${index}-${block.kind}`, ctx.render),
       )}
     </Stack>
   );
@@ -172,7 +164,7 @@ export function MessageContent({
   // through the EXACT original single-path, no new element in the tree.
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return renderSegment(onlySpan.text, render, "");
+    return renderSegment(onlySpan.text, { render, keyPrefix: "" });
   }
 
   return (
@@ -180,11 +172,11 @@ export function MessageContent({
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return renderSegment(span.text, render, `${key}-`, key);
+          return renderSegment(span.text, { render, keyPrefix: `${key}-`, listKey: key });
         }
         return (
           <ThemeScope key={key} tokens={colorForCharacter(span.speaker)}>
-            {renderSegment(span.text, render, `${key}-`)}
+            {renderSegment(span.text, { render, keyPrefix: `${key}-` })}
           </ThemeScope>
         );
       })}
