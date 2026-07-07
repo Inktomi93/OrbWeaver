@@ -1,16 +1,17 @@
 // CT: the composed chat-room pane (transcript + composer) — the surface that was untested before this
-// task. Two shapes: a SEEDED DRAFT (the new-chat-with-character landing) renders the empty transcript +
-// the live composer WITHOUT ever reading the server (the ChatHandle discriminant is the gate — no
-// `listMessages` call for a draft, skipToken in spirit); a COMMITTED chat reads canon + roster
-// (routeTrpc stubs `chat.listMessages`/`chat.getChat`) and renders the rows beside the composer.
+// task. Two shapes: a SEEDED DRAFT (the new-chat-with-character landing, J2/J3) renders each founding
+// character's greeting as an editable message row (character-first, never an empty void) WITHOUT reading
+// CANON (`chat.listMessages` — the ChatHandle discriminant is the gate; it DOES read the founding cards
+// `character.get` for the greeting preview); a COMMITTED chat reads canon + roster (routeTrpc stubs
+// `chat.listMessages`/`chat.getChat`) and renders the rows beside the composer.
 //
 // NOTE: `chat.listMessages` is stubbed at the NETWORK (routeTrpc) — the draft case asserts it is NEVER
-// hit (the surface must not fetch for a chat with no server row yet). `chat.listMessages` returns
+// hit (the surface must not fetch CANON for a chat with no server row yet). `chat.listMessages` returns
 // `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md §1/§3) — every stub wraps via
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `macroNames` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
-import type { MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../../../packages/client/src/lib/test-ids";
@@ -46,7 +47,7 @@ const ROSTER_STUB = {
   }),
 };
 
-test("a seeded draft renders the empty transcript + the live composer, with no server read", async ({
+test("a seeded draft renders the founding greeting as an editable row + the live composer, no CANON read", async ({
   mount,
   page,
 }) => {
@@ -56,15 +57,21 @@ test("a seeded draft renders the empty transcript + the live composer, with no s
       listMessagesCalls += 1;
       return makeMessagesPage([]);
     },
+    // A draft reads the FOUNDING card (character.get) to preview each greeting — but never CANON.
+    "character.get": () => ({
+      id: castId<CharacterId>("char_ct_room"),
+      name: "Aria",
+      greetings: ["Greetings, traveller."],
+    }),
   });
 
   const component = await mount(<ChatRoomSurfaceStory committed={false} />);
 
-  // The draft transcript is empty and the composer is present + typeable.
-  await expect(component.getByText("No messages yet.")).toBeVisible();
+  // The greeting renders as a normal message row (character-first, not an empty void), beside the composer.
+  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
   await expect(component.getByTestId(testId("composer"))).toBeVisible();
   await expect(component.getByRole("textbox", { name: "Message" })).toBeVisible();
-  // The discriminant gate held — a draft NEVER read the server.
+  // The discriminant gate held — a draft NEVER read CANON (listMessages).
   expect(listMessagesCalls).toBe(0);
 });
 

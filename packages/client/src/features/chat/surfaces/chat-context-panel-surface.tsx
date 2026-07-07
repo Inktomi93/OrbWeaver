@@ -21,19 +21,44 @@
 // with one character, so a solo (1-character) chat shows no Roster tab even to its host. Mirrors
 // `ChatCastBar`'s identical `cast.length <= 1 → null` size-gate for the member-visible glance strip.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { setContextTab, useContextTab } from "#state";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
+import { CommittedGroupConfigTab } from "../components/group-config-form";
 import { InjectionsManager } from "../components/injections-manager";
 import { RoomOverridesForm } from "../components/room-overrides-form";
+import type { RosterMember } from "../components/roster-panel";
 import { RosterPanel } from "../components/roster-panel";
+import { useSetRoomOverrides } from "../hooks/use-context-panel-mutations";
+import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../hooks/use-room-overrides-form";
+import {
+  useForceCharacterTurn,
+  useSetParticipantDisabled,
+  useSetParticipantTalkativeness,
+} from "../hooks/use-roster-mutations";
 import { resolveIsGroupChat, resolveViewerIsHost } from "../lib/roster";
+
+/** Project a committed chat's character participants into the source-agnostic `RosterMember` view. */
+function toRosterMembers(participants: readonly ParticipantView[]): RosterMember[] {
+  return participants
+    .filter(
+      (p): p is ParticipantView & { characterId: CharacterId } =>
+        p.kind === "character" && p.characterId !== null,
+    )
+    .map((p) => ({
+      characterId: p.characterId,
+      displayName: p.displayName,
+      disabled: p.disabled,
+      talkativeness: p.talkativeness,
+    }));
+}
 
 export interface ChatContextPanelProps {
   /** A COMMITTED chat id — the route passes this only when a committed chat is active (a draft has no
@@ -62,10 +87,22 @@ export function ChatContextPanel({ chatId }: ChatContextPanelProps): ReactElemen
 
 function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   const trpc = useTRPC();
+  const invalidation = useInvalidation();
   // The chat read carries BOTH the roster (host detection) and the current room overrides — one query,
   // already the shell's chat read (no new fetch for the overrides tab).
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const isHost = resolveViewerIsHost(chat.participants);
+  // The committed persist seam for the Overrides tab (the editor is source-agnostic — a draft passes
+  // `setDraftRoomOverrides` instead). The verb takes/returns the domain `RoomOverrides`.
+  const setOverrides = useSetRoomOverrides({ trpc, invalidation });
+  const saveOverrides = (overrides: RoomOverrides): Promise<unknown> =>
+    setOverrides.mutateAsync({ chatId, overrides });
+  // The committed roster seam (the panel is source-agnostic — a draft passes store writes instead): the
+  // three per-member verbs + the participants projected into the `RosterMember` view.
+  const setDisabled = useSetParticipantDisabled({ trpc, invalidation });
+  const setTalkativeness = useSetParticipantTalkativeness({ trpc, invalidation });
+  const forceTurn = useForceCharacterTurn({ trpc, invalidation });
+  const rosterMembers = toRosterMembers(chat.participants);
   // D16 roster-of-1 is degenerate, not a group — mute/talkativeness/force-turn are meaningless for one
   // character, so a solo chat must not show the Roster tab even to its host (mirrors ChatCastBar's
   // identical `cast.length <= 1 → null` gate for the member-visible glance strip).
@@ -78,7 +115,10 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   const contextTab = useContextTab();
   const visibleTabs = new Set<string>(["overrides", "injections"]);
   if (showRoster) {
+    // Group config is host-AND-group (the same gate as the Roster tab — generation behavior is
+    // meaningless for a solo chat).
     visibleTabs.add("roster");
+    visibleTabs.add("group");
   }
   if (isHost) {
     visibleTabs.add("preview");
@@ -97,18 +137,51 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
             a solo (1-character) chat, so neither a member nor a solo-chat host sees the tab. The cast
             bar (chat-room-surface) is the member-visible glance surface, size-gated the same way. */}
         {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
+        {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
         {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
         <TabsTab value="injections">Injections</TabsTab>
         <TabsIndicator />
       </TabsList>
 
       <TabsPanel value="overrides">
-        <RoomOverridesForm chatId={chatId} roomOverrides={chat.roomOverrides} isHost={isHost} />
+        <RoomOverridesForm
+          entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`}
+          roomOverrides={chat.roomOverrides}
+          isHost={isHost}
+          save={isHost ? saveOverrides : undefined}
+        />
       </TabsPanel>
 
       {showRoster ? (
         <TabsPanel value="roster">
-          <RosterPanel chatId={chatId} />
+          <RosterPanel
+            members={rosterMembers}
+            onSetDisabled={(characterId, disabled): void =>
+              setDisabled.mutate({ chatId, characterId, disabled })
+            }
+            onSetTalkativeness={(characterId, talkativeness): void =>
+              setTalkativeness.mutate({ chatId, characterId, talkativeness })
+            }
+            onForceTurn={(characterId): void => forceTurn.mutate({ chatId, characterId })}
+          />
+        </TabsPanel>
+      ) : null}
+
+      {showRoster ? (
+        <TabsPanel value="group">
+          <QueryBoundary
+            fallback={<Text tone="muted">Loading group settings…</Text>}
+            renderError={(_error, retry): ReactElement => (
+              <Text tone="muted">
+                Couldn't load group settings.{" "}
+                <Button intent="ghost" onClick={retry}>
+                  Retry
+                </Button>
+              </Text>
+            )}
+          >
+            <CommittedGroupConfigTab chatId={chatId} />
+          </QueryBoundary>
         </TabsPanel>
       ) : null}
 

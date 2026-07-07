@@ -29,7 +29,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `serde-core` | serialization-core invariants (one canonical home, layer-clean) | serde/import-export domains built |
 | `bus-payload-allowlist` | credentials/secrets are **type-level-unrepresentable** in `ChatBusEvent` / `NotificationEvent`; all chat bus events are room-public (ledger D16) | chat + notifications domains built |
 | `notifications-durable-first` | a notification is INSERTed in the membership-transition tx and fanned out only after commit (deliverable from the table alone); the stream uses the `chat.streamMessages` resume shape, never `buddy.stream` | notifications domain built |
-| `optimistic-chat` | client optimistic-update call-site invariants | chat client built |
+| `optimistic-chat` | client optimistic-update call-site invariants | **DROPPED 2026-07-07** — superseded by architecture-B (the `ChatHandle` discriminated union + the `startChat` carry-params). A draft is NOT an optimistic query-cache seed (`state/chat-handle.ts` rejected `isOptimistic`); it is a distinct `{kind:"draft"}` handle whose pre-send edits live in the `draft-config` store and ride `chat.startChat` carry-params at first send. ZERO `isOptimistic` call-sites to gate — the fully-editable-draft feature (greeting · overrides · roster · injections · group, all carried to commit) makes this gate's premise moot. |
 | `design-tokens` | design-token file shape (globals.css) | client styling built |
 | `state-files` | canonical store layout (zustand) | client state built |
 | `substrate-clean` | substrate/canonical cleanliness ratchet | client built |

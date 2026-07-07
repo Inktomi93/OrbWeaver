@@ -27,7 +27,9 @@ import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useMemo, useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted } from "#state";
+import { clearDraftConfig, isCommitted } from "#state";
+import type { DraftCarry } from "../lib/draft-commit";
+import { resolveDraftCommit } from "../lib/draft-commit";
 
 /** The wire shape every guided verb accepts as its `guided` param (domain `GuidedSteer`, mirrored
  *  client-side — the router validates it as `z.any()`, so this is a type-only contract, not a schema). */
@@ -77,7 +79,7 @@ const useGuidedImpersonateMutation = createEntityMutation<GuidedTurnVars, unknow
   errorToast: "Couldn't impersonate with that guidance.",
 });
 
-interface GuidedStartChatVars {
+interface GuidedStartChatVars extends DraftCarry {
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
@@ -157,14 +159,23 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const fireOpening = (input: string): void => {
     setOpeningPending(true);
     const run = async (): Promise<void> => {
+      // Carry the draft's pre-send config (roster/group/overrides/injections) into creation (P4). The
+      // typed/swiped greeting (`seedGreetings`) rides too but is inert here — `opening:"generate"` forces
+      // a GENERATED opening (the guided path), so the greeting seed never resolves; the user chose to
+      // generate. `clearDraftConfig` after: the edits now live on the created chat.
+      const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
       const result = await startChat.mutateAsync({
-        characterIds: [...(opts.draftSeed?.characterIds ?? [])],
+        characterIds,
         anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
         title: opts.draftSeed?.title ?? null,
         opening: "generate",
         guided: { action: "opening", input },
+        ...carry,
       });
       opts.onCommitted?.(result.chat.id);
+      if (draftKey !== null) {
+        clearDraftConfig(draftKey);
+      }
     };
     // The sticky mutation-level `.error` slot (+ `errorToast`) already surfaces a failure — nothing
     // further to do here besides releasing the local pending flag.

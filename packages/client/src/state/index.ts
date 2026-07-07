@@ -37,6 +37,19 @@ export type { GatedSet, GatedStoreHook } from "./create-gated-store";
 export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
 export type { PersistedStoreOptions } from "./create-persisted-store";
 export { createPersistedStore } from "./create-persisted-store";
+export type { DraftConfig, DraftRosterOverride } from "./draft-config-store";
+export {
+  addDraftCharacter,
+  clearDraftConfig,
+  EMPTY_DRAFT_CONFIG,
+  readDraftConfig,
+  setDraftGreeting,
+  setDraftGroupConfig,
+  setDraftInjections,
+  setDraftRoomOverrides,
+  setDraftRosterOverride,
+  useDraftConfig,
+} from "./draft-config-store";
 export {
   cancelEditingMessage,
   readMessageEditDraft,

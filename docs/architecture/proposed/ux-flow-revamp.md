@@ -122,13 +122,18 @@ solo chat with no character. The Characters section separately supports card →
 surface (J4) opened in "characters mode", or NT's dedicated dialog
 (`reference/neo-tavern/src/client/features/chat/anchors/new-chat-dialog.tsx` +
 `surfaces/new-chat-surface.tsx`: search + rows + Enter-to-start). Picking a character calls
-`startNewChat({characterIds: [id]})` → draft room whose header/hero shows the chosen character
-(greeting flow arrives with the server's greeting support; until then the composer placeholder
-names them, punchlist UIP-306). **Greeting-lane carry-note (ST `retriggerFirstMessageOnEmptyChat`):**
-when greetings land, a persona change on an EMPTY chat must re-render the greeting — its `{{user}}`
-resolved against the old persona; without the re-render the character greets the wrong name. The characterless draft remains reachable ONLY as an explicit "Blank chat"
-row at the bottom of the picker (assistant-style chats are legitimate; they just can't be the
-default trapdoor).
+`startNewChat({characterIds: [id]})` → draft room whose header/hero shows the chosen character.
+**Greeting-lane — LANDED 2026-07-07 (fully-editable draft):** the draft is a transparent, fully-editable
+chat from frame one. Each founding character's greeting renders as a NORMAL, editable `MessageRow`
+(`features/chat/lib/synth-greeting-row.ts` → `message-list-surface.tsx` `DraftGreetingThread`), swipeable
+over the card's `greetings[]` and editable via the pluggable-save seam (→ the `draft-config` store); the
+first send carries the whole draft config (greeting/overrides/roster/injections/group) into
+`chat.startChat` (carry-params). This SUPERSEDES the old "arrives with the server's greeting support /
+composer placeholder" note. The ST `retriggerFirstMessageOnEmptyChat` concern is free: the greeting is a
+live macro-resolved render (`{{user}}`/`{{char}}` resolve at the display edge), so a persona change
+re-renders it against the new persona automatically. The characterless draft remains reachable ONLY as an
+explicit "Blank chat" row at the bottom of the picker (assistant-style chats are legitimate; they just
+can't be the default trapdoor).
 
 **Steps:**
 1. `DraftSeed` is HOMED in `packages/client/src/state/active-chat-store.ts` (use-send-message.ts
@@ -176,8 +181,9 @@ continue affordance when tail is user's (`continueEligible` logic exists) · Sen
    `ChatHeaderSurface` with its own `QueryBoundary` reading the same key, the shared-cache pattern
    `chat-room-surface.tsx` already documents for the composer tail).
 2. Route passes it to `AppShell` → `ShellTopbar header={…}` (prop exists, unused today).
-3. Draft variant: seeded character avatar + name + "New thread" chip; landing variant: none
-   (topbar falls back to section title).
+3. Draft variant: seeded character avatar + name (the "New thread" chip was DROPPED — ambiguous vs
+   fork/new-chat, and a draft should read like a committed chat: `DraftChatHeader`, `chat-header.tsx`);
+   landing variant: none (topbar falls back to section title). LANDED 2026-07-07.
 
 **Verify:** populated-chat snap shows identity header; `--text` ARIA tree shows
 `banner → heading(chat title)`.

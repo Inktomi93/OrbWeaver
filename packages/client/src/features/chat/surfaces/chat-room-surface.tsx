@@ -73,7 +73,12 @@ export function ChatRoomSurface({
       {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
       <Stack className="min-h-0 flex-1">
         <MessageThreadAnchor>
-          <MessageListSurface busDeps={busDeps} handle={handle} onChatForked={onChatForked} />
+          <MessageListSurface
+            busDeps={busDeps}
+            handle={handle}
+            draftSeed={draftSeed}
+            onChatForked={onChatForked}
+          />
         </MessageThreadAnchor>
       </Stack>
       {/* Bulk-select bar (J6) — pinned above the composer while select mode is on (renders null otherwise);

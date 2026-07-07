@@ -35,6 +35,23 @@ test("renders the hero, recents, and character quick-picks", async ({ mount, pag
   await expect(component.getByText("Bolt")).toBeVisible();
 });
 
+test("with the LIST docked (showRecents=false) the landing drops its Recent chats — no duplicate (#13)", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, { "chat.listChats": [RECENT], "character.list": charPage });
+
+  const component = await mount(<ChatLandingSurfaceStory showRecents={false} />);
+
+  // The hero + the "Start a chat" quick-picks still render — only the recents FINDER is dropped, because
+  // the docked LIST already is it (§4.3 rule 5). A recent that WOULD show (RECENT is stubbed) must not.
+  await expect(component.getByText("Pick up a thread")).toBeVisible();
+  await expect(component.getByText("Start a chat")).toBeVisible();
+  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(component.getByText("Recent chats")).toHaveCount(0);
+  await expect(component.getByText("A grand adventure")).toHaveCount(0);
+});
+
 test("selecting a recent chat fires onSelect with that id", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [RECENT], "character.list": charPage });
 

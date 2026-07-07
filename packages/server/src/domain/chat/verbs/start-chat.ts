@@ -34,12 +34,19 @@
 import type {
   ChatBusEvent,
   ChatMacroNameProducer,
+  GroupConfigInput,
   OpeningPolicy,
   ParticipantView,
+  RoomOverrides,
 } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import {
+  DEFAULT_GROUP_CONFIG,
+  DEFAULT_ROOM_OVERRIDES,
+  groupConfigSchema,
+  roomOverridesSchema,
+} from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import { chatParticipants, chats } from "@orb/db";
+import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -134,6 +141,29 @@ function resolveOpeningPolicy(
   return charCount === 1 ? "first-message" : "greet-all";
 }
 
+/** Compose the creation `metadata` blob from the pre-send DRAFT CONFIG. The group config + room overrides
+ *  route through the SAME schemas the `setGroupConfig`/`setRoomOverrides` verbs use — `groupConfigSchema`
+ *  fully-defaults the group; `roomOverridesSchema.strict()` rejects a forbidden field (never a silently
+ *  dropped blob) — so a draft-carried config is byte-identical to what those verbs would persist. Each
+ *  sub-blob is omitted when absent; all-absent ⇒ `null` (a plain new chat). */
+function buildCreationMetadata(args: {
+  readonly opening: OpeningPolicy | undefined;
+  readonly groupConfig: GroupConfigInput | undefined;
+  readonly roomOverrides: RoomOverrides | undefined;
+}): (typeof chats.$inferInsert)["metadata"] {
+  const { opening, groupConfig, roomOverrides } = args;
+  if (opening === undefined && groupConfig === undefined && roomOverrides === undefined) {
+    return null;
+  }
+  return {
+    ...(opening === undefined ? {} : { opening }),
+    ...(groupConfig === undefined ? {} : { group: groupConfigSchema.parse(groupConfig) }),
+    ...(roomOverrides === undefined
+      ? {}
+      : { roomOverrides: roomOverridesSchema.parse(roomOverrides) }),
+  };
+}
+
 /** The founding characters whose greeting is seeded VERBATIM for `policy` (`first-message` = the primary only;
  *  `greet-all` = every founding character; the generate/none paths seed none). */
 function greetTargets(
@@ -176,13 +206,15 @@ async function loadGreetings(
   ctx: ChatContext,
   hostUserId: UserId,
   characterIds: readonly CharacterId[],
+  seedGreetings: Readonly<Record<CharacterId, string>> | undefined,
 ): Promise<{ characterId: CharacterId; text: string }[]> {
   const cards = await Promise.all(
     characterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })),
   );
   return characterIds.map((characterId, i) => ({
     characterId,
-    text: cards[i]?.greetings[0] ?? "",
+    // The draft's swiped/edited opening wins; else the card's primary greeting (empty ⇒ skipped at seed).
+    text: seedGreetings?.[characterId] ?? cards[i]?.greetings[0] ?? "",
   }));
 }
 
@@ -201,7 +233,8 @@ function buildGreetingSeed(
   const views: MessageViewSeed[] = [];
   let seq = 0;
   for (const g of args.greetings) {
-    if (g.text.length === 0) {
+    // Skip an empty/whitespace-only opening (a cleared draft greeting seeds NO row — neo's seed gotcha).
+    if (g.text.trim().length === 0) {
       continue;
     }
     seq += 1;
@@ -359,6 +392,11 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     anchorPersonaId,
     title,
     opening,
+    seedGreetings,
+    rosterOverrides,
+    groupConfig,
+    roomOverrides,
+    injections,
     temporary,
     guided,
   }: StartChatParams): Promise<StartChatResult> => {
@@ -394,15 +432,23 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       joinSeq: 0,
       now,
       host: { participantId: ctx.newParticipantId(), userId: hostUserId, activePersonaId: anchor },
-      characters: characterIds.map((characterId) => ({
-        participantId: ctx.newParticipantId(),
-        characterId,
-      })),
+      // Pre-send roster tuning (mute/talkativeness) applied to the founding rows — deviating fields only,
+      // an absent character/field keeps the column default (byte-identical to a plain new chat).
+      characters: characterIds.map((characterId) => {
+        const ov = rosterOverrides?.[characterId];
+        return {
+          participantId: ctx.newParticipantId(),
+          characterId,
+          ...(ov?.disabled === undefined ? {} : { disabled: ov.disabled }),
+          ...(ov?.talkativeness === undefined ? {} : { talkativeness: ov.talkativeness }),
+        };
+      }),
     });
 
     // The VERBATIM opening seed (first-message = the primary only; greet-all = every founding character).
     const targets = greetTargets(policy, characterIds);
-    const greetings = targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets) : [];
+    const greetings =
+      targets.length > 0 ? await loadGreetings(ctx, hostUserId, targets, seedGreetings) : [];
     const seed = buildGreetingSeed(ctx, { chatId, now, greetings });
 
     // ONE atomic creation batch: the chat row, the roster, and any verbatim greeting canon — all or none.
@@ -414,15 +460,31 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           anchorPersonaId: anchor,
           // ST "Temporary Chat" (PD-65): born ephemeral — hidden from listChats, reap-eligible past the TTL.
           temporary: temporary === true,
-          // Persist the opening policy ONLY when the caller set it explicitly (the default stays derived from
-          // roster size — the room already opened; a persisted policy is the re-open directive).
-          metadata: opening !== undefined ? { opening } : null,
+          // The creation metadata carries the pre-send DRAFT CONFIG (opening policy + group config + room
+          // overrides); all-absent ⇒ null, byte-identical to a plain new chat.
+          metadata: buildCreationMetadata({ opening, groupConfig, roomOverrides }),
           createdAt: now,
           updatedAt: now,
         }),
       ),
       batchStmt(ctx.db.insert(chatParticipants).values(rosterRows)),
       ...seed.stmts,
+      // Pre-send authored injections (draft carry) seeded as founding `chat_injections` rows in the same
+      // atomic batch — the `setChatInjection` insert shape (chat-lifecycle.ts), minus the post-hoc emit.
+      ...(injections ?? []).map((inj) =>
+        batchStmt(
+          ctx.db.insert(chatInjections).values({
+            id: ctx.newInjectionId(),
+            chatId,
+            position: inj.position,
+            depth: inj.depth,
+            role: inj.role,
+            content: inj.content,
+            order: inj.order ?? null,
+            createdAt: now,
+          }),
+        ),
+      ),
     ];
     // The canon-mutator stats push (see the helper) — the created counters, the PD-96 first-chat bumps,
     // and each verbatim greeting's contribution ride the SAME atomic creation batch.

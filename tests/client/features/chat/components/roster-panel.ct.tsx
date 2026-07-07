@@ -1,38 +1,19 @@
-// CT: the Roster tab controls (roster-panel.tsx, task #29). Drives the production path over the stubbed
-// network (routeTrpc) — `chat.getChat` supplies the roster; each control fires its real
-// `use-roster-mutations` mutation. Proves: a row per character, the mute toggle dispatches
-// `setParticipantDisabled` (toggled), the talkativeness slider commits `setParticipantTalkativeness`,
-// and force-turn dispatches `forceCharacterTurn` — INCLUDING for a MUTED member (the #29 decision: mute
-// is passive arbitration exclusion, force-turn is an explicit host override, so the Zap stays enabled).
-//
-// This body assumes the host (the surface host-gates the tab); the roster stub is a partial `ChatDetail`.
+// CT: the Roster tab controls (roster-panel.tsx, task #29). The panel is now a PURE component (source-
+// agnostic, dual-mode J2/J3) — it takes `members` + the three write CALLBACKS and owns no network. So this
+// tests it as pure: fixed members in, and each control's callback observed via the story's
+// `roster-last-action` readout (the committed verbs / draft store writes are exercised where they're wired
+// — the panel's job is only to CALL back with the right args). Proves: a row per member, mute flips the
+// value, the talkativeness slider commits, force-turn fires AND stays enabled for a MUTED member (#29),
+// and — the DRAFT case — omitting `onForceTurn` drops the Zap entirely (a draft has no turn to force).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { RosterPanelStory } from "../_ct-stories";
 
-function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {
-  return {
-    id: `chat_participant_${key}`,
-    kind: "character",
-    userId: null,
-    characterId: `character_${key}`,
-    role: "member",
-    displayName: name,
-    disabled: false,
-    talkativeness: 0.5,
-    ...over,
-  };
-}
+const LAST_ACTION = '[data-testid="roster-last-action"]';
 
-function roster(...members: unknown[]): unknown {
-  return { participants: members };
-}
-
-test("renders one control row per character", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    "chat.getChat": () => roster(character("aria", "Aria"), character("bryn", "Bryn")),
-  });
+test("renders one control row per member + the (committed) force-turn button", async ({
+  mount,
+}) => {
   const component = await mount(<RosterPanelStory />);
 
   await expect(component.locator('[data-slot="roster-row"]')).toHaveCount(2);
@@ -40,63 +21,48 @@ test("renders one control row per character", async ({ mount, page }) => {
   await expect(component.getByRole("button", { name: "Make Bryn speak next" })).toBeVisible();
 });
 
-test("the mute toggle dispatches setParticipantDisabled with the flipped value", async ({
-  mount,
-  page,
-}) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": () => roster(character("aria", "Aria")),
-    "chat.setParticipantDisabled": () => ({
-      ...(character("aria", "Aria") as object),
-      disabled: true,
-    }),
-  });
+test("the mute toggle invokes onSetDisabled with the flipped value", async ({ mount }) => {
   const component = await mount(<RosterPanelStory />);
 
+  // Aria starts unmuted (disabled:false) → mute flips to true.
   await component.getByRole("button", { name: "Mute Aria" }).click();
 
-  await expect.poll(() => trpc.count("chat.setParticipantDisabled")).toBe(1);
-  expect(trpc.lastInput("chat.setParticipantDisabled")).toMatchObject({
-    characterId: "character_aria",
-    disabled: true,
-  });
+  await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
 });
 
-test("the talkativeness slider commits setParticipantTalkativeness", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": () => roster(character("aria", "Aria")),
-    "chat.setParticipantTalkativeness": () => character("aria", "Aria", { talkativeness: 0.55 }),
-  });
+test("the talkativeness slider commits onSetTalkativeness (commit-on-release)", async ({
+  mount,
+}) => {
   const component = await mount(<RosterPanelStory />);
 
-  // Keyboard-drive the thumb (Base UI commits on keyup): +1 step from 0.5 → 0.55.
+  // Keyboard-drive the thumb (Base UI commits on keyup): +1 step from 0.5.
   const thumb = component.getByRole("slider", { name: "Talkativeness: Aria" });
   await thumb.focus();
   await thumb.press("ArrowRight");
 
-  await expect.poll(() => trpc.count("chat.setParticipantTalkativeness")).toBeGreaterThanOrEqual(1);
-  const input = trpc.lastInput("chat.setParticipantTalkativeness") as { talkativeness?: number };
-  expect(typeof input.talkativeness).toBe("number");
-  expect(input.talkativeness ?? 0).toBeGreaterThan(0.5);
+  await expect(component.locator(LAST_ACTION)).toContainText("talkativeness:character_aria:");
 });
 
-test("force-turn dispatches forceCharacterTurn — and stays enabled for a MUTED member (#29)", async ({
+test("force-turn fires onForceTurn — and stays enabled for a MUTED member (#29)", async ({
   mount,
-  page,
 }) => {
-  const trpc = await routeTrpc(page, {
-    "chat.getChat": () => roster(character("bryn", "Bryn", { disabled: true })),
-    "chat.forceCharacterTurn": () => ({ messages: [], aborted: false }),
-  });
   const component = await mount(<RosterPanelStory />);
 
   const force = component.getByRole("button", { name: "Make Bryn speak next" });
-  // The #29 decision: a muted member is still summonable — the button is NOT disabled by the mute state.
+  // The #29 decision: a muted member (Bryn: disabled) is still summonable — NOT disabled by mute state.
   await expect(force).toBeEnabled();
   await force.click();
 
-  await expect.poll(() => trpc.count("chat.forceCharacterTurn")).toBe(1);
-  expect(trpc.lastInput("chat.forceCharacterTurn")).toMatchObject({
-    characterId: "character_bryn",
-  });
+  await expect(component.locator(LAST_ACTION)).toHaveText("force:character_bryn");
+});
+
+test("a DRAFT roster (no onForceTurn) drops the Zap button — no turn to force pre-commit", async ({
+  mount,
+}) => {
+  const component = await mount(<RosterPanelStory omitForceTurn={true} />);
+
+  await expect(component.locator('[data-slot="roster-row"]')).toHaveCount(2);
+  // Mute + talkativeness stay; force-turn is gone.
+  await expect(component.getByRole("button", { name: "Mute Aria" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Make Bryn speak next" })).toHaveCount(0);
 });

@@ -12,7 +12,11 @@
 // covers the SSE path). Any non-NotFound error propagates into `withSubscriptionErrors`' typed frame.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
-import { chatInjectionInputSchema, roomOverridesSchema } from "@orb/contracts/chat";
+import {
+  chatInjectionInputSchema,
+  groupConfigSchema,
+  roomOverridesSchema,
+} from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -38,6 +42,21 @@ const startChatSchema = z.object({
   anchorPersonaId: brandedId<PersonaId>().nullish(),
   title: z.string().nullish(),
   opening: z.any().optional(),
+  // THE DRAFT CARRY (StartChatParams — a new chat is fully editable pre-send; the first send hands its
+  // draft-config state to this ONE creation entry). All optional/sparse: absent ⇒ today's plain new chat.
+  seedGreetings: z.record(brandedId<CharacterId>(), z.string()).optional(),
+  rosterOverrides: z
+    .record(
+      brandedId<CharacterId>(),
+      z.object({
+        disabled: z.boolean().optional(),
+        talkativeness: z.number().min(0).max(1).optional(),
+      }),
+    )
+    .optional(),
+  groupConfig: groupConfigSchema.optional(),
+  roomOverrides: roomOverridesSchema.optional(),
+  injections: z.array(chatInjectionInputSchema).optional(),
   // The composer wand's degenerate "Guide the opening" (a draft chat has no committed turn to steer
   // yet — its guided input rides the founding `generate` opening instead; ignored by every other
   // `opening` policy). Same `z.any()` shape as `send`/`swipe`'s `guided` below (no dedicated
@@ -270,6 +289,17 @@ const setParticipantTalkativenessSchema = z.object({
   talkativeness: z.number(),
 });
 
+// Group config (verbs/roster.ts `setGroupConfig`/`getGroupConfigForChat`) — the same domain-ahead-of-
+// transport MISSING-API shape as the clusters above (host-gated write / member read, INSIDE the verb).
+// The wire input is the contracts `groupConfigSchema` (the lenient `GroupConfigInput` the verb parses →
+// a fully-defaulted `GroupConfig`); the router only adds `chatId`. The chat's CONTEXT-panel group editor
+// consumes these (draft chats edit the draft-config store instead — the pre-send carry).
+const setGroupConfigSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  config: groupConfigSchema,
+});
+const getGroupConfigSchema = z.object({ chatId: brandedId<ChatId>() });
+
 const forceCharacterTurnSchema = z.object({
   chatId: brandedId<ChatId>(),
   characterId: brandedId<CharacterId>(),
@@ -396,6 +426,16 @@ export const chatRouter = t.router({
     .input(forceCharacterTurnSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.chat.forceCharacterTurn({ principal: ctx.auth, ...input }),
+    ),
+  getGroupConfig: authedProcedure
+    .input(getGroupConfigSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.chat.getGroupConfigForChat({ principal: ctx.auth, ...input }),
+    ),
+  setGroupConfig: authedProcedure
+    .input(setGroupConfigSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setGroupConfig({ principal: ctx.auth, ...input }),
     ),
   // The chat-ROW lifecycle cluster (J5 — the LIST-panel row kebab). Thin pass-throughs; host-only INSIDE.
   updateTitle: authedProcedure

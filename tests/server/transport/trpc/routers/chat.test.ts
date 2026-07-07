@@ -1119,3 +1119,39 @@ describe("chat.delete — the LIST-row delete verb (J5 wire-through, host-only)"
     });
   });
 });
+
+describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-through (domain-ahead-of-transport)", () => {
+  test("setGroupConfig: a thin pass-through — chatId + the PARSED config reach the verb with the Principal", async () => {
+    const setGroupConfig = vi.fn<ChatService["setGroupConfig"]>(async () => DEFAULT_GROUP_CONFIG);
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { setGroupConfig } },
+    });
+    await caller(ctx).chat.setGroupConfig({
+      chatId: CHAT,
+      config: { output: "narrator", policy: "natural" },
+    });
+    expect(setGroupConfig).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      // The wire `groupConfigSchema` fully-defaults the lenient input before the verb (narrator ⇒ speakerTags true).
+      config: expect.objectContaining({ output: "narrator", policy: "natural", speakerTags: true }),
+    });
+  });
+
+  test("getGroupConfig: a thin pass-through — chatId reaches the verb; the effective config returns", async () => {
+    const getGroupConfigForChat = vi.fn<ChatService["getGroupConfigForChat"]>(
+      async () => DEFAULT_GROUP_CONFIG,
+    );
+    const ctx = makeContext({
+      auth: principal("user", { userId: MEMBER }),
+      services: { chat: { getGroupConfigForChat } },
+    });
+    const result = await caller(ctx).chat.getGroupConfig({ chatId: CHAT });
+    expect(getGroupConfigForChat).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+    });
+    expect(result).toEqual(DEFAULT_GROUP_CONFIG);
+  });
+});

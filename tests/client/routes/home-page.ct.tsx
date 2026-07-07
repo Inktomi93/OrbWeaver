@@ -6,8 +6,9 @@
 // CONTENT to a seeded chat room. This is the §5.1 anti-jank seam proven without a real generation.
 //
 // tRPC is stubbed at the NETWORK (routeTrpc): `chat.listChats` (the docked LIST panel + the landing
-// recents) + `character.list` (the library + the landing quick-picks). No `chat.listMessages` stub is
-// needed — every chat reached here is a DRAFT (no server row), so the transcript never reads the server.
+// recents) + `character.list` (the library + the landing quick-picks) + `character.get` (a seeded draft
+// previews each founding character's greeting as an editable row, J2/J3 — it reads the founding CARD, but
+// never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../packages/client/src/lib/test-ids";
@@ -41,7 +42,16 @@ test("picking a character in the library starts a chat with it (the library→ch
   mount,
   page,
 }) => {
-  await routeTrpc(page, { "chat.listChats": [], "character.list": ONE_CHARACTER });
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": ONE_CHARACTER,
+    // The seeded draft reads Aria's card to preview her greeting as the opening row (J2/J3).
+    "character.get": {
+      id: "char_home_aria",
+      name: "Aria Nightshade",
+      greetings: ["The night market hums."],
+    },
+  });
 
   const component = await mount(<HomePageStory />);
 
@@ -55,7 +65,8 @@ test("picking a character in the library starts a chat with it (the library→ch
   await page.getByRole("button", { name: "Start chat with Aria Nightshade", exact: true }).click();
 
   // The route (the sole store reader) navigated to the Chats section: the composer is back, on a fresh
-  // draft (empty transcript) seeded with Aria — ready for the first send to `startChat` with her.
+  // draft seeded with Aria — character-first, her greeting rendered as the opening row (not an empty void),
+  // ready for the first send to `startChat` with her.
   await expect(page.getByTestId(testId("composer"))).toBeVisible();
-  await expect(page.getByText("No messages yet.")).toBeVisible();
+  await expect(page.getByText("The night market hums.")).toBeVisible();
 });

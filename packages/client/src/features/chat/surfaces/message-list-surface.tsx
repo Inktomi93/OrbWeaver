@@ -24,9 +24,13 @@
 // `buildPersonaNameMap`, last-write-wins on a dup id) into the two lookup maps `resolveRowMacros`
 // (`@orb/kit/macro`) wants — covering every participant PLUS this page's own stamped ids (a
 // since-switched persona). The owner-scoped `persona.list` read is GONE: the member-gated producer
-// replaced it (that read was the cross-owner bug — Chat-Macro-Resolution.md). A draft (no committed
-// chatId) never reaches this component at all (see the discriminant gate below), so no roster read
-// happens for the empty-thread path.
+// replaced it (that read was the cross-owner bug — Chat-Macro-Resolution.md).
+//
+// THE DRAFT BRANCH (J2/J3): a draft has no committed chatId, so it never touches the canon/roster reads
+// above — but it is NOT an empty void. `DraftGreetingThread` reads only the FOUNDING cards (character.get)
+// and renders each character's greeting as a normal, editable `MessageRow` (synth-greeting-row.ts), with a
+// `{{char}}` producer built from those cards. Edit/Swipe on a greeting row route to the draft-config store
+// (the row's `greeting` binding), never a chat verb.
 //
 // READ-PATH NOTE (deviation flagged for the coordinator): the plan/§13.2 prescribe `useGatedQuery`, but
 // its `GatedOptions` type is INCOMPATIBLE with the current tRPC `queryOptions` return (TanStack v5.101
@@ -36,7 +40,7 @@
 
 import type { ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { MessageList } from "@orb/ui/message-list";
@@ -46,8 +50,8 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useChatBus, useTRPC } from "#data";
-import type { ChatHandle } from "#state";
-import { isCommitted, isLiveTurnPhase, useTurnPhase } from "#state";
+import type { ChatHandle, DraftSeed } from "#state";
+import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
@@ -59,6 +63,7 @@ import {
   resolveViewerActivePersonaId,
   resolveViewerUserId,
 } from "../lib/roster";
+import { synthGreetingRow } from "../lib/synth-greeting-row";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 96;
@@ -67,23 +72,45 @@ export interface MessageListSurfaceProps {
   readonly handle: ChatHandle;
   /** The reducer deps, assembled at the composition root (stream + invalidate + onWarning). */
   readonly busDeps: ChatBusDeps;
+  /** The new-chat seed (founding cast) — a DRAFT renders each founding character's greeting as a normal
+   *  message row from this (J2/J3), so a new chat is character-first, not a "No messages yet." void. */
+  readonly draftSeed?: DraftSeed | undefined;
   /** Navigate to a forked chat (threaded to each row's Fork action) — route maps it to `selectChat`. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
 }
 
-/** The scrolling chat transcript for one chat (or an empty draft). */
+/** The scrolling chat transcript for one chat (or a draft's editable greeting preview). */
 export function MessageListSurface({
   handle,
   busDeps,
+  draftSeed,
   onChatForked,
 }: MessageListSurfaceProps): ReactElement {
   const chatId = isCommitted(handle) ? handle.id : null;
   useChatBus(chatId, busDeps);
   const chatStyle = useChatStyle();
 
-  // Draft: no server row yet → no read, no live stream. The discriminant IS the gate.
+  // Draft: no server row yet → no canon read, no live stream (the discriminant IS the gate). But it is NOT
+  // an empty void — each founding character's greeting renders as a NORMAL, fully-editable message row
+  // (synth-greeting-row.ts), reading only the founding cards (character.get). A characterless draft (a
+  // narrator-only room) has no greeting to show → the empty state.
   if (chatId === null) {
-    return <EmptyThread />;
+    const characterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+    if (handle.kind !== "draft" || characterIds.length === 0) {
+      return <EmptyThread />;
+    }
+    return (
+      <QueryBoundary
+        fallback={<LoadingRows />}
+        renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+      >
+        <DraftGreetingThread
+          draftKey={handle.draftKey}
+          characterIds={characterIds}
+          chatStyle={chatStyle}
+        />
+      </QueryBoundary>
+    );
   }
   return (
     <QueryBoundary
@@ -183,6 +210,76 @@ function findLastAssistantId(messages: readonly MessageView[]): MessageView["id"
     }
   }
   return null;
+}
+
+interface DraftGreetingThreadProps {
+  readonly draftKey: string;
+  readonly characterIds: readonly CharacterId[];
+  readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
+}
+
+/** A draft's editable greeting preview — one NORMAL `MessageRow` per founding character, in greet-all
+ *  order (mirrors the server's default opening policy: solo ⇒ first-message, group ⇒ greet-all). Reads
+ *  only the founding cards (`character.get`) — a draft has no server roster — and builds the `{{char}}`
+ *  producer from them so macros resolve live. The shown text = the draft's edited/swiped greeting ?? the
+ *  card's `greetings[0]`; each row's Edit/Swipe route to the draft-config store (the `greeting` binding). */
+function DraftGreetingThread({
+  draftKey,
+  characterIds,
+  chatStyle,
+}: DraftGreetingThreadProps): ReactElement {
+  const trpc = useTRPC();
+  const draftConfig = useDraftConfig(draftKey);
+  const messageAppearance = useMessageAppearance();
+  const characters = useSuspenseQueries({
+    queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
+  });
+  // The `{{char}}` producer from the founding cast (no server roster for a draft); persona names are
+  // empty pre-commit, so `{{user}}` falls to the kit's "User" floor (never a literal `{{user}}`).
+  const characterNamesById = buildCharacterNameMap(
+    characters.map((c) => ({ id: c.data.id, name: c.data.name })),
+  );
+  const personaNamesById = buildPersonaNameMap([]);
+
+  // One row per founding character with a non-blank greeting; a blank/greeting-less card contributes none.
+  const rows = characters.flatMap((c, i) => {
+    const character = c.data;
+    const shown = draftConfig.greetings?.[character.id] ?? character.greetings[0] ?? "";
+    return shown.length === 0 ? [] : [{ character, row: synthGreetingRow(character.id, shown, i) }];
+  });
+
+  if (rows.length === 0) {
+    return <DraftGreetingEmpty names={characters.map((c) => c.data.name)} />;
+  }
+  return (
+    <Stack gap="block" padding="section" className="h-full overflow-y-auto">
+      {rows.map(({ character, row }) => (
+        <MessageRow
+          key={character.id}
+          message={row}
+          chatStyle={chatStyle}
+          avatarSize={messageAppearance.avatarSize}
+          avatarShape={messageAppearance.avatarShape}
+          showInChatAvatars={messageAppearance.showInChatAvatars}
+          characterNamesById={characterNamesById}
+          personaNamesById={personaNamesById}
+          greeting={{ draftKey, characterId: character.id, variants: character.greetings }}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+/** A characterful draft whose cast has no opening yet — the composer below is the next step (§4.3 rule 1). */
+function DraftGreetingEmpty({ names }: { readonly names: readonly string[] }): ReactElement {
+  const label = names.filter((n) => n.length > 0).join(", ");
+  return (
+    <Stack align="center" justify="center" padding="section" className="h-full">
+      <Text tone="muted">
+        {label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}
+      </Text>
+    </Stack>
+  );
 }
 
 /** The empty-transcript state (a draft, or a committed chat with no messages). */

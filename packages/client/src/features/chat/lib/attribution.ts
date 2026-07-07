@@ -10,13 +10,15 @@
 //    misattribute a merged/narrator turn to whichever character happens to be first in the map).
 //  - USER rows resolve `message.personaId` (the correct historical author across a mid-chat persona
 //    switch) against the SAME producer's `personaNamesById`, falling back to `activePersonaId` (the
-//    viewing participant's CURRENT persona, §4) for legacy rows with a null `personaId`. No avatar:
-//    the producer is names-only and the owner-scoped `persona.list` read that used to supply one is
-//    gone (Chat-Macro-Resolution.md — that read was the cross-owner bug); a persona row renders its
-//    initials fallback until a member-gated persona-avatar surface exists.
-//  - SYSTEM rows and any id that doesn't resolve in the supplied roster render NO attribution chrome
-//    (this is also the solo-chat default when no roster/producer is threaded at all — `participants`/
-//    `characterNamesById`/`personaNamesById` degrade gracefully to "nothing resolves").
+//    viewing participant's CURRENT persona, §4) for legacy rows with a null `personaId`. When NO persona
+//    resolves (none selected — the DB may hold none, personas are user-authored + never seeded) the row
+//    still labels as "You" (the viewer's own message is always self-attributable — `DEFAULT_USER_ATTRIBUTION`),
+//    never bare. This chrome is DISTINCT from the `{{user}}` MACRO, which floors to "User" generically
+//    through the kit engine. No avatar image yet (the producer is names-only; persona avatars await the
+//    asset-URL resolver #67) — the initials fallback stands in.
+//  - SYSTEM rows and an ASSISTANT id that doesn't resolve in the supplied roster render NO attribution
+//    chrome (the solo-chat default when no character producer is threaded — `participants`/
+//    `characterNamesById` degrade gracefully to "nothing resolves"). USER rows never go bare (above).
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
@@ -41,6 +43,12 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
   avatarAssetId: null,
   tokens: null,
 };
+/** The viewer's OWN row when no persona is selected (the DB may genuinely hold none — personas are
+ *  user-authored, never seeded). A user message is always self-attributable, so it labels as "You"
+ *  (+ its initials-fallback avatar) rather than rendering bare — distinct from the `{{user}}` MACRO,
+ *  which is a generic macro that floors to "User" through the kit engine (not this chrome). Persona
+ *  avatar IMAGES await the asset-URL resolver (#67); initials until then. */
+const DEFAULT_USER_ATTRIBUTION: RowAttribution = { name: "You", avatarAssetId: null, tokens: null };
 
 export interface ResolveRowAttributionInput {
   readonly role: MessageRole;
@@ -74,7 +82,7 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   const personaId = input.personaId ?? input.activePersonaId ?? null;
   const persona = personaId === null ? undefined : input.personaNamesById?.get(personaId);
   if (persona === undefined) {
-    return NO_ATTRIBUTION;
+    return DEFAULT_USER_ATTRIBUTION; // no persona selected → the viewer's own row still labels ("You")
   }
   return { name: persona.name, avatarAssetId: null, tokens: null };
 }
