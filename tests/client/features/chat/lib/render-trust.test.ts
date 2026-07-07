@@ -34,6 +34,7 @@ function participant(
     displayName: "Speaker",
     handle: null,
     avatarAssetId: null,
+    avatarHash: null,
     ...(renderPolicy === undefined ? {} : { renderPolicy }),
   };
   return new Map([[characterId, view]]);

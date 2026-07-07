@@ -14,8 +14,10 @@
 //    resolves (none selected — the DB may hold none, personas are user-authored + never seeded) the row
 //    still labels as "You" (the viewer's own message is always self-attributable — `DEFAULT_USER_ATTRIBUTION`),
 //    never bare. This chrome is DISTINCT from the `{{user}}` MACRO, which floors to "User" generically
-//    through the kit engine. No avatar image yet (the producer is names-only; persona avatars await the
-//    asset-URL resolver #67) — the initials fallback stands in.
+//    through the kit engine. The avatar IMAGE comes from `personaAvatarsById` — a SEPARATE producer from
+//    `personaNamesById` (Chat-Macro-Resolution.md §1: names-only, never denormalized with display fields;
+//    `@orb/contracts/chat` `PersonaAvatarEntry`/`buildPersonaAvatarMap`, #67) — the initials fallback
+//    stands in only when that producer has no hash for the resolved persona.
 //  - SYSTEM rows and an ASSISTANT id that doesn't resolve in the supplied roster render NO attribution
 //    chrome (the solo-chat default when no character producer is threaded — `participants`/
 //    `characterNamesById` degrade gracefully to "nothing resolves"). USER rows never go bare (above).
@@ -31,6 +33,10 @@ export interface RowAttribution {
   /** `null` = render no attribution chrome. */
   readonly name: string | null;
   readonly avatarAssetId: AssetId | null;
+  /** The avatar's CAS hash (`blobUrl(avatarHash)` is the renderable `<img src>`) — `null` renders the
+   *  initials fallback. Character rows: `ParticipantView.avatarHash` (roster-scoped). User/persona rows:
+   *  `personaAvatarsById` (a producer separate from `avatarAssetId`'s SOURCE — see the file header). */
+  readonly avatarHash: string | null;
   /** The per-speaker theme tokens for the row's bubble (`null` for user rows and unresolved rows — the
    *  per-role bubble token carries the identity there). Layer 3: the character's AUTHORED `themeOverride`
    *  when set (unset fields inherit the global scope via CSS cascade — `<ThemeScope>` only emits present
@@ -39,19 +45,29 @@ export interface RowAttribution {
   readonly tokens: ThemeScopeTokens | null;
 }
 
-const NO_ATTRIBUTION: RowAttribution = { name: null, avatarAssetId: null, tokens: null };
+const NO_ATTRIBUTION: RowAttribution = {
+  name: null,
+  avatarAssetId: null,
+  avatarHash: null,
+  tokens: null,
+};
 /** A null `characterId` in a multi-character room — a real, neutral identity, not "unknown". */
 const NARRATOR_ATTRIBUTION: RowAttribution = {
   name: "Narrator",
   avatarAssetId: null,
+  avatarHash: null,
   tokens: null,
 };
 /** The viewer's OWN row when no persona is selected (the DB may genuinely hold none — personas are
  *  user-authored, never seeded). A user message is always self-attributable, so it labels as "You"
  *  (+ its initials-fallback avatar) rather than rendering bare — distinct from the `{{user}}` MACRO,
- *  which is a generic macro that floors to "User" through the kit engine (not this chrome). Persona
- *  avatar IMAGES await the asset-URL resolver (#67); initials until then. */
-const DEFAULT_USER_ATTRIBUTION: RowAttribution = { name: "You", avatarAssetId: null, tokens: null };
+ *  which is a generic macro that floors to "User" through the kit engine (not this chrome). */
+const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
+  name: "You",
+  avatarAssetId: null,
+  avatarHash: null,
+  tokens: null,
+};
 
 export interface ResolveRowAttributionInput {
   readonly role: MessageRole;
@@ -65,6 +81,9 @@ export interface ResolveRowAttributionInput {
    *  badge's name and the row's `{{char}}`/`{{user}}` macro subject. */
   readonly characterNamesById?: ReadonlyMap<CharacterId, RowCharacterName> | undefined;
   readonly personaNamesById?: ReadonlyMap<PersonaId, RowPersonaName> | undefined;
+  /** The persona AVATAR-chrome producer (`@orb/contracts/chat` `buildPersonaAvatarMap`) — SEPARATE from
+   *  `personaNamesById` (names-only, §1). Supplies the USER-row avatar image. */
+  readonly personaAvatarsById?: ReadonlyMap<PersonaId, string | null> | undefined;
   /** The viewing participant's currently active persona — the fallback for legacy rows with a null
    *  `personaId` (Chat-Macro-Resolution.md §4; never the chat's `anchorPersonaId` pin). */
   readonly activePersonaId?: PersonaId | null | undefined;
@@ -87,7 +106,9 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   if (persona === undefined) {
     return DEFAULT_USER_ATTRIBUTION; // no persona selected → the viewer's own row still labels ("You")
   }
-  return { name: persona.name, avatarAssetId: null, tokens: null };
+  const avatarHash =
+    (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
+  return { name: persona.name, avatarAssetId: null, avatarHash, tokens: null };
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
@@ -105,6 +126,7 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   return {
     name,
     avatarAssetId: participant?.avatarAssetId ?? null,
+    avatarHash: participant?.avatarHash ?? null,
     tokens,
   };
 }

@@ -6,15 +6,16 @@
 //
 // THE FULL J3 IDENTITY HEADER (L4): a lead avatar (solo) or an `@orb/ui/avatar-stack` (a group of
 // characters) · the chat title · a participant-count chip · the ⋯ `ChatOptionsMenu` (J6 chat-level
-// actions). Avatars stay initials-only — the roster carries `avatarAssetId` but no client asset-URL
-// resolver exists yet (#67/#21), so fabricating an image src would be invention (the AvatarStack `src`
-// is deliberately omitted → its initials fallback). There is NO "scene"/description field anywhere in
-// the chat data model, so the chip is an honest participant COUNT, never a fabricated scene label.
+// actions). Avatars render real images via `ParticipantView.avatarHash`/`blobUrl` (#67) with initials as
+// the load-failure/missing-avatar fallback (`Avatar`'s built-in behavior — never a manual branch here).
+// There is NO "scene"/description field anywhere in the chat data model, so the chip is an honest
+// participant COUNT, never a fabricated scene label.
 //
 // SHARED-CACHE, NON-SUSPENSE (the ChatCastBar precedent): reads the SAME `chat.getChat` query the room
 // already suspends on (usually warm), via a plain `useQuery` so the always-present topbar never suspends
 // on its own account — it degrades to a neutral title until the cache populates.
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
@@ -84,9 +85,9 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   );
 }
 
-/** One avatar for a solo cast; an overlapping `AvatarStack` for a group (initials-only — no asset-URL
- *  resolver yet, #67/#21); nothing for an empty cast (an assistant-style chat). Split out to keep the
- *  header's render a flat expression (no nested ternary). */
+/** One avatar for a solo cast; an overlapping `AvatarStack` for a group; nothing for an empty cast (an
+ *  assistant-style chat). Real images via `avatarHash`/`blobUrl` (#67), initials as the Avatar's own
+ *  missing-image fallback. Split out to keep the header's render a flat expression (no nested ternary). */
 function CastAvatars({
   cast,
 }: {
@@ -95,17 +96,25 @@ function CastAvatars({
   if (cast.length === 0) {
     return null;
   }
-  if (cast.length === 1) {
+  const lead = cast[0];
+  if (cast.length === 1 && lead !== undefined) {
     return (
-      <Avatar size="sm" fallbackDelay={0}>
-        {initialsForAttribution(cast[0]?.displayName ?? "")}
+      <Avatar
+        size="sm"
+        fallbackDelay={0}
+        {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
+      >
+        {initialsForAttribution(lead.displayName)}
       </Avatar>
     );
   }
   return (
     <AvatarStack
       size="sm"
-      items={cast.map((c) => ({ name: c.displayName }))}
+      items={cast.map((c) => ({
+        name: c.displayName,
+        ...(c.avatarHash === null ? {} : { src: blobUrl(c.avatarHash) }),
+      }))}
       aria-label={`${cast.length} characters`}
     />
   );
@@ -126,12 +135,15 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
   const results = useQueries({
     queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
   });
-  const names = results.map((r) => r.data?.name ?? "");
-  const first = names[0]?.trim() ?? "";
+  const cast = results.map((r) => ({
+    name: r.data?.name ?? "",
+    avatarHash: r.data?.avatarHash ?? null,
+  }));
+  const first = cast[0]?.name.trim() ?? "";
   const title = first.length > 0 ? first : "New chat";
   return (
     <Row gap="row" align="center" className="min-w-0">
-      <DraftCastAvatars names={names} />
+      <DraftCastAvatars cast={cast} />
       <Text size="title" weight="semibold" className="truncate">
         {title}
       </Text>
@@ -139,24 +151,36 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
   );
 }
 
-/** The draft cast's avatar cluster — sourced from `character.get` NAMES (initials only; no asset-URL
- *  resolver yet, #67). Solo ⇒ one avatar; group ⇒ an `AvatarStack`; empty ⇒ nothing (a blank chat). */
-function DraftCastAvatars({ names }: { readonly names: readonly string[] }): ReactElement | null {
-  if (names.length === 0) {
+/** The draft cast's avatar cluster — sourced from `character.get` (name + avatarHash, #67). Solo ⇒ one
+ *  avatar; group ⇒ an `AvatarStack`; empty ⇒ nothing (a blank chat). */
+function DraftCastAvatars({
+  cast,
+}: {
+  readonly cast: readonly { readonly name: string; readonly avatarHash: string | null }[];
+}): ReactElement | null {
+  if (cast.length === 0) {
     return null;
   }
-  if (names.length === 1) {
+  const lead = cast[0];
+  if (cast.length === 1 && lead !== undefined) {
     return (
-      <Avatar size="sm" fallbackDelay={0}>
-        {initialsForAttribution(names[0] ?? "")}
+      <Avatar
+        size="sm"
+        fallbackDelay={0}
+        {...(lead.avatarHash === null ? {} : { src: blobUrl(lead.avatarHash) })}
+      >
+        {initialsForAttribution(lead.name)}
       </Avatar>
     );
   }
   return (
     <AvatarStack
       size="sm"
-      items={names.map((name) => ({ name }))}
-      aria-label={`${names.length} characters`}
+      items={cast.map((c) => ({
+        name: c.name,
+        ...(c.avatarHash === null ? {} : { src: blobUrl(c.avatarHash) }),
+      }))}
+      aria-label={`${cast.length} characters`}
     />
   );
 }

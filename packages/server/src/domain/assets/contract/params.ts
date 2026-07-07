@@ -12,11 +12,12 @@ import type {
   GalleryAddParams as GalleryAddWireParams,
   GalleryListParams as GalleryListWireParams,
   ListOwnedParams as ListOwnedWireParams,
+  VariantKind,
 } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { GalleryItemId } from "@orb/kit/ids";
 
-export type { AssetKind } from "@orb/contracts/assets";
+export type { AssetKind, VariantKind } from "@orb/contracts/assets";
 
 /** Common to every assets verb: the acting principal whose `userId` scopes ownership. */
 export interface AssetsActorParams {
@@ -55,6 +56,13 @@ export interface GetMetadataParams extends AssetsActorParams {
 export interface ResolveVariantParams extends AssetsActorParams {
   /** The CAS key (sha-256 hex) of the owned original to derive a variant from. */
   readonly hash: string;
-  /** The requested display width (px); snapped to the fixed ladder before any cache/transform. */
+  /** The requested display width (px); snapped to the fixed ladder (`icon` → `BLOB_WIDTHS`/
+   *  `snapBlobWidth`, `portrait` → `PORTRAIT_WIDTHS`/`snapPortraitWidth`, `substrate/variant-policy`)
+   *  before any cache/transform — `kind` selects the ladder. */
   readonly width: number;
+  /** Which ladder/crop to produce. `icon` is the existing width-only, any-aspect ladder; `portrait` is the
+   *  2:3 smart-cropped ladder (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4). Required — the blob
+   *  route always resolves it explicitly from `?v=`, so no caller silently falls through to the wrong
+   *  ladder. */
+  readonly kind: VariantKind;
 }

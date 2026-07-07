@@ -7,9 +7,10 @@
 // cache is reached, so the per-hash keyspace is bounded — an attacker can't stuff the disk by walking
 // `?w=1..10000`.
 //
-// D21 — PER-USER KEYED like the CAS: `<root>/<owner>/<ab>/<cd>/<hash>/w<width>.webp` (a per-hash DIRECTORY
-// so `removeAll(owner, hash)` — the GC/reap hook paired with `cas.remove` — is one recursive rm). webp-only
-// by design (the client `avatarUrl` hardcodes `f=webp`); other formats stay JIT in the route.
+// D21 — PER-USER KEYED like the CAS: `<root>/<owner>/<ab>/<cd>/<hash>/w<width>.webp` for the `icon` kind,
+// `…/<hash>/portrait-w<width>.webp` for `portrait` (a per-hash DIRECTORY so `removeAll(owner, hash)` — the
+// GC/reap hook paired with `cas.remove` — is one recursive rm regardless of kind). webp-only by design (the
+// client `avatarUrl` hardcodes `f=webp`); other formats stay JIT in the route.
 //
 // This is a CACHE, not canon: every entry is reproducible from the CAS original, so writes are atomic
 // (a temp under the same filesystem → rename, so a concurrent reader never sees a torn file) but NOT
@@ -20,16 +21,27 @@ import { randomBytes } from "node:crypto";
 import type { FileHandle } from "node:fs/promises";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
+import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
+
+/** Which variant of a blob — `kind` (the ONE `VariantKind` union home, `@orb/contracts/assets` —
+ *  `no-inline-union-redecl`) + the already-snapped `width` folded into one arg (keeps `read`/`put` under
+ *  the `useMaxParams` ceiling). `kind` keeps the portrait ladder's `w200`/`w400` rungs from colliding with
+ *  the icon ladder's same-numbered rungs — two different crops at the same width are two different
+ *  cache entries. */
+export interface VariantKey {
+  readonly kind: VariantKind;
+  readonly width: number;
+}
 
 /** The derived-variant cache handle; `entry/` wires `createVariantCache` into the blob route +
  *  the assets service's GC/reap paths (the sibling seam to `Cas` in `./cas`). Per-user (D21). */
 export interface VariantCache {
-  /** Cached webp bytes for `(owner, hash, width)`, or undefined on miss (or unreadable — recompute). */
-  read: (ownerId: UserId, hash: string, width: number) => Promise<Uint8Array | undefined>;
+  /** Cached webp bytes for `(owner, hash, variant)`, or undefined on miss (or unreadable — recompute). */
+  read: (ownerId: UserId, hash: string, variant: VariantKey) => Promise<Uint8Array | undefined>;
   /** Persist a computed variant. Atomic; best-effort durability (it's a cache). */
-  put: (ownerId: UserId, hash: string, width: number, bytes: Uint8Array) => Promise<void>;
+  put: (ownerId: UserId, hash: string, variant: VariantKey, bytes: Uint8Array) => Promise<void>;
   /** Drop every variant of a blob — the GC/reap hook, paired with `cas.remove(owner, hash)`. */
   removeAll: (ownerId: UserId, hash: string) => Promise<void>;
 }
@@ -59,26 +71,31 @@ export function createVariantCache(rootDir: string): VariantCache {
     );
   }
 
-  function variantPath(ownerId: UserId, hash: string, width: number): string {
-    if (!Number.isInteger(width) || width <= 0) {
-      throw new Error(`variant-cache: invalid width ${width}`);
+  // `kind` folds into the FILENAME, not a subdirectory — the icon and portrait ladders share one
+  // per-hash directory (so `removeAll` still drops both with one recursive rm) but never collide on
+  // width, since `w400.webp` (icon) and `portrait-w400.webp` (portrait) are different files.
+  function variantPath(ownerId: UserId, hash: string, variant: VariantKey): string {
+    if (!Number.isInteger(variant.width) || variant.width <= 0) {
+      throw new Error(`variant-cache: invalid width ${variant.width}`);
     }
-    return join(hashDir(ownerId, hash), `w${width}.webp`);
+    const filename =
+      variant.kind === "icon" ? `w${variant.width}.webp` : `${variant.kind}-w${variant.width}.webp`;
+    return join(hashDir(ownerId, hash), filename);
   }
 
   return {
-    read(ownerId, hash, width): Promise<Uint8Array | undefined> {
+    read(ownerId, hash, variant): Promise<Uint8Array | undefined> {
       // Best-effort lookup: a miss, an unreadable file, OR a malformed key (the `variantPath` guard
       // throwing inside the `.then`) all resolve to undefined — the caller recomputes from the CAS
       // original. The `.then` wrapper turns `variantPath`'s synchronous throw into a rejection the
       // `.catch` swallows (the `() => undefined` idiom, as in infra/network/egress).
       return Promise.resolve()
-        .then(() => readFile(variantPath(ownerId, hash, width)))
+        .then(() => readFile(variantPath(ownerId, hash, variant)))
         .catch(() => undefined);
     },
 
-    async put(ownerId, hash, width, bytes): Promise<void> {
-      const dest = variantPath(ownerId, hash, width);
+    async put(ownerId, hash, variant, bytes): Promise<void> {
+      const dest = variantPath(ownerId, hash, variant);
       await mkdir(hashDir(ownerId, hash), { recursive: true });
       await mkdir(tmpDir, { recursive: true });
       const tmpPath = join(tmpDir, `${randomBytes(TMP_SUFFIX_BYTES).toString("hex")}.tmp`);

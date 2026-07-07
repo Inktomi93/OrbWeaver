@@ -19,6 +19,7 @@ import type {
   MessageView,
   OpeningPolicy,
   ParticipantView,
+  PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { ChatId, ChatInjectionId, MessageVariantId, WorldEntryId } from "@orb/kit/ids";
@@ -30,6 +31,7 @@ export type {
   InviteView,
   MessageView,
   ParticipantView,
+  PersonaAvatarEntry,
   SectionPreview,
 } from "@orb/contracts/chat";
 
@@ -81,6 +83,11 @@ export interface ChatDetail {
    *  since-switched persona) — `listMessages`'s `MessagesPage.macroNames` covers that half; the client
    *  merges both as it paginates back. */
   readonly macroNames: ChatMacroNameProducer;
+  /** The persona AVATAR-chrome producer (`persistence/roster-avatars.ts`) — the participant-scoped floor,
+   *  SAME merge contract as `macroNames` (this field ∪ `MessagesPage.personaAvatars`, last-write-wins) but
+   *  a separate array (§1: never folded into the names-only `macroNames`). The client rebuilds it via
+   *  `@orb/contracts/chat`'s `buildPersonaAvatarMap` for `resolveRowAttribution`'s USER-row avatar. */
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
 }
 
 /** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`
@@ -91,6 +98,8 @@ export interface ChatDetail {
 export interface MessagesPage {
   readonly messages: readonly MessageView[];
   readonly macroNames: ChatMacroNameProducer;
+  /** This page's own loaded rows' `personaId`-stamp coverage — see {@link ChatDetail.personaAvatars}. */
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
 }
 
 /** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor

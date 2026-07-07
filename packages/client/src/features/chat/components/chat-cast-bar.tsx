@@ -14,6 +14,7 @@
 // non-suspense `useQuery` degrades to `null` until the cache is populated (a glance strip need not
 // suspend the whole room); the room only mounts this for a COMMITTED chat (a draft has no server roster).
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
@@ -83,7 +84,11 @@ export function ChatCastBar({ chatId }: ChatCastBarProps): ReactElement | null {
           data-muted={member.disabled ? "" : undefined}
           className={cn(member.disabled && "opacity-50")}
         >
-          <Avatar size="sm" fallbackDelay={0}>
+          <Avatar
+            size="sm"
+            fallbackDelay={0}
+            {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}
+          >
             {initialsForAttribution(member.displayName)}
           </Avatar>
           <Text as="span" size="label" weight="medium" tone={member.disabled ? "muted" : undefined}>

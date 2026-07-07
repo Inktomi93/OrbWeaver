@@ -18,7 +18,7 @@ import type { ParticipantKind } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatParticipants, chats, users } from "@orb/db";
+import { assets, characters, chatParticipants, chats, personas, users } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
@@ -27,6 +27,7 @@ import type {
   ExternalId,
   GalleryItemId,
   Handle,
+  PersonaId,
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -94,13 +95,14 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .limit(1);
       return rows.length > 0;
     },
-    // PD-107 roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl) so the
-    // security property — a rostered character's avatar in a chat the caller is present in, NOT a bare hash
-    // oracle — is exercised against the real seeded DB, not a fake.
+    // PD-107 roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl,
+    // `entry/compose/services.ts`) so the security property — a rostered character's OR a co-participant
+    // human's PERSONA avatar in a chat the caller is present in, NOT a bare hash oracle — is exercised
+    // against the real seeded DB, not a fake.
     loadCoParticipantOwner: async (callerId: UserId, hash: string): Promise<UserId | undefined> => {
       const rosterChar = alias(chatParticipants, "roster_char");
       const callerSeat = alias(chatParticipants, "caller_seat");
-      const rows = await db
+      const characterRows = await db
         .select({ ownerId: assets.ownerId })
         .from(assets)
         .innerJoin(characters, eq(characters.avatarAssetId, assets.id))
@@ -122,7 +124,35 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         )
         .where(eq(assets.hash, hash))
         .limit(1);
-      return rows[0]?.ownerId;
+      if (characterRows[0] !== undefined) {
+        return characterRows[0].ownerId;
+      }
+
+      const personaSeat = alias(chatParticipants, "persona_seat");
+      const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
+      const personaRows = await db
+        .select({ ownerId: assets.ownerId })
+        .from(assets)
+        .innerJoin(personas, eq(personas.avatarAssetId, assets.id))
+        .innerJoin(
+          personaSeat,
+          and(
+            eq(personaSeat.activePersonaId, personas.id),
+            eq(personaSeat.kind, "human"),
+            isNull(personaSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          personaCallerSeat,
+          and(
+            eq(personaCallerSeat.chatId, personaSeat.chatId),
+            eq(personaCallerSeat.userId, callerId),
+            isNull(personaCallerSeat.leftSeq),
+          ),
+        )
+        .where(eq(assets.hash, hash))
+        .limit(1);
+      return personaRows[0]?.ownerId;
     },
   };
   return {
@@ -227,6 +257,8 @@ interface SeedParticipantOverrides {
   readonly role?: ParticipantRole;
   /** Set to mark the participant as DEPARTED (the present-membership gate keys on `leftSeq IS NULL`). */
   readonly leftSeq?: number;
+  /** A human seat's CURRENT persona (the PD-107 persona-sibling reference-check gates on this). */
+  readonly activePersonaId?: PersonaId;
 }
 
 /** Insert a `chat_participants` row of the given `kind` (human/agent → userId, character → characterId).
@@ -248,6 +280,7 @@ export async function seedParticipant(
     joinedAt: FROZEN_AT,
     joinSeq: 0,
     leftSeq: overrides.leftSeq,
+    activePersonaId: overrides.activePersonaId,
   });
 }
 
@@ -258,4 +291,35 @@ export async function setCharacterAvatar(
   avatarAssetId: AssetId,
 ): Promise<void> {
   await db.update(characters).set({ avatarAssetId }).where(eq(characters.id, characterId));
+}
+
+interface SeedPersonaOverrides {
+  readonly id?: string;
+  readonly name?: string;
+}
+
+/** Insert a minimal `personas` row owned by `ownerId` (the PD-107 persona-sibling reference-check target).
+ *  Only the notNull/no-default columns are supplied. Returns the branded id. */
+export async function seedPersona(
+  db: Db,
+  ownerId: UserId,
+  overrides: SeedPersonaOverrides = {},
+): Promise<PersonaId> {
+  const id = castId<PersonaId>(overrides.id ?? `persona_${overrides.name ?? "x"}`);
+  await db.insert(personas).values({
+    id,
+    ownerId,
+    name: overrides.name ?? "Test Persona",
+    description: "",
+  });
+  return id;
+}
+
+/** Point a persona's `avatarAssetId` at a stored asset id (the D21 reference the check gates on). */
+export async function setPersonaAvatar(
+  db: Db,
+  personaId: PersonaId,
+  avatarAssetId: AssetId,
+): Promise<void> {
+  await db.update(personas).set({ avatarAssetId }).where(eq(personas.id, personaId));
 }

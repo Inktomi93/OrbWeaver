@@ -66,6 +66,7 @@ async function loadParticipantViews(chatId: ChatId): Promise<readonly Participan
     displayName: r.userId ?? r.characterId ?? "",
     handle: r.userId === null ? null : castId<Handle>(r.userId),
     avatarAssetId: null,
+    avatarHash: null,
   }));
 }
 

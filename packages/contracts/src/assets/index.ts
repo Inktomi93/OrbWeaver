@@ -43,6 +43,21 @@ export const assetKindSchema = z.enum(ASSET_KINDS);
 
 export type AssetKind = z.infer<typeof assetKindSchema>;
 
+// ── The variant KIND axis (ONE home; the `?v=` blob-route query param + the domain ladder selector +
+//    the client URL builder all derive from this tuple) ────────────────────────────────────────────────
+
+/** The variant kinds `/api/blob/:hash` can produce. `icon` (the floor — an omitted `?v=` defaults to it)
+ *  is the existing width-only ladder (`BLOB_WIDTHS`, any source aspect, no crop) for round/square avatar
+ *  chrome. `portrait` is the 2:3 smart-cropped (sharp `position:'attention'`, face-safe) variant for the
+ *  fixed-box VN/portrait immersive modes (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4) — its own
+ *  ladder (`domain/assets/substrate/variant-policy` `PORTRAIT_WIDTHS`) so it never collides with the icon
+ *  cache keyspace. */
+export const VARIANT_KINDS = ["icon", "portrait"] as const;
+
+export const variantKindSchema = z.enum(VARIANT_KINDS);
+
+export type VariantKind = z.infer<typeof variantKindSchema>;
+
 // ── The `/blob/<hash>` route contract (D21 owner-gated) ──────────────────────────────────────────────
 
 /** The app route prefix that serves a content-addressed blob. APP-gated (D21): the caller is resolved
@@ -58,6 +73,14 @@ export const BLOB_ROUTE = "/api/blob";
  *  size ladder) are a CLIENT concern layered on top of this canonical route. */
 export function blobUrl(hash: string): string {
   return `${BLOB_ROUTE}/${hash}`;
+}
+
+/** The URL for the `portrait` (2:3 smart-cropped) variant: `/api/blob/<hash>?v=portrait&w=<px>`. A
+ *  sibling to {@link blobUrl}, not an option bag on it — the existing 5 avatar call sites pass a bare
+ *  hash and must stay untouched; portrait is its own opt-in shape (client consumption is Phase 4 of
+ *  `FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4 — this helper only proves the route is reachable). */
+export function blobPortraitUrl(hash: string, width: number): string {
+  return `${BLOB_ROUTE}/${hash}?v=portrait&w=${width}`;
 }
 
 // ── The upload POST response (collapses the client's hand-redeclared `UploadedAsset`) ────────────────
@@ -80,6 +103,15 @@ export interface StoredAsset {
 export const assetIdSchema = typeIdSchema(ID_PREFIX.asset);
 /** A `character_…` TypeID — the gallery `subjectCharacterId` association ref. */
 export const characterIdSchema = typeIdSchema(ID_PREFIX.character);
+
+/** Parses {@link StoredAsset} — the client `uploadAsset` helper's response-boundary validator (the raw
+ *  `POST /api/assets/upload` JSON is untrusted until parsed, same posture as every other wire read). */
+export const storedAssetSchema = z.object({
+  assetId: assetIdSchema,
+  hash: z.string(),
+  size: z.number().int(),
+  created: z.boolean(),
+});
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
 export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem);
 

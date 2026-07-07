@@ -527,6 +527,16 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         },
         params,
       ),
+    // The `ParticipantView`/`MemberCardView`/persona-avatar-producer bridge — a bare id→hash lookup over
+    // the SAME un-principal `assetCasRefById` `resolveImageUrl` above uses for its by-id half (D20 posture:
+    // a hash is not a secret, the D21 owner-gate lives on the blob route's byte read, not here).
+    resolveAssetHash: async (assetId) => {
+      if (assetId === null) {
+        return null;
+      }
+      const ref = await input.assets.assetCasRefById(assetId);
+      return ref?.hash ?? null;
+    },
     // The producer (chat) passes the canon `BatchStmt[]` + the db + the delta; the chat op type erases the
     // batch to `unknown` (the contract keeps Batch generic), so the wrapper restores the concrete type.
     applyStatsDelta: (batch, opDb, delta) => {

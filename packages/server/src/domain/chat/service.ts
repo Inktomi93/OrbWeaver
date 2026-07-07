@@ -83,6 +83,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
         } else if (card?.avatarAssetId !== undefined && card.avatarAssetId !== null) {
           avatarAssetId = castId<AssetId>(card.avatarAssetId as string);
         }
+        const avatarHash = await ctx.resolveAssetHash(avatarAssetId);
 
         return {
           id: r.id,
@@ -102,6 +103,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
           handle: (publics?.handle as any) ?? null,
           avatarAssetId,
+          avatarHash,
           renderPolicy,
           themeOverride,
         };

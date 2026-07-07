@@ -38,6 +38,7 @@ function makeParticipant(overrides: Partial<ParticipantView> = {}): ParticipantV
     displayName: "Alice",
     handle: null,
     avatarAssetId: null,
+    avatarHash: null,
     ...overrides,
   };
 }

@@ -20,5 +20,6 @@ export type { AppMeta } from "./query-client";
 export { createAppQueryClient } from "./query-client";
 export type { Trpc } from "./trpc";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc";
+export { uploadAsset } from "./upload-asset";
 export { useGatedQuery } from "./use-gated-query";
 export { useInvalidation } from "./use-invalidation";

@@ -30,6 +30,7 @@
 // resolves against the producer, so the attribution badge and the macro subject agree by construction
 // (Chat-Macro-Resolution.md §0/§6).
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -85,6 +86,9 @@ export interface MessageRowProps {
    *  attribution badge's name and the row's `{{char}}`/`{{user}}` macro subject. */
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
+  /** The persona AVATAR-chrome producer (`lib/attribution` — separate from `personaNamesById`, §1
+   *  names-only) — the USER-row avatar image source. */
+  readonly personaAvatarsById?: ReadonlyMap<PersonaId, string | null> | undefined;
   /** The viewing participant's currently active persona id — the fallback subject for legacy USER rows
    *  with a null `personaId` (§4; never the chat's `anchorPersonaId` pin). */
   readonly activePersonaId?: PersonaId | null | undefined;
@@ -118,6 +122,12 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showTokenCount: false,
 };
 
+/** The omit-don't-pass-undefined `<Avatar src>` idiom (`exactOptionalPropertyTypes`), split out to keep
+ *  the row's render below the cognitive-complexity ceiling. */
+function avatarSrcProp(avatarHash: string | null): { src?: string } {
+  return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
+}
+
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
 export function MessageRow({
   message,
@@ -129,6 +139,7 @@ export function MessageRow({
   participants,
   characterNamesById,
   personaNamesById,
+  personaAvatarsById,
   activePersonaId,
   viewerUserId,
   onChatForked,
@@ -146,6 +157,7 @@ export function MessageRow({
     participants,
     characterNamesById,
     personaNamesById,
+    personaAvatarsById,
     activePersonaId,
   });
   // D44 §12.0 — the RESOLVED render policy (untrusted by default). This is THE per-message trust decision:
@@ -219,7 +231,12 @@ export function MessageRow({
       {attribution.name === null ? null : (
         <Row gap="field" align="center" data-slot="message-attribution">
           {showInChatAvatars ? (
-            <Avatar size={avatarSize} shape={avatarShape} fallbackDelay={0}>
+            <Avatar
+              size={avatarSize}
+              shape={avatarShape}
+              fallbackDelay={0}
+              {...avatarSrcProp(attribution.avatarHash)}
+            >
               {initialsForAttribution(attribution.name)}
             </Avatar>
           ) : null}

@@ -148,6 +148,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
     const listMessages = vi.fn<ChatService["listMessages"]>(async () => ({
       messages: [MESSAGE],
       macroNames: EMPTY_MACRO_NAMES,
+      personaAvatars: [],
     }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -162,7 +163,11 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
       beforeSeq: 10,
       limit: 20,
     });
-    expect(result).toEqual({ messages: [MESSAGE], macroNames: EMPTY_MACRO_NAMES });
+    expect(result).toEqual({
+      messages: [MESSAGE],
+      macroNames: EMPTY_MACRO_NAMES,
+      personaAvatars: [],
+    });
   });
 
   test("a non-member gets the leak-free NOT_FOUND the verb's requireParticipant gate throws (the getChat collapse)", async () => {
@@ -526,6 +531,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       createdAt: 0,
       updatedAt: 0,
       macroNames: EMPTY_MACRO_NAMES,
+      personaAvatars: [],
     },
   };
 
@@ -849,6 +855,7 @@ const PARTICIPANT: Awaited<ReturnType<ChatService["setParticipantDisabled"]>> = 
   displayName: "Aria",
   handle: null,
   avatarAssetId: null,
+  avatarHash: null,
 };
 
 describe("chat.setParticipantDisabled — the per-member mute/unmute setter (task #29 wire-through, host-only)", () => {

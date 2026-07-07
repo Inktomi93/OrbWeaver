@@ -36,6 +36,7 @@ import {
   assets as assetsTable,
   characters as charactersTable,
   chatParticipants,
+  personas as personasTable,
   users,
 } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
@@ -313,15 +314,18 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         .limit(1);
       return rows.length > 0;
     },
-    // PD-28 / D21 (amended 2026-07-02): the roster-avatar reference-check — NOT a hash→any-owner oracle
-    // (PD-107). Returns an owner ONLY IF `hash` is the asset-hash of the `avatarAssetId` of a CHARACTER
-    // that is rostered (`kind='character'`, present — `leftSeq IS NULL`) in a chat where `callerId` is a
-    // PRESENT member (`leftSeq IS NULL`). The join proves the asset IS that rostered character's avatar, so
-    // no bare-hash existence probe survives: a co-participant's non-avatar asset (card/export), a character
-    // in a chat the caller isn't in, and a left caller/character all miss. Returns `assets.ownerId` (NOT
-    // `characters.ownerId`) — the CAS bytes live in the ASSET owner's partition, so the downstream
-    // `metadataForOwnerAndHash`/`cas.read(ownerId, hash)` must key off the asset owner; this also removes any
-    // dependence on the unenforced `characters.ownerId === assets.ownerId` invariant. `undefined` otherwise.
+    // PD-28 / D21 (amended 2026-07-02, widened 2026-07-07 for multi-human group persona avatars): the
+    // roster-avatar reference-check — NOT a hash→any-owner oracle (PD-107). Returns an owner ONLY IF `hash`
+    // is the asset-hash of the `avatarAssetId` of EITHER (a) a CHARACTER rostered (`kind='character'`,
+    // present — `leftSeq IS NULL`) in a chat where `callerId` is a PRESENT member, OR (b) a PERSONA that is
+    // a present HUMAN participant's `activePersonaId` in a chat where `callerId` is ALSO a present member
+    // (the sibling case: a co-participant's OWN persona avatar in a shared group chat — without this arm a
+    // multi-human room's other members' persona avatars 404 and fall back to initials). Both arms are pure
+    // REFERENCE-checks (the join proves the asset IS that rostered identity's CURRENT avatar): a
+    // co-participant's non-avatar asset, an identity in a chat the caller isn't in, or a left caller/
+    // identity all miss on both arms. Returns `assets.ownerId` (NOT `characters.ownerId`/`personas.ownerId`)
+    // — the CAS bytes live in the ASSET owner's partition, so the downstream `metadataForOwnerAndHash`/
+    // `cas.read(ownerId, hash)` must key off the asset owner. `undefined` when neither arm matches.
     // SPRITE-SET EXTENSION POINT (PD-56, deferred): when `character_sprites` lands, D21's exception widens
     // from `avatarAssetId` to the sprite set — add a UNION arm joining `character_sprites.assetId = assets.id`
     // under the same rostered-character + present-caller gate. v1 constrains to `avatarAssetId` only.
@@ -330,7 +334,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       // `callerSeat` = the caller's own present membership of THAT SAME chat.
       const rosterChar = alias(chatParticipants, "roster_char");
       const callerSeat = alias(chatParticipants, "caller_seat");
-      const rows = await db
+      const characterRows = await db
         .select({ ownerId: assetsTable.ownerId })
         .from(assetsTable)
         .innerJoin(charactersTable, eq(charactersTable.avatarAssetId, assetsTable.id))
@@ -352,7 +356,37 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         )
         .where(eq(assetsTable.hash, hash))
         .limit(1);
-      return rows[0]?.ownerId;
+      if (characterRows[0] !== undefined) {
+        return characterRows[0].ownerId;
+      }
+
+      // Sibling persona arm: `personaSeat` = the OTHER human's present seat carrying this persona as their
+      // CURRENT `activePersonaId`; `personaCallerSeat` = the caller's own present membership of that chat.
+      const personaSeat = alias(chatParticipants, "persona_seat");
+      const personaCallerSeat = alias(chatParticipants, "persona_caller_seat");
+      const personaRows = await db
+        .select({ ownerId: assetsTable.ownerId })
+        .from(assetsTable)
+        .innerJoin(personasTable, eq(personasTable.avatarAssetId, assetsTable.id))
+        .innerJoin(
+          personaSeat,
+          and(
+            eq(personaSeat.activePersonaId, personasTable.id),
+            eq(personaSeat.kind, "human"),
+            isNull(personaSeat.leftSeq),
+          ),
+        )
+        .innerJoin(
+          personaCallerSeat,
+          and(
+            eq(personaCallerSeat.chatId, personaSeat.chatId),
+            eq(personaCallerSeat.userId, callerId),
+            isNull(personaCallerSeat.leftSeq),
+          ),
+        )
+        .where(eq(assetsTable.hash, hash))
+        .limit(1);
+      return personaRows[0]?.ownerId;
     },
   });
   const character = createCharacterService({

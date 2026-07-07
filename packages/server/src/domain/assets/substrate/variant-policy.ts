@@ -29,3 +29,37 @@ export function snapBlobWidth(requested: number): number | undefined {
   // Oversized ask → the top rung. The tuple is non-empty, so `.at(-1)` is always a number here.
   return BLOB_WIDTHS.at(-1);
 }
+
+// The portrait (2:3, face-safe smart-crop) variant ladder — a SEPARATE fixed (w,h) ladder, not a
+// width-only rung on `BLOB_WIDTHS`: the immersive VN/portrait avatar modes need a genuine crop (sharp
+// `fit:'cover', position:'attention'`, `infra/image`), never a stretch or an aspect-preserving resize
+// (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4). Same DoS-bounded-keyspace reasoning as
+// `BLOB_WIDTHS` (esoterica #2) — a small fixed set, never a caller-chosen height.
+// biome-ignore lint/style/noMagicNumbers: a fixed 2:3 display-size ladder; the literals are the data itself.
+export const PORTRAIT_WIDTHS = [200, 400] as const;
+const PORTRAIT_ASPECT_HEIGHT_OVER_WIDTH = 1.5; // 2:3 — height = width * 3/2
+
+/** `snapPortraitWidth`'s resolved `(width, height)` pair — an inline type, not an exported interface
+ *  (`types-in-contract` §7.4 reserves exported feature interfaces for `contract/`; this shape is only
+ *  ever consumed via return-type inference by its one caller, `verbs/resolve-variant.ts`). */
+function portraitSizeOf(width: number): { readonly width: number; readonly height: number } {
+  return { width, height: Math.round(width * PORTRAIT_ASPECT_HEIGHT_OVER_WIDTH) };
+}
+
+/** Snap a requested portrait width to `PORTRAIT_WIDTHS`, returning the full `(width, height)` pair (2:3,
+ *  derived — never a caller-supplied height, keeping the keyspace bounded like `snapBlobWidth`).
+ *  `undefined` for a non-finite/non-positive request — the caller 404s it. */
+export function snapPortraitWidth(
+  requested: number,
+): { readonly width: number; readonly height: number } | undefined {
+  if (!Number.isFinite(requested) || requested <= 0) {
+    return;
+  }
+  for (const width of PORTRAIT_WIDTHS) {
+    if (width >= requested) {
+      return portraitSizeOf(width);
+    }
+  }
+  // Oversized ask → the top rung. The tuple is non-empty, so `.at(-1)` is always a number here.
+  return portraitSizeOf(PORTRAIT_WIDTHS.at(-1) as number);
+}

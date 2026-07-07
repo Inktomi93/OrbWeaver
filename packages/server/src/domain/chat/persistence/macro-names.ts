@@ -28,24 +28,15 @@ import type { Db } from "@orb/db";
 import { characters, personas } from "@orb/db";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { inArray } from "drizzle-orm";
+import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
 
-/** A roster projection carrying the two participant-scoped macro ids (§1's "participants' personas/
- *  characters" half) — satisfied by `ParticipantView` and by a raw `chat_participants` row alike. */
-interface ParticipantMacroIdSource {
-  readonly characterId: CharacterId | null;
-  readonly activePersonaId: PersonaId | null;
-}
-
-/** A message-row projection carrying the two per-row macro STAMPS (§1's "any id a stored message carries"
- *  half) — satisfied by `MessageView` and by a raw `messages` row alike. */
-interface MessageMacroIdSource {
-  readonly characterId: CharacterId | null;
-  readonly personaId: PersonaId | null;
-}
+export type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
 
 /** Collect the DISTINCT `characterId`/`personaId` sets the producer must cover (§1), from whichever of the
- *  two optional sources the caller has loaded. Pure — no I/O; `loadChatMacroNameProducer` runs the query. */
-function collectMacroIds(args: {
+ *  two optional sources the caller has loaded. Pure — no I/O; `loadChatMacroNameProducer` runs the query.
+ *  EXPORTED: `persistence/roster-avatars.ts` (the persona-AVATAR producer sibling, kept a SEPARATE type/
+ *  file because the name producer is names-only, §1) reuses this for the identical coverage algorithm. */
+export function collectMacroIds(args: {
   readonly participants?: readonly ParticipantMacroIdSource[];
   readonly messages?: readonly MessageMacroIdSource[];
 }): { characterIds: CharacterId[]; personaIds: PersonaId[] } {

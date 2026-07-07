@@ -12,6 +12,7 @@ import { expect, test } from "../../../../../support/fixtures";
 
 const CHAR = castId<CharacterId>("character_aria");
 const AVATAR = castId<AssetId>("asset_aria");
+const AVATAR_HASH = "hash_aria";
 
 // A fully-populated canonical card — every clampable field set, so a null in the output means "clamped out".
 const FULL_CARD: CharacterCard = {
@@ -43,6 +44,7 @@ function clampAt(visibility: MemberCardVisibility): MemberCardView {
     card: FULL_CARD,
     tags: TAGS,
     lore: LORE,
+    avatarHash: AVATAR_HASH,
     visibility,
   });
 }
@@ -52,6 +54,7 @@ describe("clampMemberCard — each level reveals exactly its fields", () => {
     const v = clampAt("name-avatar");
     expect(v.name).toBe("Aria");
     expect(v.avatarAssetId).toBe(AVATAR);
+    expect(v.avatarHash).toBe(AVATAR_HASH);
     expect(v.description).toBeNull();
     expect(v.tags).toBeNull();
     expect(v.lore).toBeNull();
@@ -89,6 +92,8 @@ describe("clampMemberCard — each level reveals exactly its fields", () => {
     expect(v.authorsNoteDepth).toBe(4);
     expect(v.lore).toEqual(LORE);
     expect(v.tags).toEqual(TAGS);
+    // avatarHash is the always-present floor (never clamped by visibility) — same as avatarAssetId.
+    expect(v.avatarHash).toBe(AVATAR_HASH);
   });
 
   test("the projection echoes the level it was clamped to", () => {

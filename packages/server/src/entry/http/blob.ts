@@ -1,10 +1,12 @@
 // entry/http/blob — the binary blob-serve registrar (core/Tier-5-Entry.md §layout "blob.ts").
 // `GET /api/blob/:hash` serves an owned CAS blob; `?w=<px>` (the client always pairs it with
-// `f=webp`) serves a resized-webp variant. It composes the `assets` front door (the owner-gate
-// `getMetadata` + the `resolveVariant` snap→cache→transform pipeline, D6) with the `infra/storage` CAS
-// (the original bytes). Per D21 the route is OWNER-GATED, not unauthenticated — the caller's `Principal`
-// (resolved by `app.ts`'s auth middleware, read off the request context) scopes ownership; a blob the
-// caller doesn't own is indistinguishable from a missing one (both → 404, no foreign-existence leak).
+// `f=webp`) serves a resized-webp `icon` variant; `?v=portrait&w=<px>` serves the 2:3 smart-cropped
+// `portrait` variant (§B.4 — a genuinely different crop, not a bigger icon). It composes the `assets`
+// front door (the owner-gate `getMetadata` + the `resolveVariant` snap→cache→transform pipeline, D6) with
+// the `infra/storage` CAS (the original bytes). Per D21 the route is OWNER-GATED, not unauthenticated —
+// the caller's `Principal` (resolved by `app.ts`'s auth middleware, read off the request context) scopes
+// ownership; a blob the caller doesn't own is indistinguishable from a missing one (both → 404, no
+// foreign-existence leak).
 //
 // Why both `assets` AND `cas`: the assets front door owns the index + the variant pipeline, but exposes no
 // raw-original read (its user-facing surface is store/getMetadata/resolveVariant). The full-size
@@ -12,7 +14,8 @@
 // the gate (it owner-scopes + yields the stored mime) before any byte read. The width-snap policy + `sharp`
 // stay OUT of this tier — `resolveVariant` does both behind the front door (D6).
 
-import { BLOB_ROUTE } from "@orb/contracts/assets";
+import type { VariantKind } from "@orb/contracts/assets";
+import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { Hono } from "hono";
@@ -24,6 +27,9 @@ const WEBP_MIME = "image/webp";
 // Per-user cache (D21 — was neo's `public`): the response is scoped to one owner's session, immutable by
 // content-address (a hash never changes its bytes).
 const CACHE_CONTROL = "private, immutable";
+/** `icon` is the FLOOR: an omitted `?v=` (today's only client usage) means "the existing width-only
+ *  ladder" — never a breaking default swap. */
+const DEFAULT_VARIANT_KIND: VariantKind = "icon";
 
 /** The `assets` front-door slice the blob route consumes (the owner-gate + the variant pipeline).
  *  `getMetadata` returns `AssetMetadata` (may include `ownerId` for the PD-28 roster-avatar path). */
@@ -36,6 +42,7 @@ export interface BlobAssetsPort {
     readonly principal: Principal;
     readonly hash: string;
     readonly width: number;
+    readonly kind: VariantKind;
   }) => Promise<Uint8Array | undefined>;
 }
 
@@ -68,7 +75,11 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
 
     const widthRaw = c.req.query("w");
     if (widthRaw !== undefined) {
-      return serveVariant(deps, principal, hash, widthRaw);
+      return serveVariant(deps, principal, {
+        hash,
+        widthRaw,
+        kindRaw: c.req.query("v"),
+      });
     }
 
     const meta = await deps.assets.getMetadata({ principal, hash });
@@ -88,19 +99,32 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
   });
 }
 
+/** Parse the `?v=` variant-kind query value. Omitted ⇒ the `icon` floor (today's only client usage);
+ *  present-but-invalid ⇒ `undefined` — the caller 404s rather than silently falling back (an off-ladder/
+ *  typo'd kind must not resolve as something else, the same bounded-keyspace posture as the width snap). */
+function parseVariantKind(raw: string | undefined): VariantKind | undefined {
+  if (raw === undefined) {
+    return DEFAULT_VARIANT_KIND;
+  }
+  const parsed = variantKindSchema.safeParse(raw);
+  return parsed.success ? parsed.data : undefined;
+}
+
 /** Serve a resized-webp variant: snap width → cache → transform (all behind the front door). An
- *  off-ladder width, non-hash, or unowned blob all resolve to `undefined` → 404. */
+ *  off-ladder width, a malformed `?v=`, a non-hash, or an unowned blob all resolve to `undefined` → 404
+ *  (bounded keyspace — never a caller-chosen crop string reaching `imageTransform`). */
 async function serveVariant(
   deps: BlobDeps,
   principal: Principal,
-  hash: string,
-  widthRaw: string,
+  query: { readonly hash: string; readonly widthRaw: string; readonly kindRaw: string | undefined },
 ): Promise<Response> {
+  const { hash, widthRaw, kindRaw } = query;
   const width = Number(widthRaw);
-  if (!Number.isInteger(width) || width <= 0) {
+  const kind = parseVariantKind(kindRaw);
+  if (!Number.isInteger(width) || width <= 0 || kind === undefined) {
     return new Response(null, { status: NOT_FOUND });
   }
-  const variant = await deps.assets.resolveVariant({ principal, hash, width });
+  const variant = await deps.assets.resolveVariant({ principal, hash, width, kind });
   if (variant === undefined) {
     return new Response(null, { status: NOT_FOUND });
   }
