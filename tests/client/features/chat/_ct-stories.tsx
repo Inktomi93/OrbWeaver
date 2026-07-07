@@ -6,7 +6,7 @@
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
 
 import type { ChatBusDeps } from "@orb/client/data";
-import { createInvalidation, QueryBoundary, useTRPC } from "@orb/client/data";
+import { createInvalidation, useTRPC } from "@orb/client/data";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
   ChatContextPanel,
@@ -16,6 +16,7 @@ import {
   ChatRoomSurface,
   CommandPaletteSurface,
   Composer,
+  DraftContextPanel,
   MessageListSurface,
   MessageThreadAnchor,
   NewChatPicker,
@@ -36,7 +37,11 @@ import type {
   ParticipantView,
   PersonaNameEntry,
 } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import {
+  buildCharacterNameMap,
+  buildPersonaNameMap,
+  DEFAULT_GROUP_CONFIG,
+} from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -46,11 +51,13 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row";
+import { GroupConfigForm } from "../../../../packages/client/src/features/chat/components/group-config-form";
 import { MessageActionsRow } from "../../../../packages/client/src/features/chat/components/message-actions-row";
 import { MessageContent } from "../../../../packages/client/src/features/chat/components/message-content";
 import { MessageEditTextarea } from "../../../../packages/client/src/features/chat/components/message-edit-textarea";
 import { MessageRow } from "../../../../packages/client/src/features/chat/components/message-row";
 import { ReasoningBlock } from "../../../../packages/client/src/features/chat/components/reasoning-block";
+import type { RosterMember } from "../../../../packages/client/src/features/chat/components/roster-panel";
 import { RosterPanel } from "../../../../packages/client/src/features/chat/components/roster-panel";
 import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/components/speak-as-select";
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
@@ -625,15 +632,23 @@ function ChatListInner({ activeChatId }: { readonly activeChatId: string | null 
 /** The Chats-section LANDING surface (J1), wired to the real data layer (routeTrpc stubs
  *  `chat.listChats` + `character.list`). Records select / start-chat / new-chat / browse clicks into
  *  visible markers so a CT can assert the write-intent callbacks fire with the right id. */
-export function ChatLandingSurfaceStory(): ReactElement {
+export function ChatLandingSurfaceStory({
+  showRecents,
+}: {
+  readonly showRecents?: boolean;
+} = {}): ReactElement {
   return (
     <CtDataProviders>
-      <ChatLandingInner />
+      <ChatLandingInner showRecents={showRecents} />
     </CtDataProviders>
   );
 }
 
-function ChatLandingInner(): ReactElement {
+function ChatLandingInner({
+  showRecents,
+}: {
+  readonly showRecents: boolean | undefined;
+}): ReactElement {
   const [selected, setSelected] = useState("none");
   const [started, setStarted] = useState("none");
   const [newCount, setNewCount] = useState(0);
@@ -645,6 +660,7 @@ function ChatLandingInner(): ReactElement {
         onNewChat={(): void => setNewCount((n) => n + 1)}
         onSelect={(id): void => setSelected(id)}
         onStartChat={(id): void => setStarted(id)}
+        {...(showRecents === undefined ? {} : { showRecents })}
       />
       <p data-testid="selected">{selected}</p>
       <p data-testid="started">{started}</p>
@@ -738,6 +754,40 @@ export function ChatContextPanelStory(): ReactElement {
   );
 }
 
+/** The DRAFT CONTEXT panel (J2/J3) — the draft-config-backed twin of `ChatContextPanel`. No server reads:
+ *  the Overrides tab renders from `draftConfig` (keyed by this key) and writes to the draft-config store on
+ *  edit. The `.ct.tsx` asserts the tab + fields render and that editing lands in the store (no network). */
+export const DRAFT_CONTEXT_KEY = "draft-ct-context";
+export function DraftContextPanelStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 560 }}>
+        {/* An empty founding cast ⇒ the solo case (Overrides tab only; no Roster). The Roster tab is
+            covered by the pure `RosterPanelStory` below. */}
+        <DraftContextPanel draftKey={DRAFT_CONTEXT_KEY} characterIds={[]} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The group-config form (group-config-form.tsx, P3) as the PURE component it is — seeded with
+ *  `DEFAULT_GROUP_CONFIG`, the `.ct.tsx` drives controls and reads the last saved config off the
+ *  `group-config-saved` readout (immediate-commit; no network). */
+export function GroupConfigFormStory(): ReactElement {
+  const [saved, setSaved] = useState("");
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <div data-testid="group-config-saved">{saved}</div>
+        <GroupConfigForm
+          config={DEFAULT_GROUP_CONFIG}
+          onSave={(config): void => setSaved(JSON.stringify(config))}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 // ── Group-roster-controls stories (task #29) ────────────────────────────────────────────────────
 
 /** The read-only cast bar (chat-cast-bar.tsx) — the roster comes from the routeTrpc `chat.getChat`
@@ -756,19 +806,40 @@ export function ChatCastBarStory(): ReactElement {
   );
 }
 
-/** The Roster tab body (roster-panel.tsx) in isolation, inside a QueryBoundary (it suspends on the
- *  `chat.getChat` roster read — the same boundary `ChatContextPanel` wraps it in). The `.ct.tsx` stubs
- *  the roster + the three write verbs. */
-export function RosterPanelStory(): ReactElement {
+/** The Roster tab body (roster-panel.tsx) as the PURE component it now is — the `.ct.tsx` passes fixed
+ *  `members` and asserts the three write CALLBACKS fire (via the `roster-last-action` readout), no network.
+ *  `omitForceTurn` drops `onForceTurn` (the DRAFT case — a draft has no turn to force ⇒ no Zap button). */
+export interface RosterPanelStoryProps {
+  readonly omitForceTurn?: boolean;
+}
+export function RosterPanelStory({ omitForceTurn = false }: RosterPanelStoryProps): ReactElement {
+  const [lastAction, setLastAction] = useState("");
+  const members: RosterMember[] = [
+    {
+      characterId: castId<CharacterId>("character_aria"),
+      displayName: "Aria",
+      disabled: false,
+      talkativeness: 0.5,
+    },
+    {
+      characterId: castId<CharacterId>("character_bryn"),
+      displayName: "Bryn",
+      disabled: true,
+      talkativeness: 0.5,
+    },
+  ];
   return (
     <CtDataProviders>
       <div style={{ width: 360 }}>
-        <QueryBoundary
-          fallback={<span>loading…</span>}
-          renderError={(): ReactElement => <span>error</span>}
-        >
-          <RosterPanel chatId={CHAT_ID} />
-        </QueryBoundary>
+        <div data-testid="roster-last-action">{lastAction}</div>
+        <RosterPanel
+          members={members}
+          onSetDisabled={(id, disabled): void => setLastAction(`disabled:${id}:${disabled}`)}
+          onSetTalkativeness={(id, t): void => setLastAction(`talkativeness:${id}:${t}`)}
+          {...(omitForceTurn
+            ? {}
+            : { onForceTurn: (id: CharacterId): void => setLastAction(`force:${id}`) })}
+        />
       </div>
     </CtDataProviders>
   );

@@ -15,7 +15,9 @@ import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, subscribeUserMessageCommitted } from "#state";
+import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
+import type { DraftCarry } from "../lib/draft-commit";
+import { resolveDraftCommit } from "../lib/draft-commit";
 
 // `DraftSeed` now lives in `state/active-chat-store.ts` (state owns the seed like it owns `ChatHandle`
 // — one-directional flow). Re-exported here so this hook's own consumers (composer.tsx,
@@ -44,13 +46,15 @@ const useSendMutation = createEntityMutation<SendVars, unknown>({
   errorToast: "Couldn't send your message.",
 });
 
-interface StartChatVars {
+interface StartChatVars extends DraftCarry {
   // Mutable (matches the wire schema's inferred `z.array(...)` element type) — a `readonly` array
   // isn't assignable to it under `exactOptionalPropertyTypes`; callers still receive/hold `DraftSeed`
   // as `readonly` (below), copying into a fresh mutable array only at this one call boundary.
   characterIds: CharacterId[];
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
+  // The draft carry-params (seedGreetings/rosterOverrides/groupConfig/roomOverrides/injections) ride via
+  // `extends DraftCarry` — the P4 commit hands the draft-config edits into the ONE atomic creation.
 }
 
 /**
@@ -127,14 +131,22 @@ export function useSendMessage(opts: UseSendMessageOptions): UseSendMessageResul
     let unsubscribe: (() => void) | null = null;
     try {
       if (committedChatId === null) {
-        // Draft: no server row yet. Lazily create the room, then commit the typed text as its first send.
+        // Draft: no server row yet. Lazily create the room — CARRYING the draft's pre-send edits
+        // (greeting/roster/group/room-overrides/injections) into the ONE atomic creation (P4) — then
+        // commit the typed text as its first send. `clearDraftConfig` after: those edits now live on the
+        // created chat, so the transient draft-config entry is done (a discard would clear it too).
+        const { draftKey, characterIds, carry } = resolveDraftCommit(opts.handle, opts.draftSeed);
         const result = await startChatMutation.mutateAsync({
-          characterIds: [...(opts.draftSeed?.characterIds ?? [])],
+          characterIds,
           anchorPersonaId: opts.draftSeed?.anchorPersonaId ?? null,
           title: opts.draftSeed?.title ?? null,
+          ...carry,
         });
         committedChatId = result.chat.id;
         opts.onCommitted?.(committedChatId);
+        if (draftKey !== null) {
+          clearDraftConfig(draftKey);
+        }
       }
       // Subscribe BEFORE the send mutate (synchronous — no await between here and the fire), so the user
       // row's `messageCommitted` can't race past. The listener clears the composer's draft.

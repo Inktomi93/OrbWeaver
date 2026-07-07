@@ -10,6 +10,7 @@
 // coerced to 0 on save). `order` (priority-within-depth) is NOT surfaced in v1 (a rarely-touched tiebreak).
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { MessageRole } from "@orb/kit/message-role";
 import { createAutosaveEntityForm } from "#forms";
 
 /** The row form's edit shape (see the header — position/role as strings, depth as the NumberField's
@@ -28,13 +29,30 @@ const DEFAULT_INJECTION_FORM: InjectionFormValues = {
   content: "",
 };
 
-/** A persisted injection (the `chat.listChatInjections` row) → the row form's edit shape. */
-export function toInjectionForm(injection: ChatInjection): InjectionFormValues {
+/** An injection's editable fields → the row form's edit shape. Accepts either a persisted `ChatInjection`
+ *  OR a draft `ChatInjectionInput` — only the source-agnostic subset (`id`/`order` are server-owned). */
+export function toInjectionForm(
+  injection: Pick<ChatInjection, "position" | "role" | "depth" | "content">,
+): InjectionFormValues {
   return {
     position: injection.position,
     role: injection.role,
     depth: injection.depth,
     content: injection.content,
+  };
+}
+
+/** The row form's edit shape → the injection's editable fields (position/role cast back from the bound
+ *  `SelectField`'s string; empty `depth` → 0). The save target for BOTH the committed `setChatInjection`
+ *  (spread + the row id) and the draft array (a valid `ChatInjectionInput` on its own). */
+export function fromInjectionForm(
+  values: InjectionFormValues,
+): Pick<ChatInjection, "position" | "role" | "depth" | "content"> {
+  return {
+    position: values.position as ChatInjection["position"],
+    role: values.role as MessageRole,
+    depth: values.depth ?? 0,
+    content: values.content,
   };
 }
 

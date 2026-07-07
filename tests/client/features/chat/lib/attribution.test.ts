@@ -156,6 +156,18 @@ test("user row with a null personaId falls back to the viewing participant's act
   expect(result.name).toBe("Alex");
 });
 
+test("user row with NO persona selected labels 'You' (the viewer's own row is never bare)", () => {
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: null,
+    personaNamesById: new Map<PersonaId, RowPersonaName>(), // nothing resolves — no persona exists
+  });
+  expect(result.name).toBe("You");
+  expect(result.avatarAssetId).toBeNull();
+  expect(result.tokens).toBeNull();
+});
+
 // ── C5 (#59 §6 parity lock), client side: after a reattribution changes the row's `personaId` stamp (the
 //    post-mutation refetch), BOTH the #21 badge AND the {{user}} macro re-resolve to the NEW persona off the
 //    SAME stamp + the SAME producer — no UI needed, just the pure render path. Twin of the server C5 test. ──

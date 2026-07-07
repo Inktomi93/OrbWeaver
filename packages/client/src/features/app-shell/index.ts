@@ -7,6 +7,12 @@
 // seam settings/theme use, keeping the modal-slots lib import-free of browser components (test:types
 // boundary — see modal-slots.tsx).
 export { YouSheet } from "./components/you-sheet";
+// useShellLayout — the resolved shell view-model (active section · RESOLVED panel modes · immersive).
+// Exposed for the ROUTE (the composition root) to lay CONTENT out against the panels — e.g. the Chats
+// landing drops its "Recent chats" when the LIST is docked (already the recents finder, §4.3 rule 5). A
+// FEATURE still cannot import it (dep-cruiser client-features-no-cross); only routes + app-shell may.
+export type { ShellLayout } from "./hooks/use-shell-layout";
+export { useShellLayout } from "./hooks/use-shell-layout";
 export type { RailSectionEntry } from "./lib/rail-slots";
 // RAIL_SECTIONS is the rail's section registry (id · label · icon · group). Exposed on the front door so
 // the ROUTE can bridge it to the chat-feature ⌘K palette's "Go to" section (the §5.1 composition seam —

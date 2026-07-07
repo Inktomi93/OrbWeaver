@@ -38,9 +38,10 @@ import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import {
+  setDraftGreeting,
   toggleMessageSelected,
   useIsEditingMessage,
   useIsMessageSelected,
@@ -50,6 +51,9 @@ import { initialsForAttribution, resolveRowAttribution } from "../lib/attributio
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { resolveRowRenderPolicy } from "../lib/render-trust";
+import type { GreetingBinding } from "../lib/synth-greeting-row";
+import { GreetingActionsRow } from "./greeting-actions-row";
+import { GreetingSwipeStrip } from "./greeting-swipe-strip";
 import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
 import { MessageEditTextarea } from "./message-edit-textarea";
@@ -84,6 +88,11 @@ export interface MessageRowProps {
   readonly viewerUserId?: UserId | null | undefined;
   /** Navigate to a forked chat (threaded to the row's Fork action) — the route maps it to `selectChat`. */
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  /** DRAFT greeting binding (decision #2 — handler-level, NOT a visual "mode"): when present this row is
+   *  a pre-commit greeting, so Edit routes to `setDraftGreeting`, Swipe steps over the card's `greetings[]`,
+   *  and Fork/Delete/Hide are suppressed (no server row). The BODY + attribution render identically to a
+   *  committed row — only the action seam differs. Absent ⇒ a normal committed row. */
+  readonly greeting?: GreetingBinding | undefined;
 }
 
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
@@ -100,6 +109,7 @@ export function MessageRow({
   activePersonaId,
   viewerUserId,
   onChatForked,
+  greeting,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
@@ -137,7 +147,14 @@ export function MessageRow({
     viewerActivePersonaId: activePersonaId,
   });
   const content = editing ? (
-    <MessageEditTextarea message={message} />
+    <MessageEditTextarea
+      message={message}
+      onSave={
+        greeting === undefined
+          ? undefined
+          : (text): void => setDraftGreeting(greeting.draftKey, greeting.characterId, text)
+      }
+    />
   ) : (
     <MessageContent
       content={message.content}
@@ -210,10 +227,53 @@ export function MessageRow({
           <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
         )}
       </Stack>
-      {editing || selecting ? null : (
-        <MessageActionsRow message={message} onChatForked={onChatForked} />
-      )}
-      {showSwipes && role === "assistant" && !editing ? <SwipeStrip message={message} /> : null}
+      {renderRowActions({ editing, selecting, greeting, message, onChatForked })}
+      {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
     </Stack>
   );
+}
+
+/** The per-row ACTION cluster (module-scope so its branches don't load the row's complexity budget):
+ *  suppressed in edit/select mode; the draft-greeting subset for a greeting row; else the committed set. */
+function renderRowActions(args: {
+  readonly editing: boolean;
+  readonly selecting: boolean;
+  readonly greeting: GreetingBinding | undefined;
+  readonly message: MessageView;
+  readonly onChatForked: ((chatId: ChatId) => void) | undefined;
+}): ReactNode {
+  if (args.editing || args.selecting) {
+    return null;
+  }
+  if (args.greeting !== undefined) {
+    return <GreetingActionsRow message={args.message} />;
+  }
+  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} />;
+}
+
+/** The per-row SWIPE strip (module-scope, see `renderRowActions`): a draft greeting steps over the card's
+ *  `greetings[]` (≥2 alternates only); a committed row shows the variant swipe on the tail assistant row. */
+function renderRowSwipe(args: {
+  readonly editing: boolean;
+  readonly showSwipes: boolean;
+  readonly role: MessageView["role"];
+  readonly greeting: GreetingBinding | undefined;
+  readonly message: MessageView;
+}): ReactNode {
+  if (args.editing) {
+    return null;
+  }
+  if (args.greeting !== undefined) {
+    return args.greeting.variants.length > 1 ? (
+      <GreetingSwipeStrip
+        draftKey={args.greeting.draftKey}
+        characterId={args.greeting.characterId}
+        variants={args.greeting.variants}
+        current={args.message.content}
+      />
+    ) : null;
+  }
+  return args.showSwipes && args.role === "assistant" ? (
+    <SwipeStrip message={args.message} />
+  ) : null;
 }

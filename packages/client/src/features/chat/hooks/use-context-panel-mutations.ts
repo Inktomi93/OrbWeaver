@@ -9,7 +9,7 @@
 // TVars reuse the CONTRACT wire types (`RoomOverrides`, `ChatInjectionInput`) so a params reshape breaks
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
-import type { ChatInjectionInput, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
@@ -47,4 +47,18 @@ export const useDeleteChatInjection = createEntityMutation<DeleteChatInjectionVa
   options: (trpc) => trpc.chat.deleteChatInjection.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.chat.listChatInjections.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't remove the injection.",
+});
+
+/** `chat.setGroupConfig` vars — the whole rebuilt group config (the DU is a whole-object write) + chat. */
+interface SetGroupConfigVars {
+  readonly chatId: ChatId;
+  readonly config: GroupConfig;
+}
+
+export const useSetGroupConfig = createEntityMutation<SetGroupConfigVars, unknown>({
+  options: (trpc) => trpc.chat.setGroupConfig.mutationOptions(),
+  // KEEP `getGroupConfig`: it is the Group tab's OWN read (the `chats.metadata.group` sub-blob); no bus
+  // event covers it (like `listChatInjections`), so the mutation invalidates it directly.
+  invalidates: (trpc, vars) => [trpc.chat.getGroupConfig.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't save the group settings.",
 });

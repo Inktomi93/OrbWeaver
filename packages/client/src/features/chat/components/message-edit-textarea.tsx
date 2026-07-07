@@ -17,6 +17,12 @@
 // in place so the user can retry without losing their edit; the mutation's `errorToast` config
 // surfaces the failure through the one global `notify` seam.
 //
+// THE PLUGGABLE SAVE SEAM (decision #3 — the draft greeting): an optional `onSave` OVERRIDES the verb
+// path. A draft greeting has no server row, so `message-row.tsx` passes `onSave={setDraftGreeting}` —
+// the same edit UI, keyboard, and focus behavior, but the text lands in the draft-config store (sync,
+// no mutation) instead of `chat.editMessage`. Empty IS allowed on this path (it clears to the card
+// default at commit, per draft-config-store). Absent `onSave` ⇒ the unchanged committed verb path.
+//
 // SCROLL PRESERVATION (neo precedent, `reference/neo-tavern` message-edit-textarea.tsx): neo manually
 // wrote `el.style.height = "auto"` then `scrollHeight`-remeasured on every keystroke, and had to
 // capture/restore the scroll ancestor's `scrollTop` around that JS-driven collapse-then-regrow (its
@@ -55,10 +61,14 @@ const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
 
 export interface MessageEditTextareaProps {
   readonly message: MessageView;
+  /** The pluggable save seam (decision #3): when present, save persists the text HERE (e.g. the draft
+   *  greeting → `setDraftGreeting`) instead of firing the `chat.editMessage` verb. Empty is allowed on
+   *  this path. Absent ⇒ the committed verb path (the default). */
+  readonly onSave?: ((text: string) => void) | undefined;
 }
 
 /** The in-place edit textarea — replaces a row's read-only body while it is in edit mode. */
-export function MessageEditTextarea({ message }: MessageEditTextareaProps): ReactElement {
+export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editMessage = useEditMessageMutation({ trpc, invalidation });
@@ -80,6 +90,13 @@ export function MessageEditTextarea({ message }: MessageEditTextareaProps): Reac
   };
 
   const save = async (): Promise<void> => {
+    if (onSave !== undefined) {
+      // The pluggable seam (draft greeting): persist locally, exit edit mode. Empty allowed (clears to
+      // the card default at commit). Sync — no mutation, so no pending/error chrome to await.
+      onSave(text);
+      cancelEditingMessage(message.id);
+      return;
+    }
     if (editMessage.isPending || text.length === 0) {
       return; // the server rejects empty content; nothing to save yet
     }
@@ -139,7 +156,7 @@ export function MessageEditTextarea({ message }: MessageEditTextareaProps): Reac
           intent="primary"
           size="sm"
           loading={editMessage.isPending}
-          disabled={text.length === 0}
+          disabled={onSave === undefined && text.length === 0}
           aria-label="Save edit"
           onClick={(): void => void save()}
         >

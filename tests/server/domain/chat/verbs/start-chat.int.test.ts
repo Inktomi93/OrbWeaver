@@ -12,7 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats, messages, personas } from "@orb/db";
+import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -520,5 +520,101 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(explicit);
+  });
+});
+
+// THE DRAFT CARRY (J2/J3): a new chat is fully editable pre-send; the first send hands its draft-config
+// state to `startChat`. Each carry-param is optional — absent ⇒ the byte-identical plain-new-chat paths
+// asserted above; these prove the carried edits land at creation.
+describe("startChat — the draft carry (pre-send edits persisted at creation)", () => {
+  test("seedGreetings persists the chosen/edited opening text over the card's greeting[0]", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "the card's primary greeting")),
+    });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      seedGreetings: { [aria]: "the draft's chosen opening" },
+    });
+    // The verbatim seed is the DRAFT text, not the card's greeting[0].
+    expect(opening?.messages.map((m) => m.content)).toEqual(["the draft's chosen opening"]);
+  });
+
+  test("a whitespace-only seedGreetings seeds NO opening row (the empty-greeting gotcha)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardWith("Aria", "card greeting")),
+    });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat, opening } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      seedGreetings: { [aria]: "   " },
+    });
+    // No seeded row ⇒ the opening outcome carries no messages (null, like the `none` path).
+    expect(opening?.messages ?? []).toHaveLength(0);
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("rosterOverrides applies mute + talkativeness to the founding rows (deviating only)", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const borg = await seedCharacter(db, host, "borg");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("C", "")) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria, borg],
+      opening: "none",
+      rosterOverrides: { [aria]: { disabled: true, talkativeness: 0.9 } },
+    });
+    const ariaRow = chat.participants.find((p) => p.characterId === aria);
+    const borgRow = chat.participants.find((p) => p.characterId === borg);
+    expect(ariaRow?.disabled).toBe(true);
+    expect(ariaRow?.talkativeness).toBe(0.9);
+    // The untouched member keeps the column defaults (byte-identical to a plain new chat).
+    expect(borgRow?.disabled).toBe(false);
+    expect(borgRow?.talkativeness).toBe(0.5);
+  });
+
+  test("groupConfig + roomOverrides persist (parsed/fully-defaulted) into the chat metadata", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "none",
+      groupConfig: { output: "narrator", policy: "natural" },
+      roomOverrides: { scenario: "a rainy alley" },
+    });
+    expect(chat.group.output).toBe("narrator");
+    expect(chat.group.policy).toBe("natural");
+    // Parsed through `groupConfigSchema` (like `setGroupConfig`) → the omitted fields carry their defaults.
+    expect(chat.group.speakerTags).toBe(true);
+    expect(chat.roomOverrides.scenario).toBe("a rainy alley");
+  });
+
+  test("injections seed founding chat_injections rows in the same creation batch", async () => {
+    const host = await seedUser(db, "host");
+    const aria = await seedCharacter(db, host, "aria");
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
+    const { startChat } = createStartChat(ctx, makeDeps());
+    const { chat } = await startChat({
+      principal: principal(host),
+      characterIds: [aria],
+      opening: "none",
+      injections: [{ position: "in_chat", depth: 2, role: "system", content: "stay in character" }],
+    });
+    const rows = await db.select().from(chatInjections).where(eq(chatInjections.chatId, chat.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.content).toBe("stay in character");
+    expect(rows[0]?.depth).toBe(2);
   });
 });

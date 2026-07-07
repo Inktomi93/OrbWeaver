@@ -91,11 +91,17 @@ export function ShellTopbar({
           pressed={!listCollapsed}
           onClick={onToggleList}
         />
-        {header ?? (
-          <Text size="title" weight="semibold">
-            {title}
-          </Text>
-        )}
+        {/* The section title is the FALLBACK when the route supplies no identity `header` (UIP-202). But a
+            DOCKED/overlay list already labels the section with its OWN header row ("CHATS"), so repeating
+            the word here is the double-title (#12). The plain title therefore shows ONLY when the list is
+            COLLAPSED — the one state where the topbar is the sole place the section is named. A chat
+            identity `header` always wins regardless of list mode. */}
+        {header ??
+          (listCollapsed ? (
+            <Text size="title" weight="semibold">
+              {title}
+            </Text>
+          ) : null)}
       </div>
 
       <div className="shell-topbar-trail">

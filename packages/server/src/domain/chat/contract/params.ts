@@ -10,6 +10,7 @@
 // the loaded host — the caller never passes them (no `callerUserId` term).
 
 import type {
+  ChatInjectionInput,
   CreateInviteInput,
   GroupConfigInput,
   MessageContentBlock,
@@ -83,6 +84,28 @@ export interface StartChatParams extends ChatActorParams {
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
   readonly opening?: OpeningPolicy | undefined;
+  /** THE DRAFT CARRY (J2/J3 — a new chat is fully editable pre-send; the first send hands its state to
+   *  this ONE creation entry). All optional + sparse: absent ⇒ byte-identical to today's plain new chat.
+   *  Per-founding-character raw opening text (the draft's swiped/edited greeting — `[0]`=primary,
+   *  `[1..]`=alternates, or hand-typed). Absent character / empty-after-trim ⇒ the card's `greetings[0]`
+   *  (or no seeded row). Read by the verbatim `first-message`/`greet-all` paths only. */
+  readonly seedGreetings?: Readonly<Record<CharacterId, string>> | undefined;
+  /** Pre-send per-character roster tuning applied to the founding rows at creation — deviating fields
+   *  only (an absent character / field keeps the column default, byte-identical). */
+  readonly rosterOverrides?:
+    | Readonly<
+        Record<
+          CharacterId,
+          { readonly disabled?: boolean | undefined; readonly talkativeness?: number | undefined }
+        >
+      >
+    | undefined;
+  /** Pre-send group config (narrator/policy/auto) persisted into the creation `metadata.group`. */
+  readonly groupConfig?: GroupConfigInput | undefined;
+  /** Pre-send room overrides (the four-field allowlist) persisted into the creation `metadata.roomOverrides`. */
+  readonly roomOverrides?: RoomOverrides | undefined;
+  /** Pre-send authored injections seeded as founding injection rows in the same creation batch. */
+  readonly injections?: readonly ChatInjectionInput[] | undefined;
   /** ST "Temporary Chat" (PD-65): born ephemeral — hidden from `listChats`, swept by
    *  `reapTemporaryChats` once expired. Absent ⇒ a normal persistent chat. */
   readonly temporary?: boolean | undefined;

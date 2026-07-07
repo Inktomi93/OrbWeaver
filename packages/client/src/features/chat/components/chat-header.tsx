@@ -21,7 +21,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { initialsForAttribution } from "../lib/attribution";
@@ -101,6 +101,56 @@ function CastAvatars({
       size="sm"
       items={cast.map((c) => ({ name: c.displayName }))}
       aria-label={`${cast.length} characters`}
+    />
+  );
+}
+
+export interface DraftChatHeaderProps {
+  /** The draft's founding cast (`DraftSeed.characterIds`) — a draft has no server row to read a roster
+   *  from, so the identity is sourced from `character.get` per founding character. */
+  readonly characterIds: readonly CharacterId[];
+}
+
+/** The DRAFT topbar identity (J2/J3): the seeded character avatar(s) + name + a "New thread" chip, so a
+ *  new chat is character-first from frame one instead of an anonymous void. No `ChatOptionsMenu` — a draft
+ *  has no chat-level actions yet. Non-suspense (the always-present topbar never suspends — the
+ *  `ChatHeaderSurface` precedent), degrading to a neutral title until the (usually warm) reads populate. */
+export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
+  const trpc = useTRPC();
+  const results = useQueries({
+    queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
+  });
+  const names = results.map((r) => r.data?.name ?? "");
+  const first = names[0]?.trim() ?? "";
+  const title = first.length > 0 ? first : "New chat";
+  return (
+    <Row gap="row" align="center" className="min-w-0">
+      <DraftCastAvatars names={names} />
+      <Text size="title" weight="semibold" className="truncate">
+        {title}
+      </Text>
+    </Row>
+  );
+}
+
+/** The draft cast's avatar cluster — sourced from `character.get` NAMES (initials only; no asset-URL
+ *  resolver yet, #67). Solo ⇒ one avatar; group ⇒ an `AvatarStack`; empty ⇒ nothing (a blank chat). */
+function DraftCastAvatars({ names }: { readonly names: readonly string[] }): ReactElement | null {
+  if (names.length === 0) {
+    return null;
+  }
+  if (names.length === 1) {
+    return (
+      <Avatar size="sm" fallbackDelay={0}>
+        {initialsForAttribution(names[0] ?? "")}
+      </Avatar>
+    );
+  }
+  return (
+    <AvatarStack
+      size="sm"
+      items={names.map((name) => ({ name }))}
+      aria-label={`${names.length} characters`}
     />
   );
 }

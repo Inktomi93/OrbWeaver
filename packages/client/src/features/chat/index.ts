@@ -9,8 +9,8 @@ export type { ChatListAnchorProps } from "./anchors/chat-list-anchor";
 export { ChatListAnchor } from "./anchors/chat-list-anchor";
 export type { MessageThreadAnchorProps } from "./anchors/message-thread-anchor";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor";
-export type { ChatHeaderSurfaceProps } from "./components/chat-header";
-export { ChatHeaderSurface } from "./components/chat-header";
+export type { ChatHeaderSurfaceProps, DraftChatHeaderProps } from "./components/chat-header";
+export { ChatHeaderSurface, DraftChatHeader } from "./components/chat-header";
 export type { ComposerProps } from "./components/composer";
 export { Composer } from "./components/composer";
 export type {
@@ -35,6 +35,8 @@ export type {
   GoToSection,
 } from "./surfaces/command-palette-surface";
 export { CommandPaletteSurface } from "./surfaces/command-palette-surface";
+export type { DraftContextPanelProps } from "./surfaces/draft-context-panel-surface";
+export { DraftContextPanel } from "./surfaces/draft-context-panel-surface";
 export type { MessageListSurfaceProps } from "./surfaces/message-list-surface";
 export { MessageListSurface } from "./surfaces/message-list-surface";
 export { NewChatPicker } from "./surfaces/new-chat-picker-surface";

@@ -75,6 +75,9 @@ export function buildInitialRosterRows(params: {
   readonly characters: readonly {
     readonly participantId: ChatParticipantId;
     readonly characterId: CharacterId;
+    /** Pre-send roster tuning (draft carry) applied at founding — omitted ⇒ the column default. */
+    readonly disabled?: boolean | undefined;
+    readonly talkativeness?: number | undefined;
   }[];
 }): ParticipantInsertRow[] {
   const hostRow: ParticipantInsertRow = {
@@ -97,6 +100,9 @@ export function buildInitialRosterRows(params: {
       role: "member",
       joinedAt: params.now,
       joinSeq: params.joinSeq,
+      // Pre-send roster tuning (draft carry) — omitted ⇒ the column default (byte-identical).
+      ...(c.disabled === undefined ? {} : { disabled: c.disabled }),
+      ...(c.talkativeness === undefined ? {} : { talkativeness: c.talkativeness }),
     };
   });
   return [hostRow, ...characterRows];

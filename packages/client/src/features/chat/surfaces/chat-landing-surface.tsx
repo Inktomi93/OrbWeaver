@@ -57,6 +57,10 @@ export interface ChatLandingSurfaceProps {
   readonly onNewChat: () => void;
   /** Jump to the Characters section (the "All characters →" link + the empty-DB primary). */
   readonly onBrowseCharacters: () => void;
+  /** Show the "Recent chats" block. The route passes `false` when the Chats LIST is DOCKED — that panel
+   *  IS the recents finder (§4.3 rule 5: LIST finds, CONTENT does), so repeating recents here is the
+   *  duplicate (#13). Defaults `true` (list collapsed/overlay, mobile, or a standalone mount). */
+  readonly showRecents?: boolean;
 }
 
 /** The Chats landing hero: welcome + recents + character quick-picks. */
@@ -81,6 +85,7 @@ function LandingBody({
   onStartChat,
   onNewChat,
   onBrowseCharacters,
+  showRecents = true,
 }: ChatLandingSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const [{ data: chats }, { data: characterPage }] = useSuspenseQueries({
@@ -114,7 +119,7 @@ function LandingBody({
         }
       />
 
-      {recents.length > 0 ? (
+      {showRecents && recents.length > 0 ? (
         <Stack gap="row">
           <Text size="micro" weight="semibold" tone="muted" transform="caps">
             Recent chats
