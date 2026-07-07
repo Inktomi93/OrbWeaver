@@ -26,6 +26,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { regexScriptSchema } from "#regex";
+import { themeOverrideSchema } from "#theme";
 
 // ── Field bounds (named — noMagicNumbers) ──────────────────────────────────
 const HANDLE_MIN = 1;
@@ -146,8 +147,9 @@ export const createCharacterSchema = z.object({
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 
 // `update` is `create` with every field optional, plus the identity-only flags that are NOT card content
-// (`starred`, `archived`, the tri-state `forbidExternalMedia`, and the tri-state `trustHtml`: null = inherit
-// the deployment default). The tRPC router extends this with the branded `characterId` at its boundary.
+// (`starred`, `archived`, the tri-state `forbidExternalMedia`, the tri-state `trustHtml`: null = inherit
+// the deployment default, and the nullable `themeOverride`: null = clear/no override, inherit the user's
+// global selected theme). The tRPC router extends this with the branded `characterId` at its boundary.
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
   starred: z.boolean().optional(),
   archived: z.boolean().optional(),
@@ -155,6 +157,10 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
   // D44 §12.0 render-trust OPT-IN. Tri-state: null = inherit the deployment default, true = this
   // character's HTML renders TRUSTED (rich HTML + Mermaid), false = force untrusted. (`override ?? global`.)
   trustHtml: z.boolean().nullable().optional(),
+  // D44 §12.1/§12.5 — the per-character theme-token override. `undefined` ⇒ leave unchanged; `null` ⇒
+  // clear it (inherit the global selected theme); a value ⇒ set it. Validated leniently (per-field
+  // `.catch` — themeOverrideSchema, `#theme`), mirroring the entity's own write boundary.
+  themeOverride: themeOverrideSchema.nullable().optional(),
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 

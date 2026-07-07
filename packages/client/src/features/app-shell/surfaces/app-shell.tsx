@@ -14,18 +14,24 @@
 // section name / "Details").
 
 import { Text } from "@orb/ui/text";
+import { clampThemeTokens, ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
-import type { ReactElement, ReactNode } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
 import type { ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
+import { CustomThemeStyle } from "../components/custom-theme-style";
 import { ModalHost } from "../components/modal-host";
 import { PanelChrome } from "../components/panel-chrome";
 import { Rail } from "../components/rail";
 import { SectionPlaceholder } from "../components/section-placeholder";
 import { ShellTopbar } from "../components/shell-topbar";
-import { useDensity } from "../hooks/use-density";
+import { ThemeBackgroundLayer } from "../components/theme-background-layer";
+import { useAppearance } from "../hooks/use-appearance";
+import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
+import { useSelectedTheme } from "../hooks/use-selected-theme";
 import { useShellLayout } from "../hooks/use-shell-layout";
+import { resolveThemeBackgroundUrl } from "../lib/resolve-theme-background";
 import { SECTION_PLACEHOLDER_COPY } from "../lib/section-placeholder-copy";
 import "./shell.css";
 
@@ -59,9 +65,35 @@ export function AppShell({
   modals,
 }: AppShellProps): ReactElement {
   const layout = useShellLayout();
-  // The global density axis (§4) — stamped on the shell root; a compact override tightens spacing
-  // tokens for the whole subtree (shell.css). Live-swappable via the appearance settings panel.
-  const density = useDensity();
+  // The synced appearance prefs + the resolved active theme (D44 §12.1). All display axes stamp from
+  // these; the shell degrades to defaults (never suspends) if unauth/pending.
+  const appearance = useAppearance();
+  // Layer 1 — the viewer's OWN global theme (fetched for THIS user only; never pushed to other viewers).
+  const theme = useSelectedTheme();
+  // A SEED palette also stamps [data-theme] on <html> (full-palette + color-scheme reflow, portals
+  // included); a custom/Hearth theme uses none and layers its override on the Hearth base via ThemeScope.
+  const dataTheme = theme?.isSeed === true ? theme.name.toLowerCase() : null;
+  useAppearanceRootEffects({
+    fontScale: appearance.fontScale,
+    dataTheme,
+    blurSurfaces: appearance.blurSurfaces,
+    shadowEffects: appearance.shadowEffects,
+  });
+  // The theme's optional density/chatStyle WIN over the appearance base (themes-design §3.4 overlap LEAN);
+  // resolve density here (shell.css consumes data-density). A compact override tightens spacing tokens
+  // for the whole subtree. chatStyle stays appearance-owned at the root (the message render reads it).
+  const density = theme?.override.density ?? appearance.density;
+  // D49 §3 background image — clamp ONCE here (the ThemeScope below re-clamps for its own `--*` var
+  // spread; cheap, pure, no shared-state risk) and hand the resolved trio to the dedicated root layer.
+  const clampedTheme = clampThemeTokens(theme?.override ?? {});
+  // `.shell-grid`'s own opaque `--color-background` paint must step aside for the image to show through
+  // ANYWHERE (gaps + any opted-in glass surface) — gated on the SAME resolved outcome the layer itself
+  // uses (never the raw token presence, which would punch a hole for an unresolvable `asset` source).
+  const hasBgImage = resolveThemeBackgroundUrl(clampedTheme.backgroundImage) !== null;
+  // chatWidthPct → the §11.1 reading-column clamp var (stamped for the thread to consume).
+  const shellVars: CSSProperties = {
+    "--width-shell-content": `clamp(680px, ${appearance.chatWidthPct}dvw, 100dvw)`,
+  } as CSSProperties;
   const slot = sections[layout.activeSection];
   // The active section's distinct placeholder copy (J10 — one home in SECTION_PLACEHOLDER_COPY); the
   // Weave decoration marks it as the sanctioned teaching moment. Route-composed sections (chats/characters)
@@ -91,79 +123,100 @@ export function AppShell({
 
   return (
     <TooltipProvider>
-      <div
-        className="shell-grid"
-        data-list-mode={layout.listMode}
-        data-context-mode={layout.contextMode}
-        data-density={density}
-      >
-        <Rail
-          activeSection={layout.activeSection}
-          onSelectSection={setActiveSection}
-          onOpenModal={openModal}
-        />
-
-        {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
-            toggle owns the collapse. */}
-        <PanelChrome panel="list" label={layout.activeSectionLabel} mode={layout.listMode}>
-          <RegionAnchor region="list">{listContent}</RegionAnchor>
-        </PanelChrome>
-
-        <div className="shell-main">
-          <ShellTopbar
-            title={layout.activeSectionLabel}
-            header={header}
-            listMode={layout.listMode}
-            contextMode={layout.contextMode}
-            immersive={layout.immersive}
-            onToggleList={(): void => layout.togglePanel("list")}
-            onToggleContext={(): void => layout.togglePanel("context")}
-            onToggleFocus={layout.toggleFocus}
-            onOpenCommand={(): void => openModal("command")}
-          />
-          {/* CONTENT is the ONE `main` landmark (a11y + Playwright/agent nav: "jump to main",
-              `getByRole("main")`) — the topbar banner is its sibling, never inside it. */}
-          <main className="shell-content">
-            <RegionAnchor region="content">{content}</RegionAnchor>
-          </main>
-        </div>
-
-        <PanelChrome
-          panel="context"
-          label="Details"
-          header={
-            contextHeader ?? (
-              <Text size="label" weight="medium" tone="muted">
-                Details
-              </Text>
-            )
-          }
-          collapseLabel="Collapse detail panel"
-          mode={layout.contextMode}
-          onCollapse={(): void => layout.collapsePanel("context")}
+      {/* D49 §3 — the fixed-position background-image root layer, mounted OUTSIDE `<ThemeScope>` (a
+          nested per-speaker scope must never spawn a second one) and BEFORE `.shell-grid` in DOM order
+          so it paints underneath (shell-grid's own `isolation:isolate` stacking context wins by
+          source order, not z-index). Renders nothing when no image is set. */}
+      <ThemeBackgroundLayer
+        backgroundImage={clampedTheme.backgroundImage}
+        backgroundFit={clampedTheme.backgroundFit}
+        backgroundDim={clampedTheme.backgroundDim}
+      />
+      {/* Layer 1 — the viewer's own theme override, applied at the app root via the ONE sanctioned path
+          (<ThemeScope>, which clamps every value). `display:contents` so it adds no box: custom
+          properties still inherit down to the shell. A seed's full palette rides [data-theme] on <html>
+          (above); this scope carries the RP subset + the derived neutral ramp for custom themes. */}
+      <ThemeScope tokens={theme?.override ?? {}} className="contents">
+        <div
+          className="shell-grid"
+          data-list-mode={layout.listMode}
+          data-context-mode={layout.contextMode}
+          data-density={density}
+          data-elevation={appearance.elevation}
+          data-reduced-motion={appearance.reducedMotion}
+          {...(hasBgImage ? { "data-has-bg-image": true } : {})}
+          style={shellVars}
         >
-          <RegionAnchor region="context">
-            {contextPanel ?? (
-              <SectionPlaceholder
-                title="Details"
-                description="Select something to see its details here."
-                weave={true}
-              />
-            )}
-          </RegionAnchor>
-        </PanelChrome>
-
-        {layout.scrimVisible ? (
-          <button
-            type="button"
-            className="shell-scrim"
-            aria-label="Dismiss panel"
-            onClick={dismissOverlays}
+          {/* Layer 1 (cont.) — the owner's custom CSS, injected unlayered + last so it wins. Own-client only. */}
+          <CustomThemeStyle css={theme?.css ?? null} />
+          <Rail
+            activeSection={layout.activeSection}
+            onSelectSection={setActiveSection}
+            onOpenModal={openModal}
           />
-        ) : null}
 
-        <ModalHost openModal={layout.openModalId} modals={modals} onClose={closeModal} />
-      </div>
+          {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
+            toggle owns the collapse. */}
+          <PanelChrome panel="list" label={layout.activeSectionLabel} mode={layout.listMode}>
+            <RegionAnchor region="list">{listContent}</RegionAnchor>
+          </PanelChrome>
+
+          <div className="shell-main">
+            <ShellTopbar
+              title={layout.activeSectionLabel}
+              header={header}
+              listMode={layout.listMode}
+              contextMode={layout.contextMode}
+              immersive={layout.immersive}
+              onToggleList={(): void => layout.togglePanel("list")}
+              onToggleContext={(): void => layout.togglePanel("context")}
+              onToggleFocus={layout.toggleFocus}
+              onOpenCommand={(): void => openModal("command")}
+            />
+            {/* CONTENT is the ONE `main` landmark (a11y + Playwright/agent nav: "jump to main",
+              `getByRole("main")`) — the topbar banner is its sibling, never inside it. */}
+            <main className="shell-content">
+              <RegionAnchor region="content">{content}</RegionAnchor>
+            </main>
+          </div>
+
+          <PanelChrome
+            panel="context"
+            label="Details"
+            header={
+              contextHeader ?? (
+                <Text size="label" weight="medium" tone="muted">
+                  Details
+                </Text>
+              )
+            }
+            collapseLabel="Collapse detail panel"
+            mode={layout.contextMode}
+            onCollapse={(): void => layout.collapsePanel("context")}
+          >
+            <RegionAnchor region="context">
+              {contextPanel ?? (
+                <SectionPlaceholder
+                  title="Details"
+                  description="Select something to see its details here."
+                  weave={true}
+                />
+              )}
+            </RegionAnchor>
+          </PanelChrome>
+
+          {layout.scrimVisible ? (
+            <button
+              type="button"
+              className="shell-scrim"
+              aria-label="Dismiss panel"
+              onClick={dismissOverlays}
+            />
+          ) : null}
+
+          <ModalHost openModal={layout.openModalId} modals={modals} onClose={closeModal} />
+        </div>
+      </ThemeScope>
     </TooltipProvider>
   );
 }

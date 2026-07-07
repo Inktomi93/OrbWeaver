@@ -138,4 +138,29 @@ describe("update", () => {
     expect(reread.avatarAssetId).toBeNull();
     expect(h.events).toHaveLength(0);
   });
+
+  test("D44 §12.1/§12.5 — themeOverride round-trips (set, then null clears it)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const created = await svc.create({
+      principal: principal(owner),
+      input: { handle: "nyx", name: "Nyx", description: "d" },
+    });
+    expect(created.themeOverride).toBeNull();
+
+    const withOverride = await svc.update({
+      principal: principal(owner),
+      characterId: created.id,
+      input: { themeOverride: { accent: "oklch(0.7 0.14 250)" } },
+    });
+    expect(withOverride.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
+
+    const cleared = await svc.update({
+      principal: principal(owner),
+      characterId: created.id,
+      input: { themeOverride: null },
+    });
+    expect(cleared.themeOverride).toBeNull();
+  });
 });

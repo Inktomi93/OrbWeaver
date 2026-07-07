@@ -37,6 +37,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { SandboxFrame } from "@orb/ui/sandbox-frame";
+import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
@@ -141,6 +142,10 @@ export interface MessageContentProps {
    *  author (falls back to `renderContext`'s `activePersonaName` default). Ignored when `renderContext`
    *  is absent. */
   readonly rowPersonaId?: PersonaId | null | undefined;
+  /** Layer 3 (merged-narrator §12.4) — NAME → the character's authored `themeOverride`, so each
+   *  `<speaker>` span inside one merged bubble carries that character's palette; a speaker with no
+   *  override falls back to the deterministic hash tint. Absent ⇒ every span uses the hash fallback. */
+  readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
 }
 
 /** Render a message body as its typed block sequence, speaker-split + colored per §12.4. Macros
@@ -152,6 +157,7 @@ export function MessageContent({
   renderContext,
   rowCharacterId,
   rowPersonaId,
+  speakerThemes,
 }: MessageContentProps): ReactElement {
   const resolvedContent =
     renderContext === undefined
@@ -174,8 +180,10 @@ export function MessageContent({
         if (span.speaker === null) {
           return renderSegment(span.text, { render, keyPrefix: `${key}-`, listKey: key });
         }
+        // Layer 3: the speaker's authored override (by marker name) wins; the hash tint is the fallback.
+        const spanTokens = speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker);
         return (
-          <ThemeScope key={key} tokens={colorForCharacter(span.speaker)}>
+          <ThemeScope key={key} tokens={spanTokens}>
             {renderSegment(span.text, { render, keyPrefix: `${key}-` })}
           </ThemeScope>
         );

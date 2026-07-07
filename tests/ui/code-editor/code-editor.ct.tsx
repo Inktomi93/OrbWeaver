@@ -1,7 +1,12 @@
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
+import {
+  CompletionsEditor,
+  ControlledEditor,
+  DiagnosticsEditor,
+  ReadOnlyEditor,
+} from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
 
@@ -183,4 +188,46 @@ test("severity is signaled beyond color — underline style + gutter marker shap
   await expect(warningMarker).toHaveCSS("border-radius", "0px");
   await expect(errorMarker).toHaveCSS("background-color", TOKENS["color.destructive"].value);
   await expect(warningMarker).toHaveCSS("background-color", TOKENS["color.warning"].value);
+});
+
+// WS3 — the `completions` prop (real inline autocomplete via @codemirror/autocomplete, replacing the
+// theme editor's old static reference-list-only UX).
+const THEME_VAR_COMPLETIONS = ["--color-primary", "--color-accent", "--radius-card"];
+
+test("no `completions` prop means no autocomplete tooltip on typing", async ({ mount }) => {
+  const component = await mount(<ControlledEditor initialValue="" />);
+  const content = component.locator(".cm-content");
+  await content.click();
+  await content.pressSequentially("--color-p");
+  await expect(component.locator(".cm-tooltip-autocomplete")).toHaveCount(0);
+});
+
+test("typing a matching prefix opens the autocomplete tooltip listing the completions vocabulary", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />,
+  );
+  const content = component.locator(".cm-content");
+  await content.click();
+  await content.pressSequentially("--color-p");
+  const tooltip = component.locator(".cm-tooltip-autocomplete");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("--color-primary");
+  // Non-matching vocabulary entries (a different prefix) are filtered out, not just present-somewhere.
+  await expect(tooltip).not.toContainText("--radius-card");
+});
+
+test("accepting a completion inserts the FULL themeable var name into the document", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <CompletionsEditor initialValue="" completions={THEME_VAR_COMPLETIONS} />,
+  );
+  const content = component.locator(".cm-content");
+  await content.click();
+  await content.pressSequentially("--color-p");
+  await expect(component.locator(".cm-tooltip-autocomplete")).toBeVisible();
+  await content.press("Enter");
+  await expect(content).toHaveText("--color-primary");
 });

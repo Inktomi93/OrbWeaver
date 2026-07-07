@@ -58,4 +58,22 @@ describe("duplicate", () => {
     expect(copy.importedFrom).toBeNull();
     expect(copy.importHash).toBeNull();
   });
+
+  test("D44 §12.1/§12.5 — the per-character theme/render policies carry forward", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+    const source = await svc.create({
+      principal: principal(owner),
+      input: { handle: "nyx", name: "Nyx", description: "d" },
+    });
+    await svc.update({
+      principal: principal(owner),
+      characterId: source.id,
+      input: { trustHtml: true, themeOverride: { accent: "oklch(0.7 0.14 250)" } },
+    });
+    const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    expect(copy.trustHtml).toBe(true);
+    expect(copy.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
+  });
 });

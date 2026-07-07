@@ -40,3 +40,111 @@ body {
 .orb-weave-shimmer {
   animation: orb-weave-shimmer 3s ease-in-out infinite;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+ * WS3 D44 §12.1 EFFECTS — glass (appearance.blurSurfaces) + prose shadow (appearance.shadowEffects).
+ * Root-stamped `data-blur-*`/`data-shadow` attrs (useAppearanceRootEffects, app-shell) live on <html>
+ * so they reach PORTALLED content (Dialog/AlertDialog render to document.body). The pointer-coarse
+ * mobile reduction is the one axis-3 exception and lives in shell.css (the only legal @media site).
+ *
+ * THE GLASS RECIPE (4 ingredients, NOT naive blur): backdrop-filter blur+saturate + a translucent
+ * color-mix fill (a PER-SURFACE base tone, so the glass still reads as "that surface", not grey) +
+ * the existing --color-border hairline (already painted by each surface's own border utility) + this
+ * presence gate. READING-SURFACE RULE (Marinara DESIGN.md §4, stolen): `messages` gets the DENSE
+ * (more-opaque) fill (--blur-fill-dense) since it sits behind scrolling prose; pure chrome (panels/
+ * composer/modals) gets the lighter --blur-fill-chrome. `messages` is available but NEVER
+ * default-checked (see BLUR_SURFACES / DEFAULT_BLUR_SURFACES, @orb/contracts/settings).
+ * ══════════════════════════════════════════════════════════════════════════════════════════════ */
+@supports (backdrop-filter: blur(1px)) {
+  html[data-blur-panels] .shell-panel {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-sidebar) var(--blur-fill-chrome),
+      transparent
+    );
+  }
+  html[data-blur-composer] [data-slot="composer"] {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-sidebar) var(--blur-fill-chrome),
+      transparent
+    );
+  }
+  html[data-blur-modals] [data-slot="dialog-popup"],
+  html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-popover) var(--blur-fill-chrome),
+      transparent
+    );
+  }
+  /* Per-role bubble base so the glass tints AS that bubble, not a generic grey (dense fill — reading
+   * surface). `[data-role]` is stamped on the row (message-row.tsx); `[data-slot="message-bubble"]`
+   * is its content child — combined selector, no new attribute needed. */
+  html[data-blur-messages] [data-role="user"] [data-slot="message-bubble"] {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-user-bubble) var(--blur-fill-dense),
+      transparent
+    );
+  }
+  html[data-blur-messages] [data-role="assistant"] [data-slot="message-bubble"] {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-ai-bubble) var(--blur-fill-dense),
+      transparent
+    );
+  }
+  html[data-blur-messages] [data-role="system"] [data-slot="message-bubble"] {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(
+      in oklab,
+      var(--color-system-bubble) var(--blur-fill-dense),
+      transparent
+    );
+  }
+}
+
+/* Fallback (no backdrop-filter support) — never a broken half-transparent surface: the effect simply
+ * doesn't apply (the @supports block above never activates), so every surface stays its normal solid
+ * token color. No override needed here — this comment documents the (absence of a) rule. */
+
+/* prefers-reduced-transparency: reduce → solid (footgun-proofing the researched recipe's own guard;
+ * WCAG 1.4.x adjacent). Wins over the @supports block by source order (equal specificity). */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-blur-panels] .shell-panel,
+  html[data-blur-composer] [data-slot="composer"],
+  html[data-blur-modals] [data-slot="dialog-popup"],
+  html[data-blur-modals] [data-slot="alert-dialog-popup"],
+  html[data-blur-messages] [data-slot="message-bubble"] {
+    backdrop-filter: none;
+    background-color: revert;
+  }
+}
+
+/* prefers-contrast: high → stronger border + more opacity (never LESS legible under a stated
+ * accessibility preference — the recipe leans MORE solid, not less, when contrast is requested). */
+@media (prefers-contrast: high) {
+  html[data-blur-panels] .shell-panel,
+  html[data-blur-composer] [data-slot="composer"],
+  html[data-blur-modals] [data-slot="dialog-popup"],
+  html[data-blur-modals] [data-slot="alert-dialog-popup"] {
+    border-width: 2px;
+    background-color: color-mix(in oklab, var(--color-sidebar) 92%, transparent);
+  }
+  html[data-blur-messages] [data-slot="message-bubble"] {
+    border-width: 2px;
+  }
+}
+
+/* appearance.shadowEffects — the subtle prose readability halo (message text ONLY, never chrome).
+ * `text-shadow` inherits, so one declaration on the bubble container reaches every text node inside
+ * (paragraphs/spans/em) without touching @orb/ui/markdown internals. */
+html[data-shadow] [data-slot="message-bubble"] {
+  text-shadow: var(--shadow-prose);
+}

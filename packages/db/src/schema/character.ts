@@ -20,6 +20,7 @@
 
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
 import type { RegexScript } from "@orb/contracts/regex";
+import type { ThemeOverride } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -59,6 +60,13 @@ export const characters = sqliteTable(
     // default, true = this character's card/message HTML is TRUSTED (rich HTML + Mermaid render), false =
     // force untrusted. Mirrors `forbidExternalMedia` (a per-character override of a global media policy).
     trustHtml: integer("trust_html", { mode: "boolean" }),
+    // D44 §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
+    // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a
+    // JSON blob, not a boolean. Resolution (`character override > global selected theme > default`) is a
+    // CLIENT-side `<ThemeScope>` NESTING concern (scoped CSS custom properties cascade) — this column
+    // carries only the RAW override; chat assembly threads it through unmerged (themes-design.md §1: zero
+    // cross-feature `themes`-table read from chat).
+    themeOverride: text("theme_override", { mode: "json" }).$type<ThemeOverride>(),
     importedFrom: text("imported_from"),
     // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
     importHash: text("import_hash"),

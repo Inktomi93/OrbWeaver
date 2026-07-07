@@ -47,7 +47,11 @@ import {
   useIsMessageSelected,
   useSelectionActive,
 } from "#state";
-import { initialsForAttribution, resolveRowAttribution } from "../lib/attribution";
+import {
+  initialsForAttribution,
+  resolveRowAttribution,
+  speakerThemesByName,
+} from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { resolveRowRenderPolicy } from "../lib/render-trust";
@@ -57,6 +61,8 @@ import { GreetingSwipeStrip } from "./greeting-swipe-strip";
 import { MessageActionsRow } from "./message-actions-row";
 import { MessageContent } from "./message-content";
 import { MessageEditTextarea } from "./message-edit-textarea";
+import type { MessageMetadataVisibility } from "./message-metadata-row";
+import { MessageMetadataRow } from "./message-metadata-row";
 import { SwipeStrip } from "./swipe-strip";
 
 export interface MessageRowProps {
@@ -97,7 +103,20 @@ export interface MessageRowProps {
    *  the render context so the display pipeline's `fixMarkdown` auto-fix is gated (default OFF: a settled
    *  body renders as-authored, so a censoring `f*ck` isn't auto-closed into a stray italic run). */
   readonly autoFixMarkdown?: boolean | undefined;
+  /** The per-message metadata-chip visibility (WS3, D44 §12.1) — each field its own toggle. Undefined ⇒
+   *  every chip hidden (a caller that hasn't wired appearance yet keeps today's chip-less render). */
+  readonly metadataVisibility?: MessageMetadataVisibility | undefined;
+  /** The `messageActions` appearance pref (D44 §12.1) — threaded to the action row (committed or
+   *  draft-greeting). Undefined ⇒ `"hover"` (the schema default, today's behavior). */
+  readonly messageActions?: "expanded" | "hover" | undefined;
 }
+
+const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
+  showTimestamps: false,
+  showMessageId: false,
+  showModelIcon: false,
+  showTokenCount: false,
+};
 
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
 export function MessageRow({
@@ -115,6 +134,8 @@ export function MessageRow({
   onChatForked,
   greeting,
   autoFixMarkdown,
+  metadataVisibility = NO_METADATA_VISIBLE,
+  messageActions,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
@@ -168,6 +189,7 @@ export function MessageRow({
       renderContext={renderContext}
       rowCharacterId={message.characterId}
       rowPersonaId={message.personaId}
+      speakerThemes={speakerThemesByName(participants)}
     />
   );
 
@@ -233,7 +255,8 @@ export function MessageRow({
           <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
         )}
       </Stack>
-      {renderRowActions({ editing, selecting, greeting, message, onChatForked })}
+      {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
+      {renderRowActions({ editing, selecting, greeting, message, onChatForked, messageActions })}
       {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
     </Stack>
   );
@@ -247,14 +270,21 @@ function renderRowActions(args: {
   readonly greeting: GreetingBinding | undefined;
   readonly message: MessageView;
   readonly onChatForked: ((chatId: ChatId) => void) | undefined;
+  readonly messageActions: "expanded" | "hover" | undefined;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
   }
   if (args.greeting !== undefined) {
-    return <GreetingActionsRow message={args.message} />;
+    return <GreetingActionsRow message={args.message} messageActions={args.messageActions} />;
   }
-  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} />;
+  return (
+    <MessageActionsRow
+      message={args.message}
+      onChatForked={args.onChatForked}
+      messageActions={args.messageActions}
+    />
+  );
 }
 
 /** The per-row SWIPE strip (module-scope, see `renderRowActions`): a draft greeting steps over the card's

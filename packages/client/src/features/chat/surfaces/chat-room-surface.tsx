@@ -20,11 +20,12 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Stack } from "@orb/ui/layout";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, useTRPC } from "#data";
+import { QueryBoundary, useGatedQuery, useTRPC } from "#data";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
@@ -32,6 +33,7 @@ import { ChatCastBar } from "../components/chat-cast-bar";
 import { Composer } from "../components/composer";
 import { MessageSelectionBar } from "../components/message-selection-bar";
 import type { DraftSeed } from "../hooks/use-send-message";
+import { resolveRoomTheme } from "../lib/attribution";
 import { MessageListSurface } from "./message-list-surface";
 
 export interface ChatRoomSurfaceProps {
@@ -59,39 +61,53 @@ export function ChatRoomSurface({
 }: ChatRoomSurfaceProps): ReactElement {
   const [handle, setHandle] = useState<ChatHandle>(initialHandle);
   const [draftText, setDraftText] = useState("");
+  const trpc = useTRPC();
 
   const onCommitted = (chatId: ChatId): void => {
     setHandle(committedChat(chatId));
     onChatStarted?.(chatId);
   };
 
+  // Layer 2 — the sole-character CHROME takeover (D44 §12.1). Read the committed roster (the warm
+  // getChat cache the cast bar/message list already hold; a draft has no server roster) and, for a
+  // TRUE-SOLO room only, apply that character's override at the chat root. Multi-human/group → undefined
+  // → the room keeps the viewer's own Layer-1 theme. Nested inside the app-root Layer-1 <ThemeScope>, so
+  // the character's set fields win here while unset fields inherit the viewer's global theme (cascade).
+  const roomChatId = isCommitted(handle) ? handle.id : null;
+  const { data: roomChat } = useGatedQuery(roomChatId, (id) =>
+    trpc.chat.getChat.queryOptions({ chatId: id }),
+  );
+  const roomTheme = resolveRoomTheme(roomChat?.participants);
+
   return (
-    <Stack gap="block" className="h-full px-block pb-block">
-      {/* The cast bar (task #29) — a read-only group-roster glance strip above the transcript; it
+    <ThemeScope tokens={roomTheme ?? {}} className="contents">
+      <Stack gap="block" className="h-full px-block pb-block">
+        {/* The cast bar (task #29) — a read-only group-roster glance strip above the transcript; it
           size-gates itself to `null` for a solo (≤1-character) chat, and only reads a COMMITTED chat's
           roster (a draft has no server roster yet). */}
-      {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
-      <Stack className="min-h-0 flex-1">
-        <MessageThreadAnchor>
-          <MessageListSurface
-            busDeps={busDeps}
-            handle={handle}
-            draftSeed={draftSeed}
-            onChatForked={onChatForked}
-          />
-        </MessageThreadAnchor>
-      </Stack>
-      {/* Bulk-select bar (J6) — pinned above the composer while select mode is on (renders null otherwise);
+        {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
+        <Stack className="min-h-0 flex-1">
+          <MessageThreadAnchor>
+            <MessageListSurface
+              busDeps={busDeps}
+              handle={handle}
+              draftSeed={draftSeed}
+              onChatForked={onChatForked}
+            />
+          </MessageThreadAnchor>
+        </Stack>
+        {/* Bulk-select bar (J6) — pinned above the composer while select mode is on (renders null otherwise);
           only a COMMITTED chat has server messages to select. */}
-      {isCommitted(handle) ? <MessageSelectionBar chatId={handle.id} /> : null}
-      <ComposerSlot
-        handle={handle}
-        value={draftText}
-        onChange={setDraftText}
-        draftSeed={draftSeed}
-        onCommitted={onCommitted}
-      />
-    </Stack>
+        {isCommitted(handle) ? <MessageSelectionBar chatId={handle.id} /> : null}
+        <ComposerSlot
+          handle={handle}
+          value={draftText}
+          onChange={setDraftText}
+          draftSeed={draftSeed}
+          onCommitted={onCommitted}
+        />
+      </Stack>
+    </ThemeScope>
   );
 }
 

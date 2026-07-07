@@ -318,6 +318,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     getCard: () => Promise.resolve(null),
     // D44 §12.0 — default to the safe floor (untrusted; external media gated). Overridable per test.
     resolveRenderPolicy: () => Promise.resolve({ trustHtml: false, forbidExternalMedia: true }),
+    // D44 §12.1/§12.5 — default to no override. Overridable per test.
+    resolveThemeOverride: () => Promise.resolve(null),
     resolveImageUrl: notStubbed,
     resolveUserPublics: notStubbed,
     mintSyntheticGroupCharacter: notStubbed,

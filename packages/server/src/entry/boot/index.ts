@@ -15,3 +15,5 @@ export type { SeedDefaultPresetDeps } from "./seed-default-preset";
 export { seedDefaultPreset } from "./seed-default-preset";
 export type { SeedOwnerDeps } from "./seed-owner";
 export { seedOwner } from "./seed-owner";
+export type { SeedThemesDeps } from "./seed-themes";
+export { seedThemes } from "./seed-themes";

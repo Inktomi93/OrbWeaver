@@ -24,16 +24,19 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { SpeakerColorTokens } from "./speaker-color";
+import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { colorForCharacter } from "./speaker-color";
 
 export interface RowAttribution {
   /** `null` = render no attribution chrome. */
   readonly name: string | null;
   readonly avatarAssetId: AssetId | null;
-  /** The per-speaker color tokens for the row's bubble (`null` for user rows and unresolved rows —
-   *  the per-role bubble token already carries the identity there). */
-  readonly tokens: SpeakerColorTokens | null;
+  /** The per-speaker theme tokens for the row's bubble (`null` for user rows and unresolved rows — the
+   *  per-role bubble token carries the identity there). Layer 3: the character's AUTHORED `themeOverride`
+   *  when set (unset fields inherit the global scope via CSS cascade — `<ThemeScope>` only emits present
+   *  fields), else the deterministic hash tint (`colorForCharacter`) so distinct speakers still read apart
+   *  before anyone authors a theme. */
+  readonly tokens: ThemeScopeTokens | null;
 }
 
 const NO_ATTRIBUTION: RowAttribution = { name: null, avatarAssetId: null, tokens: null };
@@ -96,10 +99,13 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
     return NO_ATTRIBUTION;
   }
   const participant = input.participants?.get(input.characterId);
+  // Layer 3 — the character's authored theme override wins (its unset fields fall through to the global
+  // scope by cascade); the hash tint is the fallback for a character with no override.
+  const tokens = participant?.themeOverride ?? colorForCharacter(input.characterId);
   return {
     name,
     avatarAssetId: participant?.avatarAssetId ?? null,
-    tokens: colorForCharacter(input.characterId),
+    tokens,
   };
 }
 
@@ -120,6 +126,59 @@ function isMultiCharacterRoom(
     }
   }
   return false;
+}
+
+/** Layer 2 — the sole-character CHROME takeover (D44 §12.1). In a TRUE-SOLO room (exactly one human AND
+ *  one character, no other seat) the character's authored `themeOverride` takes over the chat-root chrome
+ *  so the palette becomes "chatting with X". Any other composition — a second human/observer (each has
+ *  their OWN global theme we must not override), an agent, or a second character (a group) — returns
+ *  `undefined`, and the chrome falls back to the viewer's own Layer-1 theme. Derived purely from roster
+ *  COMPOSITION (count by kind), never an `isGroup` branch (D16 / gate `no-if-is-group`). NB: this gates
+ *  ONLY the chrome takeover — per-speaker MESSAGE theming (Layer 3) stays on in every room. */
+const SOLO_COUNT = 1;
+const TRUE_SOLO_SEATS = 2; // exactly [one human, one character] — nothing else in the room
+export function resolveRoomTheme(
+  participants: readonly ParticipantView[] | undefined,
+): ThemeScopeTokens | undefined {
+  if (participants === undefined) {
+    return;
+  }
+  let humanCount = 0;
+  let characterCount = 0;
+  let soleCharacterOverride: ThemeScopeTokens | undefined;
+  for (const participant of participants) {
+    if (participant.kind === "human") {
+      humanCount += 1;
+    } else if (participant.kind === "character") {
+      characterCount += 1;
+      soleCharacterOverride = participant.themeOverride ?? undefined;
+    }
+  }
+  const trueSolo =
+    humanCount === SOLO_COUNT &&
+    characterCount === SOLO_COUNT &&
+    participants.length === TRUE_SOLO_SEATS;
+  return trueSolo ? soleCharacterOverride : undefined;
+}
+
+/** Layer 3 for the merged-narrator `<speaker>`-split path (§12.4): a NAME → the character's authored
+ *  `themeOverride`, built from the roster. The span renderer looks a speaker's override up by the marker
+ *  name (falling back to the hash tint when absent), so each character's spans inside one merged bubble
+ *  carry their own authored palette. Only characters WITH an override are included (others fall through). */
+export function speakerThemesByName(
+  participants: ReadonlyMap<CharacterId, ParticipantView> | undefined,
+): ReadonlyMap<string, ThemeScopeTokens> {
+  const byName = new Map<string, ThemeScopeTokens>();
+  if (participants === undefined) {
+    return byName;
+  }
+  for (const participant of participants.values()) {
+    const override = participant.themeOverride;
+    if (participant.kind === "character" && override !== null && override !== undefined) {
+      byName.set(participant.displayName, override);
+    }
+  }
+  return byName;
 }
 
 const INITIALS_FALLBACK = "?";

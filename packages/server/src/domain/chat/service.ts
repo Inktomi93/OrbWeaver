@@ -70,6 +70,12 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           ownerId: hostUserId,
           characterId: r.characterId,
         });
+        // D44 §12.1/§12.5 — the RAW per-character theme override (unmerged; `null` for a human seat or a
+        // character with none set). The client nests a `<ThemeScope>` for it inside the root scope.
+        const themeOverride = await ctx.resolveThemeOverride({
+          ownerId: hostUserId,
+          characterId: r.characterId,
+        });
 
         let avatarAssetId: AssetId | null = null;
         if (publics?.avatarAssetId !== undefined && publics.avatarAssetId !== null) {
@@ -97,6 +103,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           handle: (publics?.handle as any) ?? null,
           avatarAssetId,
           renderPolicy,
+          themeOverride,
         };
       }),
     );

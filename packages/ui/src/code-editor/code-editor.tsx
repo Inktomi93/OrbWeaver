@@ -1,3 +1,4 @@
+import { autocompletion, completeFromList } from "@codemirror/autocomplete";
 import { css } from "@codemirror/lang-css";
 import type { Diagnostic } from "@codemirror/lint";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
@@ -150,6 +151,17 @@ export interface CodeEditorProps {
    * plain read/write editor stays exactly as before this feature).
    */
   readonly diagnostics?: readonly CodeEditorDiagnostic[];
+  /**
+   * WS3 — a fixed completion vocabulary (e.g. the themeable `--color-*` var names) wired into
+   * REAL inline autocomplete via `@codemirror/autocomplete`'s `completeFromList` (CodeMirror 6's
+   * own doc-recommended shape for a static string list — this package's ONE `@codemirror/autocomplete`
+   * import site, dep-cruiser `ui-satellite-seals`). Passed as `autocompletion({ override })`, so
+   * while set it REPLACES `basicSetup`'s default completions (word-from-buffer + the `css()`
+   * language's own property names) with just this vocabulary — the right trade for a curated
+   * custom-property field, not a general CSS-authoring surface. Omit for the plain editor (no
+   * behavior change from before this prop existed — `basicSetup`'s defaults still apply).
+   */
+  readonly completions?: readonly string[];
   readonly className?: string;
 }
 
@@ -175,6 +187,7 @@ export function CodeEditor({
   readOnly = false,
   ariaLabel,
   diagnostics,
+  completions,
   className,
 }: CodeEditorProps): ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -224,6 +237,12 @@ export function CodeEditor({
         // `linter(null)`: no auto-computed source — diagnostics are caller-controlled and pushed
         // in via `setDiagnostics` below, never derived from document-idle recomputation.
         ...(hasDiagnostics ? [linter(null), lintGutter()] : []),
+        // WS3 — a fixed completion vocabulary REPLACES `basicSetup`'s default sources (see the prop
+        // doc above). `completions` is expected to be a stable reference (a module-scope const like
+        // `THEME_SCOPE_EMIT_VARS`) — like `lang`/`readOnly`, a genuine change rebuilds the view.
+        ...(completions === undefined
+          ? []
+          : [autocompletion({ override: [completeFromList([...completions])] })]),
       ],
     });
     viewRef.current = view;
@@ -231,7 +250,7 @@ export function CodeEditor({
       viewRef.current = null;
       view.destroy();
     };
-  }, [lang, readOnly, ariaLabel, hasDiagnostics, describedById]);
+  }, [lang, readOnly, ariaLabel, hasDiagnostics, describedById, completions]);
 
   // Controlled value ↔ view state: dispatch only when the prop actually differs from the live
   // document, so the onChange→setState→value round-trip does not loop.

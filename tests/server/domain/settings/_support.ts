@@ -7,7 +7,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { SettingsServiceDeps } from "@orb/server/domain/settings";
@@ -64,6 +64,7 @@ export function principal(userId: UserId, role: UserRole, handle: string = userI
 export function makeHarness(db: Db): SettingsHarness {
   const clock = createFrozenClock(FROZEN_AT);
   const audits: AuditCall[] = [];
+  let themeCounter = 0;
   const deps: SettingsServiceDeps = {
     db,
     now: (): number => clock.now(),
@@ -73,6 +74,10 @@ export function makeHarness(db: Db): SettingsHarness {
     },
     requireAdmin,
     requireOwner,
+    newThemeId: (): ThemeId => {
+      themeCounter += 1;
+      return castId<ThemeId>(`theme_test${themeCounter}`);
+    },
   };
   return { svc: createSettingsService(deps), deps, audits, clock };
 }

@@ -34,6 +34,7 @@ import type { ChoiceBlockSpec } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
+import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
@@ -152,6 +153,18 @@ export type ResolveRenderPolicyOp = (params: {
   readonly ownerId: UserId | null;
   readonly characterId: CharacterId | null;
 }) => Promise<RenderPolicy>;
+
+/** Resolve a roster member's RAW per-character theme override (D44 §12.1/§12.5) — `character.themeOverride`,
+ *  unmerged. Deliberately NOT `override ?? global` like {@link ResolveRenderPolicyOp}: chat assembly never
+ *  reads the `themes` table (themes-design.md §1 — zero cross-feature surface); "character over global
+ *  over default" resolution is a client ThemeScope NESTING concern (the CSS custom-property cascade
+ *  merges a present override over the inherited root scope for free). `null` ⇒ no override (a human seat,
+ *  or a character with none set) — the client falls through to the global scope. */
+export type ResolveThemeOverrideOp = (params: {
+  /** The host owner (a character's cards belong to the host). `null` (no resolvable host) ⇒ `null`. */
+  readonly ownerId: UserId | null;
+  readonly characterId: CharacterId | null;
+}) => Promise<ThemeOverride | null>;
 
 /** `users.resolveUserPublics` — resolve a human participant's display fields (the entry root decorates this). */
 export type ResolveUserPublicsOp = (
@@ -389,6 +402,8 @@ export interface ChatContext {
   readonly getCard: GetCardOp;
   /** D44 §12.0 — resolve a roster member's content-render policy (`override ?? global`). */
   readonly resolveRenderPolicy: ResolveRenderPolicyOp;
+  /** D44 §12.1/§12.5 — resolve a roster member's RAW per-character theme override (unmerged). */
+  readonly resolveThemeOverride: ResolveThemeOverrideOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;

@@ -51,6 +51,7 @@ import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { RegexScript } from "#regex";
+import type { ThemeOverride } from "#theme";
 import type { WiBusEvent, WorldInfoScope } from "#world-info";
 
 // ── The roster participant kind (the chat-roster discriminator) ───────────────
@@ -899,6 +900,13 @@ export interface ParticipantView {
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
    *  untrusted + gate-external safe floor), never fails open. */
   renderPolicy?: RenderPolicy;
+  /** D44 §12.1/§12.5 — the RAW per-character theme-token override (`character.themeOverride`, threaded
+   *  through unmerged — themes-design.md §1: chat assembly never reads the `themes` table). `null` = no
+   *  override for a character seat, or always `null` for a human seat. Resolution to "character over
+   *  global over default" is a CLIENT ThemeScope NESTING concern (a per-speaker scope wrapping the root
+   *  scope — `clampThemeTokens` only emits present fields, so the CSS custom-property cascade does the
+   *  merge for free); the client nests a per-speaker ThemeScope inside the root scope. */
+  themeOverride?: ThemeOverride | null;
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the

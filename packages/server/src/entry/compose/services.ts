@@ -195,7 +195,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   //    backend-registry so the registry can source the admin-resolved vLLM concurrency from the effective-
   //    config (PD-14). Its deps (db/now/audit + the pure guard fns) never touch the registry → safe hoist. ──
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret });
-  const settings = createSettingsService({ db, now, audit, requireAdmin, requireOwner });
+  const settings = createSettingsService({
+    db,
+    now,
+    audit,
+    requireAdmin,
+    requireOwner,
+    newThemeId: minter(ID_PREFIX.theme),
+  });
 
   // ── The effective-config boot surface: warm the resolved-config cache from the stored override so the SYNC
   //    getEffectiveConfig() returns the floor⊕override config (incl. vllmConcurrency) before the registry reads

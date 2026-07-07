@@ -6,6 +6,7 @@
   --color-foreground: oklch(0.955 0.004 75);
   --color-card: oklch(0.205 0.006 60);
   --color-card-foreground: oklch(0.955 0.004 75);
+  --color-surface-raised: oklch(0.185 0.006 60);
   --color-popover: oklch(0.245 0.007 60);
   --color-popover-foreground: oklch(0.96 0.004 75);
   --color-primary: oklch(0.72 0.175 52);
@@ -66,8 +67,16 @@
   --radius-control: 0.375rem;
   --radius-card: 0.625rem;
   --radius-full: 9999px;
+  --dimension-rail: 3.5rem;
+  --dimension-chrome-row: 3rem;
+  --dimension-panel: clamp(16rem, 22vw, 22rem);
+  --dimension-shell-breakpoint: 48rem;
   --shadow-glow: 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
   --shadow-overlay: 0 24px 80px oklch(0 0 0 / 0.5);
+  --shadow-prose: 0 1px 2px oklch(0 0 0 / 0.45), 0 0 6px oklch(0 0 0 / 0.25);
+  --blur-strength: 14px;
+  --blur-fill-chrome: 70%;
+  --blur-fill-dense: 88%;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
   --text-display: 1.5rem;

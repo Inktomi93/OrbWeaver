@@ -16,13 +16,19 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
+import { messageActionsRevealClass } from "../lib/message-actions-reveal";
 
 export interface GreetingActionsRowProps {
   readonly message: MessageView;
+  /** The `messageActions` appearance pref (D44 §12.1) — see `MessageActionsRowProps`. */
+  readonly messageActions?: "expanded" | "hover" | undefined;
 }
 
 /** Edit · Copy for a draft greeting row — the pre-commit subset of the committed action cluster. */
-export function GreetingActionsRow({ message }: GreetingActionsRowProps): ReactElement {
+export function GreetingActionsRow({
+  message,
+  messageActions,
+}: GreetingActionsRowProps): ReactElement {
   const onEdit = (): void => {
     startEditingMessage(message.id, message.content);
   };
@@ -42,7 +48,7 @@ export function GreetingActionsRow({ message }: GreetingActionsRowProps): ReactE
       align="center"
       justify="end"
       data-slot="message-actions-row"
-      className="pointer-events-none opacity-0 transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100"
+      className={messageActionsRevealClass(messageActions)}
     >
       <Button intent="ghost" size="icon" aria-label="Edit greeting" onClick={onEdit}>
         <Icon icon={Pencil} size="sm" />

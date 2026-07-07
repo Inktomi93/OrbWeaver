@@ -177,6 +177,8 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         avatarShape={messageAppearance.avatarShape}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
+        metadataVisibility={messageAppearance.metadataVisibility}
+        messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastAssistantId}
         participants={participants}
         characterNamesById={characterNamesById}
@@ -263,6 +265,7 @@ function DraftGreetingThread({
           avatarShape={messageAppearance.avatarShape}
           showInChatAvatars={messageAppearance.showInChatAvatars}
           autoFixMarkdown={messageAppearance.autoFixMarkdown}
+          messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
           personaNamesById={personaNamesById}
           greeting={{ draftKey, characterId: character.id, variants: character.greetings }}

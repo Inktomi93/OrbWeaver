@@ -99,6 +99,10 @@ function makeService(names: Readonly<Record<string, string>>): {
           ? { trustHtml: false, forbidExternalMedia: true }
           : { trustHtml: true, forbidExternalMedia: false },
       ),
+    // D44 §12.1/§12.5 — a CHARACTER seat carries a raw theme override; a human seat resolves to null.
+    // Proves the RAW (unmerged) value is threaded onto ParticipantView, not re-resolved against a global.
+    resolveThemeOverride: ({ characterId }) =>
+      Promise.resolve(characterId === null ? null : { accent: "oklch(0.7 0.14 250)" }),
   });
   const deps: ChatServiceDeps = {
     emit: (event) => {
@@ -199,5 +203,9 @@ describe("createChatService — assembly", () => {
     // never re-resolves): the opted-in character carries trusted; the human seat the untrusted floor.
     expect(charRow?.renderPolicy).toEqual({ trustHtml: true, forbidExternalMedia: false });
     expect(hostRow?.renderPolicy).toEqual({ trustHtml: false, forbidExternalMedia: true });
+    // D44 §12.1/§12.5 — the RAW theme override is threaded onto each ParticipantView (unmerged: the
+    // client, not chat assembly, resolves `character > global > default` via `<ThemeScope>` nesting).
+    expect(charRow?.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
+    expect(hostRow?.themeOverride).toBeNull();
   });
 });

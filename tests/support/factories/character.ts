@@ -30,6 +30,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     synthetic: false,
     forbidExternalMedia: null,
     trustHtml: null,
+    themeOverride: null,
     importedFrom: null,
     importHash: null,
     contentHash: `hash_${id}`,

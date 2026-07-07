@@ -7,7 +7,9 @@
 // commit half — prod-inert), probe-mode (the harness-determinism flag — ships, runtime-gated,
 // features read it to freeze wall-clock-relative text under snap), error-boundary + client-error-report
 // (PD-58: the app-level catch + its pure report-payload builder — both ship in prod; the tRPC wire call
-// itself is wired at main.tsx, which is the one place already holding the client). `cn` re-exports from
+// itself is wired at main.tsx, which is the one place already holding the client), list-seeded-
+// backgrounds (D49 §3 — the bundled theme background-image catalog; both app-shell's render layer AND
+// the settings theme-editor picker read it, so neither imports the other). `cn` re-exports from
 // the ui seal so features import ONE lib module.
 // DELIBERATELY NOT EXPORTED (dev-only modules never ride a shared barrel — the barrel-leak failure
 // mode): ./dev-tools (main.tsx lazy-mounts it) · ./long-task-tracer (main.tsx dynamic-imports it).
@@ -22,6 +24,8 @@ export { IS_DEV } from "./dev-flag";
 export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
+export type { SeededBackground } from "./list-seeded-backgrounds";
+export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./list-seeded-backgrounds";
 export { logClock } from "./log-clock";
 export type { MessageRenderContext } from "./message-render";
 export { renderMessageForDisplay } from "./message-render";

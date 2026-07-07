@@ -7,17 +7,26 @@
 // so the OTHER consumers (chat's `useChatStyle`/`useMessageAppearance`, the shell's density stamp)
 // re-render live — flipping chatStyle here flips the message rendering with no reload (the §12.1 payoff).
 //
-// V1 SCOPE (NO DEAD TOGGLES): only the knobs wired end-to-end get a field — chatStyle, avatarSize,
-// avatarShape, showInChatAvatars, density, autoFixMarkdown. The schema is COMPLETE (all knobs persist);
-// the deferred knobs' fields land WITH their render consumers (a persisted-but-inert toggle is a shim).
-// The form's value type is the FULL `AppearanceSettings`, so the unshown knobs round-trip their server
-// values unchanged on every patch.
+// SCOPE (NO DEAD TOGGLES — the surface's standing law + done-not-equal-rendered): a field is rendered
+// ONLY when its knob is wired end-to-end to a LIVE consumer. Rendered here: chatStyle · density ·
+// elevation (shell.css ramp) · autoFixMarkdown · showInChatAvatars/avatarSize/avatarShape · chatWidthPct
+// (the §11.1 --width-shell-content root var) · fontScale (the globals :root font-size floor) ·
+// reducedMotion (the globals [data-reduced-motion] freeze) · (WS3) showTimestamps/showMessageId/
+// showModelIcon/showTokenCount (`MessageMetadataRow`, message-metadata-row.tsx) · messageActions
+// (`messageActionsRevealClass`, message-actions-row.tsx / greeting-actions-row.tsx) · blurSurfaces
+// (root `data-blur-*`, useAppearanceRootEffects → globals.css/shell.css) · shadowEffects (root
+// `data-shadow` → globals.css `--shadow-prose`). The schema stays COMPLETE (all knobs persist,
+// round-tripped unchanged on every patch); `showGenerationTimer` gets NO control — FLAG[PD-130]: the
+// underlying `gen_started_at`/`gen_finished_at` data is never populated by the turn engine (see
+// message-metadata-row.tsx's header note) — a persisted-but-inert toggle would be a shim, so it stays
+// schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import { BLUR_SURFACES, DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import { Button } from "@orb/ui/button";
 import { Grid, Section, Stack } from "@orb/ui/layout";
-import type { SelectItems } from "@orb/ui/select";
+import type { SelectItems, SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -56,6 +65,38 @@ const AVATAR_SHAPE_ITEMS: SelectItems<string> = [
   { value: "round", label: "Round" },
   { value: "square", label: "Square" },
 ] satisfies readonly { value: AppearanceSettings["avatarShape"]; label: string }[];
+
+const ELEVATION_ITEMS: SelectItems<string> = [
+  { value: "flat", label: "Flat" },
+  { value: "ramp", label: "Layered" },
+] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
+
+const MESSAGE_ACTIONS_ITEMS: SelectItems<string> = [
+  { value: "hover", label: "Reveal on hover" },
+  { value: "expanded", label: "Always visible" },
+] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];
+
+// WS3 — the blurSurfaces multi-select. `messages` carries the Reading-Surface-rule warning in its own
+// label/description (never default-checked — glass behind scrolling prose is the one surface the
+// picker itself should visibly flag, not just omit from a default).
+const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], string> = {
+  panels: "Side panels",
+  composer: "Composer",
+  messages: "Messages (reading surface — use sparingly)",
+  modals: "Dialogs",
+};
+const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES.map((value) => ({
+  value,
+  label: BLUR_SURFACE_LABELS[value],
+}));
+
+// Sizing bounds (mirror the contracts schema — kept local for the field min/max/step; the schema is the
+// hard clamp, these are just the input affordances).
+const CHAT_WIDTH_MIN = 30;
+const CHAT_WIDTH_MAX = 100;
+const FONT_SCALE_MIN = 0.8;
+const FONT_SCALE_MAX = 1.5;
+const FONT_SCALE_STEP = 0.05;
 
 // The section-patch mutation (module scope, §13.1). `invalidates` refetches getUserSettings through the
 // central seam — the live-flip mechanism for every other appearance consumer. TVars.patch is the typed
@@ -132,6 +173,15 @@ function AppearanceForm(): ReactElement {
               />
             )}
           </form.AppField>
+          <form.AppField name="elevation">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Surface elevation"
+                description="Layered lifts the panels and content into a brightness ladder and drops the region borders; flat keeps one tone."
+                items={ELEVATION_ITEMS}
+              />
+            )}
+          </form.AppField>
           <form.AppField name="autoFixMarkdown">
             {(field): ReactElement => (
               <field.SwitchField
@@ -159,6 +209,119 @@ function AppearanceForm(): ReactElement {
           <form.AppField name="avatarShape">
             {(field): ReactElement => (
               <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Sizing">
+          <form.AppField name="chatWidthPct">
+            {(field): ReactElement => (
+              <field.SliderField
+                label="Chat width (%)"
+                description="How wide the reading column may grow on large screens."
+                min={CHAT_WIDTH_MIN}
+                max={CHAT_WIDTH_MAX}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="fontScale">
+            {(field): ReactElement => (
+              <field.SliderField
+                label="Text size"
+                description="A global multiplier for all text (1 = default)."
+                min={FONT_SCALE_MIN}
+                max={FONT_SCALE_MAX}
+                step={FONT_SCALE_STEP}
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Motion">
+          <form.AppField name="reducedMotion">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Reduce motion"
+                description="Freeze animations and transitions, beyond your system's own reduced-motion setting."
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Message details">
+          <form.AppField name="showTimestamps">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show timestamps"
+                description="A time chip on every message."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="showMessageId">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show message ID"
+                description="The message's stable id, for scripting/reference."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="showModelIcon">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show model"
+                description="Which model generated the message, when known."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="showTokenCount">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show token count"
+                description="The message's token usage, when known."
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Message actions">
+          <form.AppField name="messageActions">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Action cluster"
+                description="Edit/hide/fork/delete/copy, shown on hover (default) or always."
+                items={MESSAGE_ACTIONS_ITEMS}
+              />
+            )}
+          </form.AppField>
+        </Section>
+
+        <Section heading="Effects">
+          <form.AppField name="blurSurfaces">
+            {(field): ReactElement => (
+              <Stack gap="field">
+                <field.MultiToggleField
+                  label="Frosted glass"
+                  description="Backdrop blur + a translucent fill on the chosen surfaces. Off by default; messages carry glass poorly (scrolling prose over blur) so it's never pre-checked."
+                  items={BLUR_SURFACE_ITEMS}
+                />
+                {field.state.value.length === 0 ? (
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    onClick={(): void => field.handleChange([...DEFAULT_BLUR_SURFACES])}
+                  >
+                    Enable (panels + composer + dialogs)
+                  </Button>
+                ) : null}
+              </Stack>
+            )}
+          </form.AppField>
+          <form.AppField name="shadowEffects">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Prose shadow"
+                description="A subtle readability halo on message text."
+              />
             )}
           </form.AppField>
         </Section>

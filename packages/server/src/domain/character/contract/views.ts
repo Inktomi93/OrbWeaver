@@ -8,6 +8,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { TagView } from "@orb/contracts/tag";
+import type { ThemeOverride } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 
 /** The full owned-card detail: the live card content (CharacterCard) + the identity/provenance columns +
@@ -23,6 +24,9 @@ export interface CharacterDetail extends CharacterCard {
   /** D44 §12.0 render-trust OPT-IN. Tri-state: null = inherit the deployment default, true = trusted,
    *  false = force untrusted. */
   readonly trustHtml: boolean | null;
+  /** D44 §12.1/§12.5 — the per-character theme-token override. `null` = no override (inherit the user's
+   *  global selected theme). RAW, unmerged (resolution is a client `<ThemeScope>` nesting concern). */
+  readonly themeOverride: ThemeOverride | null;
   /** Import provenance: the source label + the raw-file hash (both null for an app-authored card). */
   readonly importedFrom: string | null;
   readonly importHash: string | null;
@@ -45,6 +49,7 @@ export interface CharacterSummary {
   readonly archived: boolean;
   readonly forbidExternalMedia: boolean | null;
   readonly trustHtml: boolean | null;
+  readonly themeOverride: ThemeOverride | null;
   readonly avatarAssetId: CharacterCard["avatarAssetId"];
   readonly avatarHash: string | null;
   readonly contentHash: string;

@@ -37,6 +37,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     requireAdmin: deps.requireAdmin,
     requireOwner: deps.requireOwner,
     serializeUserWrite,
+    newThemeId: deps.newThemeId,
     getEffectiveConfig,
     reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
   };

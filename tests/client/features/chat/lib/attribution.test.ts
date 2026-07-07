@@ -11,7 +11,9 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import {
   initialsForAttribution,
+  resolveRoomTheme,
   resolveRowAttribution,
+  speakerThemesByName,
 } from "../../../../../packages/client/src/features/chat/lib/attribution";
 import { expect, test } from "../../../../support/fixtures";
 
@@ -236,4 +238,54 @@ test("initials take the first letter of up to two words", () => {
   expect(initialsForAttribution("Alice Smith")).toBe("AS");
   expect(initialsForAttribution("Bob")).toBe("B");
   expect(initialsForAttribution("   ")).toBe("?");
+});
+
+const HEARTH_TOKENS = { accent: "oklch(0.7 0.14 250)" };
+
+test("Layer 3: an assistant row uses the character's authored themeOverride when present", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })],
+  ]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([
+    [ALICE_ID, { name: "Alice" }],
+  ]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: ALICE_ID,
+    personaId: null,
+    participants,
+    characterNamesById,
+  });
+  expect(result.tokens).toEqual(HEARTH_TOKENS);
+});
+
+test("Layer 2: resolveRoomTheme applies the sole character's override only in a TRUE-SOLO room", () => {
+  const human = makeParticipant({ kind: "human", characterId: null, displayName: "Alex" });
+  const alice = makeParticipant({
+    characterId: ALICE_ID,
+    displayName: "Alice",
+    themeOverride: HEARTH_TOKENS,
+  });
+  const bob = makeParticipant({ characterId: BOB_ID, displayName: "Bob" });
+  // Exactly one human + one character → takeover.
+  expect(resolveRoomTheme([human, alice])).toEqual(HEARTH_TOKENS);
+  // A second character (group) → no takeover.
+  expect(resolveRoomTheme([human, alice, bob])).toBeUndefined();
+  // A second human → no takeover (each human keeps their own theme).
+  const human2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
+  expect(resolveRoomTheme([human, human2, alice])).toBeUndefined();
+  // An observer (another human viewer) → no takeover.
+  const observer = makeParticipant({ kind: "observer", characterId: null, displayName: "Watcher" });
+  expect(resolveRoomTheme([human, alice, observer])).toBeUndefined();
+  expect(resolveRoomTheme(undefined)).toBeUndefined();
+});
+
+test("Layer 3 spans: speakerThemesByName maps a character's NAME to its override", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })], // no override → omitted
+  ]);
+  const byName = speakerThemesByName(participants);
+  expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
+  expect(byName.has("Bob")).toBe(false);
 });

@@ -12,13 +12,22 @@
 // in-blob `schemaVersion` probe. The persisted `config` blob does NOT carry `schemaVersion`; the column
 // does. Without it every blob probes as v1 and all lifts re-run on every read (corrupting data the
 // moment a lift is non-idempotent). Defaulted to the current version so a fresh seed is self-consistent.
+//
+// `themes` (TypeID PK) — the D44 §12.1 user theme library (`proposed/themes-design.md` §2). Seed
+// palettes (Hearth/Mocha/Light) are rows with `owner_id IS NULL` (the `presets` two-row-kind precedent,
+// `db/schema/preset.ts`): non-deletable/non-editable by construction, since `fetchOwned(caller)` can
+// never match a NULL owner. CASCADE on `owner_id` (the D21 single-owned family norm — presets' RESTRICT
+// is preset-specific). `unique(ownerId, name)` makes the picker/duplicate name-space collision surface
+// as a typed constraint violation at the write verb (never a phantom pre-SELECT); SQLite treats NULLs as
+// distinct, so seed names are NOT constrained by it (the seeder is the guard for the seed namespace).
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+import type { ThemeOverride } from "@orb/contracts/theme";
+import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 export const settings = sqliteTable("settings", {
@@ -44,3 +53,30 @@ export const userSettings = sqliteTable("user_settings", {
   config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
+
+export const themes = sqliteTable(
+  "themes",
+  {
+    id: text("id").$type<ThemeId>().primaryKey(),
+    // NULLABLE: owner_id IS NULL = a seed palette row (the presets two-row-kind pattern). CASCADE for
+    // owned rows — a deleted user's themes are worthless without the owner (the D21 single-owned norm).
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    // The D44 Tier-A token-override value-set. Parsed LENIENTLY at the read seam via `themeOverrideSchema`
+    // (@orb/contracts/theme) — a corrupt blob degrades to defaults there, never here.
+    override: text("override", { mode: "json" }).$type<ThemeOverride>().notNull(),
+    // Optional self-authored custom CSS (§12.1 Tier-B / global-owner tier — validated at the write
+    // boundary via `@orb/kit/css-validate`). NULL on seeds.
+    css: text("css"),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (table) => [
+    index("themes_owner_idx").on(table.ownerId),
+    // Per-user name uniqueness: a duplicate name makes the theme picker ambiguous. NULLs are distinct in
+    // SQLite, so this does not constrain seed names (the seeder is the guard for the seed namespace).
+    uniqueIndex("themes_owner_name_uq").on(table.ownerId, table.name),
+  ],
+);

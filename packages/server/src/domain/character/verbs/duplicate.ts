@@ -1,7 +1,8 @@
 // verb: duplicate — clone an owned character into a FRESH local card. The card content is copied verbatim;
 // the handle gets a free `<handle>-copy[-n]` (per-owner unique); identity flags reset (not starred/archived)
 // and import provenance is CLEARED (`importedFrom`/`importHash` null — the clone is app-authored, not
-// imported), but the per-character render policies (`forbidExternalMedia`, `trustHtml`) carry forward.
+// imported), but the per-character render/theme policies (`forbidExternalMedia`, `trustHtml`,
+// `themeOverride`) carry forward.
 // `contentHash` is the
 // flatten of the copied card. Emits `character.updated`. Throws `CharacterNotFoundError` when the source
 // isn't owned/found.
@@ -57,6 +58,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       contentHash: cardContentHash(card),
       forbidExternalMedia: source.forbidExternalMedia,
       trustHtml: source.trustHtml,
+      themeOverride: source.themeOverride,
       createdAt: at,
       ...card,
     });

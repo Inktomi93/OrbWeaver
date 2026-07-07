@@ -49,5 +49,13 @@ describe("flagEdits", () => {
     // D44 §12.0 — the render-trust flag rides the SAME present-only carry (null clears, not dropped).
     expect(flagEdits({ trustHtml: null } as UpdateCharacterInput)).toEqual({ trustHtml: null });
     expect(flagEdits({ trustHtml: true } as UpdateCharacterInput)).toEqual({ trustHtml: true });
+    // D44 §12.1/§12.5 — the per-character theme override rides the SAME present-only carry.
+    expect(flagEdits({ themeOverride: null } as UpdateCharacterInput)).toEqual({
+      themeOverride: null,
+    });
+    expect(
+      flagEdits({ themeOverride: { accent: "oklch(0.7 0.14 250)" } } as UpdateCharacterInput),
+    ).toEqual({ themeOverride: { accent: "oklch(0.7 0.14 250)" } });
+    expect(flagEdits({} as UpdateCharacterInput)).not.toHaveProperty("themeOverride");
   });
 });

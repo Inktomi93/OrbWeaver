@@ -25,10 +25,14 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts"] as const;
  *  - chat.md: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set),
  *    `connected-persona.ts` (one-connection-only auto-activate) — none fit verbs/substrate/a subsystem.
  *  - preset: `constants.ts` (SYSTEM_DEFAULT_PRESET_ID, domain-internal), `seed.ts` (boot-time
- *    ensureSystemDefaultPreset — too small to be its own subsystem). */
+ *    ensureSystemDefaultPreset — too small to be its own subsystem).
+ *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
+ *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
+ *    root's `seed.ts` slot may host a different concern later — themes-design.md §5). */
 const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts", "connected-persona.ts"],
   preset: ["constants.ts", "seed.ts"],
+  settings: ["constants.ts", "seed-themes.ts"],
 };
 
 function isAllowedRootFile(feature: string, fileName: string): boolean {

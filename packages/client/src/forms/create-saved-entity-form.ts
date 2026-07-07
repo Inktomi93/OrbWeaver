@@ -21,6 +21,11 @@
 // (Obligation 5 — the Zustand-persist draft mirror — is the AUTOSAVE factory's; a button-gated
 // editor holds unsaved state in the form itself.)
 //
+// The persist fn (`save`) has TWO seams, exactly mirroring `createAutosaveEntityForm`: a module-scope
+// `config.save` for editors whose save needs nothing beyond `TValues`, and a CALL-time
+// `SavedEntityFormArgs.save` (WINS) for editors whose save must close over the live tRPC client + an
+// entity id neither reachable at module scope (e.g. the theme editor's `updateTheme.mutateAsync`).
+//
 // Two more adopts from the full-docs mine (UI-Lib-TanStack-Form.md §E.6/§E.11), baked as defaults
 // every consumer inherits for free:
 //   • `validationLogic: revalidateLogic()` — the editor-friendly default validation seam
@@ -41,8 +46,15 @@ import { useAppForm } from "./use-app-form";
 export interface SavedEntityFormConfig<TValues extends object> {
   /** Fallback defaults for a CREATE (no server row yet). */
   readonly defaultValues: TValues;
-  /** Persist the values; RESOLVES to the saved row (the re-baseline source). */
-  readonly save: (values: TValues) => Promise<TValues>;
+  /**
+   * Persist the values; RESOLVES to the saved row (the re-baseline source). OPTIONAL because a
+   * factory runs at MODULE scope (stable hook identity, §13.1) where a save that needs the runtime
+   * tRPC client + an entity id (a React-context value + a route/call param, neither reachable at
+   * module scope) can't be baked here — the surface supplies it at CALL time via
+   * `SavedEntityFormArgs.save` instead (which WINS). Mirrors `createAutosaveEntityForm`'s identical
+   * call-time seam (create-autosave-entity-form.ts) — the same problem, the same fix.
+   */
+  readonly save?: (values: TValues) => Promise<TValues>;
   /**
    * Extra `useAppForm` options (validators etc.) spread verbatim — authored at the call site.
    * Derived from the REAL hook options (never a hand-restated bag): a typo'd key (e.g.
@@ -56,6 +68,13 @@ export interface SavedEntityFormArgs<TValues extends object> {
   readonly entityId: string;
   /** The server row (undefined while loading / for a create). */
   readonly serverValues: TValues | undefined;
+  /**
+   * The persist fn — supplied at CALL time so it can close over the live tRPC client + the entity id
+   * the surface holds (a module-scope `config.save` cannot reach React context). WINS over
+   * `config.save` when both are present. RESOLVES to the saved row (the re-baseline source, obligation
+   * 3) — e.g. `updateTheme.mutateAsync(...).then(themeFormFromEntity)`.
+   */
+  readonly save?: (values: TValues) => Promise<TValues>;
 }
 
 // The factory's return type is INFERENCE-CARRIED on purpose: the AppForm instance is a 20+-generic
@@ -67,7 +86,15 @@ export function createSavedEntityForm<TValues extends object>(
 ) {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useCharacterForm = createSavedEntityForm(...)), so the returned hook has a stable identity the Compiler can analyze; a per-render creation is what the rule fears and cannot happen here.
   // biome-ignore lint/nursery/useExplicitReturnType: inference-carried (see the factory header).
-  return function useSavedEntityForm({ entityId, serverValues }: SavedEntityFormArgs<TValues>) {
+  return function useSavedEntityForm({
+    entityId,
+    serverValues,
+    save: callTimeSave,
+  }: SavedEntityFormArgs<TValues>) {
+    // The persist fn: the call-time `save` (client-bound; the surface's seam) WINS over the
+    // module-scope `config.save` — same rule as the autosave factory.
+    const save = callTimeSave ?? config.save;
+
     // The re-baseline handshake (obligation 3): onSubmit stores the SAVED row + bumps the tick;
     // the effect below runs after the submit promise resolves and calls reset(saved) OUTSIDE the
     // submit path. isSubmitSuccessful alone can't carry the saved VALUE — hence the ref+tick pair.
@@ -81,10 +108,18 @@ export function createSavedEntityForm<TValues extends object>(
       onSubmit: async ({ value }: { value: TValues }) => {
         // FLAG[#58] parse-on-submit NOT wired: `value` is the form's INPUT type. If a config supplies
         // a Standard-Schema validator with a Zod `.transform()`/coercion, the OUTPUT is NOT applied
-        // here — `config.save` receives the untransformed input (UI-Lib-TanStack-Form §C footgun #7).
-        // The TInput/TOutput split is deferred to the first entity editor whose schema actually
+        // here — `save` receives the untransformed input (UI-Lib-TanStack-Form §C footgun #7). The
+        // TInput/TOutput split is deferred to the first entity editor whose schema actually
         // transforms (validate against a real consumer, per the factory drift-bug lesson) — task #58.
-        const saved = await config.save(value);
+        if (save === undefined) {
+          // Neither seam supplied a persist fn — a button-gated editor with nothing to save is a
+          // wiring bug, not a legal "read-only panel" (unlike autosave's fire-and-forget, this form's
+          // whole point is the explicit save action), so this fails loud rather than silently no-op.
+          throw new Error(
+            "createSavedEntityForm: no save function supplied (neither config.save nor a call-time save)",
+          );
+        }
+        const saved = await save(value);
         savedRef.current = saved;
         setSaveTick((t) => t + 1);
       },

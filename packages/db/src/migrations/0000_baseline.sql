@@ -175,6 +175,7 @@ CREATE TABLE `characters` (
 	`synthetic` integer DEFAULT false NOT NULL,
 	`forbid_external_media` integer,
 	`trust_html` integer,
+	`theme_override` text,
 	`imported_from` text,
 	`import_hash` text,
 	`content_hash` text NOT NULL,
@@ -789,6 +790,19 @@ CREATE TABLE `settings` (
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `themes` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text,
+	`name` text NOT NULL,
+	`override` text NOT NULL,
+	`css` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`schema_version` integer DEFAULT 2 NOT NULL,

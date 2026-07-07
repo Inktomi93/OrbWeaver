@@ -111,14 +111,15 @@ export function Composer({
   return (
     // UIP-306: ONE rounded pill (`rounded-card` — the closest existing radius token; a textarea that grows
     // to ~8 rows can't be pill-round). The CONTAINER takes the focus ring (`focus-within:`), the textarea
-    // is borderless/transparent inside. Same centered ≤48rem (`max-w-cq-lg`) column as the thread
+    // is borderless/transparent inside. Same centered `--width-shell-content`-capped column as the thread
     // (message-row-variants `bubble`) so the input aligns with the prose. The raw `<footer>` stays
     // semantic-only (no className — compose-only keystone); the pill chrome rides the layout `Row`.
     <footer data-testid={testId("composer")}>
       <Row
         gap="field"
         align="center"
-        className="mx-auto w-full max-w-cq-lg rounded-card border border-border bg-input px-field py-field transition-colors duration-(--motion-fast) ease-out-expo focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+        data-slot="composer"
+        className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input px-field py-field transition-colors duration-(--motion-fast) ease-out-expo focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
       >
         <ComposerWand
           handle={handle}
