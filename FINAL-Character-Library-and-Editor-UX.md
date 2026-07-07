@@ -110,21 +110,34 @@ separate explicit hover-CTA (§4.4). One representation of a character = one mea
 **4.4 Row anatomy** (one shape both modes):
 - **leading** = avatar big enough to read a face (via `avatarHash`, present on the summary today).
 - **title** = `name`.
-- **subtitle** = a one-line **`descriptionSnippet`** — the "who they are" vibe line (**needs a new summary
-  field — §12 FIX #2**; until it lands, fall back to `handle`). The raw metadata (handle · `tokenSize`) is
-  the hover/`:focus-within` reveal (progressive disclosure).
+- **subtitle** = a one-line **distilled pitch** — the "who they are" vibe line. Source it from the
+  **`character_summaries.elevatorPitch`** (the discovery-domain distillation, a per-character row — see §12
+  FIX #2), with a **fallback ladder**: `elevatorPitch` → the **tag line** (tags are on the summary today) →
+  `handle`. This is ST/neo's exact pattern ("the distilled pitch when present, else the tag line"). It reads
+  as a curated one-liner, not a raw description truncation — and it works *today* (falls back to tags/handle
+  since nothing's distilled yet), getting classier automatically once the distill verb lands. **Do NOT use a
+  raw `descriptionSnippet`, and do NOT source it from `refinery`** (refinery is the card-*quality*
+  Score→Rewrite→Analyze pipeline — a different domain; see §12 FIX #2). The raw metadata (handle · `tokenSize`)
+  is the hover/`:focus-within` reveal (progressive disclosure).
 - **trailing** = a star chip (immediate toggle) + a small **accent dot** painted with the character's
   `themeOverride.accent` (present on the summary today → **works now**), falling back to the global accent —
   a glance-level "what they feel like."
 - **hover / `:focus-within` (rule 4, keyboard parity; always-visible at `pointer:coarse`)** = a quiet
-  **"Start chat"** affordance → the 1-click core loop (§9c). Kept OFF the row's main click so selecting
-  never cascades (§5.1).
+  **DUAL-PURPOSE "Chat" affordance** → **resume the most-recent chat with them if one exists, else start a
+  new one** (ST/neo behavior). This is the 1-click core loop (§9c). Non-dominant (a small trailing icon,
+  never the row's main click — selecting still just opens the editor, §5.1). The resume-vs-new decision reads
+  `lastChattedAt != null` (§12 FIX #2); *which* chat to resume comes from the chats-by-character reverse read
+  (§12 FIX #1) — so both fixes power this button.
 
 **4.5 Sort + filters** — default sort **most-recently-talked-with** (`lastChattedAt`, **needs a new summary
-field — §12 FIX #2**, sourced via stats; until then fall back to A–Z). A sort toggle (Recent / A–Z /
-Starred-first) sits in the search row. Filter chips under search: Favorites-only · Archived (opt-in, hidden
-by default) · tag multi-select (AND-semantics). Archived rows collapse under a "show archived" disclosure at
-the list tail.
+field — §12 FIX #2**; until it lands, fall back to A–Z). "Relationships, not a card catalog." A sort toggle
+(Recent / A–Z / Starred-first) sits in the search row. **Cursor gotchas (real — don't gloss):** the current
+keyset is `(createdAt, id)` as ONE `cursor` object field (tRPC threads exactly one cursor field — a sibling
+goes stale). A recency sort needs `(lastActivityAt, createdAt, id)`, but (a) `lastActivityAt` is **nullable**
+(never-chatted = null) → the keyset needs explicit **NULLS-LAST** ordering + null-boundary handling, and (b)
+each sort mode needs its **own** keyset, so the cursor becomes **sort-discriminated**, not just a 3-tuple.
+Filter chips under search: Favorites-only · Archived (opt-in, hidden by default) · tag multi-select
+(AND-semantics). Archived rows collapse under a "show archived" disclosure at the list tail.
 
 **4.6 Bulk mode** — a pencil icon toggles selection mode: row checkboxes + `@orb/ui/selection-bar` at the
 bottom for tag / archive / delete-many (verbs `bulkAddCardTag`/`bulkArchive`/`bulkRemove` exist).
@@ -207,11 +220,17 @@ a reducer/section change — §6.1 trap).
 Closable tabs; **never navigation**. **Nothing here is governed by CONTENT's save-bar** — every control is
 immediate-commit or a picker.
 
-- **Activity (default)** — "your history with them": the chats you've had with this character (each row →
-  `selectChat(chatId)` + `setActiveSection("chats")`), plus last-played time / chat count. A pinned **"Start
-  new chat"** primary at the top → `startNewChat({characterIds:[id]})` + `setActiveSection("chats")`.
-  **Needs the chats-by-character read — §12 FIX #1.** Until it lands, the tab degrades to just the "Start new
-  chat" button (never a dead end).
+- **Activity (default)** — "your history with them", and the **branch-aware chat manager** for this
+  character. Lists every chat you've had with them (each row → `selectChat(chatId)` +
+  `setActiveSection("chats")`), plus last-played time / chat count, AND **their fork/branch tree** — a chat
+  is a fork when `ChatSummary.parentChatId != null` (`forkedAt` timestamps it); `getChatLineage` gives the
+  ancestor→self chain and `getChatChildren` (the `parentChatId` index, D27) the fork children, so branches
+  render as a tree, not a flat list. A pinned **"Start new chat"** primary at the top →
+  `startNewChat({characterIds:[id]})` + `setActiveSection("chats")`. **This is the fix for the buried
+  "open a chat → composer hamburger → manage chats" path** — every conversation + branch with this character
+  is one click from the character, resume any of them or fork. **Needs the chats-by-character read — §12 FIX
+  #1** (the same reverse-read the dual-purpose row button and the recency sort need — it earns its keep three
+  ways). Until it lands, the tab degrades to just the "Start new chat" button (never a dead end).
 - **Appearance** — the per-character **theme control** (full wiring in §8) + a **Trust** section below it:
   `forbidExternalMedia` (tri-state select: inherit/forbid/allow) + `trustHtml` (tri-state:
   inherit/trusted/untrusted, §12.0). **Both immediate-commit** (`flagEdits`). The Trust control fills a
@@ -253,10 +272,12 @@ instead of a `themes` row:
 | `font` | `select` | options = `THEME_FONT_ALLOWLIST` |
 | `radius` | `select` | options = `THEME_RADII` (`base`/`control`/`card`/`full`) |
 | `background` | `color-field` | the base surface color the neutral ramp derives from |
-| `backgroundImage` | seeded/external picker | **seeded + external only** — the `asset` arm is UI-unreachable today (#67); do NOT surface it |
-| `backgroundFit` | `select` | `cover` (default) / `contain` |
-| `backgroundDim` | `slider` 0–1 | the mandatory scrim; client default ~0.45 when an image is set |
 | `borderColor` | `color-field` | when set it wins; unset → derived from `background` |
+
+> **The decorative background IMAGE is NOT a per-character control (D63).** It re-homed to the user
+> `appearance` namespace (`backgroundImageKind`/`backgroundSeededId`/`backgroundExternalUrl`/`backgroundFit`/
+> `backgroundDim`) and is set in the Appearance settings pane, applied once at the app root. Per-character
+> theming covers only the token subset above (colors/font/radius/chatStyle/density).
 | `chatStyle` | `select` | `bubble`/`flat`/`document` |
 | `density` | `select` | `comfortable`/`compact` |
 
@@ -287,8 +308,8 @@ Merging happens purely by **`<ThemeScope>` nesting**:
 - So nesting a character's `<ThemeScope>` **inside** the user's global `<ThemeScope>` yields
   character > global > default automatically — **do not write merge code.**
 - `background` = the base surface COLOR the neutral ramp derives from (`oklch(from background …)`).
-  `backgroundImage`/`backgroundFit`/`backgroundDim` are a **separate** decorative layer + mandatory scrim —
-  never conflated with the surface color. `borderColor` when set wins, else derives.
+  `borderColor` when set wins, else derives. (The decorative background IMAGE is NOT per-character — it's a
+  user `appearance` pref applied once at the app root, D63.)
 
 ### 8.3 The render path (ALREADY BUILT — consume, do not rebuild)
 
@@ -323,9 +344,13 @@ Merging happens purely by **`<ThemeScope>` nesting**:
 - **(b) Edit + save.** Presence/Craft fields write the one form → save-bar dirty pill → Save fires
   `character.update` with only changed keys (`null` = clear) → `reset(saved)` clears the pill. Identity
   fields (avatar/star/archive/theme/trust) never touch this pill.
-- **(c) "Chat with them."** Hero "Start chat" CTA (or the LIST row hover CTA) →
-  `startNewChat({characterIds:[id]})` + `setActiveSection("chats")` — the ONE sanctioned cross-section path
-  (§4.2 rule 4), seeded with the character's first message as the opening turn. Optional immersion polish: a
+- **(c) "Chat with them" — DUAL-PURPOSE (resume-or-new).** The hero "Start chat" CTA and the LIST row hover
+  CTA both do the same smart thing: **if a recent chat with this character exists (`lastChattedAt != null`),
+  RESUME the most-recent one** (`selectChat(mostRecentChatId)` + `setActiveSection("chats")`, the id from the
+  §12 FIX #1 reverse-read); **else START NEW** (`startNewChat({characterIds:[id]})` + `setActiveSection`),
+  seeded with the character's first message. This is the ST/neo behavior (click a character → land in your
+  latest scene with them, or a fresh one) done cleanly — an explicit action, never an auto-cascade off
+  selection (§5.1). It's the ONE sanctioned cross-section path (§4.2 rule 4). Optional immersion polish: a
   hand-rolled `document.startViewTransition()` morphing the hero portrait → chat-header avatar
   (`characterId`-derived, `useId`-safe `view-transition-name`; `prefers-reduced-motion` → plain cut).
 - **(d) Group-chat roster (D16-clean).** This is the **Chats** section's CONTEXT (its Roster tab), rendered
@@ -397,14 +422,26 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
    reusable) — **recommended**; or (b) add `characterId?: CharacterId` to `ListChatsParams` + a
    `chat_participants`-indexed query. Net-new either way. Degrade: Activity shows just "Start new chat" until
    it lands.
-2. **`CharacterSummary` denorms** (the LIST vibe subtitle + recency sort). Today `CharacterSummary`
+2. **`CharacterSummary` denorms** (the LIST distilled-pitch subtitle + recency sort). Today `CharacterSummary`
    (`.../character/contract/views.ts` L44–61) has `id/handle/name/starred/archived/forbidExternalMedia/
-   trustHtml/themeOverride/avatarHash/tags/tokenSize` — but **no free-text and no chat-activity**. **Fix:**
-   add `descriptionSnippet: string | null` (server-truncated at read, in the summary projection) +
-   `lastChattedAt: number | null`. Source `lastChattedAt` through the **stats seam** (PD-40/PD-22,
-   `character_stats`), NOT an N-per-row chat scan. Degrade: subtitle → `handle`, sort → A–Z. (Note:
-   `themeOverride` + `avatarHash` + `tags` are ALREADY on the summary → the accent dot, avatar, and tag
-   filter all work today.)
+   trustHtml/themeOverride/avatarHash/tags/tokenSize` — but **no pitch text and no chat-activity**. **Fix —
+   two LEFT JOINs in the ONE real list query, `listOwnedCharactersWithAvatar` (`persistence/queries.ts` L117,
+   which already `leftJoin`s `assets` for the avatar):**
+   - **`elevatorPitch: string | null`** ← LEFT JOIN **`character_summaries`** (the discovery-domain distillation
+     table — **it already EXISTS, born-compliant**: `packages/db/src/schema/discovery.ts` L237 carries
+     `elevatorPitch`, `overview`, `genre`, `tone`, `subGenres`, keyed by `characterId`, CASCADE). Project
+     `elevatorPitch` onto the summary. **NOT a raw `descriptionSnippet`, and NOT `refinery`** — refinery is the
+     card-*quality* Score→Rewrite→Analyze pipeline (its own rail section; `refinery {score, analysis}` is a
+     derived quality grade), a *different* domain from the semantic distillation. The distill **producer**
+     (the guided-decode verb) is the unbuilt half of the `discovery` domain; the table + the tag-pending seam
+     (`tag/verbs/attach.ts` — "import/corpus distillation pass `pending`") are built and waiting for it. Same
+     distill run that fills `elevatorPitch` also stages the proposed/pending tags — one pipeline.
+   - **`lastChattedAt: number | null`** ← LEFT JOIN **`character_stats.lastActivityAt`** (`characterStats` has
+     no `ownerId`, D23 — join via `characters` on the owner, same as `domain/stats` does). Do NOT N-per-row
+     scan chats.
+   - **Cursor:** the recency sort's keyset + the nullable/multi-sort gotchas are in **§4.5** (don't re-derive).
+   - **Degrade:** subtitle → tag line → `handle`; sort → A–Z. (Note: `themeOverride` + `avatarHash` + `tags`
+     are ALREADY on the summary → the accent dot, avatar, and tag filter all work today with zero new fields.)
 3. **(Optional) Snapshot content read** for a diff-before-restore. Today `listSnapshots` returns
    `{id,label,createdAt}`; the blob is read only inside `restore` (blind restore, reversible via its own
    auto-snapshot). If you want compare-before-restore, add a `getSnapshot(snapshotId)` read verb. Otherwise
@@ -412,9 +449,16 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
 
 ### CREATE (client feature slice — `packages/client/src/features/character/`, per §2.1 shape)
 
-Some stubs already exist (`character-library-surface`, `character-detail-surface`, `character-detail-card`,
-`character-card`, `character-library-welcome`, `filter-characters`, `initials`, `character-library-anchor`) —
-reconcile them to this spec; the spec wins.
+**⚠️ EXTEND, DON'T REBUILD (the landmine that torches working code).** This slice is NOT greenfield. Verified
+on disk: `surfaces/character-library-surface.tsx` **already exists and works** — **236 lines**: a virtualized,
+infinite-**keyset**-paged (`(createdAt, id)`) browse via `createCollectionSurface`, with search
+(`useDeferredValue` + `filterCharacters`), and empty/loading/error states. `components/character-card.tsx`
+**exists** (112 lines — the current row/tile). Also present: `character-detail-surface`, `character-detail-card`,
+`character-library-welcome`, `filter-characters`, `initials`, `character-library-anchor`. **REWORK/EXTEND
+these — do NOT regenerate from scratch** (a "build the surface from scratch" plan would delete a working
+236-line surface; that's exactly the kind of over-claim that forces reverts). The **only genuinely-new** client
+file is `state/character-library-store` (the view-state store: sort mode, filter, selection). Read each
+component's actual API before touching it. The spec wins on *behavior*; the existing code wins on *don't-nuke-it*.
 
 - `surfaces/character-library-surface.tsx` — the LIST (§4): `createCollectionSurface` over `listCharacters`;
   header + favorites strip + flat/categorized + rows + filters + bulk.

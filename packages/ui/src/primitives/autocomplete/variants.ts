@@ -2,7 +2,7 @@ import { tv } from "#lib";
 
 // The autocomplete skin — the InputGroup carries the text-input token box (border/bg/height) so the
 // native Clear button can sit flush inside it; the input fills the box transparently. The popup rides
-// bg-popover + z-(--z-overlay) (the stacking contract), items meet the touch floor and highlight on
+// bg-popover + z-(--z-popover) (the stacking contract), items meet the touch floor and highlight on
 // bg-accent. --available-height/--anchor-width are Base UI Positioner-provided vars, not raw values.
 export const autocompleteVariants = tv({
   slots: {
@@ -21,9 +21,9 @@ export const autocompleteVariants = tv({
       "mr-field flex size-control-sm shrink-0 items-center justify-center rounded-control text-muted-foreground outline-none",
       "hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
     ],
-    positioner: "z-(--z-overlay) outline-none",
+    positioner: "z-(--z-popover) outline-none",
     popup: [
-      "z-(--z-overlay) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
+      "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
       // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip/select (the shared
       // overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
       "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",

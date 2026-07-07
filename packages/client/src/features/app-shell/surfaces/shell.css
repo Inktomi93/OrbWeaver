@@ -43,6 +43,25 @@
 .shell-grid[data-has-bg-image] {
   background: transparent;
 }
+/* ...but the grid going transparent is NOT enough on its own: `.shell-main` paints its own opaque
+ * `--color-background` and tiles OVER the fixed layer, burying the image. So the CONTENT thread surface
+ * goes transparent too, and the photo shows behind the thread/landing. NOT the `.shell-topbar` — it's
+ * chrome carrying the identity header + controls, so it STAYS opaque/legible (a solid bar over the photo,
+ * ST-style). The rail + side panels also stay opaque chrome (they FRAME the image) unless the user opts
+ * them into glass (`blurSurfaces`), which turns them translucent for the edge-to-edge frosted look.
+ * Legibility floor for the thread: the image's own scrim (`backgroundDim`) + the opaque message bubbles. */
+.shell-grid[data-has-bg-image] .shell-main {
+  background: transparent;
+  /* Legibility halo for text floating DIRECTLY over the photo (attribution names, empty-state copy —
+   * anything in the transparent column not on an opaque/glass surface). Keeps it readable on ANY image
+   * regardless of the user's scrim (backgroundDim). Reset below on the surfaced elements. */
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.55);
+}
+/* Message bubbles + composer carry their own legible fill — kill the halo there (it would smear body text). */
+.shell-grid[data-has-bg-image] [data-slot="message-bubble"],
+.shell-grid[data-has-bg-image] [data-slot="composer"] {
+  text-shadow: none;
+}
 
 /* DENSITY (UI-Arch section 4 — the user-pref axis, distinct from container size). data-density is
  * stamped on the shell root by AppShell from the synced appearance pref (D44 section 12.1). compact
@@ -64,7 +83,13 @@
  * panels lift to --color-surface-raised (the new mid token), content lifts toward --color-card — and the
  * region hairlines DROP (ramp reads depth from value steps, not borders). Repaint via the shell-scoped
  * region vars so no per-component branching is needed. */
-.shell-grid[data-elevation="ramp"] .shell-panel {
+/* :where() around the attribute selector zeroes its specificity contribution: (0,3,0) → (0,2,0). Still
+ * beats the base `.shell-panel` rule (0,1,0) below, but now LOSES to the glass rule's
+ * `html[data-blur-panels] .shell-panel` (0,2,1) in globals.css — so enabling panel blur correctly wins
+ * over the elevation-ramp fill instead of being silently outranked by it (both are unlayered plain CSS,
+ * so this was a pure specificity bug, not a staleness/HMR one — verified live: editing the un-:where()'d
+ * rule DID reach the browser's CSSOM via HMR every time, it just never won the cascade). */
+.shell-grid:where([data-elevation="ramp"]) .shell-panel {
   background: var(--color-surface-raised);
 }
 .shell-grid[data-elevation="ramp"] .shell-panel[data-panel-side="list"],
@@ -74,10 +99,14 @@
 .shell-grid[data-elevation="ramp"] .shell-panel-header {
   border-block-end: none;
 }
-.shell-grid[data-elevation="ramp"] .shell-main {
+/* :where() the elevation attr here too (same reason as the .shell-panel rule above): these must LOSE to
+ * the `[data-has-bg-image] .shell-main/.shell-topbar` transparent rules (0,3,0) so a set background photo
+ * shows through the content column even under elevation=ramp. `:where()` drops these to (0,2,0) — still
+ * beats base `.shell-main` (0,1,0), now loses to has-bg-image (0,3,0). */
+.shell-grid:where([data-elevation="ramp"]) .shell-main {
   background: var(--color-card);
 }
-.shell-grid[data-elevation="ramp"] .shell-topbar {
+.shell-grid:where([data-elevation="ramp"]) .shell-topbar {
   background: var(--color-card);
   border-block-end: none;
 }

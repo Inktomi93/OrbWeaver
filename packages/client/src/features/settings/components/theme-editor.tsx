@@ -7,15 +7,8 @@
 // (`createSavedEntityForm`, §13.4) — the preview above is live off the form's unsaved values; the Save
 // button is the only thing that persists.
 
-import type {
-  Theme,
-  ThemeBackgroundFit,
-  ThemeChatStyle,
-  ThemeDensity,
-  ThemeRadius,
-} from "@orb/contracts/theme";
+import type { Theme, ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
 import {
-  THEME_BACKGROUND_FITS,
   THEME_CHAT_STYLES,
   THEME_DENSITIES,
   THEME_FONT_ALLOWLIST,
@@ -31,13 +24,11 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { listSeededBackgrounds } from "#lib";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
 import type { ThemeFormValues } from "../lib/theme-editor-model";
 import {
   AA_CONTRAST_FLOOR,
-  BACKGROUND_IMAGE_SOURCES,
   contrastRatio,
   THEMEABLE_VARS,
   themeFormFromEntity,
@@ -76,33 +67,6 @@ const DENSITY_ITEMS: SelectItems<string> = THEME_DENSITIES.map((value) => ({
   value,
   label: DENSITY_LABELS[value],
 }));
-
-// WS3 D49 §3 — the background-image picker items. `asset` (own upload) is deliberately absent from
-// BACKGROUND_IMAGE_SOURCES (PD-131 — no client asset-URL resolver/upload flow exists yet).
-const BACKGROUND_SOURCE_LABELS: Record<(typeof BACKGROUND_IMAGE_SOURCES)[number], string> = {
-  none: "None",
-  seeded: "Seeded",
-  external: "URL",
-};
-const BACKGROUND_SOURCE_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_SOURCES.map((value) => ({
-  value,
-  label: BACKGROUND_SOURCE_LABELS[value],
-}));
-const BACKGROUND_FIT_LABELS: Record<ThemeBackgroundFit, string> = {
-  cover: "Cover (fill, crop edges)",
-  contain: "Contain (fit, may letterbox)",
-};
-const BACKGROUND_FIT_ITEMS: SelectItems<string> = THEME_BACKGROUND_FITS.map((value) => ({
-  value,
-  label: BACKGROUND_FIT_LABELS[value],
-}));
-const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
-  value: bg.id,
-  label: bg.label,
-}));
-const BACKGROUND_DIM_MIN = 0;
-const BACKGROUND_DIM_MAX = 1;
-const BACKGROUND_DIM_STEP = 0.05;
 
 export interface ThemeEditorProps {
   /** The OWNED theme being edited (seeds are read-only → the picker duplicates before opening this). */
@@ -210,65 +174,6 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
             <form.AppField name="density">
               {(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}
             </form.AppField>
-          </Section>
-
-          <Section heading="Background image">
-            <form.AppField name="backgroundImageSource">
-              {(field): ReactElement => (
-                <field.SelectField
-                  label="Source"
-                  description="A decorative photo behind the app, with a scrim so text stays readable."
-                  items={BACKGROUND_SOURCE_ITEMS}
-                />
-              )}
-            </form.AppField>
-            <form.Subscribe selector={(state): string => state.values.backgroundImageSource}>
-              {(source): ReactElement | null => {
-                if (source === "none") {
-                  return null;
-                }
-                return (
-                  <>
-                    {source === "seeded" ? (
-                      <form.AppField name="backgroundSeededId">
-                        {(field): ReactElement => (
-                          <field.SelectField
-                            label="Seeded image"
-                            placeholder="Choose a background"
-                            items={SEEDED_BACKGROUND_ITEMS}
-                          />
-                        )}
-                      </form.AppField>
-                    ) : (
-                      <form.AppField name="backgroundExternalUrl">
-                        {(field): ReactElement => (
-                          <field.TextField
-                            label="Image URL"
-                            description="Loaded directly from the given host — your own client only (never shared to other viewers)."
-                          />
-                        )}
-                      </form.AppField>
-                    )}
-                    <form.AppField name="backgroundFit">
-                      {(field): ReactElement => (
-                        <field.SelectField label="Fit" items={BACKGROUND_FIT_ITEMS} />
-                      )}
-                    </form.AppField>
-                    <form.AppField name="backgroundDim">
-                      {(field): ReactElement => (
-                        <field.SliderField
-                          label="Scrim opacity"
-                          description="Darkens the image so text stays legible — never fully off."
-                          min={BACKGROUND_DIM_MIN}
-                          max={BACKGROUND_DIM_MAX}
-                          step={BACKGROUND_DIM_STEP}
-                        />
-                      )}
-                    </form.AppField>
-                  </>
-                );
-              }}
-            </form.Subscribe>
           </Section>
         </Grid>
 

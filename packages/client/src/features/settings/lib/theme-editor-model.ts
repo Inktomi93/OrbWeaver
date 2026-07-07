@@ -8,7 +8,6 @@
 import type {
   CreateThemeInput,
   Theme,
-  ThemeBackgroundFit,
   ThemeChatStyle,
   ThemeDensity,
   ThemeFont,
@@ -16,16 +15,6 @@ import type {
   ThemeRadius,
 } from "@orb/contracts/theme";
 import { THEME_SCOPE_EMIT_VARS } from "@orb/ui/theme-scope";
-
-/** WS3 D49 §3 — the background-image picker's source axis. `"asset"` (own upload) is DELIBERATELY
- *  excluded (PD-131 — no client asset-URL resolver/upload flow exists yet); the picker offers only the
- *  two sources that actually resolve. `"none"` is the picker-only "no image" state (the form never
- *  emits it onto the wire — `themeOverrideFromForm` omits `backgroundImage` entirely for it). The TYPE
- *  stays file-local (client feature dirs have no `contract/` bucket + `export type` is gate-banned
- *  there, `no-inline-types` — the `message-row-variants.ts` `ChatStyle` precedent); consumers key off
- *  the exported array / `ThemeFormValues["backgroundImageSource"]`. */
-export const BACKGROUND_IMAGE_SOURCES = ["none", "seeded", "external"] as const;
-type BackgroundImageSourceKind = (typeof BACKGROUND_IMAGE_SOURCES)[number];
 
 /** The flat form value shape (nested `userBubble{bg}` is flattened to `userBubbleBg` for a bound field). */
 export interface ThemeFormValues {
@@ -45,12 +34,6 @@ export interface ThemeFormValues {
   readonly chatStyle: ThemeChatStyle;
   readonly density: ThemeDensity;
   readonly css: string;
-  /** WS3 D49 §3 background-image picker (flattened, mirrors the bubble-bg flattening precedent above). */
-  readonly backgroundImageSource: BackgroundImageSourceKind;
-  readonly backgroundSeededId: string;
-  readonly backgroundExternalUrl: string;
-  readonly backgroundFit: ThemeBackgroundFit;
-  readonly backgroundDim: number;
 }
 
 /** From-scratch defaults — the Hearth seed values, so a new theme starts from a known-good, AA-passing
@@ -72,52 +55,11 @@ export const DEFAULT_THEME_FORM: ThemeFormValues = {
   chatStyle: "bubble",
   density: "comfortable",
   css: "",
-  backgroundImageSource: "none",
-  backgroundSeededId: "",
-  backgroundExternalUrl: "",
-  backgroundFit: "cover",
-  backgroundDim: 0.45,
 };
-
-/** Read a `Theme` entity's `backgroundImage` union into the picker's flat fields — the mirror image of
- *  `backgroundImageFromForm` below. An `asset` source (PD-131 — unreachable via the picker) still reads
- *  back as `"none"` so an existing (server-authored or pre-#67) asset override doesn't crash the form;
- *  saving again would silently drop it, which is acceptable for a picker that never offers it. */
-function backgroundFormFieldsFromOverride(
-  o: ThemeOverride,
-): Pick<ThemeFormValues, "backgroundImageSource" | "backgroundSeededId" | "backgroundExternalUrl"> {
-  const image = o.backgroundImage;
-  if (image === undefined || image.kind === "asset") {
-    return { backgroundImageSource: "none", backgroundSeededId: "", backgroundExternalUrl: "" };
-  }
-  if (image.kind === "seeded") {
-    return {
-      backgroundImageSource: "seeded",
-      backgroundSeededId: image.id,
-      backgroundExternalUrl: "",
-    };
-  }
-  return {
-    backgroundImageSource: "external",
-    backgroundSeededId: "",
-    backgroundExternalUrl: image.url,
-  };
-}
 
 /** The seed-value-fallback half of `themeFormFromEntity` (split out to keep either function's cognitive
  *  complexity under the gate — this one is pure `?? default` repetition, no branching). */
-function paletteFormFieldsFromOverride(
-  o: ThemeOverride,
-): Omit<
-  ThemeFormValues,
-  | "name"
-  | "css"
-  | "backgroundImageSource"
-  | "backgroundSeededId"
-  | "backgroundExternalUrl"
-  | "backgroundFit"
-  | "backgroundDim"
-> {
+function paletteFormFieldsFromOverride(o: ThemeOverride): Omit<ThemeFormValues, "name" | "css"> {
   return {
     background: o.background ?? DEFAULT_THEME_FORM.background,
     accent: o.accent ?? DEFAULT_THEME_FORM.accent,
@@ -144,29 +86,12 @@ export function themeFormFromEntity(theme: Theme): ThemeFormValues {
     name: theme.name,
     css: theme.css ?? "",
     ...paletteFormFieldsFromOverride(o),
-    ...backgroundFormFieldsFromOverride(o),
-    backgroundFit: o.backgroundFit ?? DEFAULT_THEME_FORM.backgroundFit,
-    backgroundDim: o.backgroundDim ?? DEFAULT_THEME_FORM.backgroundDim,
   };
-}
-
-/** The picker's flat fields → the wire `backgroundImage` union (`undefined` for `"none"` — the form
- *  never emits an empty/degenerate source onto the wire). A blank seeded/external value degrades to
- *  `"none"` rather than persisting a broken reference (the picker's own dropdown/text-field guards this
- *  too, but a defensive floor here means a hand-edited draft can't smuggle one through). */
-function backgroundImageFromForm(v: ThemeFormValues): ThemeOverride["backgroundImage"] {
-  if (v.backgroundImageSource === "seeded" && v.backgroundSeededId.trim() !== "") {
-    return { kind: "seeded", id: v.backgroundSeededId };
-  }
-  return v.backgroundImageSource === "external" && v.backgroundExternalUrl.trim() !== ""
-    ? { kind: "external", url: v.backgroundExternalUrl }
-    : undefined;
 }
 
 /** Build the `ThemeOverride` from the flat form values (an empty `borderColor` string ⇒ omit it, so the
  *  border derives from the base surface). Bubble foregrounds are NOT set — they derive at apply-time. */
 export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
-  const backgroundImage = backgroundImageFromForm(v);
   return {
     background: v.background,
     accent: v.accent,
@@ -178,9 +103,6 @@ export function themeOverrideFromForm(v: ThemeFormValues): ThemeOverride {
     userBubble: { bg: v.userBubbleBg },
     aiBubble: { bg: v.aiBubbleBg },
     systemBubble: { bg: v.systemBubbleBg },
-    ...(backgroundImage === undefined
-      ? {}
-      : { backgroundImage, backgroundFit: v.backgroundFit, backgroundDim: v.backgroundDim }),
     font: v.font,
     radius: v.radius,
     chatStyle: v.chatStyle,

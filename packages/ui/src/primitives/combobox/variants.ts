@@ -3,7 +3,7 @@ import { tv } from "#lib";
 // The multi-select combobox skin — chips render as pills flowing inline with the draft input
 // inside ONE wrapping box (`chips` rides `contents` so its children become direct flex items of
 // `inputGroup`, letting them wrap line-by-line together). Popup/list/item/empty/status mirror the
-// autocomplete seal's tokens (bg-popover + z-(--z-overlay) stacking contract, bg-accent highlight)
+// autocomplete seal's tokens (bg-popover + z-(--z-popover) stacking contract, bg-accent highlight)
 // so the two seals read as one family. The chip remove glyph is sized to the pill (not the 44px
 // control floor — a chip's dismiss is a secondary affordance nested in a compact tag, the same call
 // the cited neo reference makes for its keyword-chip `X`).
@@ -30,9 +30,9 @@ export const comboboxVariants = tv({
       "min-w-24 flex-1 bg-transparent px-field py-field text-body leading-body text-foreground outline-none",
       "placeholder:text-muted-foreground",
     ],
-    positioner: "z-(--z-overlay) outline-none",
+    positioner: "z-(--z-popover) outline-none",
     popup: [
-      "z-(--z-overlay) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
+      "z-(--z-popover) max-h-(--available-height) w-(--anchor-width) overflow-y-auto rounded-card border border-border bg-popover p-field text-popover-foreground",
       // Enter/exit fade+scale from the anchor — matches popover/menu/tooltip/select (the shared
       // overlay animation contract). `--transform-origin` is Base UI Positioner-provided.
       "origin-(--transform-origin) transition-all duration-(--motion-fast) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",

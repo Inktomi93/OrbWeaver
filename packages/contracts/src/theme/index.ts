@@ -11,7 +11,6 @@ import { z } from "zod";
 import { themeOverrideSchema } from "./override";
 
 export type {
-  ThemeBackgroundFit,
   ThemeChatStyle,
   ThemeDensity,
   ThemeFont,
@@ -19,7 +18,6 @@ export type {
   ThemeRadius,
 } from "./override";
 export {
-  THEME_BACKGROUND_FITS,
   THEME_CHAT_STYLES,
   THEME_DENSITIES,
   THEME_FONT_ALLOWLIST,

@@ -38,7 +38,7 @@ test("a custom filter override reaches Root (the async/fuzzy seam)", async ({ mo
   await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
 });
 
-test("popup wears the popover token and the overlay z-index", async ({ mount, page }) => {
+test("popup wears the popover token and the popover z-index", async ({ mount, page }) => {
   await mount(<Autocomplete aria-label="Tag" items={TAGS} />);
   const input = page.getByRole("combobox");
   await input.click();
@@ -46,7 +46,7 @@ test("popup wears the popover token and the overlay z-index", async ({ mount, pa
   await expect(page.getByRole("option", { name: "romance" })).toBeVisible();
   const popup = page.locator('[data-slot="autocomplete-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
-  await expect(popup).toHaveCSS("z-index", "40");
+  await expect(popup).toHaveCSS("z-index", TOKENS["z.popover"].value);
 });
 
 test("disabled: the input is inert", async ({ mount, page }) => {

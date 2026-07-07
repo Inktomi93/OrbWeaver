@@ -7,7 +7,6 @@
 // injection); a dimension snaps to the token scale; a font must be allowlisted. Anything that fails is
 // DROPPED (the inherited token shows through) — never applied raw. This is what makes ThemeScope safe
 // where SillyTavern's raw `--SmartTheme*` vars are not.
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -32,26 +31,12 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document"] as const;
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
-/** D49 §3 — mirrors `@orb/contracts/theme` `THEME_BACKGROUND_FITS` (the pairing test asserts equal). */
-export const THEME_SCOPE_BACKGROUND_FITS = ["cover", "contain"] as const;
 const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;
 const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
-const BACKGROUND_FITS = THEME_SCOPE_BACKGROUND_FITS;
 
 const colorToken = z.string().refine(isSafeColor);
 const bubble = z.object({ bg: colorToken.optional(), fg: colorToken.optional() });
-
-// D49 §3 — the ui-local twin of `backgroundImageSourceSchema` (contracts/theme/override.ts). ui deps
-// kit only (the cake) — `@orb/kit/ids` is reachable here, so the asset id stays branded exactly like
-// the wire twin (the pairing test asserts identical top-level KEYS, not internal branding, but nothing
-// stops matching it exactly where kit makes that free).
-const backgroundImageSourceSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
-  z.object({ kind: z.literal("external"), url: z.url() }),
-  z.object({ kind: z.literal("seeded"), id: z.string().regex(/^[a-z0-9-]+$/) }),
-]);
-export type ThemeScopeBackgroundImageSource = z.infer<typeof backgroundImageSourceSchema>;
 
 /** The ui-local override shape callers pass (loose — every field optional; failures drop per-field). */
 export const themeScopeTokensSchema = z.object({
@@ -66,9 +51,6 @@ export const themeScopeTokensSchema = z.object({
   font: z.enum(THEME_FONT_ALLOWLIST).optional(),
   radius: z.enum(RADII).optional(),
   background: colorToken.optional(),
-  backgroundImage: backgroundImageSourceSchema.optional(),
-  backgroundFit: z.enum(BACKGROUND_FITS).optional(),
-  backgroundDim: z.number().min(0).max(1).optional(),
   borderColor: colorToken.optional(),
   chatStyle: z.enum(CHAT_STYLES).optional(),
   density: z.enum(DENSITIES).optional(),
@@ -77,18 +59,14 @@ export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys, only
- * validated values) plus the non-custom-property axes (chatStyle/density are `data-*`;
- * backgroundImage/backgroundFit/backgroundDim are consumed by the ROOT-ONLY fixed-position background
- * layer, D49 §3 — deliberately NOT a `--*` var, since `url()` values don't belong in an inherited
- * custom property spread across nested per-speaker ThemeScopes; only the app-root reads it).
+ * validated values) plus the non-custom-property axes (chatStyle/density are `data-*`). The decorative
+ * background IMAGE is NOT here (D63): it moved off the theme to the `appearance` user-settings namespace,
+ * palette-independent — ThemeScope now emits only color/enum vars.
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
   readonly chatStyle?: (typeof CHAT_STYLES)[number];
   readonly density?: (typeof DENSITIES)[number];
-  readonly backgroundImage?: ThemeScopeBackgroundImageSource;
-  readonly backgroundFit?: (typeof BACKGROUND_FITS)[number];
-  readonly backgroundDim?: number;
 }
 
 function fontStack(font: ThemeFont): string {
@@ -238,11 +216,5 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     vars,
     ...(t.chatStyle === undefined ? {} : { chatStyle: t.chatStyle }),
     ...(t.density === undefined ? {} : { density: t.density }),
-    // D49 §3 — passed through validated-but-unresolved (no `--*` var; see the ClampedTheme doc above).
-    // The app-root background layer resolves `backgroundImage` to a URL (seeded/external are direct;
-    // asset awaits the #67 resolver) and applies `backgroundFit`/`backgroundDim` itself.
-    ...(t.backgroundImage === undefined ? {} : { backgroundImage: t.backgroundImage }),
-    ...(t.backgroundFit === undefined ? {} : { backgroundFit: t.backgroundFit }),
-    ...(t.backgroundDim === undefined ? {} : { backgroundDim: t.backgroundDim }),
   };
 }

@@ -12,16 +12,14 @@
 // (both reach kit), and the structural pairing (identical key sets, enums, font allowlist) is
 // pinned by `tests/contracts/theme/pairing.suite.test.ts`, which may import both packages.
 //
-// D49 §3 background-IMAGE addition (WS3): `backgroundImage`/`backgroundFit`/`backgroundDim` are a
-// SEPARATE trio from `background` (the base surface COLOR the neutral ramp derives from, untouched) —
-// conflating them would break the ramp math (an image can't feed `oklch(from X …)`). `backgroundImage`
-// mirrors the `messageMediaSrcSchema` asset/external shape (D44 §12.3) plus a `seeded` arm for the
-// bundled placeholder set (`packages/client/public/backgrounds/`, source-prefixed-string pattern).
-// The `asset` arm is SCHEMA-COMPLETE but UI-UNREACHABLE today: no client asset-URL resolver or upload
-// flow exists yet (#67, the same gap `message-media-block.tsx` flags) — fabricating one here would be
-// the invention the missing-API protocol forbids. Seeded + external are fully wired.
+// D63 (amends D49 §3): the decorative background IMAGE has MOVED OFF the theme. Only the base surface
+// COLOR (`background`, below) stays a ThemeOverride token — it feeds the neutral ramp via
+// `oklch(from background …)`, so it is palette-bound by nature. The decorative photo trio
+// (`backgroundImageKind`/`backgroundSeededId`/`backgroundExternalUrl` + fit/dim) is palette-INDEPENDENT
+// and now lives as FLAT fields on the `appearance` user-settings namespace (`@orb/contracts/settings`),
+// beside the glass toggle. It was never a `--*` custom property here — just a root-layer input — so its
+// departure leaves the wire clamp / render clamp pairing carrying only color + enum vars.
 
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { isSafeColor } from "@orb/kit/safe-color";
 import { z } from "zod";
 
@@ -46,36 +44,16 @@ export type ThemeDensity = (typeof THEME_DENSITIES)[number];
 export const THEME_RADII = ["base", "control", "card", "full"] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
 
-/** D49 §3 — the background-image `fit` axis. `cover` is the recommended/default (never
- *  `background-attachment:fixed`, iOS-broken); `contain` is the ST-parity alternative. */
-export const THEME_BACKGROUND_FITS = ["cover", "contain"] as const;
-export type ThemeBackgroundFit = (typeof THEME_BACKGROUND_FITS)[number];
-
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.
 const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);
 const bubble = z.object({ bg: colorToken, fg: colorToken }).optional().catch(undefined);
 
-/** D49 §3 background-IMAGE source (mirrors `messageMediaSrcSchema`, D44 §12.3, plus a `seeded` arm
- *  for the bundled placeholder set). `asset` is schema-complete but UI-unreachable today — no client
- *  asset-URL resolver/upload flow exists yet (#67); ships for forward-compat, never surfaced by the
- *  picker until #67 lands. */
-const backgroundImageSourceSchema = z
-  .discriminatedUnion("kind", [
-    z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
-    z.object({ kind: z.literal("external"), url: z.url() }),
-    z.object({ kind: z.literal("seeded"), id: z.string().regex(/^[a-z0-9-]+$/) }),
-  ])
-  .optional()
-  .catch(undefined);
-
 /**
  * The curated token-override subset (D44 §12.1 — sized to ST `--SmartTheme*` parity). Every field
  * optional; per-field failures degrade to undefined. `background` is the base surface COLOR the
- * neutral ramp derives from; `backgroundImage`/`backgroundFit`/`backgroundDim` (D49 §3, WS3) are a
- * SEPARATE decorative-photo trio layered behind the app as a dedicated fixed-position root layer
- * with a mandatory scrim (`backgroundDim`) — never conflated with the surface color (an image can't
- * feed the `oklch(from background …)` ramp math). The pairing test enforces the mirror with the ui
- * `<ThemeScope>` clamp.
+ * neutral ramp derives from — the ONLY background field here (D63): the decorative photo trio moved
+ * to the `appearance` namespace, palette-independent. The pairing test enforces the mirror with the
+ * ui `<ThemeScope>` clamp.
  */
 export const themeOverrideSchema = z.object({
   accent: colorToken,
@@ -90,14 +68,6 @@ export const themeOverrideSchema = z.object({
   font: z.enum(THEME_FONT_ALLOWLIST).optional().catch(undefined),
   radius: z.enum(THEME_RADII).optional().catch(undefined),
   background: colorToken,
-  /** D49 §3 — the decorative background photo (asset/external/seeded). Undefined ⇒ no image (the
-   *  `background` color alone paints the app). */
-  backgroundImage: backgroundImageSourceSchema,
-  /** How the image fills the root layer (`cover` default at the client). */
-  backgroundFit: z.enum(THEME_BACKGROUND_FITS).optional().catch(undefined),
-  /** The mandatory scrim opacity (0–1) between the image and the content — non-negotiable per D49 §3
-   *  (guarantees text legibility on any image; the client defaults ~0.45 when an image is set). */
-  backgroundDim: z.number().min(0).max(1).optional().catch(undefined),
   /** An explicit UI border color (ST parity). When set it WINS; when unset, `--color-border` derives
    *  from the base `background` surface (the ThemeScope clamp does the derivation). */
   borderColor: colorToken,

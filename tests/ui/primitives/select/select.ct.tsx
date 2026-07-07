@@ -31,13 +31,13 @@ test("opens on click, selects an option, and closes", async ({ mount, page }) =>
   await expect(trigger).toContainText("Beta");
 });
 
-test("popup wears the popover token and the overlay z-index", async ({ mount, page }) => {
+test("popup wears the popover token and the popover z-index", async ({ mount, page }) => {
   await mount(<Select items={ITEMS} placeholder="Pick one" />);
   await page.getByRole("combobox").click();
   await expect(page.getByRole("listbox")).toBeVisible();
   const popup = page.locator('[data-slot="select-popup"]');
   await expect(popup).toHaveCSS("background-color", TOKENS["color.popover"].value);
-  await expect(popup).toHaveCSS("z-index", "40");
+  await expect(popup).toHaveCSS("z-index", TOKENS["z.popover"].value);
 });
 
 test("keyboard: opens with ArrowDown, arrows to an option, Enter selects", async ({

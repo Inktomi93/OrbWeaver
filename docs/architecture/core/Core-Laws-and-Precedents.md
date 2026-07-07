@@ -149,6 +149,7 @@ A full-read audit of all 41 docs (6 agents, every doc end-to-end) surfaced cross
 - **D53–D59** → [`Core-Path-Registry-D53-D59.md`](Core-Path-Registry-D53-D59.md) — client-foundation, regex, memory, RPG, chat-crew (D54 precedes D53 in source)
 - **D60–D61** → [`Core-Path-Registry-D60-D61.md`](Core-Path-Registry-D60-D61.md) — agent-principal (D60), marinara-borrow disposition (D61)
 - **D62** → [`Core-Path-Registry-D62.md`](Core-Path-Registry-D62.md) — the UI/UX revamp program (region law §4.2/§4.3, rulings P1–P6, design gates, the D62 lanes)
+- **D63** → [`Core-Path-Registry-D63.md`](Core-Path-Registry-D63.md) — the app background IMAGE re-homes from `ThemeOverride` to the `appearance` user-settings namespace (amends D49 §3; the surface COLOR stays a theme token)
 
 ## Enforcement registry
 
