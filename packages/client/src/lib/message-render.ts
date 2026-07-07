@@ -49,6 +49,12 @@ export interface MessageRenderContext {
   readonly nowMs?: number;
   /** The chat's variable bag for `{{getvar}}`/`{{if}}` (the D46 config/runtime planes). Omit = empty. */
   readonly env?: MacroEnv;
+  /** ST `auto_fix_generated_markdown` parity (the `autoFixMarkdown` appearance pref). Run the client-side
+   *  `fixMarkdown` auto-fix (close odd `*`/`**`/`"`, fix `* text *` spacing) on this DISPLAY text. Default
+   *  OFF: a settled body renders as-AUTHORED, so a deliberate lone asterisk (censoring — `f*ck`) is NOT
+   *  auto-closed into a stray emphasis run (the exact fix mis-fire). ON = ST-style auto-fix for the power
+   *  user (note ST defaults this ON; orbweaver defaults OFF so the mis-fire doesn't bite). */
+  readonly autoFixMarkdown?: boolean;
 }
 
 /**
@@ -110,5 +116,8 @@ export function renderMessageForDisplay(
           // never worth breaking the room render). The native replace default is "the browser's
           // lot" (D53 — the node:vm watchdog is a SERVER concern).
         });
-  return fixMarkdown(regexed, true);
+  // The ST `auto_fix_generated_markdown` auto-fix (close odd `*`/`"`, fix emphasis spacing) is OPT-IN
+  // (the `autoFixMarkdown` appearance pref, default OFF): running it on a settled body auto-closes a
+  // deliberate lone/censoring asterisk into a stray emphasis run (`f*ck` → italic). Off ⇒ render as-authored.
+  return ctx.autoFixMarkdown === true ? fixMarkdown(regexed, true) : regexed;
 }

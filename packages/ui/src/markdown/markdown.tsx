@@ -145,9 +145,12 @@ export function Markdown({ trust, mode, children, className }: MarkdownProps): R
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
         plugins={{ math: MARKDOWN_MATH_PLUGIN }}
         {...mermaidProp}
-        // `controls` (copy/download/fullscreen), `lineNumbers`, `parseIncompleteMarkdown`, and
-        // `linkSafety` are all left at Streamdown's own defaults (`true` / repair-on / confirm-on) —
-        // deliberately not overridden; documented in the seal's option map.
+        // Streamdown's incomplete-markdown REPAIR is a STREAMING concern (auto-close a dangling `*`/fence
+        // mid-stream so it doesn't flash); a settled body is complete + must render as-authored. Gate it to
+        // `streaming` explicitly (Streamdown's `mode` already gates the effect, so this is belt-and-braces
+        // + legible intent). The ST-parity "auto-fix a settled body" pref lives at a DIFFERENT layer — the
+        // client `fixMarkdown` pass (lib/message-render), NOT here. `controls`/`linkSafety` stay at defaults.
+        parseIncompleteMarkdown={mode === "streaming"}
         className={cn("[&_em]:text-narration", className) ?? ""}
         {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
         {...(mode === "streaming" ? { caret: "block" as const } : {})}

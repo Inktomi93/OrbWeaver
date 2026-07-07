@@ -37,6 +37,9 @@ export interface ResolveMessageRenderContextInput {
   /** The viewing participant's CURRENT persona id (§4) — the null-stamp `{{user}}` fallback SUBJECT;
    *  resolved to a NAME here via `personaNamesById` (never the chat's `anchorPersonaId` pin). */
   readonly viewerActivePersonaId?: PersonaId | null | undefined;
+  /** ST `auto_fix_generated_markdown` parity (the `autoFixMarkdown` appearance pref) — passed straight
+   *  through onto the render context so the display pipeline's `fixMarkdown` step is gated (default OFF). */
+  readonly autoFixMarkdown?: boolean | undefined;
 }
 
 const SOLO_CAST_FLOOR = 1;
@@ -83,5 +86,6 @@ export function resolveMessageRenderContext(
     personaNamesById: input.personaNamesById,
     ...(speakerCharName === undefined ? {} : { speakerCharName }),
     ...(activePersonaName === undefined ? {} : { activePersonaName }),
+    ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),
   };
 }
