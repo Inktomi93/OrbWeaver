@@ -1,49 +1,47 @@
-// PersonaPanelSurface (FINAL-Persona §A.6 · owner consolidated-panel brief) — the rail-foot account +
-// persona panel. A prop-free @container CONSUMER the ROUTE injects into the app-shell rail-foot slot
-// (mirrors the modal-slots seam — no feature→feature import). The rail avatar shows your CURRENT persona
-// (#2); clicking opens a generous inline Popover (Discord account-panel energy; NOT a modal, §A.7b):
+// PersonaPanelSurface (FINAL-Persona §A.6 · rail-foot panel redesign) — the rail-foot account + persona
+// panel. A prop-free @container CONSUMER the ROUTE injects into the app-shell rail-foot slot (mirrors the
+// modal-slots seam — no feature→feature import). The rail avatar shows your CURRENT persona (#2); clicking
+// opens a generous inline Popover (Discord account-panel energy; NOT a modal, §A.7b):
 //   • ACCOUNT strip — a working Log out (`POST /api/auth/logout`) + a reserved identity spot (the client
 //     whoami/account UI is the deferred auth feature #50 — NOT built here).
 //   • PERSONA header — "playing as <current>" + ＋ New persona.
-//   • the persona LIST — each row sets Current on body-click, with inline set-Default / edit / delete
-//     (the row owns expand-to-edit + the delete confirm).
+//   • the persona LIST — each row sets Current on body-click, with inline avatar/name edit + set-Default /
+//     delete / a details disclosure (persona-panel-row.tsx).
 //   • "This chat" (§A.6, folded in here — the ONE home for the per-chat picker; NO separate
 //     features/chat picker) — present only when a chat is active (`PersonaThisChatSection` reads
 //     `state/active-chat-store`); sets the Chat persona (#3), shows/re-pins the Anchor (#4), and the
 //     reattribute escape hatch.
-//   • a global footer — the switch-notifications pref + restore-from-backup.
+// The old "Persona settings" footer (notify toggle + restore-from-backup) MOVED to Settings → USER →
+// Personas (features/settings/surfaces/persona-settings-surface.tsx) — those are peripheral prefs, not
+// panel content. ONE scroll region: the popup itself caps to the Popover positioner's
+// `--available-height` (Base UI-computed) instead of a nested `max-h-96` peephole around the list, so an
+// expanded row's details use the full available panel height.
 // All SERVER state via trpc (persona.* / settings / chat / worldInfo), zero Zustand.
 
 import { blobUrl } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { personaBackupSchema } from "@orb/contracts/persona";
 import type { PersonaId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
-import { CircleUser, Drama, Icon, Plus, Star, Upload } from "@orb/ui/icons";
-import { Container, Row, Section, Stack } from "@orb/ui/layout";
+import { CircleUser, Drama, Icon, Plus, Star } from "@orb/ui/icons";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { PersonaPanelRow } from "../components/persona-panel-row";
 import { PersonaThisChatSection } from "../components/persona-this-chat-section";
-import { useSetPersonaPrefs, useSetPersonaSeed } from "../hooks/use-persona-identity";
-import {
-  useCreatePersona,
-  useImportPersona,
-  useRemovePersona,
-} from "../hooks/use-persona-mutations";
+import { useSetPersonaSeed } from "../hooks/use-persona-identity";
+import { useCreatePersona, useRemovePersona } from "../hooks/use-persona-mutations";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -124,7 +122,14 @@ function PanelBody(): ReactElement {
   return (
     <Popover>
       <PanelTrigger current={current} />
-      <PopoverPopup side="right" align="end" className="w-(--container-cq-sm)">
+      {/* max-h-(--available-height): the Popover positioner's own computed budget (Base UI CSS var,
+          cascades to this Popup as its DOM descendant) — caps the WHOLE panel to the viewport instead of
+          a nested peephole around just the list, so an expanded row's details get the full height. */}
+      <PopoverPopup
+        align="end"
+        className="max-h-(--available-height) w-(--container-cq-sm) overflow-y-auto"
+        side="right"
+      >
         <Container size="md">
           <Stack gap="row">
             <AccountStrip />
@@ -135,7 +140,13 @@ function PanelBody(): ReactElement {
                 void onCreate();
               }}
             />
-            <Stack gap="field" className="max-h-96 overflow-y-auto">
+            <Separator />
+            {/* A micro-caps label under the divider — "Playing as" above is your ACTIVE persona; this
+                marks the list below as the rest of your available roster, not a repeat of it. */}
+            <Text size="micro" tone="muted" transform="caps">
+              Your personas
+            </Text>
+            <Stack gap="field">
               {personas.length === 0 ? (
                 <EmptyState
                   icon={<Icon icon={Drama} size="md" />}
@@ -163,8 +174,6 @@ function PanelBody(): ReactElement {
               )}
             </Stack>
             <PersonaThisChatSection />
-            <Separator />
-            <PanelFooter showNotifications={settings.config.persona.showNotifications} />
           </Stack>
         </Container>
       </PopoverPopup>
@@ -255,68 +264,5 @@ function PersonaHeader({
         New persona
       </Button>
     </Row>
-  );
-}
-
-/** Global persona settings: the notifications pref + restore-from-backup (`persona.import`). */
-function PanelFooter({ showNotifications }: { readonly showNotifications: boolean }): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const setPrefs = useSetPersonaPrefs({ trpc, invalidation });
-  const importPersona = useImportPersona({ trpc, invalidation });
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const onRestoreFile = async (file: File): Promise<void> => {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(await file.text());
-    } catch {
-      notify.error("That file isn't valid JSON.");
-      return;
-    }
-    const rawRows = Array.isArray(parsed) ? parsed : [parsed];
-    let ok = 0;
-    for (const raw of rawRows) {
-      const candidate = personaBackupSchema.safeParse(raw);
-      if (candidate.success) {
-        importPersona.mutate({ input: candidate.data });
-        ok += 1;
-      }
-    }
-    notify.info(ok === 0 ? "No valid personas in that file." : `Restoring ${ok} persona(s)…`);
-  };
-
-  return (
-    <Section heading="Persona settings">
-      <Row gap="row" align="center" className="justify-between">
-        <Text size="label">Notify me when my persona changes in a chat</Text>
-        <Switch
-          checked={showNotifications}
-          onCheckedChange={(next): void =>
-            setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })
-          }
-        />
-      </Row>
-      <Row gap="row" align="center" className="justify-between">
-        <Text size="label">Restore personas from a backup</Text>
-        <Button intent="secondary" size="sm" onClick={(): void => fileRef.current?.click()}>
-          <Icon icon={Upload} size="sm" />
-          Restore…
-        </Button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          hidden={true}
-          onChange={(event): void => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file !== undefined) {
-              void onRestoreFile(file);
-            }
-          }}
-        />
-      </Row>
-    </Section>
   );
 }

@@ -2,12 +2,23 @@ import type { FieldRootProps, FieldValidityProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
+import { Button } from "#primitives/button";
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the #primitives/icons subpath; tsc + vite resolve Info/Icon fine (the add-member-popover precedent).
+import { Icon, Info } from "#primitives/icons";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
 import { fieldVariants } from "./variants";
 
 export interface FieldProps extends Omit<FieldRootProps, "className"> {
   /** Visible label — Base UI associates it with the control child automatically. */
   label: ReactNode;
   description?: ReactNode;
+  /**
+   * A short explainer surfaced as an info-icon hover tooltip beside the label, instead of always-on
+   * helper text — the persona-panel redesign's replacement for `description` on lightly-used fields
+   * (a hover tip costs no vertical space; `description` still renders when a field wants copy that's
+   * ALWAYS visible, e.g. a live validation hint). Additive — existing `description` callers unaffected.
+   */
+  hint?: ReactNode;
   /** Non-null marks the row invalid (`data-invalid` on the control) and renders destructive error text. */
   error?: ReactNode;
   className?: string;
@@ -35,6 +46,7 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
 export function Field({
   label,
   description,
+  hint,
   error,
   disabled = false,
   name,
@@ -46,6 +58,7 @@ export function Field({
   const slots = fieldVariants();
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
+  const hasHint = hint !== undefined && hint !== null;
   return (
     <BaseField.Root
       className={cn(slots.root(), className)}
@@ -59,7 +72,32 @@ export function Field({
       {...rest}
     >
       <BaseField.Label className={slots.label()} data-slot="field-label">
-        {label}
+        {hasHint ? (
+          // The hint trigger is a real <button> nested inside the native <label> — per the HTML label
+          // spec, a click landing on an interactive descendant does NOT ALSO forward-activate the
+          // associated control, so this never double-fires a Switch/Checkbox underneath.
+          <span className={slots.labelRow()}>
+            {label}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    aria-label="More info"
+                    className={slots.hintTrigger()}
+                    intent="ghost"
+                    size="icon"
+                    type="button"
+                  >
+                    <Icon icon={Info} size="xs" />
+                  </Button>
+                }
+              />
+              <TooltipPopup side="top">{hint}</TooltipPopup>
+            </Tooltip>
+          </span>
+        ) : (
+          label
+        )}
       </BaseField.Label>
       {children}
       {hasDescription ? (

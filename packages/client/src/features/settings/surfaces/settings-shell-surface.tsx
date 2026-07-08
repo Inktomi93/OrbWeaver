@@ -29,6 +29,7 @@ import {
   SETTINGS_GROUPS,
 } from "../lib/settings-nav";
 import { AppearanceSettingsSurface } from "./appearance-settings-surface";
+import { PersonaSettingsSurface } from "./persona-settings-surface";
 
 // The active-category id — a LOCAL (non-exported) alias derived from the tuple (an exported alias would be
 // the types-in-contract leak the nav registry avoids; local is fine).
@@ -100,6 +101,9 @@ function SettingsPane({ category }: { readonly category: CategoryId }): ReactEle
   const def = SETTINGS_CATEGORIES[category];
   if (category === "appearance") {
     return <AppearanceSettingsSurface />;
+  }
+  if (category === "personas") {
+    return <PersonaSettingsSurface />;
   }
   return <SettingsPanePlaceholder title={def.label} description={def.description} />;
 }

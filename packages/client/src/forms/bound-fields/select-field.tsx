@@ -13,6 +13,9 @@ import { fieldErrorText } from "./field-error";
 export interface SelectFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   readonly items: SelectItems<string>;
   readonly placeholder?: ReactNode;
   readonly disabled?: boolean;
@@ -21,6 +24,7 @@ export interface SelectFieldProps {
 export function SelectField({
   label,
   description,
+  hint,
   items,
   placeholder,
   disabled,
@@ -31,6 +35,7 @@ export function SelectField({
     <Field
       label={label}
       description={description}
+      hint={hint}
       error={field.state.meta.isTouched ? error : null}
       disabled={disabled ?? false}
       name={field.name}

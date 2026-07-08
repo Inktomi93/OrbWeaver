@@ -13,6 +13,9 @@ import { fieldErrorText } from "./field-error";
 export interface MacroFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   /** The macro catalog to complete against on `{{` (app-level data — the field never imports a registry). */
   readonly suggestions: readonly MacroSuggestion[];
   readonly placeholder?: string;
@@ -23,6 +26,7 @@ export interface MacroFieldProps {
 export function MacroField({
   label,
   description,
+  hint,
   suggestions,
   placeholder,
   rows,
@@ -34,6 +38,7 @@ export function MacroField({
     <Field
       label={label}
       description={description}
+      hint={hint}
       error={field.state.meta.isTouched ? error : null}
       disabled={disabled ?? false}
       name={field.name}

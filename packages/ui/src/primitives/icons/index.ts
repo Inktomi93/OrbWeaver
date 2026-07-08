@@ -36,6 +36,7 @@ export {
   GitFork,
   GripVertical,
   Hash,
+  Heart,
   History,
   ImageOff,
   Info,
