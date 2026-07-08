@@ -71,7 +71,7 @@ export const SETTINGS_CATEGORIES: Record<(typeof SETTINGS_CATEGORY_IDS)[number],
       group: "user",
       label: "Personas",
       icon: Drama,
-      description: "Manage the personas you speak as, and pick a default.",
+      description: "Manage the personas you speak as from the rail-foot persona panel.",
       built: false,
     },
     appearance: {

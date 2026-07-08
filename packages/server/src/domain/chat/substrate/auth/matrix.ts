@@ -100,6 +100,7 @@ export const CHAT_VERB_AUTHORITY = {
   updateTitle: "host", // shared chats-row config (no per-participant column exists today) — see FLAG
   star: "host", // shared chats-row flag (room-level column, not per-user library) — see FLAG
   archive: "host", // archiving removes the room from every member's active list — host
+  setChatAnchorPersona: "host", // the manual Anchor (#4) re-pin — a room-level `{{user}}` POV decision (FINAL-Persona §A.6b gap #2)
   reattributeMessages: "host", // host-only (self-heal hash-diff re-attribution)
   reattributePersona: "author-or-host", // author-or-host PER targeted row: a member re-stamps THEIR OWN user lines, the host any (the persona-attribution / {{user}} history fix — Chat-Macro-Resolution §5). The verb also asserts role==='user' + target-persona-owned-by-the-row's-author.
   setGroupConfig: "host",
@@ -121,13 +122,15 @@ export const CHAT_VERB_AUTHORITY = {
   acceptHostHandoff: "member", // the nominee (a member) accepts; the nominee-MATCH is a verb-level state check on the nomination
 } as const satisfies Record<keyof ChatService, VerbAuthority>;
 
-/** The non-VERB chatId surfaces inv §12 names explicitly (the membership chokepoint covers these too). */
+/** The non-VERB chatId surfaces inv §12 names explicitly (the membership chokepoint covers these too).
+ *  NOTE: the anchor re-pin is NOT here — it graduated from a speculative non-verb placeholder to a real
+ *  `ChatService` verb (`setChatAnchorPersona`, classified in `CHAT_VERB_AUTHORITY` above) — keeping both
+ *  would be two homes for one "host" decision (one-home law). */
 export const CHAT_NONVERB_SURFACES = [
   "sse-subscribe", // a kicked member's stream stops yielding within the kick tx
   "bus-delivery", // room-public bus events reach members only
   "lineage-walk", // fork/export/corpus ancestry walkers — gated per-ancestor
   "roster-card-read", // a roster character's card (D22 level-clamped)
-  "anchor-reassignment", // reassign the chat anchor persona — host
   "chat-injection-write", // write a positional chat_injection — host (room-wide prompt content)
 ] as const;
 type ChatNonVerbSurface = (typeof CHAT_NONVERB_SURFACES)[number];
@@ -138,7 +141,6 @@ export const CHAT_SURFACE_AUTHORITY = {
   "bus-delivery": "member",
   "lineage-walk": "lineage-per-ancestor",
   "roster-card-read": "member-card",
-  "anchor-reassignment": "host",
   "chat-injection-write": "host",
 } as const satisfies Record<ChatNonVerbSurface, ChatAuthority>;
 

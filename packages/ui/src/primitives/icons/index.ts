@@ -7,7 +7,9 @@
 export type { LucideIcon } from "lucide-react";
 export {
   AlertTriangle,
+  Anchor,
   Archive,
+  BookOpen,
   ChartColumn,
   Check,
   ChevronDown,
@@ -22,6 +24,8 @@ export {
   Command,
   Copy,
   Cpu,
+  Crown,
+  Download,
   Drama,
   Expand,
   ExternalLink,
@@ -32,6 +36,7 @@ export {
   GitFork,
   GripVertical,
   Hash,
+  History,
   ImageOff,
   Info,
   Library,

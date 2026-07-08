@@ -10,10 +10,18 @@
 // the single source of truth for "whose rows" (NEVER a `users` read — the `no-direct-users-read` gate).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
+import type {
+  CreatePersonaInput,
+  PersonaBackupInput,
+  UpdatePersonaInput,
+} from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
-export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
+export type {
+  CreatePersonaInput,
+  PersonaBackupInput,
+  UpdatePersonaInput,
+} from "@orb/contracts/persona";
 
 export interface PersonaActorParams {
   readonly principal: Principal;
@@ -61,6 +69,24 @@ export interface ListConnectedParams extends PersonaActorParams {
 export interface SetActivePersonaParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
-  readonly targetUserId: UserId;
+  /** Omit to target the CALLER (the common self-case — no need to name yourself). A host setting
+   *  someone else's persona passes this explicitly; the verb still gates via `requireChatAuthorOrHost`. */
+  readonly targetUserId?: UserId | undefined;
   readonly personaId: PersonaId | null;
+}
+
+/** `duplicate` — clone an owned persona into a fresh row (FINAL-Persona §A.6b gap #2). */
+export interface DuplicatePersonaParams extends PersonaActorParams {
+  readonly personaId: PersonaId;
+}
+
+/** `export` — read an owned persona as the portable backup shape (gap #3). */
+export interface ExportPersonaParams extends PersonaActorParams {
+  readonly personaId: PersonaId;
+}
+
+/** `import` — mint a fresh owned persona from a backup blob (gap #3). Never carries `avatarAssetId`
+ *  (the backup shape excludes it — see `@orb/contracts/persona` `personaBackupSchema`). */
+export interface ImportPersonaParams extends PersonaActorParams {
+  readonly input: PersonaBackupInput;
 }

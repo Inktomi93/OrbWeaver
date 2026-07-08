@@ -85,3 +85,6 @@ scratch/
 
 # transient agent worktrees (EnterWorktree / subagent isolation)
 .claude/worktrees/
+
+# browser-automation snapshot artifacts (live-verify)
+.playwright-mcp/

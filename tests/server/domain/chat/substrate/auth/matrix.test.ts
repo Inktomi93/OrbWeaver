@@ -29,6 +29,8 @@ describe("CHAT_VERB_AUTHORITY — the per-verb matrix", () => {
     expect(CHAT_VERB_AUTHORITY.reattributePersona).toBe("author-or-host");
     expect(CHAT_VERB_AUTHORITY.delete).toBe("host");
     expect(CHAT_VERB_AUTHORITY.moveMessage).toBe("host"); // the §11 "reorder" entry
+    // setChatAnchorPersona: the manual Anchor (#4) re-pin — host-only (FINAL-Persona §A.6b gap #2)
+    expect(CHAT_VERB_AUTHORITY.setChatAnchorPersona).toBe("host");
     expect(CHAT_VERB_AUTHORITY.getChatLineage).toBe("lineage-per-ancestor");
     // abort = the turn owner, never the host (rollback-theft defense)
     expect(CHAT_VERB_AUTHORITY.abort).toBe("turn-owner");
@@ -58,7 +60,6 @@ describe("CHAT_SURFACE_AUTHORITY — the non-verb chatId surfaces (inv §12)", (
     expect(CHAT_SURFACE_AUTHORITY["bus-delivery"]).toBe("member");
     expect(CHAT_SURFACE_AUTHORITY["lineage-walk"]).toBe("lineage-per-ancestor");
     expect(CHAT_SURFACE_AUTHORITY["roster-card-read"]).toBe("member-card");
-    expect(CHAT_SURFACE_AUTHORITY["anchor-reassignment"]).toBe("host");
     expect(CHAT_SURFACE_AUTHORITY["chat-injection-write"]).toBe("host");
   });
 });
@@ -66,7 +67,6 @@ describe("CHAT_SURFACE_AUTHORITY — the non-verb chatId surfaces (inv §12)", (
 describe("default-deny (inv §12 — an unlisted chatId surface defaults to deny)", () => {
   test("a known surface resolves; an unlisted surface is denied", () => {
     expect(authorityForSurface("sse-subscribe")).toBe("member");
-    expect(authorityForSurface("anchor-reassignment")).toBe("host");
     expect(authorityForSurface("totally-unknown-surface")).toBe(DENY);
     expect(authorityForSurface("")).toBe(DENY);
   });

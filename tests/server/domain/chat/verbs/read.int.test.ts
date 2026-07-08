@@ -185,6 +185,39 @@ describe("read — single reads", () => {
     expect(detail.opening).toBeNull();
     // The participant-scoped macro name producer (Chat-Macro-Resolution.md §1) covers the roster's character.
     expect(detail.macroNames.characterNames.some((c) => c.name === "room_char")).toBe(true);
+    // The viewer-scoped fields (host-of-this-room, no persona set yet).
+    expect(detail.viewerUserId).toBe(me);
+    expect(detail.viewerIsHost).toBe(true);
+    expect(detail.viewerActivePersonaId).toBeNull();
+  });
+
+  test("getChat's viewerActivePersonaId reflects a setActivePersona write (chat_participants.activePersonaId)", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("room", me);
+    const personaId = await seedPersona(db, me, "worn");
+    // `persona.setActivePersona` ultimately writes this same column (`setParticipantActivePersona`,
+    // verbs/roster.ts) — seeding it directly proves getChat's VIEW reads what that write produces.
+    await db
+      .update(chatParticipants)
+      .set({ activePersonaId: personaId })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, me)));
+
+    const { getChat } = createRead(makeChatContext(db), makeDeps());
+    const detail = await getChat({ principal: principal(me), chatId });
+    expect(detail.viewerActivePersonaId).toBe(personaId);
+  });
+
+  test("getChat's viewerIsHost is false for a present MEMBER (not the host)", async () => {
+    const host = await seedUser(db, "host2");
+    const member = await seedUser(db, "member2");
+    const chatId = await seedRoom("room2", host);
+    await seedParticipant(db, { chatId, key: "room2_m", userId: member, role: "member" });
+
+    const { getChat } = createRead(makeChatContext(db), makeDeps());
+    const detail = await getChat({ principal: principal(member), chatId });
+    expect(detail.viewerUserId).toBe(member);
+    expect(detail.viewerIsHost).toBe(false);
+    expect(detail.viewerActivePersonaId).toBeNull();
   });
 
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {

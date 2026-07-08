@@ -77,6 +77,7 @@ import type {
   SelectVariantParams,
   SelfLeaveParams,
   SendParams,
+  SetChatAnchorPersonaParams,
   SetChatInjectionParams,
   SetGroupConfigParams,
   SetMessageHiddenParams,
@@ -229,6 +230,10 @@ export interface ChatService {
   readonly updateTitle: (params: UpdateTitleParams) => Promise<void>;
   readonly star: (params: StarChatParams) => Promise<void>;
   readonly archive: (params: ArchiveChatParams) => Promise<void>;
+  /** Manual/host re-pin of the Anchor persona (#4, FINAL-Persona §A.0/§A.6b gap #2) — host-only, mid-chat
+   *  change of `chats.anchorPersonaId`. `null` clears it. The target persona (non-null) must be owned by a
+   *  PRESENT human participant of the room (`CHAT_OP_CODES.notPersonaOwner` otherwise) — never a foreign id. */
+  readonly setChatAnchorPersona: (params: SetChatAnchorPersonaParams) => Promise<void>;
   /** Re-stamp the `characterId` attribution of a set of slots (host-only; self-heal hash-diff). */
   readonly reattributeMessages: (params: ReattributeMessagesParams) => Promise<void>;
   /** Re-stamp the authoring `personaId` of a set of USER slots (author-or-host PER row; the target persona

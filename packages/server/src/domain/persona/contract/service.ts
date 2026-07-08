@@ -15,6 +15,7 @@
 // It is fully wired into `PersonaService` and `entry/compose` supplies the chat database update ops.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { PersonaBackupInput } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -23,7 +24,10 @@ import type {
   CreateFromCharacterParams,
   CreatePersonaParams,
   DisconnectParams,
+  DuplicatePersonaParams,
+  ExportPersonaParams,
   GetPersonaParams,
+  ImportPersonaParams,
   ListConnectedParams,
   ListPersonasParams,
   RemovePersonaParams,
@@ -88,4 +92,16 @@ export interface PersonaService {
   readonly listConnectedToCharacter: (params: ListConnectedParams) => Promise<PersonaDetail[]>;
   /** Set the active persona for a participant in a chat (host-or-self scoped). */
   readonly setActivePersona: (params: SetActivePersonaParams) => Promise<void>;
+  /** Clone an owned persona into a fresh row (FINAL-Persona §A.6b gap #2) — name suffixed " (copy)",
+   *  `starred` reset to false (a fresh identity, mirrors `character.duplicate`), `avatarAssetId`/`metadata`
+   *  carried forward verbatim (re-pointing to the SAME asset is trivial — no new asset is minted). Throws
+   *  {@link PersonaNotFoundError} when the source isn't owned/found. */
+  readonly duplicate: (params: DuplicatePersonaParams) => Promise<PersonaDetail>;
+  /** Read an owned persona as the portable backup shape (gap #3 — `@orb/contracts/persona`
+   *  `personaBackupSchema`; excludes `avatarAssetId`). Throws {@link PersonaNotFoundError} when not
+   *  owned/found. */
+  readonly export: (params: ExportPersonaParams) => Promise<PersonaBackupInput>;
+  /** Mint a fresh owned persona from a backup blob (gap #3 — the `export` round-trip twin). Never carries
+   *  an avatar (re-attaching one after restore is a separate, explicit action). */
+  readonly import: (params: ImportPersonaParams) => Promise<PersonaDetail>;
 }

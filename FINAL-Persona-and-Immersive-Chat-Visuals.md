@@ -73,6 +73,13 @@ kind of text** it appears in:
 - Card vs Prompt: `AssembleContext` carries both `pinnedPersona` (= Anchor) and `activePersona` (= Chat
   persona) (`contracts/chat/index.ts:281-283`); `assemble.ts` feeds card-derived sections `pinnedPersona` and
   user-authored sections `activePersona` (`context.ts:389-390`).
+- **BOTH `{{user}}` AND `{{persona}}` ride the SAME routed persona object** — `macroOptionsFor` maps
+  `persona.name → {{user}}` and `persona.description → {{persona}}` off the one section-appropriate persona
+  (`macros.ts:95-96`). So a card that uses `{{persona}}` (the persona DESCRIPTION) resolves the **Anchor**
+  persona's description too, not the current one — orb pins the whole persona object, not just a name string.
+  (Contrast: your PersonaPin extension only string-replaced `{{user}}` in card fields, leaking the *current*
+  description through `{{persona}}`; base ST has no pin at all. Orb is strictly ahead — the pinned description
+  is already correct, no invention needed.)
 - History: **storage is RAW, resolved at consumption** (`kit/macro/row-macros.ts` §0 — *"storage is RAW,
   never mutated; resolution happens at CONSUMPTION"*). `resolveRowMacros` (`row-macros.ts:76-97`) resolves
   each row's `{{user}}`/`{{char}}`/`{{persona}}` against **its own** `characterId`/`personaId` stamp; the
@@ -165,6 +172,31 @@ affect only it.
    rail-foot switcher, the Settings→Personas manage pane, and the in-chat persona picker (A.6).
 
 ### A.6 The switcher UX — the rail-foot chip (make it FUCK; the mockup had the bones, not the wiring)
+
+> **CONSOLIDATED DESIGN (owner's clarified call — SUPERSEDES the "three surfaces / Settings→Personas pane"
+> split below).** Everything persona-manage lives in **ONE bottom-left panel** off the rail-foot chip — the
+> mock-neo profile concept, finished into a real management surface. There is NO separate Settings→Personas
+> editor pane. The panel:
+> - **Header:** current identity ("playing as X") + "＋ New persona".
+> - **Persona list:** each row = `avatar · name · note`, with INLINE actions on the SAME row following the
+>   message-actions reveal pattern (dim-at-rest → brighten on hover, `pointer:coarse` always-on;
+>   `features/chat/lib/message-actions-reveal.ts`): ★ set-default (immediate `defaultPersonaId`), edit, delete,
+>   more. Click the row body = set CURRENT (`currentPersonaId`).
+> - **Edit = EXPAND THE ROW IN PLACE** (accordion, progressive disclosure): the full editor form (every §A.6b
+>   field) renders inline in the expanded row; collapse to return to the list. (Common fields inline + an
+>   "Advanced" disclosure for depth/lorebooks if it's too tall.)
+> - Primitive: a generously-sized inline `<Popover>` (Discord account-panel energy) — or a `<Drawer>` via a
+>   `features/persona/anchors/` provider if it needs the room (surface purity rule 7). All in `features/persona`.
+> - **NO separate in-chat picker (owner's final call — ONE home).** The per-chat persona is handled BY THE
+>   PANEL, reacting to the active chat: the panel reads `state/active-chat-store.ts` (the below-features shared
+>   seam, §5.1) and, when a chat is open, shows a **"This chat:"** section — set the per-chat active persona,
+>   the anchor display + host re-pin, reattribute. NO `whoami` verb: two tiny natural server touches instead —
+>   (1) `setActivePersona.targetUserId` becomes optional, defaulting to the caller (self-case), (2) the chat
+>   view surfaces `viewerActivePersonaId` + `viewerIsHost` (server populates from the principal). The account
+>   IDENTITY display (username/avatar) is the only truly-deferred bit → auth #50 (log-out already works).
+>
+> The prose below is the earlier three-surface framing — retained for the field/scope detail it still carries,
+> but the HOMING is now the one-panel design above (no settings pane, no `SettingsShell` panes slot).
 
 Three surfaces, each owning exactly one scope so nothing is ambiguous:
 
@@ -264,12 +296,46 @@ has swapMacros), connect/disconnect/listConnectedToCharacter (✓), setActivePer
 clears), reattribute (✓ `chat.reattributePersona`), usage-stats (✓ `stats.personaUsage`), default (✓ settings
 write). Client-only: search/sort/grid-list/pagination.
 
-**THE 6 BUILD GAPS (no backing yet — build them, don't skip):**
-1. **Assembler wiring for `descriptionPosition`/`inject`** — HIGHEST IMPACT. The fields are stored+editable but
-   `resolvePersonaDescriptionPlacement` (`kit/persona/index.ts:53`) is never called; `AssemblePersona` carries
-   only `{name,description}` (`contracts/chat/index.ts:142-145`), and `assembly/context.ts:389-390` ignores
-   placement. The depth options are INERT until this is wired. **Must build for the depth options to mean
-   anything.**
+**THE 6 BUILD GAPS (build them, don't skip):**
+1. **CONNECT `descriptionPosition`/`inject` to the EXISTING injection system** (not a build — a wire). The
+   depth machinery already exists and is battle-tested: `assembly/injections.ts` is *"the ONE positional-
+   injection model"* (`frameInjection` + `spliceInChatInjections`), the same path world-info and every
+   at-depth injection flow through, keyed on `ChatInjection {position, depth, role, order, content}`. Persona
+   placement just isn't connected to it yet (`resolvePersonaDescriptionPlacement`, `kit/persona/index.ts:53`,
+   has zero call sites). Wire it:
+   - `at_depth` → emit the description as a `ChatInjection {position:"in_chat", depth, role, content}` into the
+     SAME pool world-info feeds (`assembly/world-info/pool.ts`) → the existing splice places it. Do NOT
+     reimplement depth injection.
+   - `in_prompt` → the description rides the prompt constructor as `{{persona}}`, which `macros.ts:96` ALREADY
+     resolves to `persona.description`. Little/no new code.
+   - `none` → not injected (match ST).
+   - Respect the assistant+depth-0 write-guard (the splice normalizes assistant@0→depth1).
+   This is the highest-value gap (the depth options are inert until connected) but it's small — reuse, don't build.
+   **BOTH-PERSONAS context rule (decided — the pinned-swap case). The two personas inject into two DIFFERENT
+   context slots, matching the `{{user}}` card-vs-prompt split — NOT both at prompt time.** With a pin, the
+   card's relationships are built around the ANCHOR ("Nate is my brother"), but after a swap the current speaker
+   is someone else (Steve). Inject only the active → the character has no context on who Nate (its brother) is;
+   inject only the anchor → it doesn't know the current speaker. So inject BOTH, but in the slot each one's
+   ROLE belongs to:
+   - **ACTIVE persona (current speaker) → PROMPT-context**, via ITS OWN `descriptionPosition`/`inject`
+     (`in_prompt` = the `{{persona}}` slot; `at_depth` = a `ChatInjection`). This is the "who's speaking now"
+     block — the *prompt-time* one.
+   - **ANCHOR persona (established card `{{user}}`, only when `anchor personaId != active personaId`) →
+     CARD-context**, injected WITH the card-derived sections (the `pinnedPersona` card-source path in
+     `assembly/context.ts`), framed as the established/known identity ("the person the character knows as
+     `{{user}}` is Nate: …"). It does **NOT** ride the anchor's own `descriptionPosition` — that setting is the
+     anchor persona's *prompt-time* preference for when IT is the active speaker, the wrong role here.
+   - **Each description is macro-resolved against ITS OWN persona** — a persona description self-references with
+     `{{user}}` (ST-style "`{{user}}` is a 30yo engineer"), so the anchor's `{{user}}`/`{{persona}}` → the
+     ANCHOR's name/description and the active's → the ACTIVE's, via `renderMacros(desc, ctx, thatPersona)` (the
+     same source-routed seam world-info uses). Resolving both against one global persona would render "Steve is a
+     doctor" from Nate's description — exactly wrong.
+   - **Dedup:** `anchor == active` (no swap, the common case) → NO separate anchor block; the active injection is
+     the only one, **byte-identical to the single-persona behavior** (regression test). `descriptionPosition ==
+     "none"` on a persona → that persona's description injects in NEITHER role.
+   The anchor's description otherwise reaches the model ONLY if the card text happens to use `{{persona}}` —
+   insufficient, since most cards don't. (A future toggle can suppress the anchor's card-context block for a
+   "truly gone" narrative; the default is include-for-context.)
 2. `persona.duplicate` verb (neo has the UX; orb has no verb).
 3. `persona.export` / `persona.import` (backup/restore) verbs.
 4. Persona↔lorebook link verb (persona-bound world books).
@@ -284,6 +350,107 @@ write). Client-only: search/sort/grid-list/pagination.
 4. In-chat persona picker (Chat persona #3) + read-only Anchor display + re-anchor/reattribute actions.
 5. Wire message-row `Avatar` `src` for character AND persona rows (auto-unblocked by #67).
 6. (Later/optional) per-persona theme override; the mirrored-right user-message layout (§B.3).
+
+### A.7b CLIENT-STRUCTURE conformance (the `client-structure` gate is LAW — 2B must obey it)
+
+`scripts/check/gates/client-structure.ts` enforces the `features/persona/` shape the moment it holds real code:
+- **Front door:** `features/persona/index.ts`; the feature name `persona` is legal (mirrors `domain/persona`).
+- **Buckets ONLY** `{surfaces, anchors, components, hooks, lib}` — nothing else, nothing loose at the root
+  (only `index.ts` + `*.md`). Each bucket is a **containment ROLE (§4)**, not just a folder:
+  - **`surfaces/`** = `@container` CONSUMERS — placeable panes that take **NO layout-context props**
+    (no `compact`/`inDrawer`/`density`; they adapt to whatever container they're dropped into via `@container`
+    queries — "build once, place anywhere"). Persona: `persona-manage-surface.tsx` (the Settings→Personas
+    master-detail pane).
+  - **`anchors/`** = containment PROVIDERS (establish `container-type`+`container-name`; also the home of any
+    outer `<Dialog>/<Drawer>` so surfaces stay pure). Persona: **likely NONE** — the switcher is an inline
+    `<Popover>` and the editor is a pane, not a modal.
+  - **`components/`** = leaf building blocks composed inside surfaces (the rail-foot chip, the quick-swap
+    popover, the persona list-row/card, the editor fields).
+  - **`hooks/`** = `use-*` logic · **`lib/`** = pure functions (no JSX). One feature-root `index.ts` front door;
+    no per-bucket index, no per-surface subfolders.
+- **STATE homing (UI-Arch §5/§5.1 — get this right; the character doc got it wrong):**
+  - **Server state is NEVER Zustand** — it's TanStack Query + tRPC. So **current/default persona**
+    (`seeds.currentPersonaId`/`defaultPersonaId`), **per-chat active** (`setActivePersona`), and **anchor**
+    (`setChatAnchorPersona`) are all SERVER STATE: read via `useGatedQuery`/the settings query, write via
+    `createEntityMutation` / `updateUserSettingsSection`. NOT a store.
+  - **Zustand stores are top-level `packages/client/src/state/…-store.ts`, FLAT** (never a feature bucket) and
+    obey `state:files` (one `create(` per file, ≤10 fields, no exported `set`/`getState`, `persist({name})`).
+    An existing `state/character-selection-store.ts` already exists — reuse existing shell/selection stores, do
+    not mint duplicates.
+  - **View state is local `useState`** (popover open, editor master-detail selection); list search/filter uses
+    `useDeferredValue` (§4a), not a store. **2B likely needs ZERO new Zustand stores.**
+  - **§5.1 seam:** leaf components only WRITE intent actions; the ROUTE (`home-page`) is the single reactive
+    reader; no feature→feature imports.
+- **Forms (§6.1 threshold):** ANY form with ≥3 fields OR validation OR save/draft → a **form factory**
+  (`createSavedEntityForm` for the persona editor; bound-fields; the Phase-1 `avatar-upload-field`). RHF is banned.
+- **Also obey:** the 10 UX rules (§4.3 — no dead ends, one primary action, progressive disclosure, quiet
+  chrome), `QueryBoundary` empty/loading/error on every surface, `@orb/ui/markdown` (Streamdown) for the
+  description preview, `@orb/ui` primitives only (no raw Base UI). The 2B builder MUST read UI-Architecture-and-
+  Layout.md §2.1/§4/§4.3/§5/§5.1/§6.1 + an existing feature (settings, character) before writing.
+- **Naming:** `surfaces/*-surface.tsx` · `hooks/use-*.ts` (`.tsx` hooks = `use-*`/`-context`/`-provider`) ·
+  `anchors/*-{anchor,dialog,drawer,popover,menu,panel}.tsx`.
+- **Surface purity (rule 7):** a surface must NOT render its own outer `<Dialog>/<AlertDialog>/<Drawer>` (that's
+  an anchor's job) — but inline `<Popover>/<Menu>/<Select>/<Tooltip>` ARE legal. So the rail-foot quick-swap
+  **popover lives inline** in a surface/component (no anchor needed); the Settings→Personas editor is a **pane**
+  (no modal). Neither needs an `anchors/` entry unless a true modal appears.
+- **Composition seam (SETTLED — do not re-litigate; §5.1 + ux-flow-revamp J11:422 mandate it):** ALL persona
+  UI lives in **`features/persona/`** (mirror-domain feature). The Settings→Personas pane and the rail-foot
+  switcher are **route-composed** into their shells as ReactNode slots — features NEVER import each other; the
+  ROUTE (`home-page.tsx`) is the single composer:
+  - Settings pane: `SettingsShell` takes a `panes?: Partial<Record<CategoryId, ReactNode>>` prop; `SettingsPane`
+    renders `panes?.personas ?? placeholder`; `home-page` supplies `settings: <SettingsShell panes={{ personas:
+    <PersonasSurface/> }} />` importing `PersonasSurface` from `#features/persona`. Mirrors EXACTLY how home-page
+    already injects `ChatListSurface` into a section slot and `SettingsShell` into a modal slot.
+  - Switcher: a new app-shell rail-foot ReactNode slot (`AppShellProps` → Rail), home-page fills it with the
+    `features/persona` switcher surface. Same seam.
+  - **Theme/appearance is the EXCEPTION, not the model** — it lives *directly in* `features/settings`
+    (`SettingsPane` imports `AppearanceSettingsSurface`) ONLY because there is no `features/theme` (theme =
+    `domain/settings`, no mirror feature). Persona HAS `domain/persona`, so its UI is feature-homed +
+    route-injected. Do not copy the theme direct-import for persona.
+  - "Manage personas" = `openModal("settings")` + the shell-store deep-link-tab transient to land on the personas
+    category (a store write, never a URL — single-route shell §5.1). Persona data rides `client/data`+`forms`
+    factories (`createSavedEntityForm`/`createEntityMutation`/`createCollectionSurface`/`avatar-upload-field`);
+    cross-domain reads via `trpc.persona.*`/`trpc.settings`/`trpc.worldInfo.*ToPersona` (trpc ≠ a feature import).
+
+### A.8 The avatar/name producer "smell", and why the fix waits for agent-principal (D60)
+
+A reasonable objection to Phase 1: message-row NAMES come from producers (`characterNamesById` +
+`personaNamesById`, `@orb/kit/macro`) while AVATARS are split — personas via a stamped-id producer
+(`roster-avatars.ts` `loadPersonaAvatarProducer`, full history coverage) but characters inline off the roster
+`ParticipantView.avatarHash` (which `roster-avatars.ts:13-17` admits leaves a "since-left character's avatar on
+an old row" gap). Two things feel off: (a) name vs avatar are split producers, (b) characters and personas
+resolve avatars by different mechanisms.
+
+**Why the name/avatar split is CORRECT (not a hack):** names/descriptions are macro subjects (`{{user}}`/
+`{{char}}`/`{{persona}}`) needed by BOTH server-assembly and client display; avatars are pure display chrome
+needed only by the client. Merging them forces the server macro path to drag chrome it never uses. §1 (Chat-
+Macro-Resolution.md) keeps the macro producer names-only for that reason.
+
+**Why "just read the roster" doesn't work:** the roster is CURRENT-only. The persona model REQUIRES historical
+fidelity — after a Nate→Steve swap, Nate's OLD rows must still show Nate's name AND avatar (you can't get that
+from a roster Nate has left). That's exactly why names already cover "active roster ∪ every stamped id," and
+avatars must match that coverage. "Roster + inherit" would paint the wrong avatar on old rows.
+
+**The real smell is the character asymmetry, and the clean fix is a per-kind "cast" producer** —
+`characterCastById {name, avatarHash, themeOverride?}` + `personaCastById {name, description, avatarHash}`, each
+over active ∪ stamped ids, macro-resolution projecting name/description (§1 intent preserved, letter amended).
+This kills the name/avatar split AND the character asymmetry AND closes the since-left gap.
+
+**DECISION: this unification lands WITH agent-principal (D60), not in the persona phase.** That committed lane
+(`proposed/agent-principal-design/02`) adds a 4th participant kind `agent` + `AI_DRIVEN_KINDS`/`USER_BACKED_KINDS`
+and EXPLICITLY reworks this exact surface: the cast/WI name-set ("characters + present personas → **+ agent
+display names**"), `getRosterCardView` (+`AgentCardView`), and attribution (a THIRD axis — agent rows key on
+`authorUserId`, characterId+personaId null). So the cast becomes genuinely kind-polymorphic (character | persona
+| agent) there. Unifying now = design for 2 kinds then rework for the 3rd; unifying there = one coherent
+kind-polymorphic move. Until then: the persona producer is correct, the character since-left-avatar gap stays the
+documented minor gap. **Implication for Phase 3 (message-row redesign): build avatar/name resolution KIND-READY
+so the agent third axis is a one-arm add, not a rework.** (Tracked as a build task alongside D60.)
+
+Consistency check (verified against committed designs): personas stay **per-human** (saved-rosters D61 non-goals);
+a `roster_preset` sets the chat-level `anchorPersonaId` at start (D61) — a second writer of the pin, reinforcing
+that Anchor is a deliberately-settable chat-level pointer (the host/manual re-pin, §A.6 TASK 3). Attribution
+derives from the roster map, never body-parse (agent-principal §2) — exactly what `attribution.ts` does. Nothing
+in this lane contradicts D60/D61.
 
 ---
 

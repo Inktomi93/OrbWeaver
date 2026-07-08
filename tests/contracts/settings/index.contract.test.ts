@@ -155,6 +155,18 @@ test("additive namespaces (onboarding/groupDefaults/workloads/profile) read defa
   expect(parsed.groupDefaults).toEqual(DEFAULT_GROUP_CONFIG);
 });
 
+// ── persona (FINAL-Persona §A.6b) — the additive persona-UX namespace ──
+
+test("UserSettings.persona.showNotifications defaults true from an empty blob (no version bump)", () => {
+  const parsed = parseUserSettings({});
+  expect(parsed.persona.showNotifications).toBe(true);
+  expect(DEFAULT_USER_SETTINGS.persona.showNotifications).toBe(true);
+});
+
+test("USER_SETTINGS_SECTIONS includes persona (section-patchable via updateUserSettingsSection)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("persona");
+});
+
 // ── appearance (D44 §12.1) — the additive display-only namespace ──
 
 test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no version bump)", () => {

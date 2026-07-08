@@ -12,6 +12,7 @@ import { createFormHook } from "@tanstack/react-form";
 import { AvatarUploadField } from "./bound-fields/avatar-upload-field";
 import { BoundColorField } from "./bound-fields/color-field";
 import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-chrome";
+import { MacroField } from "./bound-fields/macro-field";
 import { MultiToggleField } from "./bound-fields/multi-toggle-field";
 import { BoundNumberField } from "./bound-fields/number-field";
 import { SelectField } from "./bound-fields/select-field";
@@ -34,6 +35,7 @@ export const { useAppForm, withForm, withFieldGroup } = createFormHook({
     ColorField: BoundColorField,
     MultiToggleField,
     AvatarUploadField,
+    MacroField,
   },
   formComponents: {
     SubmitButton,

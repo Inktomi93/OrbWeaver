@@ -8,7 +8,7 @@
 // exactly one (`display:none` on the other per breakpoint) — no JS viewport branch, no duplicated nav.
 // Pure registry render: a new section is a RAIL_SECTIONS row (rail-slots.ts), never bespoke JSX here.
 
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ModalSlotId, SectionId } from "#state";
 import {
@@ -26,9 +26,17 @@ export interface RailProps {
   readonly activeSection: SectionId;
   readonly onSelectSection: (id: SectionId) => void;
   readonly onOpenModal: (id: ModalSlotId) => void;
+  /** Route-composed rail-foot chip (the persona switcher). When supplied it replaces the static
+   *  account avatar; undefined ⇒ the account modal button (backward-compatible). */
+  readonly railFoot?: ReactNode;
 }
 
-export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps): ReactElement {
+export function Rail({
+  activeSection,
+  onSelectSection,
+  onOpenModal,
+  railFoot,
+}: RailProps): ReactElement {
   return (
     <nav className="shell-rail" aria-label="Primary">
       {/* DESKTOP — the thin icon column (shell.css hides this at the mobile breakpoint). */}
@@ -67,13 +75,19 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
               onClick={(): void => onOpenModal(a.id)}
             />
           ))}
-          {/* Avatar last — a `--spacing-row` top margin (shell.css) so it doesn't fuse with Settings. */}
+          {/* Avatar last — a `--spacing-row` top margin (shell.css) so it doesn't fuse with Settings.
+              The persona switcher (route-composed via `railFoot`) OWNS this slot when present — a
+              Discord-style account-switcher avatar+popover — replacing the static account button
+              (FINAL-Persona §A.6). The `account` registry entry stays paired (reachable via the You
+              sheet); undefined ⇒ the account button, so the shell degrades cleanly. */}
           <div className="shell-rail-avatar">
-            <RailButton
-              label={ACCOUNT_ACTION.label}
-              icon={ACCOUNT_ACTION.icon}
-              onClick={(): void => onOpenModal(ACCOUNT_ACTION.id)}
-            />
+            {railFoot ?? (
+              <RailButton
+                label={ACCOUNT_ACTION.label}
+                icon={ACCOUNT_ACTION.icon}
+                onClick={(): void => onOpenModal(ACCOUNT_ACTION.id)}
+              />
+            )}
           </div>
         </div>
       </div>

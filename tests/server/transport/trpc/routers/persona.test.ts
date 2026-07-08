@@ -50,17 +50,19 @@ describe("persona.setActivePersona — wire-through", () => {
     expect(setActivePersona).toHaveBeenCalledWith(expect.objectContaining({ personaId: null }));
   });
 
-  test("rejects a missing targetUserId at the wire boundary", async () => {
+  test("an omitted targetUserId is accepted at the wire boundary and passed through undefined (the verb defaults it to self)", async () => {
     const setActivePersona = vi.fn<PersonaService["setActivePersona"]>(async () => {
       // resolves void.
     });
-    await expect(
-      // @ts-expect-error — targetUserId is required; the input schema rejects its absence.
-      caller(ctxWith({ setActivePersona })).persona.setActivePersona({
-        chatId: CHAT,
-        personaId: PERSONA,
-      }),
-    ).rejects.toThrow();
-    expect(setActivePersona).not.toHaveBeenCalled();
+    await caller(ctxWith({ setActivePersona })).persona.setActivePersona({
+      chatId: CHAT,
+      personaId: PERSONA,
+    });
+    expect(setActivePersona).toHaveBeenCalledWith({
+      principal: expect.objectContaining({ userId: ACTOR }),
+      chatId: CHAT,
+      targetUserId: undefined,
+      personaId: PERSONA,
+    });
   });
 });

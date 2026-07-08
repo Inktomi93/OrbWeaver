@@ -90,4 +90,85 @@ describe("setActivePersona", () => {
 
     expect(setCalledWith).toEqual({ targetUserId: ownerId, personaId: null });
   });
+
+  test("omitted targetUserId defaults to the caller (self-case)", async () => {
+    const db = await freshDb();
+    let requireCalledWith: string | null = null;
+    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    const harness = makeHarness(db, {
+      requireChatAuthorOrHost: (_principal, _chatId, targetUserId): Promise<void> => {
+        requireCalledWith = targetUserId;
+        return Promise.resolve();
+      },
+      setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
+        setCalledWith = { targetUserId, personaId: pId };
+        return Promise.resolve();
+      },
+    });
+    const svc = createPersonaService(harness.ctx);
+
+    const ownerId = await seedUser(db);
+    const created = await svc.create({
+      principal: principal(ownerId),
+      input: { name: "self", description: "d" },
+    });
+
+    await svc.setActivePersona({
+      principal: principal(ownerId),
+      chatId: castId<ChatId>("c1"),
+      personaId: created.id,
+    });
+
+    expect(requireCalledWith).toBe(ownerId);
+    expect(setCalledWith).toEqual({ targetUserId: ownerId, personaId: created.id });
+  });
+
+  test("host with an explicit targetUserId stamps the TARGET, not the caller", async () => {
+    const db = await freshDb();
+    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    const harness = makeHarness(db, {
+      requireChatAuthorOrHost: () => Promise.resolve(),
+      setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
+        setCalledWith = { targetUserId, personaId: pId };
+        return Promise.resolve();
+      },
+    });
+    const svc = createPersonaService(harness.ctx);
+
+    const hostId = await seedUser(db, { handle: "host" });
+    const targetId = await seedUser(db, { handle: "target" });
+    const created = await svc.create({
+      principal: principal(targetId),
+      input: { name: "target-persona", description: "d" },
+    });
+
+    await svc.setActivePersona({
+      principal: principal(hostId),
+      chatId: castId<ChatId>("c1"),
+      targetUserId: targetId,
+      personaId: created.id,
+    });
+
+    expect(setCalledWith).toEqual({ targetUserId: targetId, personaId: created.id });
+  });
+
+  test("a non-host/non-self caller is refused (requireChatAuthorOrHost gate propagates)", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db, {
+      requireChatAuthorOrHost: () => Promise.reject(new Error("not_author_or_host")),
+    });
+    const svc = createPersonaService(harness.ctx);
+
+    const callerId = await seedUser(db, { handle: "caller" });
+    const targetId = await seedUser(db, { handle: "target" });
+
+    await expect(
+      svc.setActivePersona({
+        principal: principal(callerId),
+        chatId: castId<ChatId>("c1"),
+        targetUserId: targetId,
+        personaId: null,
+      }),
+    ).rejects.toThrow("not_author_or_host");
+  });
 });

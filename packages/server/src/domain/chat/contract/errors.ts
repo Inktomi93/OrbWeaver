@@ -37,9 +37,11 @@ export const CHAT_OP_CODES = {
    *  authoring persona (the `{{user}}` subject). A coded validation refusal on a KNOWN membership (the caller
    *  cleared the per-row author-or-host gate), never a NOT_FOUND collapse. */
   notUserMessage: "not_user_message",
-  /** `reattributePersona`'s target persona is NOT owned by the targeted row's AUTHOR — a line may only be
-   *  attributed to a persona its author owns (never the acting host's own persona; a persona has ONE owner, so
-   *  a bulk set that mixes authors can never all pass). Leak-free coded refusal. */
+  /** A verb's target persona is NOT owned by the required party. `reattributePersona`: not owned by the
+   *  targeted row's AUTHOR (a line may only be attributed to a persona its author owns, never the acting
+   *  host's own persona; a persona has ONE owner, so a bulk set that mixes authors can never all pass).
+   *  `setChatAnchorPersona`: not owned by any PRESENT human participant of the room (the Anchor may only
+   *  pin to a persona actually present in the chat — never a foreign id probed in). Leak-free coded refusal. */
   notPersonaOwner: "not_persona_owner",
   /** A roster mutation targeted a participant that is not a PRESENT member of the chat (missing or already
    *  left). Host-only surfaces (the caller already sees the roster), so a coded refusal leaks nothing —

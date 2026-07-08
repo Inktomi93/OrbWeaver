@@ -70,12 +70,22 @@ type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (the metadata sub-blobs
  *  applied to defaults; the same projection `read.ts`/`invites.ts`/`start-chat.ts` use). */
-function toChatDetail(
-  chat: LoadedChatRow,
-  participants: readonly ParticipantView[],
-  macroNames: ChatMacroNameProducer,
-  personaAvatars: readonly PersonaAvatarEntry[],
-): ChatDetail {
+interface ToChatDetailInput {
+  readonly chat: LoadedChatRow;
+  readonly participants: readonly ParticipantView[];
+  readonly macroNames: ChatMacroNameProducer;
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly viewerUserId: UserId;
+}
+
+function toChatDetail({
+  chat,
+  participants,
+  macroNames,
+  personaAvatars,
+  viewerUserId,
+}: ToChatDetailInput): ChatDetail {
+  const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
     title: chat.title,
@@ -85,6 +95,9 @@ function toChatDetail(
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
     participants,
+    viewerActivePersonaId: viewer?.activePersonaId ?? null,
+    viewerIsHost: viewer?.role === "host",
+    viewerUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,
@@ -343,7 +356,15 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     const participants = await deps.loadParticipantViews(newChatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    return { chat: toChatDetail(forkRow, participants, macroNames, personaAvatars) };
+    return {
+      chat: toChatDetail({
+        chat: forkRow,
+        participants,
+        macroNames,
+        personaAvatars,
+        viewerUserId: principal.userId,
+      }),
+    };
   };
 }
 

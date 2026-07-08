@@ -38,6 +38,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type {
   AssembleCharacter,
   AssembleContext,
+  AssemblePersona,
   AssembleWorldEntry,
   ChatInjection,
   RoomOverrides,
@@ -407,6 +408,14 @@ function buildBaseContext(
   setIf(base, "memory", input.memory);
   setIf(base, "compactSummary", input.compactSummary);
   setIf(base, "guidedInstruction", input.guidedInstruction);
+  // FINAL-Persona §A.6b gap #1 — the SINGLE-PLACEMENT rule for the ACTIVE persona's description: the
+  // `{{persona}}` marker (the `in_prompt` slot, assemble.ts) emits ONLY when the active placement is
+  // `in_prompt` (the default / absent). `at_depth` rode the `in_chat` injection below; `none` opts out —
+  // either way the marker is SILENCED so the description is never double-injected. Keyed off the ACTIVE
+  // persona (the PROMPT `{{user}}`), never the anchor (the anchor rides card-context, not this marker).
+  base.personaMarkerActive =
+    input.personas.active?.placement === undefined ||
+    input.personas.active.placement.kind === "in_prompt";
   return base;
 }
 
@@ -475,6 +484,110 @@ function resolveGuidedSteer(
       },
     ],
   };
+}
+
+/** The ANCHOR persona's card-context lead-in — marks its description as the established identity the
+ *  character's card relationships refer to (its card `{{user}}`). No magic string; one home. */
+const ANCHOR_IDENTITY_PREFIX = "The person the character knows as the user is";
+
+/** The ACTIVE persona's `descriptionPosition: "at_depth"` → an `in_chat` injection candidate (its own
+ *  placement, per Chat-Macro-Resolution §4 — the PROMPT `{{user}}`, "who is speaking now"), or null when
+ *  it doesn't inject at depth (`in_prompt` rides the `{{persona}}` marker — assemble.ts; `none` opts out;
+ *  empty description). The description is MACRO-RESOLVED against the ACTIVE persona (its `{{user}}`/
+ *  `{{persona}}` = its OWN name/description) BEFORE it enters the list — resolving against any OTHER
+ *  persona would cross-contaminate (the owner-flagged bug). `{{char}}` resolves to the cast primary as
+ *  normal. UNFRAMED (the primary "current speaker" block) so a no-swap turn is byte-identical to the
+ *  single-persona output. The splice re-runs its macro pass, but it is idempotent on resolved text. */
+function activePersonaDepthCandidate(
+  ctx: AssembleContext,
+  active: AssemblePersona | null,
+): InjectionCandidate | null {
+  if (active === null || active.placement?.kind !== "at_depth") {
+    return null;
+  }
+  const content = renderMacros(active.description, ctx, active);
+  if (content.trim().length === 0) {
+    return null;
+  }
+  const { depth, role } = active.placement;
+  return {
+    injection: { position: "in_chat", depth, role, content },
+    tokens: estimateTokens(content),
+    ignoreBudget: true,
+    priority: OPERATOR_PRIORITY,
+    entryId: "persona-description",
+    bucket: null,
+  };
+}
+
+/** The ANCHOR persona's description injected in CARD-CONTEXT (FINAL-Persona §A.6b gap #1, the BOTH-PERSONAS
+ *  rule). The anchor is the CARD-context persona — the character's relationships are built around it (a card
+ *  that says the user is its brother refers to the ANCHOR) — so on a mid-chat swap its description must reach
+ *  the model even though the ACTIVE speaker differs, else the character loses all context on who its card
+ *  refers to. Delivered as a FIXED `in_static` system block (appended WITH the card-derived sections in
+ *  assemble.ts, the same region `pinnedPersona`-resolved card content lands), NOT via the anchor's OWN
+ *  `descriptionPosition` — that setting is the anchor persona's PROMPT-time preference for when IT is the
+ *  active speaker (the wrong role here). The description is macro-resolved against the ANCHOR persona (its
+ *  own user/persona macros = its own name/description — per-persona resolution, no cross-contamination),
+ *  then framed as the established identity. Returns null when the anchor opts out
+ *  (`descriptionPosition: "none"`) or has an empty description. */
+function anchorPersonaCardCandidate(
+  ctx: AssembleContext,
+  anchor: AssemblePersona,
+): InjectionCandidate | null {
+  if (anchor.placement?.kind === "none") {
+    return null;
+  }
+  const resolved = renderMacros(anchor.description, ctx, anchor);
+  if (resolved.trim().length === 0) {
+    return null;
+  }
+  const content = `[${ANCHOR_IDENTITY_PREFIX} ${anchor.name}: ${resolved}]`;
+  return {
+    injection: { position: "in_static", depth: 0, role: "system", content },
+    tokens: estimateTokens(content),
+    ignoreBudget: true,
+    priority: OPERATOR_PRIORITY,
+    entryId: "persona-description-anchor",
+    bucket: null,
+  };
+}
+
+/** True when the ANCHOR is the SAME persona as the ACTIVE (the no-swap case) — deduped on the projected
+ *  identity: same `personaId` ⟹ `loadPersona` (`entry/compose/chat.ts`) yields structurally-equal
+ *  projections, so a name+description match IS a personaId match for every real input (`AssemblePersona`
+ *  is deliberately id-free — the slim assemble projection avoids a `chat → persona` DAG edge). */
+function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): boolean {
+  return b !== null && a.name === b.name && a.description === b.description;
+}
+
+/** Resolve the DISTINCT personas in play for `{{user}}` (FINAL-Persona §A.6b gap #1, the BOTH-PERSONAS
+ *  rule) into injection candidates, each in ITS OWN context role (mirroring the `{{user}}` card-vs-prompt
+ *  split), joined into the SAME unified list/budget pass WI + guided feed. `ignoreBudget: true` (config
+ *  intent, the `userCandidates`/guided precedent):
+ *   • ACTIVE (the PROMPT `{{user}}`) → per its OWN `descriptionPosition` (`at_depth` = an `in_chat`
+ *     injection here; `in_prompt` = the `{{persona}}` marker, assemble.ts; `none` = nothing). UNFRAMED.
+ *   • ANCHOR (the CARD `{{user}}`) → a FIXED `in_static` card-context system block (NOT its own
+ *     `descriptionPosition`), injected ONLY on a real swap (a persona DISTINCT from active), framed as the
+ *     established identity — so a mid-chat swap keeps the character's context on who its card refers to.
+ *  Deduped: anchor == active (the common no-swap case) OR a null anchor ⇒ the anchor adds NOTHING ⇒ the
+ *  output is byte-identical to the ACTIVE-only injection (the "solo byte-identical" invariant). */
+function resolvePersonaDescriptionCandidates(
+  ctx: AssembleContext,
+  personas: ResolvedPersonas,
+): InjectionCandidate[] {
+  const candidates: InjectionCandidate[] = [];
+  const active = activePersonaDepthCandidate(ctx, personas.active);
+  if (active !== null) {
+    candidates.push(active);
+  }
+  if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active)) {
+    const anchor = anchorPersonaCardCandidate(ctx, personas.anchor);
+    if (anchor !== null) {
+      candidates.push(anchor);
+    }
+  }
+  return candidates;
 }
 
 /**
@@ -590,8 +703,9 @@ export async function buildAssembleContext(
     entryId: `user:${idx}`,
     bucket: null,
   }));
+  const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas);
   const { kept, dropped } = budgetInjections(
-    [...wi.candidates, ...userCandidates, ...guided.candidates],
+    [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription],
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);

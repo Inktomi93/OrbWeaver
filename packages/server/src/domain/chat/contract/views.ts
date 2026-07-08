@@ -22,7 +22,7 @@ import type {
   PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type { ChatId, ChatInjectionId, MessageVariantId, WorldEntryId } from "@orb/kit/ids";
+import type { ChatId, ChatInjectionId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
@@ -67,6 +67,18 @@ export interface ChatDetail {
   /** The stable `{{user}}` anchor persona (chat-open POV for card-authored sections). */
   readonly anchorPersonaId: ParticipantView["activePersonaId"];
   readonly participants: readonly ParticipantView[];
+  /** The CALLER's own participant's `activePersonaId` (FINAL-Persona §A — Chat persona #3) — populated
+   *  server-side from the resolving `principal`, so the client never has to find-and-match its own
+   *  userId in `participants`. Null when the caller has none set (never null-because-absent: `getChat`
+   *  requires present membership, so a matching participant always exists). */
+  readonly viewerActivePersonaId: ParticipantView["activePersonaId"];
+  /** `true` when the caller is this chat's host (`chat_participants.role === 'host'`) — gates
+   *  host-only controls client-side (e.g. the Anchor re-pin) without a second round trip. */
+  readonly viewerIsHost: boolean;
+  /** The CALLER's own userId (== `principal.userId`, never a foreign-user leak) — the "own-authored
+   *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
+   *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
+  readonly viewerUserId: UserId;
   /** The effective room behavior (parsed from `metadata`; defaults applied — never raw). */
   readonly group: GroupConfig;
   readonly roomOverrides: RoomOverrides;

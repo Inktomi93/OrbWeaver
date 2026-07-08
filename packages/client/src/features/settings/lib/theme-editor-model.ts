@@ -134,7 +134,7 @@ const LUMA_R = 0.2126;
 const LUMA_G = 0.7152;
 const LUMA_B = 0.0722;
 const CONTRAST_OFFSET = 0.05;
-const RGB_RE = /rgba?\(([^)]+)\)/;
+const RGB_RE = /rgba?\(([^)]+)\)/u;
 
 /** WCAG AA floor for body text. Below this, the editor shows a "hard to read" warning (non-blocking). */
 export const AA_CONTRAST_FLOOR = 4.5;

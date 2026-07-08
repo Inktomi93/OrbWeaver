@@ -29,7 +29,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
 import type { ChatContext } from "../contract/context";
-import { ChatNotFoundError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
 import type {
   ArchiveChatParams,
   ClearVariablesParams,
@@ -39,6 +39,7 @@ import type {
   GetVariablesParams,
   ListChatInjectionsParams,
   ReapTemporaryChatsParams,
+  SetChatAnchorPersonaParams,
   SetChatInjectionParams,
   SetVariablesParams,
   StarChatParams,
@@ -49,6 +50,7 @@ import type { ChatService } from "../contract/service";
 import type { ChatInjectionView } from "../contract/views";
 import { requireHost, requireParticipant } from "../guard";
 import { loadChatInjections, loadStoredVariables } from "../persistence/queries";
+import { loadRoster } from "../persistence/roster";
 import { resolveChoiceVariables } from "../substrate/variables";
 
 /** The emit op the lifecycle verbs close over (inlined — the `types-in-contract` note). */
@@ -65,6 +67,7 @@ type ChatLifecycleVerbs = Pick<
   | "updateTitle"
   | "star"
   | "archive"
+  | "setChatAnchorPersona"
   | "delete"
   | "reapTemporaryChats"
   | "getVariables"
@@ -125,6 +128,43 @@ function createStar(ctx: ChatContext, emit: EmitChatEvent): ChatService["star"] 
 function createArchive(ctx: ChatContext, emit: EmitChatEvent): ChatService["archive"] {
   return async ({ principal, chatId, archived }: ArchiveChatParams): Promise<void> => {
     await hostRowUpdate(ctx, emit, { principal, chatId, patch: { archived } });
+  };
+}
+
+/** `setChatAnchorPersona` — host-only manual re-pin of the Anchor (#4, FINAL-Persona §A.0/§A.6b gap #2).
+ *  `personaId: null` clears the pin. A non-null target must be owned by a PRESENT HUMAN participant of
+ *  THIS room (a roster derivation, never `if(isGroup)` — D16): the Anchor may point at any present human's
+ *  persona (the host picks it in a multi-human group), but never a foreign id that was never in the room —
+ *  checked via `ctx.verifyPersonaOwned` against each present human's `userId` (mirrors `reattributePersona`'s
+ *  ownership belt, `edit.ts`). */
+function createSetChatAnchorPersona(
+  ctx: ChatContext,
+  emit: EmitChatEvent,
+): ChatService["setChatAnchorPersona"] {
+  return async ({ principal, chatId, personaId }: SetChatAnchorPersonaParams): Promise<void> => {
+    await requireHost(ctx, principal, chatId);
+    if (personaId !== null) {
+      const roster = await loadRoster(ctx.db, chatId);
+      const presentHumanIds = [
+        ...new Set(
+          roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])),
+        ),
+      ];
+      const ownership = await Promise.all(
+        presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })),
+      );
+      if (!ownership.some((owned) => owned)) {
+        throw new ChatOperationError(
+          CHAT_OP_CODES.notPersonaOwner,
+          `chat ${chatId}: the anchor persona must be owned by a present human participant`,
+        );
+      }
+    }
+    await ctx.db
+      .update(chats)
+      .set({ anchorPersonaId: personaId, updatedAt: ctx.now() })
+      .where(eq(chats.id, chatId));
+    await emit({ type: "chatUpdated", chatId });
   };
 }
 
@@ -327,6 +367,7 @@ export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): 
     updateTitle: createUpdateTitle(ctx, emit),
     star: createStar(ctx, emit),
     archive: createArchive(ctx, emit),
+    setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit),
     delete: createDelete(ctx, emit),
     reapTemporaryChats: createReapTemporaryChats(ctx),
     getVariables: createGetVariables(ctx),
