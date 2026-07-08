@@ -35,9 +35,10 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
-import { timeLib, WeaveGlyph } from "#lib";
+import { timeLib, useFocusOnMount, WeaveGlyph } from "#lib";
 import { initialsForAttribution } from "../lib/attribution";
 
 /** How many recents / character quick-picks the landing shows (a small fixed slice — never a scroll). */
@@ -65,8 +66,17 @@ export interface ChatLandingSurfaceProps {
 
 /** The Chats landing hero: welcome + recents + character quick-picks. */
 export function ChatLandingSurface(props: ChatLandingSurfaceProps): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <Stack className="h-full min-h-0 overflow-y-auto" align="center" padding="section">
+    <Stack
+      ref={surfaceRef}
+      tabIndex={-1}
+      className="h-full min-h-0 overflow-y-auto outline-none"
+      align="center"
+      padding="section"
+    >
       <Stack className="w-full max-w-(--width-shell-content)" gap="section">
         <QueryBoundary
           fallback={<LandingSkeleton />}
@@ -210,8 +220,11 @@ function QuickPickRow({ character, onStartChat }: QuickPickRowProps): ReactEleme
 
 /** The suspense-free loading skeleton (a hero block + a few placeholder rows, never a spinner flash). */
 function LandingSkeleton(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <Stack aria-busy={true} gap="section">
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full min-h-0" gap="section">
       <Stack align="center" gap="row">
         <Skeleton className="size-16 rounded-full" />
         <Skeleton className="h-control-md w-full" />

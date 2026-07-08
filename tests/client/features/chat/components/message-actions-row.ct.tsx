@@ -11,6 +11,7 @@ import { MessageActionsRowStory } from "../_ct-stories";
 import { makeMessageView } from "../fixtures";
 
 const HIDE_LABEL_RE = /Hide from AI|Unhide from AI/u;
+const REST_DIM_RE = /\bopacity-40\b/u;
 const HOVER_REVEAL_RE = /group-hover:opacity-100/u;
 const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
@@ -53,7 +54,9 @@ test("the action cluster rests DIM (not hidden) and carries the hover/focus/coar
 
   // At rest the cluster is dim (opacity-40) — visible AND interactive, never fully hidden (§B.1: "dim-
   // at-rest → brighten-on-hover", replacing the old fully-invisible opacity-0/pointer-events-none posture).
-  await expect(cluster).toHaveCSS("opacity", "0.4");
+  // Asserted on the class (not computed opacity): the CT headless env can report coarse-pointer/
+  // focus-within, firing a brighten variant → computed 1; the `opacity-40` REST class is the contract.
+  await expect(cluster).toHaveClass(REST_DIM_RE);
 
   // …and it carries all three brighten hooks: hover, keyboard focus-within (the gate-relevant parity half,
   // §4.3 rule 4), and always-on at a coarse pointer. (Asserted on the class list — a computed-style hover

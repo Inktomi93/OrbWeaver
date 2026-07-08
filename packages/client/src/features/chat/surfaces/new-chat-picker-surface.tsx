@@ -48,9 +48,10 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { closeModal, setActiveSection, startNewChat } from "#state";
 import { initialsForAttribution } from "../lib/attribution";
 
@@ -63,13 +64,18 @@ type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number]
 
 /** The picker body — a suspense read of the first library page inside the modal's QueryBoundary. */
 export function NewChatPicker(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <QueryBoundary
-      fallback={<PickerSkeleton />}
-      renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
-    >
-      <PickerBody />
-    </QueryBoundary>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+      <QueryBoundary
+        fallback={<PickerSkeleton />}
+        renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+      >
+        <PickerBody />
+      </QueryBoundary>
+    </Stack>
   );
 }
 

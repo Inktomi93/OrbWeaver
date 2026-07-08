@@ -17,8 +17,9 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/m
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor";
 import {
   useCreateTheme,
@@ -32,8 +33,11 @@ const HEARTH_NAME = "Hearth";
 
 /** The theme picker/library body (rendered inside the `theme` modal's Dialog). */
 export function ThemePickerSurface(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <Container>
+    <Container ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
         fallback={<Text tone="muted">Loading your themes…</Text>}
         renderError={(_error, retry): ReactElement => (

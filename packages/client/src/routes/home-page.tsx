@@ -1,4 +1,5 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
@@ -145,78 +146,101 @@ export function HomePage(): ReactElement {
     return null; // landing / no draft → the shell renders its own placeholder (`contextPanel ?? …`)
   })();
 
+  // Compute the current logical route for the accessibility announcer.
+  const routeAnnouncement = ((): string => {
+    if (activeSection === "chats") {
+      if (activeChatId !== null) {
+        return "Loaded chat.";
+      }
+      if (draftCharacterIds.length > 0) {
+        return "New chat draft.";
+      }
+      return "Chats list.";
+    }
+    if (activeSection === "characters") {
+      if (selectedCharacterId !== null) {
+        return "Loaded character details.";
+      }
+      return "Character library.";
+    }
+    return "App loaded.";
+  })();
+
   return (
-    <AppShell
-      header={topbarHeader}
-      railFoot={<PersonaPanelSurface />}
-      sections={{
-        chats: {
-          list: (
-            <ChatListAnchor>
-              <ChatListSurface
-                activeChatId={activeChatId}
-                onNewChat={openNewChatPicker}
-                onSelect={selectChatFromList}
-                onDeletedChat={onDeletedChat}
-              />
-            </ChatListAnchor>
-          ),
-          // CONTENT branches on the handle: a `landing` handle (nothing selected — the at-rest state)
-          // renders the welcome hero, never an empty room (D62 P4 / J1). Else the chat room (TS narrows
-          // `handle` to `ActiveChatHandle` in this branch — a landing handle can't reach the composer).
-          content: isLanding(handle) ? (
-            <ChatLandingSurface
-              onSelect={selectChat}
-              onStartChat={startChatWithCharacter}
-              onNewChat={openNewChatPicker}
-              onBrowseCharacters={browseCharacters}
-              showRecents={shellLayout.listMode !== "docked"}
-            />
-          ) : (
-            <ChatRoomSurface
-              key={sessionKey}
-              busDeps={busDeps}
-              draftSeed={draftSeed}
-              initialHandle={handle}
-              onChatForked={selectChat}
-              onChatStarted={commitDraft}
-            />
-          ),
-        },
-        characters: {
-          // LIST = the section's collection (UI-Arch §4.1): search + the character rows, mirroring the
-          // Chats section's list/content split (ChatListAnchor+ChatListSurface / ChatRoomSurface).
-          list: (
-            <CharacterLibraryAnchor>
-              <CharacterLibrarySurface />
-            </CharacterLibraryAnchor>
-          ),
-          // CONTENT branches on the selection (J9 · UI-Arch §4.2 rule 1: LIST selection drives CONTENT):
-          // a selected row shows its read-only detail card (character.get); nothing selected shows the
-          // teaching welcome. The route is the single reader of the character-selection store (§5.1).
-          content:
-            selectedCharacterId === null ? (
-              <CharacterLibraryWelcome />
-            ) : (
-              <CharacterDetailSurface characterId={selectedCharacterId} />
+    <>
+      <AriaAnnouncer message={routeAnnouncement} />
+      <AppShell
+        header={topbarHeader}
+        railFoot={<PersonaPanelSurface />}
+        sections={{
+          chats: {
+            list: (
+              <ChatListAnchor>
+                <ChatListSurface
+                  activeChatId={activeChatId}
+                  onNewChat={openNewChatPicker}
+                  onSelect={selectChatFromList}
+                  onDeletedChat={onDeletedChat}
+                />
+              </ChatListAnchor>
             ),
-        },
-      }}
-      // Route-composed modal bodies (over the app-shell placeholder slots — the shell stays domain-
-      // agnostic): the appearance settings pane, the J2 new-chat picker, and the J4 ⌘K palette.
-      modals={{
-        theme: <ThemePickerSurface />,
-        settings: <SettingsShell />,
-        newChat: <NewChatPicker />,
-        command: <CommandPaletteSurface goToSections={goToSections} />,
-        // The mobile "You" bottom sheet (L6/J12) — a shell-tier body the route composes over the `you`
-        // slot (the same seam as the four above), keeping app-shell's modal-slots lib component-free.
-        you: <YouSheet />,
-      }}
-      // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
-      // A COMMITTED chat mounts the server-backed panel; a DRAFT mounts its twin (J2/J3) that reads/writes
-      // the draft-config store instead (fully editable pre-send). Landing / non-chat ⇒ the shell placeholder.
-      contextPanel={contextRegion}
-    />
+            // CONTENT branches on the handle: a `landing` handle (nothing selected — the at-rest state)
+            // renders the welcome hero, never an empty room (D62 P4 / J1). Else the chat room (TS narrows
+            // `handle` to `ActiveChatHandle` in this branch — a landing handle can't reach the composer).
+            content: isLanding(handle) ? (
+              <ChatLandingSurface
+                onSelect={selectChat}
+                onStartChat={startChatWithCharacter}
+                onNewChat={openNewChatPicker}
+                onBrowseCharacters={browseCharacters}
+                showRecents={shellLayout.listMode !== "docked"}
+              />
+            ) : (
+              <ChatRoomSurface
+                key={sessionKey}
+                busDeps={busDeps}
+                draftSeed={draftSeed}
+                initialHandle={handle}
+                onChatForked={selectChat}
+                onChatStarted={commitDraft}
+              />
+            ),
+          },
+          characters: {
+            // LIST = the section's collection (UI-Arch §4.1): search + the character rows, mirroring the
+            // Chats section's list/content split (ChatListAnchor+ChatListSurface / ChatRoomSurface).
+            list: (
+              <CharacterLibraryAnchor>
+                <CharacterLibrarySurface />
+              </CharacterLibraryAnchor>
+            ),
+            // CONTENT branches on the selection (J9 · UI-Arch §4.2 rule 1: LIST selection drives CONTENT):
+            // a selected row shows its read-only detail card (character.get); nothing selected shows the
+            // teaching welcome. The route is the single reader of the character-selection store (§5.1).
+            content:
+              selectedCharacterId === null ? (
+                <CharacterLibraryWelcome />
+              ) : (
+                <CharacterDetailSurface characterId={selectedCharacterId} />
+              ),
+          },
+        }}
+        // Route-composed modal bodies (over the app-shell placeholder slots — the shell stays domain-
+        // agnostic): the appearance settings pane, the J2 new-chat picker, and the J4 ⌘K palette.
+        modals={{
+          theme: <ThemePickerSurface />,
+          settings: <SettingsShell />,
+          newChat: <NewChatPicker />,
+          command: <CommandPaletteSurface goToSections={goToSections} />,
+          // The mobile "You" bottom sheet (L6/J12) — a shell-tier body the route composes over the `you`
+          // slot (the same seam as the four above), keeping app-shell's modal-slots lib component-free.
+          you: <YouSheet />,
+        }}
+        // The CONTEXT (right) region — the chat detail panel (overrides · preview · injections, task #28).
+        // A COMMITTED chat mounts the server-backed panel; a DRAFT mounts its twin (J2/J3) that reads/writes
+        // the draft-config store instead (fully editable pre-send). Landing / non-chat ⇒ the shell placeholder.
+        contextPanel={contextRegion}
+      />
+    </>
   );
 }

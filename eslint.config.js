@@ -42,6 +42,7 @@ import { fileURLToPath } from "node:url";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
+import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tsdoc from "eslint-plugin-tsdoc";
 import tseslint from "typescript-eslint";
@@ -225,6 +226,74 @@ export default tseslint.config(
       // bugs (everything else is "error") while letting expected seal-skip notices through. Flip to
       // "error" only if a gate on new incompatible libraries is wanted (then each seal needs an ack).
       "react-hooks/incompatible-library": "warn",
+    },
+  },
+  {
+    // jsx-a11y: enforcing accessibility constraints that Biome does not natively cover yet
+    // (most notably `control-has-associated-label`). We use the strict config as a baseline.
+    // The AGENT-NAVIGABILITY.md document specifically calls this out as a hard gate for UI.
+    // Scoped to SHIPPED_SRC so we don't force boilerplate aria-labels into isolated component tests.
+    files: SHIPPED_SRC,
+    plugins: {
+      "jsx-a11y": jsxA11y,
+    },
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+    settings: {
+      "jsx-a11y": {
+        components: {
+          Button: "button",
+          IconButton: "button",
+          Toggle: "button",
+          Switch: "button",
+          Checkbox: "input",
+          Input: "input",
+          CommandInput: "input",
+          Textarea: "textarea",
+          Slider: "input",
+          Select: "select",
+        },
+      },
+    },
+    rules: {
+      ...jsxA11y.flatConfigs.strict.rules,
+      // control-has-associated-label is actually turned off in strict by default due to noise,
+      // but it is the primary rule we need for agent-navigability (accessible names on all interactive elements).
+      "jsx-a11y/control-has-associated-label": [
+        "error",
+        {
+          ignoreElements: [
+            "audio",
+            "canvas",
+            "embed",
+            "input",
+            "textarea",
+            "tr",
+            "video",
+            // Custom form controls that are handled by label-has-associated-control instead
+            "Checkbox",
+            "Switch",
+            "Input",
+            "Textarea",
+            "Select",
+            "CommandInput",
+            "Slider",
+          ],
+        },
+      ],
+      // Tell jsx-a11y that nesting our custom Checkbox inside a label is sufficient (just like native inputs).
+      "jsx-a11y/label-has-associated-control": [
+        "error",
+        {
+          controlComponents: ["Checkbox", "Switch", "Toggle", "Input"],
+          assert: "either",
+        },
+      ],
     },
   },
   {

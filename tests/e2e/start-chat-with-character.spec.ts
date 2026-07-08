@@ -12,8 +12,8 @@
 
 import { expect, test } from "@playwright/test";
 
-const START_CHAT = /^Start chat with /;
-const NON_WHITESPACE = /\S/;
+const START_CHAT = /^Start chat with /u;
+const NON_WHITESPACE = /\S/u;
 
 test("pick a character, send a message, and the assistant streams a reply", async ({ page }) => {
   // Real generation goes through the Agent SDK subprocess — give the whole flow room (cold model spin-up

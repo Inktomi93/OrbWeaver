@@ -32,6 +32,7 @@ import { schemaBranding } from "./gates/schema-branding.ts";
 import { serverLayout } from "./gates/server-layout.ts";
 import { soleEnvReader } from "./gates/sole-env-reader.ts";
 import { stateFiles } from "./gates/state-files.ts";
+import { surfaceA11yFocus } from "./gates/surface-a11y-focus.ts";
 import { surfaceInAContainer } from "./gates/surface-in-a-container.ts";
 import { testDeterminism } from "./gates/test-determinism.ts";
 import { testFactoryContract } from "./gates/test-factory-contract.ts";
@@ -89,6 +90,7 @@ export const ALL_CHECKS: readonly Check[] = [
   busCoverage,
   memberCardClamped,
   diagnosticLegibility,
+  surfaceA11yFocus,
   surfaceInAContainer,
   registryPairing,
   modalBodyNotPlaceholder,

@@ -8,7 +8,7 @@
 
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { Button } from "@orb/ui/button";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Upload fine.
 import { Icon, Upload } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, useFocusOnMount } from "#lib";
 
 interface PersonaPrefsPatchVars {
   readonly section: "persona";
@@ -39,20 +39,25 @@ const useImportPersona = createEntityMutation<inferInput<Trpc["persona"]["import
 
 /** The persona settings pane body (rendered inside the settings modal's category column). */
 export function PersonaSettingsSurface(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <QueryBoundary
-      fallback={<Text tone="muted">Loading your persona settings…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load your persona settings.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
-    >
-      <PersonaSettingsForm />
-    </QueryBoundary>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+      <QueryBoundary
+        fallback={<Text tone="muted">Loading your persona settings…</Text>}
+        renderError={(_error, retry): ReactElement => (
+          <Text tone="muted">
+            Couldn't load your persona settings.{" "}
+            <Button intent="ghost" onClick={retry}>
+              Retry
+            </Button>
+          </Text>
+        )}
+      >
+        <PersonaSettingsForm />
+      </QueryBoundary>
+    </Stack>
   );
 }
 
@@ -89,6 +94,7 @@ function PersonaSettingsForm(): ReactElement {
       <Row align="center" className="justify-between" gap="row">
         <Text size="label">Notify me when my persona changes in a chat</Text>
         <Switch
+          aria-label="Notify me when my persona changes in a chat"
           checked={data.config.persona.showNotifications}
           onCheckedChange={(next): void =>
             setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })
@@ -107,6 +113,7 @@ function PersonaSettingsForm(): ReactElement {
           Restore…
         </Button>
         <input
+          aria-label="Upload persona backup file"
           accept="application/json"
           hidden={true}
           onChange={(event): void => {

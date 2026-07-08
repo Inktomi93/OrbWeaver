@@ -389,7 +389,6 @@
         "useRegexpExec": "error",
         "noExcessiveNestedCallbacks": "error",
         "useDisposables": "error",
-        "useUnicodeRegex": "info",
         "useNamedCaptureGroup": "info"
       }
     }
@@ -524,6 +523,16 @@
         "rules": {
           "style": {
             "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["eslint.config.js"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnresolvedImports": "off"
           }
         }
       }

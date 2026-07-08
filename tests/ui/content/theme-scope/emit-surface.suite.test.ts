@@ -9,7 +9,7 @@ import {
 } from "../../../../packages/ui/src/content/theme-scope/clamp";
 import { expect, test } from "../../../support/fixtures";
 
-const LEADING_DASHES_RE = /^--/;
+const LEADING_DASHES_RE = /^--/u;
 
 /** `--color-user-bubble-foreground` -> `color.user-bubble-foreground` (the TOKENS map's key shape). */
 function cssVarToTokenPath(cssVar: string): string {

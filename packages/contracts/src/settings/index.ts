@@ -584,7 +584,7 @@ const appearanceSchema = z
     // biome-ignore lint/plugin/no-raw-id: not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution.
     backgroundSeededId: z
       .string()
-      .regex(/^[a-z0-9-]*$/)
+      .regex(/^[a-z0-9-]*$/u)
       .catch("")
       .default(""),
     // URL-validated because it becomes a CSS `url()` — an invalid string degrades to "" (never an

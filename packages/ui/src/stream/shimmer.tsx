@@ -26,7 +26,7 @@ export function StreamShimmer({ label, className }: StreamShimmerProps): ReactEl
       role="status"
       aria-label={label}
       data-slot="stream-shimmer"
-      className={cn("flex flex-col gap-field", className)}
+      className={cn("flex w-full flex-col gap-field", className)}
     >
       <Skeleton variant="text" className="h-block w-full" />
       <Skeleton variant="text" className="h-block" />

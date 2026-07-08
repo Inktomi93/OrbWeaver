@@ -33,6 +33,7 @@ export function SwitchField({
       disabled={disabled ?? false}
       name={field.name}
     >
+      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Switch
         checked={field.state.value}
         onCheckedChange={(checked): void => {

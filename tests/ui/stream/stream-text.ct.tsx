@@ -14,6 +14,13 @@ test("TTFT: shows the shimmer before any text has arrived", async ({ mount }) =>
   );
   await expect(component).toHaveAttribute("data-slot", "stream-shimmer");
   await expect(component).toHaveAccessibleName("Generating a reply…");
+  // RENDERED, not just present — the primitive-level guard complementing the surface-level
+  // message-list-surface.ct.tsx pending-phase test (a collapsed-to-0-width shimmer is invisible even
+  // though every assertion above still passes).
+  await expect(component).toBeVisible();
+  const box = await component.boundingBox();
+  expect(box?.width).toBeGreaterThan(0);
+  expect(box?.height).toBeGreaterThan(0);
 });
 
 test("reveals progressively: a slow-paced target is not fully visible immediately, then catches up", async ({

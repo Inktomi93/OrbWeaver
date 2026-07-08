@@ -44,11 +44,18 @@ interface TopbarIconButtonProps {
   readonly label: string;
   readonly icon: LucideIcon;
   readonly pressed?: boolean;
+  readonly expanded?: boolean;
   readonly onClick: () => void;
 }
 
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label. */
-function TopbarIconButton({ label, icon, pressed, onClick }: TopbarIconButtonProps): ReactElement {
+function TopbarIconButton({
+  label,
+  icon,
+  pressed,
+  expanded,
+  onClick,
+}: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -58,6 +65,7 @@ function TopbarIconButton({ label, icon, pressed, onClick }: TopbarIconButtonPro
             size="icon"
             aria-label={label}
             aria-pressed={pressed}
+            aria-expanded={expanded}
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />
@@ -88,7 +96,7 @@ export function ShellTopbar({
         <TopbarIconButton
           label={listCollapsed ? "Show list panel" : "Hide list panel"}
           icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
-          pressed={!listCollapsed}
+          expanded={!listCollapsed}
           onClick={onToggleList}
         />
         {/* The section title is the FALLBACK when the route supplies no identity `header` (UIP-202). But a
@@ -134,7 +142,7 @@ export function ShellTopbar({
         <TopbarIconButton
           label={contextCollapsed ? "Show detail panel" : "Hide detail panel"}
           icon={contextCollapsed ? PanelRightOpen : PanelRightClose}
-          pressed={!contextCollapsed}
+          expanded={!contextCollapsed}
           onClick={onToggleContext}
         />
       </div>

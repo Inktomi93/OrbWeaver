@@ -1,3 +1,4 @@
+import { useRef } from "react";
 // THE chat keystone — the message-list surface (UI-Arch §2.1 CONSUMER tier; scout §"chat-surface").
 // It COMPOSES the built seams — it never paints raw:
 //   • reads canon (`MessagesPage`) + the roster (`chat.getChat`, see below) via
@@ -54,6 +55,7 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useChatBus, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import {
   isCommitted,
@@ -98,6 +100,9 @@ export function MessageListSurface({
   draftSeed,
   onChatForked,
 }: MessageListSurfaceProps): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   const chatId = isCommitted(handle) ? handle.id : null;
   useChatBus(chatId, busDeps);
   const chatStyle = useChatStyle();
@@ -106,31 +111,37 @@ export function MessageListSurface({
   // an empty void — each founding character's greeting renders as a NORMAL, fully-editable message row
   // (synth-greeting-row.ts), reading only the founding cards (character.get). A characterless draft (a
   // narrator-only room) has no greeting to show → the empty state.
-  if (chatId === null) {
-    const characterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
-    if (handle.kind !== "draft" || characterIds.length === 0) {
-      return <EmptyThread />;
-    }
-    return (
-      <QueryBoundary
-        fallback={<LoadingRows />}
-        renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
-      >
-        <DraftGreetingThread
-          draftKey={handle.draftKey}
-          characterIds={characterIds}
-          chatStyle={chatStyle}
-        />
-      </QueryBoundary>
-    );
-  }
   return (
-    <QueryBoundary
-      fallback={<LoadingRows />}
-      renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
-    >
-      <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} />
-    </QueryBoundary>
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 w-full outline-none">
+      {((): ReactElement => {
+        if (chatId === null) {
+          const characterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+          if (handle.kind !== "draft" || characterIds.length === 0) {
+            return <EmptyThread />;
+          }
+          return (
+            <QueryBoundary
+              fallback={<LoadingRows />}
+              renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+            >
+              <DraftGreetingThread
+                draftKey={handle.draftKey}
+                characterIds={characterIds}
+                chatStyle={chatStyle}
+              />
+            </QueryBoundary>
+          );
+        }
+        return (
+          <QueryBoundary
+            fallback={<LoadingRows />}
+            renderError={(_error, retry): ReactElement => <ErrorState onRetry={retry} />}
+          >
+            <ChatThread chatId={chatId} chatStyle={chatStyle} onChatForked={onChatForked} />
+          </QueryBoundary>
+        );
+      })()}
+    </Stack>
   );
 }
 

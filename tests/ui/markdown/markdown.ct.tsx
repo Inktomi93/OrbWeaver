@@ -11,8 +11,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 
 const ERROR_FALLBACK = "Content failed to render.";
 // Hoisted (useTopLevelRegex): the code-block control button accessible names.
-const COPY_CODE_BTN = /copy code/i;
-const DOWNLOAD_BTN = /download/i;
+const COPY_CODE_BTN = /copy code/iu;
+const DOWNLOAD_BTN = /download/iu;
 
 test("untrusted: a <script> tag is stripped and never executes", async ({ mount, page }) => {
   let alerted = false;

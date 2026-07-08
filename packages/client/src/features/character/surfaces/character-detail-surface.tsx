@@ -9,10 +9,13 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { QueryBoundary, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { setActiveSection, startNewChat } from "#state";
 import type { CharacterDetailItem } from "../components/character-detail-card";
 import { CharacterDetailCard } from "../components/character-detail-card";
@@ -45,6 +48,10 @@ function CharacterDetailBody({ characterId }: CharacterDetailSurfaceProps): Reac
   const trpc = useTRPC();
   const { data } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
 
+  // A11y focus restoration: when the detail card mounts, focus its container.
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   // The library → chat seam (UI-Arch §5.1) — seed a fresh draft, then flip the rail to Chats so the route
   // mounts the room. Identical to the library card's `startChatWith` (the shared-store writer-only touch).
   const startChatWith = (id: string): void => {
@@ -63,5 +70,9 @@ function CharacterDetailBody({ characterId }: CharacterDetailSurfaceProps): Reac
     tags: data.tags,
   };
 
-  return <CharacterDetailCard character={character} onStartChat={startChatWith} />;
+  return (
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+      <CharacterDetailCard character={character} onStartChat={startChatWith} />
+    </Stack>
+  );
 }

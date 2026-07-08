@@ -23,9 +23,10 @@ import { Stack } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useGatedQuery, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
@@ -79,9 +80,18 @@ export function ChatRoomSurface({
   );
   const roomTheme = resolveRoomTheme(roomChat?.participants);
 
+  // A11y focus restoration: when the chat room mounts, focus its main container.
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
     <ThemeScope tokens={roomTheme ?? {}} className="contents">
-      <Stack gap="block" className="h-full px-block pb-block">
+      <Stack
+        gap="block"
+        className="h-full px-block pb-block outline-none"
+        ref={surfaceRef}
+        tabIndex={-1}
+      >
         {/* The cast bar (task #29) — a read-only group-roster glance strip above the transcript; it
           size-gates itself to `null` for a solo (≤1-character) chat, and only reads a COMMITTED chat's
           roster (a draft has no server roster yet). */}

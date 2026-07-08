@@ -173,7 +173,11 @@ export function AppShell({
 
           {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
             toggle owns the collapse. */}
-          <PanelChrome panel="list" label={layout.activeSectionLabel} mode={layout.listMode}>
+          <PanelChrome
+            panel="list"
+            label={`${layout.activeSectionLabel} list`}
+            mode={layout.listMode}
+          >
             <RegionAnchor region="list">{listContent}</RegionAnchor>
           </PanelChrome>
 
@@ -198,7 +202,7 @@ export function AppShell({
 
           <PanelChrome
             panel="context"
-            label="Details"
+            label={`${layout.activeSectionLabel} details`}
             header={
               contextHeader ?? (
                 <Text size="label" weight="medium" tone="muted">

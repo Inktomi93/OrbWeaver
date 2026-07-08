@@ -351,7 +351,9 @@ export function MediaGrid<T extends MediaGridItem>({
   }
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: the W3C APG "grid" composite-widget pattern for an interactive media picker, not tabular DATA — <table> doesn't apply to a gallery.
+    /* eslint-disable jsx-a11y/interactive-supports-focus */
+    // biome-ignore lint/a11y/useFocusableInteractive: roving tabindex lives on the gridcell children (MediaGridCell), never the grid container itself — per APG grid pattern.
+    // biome-ignore lint/a11y/useSemanticElements: APG composite grid widget — role="grid" on a div is first-class ARIA, not a semantic workaround. <table> implies tabular data which doesn't apply to a media picker.
     <div
       aria-colcount={columns}
       aria-label={ariaLabel}
@@ -362,6 +364,7 @@ export function MediaGrid<T extends MediaGridItem>({
       ref={scrollRef}
       role="grid"
     >
+      {/* eslint-enable jsx-a11y/interactive-supports-focus */}
       <div
         className="relative w-full"
         data-slot="media-grid-viewport"

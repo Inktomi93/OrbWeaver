@@ -24,11 +24,15 @@
 import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Stack } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
+
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { setContextTab, useContextTab } from "#state";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
 import { CommittedGroupConfigTab } from "../components/group-config-form";
@@ -125,87 +129,93 @@ function ChatContextPanelBody({ chatId }: ChatContextPanelProps): ReactElement {
   }
   const activeTab = contextTab !== null && visibleTabs.has(contextTab) ? contextTab : "overrides";
 
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
-    >
-      <TabsList>
-        <TabsTab value="overrides">Overrides</TabsTab>
-        {/* Roster (group controls, task #29) — host-AND-group-only, mirroring the Preview gate: mute /
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
+        className="flex-1 min-h-0 flex flex-col"
+      >
+        <TabsList>
+          <TabsTab value="overrides">Overrides</TabsTab>
+          {/* Roster (group controls, task #29) — host-AND-group-only, mirroring the Preview gate: mute /
             talkativeness / force-turn are host authority (substrate/auth/matrix.ts) AND meaningless for
             a solo (1-character) chat, so neither a member nor a solo-chat host sees the tab. The cast
             bar (chat-room-surface) is the member-visible glance surface, size-gated the same way. */}
-        {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
-        {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
-        {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
-        <TabsTab value="injections">Injections</TabsTab>
-        <TabsIndicator />
-      </TabsList>
+          {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
+          {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
+          {isHost ? <TabsTab value="preview">Preview</TabsTab> : null}
+          <TabsTab value="injections">Injections</TabsTab>
+          <TabsIndicator />
+        </TabsList>
 
-      <TabsPanel value="overrides">
-        <RoomOverridesForm
-          entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`}
-          roomOverrides={chat.roomOverrides}
-          isHost={isHost}
-          save={isHost ? saveOverrides : undefined}
-        />
-      </TabsPanel>
-
-      {showRoster ? (
-        <TabsPanel value="roster">
-          <RosterPanel
-            members={rosterMembers}
-            onSetDisabled={(characterId, disabled): void =>
-              setDisabled.mutate({ chatId, characterId, disabled })
-            }
-            onSetTalkativeness={(characterId, talkativeness): void =>
-              setTalkativeness.mutate({ chatId, characterId, talkativeness })
-            }
-            onForceTurn={(characterId): void => forceTurn.mutate({ chatId, characterId })}
+        <TabsPanel value="overrides">
+          <RoomOverridesForm
+            entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}${chatId}`}
+            roomOverrides={chat.roomOverrides}
+            isHost={isHost}
+            save={isHost ? saveOverrides : undefined}
           />
         </TabsPanel>
-      ) : null}
 
-      {showRoster ? (
-        <TabsPanel value="group">
+        {showRoster ? (
+          <TabsPanel value="roster">
+            <RosterPanel
+              members={rosterMembers}
+              onSetDisabled={(characterId, disabled): void =>
+                setDisabled.mutate({ chatId, characterId, disabled })
+              }
+              onSetTalkativeness={(characterId, talkativeness): void =>
+                setTalkativeness.mutate({ chatId, characterId, talkativeness })
+              }
+              onForceTurn={(characterId): void => forceTurn.mutate({ chatId, characterId })}
+            />
+          </TabsPanel>
+        ) : null}
+
+        {showRoster ? (
+          <TabsPanel value="group">
+            <QueryBoundary
+              fallback={<Text tone="muted">Loading group settings…</Text>}
+              renderError={(_error, retry): ReactElement => (
+                <Text tone="muted">
+                  Couldn't load group settings.{" "}
+                  <Button intent="ghost" onClick={retry}>
+                    Retry
+                  </Button>
+                </Text>
+              )}
+            >
+              <CommittedGroupConfigTab chatId={chatId} />
+            </QueryBoundary>
+          </TabsPanel>
+        ) : null}
+
+        {isHost ? (
+          <TabsPanel value="preview">
+            <AssemblyPreviewPanel chatId={chatId} />
+          </TabsPanel>
+        ) : null}
+
+        <TabsPanel value="injections">
           <QueryBoundary
-            fallback={<Text tone="muted">Loading group settings…</Text>}
+            fallback={<Text tone="muted">Loading injections…</Text>}
             renderError={(_error, retry): ReactElement => (
               <Text tone="muted">
-                Couldn't load group settings.{" "}
+                Couldn't load injections.{" "}
                 <Button intent="ghost" onClick={retry}>
                   Retry
                 </Button>
               </Text>
             )}
           >
-            <CommittedGroupConfigTab chatId={chatId} />
+            <InjectionsManager chatId={chatId} isHost={isHost} />
           </QueryBoundary>
         </TabsPanel>
-      ) : null}
-
-      {isHost ? (
-        <TabsPanel value="preview">
-          <AssemblyPreviewPanel chatId={chatId} />
-        </TabsPanel>
-      ) : null}
-
-      <TabsPanel value="injections">
-        <QueryBoundary
-          fallback={<Text tone="muted">Loading injections…</Text>}
-          renderError={(_error, retry): ReactElement => (
-            <Text tone="muted">
-              Couldn't load injections.{" "}
-              <Button intent="ghost" onClick={retry}>
-                Retry
-              </Button>
-            </Text>
-          )}
-        >
-          <InjectionsManager chatId={chatId} isHost={isHost} />
-        </QueryBoundary>
-      </TabsPanel>
-    </Tabs>
+      </Tabs>
+    </Stack>
   );
 }

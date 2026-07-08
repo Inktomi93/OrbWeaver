@@ -79,6 +79,7 @@
     "drizzle-orm": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-better-tailwindcss": "catalog:",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-tsdoc": "catalog:",
     "hono": "catalog:",

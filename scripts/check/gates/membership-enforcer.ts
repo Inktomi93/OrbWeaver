@@ -15,10 +15,8 @@ import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Check, Violation } from "../harness.ts";
 
-const CHAT_SCOPE = new RegExp(
-  "/packages/server/src/(?:domain/chat/|transport/trpc/(?:routers/chat|chat-events-bus))",
-  "u",
-);
+const CHAT_SCOPE =
+  /\/packages\/server\/src\/(?:domain\/chat\/|transport\/trpc\/(?:routers\/chat|chat-events-bus))/u;
 const BANNED_IMPORTS = new Set(["fetchOwned", "OwnedTable"]);
 const OWNER_ID = "ownerId";
 const EQUALITY_OPS = new Set(["==", "===", "!=", "!=="]);

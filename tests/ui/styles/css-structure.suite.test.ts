@@ -30,13 +30,13 @@ function findBlockEnd(css: string, openBraceIndex: number): number {
   throw new Error("unbalanced braces in CSS fixture");
 }
 
-const LAYER_RE = /@layer[^{]*\{/g;
-const COLOR_SCHEME_RE = /color-scheme:\s*\S+;/;
-const COLOR_SCHEME_LIGHT_RE = /color-scheme:\s*light;/;
-const COMMENT_RE = /\/\*[\s\S]*?\*\//g;
+const LAYER_RE = /@layer[^{]*\{/gu;
+const COLOR_SCHEME_RE = /color-scheme:\s*\S+;/u;
+const COLOR_SCHEME_LIGHT_RE = /color-scheme:\s*light;/u;
+const COMMENT_RE = /\/\*[\s\S]*?\*\//gu;
 // The Light palette BLOCK opener (a rule), distinct from the `[data-theme="light"]` reference inside the
 // `@custom-variant dark (…)` line — this one is immediately followed by the block `{`.
-const LIGHT_BLOCK_RE = /\[data-theme="light"\]\s*\{/;
+const LIGHT_BLOCK_RE = /\[data-theme="light"\]\s*\{/u;
 
 test("globals.css: the reduced-motion floor is unlayered (D43 §11.4e footgun #1)", () => {
   // Strip comments FIRST — a doc comment mentioning "@layer" (as this file's own header does) would
@@ -119,12 +119,12 @@ const ALLOWED_LITERALS = new Set([
   "0px", // --list-track/--context-track collapsed-track resets
   "0.125rem", // the mobile tab icon/label gap (a spacing intent, not shell geometry)
 ]);
-const LITERAL_RE = /\d*\.?\d+(?:rem|px)/g;
+const LITERAL_RE = /\d*\.?\d+(?:rem|px)/gu;
 
 test("shell.css: tracked geometry properties (height/width/inset-block/--rail-w/--panel-w) consume only var(--dimension-*) or an allowlisted literal", () => {
   const css = readFileSync(SHELL_CSS_PATH, "utf8");
-  const propAlt = TARGET_PROPS.map((p) => p.replace(/[-[\]/{}()*+?.\\^$|]/g, "\\$&")).join("|");
-  const declRe = new RegExp(`^[ \\t]*(${propAlt}):\\s*([^;]+);`, "gm");
+  const propAlt = TARGET_PROPS.map((p) => p.replace(/[[\]/{}()*+?.\\^$|]/gu, "\\$&")).join("|");
+  const declRe = new RegExp(`^[ \\t]*(${propAlt}):\\s*([^;]+);`, "gmu");
 
   let match: RegExpExecArray | null;
   let checked = 0;
@@ -132,7 +132,7 @@ test("shell.css: tracked geometry properties (height/width/inset-block/--rail-w/
   while ((match = declRe.exec(css)) !== null) {
     const [, prop = "", rawValue = ""] = match;
     checked++;
-    const withoutVars = rawValue.replace(/var\([^)]*\)/g, "");
+    const withoutVars = rawValue.replace(/var\([^)]*\)/gu, "");
     const literals = withoutVars.match(LITERAL_RE) ?? [];
     for (const literal of literals) {
       expect(

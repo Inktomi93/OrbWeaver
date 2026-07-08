@@ -311,12 +311,15 @@ export function MessageList<T>({
         {virtualizer.getVirtualItems().map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
+          // biome-ignore lint/a11y/useAriaPropsSupportedByRole: virtualized off-screen metadata
           <div
             key={virtualItem.key}
             ref={virtualizer.measureElement}
             data-index={virtualItem.index}
             data-slot="message-list-row"
             className="absolute inset-x-0"
+            aria-setsize={items.length}
+            aria-posinset={virtualItem.index + 1}
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index)}
           </div>

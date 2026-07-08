@@ -9,7 +9,9 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { MessageRowStory } from "../_ct-stories";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
@@ -52,6 +54,49 @@ function alice(): ParticipantView {
 
 function bob(): ParticipantView {
   return { ...alice(), id: castId("participant_bob"), characterId: BOB_ID, displayName: "Bob" };
+}
+
+// `alice()`/`bob()` hardcode `avatarHash: null` (see file header) — silently no-ops Echo/Whisper's
+// bled/banner decoration path (both bail to `null`/the plain stripe when `avatarHash === null`,
+// message-row-variants.ts `echoDecoration`/`whisperDecoration`). This variant carries a real CAS hash
+// so those two modes' art actually resolves.
+function aliceWithAvatar(): ParticipantView {
+  return { ...alice(), avatarHash: "ct_cas_hash_alice" };
+}
+
+// ── §B.2 immersive-mode geometry helpers ────────────────────────────────────────────────────────
+// Root font-size is 16px (the `avatar.ct.tsx`/`skeleton.ct.tsx` precedent) — the `immersive.*` tokens
+// (`@orb/ui/tokens` TOKENS, generated from tokens.json) are authored in rem; converting to px lets a
+// dimension token compare directly against a `boundingBox()`/computed-style px reading.
+const ROOT_PX = 16;
+function remTokenPx(value: string): number {
+  return Math.round(Number.parseFloat(value) * ROOT_PX);
+}
+
+/** A custom property's COMPUTED value off a real mounted element (never a hardcoded literal) — the
+ *  `theme-scope.ct.tsx` precedent, generalized to any `--` var. */
+function cssVar(locator: Locator, name: string): Promise<string> {
+  return locator.evaluate((el, n) => getComputedStyle(el).getPropertyValue(n).trim(), name);
+}
+
+// `getComputedStyle` on an UNRESOLVED custom property (`--color-speaker`) returns the literal author
+// string (`colorForCharacter`'s `oklch(72% 0.16 318)`, L as a percentage); the SAME color read off a
+// real resolved CSS property (`border-left-color`, which consumes `var(--color-speaker)`) is
+// re-serialized by the engine with L as a bare 0–1 fraction (`oklch(0.72 0.16 318)`) — verified live,
+// not assumed. Parse both to numbers so the comparison is format-independent.
+const OKLCH_RE = /oklch\(\s*(?<l>[\d.]+)(?<pct>%)?\s+(?<c>[\d.]+)\s+(?<h>[\d.]+)/u;
+function parseOklch(value: string): readonly [number, number, number] {
+  const match = OKLCH_RE.exec(value);
+  if (match?.groups === undefined) {
+    throw new Error(`not an oklch() color: ${value}`);
+  }
+  const rawL = Number.parseFloat(match.groups["l"] ?? "0");
+  const l = match.groups["pct"] === "%" ? rawL / 100 : rawL;
+  return [
+    l,
+    Number.parseFloat(match.groups["c"] ?? "0"),
+    Number.parseFloat(match.groups["h"] ?? "0"),
+  ];
 }
 
 test("bubble style tints the assistant bubble with the ai-bubble token", async ({ mount }) => {
@@ -212,9 +257,7 @@ test("the avatar is a SIBLING of the content column, never nested inside the nam
   await expect(component.locator(`${NAME_ROW}:has-text("Alice")`)).toHaveCount(1);
 });
 
-test("assistant avatar sits BEFORE the content column; a user row mirrors it AFTER (§B.1 own-message mirroring)", async ({
-  mount,
-}) => {
+test("an assistant avatar sits BEFORE the content column (§B.1)", async ({ mount }) => {
   const assistant = await mount(
     <MessageRowStory
       chatStyle="bubble"
@@ -226,7 +269,13 @@ test("assistant avatar sits BEFORE the content column; a user row mirrors it AFT
   const assistantChildren = assistant.locator(`${ROW_BODY} > *`);
   await expect(assistantChildren.first()).toHaveAttribute("data-slot", "avatar-root");
   await expect(assistantChildren.last()).toHaveAttribute("data-slot", "message-content-column");
+});
 
+// Separate mount: Playwright-CT allows one mount per test (a second mount into the same root throws
+// "container already has a React root"). The mirror is its own test rather than a second mount above.
+test("a user row mirrors it — avatar AFTER the content column (§B.1 own-message mirroring)", async ({
+  mount,
+}) => {
   const user = await mount(
     <MessageRowStory
       chatStyle="bubble"
@@ -277,6 +326,12 @@ test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread thr
   await expect(root).toHaveCSS("aspect-ratio", "2 / 3");
   const boxShadow = await root.evaluate((el) => getComputedStyle(el).boxShadow);
   expect(boxShadow).not.toBe("none");
+  // RENDERED geometry, not just class presence — a collapse-to-0 regression (avatar/variants.ts'
+  // header documents this avatar bit ONCE already: a bare icon-left avatar's `h-full` resolved against
+  // an undefined parent height and collapsed to ~0px) would pass every assertion above silently.
+  const box = await root.boundingBox();
+  expect(box?.width).toBeGreaterThan(0);
+  expect(box?.height).toBeGreaterThan(0);
 });
 
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
@@ -330,4 +385,141 @@ test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('C
   await expect(component.getByText("Character waves at User.")).toBeVisible();
   await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
+});
+
+// ── §B.2 the 5 immersive chatStyle modes — RENDERED geometry, not the pure-object unit test
+// (message-row-variants.test.ts) that only ever exercises the skin table as plain function calls.
+// These mount the real DOM and assert against the RESOLVED `--immersive-*`/`--color-speaker` custom
+// properties (never a hardcoded px/hex literal — the golden rule), same as `theme-scope.ct.tsx`.
+
+test("whisper: the header band renders a 3:1 aspect box (matches the server's banner crop); its art is the banner variant", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="whisper"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+    />,
+  );
+  const band = component.locator('[data-slot="message-band"]');
+  await expect(band).toBeVisible();
+  // The band is an `--aspect-banner` (3:1) box — height DERIVES from the bubble width so the displayed
+  // box always matches the server's 3:1 crop at ANY width (never a fixed height that drifts the aspect).
+  // Assert the RENDERED ratio (done ≠ rendered), which is width-independent by construction.
+  const box = await band.boundingBox();
+  expect(box).not.toBeNull();
+  expect(Math.abs((box?.width ?? 0) / (box?.height ?? 1) - 3)).toBeLessThan(0.1);
+  const bgImage = await band.evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(bgImage).toContain("?v=banner&w=");
+});
+
+test("echo: the bubble's padding-right resolves to --immersive-echo-feather (of the content column's width)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+    />,
+  );
+  const bubble = component.locator(BUBBLE);
+  const column = component.locator(CONTENT_COLUMN);
+  // The feather is authored as a PERCENTAGE (of the bubble's containing block width, message-row-
+  // variants.ts) — read the resolved token off the element, then compare the rendered padding against
+  // that percentage of the real containing block (`message-content-column`, since the ThemeScope
+  // wrapper between them is `display: contents` and contributes no box of its own).
+  const featherPct = await cssVar(bubble, "--immersive-echo-feather");
+  const pct = Number.parseFloat(featherPct) / 100;
+  expect(pct).toBeGreaterThan(0);
+  const paddingRightPx = await bubble.evaluate((el) =>
+    Number.parseFloat(getComputedStyle(el).paddingRight),
+  );
+  const columnBox = await column.boundingBox();
+  const expectedPx = (columnBox?.width ?? 0) * pct;
+  expect(paddingRightPx).toBeGreaterThan(0);
+  expect(Math.abs(paddingRightPx - expectedPx)).toBeLessThan(2);
+});
+
+test("echo: a persona-kind (user) row never bleeds portrait art — padding-right reverts to the base (hide-user-portrait)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="echo"
+      messageRole="user"
+      personaId={NATE_PERSONA_ID}
+      personas={[{ id: NATE_PERSONA_ID, name: "Alex" }]}
+    />,
+  );
+  const bubble = component.locator(BUBBLE);
+  // No decoration ⇒ no inline paddingRight override (echoDecoration returns null for a non-character
+  // kind, message-row-variants.ts) — only the symmetric `px-block` utility applies.
+  const inlinePaddingRight = await bubble.evaluate((el) => (el as HTMLElement).style.paddingRight);
+  expect(inlinePaddingRight).toBe("");
+  const [paddingLeft, paddingRight] = await bubble.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return [Number.parseFloat(cs.paddingLeft), Number.parseFloat(cs.paddingRight)];
+  });
+  expect(paddingRight).toBe(paddingLeft);
+});
+
+test("ripple: the welded avatar's boundingBox width resolves to --immersive-ripple-portrait-width; position is sticky", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="ripple"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[aliceWithAvatar()]}
+    />,
+  );
+  const avatar = component.locator(AVATAR);
+  const box = await avatar.boundingBox();
+  expect(Math.round(box?.width ?? 0)).toBe(
+    remTokenPx(TOKENS["immersive.ripple-portrait-width"].value),
+  );
+  await expect(avatar).toHaveCSS("position", "sticky");
+});
+
+test("hush: the left stripe resolves to --immersive-stripe-width and the character's --color-speaker", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="hush"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const bubble = component.locator(BUBBLE);
+  const stripeWidthPx = await bubble.evaluate((el) =>
+    Number.parseFloat(getComputedStyle(el).borderLeftWidth),
+  );
+  expect(stripeWidthPx).toBe(remTokenPx(TOKENS["immersive.stripe-width"].value));
+  const borderColor = await bubble.evaluate((el) => getComputedStyle(el).borderLeftColor);
+  const speakerColor = await cssVar(bubble, "--color-speaker");
+  expect(parseOklch(borderColor)).toEqual(parseOklch(speakerColor));
+});
+
+test("tide: a blank-line-separated body renders N stacked, non-overlapping bubbles (a train, not one bubble)", async ({
+  mount,
+}) => {
+  const content = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.";
+  const component = await mount(
+    <MessageRowStory chatStyle="tide" messageRole="assistant" content={content} />,
+  );
+  const bubbles = component.locator(
+    '[data-slot="message-bubble-train"] [data-slot="message-bubble"]',
+  );
+  await expect(bubbles).toHaveCount(3);
+  const ys = await bubbles.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().y));
+  for (let i = 1; i < ys.length; i++) {
+    expect(ys[i]).toBeGreaterThan(ys[i - 1] as number);
+  }
 });

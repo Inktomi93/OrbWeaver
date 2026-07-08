@@ -21,7 +21,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 
 const DOCS_GLOB = "docs/architecture/**/*.md";
-const EXCLUDED = /docs\/architecture\/proposed\//;
+const EXCLUDED = /docs\/architecture\/proposed\//u;
 
 const processor = remark()
   .use(remarkFrontmatter, ["yaml"])

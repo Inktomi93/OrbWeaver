@@ -1,4 +1,6 @@
 // The DRAFT CONTEXT panel (J2/J3) — the shell's right-region body for an active DRAFT chat, the twin of
+import { useRef } from "react";
+import { useFocusOnMount } from "#lib";
 // `ChatContextPanel` for a chat that has no server row yet. A draft is fully editable pre-send, so its
 // config tabs write to the `draft-config` store (keyed by `draftKey`) instead of the server verbs; the
 // first send carries the whole config into `chat.startChat` (use-send-message.ts). Same editors, same
@@ -22,6 +24,7 @@ import {
 } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Stack } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
@@ -70,6 +73,9 @@ export function DraftContextPanel({
   draftKey,
   characterIds,
 }: DraftContextPanelProps): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   const draftConfig = useDraftConfig(draftKey);
   // A draft is always hosted by its author. The Roster tab shows only for a GROUP draft (mirrors the
   // committed host-AND-group gate). A hidden/stale `contextTab` request safely falls back to Overrides.
@@ -91,64 +97,66 @@ export function DraftContextPanel({
   };
 
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
-    >
-      <TabsList>
-        <TabsTab value="overrides">Overrides</TabsTab>
-        {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
-        {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
-        <TabsTab value="injections">Injections</TabsTab>
-        <TabsIndicator />
-      </TabsList>
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full outline-none">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value): void => setContextTab(typeof value === "string" ? value : null)}
+      >
+        <TabsList>
+          <TabsTab value="overrides">Overrides</TabsTab>
+          {showRoster ? <TabsTab value="roster">Roster</TabsTab> : null}
+          {showRoster ? <TabsTab value="group">Group</TabsTab> : null}
+          <TabsTab value="injections">Injections</TabsTab>
+          <TabsIndicator />
+        </TabsList>
 
-      <TabsPanel value="overrides">
-        <RoomOverridesForm
-          entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}draft:${draftKey}`}
-          roomOverrides={draftConfig.roomOverrides ?? EMPTY_ROOM_OVERRIDES}
-          isHost={true}
-          save={saveOverrides}
-        />
-      </TabsPanel>
-
-      {showRoster ? (
-        <TabsPanel value="roster">
-          <QueryBoundary
-            fallback={<Text tone="muted">Loading roster…</Text>}
-            renderError={(_error, retry): ReactElement => (
-              <Text tone="muted">
-                Couldn't load the roster.{" "}
-                <Button intent="ghost" onClick={retry}>
-                  Retry
-                </Button>
-              </Text>
-            )}
-          >
-            <DraftRosterTab
-              draftKey={draftKey}
-              characterIds={characterIds}
-              rosterOverrides={draftConfig.rosterOverrides}
-            />
-          </QueryBoundary>
-        </TabsPanel>
-      ) : null}
-
-      {showRoster ? (
-        <TabsPanel value="group">
-          <GroupConfigForm
-            // The draft stores a lenient `GroupConfigInput`; parse it (defaults-filled) to the full
-            // `GroupConfig` the form edits. Absent ⇒ the default room behavior.
-            config={groupConfigSchema.parse(draftConfig.groupConfig ?? DEFAULT_GROUP_CONFIG)}
-            onSave={(next): void => setDraftGroupConfig(draftKey, next)}
+        <TabsPanel value="overrides">
+          <RoomOverridesForm
+            entityId={`${ROOM_OVERRIDES_ENTITY_PREFIX}draft:${draftKey}`}
+            roomOverrides={draftConfig.roomOverrides ?? EMPTY_ROOM_OVERRIDES}
+            isHost={true}
+            save={saveOverrides}
           />
         </TabsPanel>
-      ) : null}
 
-      <TabsPanel value="injections">
-        <DraftInjectionsTab draftKey={draftKey} injections={draftConfig.injections} />
-      </TabsPanel>
-    </Tabs>
+        {showRoster ? (
+          <TabsPanel value="roster">
+            <QueryBoundary
+              fallback={<Text tone="muted">Loading roster…</Text>}
+              renderError={(_error, retry): ReactElement => (
+                <Text tone="muted">
+                  Couldn't load the roster.{" "}
+                  <Button intent="ghost" onClick={retry}>
+                    Retry
+                  </Button>
+                </Text>
+              )}
+            >
+              <DraftRosterTab
+                draftKey={draftKey}
+                characterIds={characterIds}
+                rosterOverrides={draftConfig.rosterOverrides}
+              />
+            </QueryBoundary>
+          </TabsPanel>
+        ) : null}
+
+        {showRoster ? (
+          <TabsPanel value="group">
+            <GroupConfigForm
+              // The draft stores a lenient `GroupConfigInput`; parse it (defaults-filled) to the full
+              // `GroupConfig` the form edits. Absent ⇒ the default room behavior.
+              config={groupConfigSchema.parse(draftConfig.groupConfig ?? DEFAULT_GROUP_CONFIG)}
+              onSave={(next): void => setDraftGroupConfig(draftKey, next)}
+            />
+          </TabsPanel>
+        ) : null}
+
+        <TabsPanel value="injections">
+          <DraftInjectionsTab draftKey={draftKey} injections={draftConfig.injections} />
+        </TabsPanel>
+      </Tabs>
+    </Stack>
   );
 }
 

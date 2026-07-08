@@ -19,7 +19,8 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
+import { useFocusOnMount } from "#lib";
 import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
 import type { SETTINGS_CATEGORY_IDS } from "../lib/settings-nav";
 import {
@@ -37,6 +38,9 @@ type CategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
 
 /** The settings overlay body: nav (search + grouped rows) on the left, the active pane on the right. */
 export function SettingsShell(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   const [active, setActive] = useState<CategoryId>("appearance");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query, "");
@@ -48,51 +52,53 @@ export function SettingsShell(): ReactElement {
     needle === "" || SETTINGS_CATEGORIES[id].label.toLowerCase().includes(needle);
 
   return (
-    <Container className="h-full">
-      {/* align="start": top-align the nav + content. `<Row>` defaults to `items-center`, which in a tall
-          settings modal floats both columns vertically-centered (a big dead gap above the search + below
-          the pane). They fill the height and scroll on their own — anchor them to the top. */}
-      <Row align="start" className="h-full min-h-0" gap="section">
-        <Stack className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto" gap="section">
-          <Input
-            aria-label="Search settings"
-            onValueChange={setQuery}
-            placeholder="Search settings…"
-            value={query}
-          />
-          {SETTINGS_GROUPS.map((group) => {
-            const ids = categoryIdsForGroup(group).filter(matches);
-            if (ids.length === 0) {
-              return null;
-            }
-            return (
-              <Stack key={group} gap="row">
-                <Text size="micro" weight="semibold" tone="muted" transform="caps">
-                  {SETTINGS_GROUP_LABELS[group]}
-                </Text>
-                {ids.map((id) => {
-                  const category = SETTINGS_CATEGORIES[id];
-                  return (
-                    <ListRow
-                      key={id}
-                      clickable={true}
-                      leading={<Icon icon={category.icon} size="sm" />}
-                      onClick={(): void => setActive(id)}
-                      selected={active === id}
-                      title={category.label}
-                    />
-                  );
-                })}
-              </Stack>
-            );
-          })}
-        </Stack>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+      <Container className="h-full">
+        {/* align="start": top-align the nav + content. `<Row>` defaults to `items-center`, which in a tall
+            settings modal floats both columns vertically-centered (a big dead gap above the search + below
+            the pane). They fill the height and scroll on their own — anchor them to the top. */}
+        <Row align="start" className="h-full min-h-0" gap="section">
+          <Stack className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto" gap="section">
+            <Input
+              aria-label="Search settings"
+              onValueChange={setQuery}
+              placeholder="Search settings…"
+              value={query}
+            />
+            {SETTINGS_GROUPS.map((group) => {
+              const ids = categoryIdsForGroup(group).filter(matches);
+              if (ids.length === 0) {
+                return null;
+              }
+              return (
+                <Stack key={group} gap="row">
+                  <Text size="micro" weight="semibold" tone="muted" transform="caps">
+                    {SETTINGS_GROUP_LABELS[group]}
+                  </Text>
+                  {ids.map((id) => {
+                    const category = SETTINGS_CATEGORIES[id];
+                    return (
+                      <ListRow
+                        key={id}
+                        clickable={true}
+                        leading={<Icon icon={category.icon} size="sm" />}
+                        onClick={(): void => setActive(id)}
+                        selected={active === id}
+                        title={category.label}
+                      />
+                    );
+                  })}
+                </Stack>
+              );
+            })}
+          </Stack>
 
-        <Stack className="min-h-0 flex-1 overflow-y-auto">
-          <SettingsPane category={active} />
-        </Stack>
-      </Row>
-    </Container>
+          <Stack className="min-h-0 flex-1 overflow-y-auto">
+            <SettingsPane category={active} />
+          </Stack>
+        </Row>
+      </Container>
+    </Stack>
   );
 }
 
