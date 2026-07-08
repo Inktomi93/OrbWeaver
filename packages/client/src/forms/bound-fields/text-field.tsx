@@ -12,6 +12,9 @@ import { fieldErrorText } from "./field-error";
 export interface TextFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   readonly placeholder?: string;
   readonly disabled?: boolean;
 }
@@ -19,6 +22,7 @@ export interface TextFieldProps {
 export function TextField({
   label,
   description,
+  hint,
   placeholder,
   disabled,
 }: TextFieldProps): ReactElement {
@@ -28,6 +32,7 @@ export function TextField({
     <Field
       label={label}
       description={description}
+      hint={hint}
       error={field.state.meta.isTouched ? error : null}
       disabled={disabled ?? false}
       name={field.name}

@@ -112,18 +112,25 @@ Settings→Personas pane, no in-chat picker, no `whoami`, no dual home.
 - **Account strip:** current identity + a working **Log out** (`POST /api/auth/logout`). *(The identity
   *display* — username/avatar — is the one deferred bit → auth #50; log-out already works.)*
 - **"Playing as" header + ＋New persona.**
-- **Persona list** — each row `avatar · name · note`; inline actions on the SAME row (message-actions reveal
-  pattern, dim→brighten on hover): **★ set-Default (#1)** · **edit** · **delete**. Click the row body = set
-  **Current (#2)**. Current shows a check, Default a crown.
-- **Edit = expand the row in place** (accordion) → the full editor: every field — `name`, `title` (never
-  prompt-injected), `description` (macro-aware + token count + Streamdown preview), `avatarAssetId` (upload),
-  `descriptionPosition` select + `inject.depth`/`role` (disabled unless `at_depth`; assistant@0 guard), the
-  provenance chip, connected world-books — + duplicate / export / import.
+- **Persona list — identity edited IN the row (autosave; NO Save/Edit buttons):** click the **avatar** to
+  change the picture (file picker → `uploadAsset`, partial patch), click the **name** to rename inline; the
+  **row body** sets **Current (#2)**. At rest the row shows only glanceable status (gold Crown = Default #1,
+  red Heart = favorite `starred`); **hover/focus reveals the action cluster** — ♥ favorite · ★ set-Default ·
+  🗑 delete — so the name keeps full width. A **⌄ chevron** (a disclosure, not an edit button) expands DETAILS.
+- **DETAILS = expand-in-row, fully autosaving** (`createAutosaveEntityForm`): `title` (never prompt-injected)
+  · `description` (macro-aware + token count, help as a ⓘ hover tip) · a single **Placement** dropdown
+  (`descriptionPosition`) that reveals a compact `inject.depth`/`role` ONLY when `at_depth` (assistant@0 guard
+  kept) · a **single-select** connected-lore-book dropdown · the provenance chip · duplicate / export. Identity
+  (avatar/name/favorite) is ROW-owned — not repeated here. NO Save button, NO dirty pill. (Field help is a
+  ⓘ hover tip via the shared `Field` primitive's new `hint` prop, not inline description text.)
 - **"This chat:" section** (renders only when a chat is active — reads `state/active-chat-store`): set the
   per-chat persona (#3), host re-pin the anchor (#4), reattribute. Backed by two small server touches:
   `setActivePersona.targetUserId` optional (defaults to caller) + `ChatDetail.viewerActivePersonaId` /
   `viewerIsHost` / `viewerUserId`.
-- **Global settings footer:** `showNotifications` (persona-switch toast).
+- **One panel scroll** — the whole popup caps to the Base UI positioner's `--available-height`; no nested peephole.
+- **Persona settings moved OUT of the panel → Settings → USER → Personas** (`features/settings`, route-composed):
+  the `showNotifications` (persona-switch toast) pref + restore-from-backup (`persona.import`). The panel is now
+  purely the switcher + editor; peripheral prefs live in Settings.
 
 **Model parity note:** this is ST's persona-panel-does-per-chat pattern (their Default / Character / Chat
 connection scopes, toggled from the panel), minus ST's `this_chid` ambient coupling (we read the shared store),
@@ -207,9 +214,16 @@ EXTEND `RowSkin`** (stay in the tsc-forced Record) rather than branch JSX on `ch
 | - | - | - | - |
 | **Echo** | character portrait bled into the bubble edge as faded background art | avatar URL as an inline CSS var on the bubble at render (we control render — NO MutationObserver) + `background-size:cover` + a token-driven `mask-image` edge-feather; legible via our scrim | **BUILD** |
 | **Ripple** | VN sticky tall portrait — `position:sticky;top:0`, 2:3, pinned while a long gen scrolls | `position:sticky` avatar + the 2:3 portrait variant (§B.4, DONE) + `object-fit:cover` (Moonlit forgets this and stretches — we're better); VN portrait ignores the global round/square pref. NOT the D49-cut `waifuMode` | **BUILD** |
-| **Whisper** | faded avatar banner across the top + accent stripe | Echo variant; low priority | adapt later |
-| **Hush** | flat + a theme-color accent stripe as the speaker indicator | "flat but color-coded" | adapt (minor) |
-| **Tide** | per-`<p>` bubble "trains" (iMessage) | real render change; long RP prose stacks messily | cautious / opt-in only |
+| **Whisper** | faded avatar banner across the top + accent stripe | Echo-family `RowSkin` (banner mask + accent stripe painted from the character's theme color) | **BUILD** |
+| **Hush** | flat + a theme-color accent stripe as the speaker indicator | "flat but color-coded" — a `RowSkin` that adds the accent stripe to the flat shape | **BUILD** |
+| **Tide** | per-`<p>` bubble "trains" (iMessage) | a real render change — split prose into per-paragraph bubbles; guard long-RP stacking with sane spacing | **BUILD** |
+
+> **OWNER DIRECTIVE (2026-07-08): build ALL FIVE modes now, properly, once — no "adapt later."** Echo · Whisper ·
+> Hush · Ripple · Tide all ship as first-class `RowSkin` entries in Phase 4, done clean in our token/compose
+> system, coexisting with bubble/flat/document as user picks. Do it right the first time even if it's more work
+> (constitution: committed → full cold-read bar, no thin/partial). Per-mode geometry lives in the SKIN, not a
+> user pref. Also build the immersive-mode **hide-user-portrait** default (Moonlit `hideEchoUserIllustration`/
+> `hideRippleUserAvatar`): bleed the CHARACTER's art, never your own — the user's own bubble stays clean.
 
 ### B.3 Avatar versatility (Phase 3 — appearance prefs + the Avatar primitive)
 Today: `avatarSize` sm/md/lg + `avatarShape` round/square. The `@orb/ui/avatar` primitive has round/square only —
@@ -241,12 +255,17 @@ Genuine deltas to add:
 3. **Per-mode avatar sizing** — each immersive mode carries its own avatar geometry (Echo 20%×300px, Ripple
    180/100px). The immersive skins define their avatar dims (tokens/defaults).
 4. **Granular reading-typography** — Moonlit exposes per-message line-height, letter-spacing, paragraph spacing,
-   name/body font sizes. We only have global `fontScale`. Add a **reading-typography** set → root vars via
+   name/body font sizes, **and a justify-body-text toggle** (`justifyParagraphText`). We only have global
+   `fontScale`. Add a **reading-typography** set (incl. the justify toggle) → root vars via
    `useAppearanceRootEffects` (reaches portals, font-scale precedent), consumed on `[data-slot="message-bubble"]`.
    New tokens → `tokens.json` → `tokens:build` (freshness-tested). **Steal.**
-5. Minor: denser composer, click-avatar-to-enlarge, accent-tint-the-UI, user-tunable blur strength, mobile-fine
-   knobs (inline metadata on mobile is the one real consideration). (Full knob inventory verified against
-   `moonlit-echoes/src/config/theme-settings.js` — nothing else new.)
+5. Minor: denser composer, click-avatar-to-enlarge, accent-tint-the-UI (`enableThemeColorization`), user-tunable
+   blur strength, **LLM-icon in the reasoning block** (`showLLMReasoningIcon` — a reasoning-block metadata chip),
+   mobile-fine knobs (inline metadata on mobile is the one real consideration). **Full 59-knob inventory
+   cross-checked** against `moonlit-echoes/src/config/theme-settings.js` + both theme JSONs — every genuine
+   visual concept maps to something orb already has (theme engine / avatar prefs / metadata chips / dim /
+   reduced-motion), a §B.5/§B.5b steal, or ST-specific cruft correctly skipped (menu-height locks, favorite-symbol
+   customization, QRs-bar, lorebook-topbar). Nothing else new.
 
 ### B.5b Polish worth stealing (portable, token-clean)
 - **Chat-list edge fade** — `mask-image` gradient on the scroll container (softly dissolves top/bottom under the
@@ -279,8 +298,8 @@ Genuine deltas to add:
 
 **NEXT — the immersive half (PART B):**
 - **Phase 3** — message-row redesign (§B.1, build KIND-READY) + avatar versatility (§B.3).
-- **Phase 4** — Echo/Ripple immersive modes (§B.2) + config axes (bg-blur, context-boundary, reading-typography,
-  §B.5) + the polish list (§B.5b).
+- **Phase 4** — ALL FIVE immersive modes (Echo/Whisper/Hush/Ripple/Tide, §B.2 — built proper, not "adapt later")
+  + config axes (bg-blur, context-boundary, reading-typography, §B.5) + the polish list (§B.5b).
 
 **Other tracked lanes:** #5 settings search · #13 character library+editor BUILD (design in the companion doc) ·
 #16 upload CSRF · #17 cast-producer unify (with D60) · #19 account section (with auth #50).

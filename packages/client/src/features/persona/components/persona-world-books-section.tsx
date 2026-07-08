@@ -1,29 +1,32 @@
-// The persona ↔ world-book (lorebook) connections (FINAL-Persona §A.6b — persona-bound world books). A
-// Switch per library book toggles the M:N attachment (`worldInfo.attachToPersona`/`detachFromPersona`);
-// the per-persona list drives the checked state. QueryBoundary loads both the library + the attachments.
+// The persona ↔ world-book (lorebook) connection — rail-foot panel redesign: ONE book per persona, a
+// single-select dropdown over `worldInfo.listBooks` (+ "None"). Picking a book attaches it
+// (`attachToPersona`) and detaches whichever book was previously attached (`detachFromPersona`, when one
+// exists); picking "None" just detaches. Replaces the old per-book Switch list (the M:N junction still
+// supports many books server-side — the UI just never offers more than one at a time, per the redesign
+// brief). QueryBoundary loads both the library + the current attachment.
 
 import type { PersonaId, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { EmptyState } from "@orb/ui/empty-state";
+import { Field } from "@orb/ui/field";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve BookOpen/Icon fine (the add-member-popover precedent).
 import { BookOpen, Icon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
-import { Switch } from "@orb/ui/switch";
+import { Row } from "@orb/ui/layout";
+import type { SelectItems } from "@orb/ui/select";
+import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { useAttachBookToPersona, useDetachBookFromPersona } from "../hooks/use-persona-lorebooks";
 
-export interface PersonaWorldBooksSectionProps {
+const NONE_VALUE = "none";
+
+export interface PersonaLoreBookFieldProps {
   readonly personaId: PersonaId;
 }
 
-/** The persona-bound world-book toggles — a Switch per library book, checked when attached. */
-export function PersonaWorldBooksSection({
-  personaId,
-}: PersonaWorldBooksSectionProps): ReactElement {
+/** The persona's single-select lore book. */
+export function PersonaLoreBookField({ personaId }: PersonaLoreBookFieldProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text tone="muted">Loading world books…</Text>}
@@ -36,12 +39,12 @@ export function PersonaWorldBooksSection({
         </Row>
       )}
     >
-      <WorldBooksList personaId={personaId} />
+      <LoreBookSelect personaId={personaId} />
     </QueryBoundary>
   );
 }
 
-function WorldBooksList({ personaId }: PersonaWorldBooksSectionProps): ReactElement {
+function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const attach = useAttachBookToPersona({ trpc, invalidation });
@@ -50,42 +53,38 @@ function WorldBooksList({ personaId }: PersonaWorldBooksSectionProps): ReactElem
   const { data: attached } = useSuspenseQuery(
     trpc.worldInfo.listForPersona.queryOptions({ personaId }),
   );
-  const attachedIds = new Set<string>(attached.map((book) => book.id));
+  // The UI only ever offers ONE — the first attachment (if the M:N junction somehow holds more, from a
+  // pre-redesign state, the others are simply not shown/touched until the user picks again).
+  const current = attached[0];
 
-  if (library.length === 0) {
-    return (
-      <EmptyState
-        icon={<Icon icon={BookOpen} size="md" />}
-        title="No world books yet"
-        description="Create a world book to attach lore to this persona."
-      />
-    );
-  }
+  const items: SelectItems<string> = [
+    { value: NONE_VALUE, label: "None" },
+    ...library.map((book) => ({ value: book.id, label: book.name })),
+  ];
+
+  const onChange = (value: string | null): void => {
+    // `book.id` is already the branded `WorldBookId` (tRPC-inferred) — no re-cast.
+    const previous = current?.id;
+    const next = value ?? NONE_VALUE;
+    if (next !== NONE_VALUE) {
+      attach.mutate({ personaId, bookId: next as WorldBookId });
+    }
+    if (previous !== undefined && previous !== next) {
+      detach.mutate({ personaId, bookId: previous });
+    }
+  };
 
   return (
-    <Stack gap="row">
-      {library.map((book) => {
-        const isAttached = attachedIds.has(book.id);
-        const bookId = castId<WorldBookId>(book.id);
-        return (
-          <Row key={book.id} gap="row" align="center" className="min-w-0">
-            <Switch
-              checked={isAttached}
-              onCheckedChange={(next): void => {
-                if (next) {
-                  attach.mutate({ personaId, bookId });
-                } else {
-                  detach.mutate({ personaId, bookId });
-                }
-              }}
-            />
-            <Icon icon={BookOpen} size="sm" />
-            <Text as="span" className="min-w-0 flex-1 truncate">
-              {book.name}
-            </Text>
-          </Row>
-        );
-      })}
-    </Stack>
+    <Field label="Lore book" name="persona-lore-book">
+      <Row gap="field" align="center">
+        <Icon icon={BookOpen} size="sm" />
+        <Select
+          items={items}
+          value={current?.id ?? NONE_VALUE}
+          onValueChange={onChange}
+          placeholder="None"
+        />
+      </Row>
+    </Field>
   );
 }

@@ -5,9 +5,17 @@
 // save. The persona READ view is inferred through tRPC — never a cross-package type import (the
 // add-member-popover precedent); the alias stays FILE-LOCAL (an exported `type` alias in a feature is a
 // no-inline-types leak — the mappers take/return it, consumers infer their own from the same proxy).
+//
+// IDENTITY IS ROW-OWNED (rail-foot redesign): `name`/`avatarAssetId`/`starred` are edited IN THE ROW
+// (inline rename / avatar-click-to-upload / the ♥ favorite toggle — persona-panel-row.tsx), each a
+// standalone `persona.update` PARTIAL patch fired the instant it changes — NOT part of this form (starred
+// moved here from the DETAILS form per live redesign feedback: a single switch didn't earn a field row,
+// and it reads more naturally beside Default/Delete). This model covers only the DETAILS the row's expand
+// reveals: title/description + the injection placement. `updatePersonaSchema` is a true `.partial()`
+// (verb: update — "undefined skips, null clears"), so the row's single-field patches and this form's
+// multi-field patch never step on each other or require re-sending identity on every save.
 
 import type { PersonaMetadata, UpdatePersonaInput } from "@orb/contracts/persona";
-import type { AssetId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -20,14 +28,12 @@ type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
 const DEFAULT_INJECT_DEPTH = 2;
 const DEFAULT_INJECT_ROLE: MessageRole = "system";
 
-/** The flat form value shape the persona editor binds (nested `inject{depth,role}` flattened). */
+/** The flat form value shape the persona DETAILS bind (nested `inject{depth,role}` flattened; identity
+ *  fields excluded — see the header). */
 export interface PersonaFormValues {
-  readonly name: string;
   /** Display subtitle — never prompt-injected. `""` ⇒ `null` on save (the contract `title` is nullable). */
   readonly title: string;
   readonly description: string;
-  readonly starred: boolean;
-  readonly avatarAssetId: AssetId | null;
   readonly descriptionPosition: PersonaDescriptionPosition;
   /** Messages-back for the `at_depth` splice (NumberField shape: `null` = empty). */
   readonly injectDepth: number | null;
@@ -36,11 +42,8 @@ export interface PersonaFormValues {
 
 /** From-scratch defaults (for a create with no server row yet). */
 export const DEFAULT_PERSONA_FORM: PersonaFormValues = {
-  name: "New persona",
   title: "",
   description: "",
-  starred: false,
-  avatarAssetId: null,
   descriptionPosition: "in_prompt",
   injectDepth: DEFAULT_INJECT_DEPTH,
   injectRole: DEFAULT_INJECT_ROLE,
@@ -52,11 +55,8 @@ export const DEFAULT_PERSONA_FORM: PersonaFormValues = {
 export function personaFormFromEntity(persona: PersonaDetail): PersonaFormValues {
   const placement = resolvePersonaDescriptionPlacement(persona.metadata ?? undefined);
   return {
-    name: persona.name,
     title: persona.title ?? "",
     description: persona.description,
-    starred: persona.starred,
-    avatarAssetId: persona.avatarAssetId,
     descriptionPosition: placement.kind,
     injectDepth: placement.kind === "at_depth" ? placement.depth : DEFAULT_INJECT_DEPTH,
     injectRole: placement.kind === "at_depth" ? placement.role : DEFAULT_INJECT_ROLE,
@@ -85,17 +85,15 @@ function metadataFromForm(
   return next;
 }
 
-/** Build the `persona.update` input from the form values (title `""` ⇒ `null`; metadata re-nested). */
+/** Build the `persona.update` PARTIAL input from the DETAILS form values (title `""` ⇒ `null`; metadata
+ *  re-nested). `name`/`avatarAssetId`/`starred` are never sent from here — they're the row's own patches. */
 export function personaInputFromForm(
   values: PersonaFormValues,
   base: PersonaMetadata | null,
 ): UpdatePersonaInput {
   return {
-    name: values.name,
     title: values.title.trim() === "" ? null : values.title,
     description: values.description,
-    starred: values.starred,
-    avatarAssetId: values.avatarAssetId,
     metadata: metadataFromForm(values, base),
   };
 }

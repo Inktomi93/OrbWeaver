@@ -50,12 +50,6 @@ export const useDuplicatePersona = createEntityMutation<
   errorToast: "Couldn't duplicate the persona.",
 });
 
-/** Restore one persona from a backup blob (`persona.import` — the export round-trip twin). */
-export const useImportPersona = createEntityMutation<
-  inferInput<Trpc["persona"]["import"]>,
-  PersonaDetail
->({
-  options: (trpc) => trpc.persona.import.mutationOptions(),
-  invalidates: (trpc) => [trpc.persona.list.queryFilter()],
-  errorToast: "Couldn't restore the persona.",
-});
+// `persona.import` (restore-from-backup) moved to features/settings/surfaces/persona-settings-surface.tsx
+// with the rest of "Persona settings" — this feature no longer has a consumer for it (one home per verb;
+// re-add here only if the panel itself grows a restore affordance again).

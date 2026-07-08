@@ -10,16 +10,25 @@ import { fieldErrorText } from "./field-error";
 export interface SwitchFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   readonly disabled?: boolean;
 }
 
-export function SwitchField({ label, description, disabled }: SwitchFieldProps): ReactElement {
+export function SwitchField({
+  label,
+  description,
+  hint,
+  disabled,
+}: SwitchFieldProps): ReactElement {
   const field = useFieldContext<boolean>();
   const error = fieldErrorText(field.state.meta.errors);
   return (
     <Field
       label={label}
       description={description}
+      hint={hint}
       error={field.state.meta.isTouched ? error : null}
       disabled={disabled ?? false}
       name={field.name}

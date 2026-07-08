@@ -1,8 +1,10 @@
-// Persona GLOBAL identity + prefs writes — all SERVER state (never Zustand): the `UserSettings` seed
-// pointers (`currentPersonaId` #2 / `defaultPersonaId` #1) and the persona UX prefs (`showNotifications`)
-// are patched through the section-patch verb (the same live-flip seam the appearance/theme panes use),
-// and read back through `getUserSettings`. `invalidates: getUserSettings` refetches so every reader
-// (the switcher chip, the editor crown, the settings footer) re-renders live.
+// Persona GLOBAL identity write — all SERVER state (never Zustand): the `UserSettings` seed pointers
+// (`currentPersonaId` #2 / `defaultPersonaId` #1) are patched through the section-patch verb (the same
+// live-flip seam the appearance/theme panes use), and read back through `getUserSettings`.
+// `invalidates: getUserSettings` refetches so every reader (the switcher chip, the row's Default badge)
+// re-renders live. The sibling `persona` prefs section (`showNotifications`) moved to
+// features/settings/surfaces/persona-settings-surface.tsx with the rest of "Persona settings" — this
+// feature no longer reads/writes it.
 
 import { createEntityMutation } from "#data";
 
@@ -19,15 +21,4 @@ export const useSetPersonaSeed = createEntityMutation<PersonaSeedPatchVars, unkn
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
   errorToast: "Couldn't update your persona.",
-});
-
-/** Patch the `persona` prefs section (ST `persona_show_notifications` parity). */
-export interface PersonaPrefsPatchVars {
-  readonly section: "persona";
-  readonly patch: { readonly showNotifications: boolean };
-}
-export const useSetPersonaPrefs = createEntityMutation<PersonaPrefsPatchVars, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
-  errorToast: "Couldn't save your persona settings.",
 });

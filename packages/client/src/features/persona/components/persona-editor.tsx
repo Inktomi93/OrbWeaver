@@ -1,15 +1,14 @@
-// The persona EDITOR (FINAL-Persona §A.6b — the completeness bar): a button-gated `createSavedEntityForm`
-// over one owned persona surfacing EVERY contract field — name · title · description (macro-aware +
-// token-count + live Streamdown preview) · starred · avatar · the depth/insertion options
-// (descriptionPosition + inject{depth,role}, depth/role disabled unless `at_depth`, the assistant@0
-// prefill guard mirrored) · a read-only Provenance chip for card-minted personas · connected world books.
-// Actions here: duplicate · export. Set-as-default + delete live on the PANEL ROW (persona-panel-row.tsx);
-// reattribute is a CHAT action (the in-chat picker), not here.
+// The persona DETAILS body (rail-foot panel redesign — the panel-row's expand-to-edit content;
+// FINAL-Persona §A.6b origin, rebuilt LEAN per the live redesign brief). Identity (avatar/name) is
+// ROW-owned (persona-panel-row.tsx) and never repeated here. What's left, AUTOSAVING on every change
+// (`createAutosaveEntityForm` — no Save button, no dirty pill): title · description (macro-aware +
+// token-count) · starred · the injection placement (ONE Placement select; depth/role reveal compactly
+// only for `at_depth`, the assistant@0 prefill guard still blocks the write) · the single-select lore
+// book (a separate live-mutation control, not part of the form — mirrors the M:N attach/detach it drives)
+// · duplicate/export actions. Set-as-default + delete live on the PANEL ROW; reattribute is a CHAT action.
 //
-// A COMPONENT (the panel row's expand-to-edit body), not a surface. The panel row composes this inline
-// when a persona is expanded.
+// A COMPONENT (the panel row's Collapsible body), not a surface.
 
-import type { StoredAsset } from "@orb/contracts/assets";
 import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
@@ -20,14 +19,13 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the add-member-popover precedent).
 import { Copy, Download, Icon } from "@orb/ui/icons";
-import { Grid, Row, Section, Stack } from "@orb/ui/layout";
-import { Markdown } from "@orb/ui/markdown";
+import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { uploadAsset, useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, slugifyFilename } from "#lib";
 import { usePersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
@@ -38,7 +36,7 @@ import {
   personaFormFromEntity,
   personaInputFromForm,
 } from "../lib/persona-editor-model";
-import { PersonaWorldBooksSection } from "./persona-world-books-section";
+import { PersonaLoreBookField } from "./persona-world-books-section";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
 
@@ -68,8 +66,7 @@ export interface PersonaEditorProps {
   readonly persona: PersonaDetail;
 }
 
-/** The full inline persona editor for one owned persona (the panel-row's expand-to-edit body). Set-default
- *  and delete live on the ROW; this owns the form + duplicate + export. */
+/** The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body). */
 export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
   const client = useTRPCClient();
@@ -78,13 +75,11 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
   const duplicate = useDuplicatePersona({ trpc, invalidation });
   const baseMetadata: PersonaMetadata | null = persona.metadata;
 
-  const save = async (values: PersonaFormValues): Promise<PersonaFormValues> => {
-    const saved = await update.mutateAsync({
+  const save = (values: PersonaFormValues): Promise<unknown> =>
+    update.mutateAsync({
       personaId: persona.id,
       input: personaInputFromForm(values, baseMetadata),
     });
-    return personaFormFromEntity(saved);
-  };
 
   const { form, mountKey } = usePersonaForm({
     entityId: persona.id,
@@ -100,162 +95,106 @@ export function PersonaEditor({ persona }: PersonaEditorProps): ReactElement {
       notify.error("Couldn't export the persona.");
     }
   };
-  return (
-    <form
-      key={mountKey}
-      onSubmit={(event): void => {
-        event.preventDefault();
-        event.stopPropagation();
-        void form.handleSubmit();
-      }}
-    >
-      <Stack gap="section">
-        <EditorActions
-          onDuplicate={(): void => duplicate.mutate({ personaId: persona.id })}
-          onExport={(): void => {
-            void onExport();
-          }}
-        />
 
-        <form.AppField name="avatarAssetId">
+  return (
+    <Stack key={mountKey} gap="row">
+      <form.AppField name="title">
+        {(field): ReactElement => (
+          <field.TextField
+            label="Title"
+            hint="A display subtitle for pickers — never injected into the prompt."
+            placeholder="Optional"
+          />
+        )}
+      </form.AppField>
+
+      <Stack gap="field">
+        <form.AppField name="description">
           {(field): ReactElement => (
-            <field.AvatarUploadField
-              label="Avatar"
-              upload={(file): Promise<StoredAsset> => uploadAsset(file, "avatar")}
-              initialHash={persona.avatarHash}
+            <field.MacroField
+              label="Description"
+              hint="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
+              suggestions={PERSONA_DESCRIPTION_MACROS}
+              rows={6}
             />
           )}
         </form.AppField>
+        <form.Subscribe selector={(state): string => state.values.description}>
+          {(description): ReactElement => (
+            <Row gap="row" align="center" className="justify-end">
+              <Text size="micro" tone="muted" className="font-mono">
+                ~{estimateTokens(description)} tokens
+              </Text>
+            </Row>
+          )}
+        </form.Subscribe>
+      </Stack>
 
-        <Grid cols="wide" gap="gutter">
-          <form.AppField name="name">
-            {(field): ReactElement => <field.TextField label="Name" placeholder="Persona name" />}
-          </form.AppField>
-          <form.AppField name="title">
-            {(field): ReactElement => (
-              <field.TextField
-                label="Title"
-                description="A display subtitle for pickers — never injected into the prompt."
-              />
-            )}
-          </form.AppField>
-        </Grid>
-
-        <form.AppField name="starred">
+      <Stack gap="field">
+        <form.AppField name="descriptionPosition">
           {(field): ReactElement => (
-            <field.SwitchField label="Favorite" description="Starred personas sort first." />
+            <field.SelectField
+              label="Placement"
+              hint="Where the description injects: in the prompt, spliced at a depth, or not at all."
+              items={POSITION_ITEMS}
+            />
           )}
         </form.AppField>
-
-        <Section heading="Description">
-          <form.AppField name="description">
-            {(field): ReactElement => (
-              <field.MacroField
-                label="Description"
-                description="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
-                suggestions={PERSONA_DESCRIPTION_MACROS}
-                rows={8}
-              />
-            )}
-          </form.AppField>
-          <form.Subscribe selector={(state): string => state.values.description}>
-            {(description): ReactElement => <DescriptionMeta value={description} />}
-          </form.Subscribe>
-        </Section>
-
-        <Section heading="Prompt injection">
-          <Grid cols="wide" gap="gutter">
-            <form.AppField name="descriptionPosition">
-              {(field): ReactElement => (
-                <field.SelectField
-                  label="Placement"
-                  description="Where the description injects: in the prompt, spliced at a depth, or not at all."
-                  items={POSITION_ITEMS}
-                />
-              )}
-            </form.AppField>
-            <form.Subscribe
-              selector={(state): PersonaDescriptionPosition => state.values.descriptionPosition}
-            >
-              {(position): ReactElement => (
-                <>
-                  <form.AppField name="injectDepth">
-                    {(field): ReactElement => (
-                      <field.NumberField
-                        label="Depth"
-                        description="Messages back from the end of history."
-                        min={0}
-                        disabled={position !== "at_depth"}
-                      />
-                    )}
-                  </form.AppField>
-                  <form.AppField name="injectRole">
-                    {(field): ReactElement => (
-                      <field.SelectField
-                        label="Role"
-                        items={ROLE_ITEMS}
-                        disabled={position !== "at_depth"}
-                      />
-                    )}
-                  </form.AppField>
-                </>
-              )}
-            </form.Subscribe>
-          </Grid>
-        </Section>
-
-        <ProvenanceChip metadata={baseMetadata} />
-
-        <Section heading="Connected world books">
-          <PersonaWorldBooksSection personaId={persona.id} />
-        </Section>
-
-        <form.AppForm>
-          <form.Subscribe selector={(state): boolean => isPrefillCombo(state.values)}>
-            {(prefill): ReactElement => (
-              <Stack gap="row">
-                {prefill ? (
-                  <Text size="micro" tone="warning">
-                    Assistant role at depth 0 is a response prefill — pick depth ≥ 1, or role
-                    system/user.
-                  </Text>
-                ) : null}
-                <Row gap="row" align="center" className="justify-end">
-                  <form.DirtyPill />
-                  {prefill ? (
-                    <Button disabled={true}>Save persona</Button>
-                  ) : (
-                    <form.SubmitButton>Save persona</form.SubmitButton>
-                  )}
-                </Row>
-              </Stack>
-            )}
-          </form.Subscribe>
-        </form.AppForm>
+        <form.Subscribe
+          selector={(state): PersonaDescriptionPosition => state.values.descriptionPosition}
+        >
+          {(position): ReactElement | null => {
+            if (position !== "at_depth") {
+              return null;
+            }
+            return (
+              <Row gap="field">
+                <form.AppField name="injectDepth">
+                  {(field): ReactElement => <field.NumberField label="Depth" min={0} />}
+                </form.AppField>
+                <form.AppField name="injectRole">
+                  {(field): ReactElement => <field.SelectField label="Role" items={ROLE_ITEMS} />}
+                </form.AppField>
+              </Row>
+            );
+          }}
+        </form.Subscribe>
+        <form.Subscribe selector={(state): boolean => isPrefillCombo(state.values)}>
+          {(prefill): ReactElement | null =>
+            prefill ? (
+              <Text size="micro" tone="warning">
+                Assistant role at depth 0 is a response prefill — pick depth ≥ 1, or role
+                system/user.
+              </Text>
+            ) : null
+          }
+        </form.Subscribe>
       </Stack>
-    </form>
-  );
-}
 
-/** The token-count line + a live untrusted-markdown preview of the description. */
-function DescriptionMeta({ value }: { readonly value: string }): ReactElement {
-  return (
-    <Stack gap="field">
-      <Row gap="row" align="center" className="justify-between">
-        <Text size="micro" tone="muted" transform="caps">
-          Preview
-        </Text>
-        <Text size="micro" tone="muted" className="font-mono">
-          ~{estimateTokens(value)} tokens
-        </Text>
+      <PersonaLoreBookField personaId={persona.id} />
+
+      <ProvenanceChip metadata={baseMetadata} />
+
+      <Row gap="row" align="center" className="justify-end">
+        <Button
+          intent="ghost"
+          size="sm"
+          onClick={(): void => duplicate.mutate({ personaId: persona.id })}
+        >
+          <Icon icon={Copy} size="sm" />
+          Duplicate
+        </Button>
+        <Button
+          intent="ghost"
+          size="sm"
+          onClick={(): void => {
+            void onExport();
+          }}
+        >
+          <Icon icon={Download} size="sm" />
+          Export
+        </Button>
       </Row>
-      {value.trim() === "" ? (
-        <Text tone="muted">Nothing to preview yet.</Text>
-      ) : (
-        <Markdown trust="untrusted" mode="static">
-          {value}
-        </Markdown>
-      )}
     </Stack>
   );
 }
@@ -277,27 +216,6 @@ function ProvenanceChip({
           {"{{char}}"}/{"{{user}}"} were swapped on mint.
         </Text>
       ) : null}
-    </Row>
-  );
-}
-
-interface EditorActionsProps {
-  readonly onDuplicate: () => void;
-  readonly onExport: () => void;
-}
-
-/** The editor's action toolbar — duplicate · export. (Set-default + delete live on the panel row.) */
-function EditorActions({ onDuplicate, onExport }: EditorActionsProps): ReactElement {
-  return (
-    <Row gap="row" align="center" className="justify-end">
-      <Button intent="ghost" size="sm" onClick={onDuplicate}>
-        <Icon icon={Copy} size="sm" />
-        Duplicate
-      </Button>
-      <Button intent="ghost" size="sm" onClick={onExport}>
-        <Icon icon={Download} size="sm" />
-        Export
-      </Button>
     </Row>
   );
 }

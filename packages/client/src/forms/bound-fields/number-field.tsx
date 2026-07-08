@@ -11,6 +11,9 @@ import { fieldErrorText } from "./field-error";
 export interface BoundNumberFieldProps {
   readonly label: ReactNode;
   readonly description?: ReactNode;
+  /** A hover-tip explainer beside the label (`@orb/ui/field` `hint`) — for copy that doesn't need to
+   *  stay always-visible. */
+  readonly hint?: ReactNode;
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
@@ -20,6 +23,7 @@ export interface BoundNumberFieldProps {
 export function BoundNumberField({
   label,
   description,
+  hint,
   min,
   max,
   step,
@@ -31,6 +35,7 @@ export function BoundNumberField({
     <Field
       label={label}
       description={description}
+      hint={hint}
       error={field.state.meta.isTouched ? error : null}
       disabled={disabled ?? false}
       name={field.name}
