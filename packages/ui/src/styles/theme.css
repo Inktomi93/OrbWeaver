@@ -68,6 +68,7 @@
   --radius-card: 0.625rem;
   --radius-full: 9999px;
   --aspect-portrait: 2 / 3;
+  --aspect-banner: 3 / 1;
   --dimension-rail: 3.5rem;
   --dimension-chrome-row: 3rem;
   --dimension-panel: clamp(16rem, 22vw, 22rem);
@@ -79,7 +80,6 @@
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
   --immersive-echo-feather: 55%;
-  --immersive-whisper-banner-height: 9rem;
   --immersive-whisper-feather: 70%;
   --immersive-stripe-width: 0.1875rem;
   --immersive-ripple-portrait-width: 11.25rem;
@@ -127,8 +127,8 @@
 
 @media (pointer: fine) {
   :root {
-    --spacing-touch-target: 2rem;
-    --spacing-control-sm: 2rem;
+    --spacing-touch-target: 1.75rem;
+    --spacing-control-sm: 1.75rem;
     --spacing-control-md: 2.125rem;
     --spacing-control-lg: 2.5rem;
   }

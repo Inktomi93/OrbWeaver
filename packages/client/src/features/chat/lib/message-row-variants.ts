@@ -239,9 +239,11 @@ const WHISPER_STRIPE: CSSProperties = {
  *  `background-size`, the Phase-4 squish bug) and returns it as `headerBand` — a REAL block-level child
  *  `message-row-parts.tsx` renders ABOVE the padded text (never a background layer on the bubble's own
  *  message-length-dependent box), so `background-size:cover` has a stable box to crop against (no
- *  stretch) and the text — normal document flow, below the band — can never sit on the art. The FIXED
- *  `--immersive-whisper-banner-height` (not a percentage of the bubble) is what keeps the band a
- *  consistent hero strip regardless of message length. */
+ *  stretch) and the text — normal document flow, below the band — can never sit on the art. The band
+ *  is a `--aspect-banner` (3:1) box — height DERIVES from the bubble's width so the displayed box
+ *  always matches the server's 3:1 crop (a fixed height drifted the box aspect off 3:1 as the fluid
+ *  bubble width changed, re-cropping the face-safe source). Still a definite box (aspect-ratio gives
+ *  it height), so the anti-squish property holds regardless of message length. */
 function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   if (args.kind !== "character" || args.avatarHash === null) {
     return { style: WHISPER_STRIPE };
@@ -251,7 +253,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
     style: WHISPER_STRIPE,
     headerBand: {
       style: {
-        height: "var(--immersive-whisper-banner-height)",
+        aspectRatio: "var(--aspect-banner)",
         backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${bannerUrl}")`,
         backgroundSize: "100% 100%, cover",
         backgroundPosition: "0 0, top center",

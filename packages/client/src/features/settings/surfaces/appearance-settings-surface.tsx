@@ -1,3 +1,4 @@
+import { useRef } from "react";
 // The APPEARANCE settings surface (D44 §12.1 — the NON-color display surface; UI-Arch §13.4 form-
 // factory panel). Renders inside the shell's settings modal (mounted by the ROUTE into
 // `AppShellProps.modals`, never imported by app-shell — the domain-agnostic shell renders a ReactNode
@@ -36,8 +37,23 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
+import {
+  BACKGROUND_BLUR_MAX,
+  BACKGROUND_BLUR_MIN,
+  BACKGROUND_DIM_MAX,
+  BACKGROUND_DIM_MIN,
+  BACKGROUND_DIM_STEP,
+  BLUR_STRENGTH_MAX,
+  BLUR_STRENGTH_MIN,
+  CHAT_WIDTH_MAX,
+  CHAT_WIDTH_MIN,
+  FONT_SCALE_MAX,
+  FONT_SCALE_MIN,
+  FONT_SCALE_STEP,
+} from "../lib/appearance-bounds";
 import {
   AVATAR_ASPECT_ITEMS,
   AVATAR_RING_ITEMS,
@@ -52,21 +68,6 @@ import {
   MESSAGE_ACTIONS_ITEMS,
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
-
-// Sizing bounds (mirror the contracts schema — kept local for the field min/max/step; the schema is the
-// hard clamp, these are just the input affordances).
-const BACKGROUND_DIM_MIN = 0;
-const BACKGROUND_DIM_MAX = 1;
-const BACKGROUND_DIM_STEP = 0.05;
-const BACKGROUND_BLUR_MIN = 0;
-const BACKGROUND_BLUR_MAX = 24;
-const CHAT_WIDTH_MIN = 30;
-const CHAT_WIDTH_MAX = 100;
-const FONT_SCALE_MIN = 0.8;
-const FONT_SCALE_MAX = 1.5;
-const FONT_SCALE_STEP = 0.05;
-const BLUR_STRENGTH_MIN = 4;
-const BLUR_STRENGTH_MAX = 28;
 
 // The section-patch mutation (module scope, §13.1). `invalidates` refetches getUserSettings through the
 // central seam — the live-flip mechanism for every other appearance consumer. TVars.patch is the typed
@@ -83,20 +84,25 @@ const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>(
 
 /** The appearance panel body (rendered inside the settings modal's Dialog). */
 export function AppearanceSettingsSurface(): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <QueryBoundary
-      fallback={<Text tone="muted">Loading your appearance settings…</Text>}
-      renderError={(_error, retry): ReactElement => (
-        <Text tone="muted">
-          Couldn't load your appearance settings.{" "}
-          <Button intent="ghost" onClick={retry}>
-            Retry
-          </Button>
-        </Text>
-      )}
-    >
-      <AppearanceForm />
-    </QueryBoundary>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none">
+      <QueryBoundary
+        fallback={<Text tone="muted">Loading your appearance settings…</Text>}
+        renderError={(_error, retry): ReactElement => (
+          <Text tone="muted">
+            Couldn't load your appearance settings.{" "}
+            <Button intent="ghost" onClick={retry}>
+              Retry
+            </Button>
+          </Text>
+        )}
+      >
+        <AppearanceForm />
+      </QueryBoundary>
+    </Stack>
   );
 }
 

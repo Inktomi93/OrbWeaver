@@ -200,6 +200,7 @@ export function GroupConfigForm({ config, onSave }: GroupConfigFormProps): React
           <AccordionTrigger>Advanced</AccordionTrigger>
           <AccordionPanel>
             <Stack gap="section" className="pt-block">
+              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
               <Select
                 label="Who speaks each round"
                 items={POLICY_ITEMS}
@@ -220,6 +221,7 @@ export function GroupConfigForm({ config, onSave }: GroupConfigFormProps): React
                 </Row>
               ) : null}
 
+              {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
               <Select
                 label="How much of each member the others see"
                 items={VISIBILITY_ITEMS}

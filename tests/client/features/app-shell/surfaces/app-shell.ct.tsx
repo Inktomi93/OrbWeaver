@@ -6,11 +6,13 @@
 // viewport: the curated four tabs, land-on-CONTENT, and the "You" bottom sheet + its overflow/handoff.
 // Each test gets a fresh page (isolated localStorage) so the store starts default.
 
+import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
-import { AppShellStory } from "../_ct-stories";
+import { AppShellStory, AppShellWidthProbeStory } from "../_ct-stories";
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
@@ -85,6 +87,42 @@ test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ moun
   // Close returns to no dialog.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+// ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
+
+test("landmark uniqueness: exactly ONE main, distinct complementary labels, one nav", async ({
+  mount,
+  page,
+}) => {
+  await mount(<AppShellStory />);
+
+  // Exactly ONE main landmark (CONTENT)
+  await expect(page.getByRole("main")).toHaveCount(1);
+
+  // The nav landmark (the rail) has aria-label="Primary"
+  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+
+  // The complementary landmarks (asides) must have distinct accessible names
+  // In default chats layout, it's "Chats list" and "Chats details"
+  await expect(page.getByRole("complementary", { name: "Chats list", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("complementary", { name: "Chats details", exact: true, includeHidden: true }),
+  ).toBeAttached();
+
+  // No unnamed complementary landmarks, and all labels are distinct
+  const allComplementary = page.getByRole("complementary", { includeHidden: true });
+  const count = await allComplementary.count();
+  const namePromises: Promise<string | null>[] = [];
+  for (let i = 0; i < count; i++) {
+    namePromises.push(allComplementary.nth(i).getAttribute("aria-label"));
+  }
+  const names = await Promise.all(namePromises);
+  for (const name of names) {
+    expect(name).toBeTruthy();
+  }
+  // Uniqueness: no two asides share the same accessible name
+  expect(new Set(names).size).toBe(names.length);
 });
 
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
@@ -185,13 +223,13 @@ function bgAlpha(locator: Locator): Promise<number> {
     // This arrow body is serialized into a page.evaluate() browser closure — it can't reference a
     // module-level const (evaluate ships only the function's own source, no outer-scope capture).
     // biome-ignore lint/performance/useTopLevelRegex: literals must live right here, see above.
-    const slashMatch = bg.match(/\/\s*([\d.]+)\s*\)$/);
+    const slashMatch = bg.match(/\/\s*([\d.]+)\s*\)$/u);
     if (slashMatch !== null) {
       return Number(slashMatch[1]);
     }
     if (bg.startsWith("rgba(") || bg.startsWith("hsla(")) {
       // biome-ignore lint/performance/useTopLevelRegex: same closure constraint as above.
-      const commaMatch = bg.match(/,\s*([\d.]+)\s*\)$/);
+      const commaMatch = bg.match(/,\s*([\d.]+)\s*\)$/u);
       return commaMatch !== null ? Number(commaMatch[1]) : 1;
     }
     return 1;
@@ -294,4 +332,66 @@ test("useAppearanceRootEffects lands a representative axis on <html> as a real c
     getComputedStyle(document.documentElement).getPropertyValue("--font-scale").trim(),
   );
   expect(fontScale).toBe("1.25");
+});
+
+// ── chatWidthPct / fontScale root vars — through the REAL AppShell (§11.1), not the bare fixture ──
+// `useAppearance()` reads the synced `getUserSettings` blob (routeTrpc-stubbed here) — this exercises
+// the actual production stamping path (app-shell.tsx's `--width-shell-content` inline style +
+// `useAppearanceRootEffects`'s `--font-scale`), not a re-implementation of the clamp/scale formulas.
+
+// The one browser-default constant this file leans on (no token exists for it — same precedent as
+// avatar.ct.tsx's ROOT_PX): the UA root font-size before any `:root { font-size }` override.
+const UA_ROOT_PX = 16;
+
+test("chatWidthPct stamps a real rendered max-width on a --width-shell-content consumer", async ({
+  mount,
+  page,
+}) => {
+  const chatWidthPct = 90; // clear of the clamp's 680px floor at any CT viewport ≥ 756px wide.
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_width",
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, chatWidthPct },
+      },
+      updatedAt: 0,
+    }),
+  });
+  const shell = await mount(<AppShellWidthProbeStory />);
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  expect(viewportWidth).toBeGreaterThan(0);
+  // The COMPUTED `max-width` (the browser's own dvw→px resolution of the clamp formula) — not the
+  // rendered box width, which the CONTENT column's own (narrower, panel-shared) available space also
+  // bounds. This isolates the one thing under test: the --width-shell-content var reaching the probe.
+  const computedMaxWidthPx = await shell
+    .getByTestId("width-probe")
+    .evaluate((el) => Number.parseFloat(getComputedStyle(el).maxWidth));
+  const expectedPx = (chatWidthPct / 100) * viewportWidth;
+  expect(computedMaxWidthPx).toBeCloseTo(expectedPx, 0);
+});
+
+test("fontScale stamps a real rendered <html> font-size (UA root × fontScale)", async ({
+  mount,
+  page,
+}) => {
+  const fontScale = 1.25;
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_shell_fontscale",
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: { ...DEFAULT_USER_SETTINGS.appearance, fontScale },
+      },
+      updatedAt: 0,
+    }),
+  });
+  await mount(<AppShellStory />);
+  await expect
+    .poll(() =>
+      page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize)),
+    )
+    .toBeCloseTo(UA_ROOT_PX * fontScale, 0);
 });

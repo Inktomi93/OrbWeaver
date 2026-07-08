@@ -29,11 +29,15 @@ import {
 } from "@orb/ui/command";
 // biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the chat-list-surface.tsx precedent).
 import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
+
 import type { Trpc } from "#data";
 import { QueryBoundary, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
 import { closeModal, openModal, selectChat, setActiveSection } from "#state";
 
@@ -53,6 +57,9 @@ export interface CommandPaletteSurfaceProps {
 
 /** The ⌘K palette body — Threads · Go to · Create, over the cmdk seal. */
 export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfaceProps): ReactElement {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   // Jump to an existing chat + close (the ONE action path — `selectChat` is the same landing the
   // chat-list select + fork-nav terminate at).
   const jumpToChat = (chatId: ChatId): void => {
@@ -75,47 +82,57 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Command label="Command palette" onEscape={closeModal} className="min-h-0">
-      <CommandInput
-        aria-label="Search commands"
-        placeholder="Jump to a thread, section, or action…"
-      />
-      <CommandList className="max-h-96">
-        <CommandEmpty>No matches.</CommandEmpty>
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
+      <Command
+        className="rounded-lg border shadow-md h-full flex flex-col"
+        label="Command palette"
+        onEscape={closeModal}
+      >
+        <CommandInput
+          aria-label="Search commands"
+          placeholder="Jump to a thread, section, or action…"
+        />
+        <CommandList className="max-h-96">
+          <CommandEmpty>No matches.</CommandEmpty>
 
-        <QueryBoundary fallback={null} renderError={(): ReactElement => <></>}>
-          <ThreadsGroup onJump={jumpToChat} />
-        </QueryBoundary>
+          <QueryBoundary fallback={null} renderError={(): ReactElement => <></>}>
+            <ThreadsGroup onJump={jumpToChat} />
+          </QueryBoundary>
 
-        <CommandGroup heading="Go to">
-          {goToSections.map((section) => (
+          <CommandGroup heading="Go to">
+            {goToSections.map((section) => (
+              <CommandItem
+                key={section.id}
+                keywords={[section.label]}
+                onSelect={(): void => jumpToSection(section.id)}
+                value={`goto:${section.id}`}
+              >
+                {section.label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+
+          <CommandGroup heading="Create">
             <CommandItem
-              key={section.id}
-              keywords={[section.label]}
-              onSelect={(): void => jumpToSection(section.id)}
-              value={`goto:${section.id}`}
+              keywords={["new", "chat", "thread"]}
+              onSelect={newChat}
+              value="create:chat"
             >
-              {section.label}
+              <Icon icon={Plus} size="sm" />
+              New chat
             </CommandItem>
-          ))}
-        </CommandGroup>
-
-        <CommandGroup heading="Create">
-          <CommandItem keywords={["new", "chat", "thread"]} onSelect={newChat} value="create:chat">
-            <Icon icon={Plus} size="sm" />
-            New chat
-          </CommandItem>
-          <CommandItem
-            keywords={["new", "character"]}
-            onSelect={newCharacter}
-            value="create:character"
-          >
-            <Icon icon={Users} size="sm" />
-            New character
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </Command>
+            <CommandItem
+              keywords={["new", "character"]}
+              onSelect={newCharacter}
+              value="create:character"
+            >
+              <Icon icon={Users} size="sm" />
+              New character
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </Stack>
   );
 }
 

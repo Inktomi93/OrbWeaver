@@ -75,6 +75,7 @@ export interface VirtualListProps<T> {
   readonly endApproachRows?: number;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
   readonly className?: string;
+  readonly "aria-label"?: string;
 }
 
 const DEFAULT_END_APPROACH_ROWS = 8;
@@ -114,6 +115,7 @@ export function VirtualList<T>({
   onEndApproach,
   endApproachRows = DEFAULT_END_APPROACH_ROWS,
   className,
+  "aria-label": ariaLabel,
 }: VirtualListProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -197,10 +199,13 @@ export function VirtualList<T>({
   }, [scrollToIndex, virtualizer, virtualizer.scrollToIndex]);
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
     <div
       ref={scrollRef}
       className={cn("overflow-auto overscroll-contain", className)}
       data-slot="virtual-list-scroll"
+      role="list"
+      {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
     >
       <div
         ref={virtualizer.containerRef}
@@ -210,6 +215,7 @@ export function VirtualList<T>({
         {virtualItems.map((virtualItem) => (
           // Rows are position:absolute WITHOUT their own main-axis position — directDomUpdates
           // ("position" mode) writes `top` straight to the DOM; setting it here would fight it.
+          // biome-ignore lint/a11y/useSemanticElements: virtualized DOM structure requires divs
           <div
             key={virtualItem.key}
             ref={virtualizer.measureElement}
@@ -217,6 +223,9 @@ export function VirtualList<T>({
             data-lane={lanes === undefined ? undefined : virtualItem.lane}
             data-slot="virtual-list-row"
             className="absolute inset-x-0"
+            role="listitem"
+            aria-setsize={items.length}
+            aria-posinset={virtualItem.index + 1}
           >
             {renderItem(itemAt(virtualItem.index), virtualItem.index)}
           </div>

@@ -4,6 +4,10 @@
 import { createImageAdapter } from "@orb/server/infra/image";
 import sharp from "sharp";
 import { beforeAll, describe } from "vitest";
+import {
+  BANNER_WIDTHS,
+  snapBannerWidth,
+} from "../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
 import { expect, test } from "../../../support/fixtures";
 
 const SRC_WIDTH = 400;
@@ -12,11 +16,19 @@ const VARIANT_WIDTH = 96;
 const PORTRAIT_WIDTH = 200;
 const PORTRAIT_HEIGHT = 300;
 
+// The banner block needs its OWN larger source: the smallest `BANNER_WIDTHS` rung (480) exceeds
+// `pngSource`'s 400px width, and `transform` never enlarges (`withoutEnlargement: true`) — feeding
+// `pngSource` in would silently cap the crop at 400px wide (ratio 2.5:1, not 3:1), a false pass. This
+// source is landscape but NOT 3:1 itself (2:1), so the crop is proven genuine, not a same-ratio no-op.
+const BANNER_SRC_WIDTH = 960;
+const BANNER_SRC_HEIGHT = 480;
+
 const adapter = createImageAdapter();
 
 // A small solid PNG fixture (no metadata) + a JPEG fixture carrying EXIF (the privacy case).
 let pngSource: Uint8Array;
 let jpegWithExif: Uint8Array;
+let bannerSource: Uint8Array;
 
 beforeAll(async () => {
   const base = sharp({
@@ -32,6 +44,19 @@ beforeAll(async () => {
   // biome-ignore lint/style/useNamingConvention: EXIF IFD/tag names are defined by the EXIF spec
   const exif = { IFD0: { Copyright: "orbweaver-test" } };
   jpegWithExif = new Uint8Array(await base.clone().jpeg().withExif(exif).toBuffer());
+
+  bannerSource = new Uint8Array(
+    await sharp({
+      create: {
+        width: BANNER_SRC_WIDTH,
+        height: BANNER_SRC_HEIGHT,
+        channels: 3,
+        background: { r: 30, g: 20, b: 10 },
+      },
+    })
+      .png()
+      .toBuffer(),
+  );
 });
 
 describe("resize → variant", () => {
@@ -102,6 +127,31 @@ describe("portrait crop (width + height + fit:'cover')", () => {
     // 400x300 → width 96 preserves 4:3, never forced to 2:3.
     expect(info.width).toBe(VARIANT_WIDTH);
     expect(info.width / info.height).toBeCloseTo(SRC_WIDTH / SRC_HEIGHT, 5);
+  });
+});
+
+// The banner (3:1) fixed-box smart crop — same proof shape as the portrait block above, against the REAL
+// `snapBannerWidth` (width,height) pair rather than a hardcoded ratio literal.
+describe("banner crop (width + height + fit:'cover')", () => {
+  test("crops a landscape source to the exact 3:1 box (webp)", async () => {
+    const expected = snapBannerWidth(BANNER_WIDTHS[0]);
+    if (expected === undefined) {
+      throw new Error("snapBannerWidth: unreachable for a real BANNER_WIDTHS rung");
+    }
+    // bannerSource is 960x480 (2:1) — a naive resize would never yield the 480x160 (3:1) box; a
+    // cover-crop does.
+    const out = await adapter.transform(bannerSource, {
+      width: expected.width,
+      height: expected.height,
+      fit: "cover",
+      position: "attention",
+    });
+    const info = await adapter.probe(out);
+    expect(info.format).toBe("webp");
+    expect(info.width).toBe(expected.width);
+    expect(info.height).toBe(expected.height);
+    // The 3:1 ratio is exact — derived from the real policy pair, never a guessed `3` literal.
+    expect(info.width / info.height).toBeCloseTo(expected.width / expected.height, 5);
   });
 });
 

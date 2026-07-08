@@ -38,6 +38,7 @@ export { TEST_IDS, testId } from "./test-ids";
 export { timeLib } from "./time";
 export type { TrpcOpLogEntry } from "./trpc-devlog";
 export { formatTrpcOp } from "./trpc-devlog";
+export * from "./use-focus-on-mount";
 export { withViewTransition } from "./view-transition";
 export type { WeaveGlyphProps } from "./weave-glyph";
 export { WeaveGlyph } from "./weave-glyph";

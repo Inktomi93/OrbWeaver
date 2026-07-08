@@ -27,7 +27,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
-// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind the @orb/ui/icons subpath; tsc + vite resolve every glyph + Icon fine (the rail-slots.ts / spinner.tsx precedent).
+// biome-ignore lint/correctness/noUnresolvedImports: biome's resolver stops at the lucide-react re-export chain behind @orb/ui/icons; tsc + vite resolve Search/Users fine.
 import { Icon, Search, Users } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -36,9 +36,10 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useDeferredValue, useState } from "react";
+import { useDeferredValue, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useTRPC } from "#data";
+import { useFocusOnMount } from "#lib";
 import { selectCharacter, setActiveSection, startNewChat, useSelectedCharacterId } from "#state";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCardTile } from "../components/character-card";
@@ -65,7 +66,7 @@ type CharacterLibraryItem = CharacterListPage["items"][number];
  *  INFERRED from the real tRPC proxy return type — explicit args on a subset of the factory's generics
  *  would default the rest instead of inferring them, breaking the `TRPCQueryKey` branding. */
 const useCharacterLibraryCollection = createCollectionSurface({
-  query: (trpc: Trpc, _params: void) =>
+  query: (trpc: Trpc, _params: undefined) =>
     trpc.character.list.infiniteQueryOptions(
       { limit: PAGE_LIMIT },
       {
@@ -113,8 +114,11 @@ export function CharacterLibrarySurface({
   // renders the detail surface in the Characters CONTENT (no section flip — we're already here).
   const openDetail = (id: string): void => selectCharacter(castId<CharacterId>(id));
 
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useFocusOnMount(surfaceRef);
+
   return (
-    <Stack className="h-full min-h-0" gap="block">
+    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="block">
       <Input
         aria-label="Search characters"
         onValueChange={setQuery}

@@ -40,10 +40,12 @@ const ROSTER_STUB = {
     participants: never[];
     anchorPersonaId: null;
     macroNames: ReturnType<typeof makeMacroNameProducer>;
+    personaAvatars: never[];
   } => ({
     participants: [],
     anchorPersonaId: null,
     macroNames: makeMacroNameProducer(),
+    personaAvatars: [],
   }),
 };
 

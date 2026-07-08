@@ -40,6 +40,7 @@ export function SelectField({
       disabled={disabled ?? false}
       name={field.name}
     >
+      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
       <Select
         items={items}
         placeholder={placeholder}

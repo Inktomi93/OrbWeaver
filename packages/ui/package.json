@@ -6,6 +6,7 @@
   "exports": {
     "./accordion": "./src/primitives/accordion/index.ts",
     "./alert-dialog": "./src/primitives/alert-dialog/index.ts",
+    "./aria-announcer": "./src/primitives/aria-announcer/index.ts",
     "./autocomplete": "./src/primitives/autocomplete/index.ts",
     "./avatar": "./src/primitives/avatar/index.ts",
     "./avatar-stack": "./src/primitives/avatar-stack/index.ts",

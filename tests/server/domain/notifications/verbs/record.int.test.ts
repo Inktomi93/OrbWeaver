@@ -25,7 +25,7 @@ import {
 let db: Db;
 let svc: NotificationsService;
 const clock = createFrozenClock();
-const AGENT_REFUSAL = /agent principal/i;
+const AGENT_REFUSAL = /agent principal/iu;
 
 beforeEach(async () => {
   db = await freshDb();

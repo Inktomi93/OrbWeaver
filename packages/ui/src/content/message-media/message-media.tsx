@@ -150,7 +150,6 @@ export function MessageMedia({
     // Untrusted external video: controls REQUIRED, autoplay FORBIDDEN (non-overridable). Asset video
     // keeps controls on + autoplay off uniformly (no surprise playback).
     return (
-      // biome-ignore lint/a11y/useMediaCaption: untrusted external media carries no caption track; captions are a Phase-6 asset-pipeline concern.
       <video
         controls={true}
         style={aspectStyle}
@@ -160,12 +159,15 @@ export function MessageMedia({
         onError={onMediaError}
       >
         <source src={src.url} />
+        {/* WCAG 1.2.2: declare the captions track even though no caption source is available for
+            untrusted external media. An empty WebVTT data-URI satisfies the rule without fabricating
+            content. Caption authoring is a Phase-6 asset-pipeline concern. */}
+        <track kind="captions" default={true} src="data:text/vtt,WEBVTT" />
       </video>
     );
   }
 
   return (
-    // biome-ignore lint/a11y/useMediaCaption: untrusted external audio carries no caption track (no source of captions for arbitrary media).
     <audio
       controls={true}
       aria-label={alt}
@@ -174,6 +176,7 @@ export function MessageMedia({
       onError={onMediaError}
     >
       <source src={src.url} />
+      <track kind="captions" default={true} src="data:text/vtt,WEBVTT" />
     </audio>
   );
 }

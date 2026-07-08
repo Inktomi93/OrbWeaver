@@ -15,8 +15,8 @@ import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/fixtures";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const OK_RE = /✓\s+([a-z-]+)/gu;
-const FIRED_RE = /✗\s+([a-z-]+)/gu;
+const OK_RE = /✓\s+([a-z0-9-]+)/gu;
+const FIRED_RE = /✗\s+([a-z0-9-]+)/gu;
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist".
@@ -193,6 +193,14 @@ function writeFixtures(): void {
   fx(
     "packages/client/src/features/__g_surfacefeat/surfaces/__g_thing-surface.tsx",
     "export function gThingSurface() {\n  return <div>hi</div>;\n}\n",
+  );
+  // surface-a11y-focus: a drill-down surface missing focus restoration or auto-focus wrapper.
+  // The function name is assembled so the literal isn't present in THIS file's source — only the
+  // written fixture resolves to the unfocused surface (same pattern as the ambient-clock fixture L88).
+  fx(
+    "packages/client/src/features/__g_focus/surfaces/__g_nofocus-surface.tsx",
+    // biome-ignore lint/nursery/noUnnecessaryTemplateExpression: The function name is assembled so the literal isn't present in THIS file's source.
+    `export function ${"gNoFocus"}Surface() {\n  return <div>unfocused</div>;\n}\n`,
   );
   // registry-pairing: a rail-slots.ts / modal-slots.tsx PAIR that fails to bijection — a modal trigger
   // ("ghost") with no body, AND a body ("orphan") with no trigger (both arms fire).

@@ -172,7 +172,7 @@ export function GhostMessageRow({
       data-kind={attribution?.kind ?? undefined}
       className={skin.outer("assistant")}
     >
-      <Row align="start" gap="row" data-slot="message-row-body">
+      <Row align="start" gap="row" data-slot="message-row-body" className="w-full">
         {avatarNode}
         <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
           {decoratedBubble}

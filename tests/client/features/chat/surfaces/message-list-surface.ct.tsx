@@ -51,10 +51,12 @@ const ROSTER_STUB = {
     participants: never[];
     anchorPersonaId: null;
     macroNames: ReturnType<typeof makeMacroNameProducer>;
+    personaAvatars: never[];
   } => ({
     participants: [],
     anchorPersonaId: null,
     macroNames: makeMacroNameProducer(),
+    personaAvatars: [],
   }),
 };
 
@@ -128,6 +130,46 @@ test("renders canon, then streams a turn and swaps the ghost for the canonical r
   // The turn completes → listMessages refetches → the assistant reply lands as a canonical row.
   await expect(component.getByText("Hello world")).toBeVisible();
   await expect.poll(() => trpc.count("chat.listMessages")).toBeGreaterThanOrEqual(2);
+});
+
+// The bare START of a turn — turnStarted with NO deltas (the "pending" TTFT phase, before the ghost
+// has any text: `phase === "pending"`, chat-stream.ts). GhostMessageRow shows `<StreamShimmer>` while
+// `held.length === 0` — this drives that path through the REAL ancestor flex chain
+// (MessageListSurfaceStory → @orb/ui/message-list → GhostMessageRow), unlike GhostRowStory's isolated
+// `width: 360` wrapper (_ct-stories.tsx), which hardcodes a width specifically to dodge the flex-
+// collapse-to-0 regression this test guards against (a real row gets its width from the list, not a
+// hardcoded style).
+const TURN_START_ONLY: ChatBusEvent[] = [
+  {
+    type: "turnStarted",
+    chatId: CHAT_ID,
+    intent: "send",
+    api: "chat-completions",
+    source: "openrouter",
+    model: "test-model",
+    speakerCharacterId: null,
+    targetMessageId: null,
+  },
+];
+
+test("pending phase (turnStarted, no deltas yet): the TTFT shimmer renders with REAL rendered width, not collapsed", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, {
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
+    ...ROSTER_STUB,
+  });
+  await routeChatStream(page, { events: TURN_START_ONLY });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  // Canon renders alongside the pending ghost.
+  await expect(component.getByText("Ping?")).toBeVisible();
+  const shimmer = component.getByRole("status");
+  await expect(shimmer).toBeVisible();
+  const box = await shimmer.boundingBox();
+  expect(box?.width).toBeGreaterThan(100);
 });
 
 test("a draft handle shows the empty state and never reads the server", async ({ mount, page }) => {

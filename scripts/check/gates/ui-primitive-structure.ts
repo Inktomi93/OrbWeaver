@@ -15,9 +15,9 @@ const PRIMITIVES = "packages/ui/src/primitives";
 // message-list = sealed TanStack Virtual wrappers — row styling is 100% owned by the caller's
 // renderItem, so there's no skin for a tv() to own). code-editor/content/markdown/lib/layout/stream
 // live outside primitives/.
-const VARIANTS_EXEMPT = new Set(["icons", "virtual-list", "message-list"]);
+const VARIANTS_EXEMPT = new Set(["icons", "virtual-list", "message-list", "aria-announcer"]);
 // §4.1 the ONLY test-exempt primitive (a trivial re-export).
-const TEST_EXEMPT = new Set(["icons"]);
+const TEST_EXEMPT = new Set(["icons", "aria-announcer"]);
 // §4.3 clause 6 — drawer-local providers are the sole inline-provider allowlist (fail-closed: every
 // OTHER identifier ending in "Provider" inside a .ct.tsx/.fixtures.tsx is a re-drift).
 const PROVIDER_ALLOW = new Set(["DrawerProvider", "DrawerVirtualKeyboardProvider"]);

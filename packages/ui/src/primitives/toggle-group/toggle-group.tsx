@@ -20,13 +20,18 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
  *
  * Usage: `<ToggleGroup value={align} onValueChange={setAlign}><Toggle value="left">L</Toggle></ToggleGroup>`
  */
-export function ToggleGroup({ className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...rest }: ToggleGroupProps): ReactElement {
+export function ToggleGroup({
+  className,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledby,
+  ...rest
+}: ToggleGroupProps): ReactElement {
   return (
     <BaseToggleGroup
       data-slot="toggle-group"
       className={cn(toggleGroupVariants(), className)}
-      aria-label={ariaLabel}
-      aria-labelledby={ariaLabelledby}
+      {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
+      {...(ariaLabelledby !== undefined ? { "aria-labelledby": ariaLabelledby } : {})}
       {...rest}
     />
   );

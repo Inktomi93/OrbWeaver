@@ -42,6 +42,28 @@ export function AppShellStory(): ReactElement {
   );
 }
 
+/** `AppShellStory` + a `--width-shell-content`-capped probe in the chats CONTENT slot (the SAME
+ *  `max-w-(--width-shell-content)` utility `chat-landing-surface.tsx`/`composer.tsx` use — real
+ *  production wiring, not a re-implementation of the clamp formula) — for asserting the §11.1
+ *  chatWidthPct root var reaches a real rendered `max-width`, not just the CSS custom property string. */
+export function AppShellWidthProbeStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <AppShell
+        sections={{
+          chats: {
+            content: (
+              <div style={{ width: "100%" }}>
+                <div className="w-full max-w-(--width-shell-content)" data-testid="width-probe" />
+              </div>
+            ),
+          },
+        }}
+      />
+    </CtDataProviders>
+  );
+}
+
 /** The Rail in isolation — a11y + keyboard nav over real <button>s, registry-driven. */
 export function RailStory(): ReactElement {
   return (

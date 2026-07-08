@@ -79,6 +79,7 @@ function LoreBookSelect({ personaId }: PersonaLoreBookFieldProps): ReactElement 
       <Row gap="field" align="center">
         <Icon icon={BookOpen} size="sm" />
         <Select
+          aria-label="Lore book"
           items={items}
           value={current?.id ?? NONE_VALUE}
           onValueChange={onChange}

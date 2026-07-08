@@ -146,6 +146,7 @@ export function PersonaPanelRow({
           </Avatar>
         </Button>
         <input
+          aria-label="Upload avatar file"
           accept="image/*"
           hidden={true}
           onChange={(event): void => {
@@ -164,6 +165,7 @@ export function PersonaPanelRow({
           {editingName ? (
             <Input
               aria-label="Persona name"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus={true}
               onBlur={commitName}
               onClick={(event): void => event.stopPropagation()}
