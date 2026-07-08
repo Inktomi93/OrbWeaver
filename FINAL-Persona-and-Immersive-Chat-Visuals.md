@@ -1,571 +1,297 @@
-# FINAL — Persona build-out + the Moonlit-Echoes steal-and-improve list (immersive chat visuals)
+# FINAL — Persona system (SHIPPED) + Immersive chat visuals (Phase 3–4 spec)
 
 ```
-kind: build-spec   status: authoritative capture (2026-07-07)   author: design session synthesis
-scope: (A) the persona system + its UI home · (B) the message-row/avatar/immersive-mode visual system
-       distilled from SillyTavern "Moonlit Echoes" (reference/upstream/moonlit-echoes) + the neo mockup.
+kind: build-spec + as-built record
+status: PART A (persona) = SHIPPED (2026-07-08, commit 1d8fc88). PART B (immersive) = NEXT, to build.
+scope: (A) the persona system — model + one bottom-left panel — as built · (B) the message-row / avatar /
+       immersive-mode visual system distilled from SillyTavern "Moonlit Echoes" + the neo mockup, for Phase 3–4.
 companion: FINAL-Character-Library-and-Editor-UX.md (character side) · docs …/UI-Theming-and-Content.md §12.
 ```
 
-> Cold-read capture written under low context to preserve a long design session. Everything below is a
-> DECIDED direction unless marked "open". Moonlit's *implementations* are hacky (SillyTavern-extension debt);
-> we steal the **concepts** and rebuild clean in our token-driven / compose-only system — which removes every
-> one of their blockers (see §B.6).
+> **Two halves, two modes.** PART A is a *reference for how the shipped persona system works* — do not rebuild
+> it; read it to understand the model before touching anything that resolves `{{user}}`. PART B is the
+> *unbuilt spec* for the immersive chat visuals (Phase 3 = message-row + avatars, Phase 4 = modes + config +
+> polish). Moonlit's implementations are hacky ST-extension debt; we steal the concepts and rebuild clean in
+> our token-driven / compose-only system (§B.6).
 
 ---
 
-## THE KEYSTONE DEPENDENCY (read first): #67 — the client asset-URL resolver + upload flow
+## PART A — The Persona system  ·  SHIPPED
 
-Nothing in the app renders an **uploaded image** yet — character avatars, persona avatars, and the theme
-`background` asset arm ALL fall back (initials / seeded / external URL) because there's no client asset-URL
-resolver/upload flow. This is **#67 / PD-131**, and it's the single highest-leverage piece: it unblocks
-avatars, persona images, AND background images at once. Everything visual below that involves a user-uploaded
-image is gated on it. Build it first.
+> **READ THIS SECTION before touching any code that resolves `{{user}}`.** It is the one area agents (and
+> humans) reliably get wrong: treating the four persona pointers as one "current persona", or the three
+> `{{user}}` resolution contexts as one. The terms below are LAW — use these exact names, never invent
+> synonyms like "selected persona" or "the persona" unqualified. All of this is BUILT; the model is guarded by
+> `tests/server/domain/chat/persona-resolution.suite.int.test.ts` (6 load-bearing guards proven red-on-break).
 
----
+### A.0 The four persona pointers (memorize; every persona bug is a confusion between two rows)
 
-## PART A — The Persona system
+A user has MANY personas (name + description + avatar). At any moment **four independent pointers** select
+*which* persona applies *where* — four different stores, four different meanings:
 
-> **READ THIS PART SLOWLY. It is the one area agents (and humans) reliably get wrong.** The confusion is
-> always the same: treating the four persona pointers as one "current persona", or treating the two `{{user}}`
-> resolution contexts as one. They are not. This section is written to make that impossible to misread. When
-> you touch persona code, the terms below are LAW — use these exact names, never invent synonyms like
-> "selected persona" or "the persona" unqualified.
+| # | Name (use this term) | What it means, in one sentence | Scope | Orb column |
+|---|---|---|---|---|
+| 1 | **Default persona** | Your "home" identity — the star. A pure SEED for new chats; drives nothing live. | Global, per-user | `seeds.defaultPersonaId` |
+| 2 | **Current persona** | Who you're playing as *right now, globally*. CAN be any persona — not necessarily your Default. Seeds new chats; changing it never touches an open chat. | Global, per-user, live | `seeds.currentPersonaId` |
+| 3 | **Chat persona** | The live `{{user}}` for *this human's lines in THIS chat*. An explicit per-chat override. | Per-chat participant | `chat_participants.activePersonaId` |
+| 4 | **Anchor persona** (the "pin") | The persona that **character-card text** resolves `{{user}}` against — frozen to who opened the chat. | Per-chat | `chats.anchorPersonaId` |
 
-### A.0 The four persona pointers (memorize this table; every persona bug is a confusion between two rows)
-
-A user has MANY personas (saved identities: name + description + avatar). At any moment, **four independent
-pointers** select *which* persona applies *where*. They are stored in four different places and mean four
-different things:
-
-| # | Name (use this term) | What it means, in one sentence | Scope | Orb column | Built? |
-|---|---|---|---|---|---|
-| 1 | **Default persona** | Your "home" identity — the star. A pure SEED for new chats; it *drives nothing live*. | Global, per-user | `seeds.defaultPersonaId` (`contracts/settings/index.ts:335`, in `user_settings.config`) | ✅ |
-| 2 | **Current persona** | Who you are playing as *right now, globally*. CAN be any persona — **not necessarily your Default**. Seeds new chats; changing it never touches an existing chat. | Global, per-user, live | **`seeds.currentPersonaId` — MUST ADD** (next to #1) | ❌ (one field) |
-| 3 | **Chat persona** | The live `{{user}}` for *this human's lines in THIS chat*. An explicit per-chat override. | Per-chat participant | `chat_participants.activePersonaId` (`db/schema/chat.ts:329`) | ✅ |
-| 4 | **Anchor persona** (the "pin") | The persona that **character-card text** resolves `{{user}}` against — frozen to who opened the chat. | Per-chat | `chats.anchorPersonaId` (`db/schema/chat.ts:132`) | ✅ |
-
-(There is also a per-*message* stamp, `messages.personaId` (`db/schema/chat.ts:202`) — it records who authored
-each past user line so history stays correct after a swap. It is a *consequence*, not a control you set.)
+(Plus a per-*message* stamp, `messages.personaId` — records who authored each past user line so history stays
+correct after a swap. A *consequence*, not a control you set.)
 
 ### A.1 THE CENTRAL LAW — `{{user}}` resolves in THREE SEPARATE CONTEXTS
 
-This is the whole thing. `{{user}}` does **not** have one value. It resolves differently depending on **which
-kind of text** it appears in:
+`{{user}}` does **not** have one value. It resolves by **which kind of text** it's in:
 
-- **CARD `{{user}}`** — `{{user}}` written into **character-authored fields** (description, personality,
-  scenario, greetings/first-message, example dialogue, and character-sourced lorebook) → resolves to the
-  **Anchor persona (#4)**. "Who the *character* thinks you are." Frozen at chat-open; does **not** change when
-  you swap who you're playing as.
-- **PROMPT `{{user}}`** — `{{user}}` in the **live generation**: your current turn, generation config, system
-  prompt, injected instructions → resolves to the **Chat persona (#3)** (your current active persona for this
-  chat). "Who is *speaking right now*."
-- **HISTORY `{{user}}`** — `{{user}}` (and the name + avatar attribution) of **every message ALREADY in the
-  chat** → resolves to **that row's OWN `messages.personaId` stamp**, NOT your current persona. A line authored
-  as Nate stays Nate's *forever*, even after you swap to Steve. This is the **attribution axis** — it makes
-  past history correct per-line after any switch.
+- **CARD `{{user}}`** (character-authored fields — description, personality, scenario, greetings, examples,
+  char lorebook) → the **Anchor persona (#4)**. "Who the *character* thinks you are." Frozen at chat-open.
+- **PROMPT `{{user}}`** (live generation — your current turn, gen config, system prompt, injected instructions)
+  → the **Chat persona (#3)**. "Who's *speaking right now*."
+- **HISTORY `{{user}}`** (every message ALREADY in the log — plus its name+avatar attribution) → **that row's
+  own `messages.personaId` stamp**, not your current persona. A line authored as Nate stays Nate's forever.
 
-> **One-line test for any agent:** *"Where is this `{{user}}`?"* → **character-author's text** = Anchor (#4);
-> **the live turn being generated** = Chat persona (#3); **a message already in the log** = that row's own
-> `personaId` stamp. Those three questions resolve every persona case correctly.
+> **One-line test:** *"Where is this `{{user}}`?"* → character-author's text = Anchor (#4); the live turn =
+> Chat persona (#3); a message already in the log = its own `personaId` stamp.
 
-**All three are ALREADY WIRED and canon-correct — do not rebuild:**
+**How it's wired (all correct — do not rebuild):**
 - Card vs Prompt: `AssembleContext` carries both `pinnedPersona` (= Anchor) and `activePersona` (= Chat
-  persona) (`contracts/chat/index.ts:281-283`); `assemble.ts` feeds card-derived sections `pinnedPersona` and
-  user-authored sections `activePersona` (`context.ts:389-390`).
-- **BOTH `{{user}}` AND `{{persona}}` ride the SAME routed persona object** — `macroOptionsFor` maps
-  `persona.name → {{user}}` and `persona.description → {{persona}}` off the one section-appropriate persona
-  (`macros.ts:95-96`). So a card that uses `{{persona}}` (the persona DESCRIPTION) resolves the **Anchor**
-  persona's description too, not the current one — orb pins the whole persona object, not just a name string.
-  (Contrast: your PersonaPin extension only string-replaced `{{user}}` in card fields, leaking the *current*
-  description through `{{persona}}`; base ST has no pin at all. Orb is strictly ahead — the pinned description
-  is already correct, no invention needed.)
-- History: **storage is RAW, resolved at consumption** (`kit/macro/row-macros.ts` §0 — *"storage is RAW,
-  never mutated; resolution happens at CONSUMPTION"*). `resolveRowMacros` (`row-macros.ts:76-97`) resolves
-  each row's `{{user}}`/`{{char}}`/`{{persona}}` against **its own** `characterId`/`personaId` stamp; the
-  row's stamp wins, the current persona is only the null-stamp fallback (`:86-87`). The **SAME atom** is
-  called by server-assemble AND client-display, so what you see == what the model gets.
+  persona) (`contracts/chat/index.ts`); `assemble.ts` feeds card-derived sections `pinnedPersona`, user-authored
+  sections `activePersona` (`assembly/context.ts`).
+- **BOTH `{{user}}` AND `{{persona}}` ride the SAME routed persona object** (`macroOptionsFor` maps
+  `persona.name → {{user}}`, `persona.description → {{persona}}`, `assembly/macros.ts`). So card `{{persona}}`
+  resolves the ANCHOR's *description* too — orb pins the whole persona object, not just a name. (PersonaPin only
+  string-replaced `{{user}}`; base ST has no pin at all. Orb is strictly ahead.)
+- History: **storage is RAW, resolved at consumption** (`kit/macro/row-macros.ts` §0). `resolveRowMacros`
+  resolves each row against its OWN stamp (row wins; current persona is only the null-stamp fallback); the SAME
+  atom runs server-assemble AND client-display, so what you see == what the model gets.
 - Canon writes: send stamps `messages.personaId` = explicit ?? the acting participant's active persona
-  (PD-100, `turn.ts:317,498`); avatars on old rows follow the frozen stamp too (`roster-avatars.ts:9`).
-  **Swapping current/anchor never rewrites history.** The ONLY deliberate history-restamp is
-  `reattributePersona` (`edit.ts:638`, author-or-host per-row) — the escape hatch.
+  (PD-100); avatars on old rows follow the frozen stamp too. **Swapping current/anchor never rewrites history.**
+  The only deliberate history-restamp is `reattributePersona` (author-or-host per-row) — the escape hatch.
 
-This is exactly the neo-tavern behavior; all three contexts are wired and correct. The persona lane's job is
-the CLIENT UI + the small gaps (A.5/A.6b), NOT reimplementing resolution.
+### A.2 The canonical worked example (the acceptance test — guarded in the suite)
 
-### A.2 The canonical worked example (this is the acceptance test — build to it)
-
-> Default persona (#1) = **Nate**. You open a chat with the character **Mary**, whose card description contains
-> *"`{{user}}` is my brother."* You start the chat as Nate, so the **Anchor (#4)** is stamped **Nate** and the
-> **Chat persona (#3)** is **Nate**.
+> Default (#1) = **Nate**. Open a chat with **Mary**, whose card says *"`{{user}}` is my brother."* You start as
+> Nate → Anchor (#4) = Nate, Chat persona (#3) = Nate. Card `{{user}}` = Nate, Prompt `{{user}}` = Nate.
 >
-> - Right now: Mary's CARD `{{user}}` = **Nate** ("Nate is my brother"); PROMPT `{{user}}` = **Nate**.
+> Mid-story you kill Nate and swap to **Steve** (Current #2 → Steve, this chat's Chat persona #3 → Steve). Now:
+> Mary's CARD `{{user}}` is **STILL Nate** (the established "brother" — Mary isn't told "Steve is my brother");
+> PROMPT `{{user}}` = **Steve**; **Nate is still your Default**; past Nate messages stay Nate.
 >
-> Mid-story you kill off Nate and swap to a new persona, **Steve**. You change your **Current persona (#2)**
-> to Steve and set this chat's **Chat persona (#3)** to Steve.
->
-> - Now: Mary's CARD `{{user}}` is **STILL Nate** (Anchor unchanged — "Nate is my brother" remains the
->   established fact; Mary is not told "Steve is my brother"). PROMPT `{{user}}` = **Steve** (your live turns
->   are Steve). **Nate is still your Default (#1).** Past messages that were authored as Nate **stay Nate**
->   (their `messages.personaId` is frozen) — swapping never rewrites canon.
->
-> The point of the Anchor: Mary keeps *knowing you as* Nate, while Steve is *the one currently speaking*. The
-> system holds those as two distinct identities on purpose. Steve is never made to masquerade as Nate.
+> **Brown-hair corollary:** Nate's persona description ("my hair is brown") lives only in a live injection, never
+> stored. Naive active-only injection would drop it on the swap → Mary forgets her brother's hair. The
+> both-personas rule (A.1) keeps the ANCHOR's description injected as card-context, so Mary retains it. Re-pin
+> the anchor to Steve → the relationship *transfers* ("Steve is my brother") and Nate's context drops.
 
 ### A.3 Precedence — a SEED chain resolved ONCE at chat-open (not a live fallback)
 
-When a chat is created, orb resolves the initial pointers ONE TIME:
+`Anchor (#4) / Chat persona (#3) at chat-open = explicit choice ?? character-connected persona ?? Current (#2)
+?? Default (#1)` (`start-chat.ts`). After chat-open the chat holds its own concrete ids — which is why changing
+global Current/Default later never disturbs an open chat. Per-chat changes (set Chat persona #3, re-pin Anchor
+#4) happen inside that chat and affect only it.
 
-```
-Anchor (#4) / Chat persona (#3) at chat-open  =  explicit choice  ??  character-connected persona  ??  Current (#2)  ??  Default (#1)
-```
+### A.4 The traps — "these are NOT the same thing"
 
-(`start-chat.ts:406-414`; today the tail is `?? Default` — extend it to `?? Current ?? Default` when #2 lands.)
+- **Current (#2) ≠ Default (#1).** Play as Steve while Nate stays your home/star.
+- **Current (#2, global) ≠ Chat persona (#3, per-chat).** The panel's global swap does not silently mutate an
+  open chat; the "This chat:" control does.
+- **Anchor (#4) ≠ Chat persona (#3).** Anchor drives CARD `{{user}}` (frozen); Chat persona drives PROMPT
+  `{{user}}` (live). A mid-chat swap changes Chat persona, leaves Anchor alone.
+- **Anchor is orb's invention** (from Nate's `SillyTavern-PersonaPin`; base ST has no card-vs-prompt split). Do
+  NOT "simplify" orb to match ST. And do NOT copy PersonaPin's DOM-hack mechanism — orb owns assembly and
+  resolves card `{{user}}` → Anchor cleanly, mutating nothing.
+- **Both-personas on a swap:** when Anchor ≠ active, BOTH descriptions inject — active in its prompt slot (its
+  own `descriptionPosition`), anchor as a framed card-context block — each macro-resolved against ITS OWN
+  persona (no `{{user}}` cross-contamination). `anchor == active` → one block, byte-identical (regression-tested).
 
-After chat-open, the chat holds its **own concrete** Anchor and Chat-persona ids. **This is why changing your
-global Current (#2) or Default (#1) later never disturbs an already-open chat** — the chat already froze its
-own pointers. Per-chat changes (setting Chat persona #3, re-pinning Anchor #4) happen inside that chat and
-affect only it.
+### A.5 The UI — ONE bottom-left account + persona panel (as built)
 
-### A.4 The traps — "these are NOT the same thing" (each bullet is a real past confusion)
+Everything persona-manage lives in **one panel** off the rail-foot chip (`features/persona/`, route-injected
+into a new app-shell rail-foot slot — the mock-neo bottom-left profile concept, finished). No separate
+Settings→Personas pane, no in-chat picker, no `whoami`, no dual home.
 
-- **Current persona (#2) ≠ Default persona (#1).** Your Default is your star/home; your Current is who you're
-  playing as this moment. You can play as Steve while Nate stays your Default. Do not collapse them.
-- **Current persona (#2, global) ≠ Chat persona (#3, per-chat).** The rail-foot chip sets your *global* Current.
-  The *in-chat* picker sets *this chat's* Chat persona. Switching the global chip must **not** silently mutate
-  an open chat's Chat persona.
-- **Anchor (#4) ≠ Chat persona (#3).** Anchor drives **card** `{{user}}` (frozen); Chat persona drives
-  **prompt** `{{user}}` (live). A mid-chat swap changes Chat persona but leaves Anchor alone.
-- **Anchor (#4) is orb's invention** (from Nate's `SillyTavern-PersonaPin` extension — see
-  `reference/upstream/SillyTavern-PersonaPin`). Base SillyTavern has **no** card-vs-prompt split — one persona
-  drives all `{{user}}`. Do not "simplify" orb to match ST; the split is deliberate and load-bearing.
-- **Do NOT copy PersonaPin's implementation.** PersonaPin is a SillyTavern *extension*, so it had to hack the
-  DOM: back up the character object, string-replace `{{user}}` in it before each generation, and restore it
-  after (`reference/upstream/SillyTavern-PersonaPin/src/index.ts:93-175`). That jank exists **only** because
-  an extension can't touch prompt assembly. Orb **owns** assembly and resolves card `{{user}}` → Anchor
-  cleanly at build time, mutating nothing. Port the *concept*, never the mechanism.
+- **Account strip:** current identity + a working **Log out** (`POST /api/auth/logout`). *(The identity
+  *display* — username/avatar — is the one deferred bit → auth #50; log-out already works.)*
+- **"Playing as" header + ＋New persona.**
+- **Persona list** — each row `avatar · name · note`; inline actions on the SAME row (message-actions reveal
+  pattern, dim→brighten on hover): **★ set-Default (#1)** · **edit** · **delete**. Click the row body = set
+  **Current (#2)**. Current shows a check, Default a crown.
+- **Edit = expand the row in place** (accordion) → the full editor: every field — `name`, `title` (never
+  prompt-injected), `description` (macro-aware + token count + Streamdown preview), `avatarAssetId` (upload),
+  `descriptionPosition` select + `inject.depth`/`role` (disabled unless `at_depth`; assistant@0 guard), the
+  provenance chip, connected world-books — + duplicate / export / import.
+- **"This chat:" section** (renders only when a chat is active — reads `state/active-chat-store`): set the
+  per-chat persona (#3), host re-pin the anchor (#4), reattribute. Backed by two small server touches:
+  `setActivePersona.targetUserId` optional (defaults to caller) + `ChatDetail.viewerActivePersonaId` /
+  `viewerIsHost` / `viewerUserId`.
+- **Global settings footer:** `showNotifications` (persona-switch toast).
 
-### A.5 What's already built vs. the real gaps
+**Model parity note:** this is ST's persona-panel-does-per-chat pattern (their Default / Character / Chat
+connection scopes, toggled from the panel), minus ST's `this_chid` ambient coupling (we read the shared store),
+plus the anchor. ST's **Character** lock (connect a persona to a character — `connectToCharacter`, the
+`character_personas` junction) is the one scope not yet surfaced in the panel; add it to the panel or the
+character editor when wanted.
 
-**Already built server-side (~90% — do NOT rebuild, verified in code):**
-- The two-context split (A.1) — `assemble.ts` / `context.ts:389-390`.
-- Pointers #1/#3/#4 + the message stamp (table in A.0).
-- The chat-open seed chain (A.3, `start-chat.ts`).
-- `reattributePersona` verb — **already built** (`chat.ts:375`, `edit.ts:638-727`): re-stamps past user
-  messages' authorship to a chosen persona. *(The doc `Chat-Macro-Resolution.md:87-89` calls it "to build" —
-  that line is STALE; fix it.)*
-- All 10 persona tRPC verbs (`transport/trpc/routers/persona.ts`), incl. `setActivePersona(chatId,
-  targetUserId, personaId)` (host-or-self gated), `connect/disconnectFromCharacter`, `createFromCharacter`.
-- `PersonaDetail` view already joins `avatarHash` — so persona avatars render via `blobUrl` the instant #67
-  lands.
+### A.6 What shipped (Phase 2, commit 1d8fc88) — do NOT rebuild
 
-**The gaps to build:**
-1. **DATA (tiny): add the Current persona field (#2)** — `seeds.currentPersonaId` in `seedsSchema`
-   (`contracts/settings/index.ts:332-341`), same lenient `z.string().nullable().catch(null).default(null)`;
-   it rides `user_settings.config` + the settings-lift machinery for free. Extend the seed chain (A.3).
-2. **VERB (small): a host/manual re-pin for the Anchor (#4).** Today Anchor is set at chat-open and by presets.
-   Nate wants to **manually change it mid-chat**, and in a **multi-human group the HOST picks the Anchor and
-   can freely change it** (`humanCount > 1` — a roster derivation, never `if(isGroup)`, D16). Confirm whether a
-   user-facing `setChatAnchorPersona` verb exists; if not, add one (host-gated, mirroring `setActivePersona`'s
-   author-or-host gate).
-3. **CLIENT (the bulk): the entire persona UI** — `features/persona/` is an empty `.gitkeep`. Build the
-   rail-foot switcher, the Settings→Personas manage pane, and the in-chat persona picker (A.6).
+- **Server/contracts:** `seeds.currentPersonaId` (#2) + the extended seed chain; `setChatAnchorPersona`
+  (host-gated re-pin); `setActivePersona` self-default; viewer-scoped `ChatDetail` fields; the persona
+  **description-placement wiring** into the existing `assembly/injections.ts` system (`at_depth` → a
+  `ChatInjection`, `in_prompt` → `{{persona}}`, `none` → skip); the **both-personas card/prompt injection**
+  (+ the `personaMarkerActive` double-emit fix it caught); `persona.duplicate`/`export`/`import`; the
+  `showNotifications` setting. (`reattributePersona`, `connectToCharacter`, persona↔worldbook link, the two
+  `{{user}}` contexts, and `PersonaDetail.avatarHash` were already built pre-Phase-2.)
+- **Client:** the whole `features/persona/` slice (panel surface + `persona-panel-row` + `persona-editor` +
+  `persona-this-chat-section` + `persona-world-books-section`, hooks, lib) + `forms/bound-fields/macro-field.tsx`
+  + the app-shell `railFoot` slot + `home-page` wiring. Route-composed; zero feature→feature imports.
+- **Guard:** `persona-resolution.suite.int.test.ts` (the 4 worked examples + card-`{{persona}}`→anchor +
+  canon-freeze; 6 guards proven red-on-break).
 
-### A.6 The switcher UX — the rail-foot chip (make it FUCK; the mockup had the bones, not the wiring)
+### A.7 Deferred / follow-ups (tracked)
 
-> **CONSOLIDATED DESIGN (owner's clarified call — SUPERSEDES the "three surfaces / Settings→Personas pane"
-> split below).** Everything persona-manage lives in **ONE bottom-left panel** off the rail-foot chip — the
-> mock-neo profile concept, finished into a real management surface. There is NO separate Settings→Personas
-> editor pane. The panel:
-> - **Header:** current identity ("playing as X") + "＋ New persona".
-> - **Persona list:** each row = `avatar · name · note`, with INLINE actions on the SAME row following the
->   message-actions reveal pattern (dim-at-rest → brighten on hover, `pointer:coarse` always-on;
->   `features/chat/lib/message-actions-reveal.ts`): ★ set-default (immediate `defaultPersonaId`), edit, delete,
->   more. Click the row body = set CURRENT (`currentPersonaId`).
-> - **Edit = EXPAND THE ROW IN PLACE** (accordion, progressive disclosure): the full editor form (every §A.6b
->   field) renders inline in the expanded row; collapse to return to the list. (Common fields inline + an
->   "Advanced" disclosure for depth/lorebooks if it's too tall.)
-> - Primitive: a generously-sized inline `<Popover>` (Discord account-panel energy) — or a `<Drawer>` via a
->   `features/persona/anchors/` provider if it needs the room (surface purity rule 7). All in `features/persona`.
-> - **NO separate in-chat picker (owner's final call — ONE home).** The per-chat persona is handled BY THE
->   PANEL, reacting to the active chat: the panel reads `state/active-chat-store.ts` (the below-features shared
->   seam, §5.1) and, when a chat is open, shows a **"This chat:"** section — set the per-chat active persona,
->   the anchor display + host re-pin, reattribute. NO `whoami` verb: two tiny natural server touches instead —
->   (1) `setActivePersona.targetUserId` becomes optional, defaulting to the caller (self-case), (2) the chat
->   view surfaces `viewerActivePersonaId` + `viewerIsHost` (server populates from the principal). The account
->   IDENTITY display (username/avatar) is the only truly-deferred bit → auth #50 (log-out already works).
->
-> The prose below is the earlier three-surface framing — retained for the field/scope detail it still carries,
-> but the HOMING is now the one-panel design above (no settings pane, no `SettingsShell` panes slot).
+- **Account identity display + OIDC + session management** → auth feature #50 (task #19). `viewerUserId` is on
+  the wire now (kept — a benign own-id passthrough) so reattribute can filter your own messages.
+- **CSRF on `POST /api/assets/upload`** (task #16) — auth-gated only today; low severity.
+- **Cast-producer unification** (task #17, §A.8) — lands WITH agent-principal (D60).
+- ST's **Character** persona-lock scope in the panel (above). `reattribute` currently scopes to the recent 100
+  messages (no server bulk resolver) — widen with a server-side "restamp mine" mode if wanted.
 
-Three surfaces, each owning exactly one scope so nothing is ambiguous:
+### A.8 The avatar/name producer "smell" — fix lands WITH agent-principal (D60)
 
-- **Rail-foot chip (`app-shell/components/rail.tsx:70-77`, registry-render via `rail-slots.ts:122` — replace
-  the static `CircleUser`/placeholder `account` modal).** This chip owns your **GLOBAL identity**, nothing
-  per-chat.
-  - **Rest:** your **Current persona (#2)** avatar (real, via `avatarHash`) + name + a quiet "playing as" line.
-    If Current (#2) ≠ Default (#1), show a subtle star-off hint so *"you're on Steve, home is Nate"* reads at a
-    glance.
-  - **Click → compact POPOVER** (not a modal — Discord account-switcher energy): an avatar grid/list of your
-    personas; the Current one checked, the Default one star-badged. Click a tile → sets **Current (#2)** (a
-    settings patch). **This changes what NEW chats seed as; it does NOT mutate any open chat.** Row secondary
-    action = **star** → set that persona as **Default (#1)**. Footer: **"Manage personas"** → the editor (next
-    bullet). Only when a chat is open, an **explicit** secondary item *"Use in this chat"* may set the open
-    chat's **Chat persona (#3)** — never the default behavior of the click.
-- **Settings → USER → Personas** (`settings-nav.ts:70`, currently `built:false`) — the **manage/editor** home
-  (per `proposed/ux-flow-revamp.md:341-343`; the rail chip is a *quick card that links here*, not the full
-  editor). Port the mockup's `PersonaDialog` master-detail layout (`reference/design/` — list + detail: name,
-  description + token count, insertion position + depth → `PersonaMetadata.descriptionPosition`/`inject{depth,
-  role}`, a **Default toggle** wired to `defaultPersonaId`, connected lorebooks) — **but WIRE the controls the
-  mockup left dead** (it hardcoded `"Aldric"`, wrote only local `useState`, and every handler was a no-op).
-  Uses `createSavedEntityForm` + the Phase-1 avatar-upload field.
-- **In-chat persona picker** (composer / chat options menu) — sets **this chat's Chat persona (#3)** via
-  `setActivePersona`. This is the ONLY control that changes an open chat's live `{{user}}`. Anchor (#4) is
-  surfaced here too but mostly **read-only** ("card sees you as: Nate") with an advanced **re-anchor** action
-  (the host control in groups). A **"reattribute past messages"** action wires to the built `reattributePersona`
-  verb.
-
-### A.6b COMPLETENESS MANDATE — surface EVERY field, option, setting, and action (do not abandon any)
-
-The persona editor is held to the full cold-read bar: **every** field in the persona contract, **every** depth/
-insertion option, **every** relevant global persona setting, and **every** persona action from SillyTavern's
-persona window (and actual-neo's) must have a clean, deliberate home. A builder that ships name+avatar+description
-and drops the rest has built it WRONG. Non-negotiable specifics:
-- **All contract fields** (`contracts/persona/index.ts` — `createPersonaSchema`/`updatePersonaSchema`/
-  `personaMetadataSchema`): `name`, `title` (display subtitle, never prompt-injected), `description`, `starred`,
-  `avatarAssetId`, and the metadata block below. Nothing stored is left uneditable/unshown.
-- **The depth / insertion options (the ones most often dropped):** `descriptionPosition`
-  (`PERSONA_DESCRIPTION_POSITIONS` from `@orb/kit/persona` — every member gets a labelled Select option) and
-  `inject = {depth, role}` (a depth number field + a role Select). These control WHERE and HOW DEEP the persona
-  description injects. They are first-class editor controls, not hidden advanced cruft.
-- **Global persona settings** (e.g. `seeds.defaultPersonaId`, the new `seeds.currentPersonaId`, plus any
-  ST-parity globals worth porting) get a home in Settings→Personas alongside the list.
-- **Every persona action** from ST's persona window + actual-neo's (create/duplicate/rename/delete, set-default,
-  connect-to-character, reattribute, set/change avatar, import/export, sort/search, …) maps to an orb verb
-  (most already exist) and a control in one of the three surfaces (A.6). Actions with no backing verb are flagged
-  gaps, not silently skipped.
-
-> **PORT REFERENCE — actual-neo already has a full persona UI.** `reference/neo-tavern/src/client/features/
-> persona/` contains a working persona feature: `persona-list-surface.tsx` (search/sort/grid-list/pagination),
-> `persona-editor-surface.tsx` (rename/describe/star/avatar/delete/duplicate), `persona-description-placement.tsx`
-> (position + depth + role controls), `persona-world-books-section.tsx`, `create-persona-dialog.tsx`,
-> `character-convert-to-persona-dialog.tsx`, `character-connected-personas-dialog.tsx`, and hooks
-> `use-default-persona.ts` / `use-persona-backup.ts` / `use-persona-reattribute.ts` /
-> `persona-usage-stats-dialog.tsx`. **Study neo's persona feature first — it's our predecessor's real
-> implementation of most of this.** Port its structure to orb's 4-region shell + primitives; do not re-derive.
-
-#### The exhaustive inventory (Phase-2 must check off EVERY row — ship nothing until each has a home)
-
-**Contract fields** (`contracts/persona/index.ts`) — all editable/shown:
-
-| Field | Control | Home | Backing |
-|---|---|---|---|
-| `name` (req), `title` (nullable, **never prompt-injected**), `description` (≤100k) | text · text · textarea+token-count | EDITOR | `persona.update` ✓ |
-| `starred` | switch | EDITOR + inline list toggle | `persona.update` ✓ |
-| `avatarAssetId` | avatar-upload | EDITOR | `persona.update` + Phase-1 upload field |
-| `metadata.descriptionPosition` | select (3 members, below) | EDITOR "Prompt injection" | `persona.update` — **assembler UNWIRED (gap #1)** |
-| `metadata.inject.depth` / `.role` | number · select (system/user/assistant) | EDITOR (disabled unless `at_depth`) | `persona.update` — **assembler UNWIRED (gap #1)** |
-| `metadata.sourceCharacterId` / `swapMacros` | read-only "Provenance" chip (card-minted only) | EDITOR | view-only from `PersonaDetail` |
-| `id`/`avatarHash`/`createdAt`/`updatedAt`/`ownerId` | not user-facing | — | derived; never surface `ownerId` |
-
-**The depth options (the ones NOT to drop):**
-- `PERSONA_DESCRIPTION_POSITIONS = ["none","in_prompt","at_depth"]` (`kit/persona/index.ts:24`). `in_prompt`
-  (default) = preset persona slot; `at_depth` = splice into history at `{depth,role}`; `none` = not injected.
-  **NOTE (already-decided reduction, informational):** orb deliberately dropped ST's `TOP_AN`/`BOTTOM_AN`
-  (5→3) — AN-anchoring is subsumed by `at_depth` (kit comment `:12-15`). Not a UI omission.
-- `inject = {depth, role}` (`kit/injection/index.ts:30-33`): `role` ∈ system/user/assistant (default system);
-  `depth` = messages-back from history end (default 2). **WRITE GUARD to mirror in UI:** `role="assistant" +
-  depth=0` is rejected (prefill) — disable/warn, don't submit.
-
-**Global persona settings:**
-| Setting | Verdict | Home |
-|---|---|---|
-| `seeds.defaultPersonaId` (✓ exists) | surface it (crown/star) | EDITOR header + SWITCHER |
-| `seeds.currentPersonaId` (MUST-ADD #2) | the rail-foot chip's pointer | SWITCHER |
-| `persona_show_notifications` (ST) | **port** (generic toggle) — new UserSettings field | EDITOR global footer |
-| `persona_sort_order` (ST) | **port** (trivial) — client pref or field | EDITOR list sort |
-| `persona_auto_lock` (ST) | **maybe** — needs a per-chat-persist design call | EDITOR global footer |
-| `persona_allow_multi_connections` (ST) | **skip** — ST cruft (ambiguous-connection popup); orb junction is unconditional M:N | — |
-
-**The 3 UI surfaces:** **[EDITOR]** Settings→USER→Personas master-detail (`settings-nav.ts:70`, build it) ·
-**[SWITCHER]** rail-foot popover (new rail slot) · **[PICKER]** in-chat per-chat picker (`chat-options-menu.tsx:3`
-flags it unbuilt).
-
-**Actions (ST∪neo union) → orb verb:** create/remove/update/rename/star (✓ verbs), createFromCharacter (✓,
-has swapMacros), connect/disconnect/listConnectedToCharacter (✓), setActivePersona (✓, per-chat #3, `null`
-clears), reattribute (✓ `chat.reattributePersona`), usage-stats (✓ `stats.personaUsage`), default (✓ settings
-write). Client-only: search/sort/grid-list/pagination.
-
-**THE 6 BUILD GAPS (build them, don't skip):**
-1. **CONNECT `descriptionPosition`/`inject` to the EXISTING injection system** (not a build — a wire). The
-   depth machinery already exists and is battle-tested: `assembly/injections.ts` is *"the ONE positional-
-   injection model"* (`frameInjection` + `spliceInChatInjections`), the same path world-info and every
-   at-depth injection flow through, keyed on `ChatInjection {position, depth, role, order, content}`. Persona
-   placement just isn't connected to it yet (`resolvePersonaDescriptionPlacement`, `kit/persona/index.ts:53`,
-   has zero call sites). Wire it:
-   - `at_depth` → emit the description as a `ChatInjection {position:"in_chat", depth, role, content}` into the
-     SAME pool world-info feeds (`assembly/world-info/pool.ts`) → the existing splice places it. Do NOT
-     reimplement depth injection.
-   - `in_prompt` → the description rides the prompt constructor as `{{persona}}`, which `macros.ts:96` ALREADY
-     resolves to `persona.description`. Little/no new code.
-   - `none` → not injected (match ST).
-   - Respect the assistant+depth-0 write-guard (the splice normalizes assistant@0→depth1).
-   This is the highest-value gap (the depth options are inert until connected) but it's small — reuse, don't build.
-   **BOTH-PERSONAS context rule (decided — the pinned-swap case). The two personas inject into two DIFFERENT
-   context slots, matching the `{{user}}` card-vs-prompt split — NOT both at prompt time.** With a pin, the
-   card's relationships are built around the ANCHOR ("Nate is my brother"), but after a swap the current speaker
-   is someone else (Steve). Inject only the active → the character has no context on who Nate (its brother) is;
-   inject only the anchor → it doesn't know the current speaker. So inject BOTH, but in the slot each one's
-   ROLE belongs to:
-   - **ACTIVE persona (current speaker) → PROMPT-context**, via ITS OWN `descriptionPosition`/`inject`
-     (`in_prompt` = the `{{persona}}` slot; `at_depth` = a `ChatInjection`). This is the "who's speaking now"
-     block — the *prompt-time* one.
-   - **ANCHOR persona (established card `{{user}}`, only when `anchor personaId != active personaId`) →
-     CARD-context**, injected WITH the card-derived sections (the `pinnedPersona` card-source path in
-     `assembly/context.ts`), framed as the established/known identity ("the person the character knows as
-     `{{user}}` is Nate: …"). It does **NOT** ride the anchor's own `descriptionPosition` — that setting is the
-     anchor persona's *prompt-time* preference for when IT is the active speaker, the wrong role here.
-   - **Each description is macro-resolved against ITS OWN persona** — a persona description self-references with
-     `{{user}}` (ST-style "`{{user}}` is a 30yo engineer"), so the anchor's `{{user}}`/`{{persona}}` → the
-     ANCHOR's name/description and the active's → the ACTIVE's, via `renderMacros(desc, ctx, thatPersona)` (the
-     same source-routed seam world-info uses). Resolving both against one global persona would render "Steve is a
-     doctor" from Nate's description — exactly wrong.
-   - **Dedup:** `anchor == active` (no swap, the common case) → NO separate anchor block; the active injection is
-     the only one, **byte-identical to the single-persona behavior** (regression test). `descriptionPosition ==
-     "none"` on a persona → that persona's description injects in NEITHER role.
-   The anchor's description otherwise reaches the model ONLY if the card text happens to use `{{persona}}` —
-   insufficient, since most cards don't. (A future toggle can suppress the anchor's card-context block for a
-   "truly gone" narrative; the default is include-for-context.)
-2. `persona.duplicate` verb (neo has the UX; orb has no verb).
-3. `persona.export` / `persona.import` (backup/restore) verbs.
-4. Persona↔lorebook link verb (persona-bound world books).
-5. Persona description token-count (verb or client estimator).
-6. New UserSettings: `persona_show_notifications` (+ optionally `persona_sort_order`, `persona_auto_lock`).
-
-### A.7 Build order
-1. **#67** (Phase 1, images) — prerequisite for any persona/character avatar `src`.
-2. `seeds.currentPersonaId` field (#2) + seed-chain extension; the `setChatAnchorPersona` verb if missing.
-3. `features/persona/` client slice — rail-foot switcher popover + Settings→Personas editor. Reuse
-   character-editor patterns; consume the Phase-1 avatar-upload field.
-4. In-chat persona picker (Chat persona #3) + read-only Anchor display + re-anchor/reattribute actions.
-5. Wire message-row `Avatar` `src` for character AND persona rows (auto-unblocked by #67).
-6. (Later/optional) per-persona theme override; the mirrored-right user-message layout (§B.3).
-
-### A.7b CLIENT-STRUCTURE conformance (the `client-structure` gate is LAW — 2B must obey it)
-
-`scripts/check/gates/client-structure.ts` enforces the `features/persona/` shape the moment it holds real code:
-- **Front door:** `features/persona/index.ts`; the feature name `persona` is legal (mirrors `domain/persona`).
-- **Buckets ONLY** `{surfaces, anchors, components, hooks, lib}` — nothing else, nothing loose at the root
-  (only `index.ts` + `*.md`). Each bucket is a **containment ROLE (§4)**, not just a folder:
-  - **`surfaces/`** = `@container` CONSUMERS — placeable panes that take **NO layout-context props**
-    (no `compact`/`inDrawer`/`density`; they adapt to whatever container they're dropped into via `@container`
-    queries — "build once, place anywhere"). Persona: `persona-manage-surface.tsx` (the Settings→Personas
-    master-detail pane).
-  - **`anchors/`** = containment PROVIDERS (establish `container-type`+`container-name`; also the home of any
-    outer `<Dialog>/<Drawer>` so surfaces stay pure). Persona: **likely NONE** — the switcher is an inline
-    `<Popover>` and the editor is a pane, not a modal.
-  - **`components/`** = leaf building blocks composed inside surfaces (the rail-foot chip, the quick-swap
-    popover, the persona list-row/card, the editor fields).
-  - **`hooks/`** = `use-*` logic · **`lib/`** = pure functions (no JSX). One feature-root `index.ts` front door;
-    no per-bucket index, no per-surface subfolders.
-- **STATE homing (UI-Arch §5/§5.1 — get this right; the character doc got it wrong):**
-  - **Server state is NEVER Zustand** — it's TanStack Query + tRPC. So **current/default persona**
-    (`seeds.currentPersonaId`/`defaultPersonaId`), **per-chat active** (`setActivePersona`), and **anchor**
-    (`setChatAnchorPersona`) are all SERVER STATE: read via `useGatedQuery`/the settings query, write via
-    `createEntityMutation` / `updateUserSettingsSection`. NOT a store.
-  - **Zustand stores are top-level `packages/client/src/state/…-store.ts`, FLAT** (never a feature bucket) and
-    obey `state:files` (one `create(` per file, ≤10 fields, no exported `set`/`getState`, `persist({name})`).
-    An existing `state/character-selection-store.ts` already exists — reuse existing shell/selection stores, do
-    not mint duplicates.
-  - **View state is local `useState`** (popover open, editor master-detail selection); list search/filter uses
-    `useDeferredValue` (§4a), not a store. **2B likely needs ZERO new Zustand stores.**
-  - **§5.1 seam:** leaf components only WRITE intent actions; the ROUTE (`home-page`) is the single reactive
-    reader; no feature→feature imports.
-- **Forms (§6.1 threshold):** ANY form with ≥3 fields OR validation OR save/draft → a **form factory**
-  (`createSavedEntityForm` for the persona editor; bound-fields; the Phase-1 `avatar-upload-field`). RHF is banned.
-- **Also obey:** the 10 UX rules (§4.3 — no dead ends, one primary action, progressive disclosure, quiet
-  chrome), `QueryBoundary` empty/loading/error on every surface, `@orb/ui/markdown` (Streamdown) for the
-  description preview, `@orb/ui` primitives only (no raw Base UI). The 2B builder MUST read UI-Architecture-and-
-  Layout.md §2.1/§4/§4.3/§5/§5.1/§6.1 + an existing feature (settings, character) before writing.
-- **Naming:** `surfaces/*-surface.tsx` · `hooks/use-*.ts` (`.tsx` hooks = `use-*`/`-context`/`-provider`) ·
-  `anchors/*-{anchor,dialog,drawer,popover,menu,panel}.tsx`.
-- **Surface purity (rule 7):** a surface must NOT render its own outer `<Dialog>/<AlertDialog>/<Drawer>` (that's
-  an anchor's job) — but inline `<Popover>/<Menu>/<Select>/<Tooltip>` ARE legal. So the rail-foot quick-swap
-  **popover lives inline** in a surface/component (no anchor needed); the Settings→Personas editor is a **pane**
-  (no modal). Neither needs an `anchors/` entry unless a true modal appears.
-- **Composition seam (SETTLED — do not re-litigate; §5.1 + ux-flow-revamp J11:422 mandate it):** ALL persona
-  UI lives in **`features/persona/`** (mirror-domain feature). The Settings→Personas pane and the rail-foot
-  switcher are **route-composed** into their shells as ReactNode slots — features NEVER import each other; the
-  ROUTE (`home-page.tsx`) is the single composer:
-  - Settings pane: `SettingsShell` takes a `panes?: Partial<Record<CategoryId, ReactNode>>` prop; `SettingsPane`
-    renders `panes?.personas ?? placeholder`; `home-page` supplies `settings: <SettingsShell panes={{ personas:
-    <PersonasSurface/> }} />` importing `PersonasSurface` from `#features/persona`. Mirrors EXACTLY how home-page
-    already injects `ChatListSurface` into a section slot and `SettingsShell` into a modal slot.
-  - Switcher: a new app-shell rail-foot ReactNode slot (`AppShellProps` → Rail), home-page fills it with the
-    `features/persona` switcher surface. Same seam.
-  - **Theme/appearance is the EXCEPTION, not the model** — it lives *directly in* `features/settings`
-    (`SettingsPane` imports `AppearanceSettingsSurface`) ONLY because there is no `features/theme` (theme =
-    `domain/settings`, no mirror feature). Persona HAS `domain/persona`, so its UI is feature-homed +
-    route-injected. Do not copy the theme direct-import for persona.
-  - "Manage personas" = `openModal("settings")` + the shell-store deep-link-tab transient to land on the personas
-    category (a store write, never a URL — single-route shell §5.1). Persona data rides `client/data`+`forms`
-    factories (`createSavedEntityForm`/`createEntityMutation`/`createCollectionSurface`/`avatar-upload-field`);
-    cross-domain reads via `trpc.persona.*`/`trpc.settings`/`trpc.worldInfo.*ToPersona` (trpc ≠ a feature import).
-
-### A.8 The avatar/name producer "smell", and why the fix waits for agent-principal (D60)
-
-A reasonable objection to Phase 1: message-row NAMES come from producers (`characterNamesById` +
-`personaNamesById`, `@orb/kit/macro`) while AVATARS are split — personas via a stamped-id producer
-(`roster-avatars.ts` `loadPersonaAvatarProducer`, full history coverage) but characters inline off the roster
-`ParticipantView.avatarHash` (which `roster-avatars.ts:13-17` admits leaves a "since-left character's avatar on
-an old row" gap). Two things feel off: (a) name vs avatar are split producers, (b) characters and personas
-resolve avatars by different mechanisms.
-
-**Why the name/avatar split is CORRECT (not a hack):** names/descriptions are macro subjects (`{{user}}`/
-`{{char}}`/`{{persona}}`) needed by BOTH server-assembly and client display; avatars are pure display chrome
-needed only by the client. Merging them forces the server macro path to drag chrome it never uses. §1 (Chat-
-Macro-Resolution.md) keeps the macro producer names-only for that reason.
-
-**Why "just read the roster" doesn't work:** the roster is CURRENT-only. The persona model REQUIRES historical
-fidelity — after a Nate→Steve swap, Nate's OLD rows must still show Nate's name AND avatar (you can't get that
-from a roster Nate has left). That's exactly why names already cover "active roster ∪ every stamped id," and
-avatars must match that coverage. "Roster + inherit" would paint the wrong avatar on old rows.
-
-**The real smell is the character asymmetry, and the clean fix is a per-kind "cast" producer** —
-`characterCastById {name, avatarHash, themeOverride?}` + `personaCastById {name, description, avatarHash}`, each
-over active ∪ stamped ids, macro-resolution projecting name/description (§1 intent preserved, letter amended).
-This kills the name/avatar split AND the character asymmetry AND closes the since-left gap.
-
-**DECISION: this unification lands WITH agent-principal (D60), not in the persona phase.** That committed lane
-(`proposed/agent-principal-design/02`) adds a 4th participant kind `agent` + `AI_DRIVEN_KINDS`/`USER_BACKED_KINDS`
-and EXPLICITLY reworks this exact surface: the cast/WI name-set ("characters + present personas → **+ agent
-display names**"), `getRosterCardView` (+`AgentCardView`), and attribution (a THIRD axis — agent rows key on
-`authorUserId`, characterId+personaId null). So the cast becomes genuinely kind-polymorphic (character | persona
-| agent) there. Unifying now = design for 2 kinds then rework for the 3rd; unifying there = one coherent
-kind-polymorphic move. Until then: the persona producer is correct, the character since-left-avatar gap stays the
-documented minor gap. **Implication for Phase 3 (message-row redesign): build avatar/name resolution KIND-READY
-so the agent third axis is a one-arm add, not a rework.** (Tracked as a build task alongside D60.)
-
-Consistency check (verified against committed designs): personas stay **per-human** (saved-rosters D61 non-goals);
-a `roster_preset` sets the chat-level `anchorPersonaId` at start (D61) — a second writer of the pin, reinforcing
-that Anchor is a deliberately-settable chat-level pointer (the host/manual re-pin, §A.6 TASK 3). Attribution
-derives from the roster map, never body-parse (agent-principal §2) — exactly what `attribution.ts` does. Nothing
-in this lane contradicts D60/D61.
+Message-row NAMES come from producers (`characterNamesById`/`personaNamesById`) while AVATARS are split
+(personas via a stamped-id producer with full history coverage; characters inline off the roster `ParticipantView.avatarHash`,
+which leaves a documented "since-left character avatar on an old row" gap). The name/avatar split is CORRECT
+(names are macro subjects needed by server+client; avatars are client-only chrome — merging drags chrome
+through the macro path). "Just read the roster" fails: the roster is current-only, but historical fidelity
+needs old rows to show the frozen persona/character (name AND avatar). **The real smell is the character
+asymmetry**; the clean fix is a per-kind **cast producer** (`characterCastById`/`personaCastById` over active ∪
+stamped ids, macro-resolution projecting name/description). **DECISION: land it WITH agent-principal (D60)** —
+that committed lane adds the 4th kind `agent` + reworks this exact cast/name-set/attribution surface, so the
+cast becomes kind-polymorphic (character | persona | agent) there; unifying now = design for 2 kinds then
+rework for the 3rd. **Implication for Phase 3: build avatar/name resolution KIND-READY so the agent third axis
+is a one-arm add, not a rework.** (Consistency-checked against D60/D61: personas stay per-human; a
+`roster_preset` sets `anchorPersonaId` at start; attribution derives from the roster map, never body-parse.)
 
 ---
 
-## PART B — The Moonlit steal-and-improve list (message row + avatars + immersive modes)
+## PART B — Immersive chat visuals  ·  PHASE 3–4, TO BUILD
 
-### B.1 Message-row redesign (DECIDED — ST/Discord-standard, verified against real ST + Moonlit)
+The Moonlit steal-and-improve list (message row + avatars + immersive modes), rebuilt clean.
+
+### B.1 Message-row redesign (Phase 3 — DECIDED; ST/Discord-standard)
+Today the row is vertically stacked (`[avatar+name] / [bubble] / [metadata] / [actions] / [swipes]`,
+`chat/components/message-row.tsx`); `RowSkin` is only two class-producers (`outer`/`inner`) and avatar/name/action
+placement is hardcoded, style-independent. The redesign is a real JSX restructure:
 - **Avatar-LEFT**, a sibling flex item *outside* the bubble (intrinsic width) + a content column (`flex:1`).
   Never nest name/actions inside the avatar column.
-- **Name + per-message actions on ONE row** at the top of the content column: `justify-content: space-between`
-  — name-group left (name + optional timestamp, `align-items:baseline`), actions right. Reuse for bubble+flat.
-- **Avatars-off is trivially clean:** because name+actions live in the content column (not the avatar column),
-  hiding the avatar is a one-line `display:none` with ZERO reflow. (This is Nate's work-safe case + the
-  existing `showInChatAvatars` pref, which already exists in the appearance schema + settings UI.)
-- **Actions: dim-always → brighten-on-hover** (`opacity ~0.4 → 1` on hover/focus), NOT `display:none`-until-hover
-  (avoids layout shift, more discoverable) + a **`drop-shadow` on the icons** so they stay legible over glass /
-  a background photo. ← this is the fix for "actions invisible over glass."
-- **Mirror your own messages right** — we ALREADY do this (`alignFor(role)`: user→`items-end`). With avatar-left,
-  the character's avatar sits left of their (left) bubble, YOUR avatar sits right of your (right) bubble.
+- **Name + per-message actions on ONE row** atop the content column, `justify-content: space-between` (name-group
+  left with optional timestamp `align-items:baseline`, actions right). Reuse for bubble+flat.
+- **Avatars-off is trivially clean** — name+actions live in the content column, so hiding the avatar
+  (`showInChatAvatars`, already in the appearance schema) is a one-line `display:none`, zero reflow. (Nate's
+  work-safe case.)
+- **Actions: dim-at-rest → brighten-on-hover** (`opacity ~0.4 → 1`, already opacity-based in
+  `message-actions-reveal.ts` — a small tweak) + a **`drop-shadow` on the icons** so they stay legible over glass /
+  a background photo. (The fix for "actions invisible over glass.")
+- **Mirror your own messages right** — already done (`alignFor(role)`: user→`items-end`). Character avatar sits
+  left of their (left) bubble; YOUR avatar sits right of your (right) bubble.
+- **BUILD KIND-READY (§A.8):** the avatar/name resolution the row consumes must be shaped so the coming `agent`
+  participant kind (D60) is a one-arm add, not a rework — resolve by a `kind`-aware seam, don't hardcode
+  character-vs-persona.
 
-### B.2 chatStyle skins — expand from bubble/flat/document to include immersive modes (DONE CLEAN)
-`chatStyle` is an exhaustive `Record<ChatStyle, RowSkin>` (`chat/lib/message-row-variants.ts`) — adding a mode
-= a skin entry + one union member (`tsc`-forced). Immersive + clean modes COEXIST as user picks. For an RP app
-pre-launch, immersive presence modes are the vibe, not a nice-to-have.
+### B.2 chatStyle immersive modes (Phase 4)
+`chatStyle` is an exhaustive `Record<ChatStyle, RowSkin>` (`chat/lib/message-row-variants.ts`); a new mode = a
+`RowSkin` entry + one literal added to BOTH tuples (`clamp.ts` + `contracts/theme/override.ts` — the pairing
+test enforces it). **`RowSkin` currently can't express a different DOM shape (avatar-bleed / sticky portrait) —
+EXTEND `RowSkin`** (stay in the tsc-forced Record) rather than branch JSX on `chatStyle`.
 
 | Mode (Moonlit) | Concept | Clean orbweaver build | Verdict |
 | - | - | - | - |
-| **Echo** | character portrait **bled into the bubble edge** as faded background art | avatar URL as an inline CSS var on the bubble at render (we control render — NO MutationObserver needed) + `background-size:cover` + a token-driven `mask-image` edge-feather. Legible via our scrim. | **BUILD** |
-| **Ripple** | **VN sticky tall portrait** — `position:sticky;top:0` avatar, 2:3 aspect, stays pinned while a long gen scrolls | `position:sticky` avatar + the portrait aspect variant (§B.4). Add `object-fit:cover` (Moonlit forgets this and *stretches* — we're better). Documented shape-override: VN portrait ignores the global round/square pref. NOT the D49-cut `waifuMode` (that's full-screen expression sprites — different, still out). | **BUILD** |
-| **Whisper** | faded avatar **banner** across the top + accent stripe | Echo variant; low priority | adapt later |
-| **Hush** | flat + a theme-color accent stripe as the speaker indicator | a "flat but color-coded" option | adapt (minor) |
-| **Tide** | per-`<p>` bubble "trains" (iMessage) | real render change; long RP prose stacks messily | **cautious / opt-in only** |
+| **Echo** | character portrait bled into the bubble edge as faded background art | avatar URL as an inline CSS var on the bubble at render (we control render — NO MutationObserver) + `background-size:cover` + a token-driven `mask-image` edge-feather; legible via our scrim | **BUILD** |
+| **Ripple** | VN sticky tall portrait — `position:sticky;top:0`, 2:3, pinned while a long gen scrolls | `position:sticky` avatar + the 2:3 portrait variant (§B.4, DONE) + `object-fit:cover` (Moonlit forgets this and stretches — we're better); VN portrait ignores the global round/square pref. NOT the D49-cut `waifuMode` | **BUILD** |
+| **Whisper** | faded avatar banner across the top + accent stripe | Echo variant; low priority | adapt later |
+| **Hush** | flat + a theme-color accent stripe as the speaker indicator | "flat but color-coded" | adapt (minor) |
+| **Tide** | per-`<p>` bubble "trains" (iMessage) | real render change; long RP prose stacks messily | cautious / opt-in only |
 
-### B.3 Avatar versatility (add these to make ours a real system)
-Today: `avatarSize` sm/md/lg + `avatarShape` round/square (appearance prefs). ADD:
+### B.3 Avatar versatility (Phase 3 — appearance prefs + the Avatar primitive)
+Today: `avatarSize` sm/md/lg + `avatarShape` round/square. The `@orb/ui/avatar` primitive has round/square only —
+**no aspect, no ring** (both net-new; add as `tv` variants). ADD:
 - **Shape:** + `rounded` (rounded-rect).
 - **Aspect:** + **`portrait` (2:3)** — the presence lever the immersive modes need.
-- **Border/ring:** a border on/off + an **accent-ring** painted from the character's theme color (reuse for a
-  persona picker / active-speaker highlight; Moonlit's `is_fav`/`selected` accent `drop-shadow`).
-- **Per-chatStyle avatar behavior** (sticky / bled / banner / hidden) lives in the SKIN, not a user pref.
+- **Ring:** border on/off + an **accent-ring** from the character's theme color (reuse for active-speaker
+  highlight; Moonlit's `is_fav`/`selected` glow).
+- New appearance fields (inline enums per `no-inline-union-redecl`) thread via `useMessageAppearance` →
+  `MessageRow` → `<Avatar>` (a prop chain, NOT a DOM stamp). **Per-chatStyle avatar behavior** (sticky/bled/
+  banner/hidden) lives in the SKIN, not a user pref.
 
-### B.4 The sharp image pipeline (the "coordinate with sharp" answer — concrete)
-Current: `infra/image` is **width-only** (`resize({width, withoutEnlargement})` over `BLOB_WIDTHS =
-[48,64,96,128,240,400]`, `domain/assets/substrate/variant-policy.ts`) — no crop, preserves source aspect.
-- **KEEP** the width ladder for round/square icons AND for the Echo bled-portrait (CSS `background-size:cover`
-  handles any source aspect for free — zero pipeline burden).
-- **ADD a 2:3 portrait smart-cropped variant** for the fixed-box `<img>` modes (Ripple/VN): `sharp().resize({
-  width, height, fit:'cover', position:'attention' })` — **smart/entropy crop, NOT center** (avatars are
-  face-centric; naive center-crop DECAPITATES). ~400×600. Standardize on **2:3**. Add it as a variant *kind*,
-  don't replace the square ladder. This is strictly better than Moonlit (which just stretches / requires users
-  to pre-upload 864×1280 portraits). Two-tier delivery: thumb for small icons, original/portrait-variant for
-  big portraits.
+### B.4 The sharp 2:3 portrait variant  ·  DONE (Phase 1)
+The 2:3 smart-crop portrait variant is BUILT: `infra/image` gained `fit:'cover', position:'attention'` (smart/
+entropy crop — face-safe, not center); `variant-policy` a portrait ladder; `resolve-variant` a kind-keyed cache;
+`blob.ts` a `?v=portrait&w=` selector; contracts a portrait `blobUrl` helper. The width-only icon ladder is
+unchanged. **Phase 4 CONSUMES it** for Ripple/VN `<img>` modes (thumb for icons, portrait variant for big
+portraits). Nothing to build here — just call the portrait helper.
 
-### B.5 NEW config concepts mined from the Moonlit theme presets (the JSON, not just CSS)
-Cross-referenced: most Moonlit knobs already have orbweaver equivalents (metadata chips, prose colors —
-dialogue/narration/body, chatWidth, fontScale, hideChatAvatars, expand-actions, reduced-motion, shadows,
-per-role bubble tints, tags-as-folders, hot-swap favorites). The **genuine deltas to add**:
-1. **Background-image BLUR** (`customCSS-bg-blur`) — SEPARATE from the scrim/`backgroundDim`. Blur the *photo
-   itself* for a soft, atmospheric, non-distracting backdrop. Add a `backgroundBlur` appearance axis (blur +
-   dim compose). **Steal.**
-2. **The "last-in-context" boundary marker** (`customlastInContext`) — a subtle accent line marking the last
-   message INSIDE the AI's context window (you can *see* where the model's memory cuts off). Genuinely great
-   RP/LLM-native concept. **Steal** — a quiet divider at the context boundary in the thread.
-3. **Per-mode avatar sizing** — each immersive mode carries its own avatar geometry (Echo 20%×300px, Whisper
-   50%+align, Ripple 180/100px). Our immersive skins each define their avatar dims (tokens/defaults, maybe
-   per-mode adjustable).
-4. **Granular message typography** — Moonlit exposes per-message `line-height`, `letter-spacing`, paragraph
-   spacing (top/bottom), and name/body font sizes (`charNameFontSize`/`messageTextFontSize`/`messageLineHeight`/
-   `messageTextLetterSpacing`/`mesParagraphSpacing*`). We only have global `fontScale` — add a **reading-typography**
-   set; RP reading comfort is worth it. **Steal.**
-5. Minor: `compact_input_area` (denser composer), `zoomed_avatar_magnification` (click-avatar-to-enlarge),
-   `enableThemeColorization` (tint the whole UI from the accent), blur-strength as a user knob, and a batch of
-   Moonlit **mobile-fine knobs** (inline metadata on mobile, separate mobile blur strength, mobile input spacing) —
-   mostly covered by our adaptive shell, but "inline metadata on mobile" is a real consideration. (Full knob
-   inventory verified against `reference/upstream/moonlit-echoes/src/config/theme-settings.js` — nothing else new.)
+### B.5 New config concepts (Phase 4 — mined from the Moonlit JSON, not just CSS)
+Genuine deltas to add:
+1. **Background-image BLUR** — separate from the scrim/`backgroundDim`. Blur the *photo itself* via `filter:
+   blur()` on the photo div in `theme-background-layer.tsx` (NOT `backdrop-filter`; keep the scrim crisp). Add a
+   `backgroundBlur` appearance axis (composes with dim). **Steal.**
+2. **The "last-in-context" boundary marker** — a subtle accent divider marking the last message INSIDE the AI's
+   context window (you can *see* where the model's memory cuts off). Needs a per-message "last in context" flag
+   from assembly; if absent it's a small server field. Render it mirroring the `[data-shadow]` bubble pattern.
+   **Steal.**
+3. **Per-mode avatar sizing** — each immersive mode carries its own avatar geometry (Echo 20%×300px, Ripple
+   180/100px). The immersive skins define their avatar dims (tokens/defaults).
+4. **Granular reading-typography** — Moonlit exposes per-message line-height, letter-spacing, paragraph spacing,
+   name/body font sizes. We only have global `fontScale`. Add a **reading-typography** set → root vars via
+   `useAppearanceRootEffects` (reaches portals, font-scale precedent), consumed on `[data-slot="message-bubble"]`.
+   New tokens → `tokens.json` → `tokens:build` (freshness-tested). **Steal.**
+5. Minor: denser composer, click-avatar-to-enlarge, accent-tint-the-UI, user-tunable blur strength, mobile-fine
+   knobs (inline metadata on mobile is the one real consideration). (Full knob inventory verified against
+   `moonlit-echoes/src/config/theme-settings.js` — nothing else new.)
 
 ### B.5b Polish worth stealing (portable, token-clean)
-- **Chat-list edge fade** via `mask-image` gradient (`#chat { mask-image: linear-gradient(...) }`) — softly
-  dissolves the top/bottom of the scroll under the header/composer instead of hard-clipping. Pairs great with
-  glass. **Steal.**
-- **Composer escalation** — quiet-at-rest → hover → focus progressively prominent. Do it with a **border/ring +
-  bg-alpha step, NOT `opacity`** (opacity dims the text/placeholder contrast too). **Adapt.**
-- **Hairline avatar border (~1.25px, theme-tinted)** — keeps avatars from dissolving into a blurred/photo
-  background (auto-on when a background image is active). **Steal.**
-- Data point: Moonlit's "polished" feel is 100% state-transition timing (`transition`), **zero `@keyframes`** —
-  consistent with our token/compose philosophy.
+- **Chat-list edge fade** — `mask-image` gradient on the scroll container (softly dissolves top/bottom under the
+  header/composer). Pairs great with glass. **Steal.**
+- **Composer escalation** — quiet→hover→focus, via a **border/ring + bg-alpha step, NOT `opacity`** (opacity dims
+  the text/placeholder). **Adapt.**
+- **Hairline avatar border (~1.25px, theme-tinted)** — keeps avatars from dissolving into a blurred/photo bg
+  (auto-on when a background image is active). **Steal.**
+- Moonlit's "polished" feel is 100% `transition` timing, zero `@keyframes` — consistent with our token/compose
+  philosophy.
 
 ### B.6 What NOT to port (Moonlit's blockers — all vanish in our architecture)
-- **JS `MutationObserver` injecting `--mes-avatar-url` per DOM node** → we render each row ourselves; put the
-  URL in an inline CSS var at render time. Gone.
-- **`!important` sprawl** → we own 100% of our CSS, nothing to fight. Gone.
+- **JS `MutationObserver` injecting `--mes-avatar-url` per DOM node** → we render each row; put the URL in an
+  inline CSS var at render. Gone.
+- **`!important` sprawl** → we own 100% of our CSS. Gone.
 - **Hardcoded px/% magic numbers, per-mode duplicated overrides** → tokens, parameterized once. Gone.
-- Plus we get theme-awareness, contrast-safe foregrounds, the scrim/reading-surface, and mobile-adaptivity
-  for free — so the same effects render legible over any background, which Moonlit's don't.
+- We also get theme-awareness, contrast-safe foregrounds, the scrim/reading-surface, and mobile-adaptivity for
+  free — so the same effects render legible over any background, which Moonlit's don't.
 
 ---
 
-## PART C — Dependency order (highest leverage first)
-1. **#67 — asset-URL resolver + upload** (unblocks ALL images: character avatars, persona avatars, backgrounds).
-2. **Sharp 2:3 portrait smart-crop variant** (for VN/portrait avatar modes).
-3. **Persona client slice** (rail-foot switcher + editor).
-4. Then: the message-row redesign (avatar-left + name/actions row + dim-brighten+drop-shadow actions), the
-   immersive chatStyle skins (Echo, Ripple), the avatar versatility prefs, the background-blur axis, the
-   context-boundary marker, the polish (edge fade, composer escalation, hairline border).
+## PART C — Where things stand (2026-07-08)
 
-## PART D — Session state (context for whoever picks this up)
-- **DONE + verified live:** background-image → appearance move (D63); the specificity fix (`:where()` on the
-  elevation-ramp rules so glass + bg-transparent win — the "nothing renders" bug); glass now works on
-  panels/context/composer/bubbles over a background photo; topbar stays opaque chrome; a legibility halo for
-  text floating over the photo; the dropdown z-fix (`--z-popover` above `--z-modal`).
-- **DONE:** the cascade-contract computed-style test suite — PROVEN to catch the elevation-vs-glass regression
-  (hand-reverted the fix → the two flagship tests went red → restored). `pnpm check` green.
-- **IN FLIGHT (agent):** updating 3 primitive CT z-index assertions (`select`/`autocomplete`/`combobox`) from
-  `40`→`65` (the z-popover rename consequence).
-- **Character side captured in:** `FINAL-Character-Library-and-Editor-UX.md` (elevatorPitch/distill blurb,
-  dual-purpose chat button, branch-aware Activity tab, cursor gotchas, EXTEND-don't-rebuild the 236-line
-  surface).
-- **Open threads not yet built:** settings search (#5), Presets→settings IA (#6, needs a ledger amendment),
-  the character-editor lane, the immersive/persona work in this doc.
+**DONE + committed:**
+- **Phase 1 — images foundation (#67)** (`36b9842`): asset-URL resolver + upload + the client `uploadAsset` +
+  `avatar-upload-field`; the 2:3 smart-crop portrait variant (§B.4); avatarHash joined onto roster/message views
+  + the PD-28 co-participant persona-avatar reference-check.
+- **Phase 2 — the persona system** (`1d8fc88`): all of PART A. Gate green, guarded by the invariant suite.
+- (Earlier this session: the theme engine WS0–WS3, D63 background→appearance, the cascade-contract suite.)
+
+**NEXT — the immersive half (PART B):**
+- **Phase 3** — message-row redesign (§B.1, build KIND-READY) + avatar versatility (§B.3).
+- **Phase 4** — Echo/Ripple immersive modes (§B.2) + config axes (bg-blur, context-boundary, reading-typography,
+  §B.5) + the polish list (§B.5b).
+
+**Other tracked lanes:** #5 settings search · #13 character library+editor BUILD (design in the companion doc) ·
+#16 upload CSRF · #17 cast-producer unify (with D60) · #19 account section (with auth #50).
+
+## PART D — Notes for whoever builds Phase 3–4
+- The immersive work is **client-heavy** (message-row, avatar primitive, appearance schema, tokens, the bg-layer)
+  + a couple of small server touches (the context-boundary "last in context" flag, if assembly doesn't expose it).
+- Respect the client-structure law (buckets-as-roles, surface purity, `@container` not layout-props, `state/` for
+  stores, form factories) — see `UI-Architecture-and-Layout.md` §2.1/§4/§4.3/§5/§5.1/§6.1, and the persona lane
+  (`features/persona/`) as the freshest worked example.
+- `done ≠ rendered`: verify immersive modes LIVE in the browser (they're pure visual) — and run the visual pass
+  BEFORE the full `pnpm test` gate, since `lifecycle.int` binds `:8788` and will knock out a live dev server.
+- Backgrounds shipped with ST/Unsplash placeholder images (TEMP — swap for CC0/original before ship; see the
+  `public/backgrounds/` README).
