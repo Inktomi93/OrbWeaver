@@ -50,7 +50,13 @@ test("assistant row with no roster/producer threaded gets no attribution chrome 
     characterId: ALICE_ID,
     personaId: null,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
+  expect(result).toEqual({
+    name: null,
+    kind: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    tokens: null,
+  });
 });
 
 test("assistant row resolves name from the producer + avatar/color from the roster by characterId", () => {
@@ -68,6 +74,7 @@ test("assistant row resolves name from the producer + avatar/color from the rost
     characterNamesById,
   });
   expect(result.name).toBe("Alice");
+  expect(result.kind).toBe("character"); // §A.8 KIND-READY
   expect(result.avatarHash).toBe("hash_alice");
   expect(result.tokens).not.toBeNull();
 });
@@ -82,7 +89,13 @@ test("a characterId absent from the producer gets no chrome (not a crash, not ch
     personaId: null,
     characterNamesById,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
+  expect(result).toEqual({
+    name: null,
+    kind: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    tokens: null,
+  });
 });
 
 test("null characterId in a MULTI-character room resolves to a neutral Narrator", () => {
@@ -97,6 +110,7 @@ test("null characterId in a MULTI-character room resolves to a neutral Narrator"
     participants,
   });
   expect(result.name).toBe("Narrator");
+  expect(result.kind).toBe("character"); // §A.8 KIND-READY — narrator is still the character side
   expect(result.tokens).toBeNull();
 });
 
@@ -108,7 +122,13 @@ test("null characterId in a SOLO room (one character participant) gets no chrome
     personaId: null,
     participants,
   });
-  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
+  expect(result).toEqual({
+    name: null,
+    kind: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    tokens: null,
+  });
 });
 
 test("a non-character participant (human/agent/observer) never counts toward multi-character", () => {
@@ -143,6 +163,7 @@ test("user row resolves the message's own personaId against the producer", () =>
     personaNamesById,
   });
   expect(result.name).toBe("Nate");
+  expect(result.kind).toBe("persona"); // §A.8 KIND-READY
   expect(result.tokens).toBeNull();
   // `avatarAssetId` stays null for a user row (the field is character-only); the IMAGE comes from the
   // separate `personaAvatarsById` producer — absent here, so it degrades to initials.
@@ -188,6 +209,7 @@ test("user row with NO persona selected labels 'You' (the viewer's own row is ne
     personaNamesById: new Map<PersonaId, RowPersonaName>(), // nothing resolves — no persona exists
   });
   expect(result.name).toBe("You");
+  expect(result.kind).toBe("persona"); // §A.8 KIND-READY — "You" is still the persona side
   expect(result.avatarAssetId).toBeNull();
   expect(result.tokens).toBeNull();
 });
@@ -253,7 +275,13 @@ test("the message's OWN personaId wins over the active persona (historical autho
 
 test("system rows never get attribution chrome", () => {
   const result = resolveRowAttribution({ role: "system", characterId: null, personaId: null });
-  expect(result).toEqual({ name: null, avatarAssetId: null, avatarHash: null, tokens: null });
+  expect(result).toEqual({
+    name: null,
+    kind: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    tokens: null,
+  });
 });
 
 test("initials take the first letter of up to two words", () => {

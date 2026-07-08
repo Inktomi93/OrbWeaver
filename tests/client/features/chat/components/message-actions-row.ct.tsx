@@ -16,14 +16,14 @@ const FOCUS_REVEAL_RE = /group-focus-within:opacity-100/u;
 const COARSE_REVEAL_RE = /pointer-coarse:opacity-100/u;
 const SYSTEM_MESSAGE: MessageView = makeMessageView({ role: "system", content: "a room notice" });
 
-// UIP-305: the cluster rests hidden (opacity-0 / pointer-events-none) and reveals on hover /
-// focus-within / coarse pointer. The reveal is a pure CSS variant (asserted structurally in its own test
-// below); these interaction tests care about the MUTATION wiring, so they force the revealed state
-// inline — decoupling "does the verb fire correctly" from the CSS-variant-generation of the CT bundle.
+// §B.1 UIP-305: the cluster rests DIM (opacity-40, still visible + clickable) and brightens to full
+// opacity on hover / focus-within / coarse pointer. The reveal is a pure CSS variant (asserted
+// structurally in its own test below); these interaction tests care about the MUTATION wiring, so they
+// force the fully-bright state inline — decoupling "does the verb fire correctly" from the
+// CSS-variant-generation of the CT bundle.
 async function revealActions(component: Locator): Promise<void> {
   await component.locator("[data-slot='message-actions-row']").evaluate((el: HTMLElement) => {
     el.style.opacity = "1";
-    el.style.pointerEvents = "auto";
   });
 }
 
@@ -45,17 +45,17 @@ test("edit/hide/fork are all available on an assistant row", async ({ mount }) =
   await expect(component.getByRole("button", { name: "Fork chat here" })).toBeVisible();
 });
 
-test("the action cluster rests hidden and carries the hover/focus/coarse reveal hooks (UIP-305)", async ({
+test("the action cluster rests DIM (not hidden) and carries the hover/focus/coarse brighten hooks (§B.1 UIP-305)", async ({
   mount,
 }) => {
   const component = await mount(<MessageActionsRowStory />);
   const cluster = component.locator("[data-slot='message-actions-row']");
 
-  // At rest the cluster is opacity-0 + pointer-events-none (present in the DOM, but not interactive).
-  await expect(cluster).toHaveCSS("opacity", "0");
-  await expect(cluster).toHaveCSS("pointer-events", "none");
+  // At rest the cluster is dim (opacity-40) — visible AND interactive, never fully hidden (§B.1: "dim-
+  // at-rest → brighten-on-hover", replacing the old fully-invisible opacity-0/pointer-events-none posture).
+  await expect(cluster).toHaveCSS("opacity", "0.4");
 
-  // …and it carries all three reveal hooks: hover, keyboard focus-within (the gate-relevant parity half,
+  // …and it carries all three brighten hooks: hover, keyboard focus-within (the gate-relevant parity half,
   // §4.3 rule 4), and always-on at a coarse pointer. (Asserted on the class list — a computed-style hover
   // check would depend on the CT bundle's variant generation; the class presence is the load-bearing
   // contract that these variants are wired.)

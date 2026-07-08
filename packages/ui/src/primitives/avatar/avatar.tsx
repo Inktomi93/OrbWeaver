@@ -60,9 +60,11 @@ export interface AvatarProps
 /**
  * Avatar — seals Base UI Avatar (image with automatic fallback-on-error). Size variants sm/md/lg
  * ride the DISPLAY-avatar tokens (24/30/34px — decoupled from control heights, D62 §4.2); shape is
- * round or square. The initials fallback gets a deterministic per-entity color hashed from
- * `hueSeed ?? alt`. `fallbackDelay` avoids the initials-flash on a fast load; `onLoadingStatusChange`
- * reports the image's load lifecycle.
+ * round, square, or `rounded` (a softer rounded-rect, §B.3); `aspect` is `square` (default) or
+ * `portrait` (2:3, the VN/immersive-mode presence lever); `ring` is `none` (default) or `accent` (a
+ * `--color-primary` ring, reuse-ready for a future active-speaker highlight). The initials fallback
+ * gets a deterministic per-entity color hashed from `hueSeed ?? alt`. `fallbackDelay` avoids the
+ * initials-flash on a fast load; `onLoadingStatusChange` reports the image's load lifecycle.
  * `<Avatar size="lg" shape="square" src={user.iconUrl} alt={user.name} hueSeed={user.id}>NT</Avatar>`
  * Spec: ui-package-design §6.1 dictate — Base UI Avatar, image + fallback initials (D54).
  */
@@ -74,12 +76,14 @@ export function Avatar(props: AvatarProps): ReactElement {
     children,
     size,
     shape,
+    aspect,
+    ring,
     hueSeed,
     fallbackDelay,
     onLoadingStatusChange,
     ...rest
   } = props;
-  const slots = avatarVariants({ size, shape, hue: hashHue(hueSeed ?? alt) });
+  const slots = avatarVariants({ size, shape, aspect, ring, hue: hashHue(hueSeed ?? alt) });
   return (
     <BaseAvatar.Root className={slots.root({ className })} data-slot="avatar-root" {...rest}>
       {src === undefined ? null : (

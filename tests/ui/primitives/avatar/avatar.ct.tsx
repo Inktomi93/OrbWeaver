@@ -83,6 +83,55 @@ test("square shape uses the control radius token; size rides the DISPLAY-avatar 
   await expect(root).toHaveCSS("width", `${avatarLgPx}px`);
 });
 
+test("rounded shape uses the card radius token (§B.3 avatar versatility)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Avatar alt="Rounded avatar" shape="rounded">
+      R
+    </Avatar>,
+  );
+  const root = page.locator('[data-slot="avatar-root"]');
+  // rounded = --radius-card (0.625rem = 10px)
+  await expect(root).toHaveCSS("border-radius", "10px");
+});
+
+test("portrait aspect renders a 2:3 box (the VN/immersive presence lever, §B.3/§B.4)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Avatar alt="Portrait avatar" aspect="portrait" size="lg">
+      P
+    </Avatar>,
+  );
+  const root = page.locator('[data-slot="avatar-root"]');
+  await expect(root).toHaveCSS("aspect-ratio", "2 / 3");
+  // Height still rides the size token; width is derived FROM the aspect-ratio (h-full w-auto).
+  await expect(root).toHaveCSS("height", `${avatarLgPx}px`);
+});
+
+test("ring=none (default) paints no box-shadow", async ({ mount, page }) => {
+  await mount(<Avatar alt="No ring">NR</Avatar>);
+  await expect(page.locator('[data-slot="avatar-root"]')).toHaveCSS("box-shadow", "none");
+});
+
+test("ring=accent paints a visible ring (§B.3 — reuse-ready for active-speaker highlight)", async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Avatar alt="Accent ring" ring="accent">
+      AR
+    </Avatar>,
+  );
+  const boxShadow = await page
+    .locator('[data-slot="avatar-root"]')
+    .evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(boxShadow).not.toBe("none");
+});
+
 // Every rendered fallback's background-color in one read (no await-in-loop).
 const FALLBACK = '[data-slot="avatar-fallback"]';
 const readBackgrounds = (els: Element[]): string[] =>

@@ -186,6 +186,8 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         chatStyle={chatStyle}
         avatarSize={messageAppearance.avatarSize}
         avatarShape={messageAppearance.avatarShape}
+        avatarAspect={messageAppearance.avatarAspect}
+        avatarRing={messageAppearance.avatarRing}
         showInChatAvatars={messageAppearance.showInChatAvatars}
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
         metadataVisibility={messageAppearance.metadataVisibility}
@@ -275,6 +277,8 @@ function DraftGreetingThread({
           chatStyle={chatStyle}
           avatarSize={messageAppearance.avatarSize}
           avatarShape={messageAppearance.avatarShape}
+          avatarAspect={messageAppearance.avatarAspect}
+          avatarRing={messageAppearance.avatarRing}
           showInChatAvatars={messageAppearance.showInChatAvatars}
           autoFixMarkdown={messageAppearance.autoFixMarkdown}
           messageActions={messageAppearance.messageActions}

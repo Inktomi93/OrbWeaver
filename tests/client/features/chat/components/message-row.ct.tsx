@@ -186,6 +186,99 @@ test("showInChatAvatars=true (default) renders the attribution avatar", async ({
   await expect(component.locator(AVATAR)).toHaveCount(1);
 });
 
+// ── §B.1 message-row redesign: avatar-LEFT, a sibling of the content column ────────────────────────
+
+const ROW_BODY = '[data-slot="message-row-body"]';
+const CONTENT_COLUMN = '[data-slot="message-content-column"]';
+const NAME_ROW = '[data-slot="message-name-row"]';
+
+test("the avatar is a SIBLING of the content column, never nested inside the name row (§B.1)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const body = component.locator(ROW_BODY);
+  // The avatar is a direct child of the row-body, a sibling of the content column — not a descendant
+  // of the name row (which holds only the name-group + actions).
+  await expect(body.locator(`> ${AVATAR}`)).toHaveCount(1);
+  await expect(component.locator(NAME_ROW).locator(AVATAR)).toHaveCount(0);
+  // Name + actions share ONE row atop the content column.
+  await expect(component.locator(`${NAME_ROW}:has-text("Alice")`)).toHaveCount(1);
+});
+
+test("assistant avatar sits BEFORE the content column; a user row mirrors it AFTER (§B.1 own-message mirroring)", async ({
+  mount,
+}) => {
+  const assistant = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+    />,
+  );
+  const assistantChildren = assistant.locator(`${ROW_BODY} > *`);
+  await expect(assistantChildren.first()).toHaveAttribute("data-slot", "avatar-root");
+  await expect(assistantChildren.last()).toHaveAttribute("data-slot", "message-content-column");
+
+  const user = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="user"
+      personaId={NATE_PERSONA_ID}
+      personas={[{ id: NATE_PERSONA_ID, name: "Nate" }]}
+    />,
+  );
+  const userChildren = user.locator(`${ROW_BODY} > *`);
+  await expect(userChildren.first()).toHaveAttribute("data-slot", "message-content-column");
+  await expect(userChildren.last()).toHaveAttribute("data-slot", "avatar-root");
+});
+
+test("avatars-off drops the avatar element entirely; the content column is unaffected (§B.1)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      showInChatAvatars={false}
+    />,
+  );
+  await expect(component.locator(AVATAR)).toHaveCount(0);
+  // The name + actions structure is untouched — only the row's leading slot is gone.
+  await expect(component.locator(CONTENT_COLUMN)).toHaveCount(1);
+  await expect(component.locator(ATTRIBUTION)).toContainText("Alice");
+});
+
+test("avatarShape=rounded / avatarAspect=portrait / avatarRing=accent thread through to the avatar (§B.3)", async ({
+  mount,
+}) => {
+  const component = await mount(
+    <MessageRowStory
+      chatStyle="bubble"
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[alice()]}
+      avatarShape="rounded"
+      avatarAspect="portrait"
+      avatarRing="accent"
+    />,
+  );
+  const root = component.locator(AVATAR);
+  await expect(root).toHaveCSS("border-radius", "10px"); // rounded = --radius-card
+  await expect(root).toHaveCSS("aspect-ratio", "2 / 3");
+  const boxShadow = await root.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(boxShadow).not.toBe("none");
+});
+
 // ── Macro DISPLAY pass (the `{{char}}`/`{{user}}` bug) ─────────────────────────────────────────────
 
 test("a message with {{char}}/{{user}} resolves real names once the roster + active persona are threaded", async ({

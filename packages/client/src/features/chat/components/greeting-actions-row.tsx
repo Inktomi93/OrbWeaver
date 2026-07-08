@@ -16,7 +16,10 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
-import { messageActionsRevealClass } from "../lib/message-actions-reveal";
+import {
+  MESSAGE_ACTION_ICON_CLASS,
+  messageActionsRevealClass,
+} from "../lib/message-actions-reveal";
 
 export interface GreetingActionsRowProps {
   readonly message: MessageView;
@@ -51,7 +54,7 @@ export function GreetingActionsRow({
       className={messageActionsRevealClass(messageActions)}
     >
       <Button intent="ghost" size="icon" aria-label="Edit greeting" onClick={onEdit}>
-        <Icon icon={Pencil} size="sm" />
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
       </Button>
       <Button
         intent="ghost"
@@ -59,7 +62,7 @@ export function GreetingActionsRow({
         aria-label="Copy greeting"
         onClick={(): void => void onCopy()}
       >
-        <Icon icon={Copy} size="sm" />
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
       </Button>
     </Row>
   );

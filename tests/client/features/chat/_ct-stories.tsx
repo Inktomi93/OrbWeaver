@@ -94,7 +94,10 @@ export interface MessageRowStoryProps {
   readonly activePersonaId?: PersonaId | null;
   /** #31 appearance — the attribution-avatar chrome knobs (default to the schema defaults). */
   readonly avatarSize?: "sm" | "md" | "lg";
-  readonly avatarShape?: "round" | "square";
+  readonly avatarShape?: "round" | "square" | "rounded";
+  /** §B.3 avatar versatility. */
+  readonly avatarAspect?: "square" | "portrait";
+  readonly avatarRing?: "none" | "accent";
   readonly showInChatAvatars?: boolean;
 }
 
@@ -111,6 +114,8 @@ export function MessageRowStory({
   activePersonaId,
   avatarSize,
   avatarShape,
+  avatarAspect,
+  avatarRing,
   showInChatAvatars,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
@@ -147,6 +152,8 @@ export function MessageRowStory({
           chatStyle={chatStyle}
           avatarSize={avatarSize}
           avatarShape={avatarShape}
+          avatarAspect={avatarAspect}
+          avatarRing={avatarRing}
           showInChatAvatars={showInChatAvatars}
           participants={participantsMap}
           characterNamesById={characterNamesById}

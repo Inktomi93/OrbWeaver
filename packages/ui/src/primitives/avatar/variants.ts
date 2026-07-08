@@ -6,7 +6,18 @@ import { tv } from "#lib";
  * it is decoupled from the control-height tokens and is pointer-INDEPENDENT, never narrowing). An
  * avatar that IS a button (the rail-foot account trigger) composes `Avatar` inside `Button` and
  * inherits the Button's own coarse-pointer ≥44px hit area — nothing for this display primitive to
- * special-case. Shape is round (`rounded-full`) or square (`rounded-control`).
+ * special-case. Shape is round (`rounded-full`), square (`rounded-control`, tight radius) or
+ * `rounded` (`rounded-card`, a softer rounded-rect — §B.3 avatar versatility).
+ *
+ * `aspect` (§B.3/§B.4): `square` (default, 1:1 — `size-avatar-*` already IS square) or `portrait`
+ * (the 2:3 `--aspect-portrait` token) — the presence lever the Phase-4 VN/Ripple immersive mode
+ * needs (a tall sticky portrait instead of a small round chip). Widens the box beyond the `size-*`
+ * square via `w-auto h-full` + the aspect-ratio utility so height still rides the size token.
+ *
+ * `ring` (§B.3): `none` (default) or `accent` — a ring painted from `--color-primary` (the D62 global
+ * accent, always defined — never entangled with the per-character `<ThemeScope>` the row's speaker
+ * name/bubble already use, so this stays a standalone user-appearance pref, not a 3rd ThemeScope
+ * consumer). Reuse-ready for a future active-speaker highlight (swap the referenced var then).
  *
  * `hue` (D62): the deterministic per-entity fallback color — the fallback slot fills with one of the
  * tuned `chart-1..5` hues, paired with the dark `--primary-foreground` (verified AA ≥4.5:1 against
@@ -31,6 +42,15 @@ export const avatarVariants = tv({
     shape: {
       round: { root: "rounded-full" },
       square: { root: "rounded-control" },
+      rounded: { root: "rounded-card" },
+    },
+    aspect: {
+      square: {},
+      portrait: { root: "aspect-portrait h-full w-auto" },
+    },
+    ring: {
+      none: {},
+      accent: { root: "ring-2 ring-(--color-primary) ring-offset-2 ring-offset-background" },
     },
     // The 5 chart hues as fallback surfaces, each paired with the dark primary-foreground text
     // (AA-verified against all five — see the doc-comment above). String keys so VariantProps stays
@@ -46,5 +66,7 @@ export const avatarVariants = tv({
   defaultVariants: {
     size: "md",
     shape: "round",
+    aspect: "square",
+    ring: "none",
   },
 });

@@ -29,6 +29,25 @@
 // `message.characterId`/`message.personaId` — the SAME stamps `resolveRowMacros` (`@orb/kit/macro`)
 // resolves against the producer, so the attribution badge and the macro subject agree by construction
 // (Chat-Macro-Resolution.md §0/§6).
+//
+// PHASE 3 ROW SHAPE (§B.1, ST/Discord-standard): the avatar is a SIBLING flex item (`renderRowAvatar`,
+// module scope) outside the bubble — never nested with the name/actions — beside a content COLUMN
+// (`data-slot="message-content-column"`, `flex-1`) that holds, top to bottom: the name+actions row
+// (`justify-between` — name-group left, `renderRowActions` right), the bubble, the metadata chips, the
+// swipe strip. `skin.outer`/`skin.inner` (`lib/message-row-variants`, UNCHANGED shape) still own the
+// per-chatStyle alignment/bubble classes — only WHERE they're applied moved (outer → the article Stack,
+// inner → the bubble Stack nested inside the content column); bubble/flat/document all share this one
+// structure. Own messages mirror right (`alignFor`, unchanged): `renderRowAvatar` is placed AFTER the
+// content column for `role==="user"` instead of before — a ROLE branch (an established axis, e.g.
+// `BUBBLE_TOKENS`), never the character-vs-persona branch §A.8 forbids. Avatars-off
+// (`showInChatAvatars=false`) drops `renderRowAvatar`'s return to `null` — since name/actions live in
+// the content column, not the avatar column, hiding it never reflows the name/actions/bubble structure
+// relative to each other (only the whole row's left offset shifts by one avatar-width).
+//
+// KIND-READY (§A.8): `resolveRowAttribution` (`lib/attribution`) resolves EVERY row identity to a
+// single tagged `RowAttribution` (`kind: "character" | "persona" | null`) — stamped as `data-kind` on
+// this row's `data-slot="message-row"` root (never branched on in JSX here). When the D60 `agent` kind
+// arrives, it is a one-arm add to `resolveRowAttribution`'s `kind`, not a rework of this row.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
@@ -48,6 +67,7 @@ import {
   useIsMessageSelected,
   useSelectionActive,
 } from "#state";
+import type { RowAttribution } from "../lib/attribution";
 import {
   initialsForAttribution,
   resolveRowAttribution,
@@ -72,8 +92,13 @@ export interface MessageRowProps {
   readonly chatStyle: keyof typeof MESSAGE_ROW_SKINS;
   /** Attribution avatar size (appearance pref, §12.1). Default `md` (the schema default). */
   readonly avatarSize?: "sm" | "md" | "lg" | undefined;
-  /** Attribution avatar shape (appearance pref, §12.1). Default `round`. */
-  readonly avatarShape?: "round" | "square" | undefined;
+  /** Attribution avatar shape (appearance pref, §12.1/§B.3). Default `round`. */
+  readonly avatarShape?: "round" | "square" | "rounded" | undefined;
+  /** Attribution avatar aspect (appearance pref, §B.3) — `portrait` is the 2:3 immersive-mode presence
+   *  lever. Default `square`. */
+  readonly avatarAspect?: "square" | "portrait" | undefined;
+  /** Attribution avatar ring (appearance pref, §B.3). Default `none`. */
+  readonly avatarRing?: "none" | "accent" | undefined;
   /** Show the attribution avatar image (appearance pref, §12.1). Default `true`; false keeps the
    *  speaker name and drops only the avatar. */
   readonly showInChatAvatars?: boolean | undefined;
@@ -134,6 +159,8 @@ export function MessageRow({
   chatStyle,
   avatarSize = "md",
   avatarShape = "round",
+  avatarAspect = "square",
+  avatarRing = "none",
   showInChatAvatars = true,
   showSwipes = false,
   participants,
@@ -205,9 +232,27 @@ export function MessageRow({
     />
   );
 
+  // §B.1 — the avatar is a single sibling flex item, placed before the content column for
+  // character/system-side rows and AFTER it for the viewer's own (role==="user") rows, so the whole
+  // cluster mirrors right alongside `skin.outer`'s `items-end` (a ROLE branch, not the kind-vs-kind
+  // branch §A.8 forbids — see the file header).
+  const avatarNode = renderRowAvatar({
+    attribution,
+    showInChatAvatars,
+    avatarSize,
+    avatarShape,
+    avatarAspect,
+    avatarRing,
+  });
+  const leadingAvatar = role === "user" ? null : avatarNode;
+  const trailingAvatar = role === "user" ? avatarNode : null;
+
   return (
-    // `group` is the hover/focus hook UIP-305's message-actions-row reveals off (group-hover /
-    // group-focus-within) — the actions cluster is opacity-0 at rest until this row is hovered/focused.
+    // `group` is the hover/focus hook UIP-305's message-actions-row dims-then-brightens off
+    // (group-hover / group-focus-within) — the actions cluster rests at reduced opacity until hovered/
+    // focused (message-actions-reveal.ts). `data-kind` is the §A.8 KIND-READY stamp — a future Phase-4
+    // skin selects `[data-kind="character"]` (e.g. to bleed only the CHARACTER's portrait, §B.2) without
+    // this row ever branching on it.
     <Stack
       // `article` makes each message a countable/navigable unit (AT + Playwright `getByRole("article")`
       // + agent nav); `data-message-id` is the stable per-message targeting handle (tests/automation
@@ -219,6 +264,7 @@ export function MessageRow({
       gap="row"
       data-slot="message-row"
       data-role={role}
+      data-kind={attribution.kind}
       className={cn("group", skin.outer(role))}
     >
       {selecting ? (
@@ -228,54 +274,100 @@ export function MessageRow({
           onCheckedChange={(): void => toggleMessageSelected(message.id)}
         />
       ) : null}
-      {attribution.name === null ? null : (
-        <Row gap="field" align="center" data-slot="message-attribution">
-          {showInChatAvatars ? (
-            <Avatar
-              size={avatarSize}
-              shape={avatarShape}
-              fallbackDelay={0}
-              {...avatarSrcProp(attribution.avatarHash)}
-            >
-              {initialsForAttribution(attribution.name)}
-            </Avatar>
-          ) : null}
-          {/* UIP-304 speaker-name accent: a CHARACTER name (tokens present) is tinted with the per-speaker
-              ThemeScope color (`--color-speaker` → `text-speaker`) so speakers are scannable; a USER/"You"
-              row (tokens null) stays muted. `display: contents` on the scope div keeps the vars inheriting
-              with zero layout box. */}
-          {attribution.tokens === null ? (
-            <Text as="span" size="label" weight="medium" tone="muted">
-              {attribution.name}
-            </Text>
-          ) : (
-            <ThemeScope tokens={attribution.tokens} className="contents">
-              <Text as="span" size="label" weight="medium" className="text-speaker">
-                {attribution.name}
-              </Text>
-            </ThemeScope>
+      <Row align="start" gap="row" data-slot="message-row-body">
+        {leadingAvatar}
+        <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
+          <Row justify="between" align="center" gap="field" data-slot="message-name-row">
+            {attribution.name === null ? null : (
+              <Row gap="field" align="baseline" data-slot="message-attribution">
+                {renderAttributionName(attribution)}
+              </Row>
+            )}
+            {renderRowActions({
+              editing,
+              selecting,
+              greeting,
+              message,
+              onChatForked,
+              messageActions,
+            })}
+          </Row>
+          <Stack
+            gap="row"
+            data-slot="message-bubble"
+            // Hide-from-AI dims the row (still user-visible, per §12.4 — the toggle holds it out of
+            // assembly, it does not hide it from the reader) — the standard Tailwind opacity utility
+            // (the same `opacity-50` scale every disabled-state variant in @orb/ui already uses), never
+            // a raw inline-style value.
+            className={cn(skin.inner(role), message.excludedFromPrompt && "opacity-50")}
+          >
+            {attribution.tokens === null ? (
+              content
+            ) : (
+              <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
+            )}
+          </Stack>
+          {editing ? null : (
+            <MessageMetadataRow message={message} visibility={metadataVisibility} />
           )}
-        </Row>
-      )}
-      <Stack
-        gap="row"
-        data-slot="message-bubble"
-        // Hide-from-AI dims the row (still user-visible, per §12.4 — the toggle holds it out of
-        // assembly, it does not hide it from the reader) — the standard Tailwind opacity utility
-        // (the same `opacity-50` scale every disabled-state variant in @orb/ui already uses), never a
-        // raw inline-style value.
-        className={cn(skin.inner(role), message.excludedFromPrompt && "opacity-50")}
-      >
-        {attribution.tokens === null ? (
-          content
-        ) : (
-          <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
-        )}
-      </Stack>
-      {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
-      {renderRowActions({ editing, selecting, greeting, message, onChatForked, messageActions })}
-      {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+          {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+        </Stack>
+        {trailingAvatar}
+      </Row>
     </Stack>
+  );
+}
+
+/** UIP-304 speaker-name accent (module scope — keeps the row's nesting/complexity down, biome
+ *  noNestedTernary): a CHARACTER name (tokens present) is tinted with the per-speaker ThemeScope color
+ *  (`--color-speaker` → `text-speaker`) so speakers are scannable; a USER/"You" row (tokens null) stays
+ *  muted. `display: contents` on the scope div keeps the vars inheriting with zero layout box. A
+ *  system/unresolved row (name null) renders nothing — the name-row still owns the actions slot. */
+function renderAttributionName(attribution: RowAttribution): ReactElement | null {
+  if (attribution.name === null) {
+    return null;
+  }
+  if (attribution.tokens === null) {
+    return (
+      <Text as="span" size="label" weight="medium" tone="muted">
+        {attribution.name}
+      </Text>
+    );
+  }
+  return (
+    <ThemeScope tokens={attribution.tokens} className="contents">
+      <Text as="span" size="label" weight="medium" className="text-speaker">
+        {attribution.name}
+      </Text>
+    </ThemeScope>
+  );
+}
+
+/** The avatar SIBLING (§B.1) — `null` when there's no resolved attribution to show one for, OR the
+ *  `showInChatAvatars` pref is off (a real removal, not a `display:none`: nothing else in the content
+ *  column reflows relative to itself either way, since the avatar was never nested inside it). */
+function renderRowAvatar(args: {
+  readonly attribution: RowAttribution;
+  readonly showInChatAvatars: boolean;
+  readonly avatarSize: "sm" | "md" | "lg";
+  readonly avatarShape: "round" | "square" | "rounded";
+  readonly avatarAspect: "square" | "portrait";
+  readonly avatarRing: "none" | "accent";
+}): ReactElement | null {
+  if (args.attribution.name === null || !args.showInChatAvatars) {
+    return null;
+  }
+  return (
+    <Avatar
+      size={args.avatarSize}
+      shape={args.avatarShape}
+      aspect={args.avatarAspect}
+      ring={args.avatarRing}
+      fallbackDelay={0}
+      {...avatarSrcProp(args.attribution.avatarHash)}
+    >
+      {initialsForAttribution(args.attribution.name)}
+    </Avatar>
   );
 }
 

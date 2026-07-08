@@ -209,7 +209,14 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   if (t.font !== undefined) {
     vars["--font-sans"] = fontStack(t.font);
   }
-  if (t.radius !== undefined) {
+  // PRE-EXISTING BUG FOUND + FIXED (discovered verifying §B.3 avatarShape="rounded" live — every
+  // `rounded-card` consumer app-wide, incl. message bubbles, was silently rendering square): aliasing
+  // `--radius-card` to `var(--radius-${t.radius})` is a self-reference when `t.radius === "card"`
+  // (`--radius-card: var(--radius-card)`), which CSS treats as invalid-at-computed-value-time — the
+  // property (and its inheritance to every descendant) goes empty, not just "falls back to the
+  // default". `radius: "card"` already means "use the token scale's own card radius" (a no-op alias),
+  // so skip the assignment for that one case — every OTHER radius choice still aliases correctly.
+  if (t.radius !== undefined && t.radius !== "card") {
     vars["--radius-card"] = `var(--radius-${t.radius})`;
   }
   return {

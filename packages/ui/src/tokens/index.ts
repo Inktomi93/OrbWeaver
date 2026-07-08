@@ -68,6 +68,7 @@ export const TOKENS = {
   "radius.control": { cssVar: "--radius-control", value: "0.375rem" },
   "radius.card": { cssVar: "--radius-card", value: "0.625rem" },
   "radius.full": { cssVar: "--radius-full", value: "9999px" },
+  "aspect.portrait": { cssVar: "--aspect-portrait", value: "2 / 3" },
   "dimension.rail": { cssVar: "--dimension-rail", value: "3.5rem" },
   "dimension.chrome-row": { cssVar: "--dimension-chrome-row", value: "3rem" },
   "dimension.panel": { cssVar: "--dimension-panel", value: "clamp(16rem, 22vw, 22rem)" },

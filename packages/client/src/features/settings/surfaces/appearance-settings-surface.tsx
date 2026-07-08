@@ -9,8 +9,10 @@
 //
 // SCOPE (NO DEAD TOGGLES — the surface's standing law + done-not-equal-rendered): a field is rendered
 // ONLY when its knob is wired end-to-end to a LIVE consumer. Rendered here: chatStyle · density ·
-// elevation (shell.css ramp) · autoFixMarkdown · showInChatAvatars/avatarSize/avatarShape · chatWidthPct
-// (the §11.1 --width-shell-content root var) · fontScale (the globals :root font-size floor) ·
+// elevation (shell.css ramp) · autoFixMarkdown ·
+// showInChatAvatars/avatarSize/avatarShape/avatarAspect/avatarRing (§B.3, `MessageRow` → `<Avatar>`
+// prop chain) · chatWidthPct (the §11.1 --width-shell-content root var) · fontScale (the globals :root
+// font-size floor) ·
 // reducedMotion (the globals [data-reduced-motion] freeze) · (WS3) showTimestamps/showMessageId/
 // showModelIcon/showTokenCount (`MessageMetadataRow`, message-metadata-row.tsx) · messageActions
 // (`messageActionsRevealClass`, message-actions-row.tsx / greeting-actions-row.tsx) · blurSurfaces
@@ -22,110 +24,34 @@
 // schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import {
-  APPEARANCE_BACKGROUND_FITS,
-  BACKGROUND_IMAGE_KINDS,
-  BLUR_SURFACES,
-  DEFAULT_BLUR_SURFACES,
-} from "@orb/contracts/settings";
-import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
+import { DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
 import { Grid, Section, Stack } from "@orb/ui/layout";
-import type { SelectItems, SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
-import { listSeededBackgrounds } from "#lib";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
-
-// ── Labelled Select options — each `value` pinned to the AppearanceSettings field union (`satisfies`),
-// so a typo'd value is a tsc error, not a silently-unselectable option. chatStyle/density values come
-// from the #theme canonical tuples (one home); avatarSize/avatarShape are the schema's inline enums.
-const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
-  bubble: "Bubble",
-  flat: "Flat",
-  document: "Document",
-};
-const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
-  value,
-  label: CHAT_STYLE_LABELS[value],
-}));
-
-const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
-  comfortable: "Comfortable",
-  compact: "Compact",
-};
-const DENSITY_ITEMS: SelectItems<string> = THEME_DENSITIES.map((value) => ({
-  value,
-  label: DENSITY_LABELS[value],
-}));
-
-const AVATAR_SIZE_ITEMS: SelectItems<string> = [
-  { value: "sm", label: "Small" },
-  { value: "md", label: "Medium" },
-  { value: "lg", label: "Large" },
-] satisfies readonly { value: AppearanceSettings["avatarSize"]; label: string }[];
-
-const AVATAR_SHAPE_ITEMS: SelectItems<string> = [
-  { value: "round", label: "Round" },
-  { value: "square", label: "Square" },
-] satisfies readonly { value: AppearanceSettings["avatarShape"]; label: string }[];
-
-const ELEVATION_ITEMS: SelectItems<string> = [
-  { value: "flat", label: "Flat" },
-  { value: "ramp", label: "Layered" },
-] satisfies readonly { value: AppearanceSettings["elevation"]; label: string }[];
-
-const MESSAGE_ACTIONS_ITEMS: SelectItems<string> = [
-  { value: "hover", label: "Reveal on hover" },
-  { value: "expanded", label: "Always visible" },
-] satisfies readonly { value: AppearanceSettings["messageActions"]; label: string }[];
-
-// WS3 — the blurSurfaces multi-select. `messages` carries the Reading-Surface-rule warning in its own
-// label/description (never default-checked — glass behind scrolling prose is the one surface the
-// picker itself should visibly flag, not just omit from a default).
-const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], string> = {
-  panels: "Side panels",
-  composer: "Composer",
-  messages: "Messages (reading surface — use sparingly)",
-  modals: "Dialogs",
-};
-const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES.map((value) => ({
-  value,
-  label: BLUR_SURFACE_LABELS[value],
-}));
-
-// D63 — the app background-image picker items (moved off the theme; palette-independent). `asset` (own
-// upload) is deliberately absent from BACKGROUND_IMAGE_KINDS (PD-131 — no client asset-URL resolver/
-// upload flow exists yet); seeded/external are the two that actually resolve.
-const BACKGROUND_KIND_LABELS: Record<AppearanceSettings["backgroundImageKind"], string> = {
-  none: "None",
-  seeded: "Seeded",
-  external: "URL",
-};
-const BACKGROUND_KIND_ITEMS: SelectItems<string> = BACKGROUND_IMAGE_KINDS.map((value) => ({
-  value,
-  label: BACKGROUND_KIND_LABELS[value],
-}));
-const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
-  cover: "Cover (fill, crop edges)",
-  contain: "Contain (fit, may letterbox)",
-};
-const BACKGROUND_FIT_ITEMS: SelectItems<string> = APPEARANCE_BACKGROUND_FITS.map((value) => ({
-  value,
-  label: BACKGROUND_FIT_LABELS[value],
-}));
-const SEEDED_BACKGROUND_ITEMS: SelectItems<string> = listSeededBackgrounds().map((bg) => ({
-  value: bg.id,
-  label: bg.label,
-}));
-const BACKGROUND_DIM_MIN = 0;
-const BACKGROUND_DIM_MAX = 1;
-const BACKGROUND_DIM_STEP = 0.05;
+import {
+  AVATAR_ASPECT_ITEMS,
+  AVATAR_RING_ITEMS,
+  AVATAR_SHAPE_ITEMS,
+  AVATAR_SIZE_ITEMS,
+  BACKGROUND_FIT_ITEMS,
+  BACKGROUND_KIND_ITEMS,
+  BLUR_SURFACE_ITEMS,
+  CHAT_STYLE_ITEMS,
+  DENSITY_ITEMS,
+  ELEVATION_ITEMS,
+  MESSAGE_ACTIONS_ITEMS,
+  SEEDED_BACKGROUND_ITEMS,
+} from "../lib/appearance-select-items";
 
 // Sizing bounds (mirror the contracts schema — kept local for the field min/max/step; the schema is the
 // hard clamp, these are just the input affordances).
+const BACKGROUND_DIM_MIN = 0;
+const BACKGROUND_DIM_MAX = 1;
+const BACKGROUND_DIM_STEP = 0.05;
 const CHAT_WIDTH_MIN = 30;
 const CHAT_WIDTH_MAX = 100;
 const FONT_SCALE_MIN = 0.8;
@@ -243,6 +169,20 @@ function AppearanceForm(): ReactElement {
           <form.AppField name="avatarShape">
             {(field): ReactElement => (
               <field.SelectField label="Avatar shape" items={AVATAR_SHAPE_ITEMS} />
+            )}
+          </form.AppField>
+          <form.AppField name="avatarAspect">
+            {(field): ReactElement => (
+              <field.SelectField
+                label="Avatar aspect"
+                description="Portrait reserves a taller box — the immersive VN-style modes use it."
+                items={AVATAR_ASPECT_ITEMS}
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="avatarRing">
+            {(field): ReactElement => (
+              <field.SelectField label="Avatar ring" items={AVATAR_RING_ITEMS} />
             )}
           </form.AppField>
         </Section>

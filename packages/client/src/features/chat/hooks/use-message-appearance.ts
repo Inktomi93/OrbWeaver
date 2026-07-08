@@ -16,6 +16,10 @@ import type { MessageMetadataVisibility } from "../components/message-metadata-r
 export interface MessageAppearance {
   readonly avatarSize: AppearanceSettings["avatarSize"];
   readonly avatarShape: AppearanceSettings["avatarShape"];
+  /** §B.3 avatar versatility — the 2:3 VN/immersive presence lever. */
+  readonly avatarAspect: AppearanceSettings["avatarAspect"];
+  /** §B.3 avatar versatility — the accent ring (reuse-ready for a future active-speaker highlight). */
+  readonly avatarRing: AppearanceSettings["avatarRing"];
   readonly showInChatAvatars: AppearanceSettings["showInChatAvatars"];
   /** ST `auto_fix_generated_markdown` parity — apply the incomplete-markdown repair to SETTLED bodies
    *  too (default OFF; streaming always repairs regardless). Threaded to `MessageContent`'s markdown seal. */
@@ -34,6 +38,8 @@ export function useMessageAppearance(): MessageAppearance {
   return {
     avatarSize: appearance.avatarSize,
     avatarShape: appearance.avatarShape,
+    avatarAspect: appearance.avatarAspect,
+    avatarRing: appearance.avatarRing,
     showInChatAvatars: appearance.showInChatAvatars,
     autoFixMarkdown: appearance.autoFixMarkdown,
     metadataVisibility: {
