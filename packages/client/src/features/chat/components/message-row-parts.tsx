@@ -90,6 +90,65 @@ export function resolveRowContent(args: {
   );
 }
 
+/** Strips the uniform `px-block`/`py-row` padding utilities `skin.inner()` bakes into every bubble's
+ *  className — used ONLY for Ripple's weld (below), which needs the OUTER container unpadded (the
+ *  portrait sits flush at its edge) while the text column carries its own padding instead. A plain
+ *  token-exact filter, not a `cn()`/tailwind-merge override: `cn` here is `#lib`'s raw re-export of
+ *  `tailwind-variants`' own merge (NOT the `tv`-configured factory, which is the only instance carrying
+ *  the project's custom classGroups), so it doesn't know `px-block`/`py-row` conflict with `p-*` — the
+ *  SAME class of footgun `#lib`'s own file header documents for `text-*` (verified in-browser: an
+ *  appended `p-0` decoration className computed to 0 in React but the DOM still rendered `8px 12px`,
+ *  the padding utilities' declaration simply winning the cascade). Removing the exact classes at the
+ *  string level sidesteps the merge entirely. */
+function withoutBubblePadding(className: string): string {
+  return className
+    .split(" ")
+    .filter((token) => token !== "px-block" && token !== "py-row")
+    .join(" ");
+}
+
+/** The single-bubble (non-Tide) render: the plain padded `<Stack>` (every mode/kind but Ripple's welded
+ *  portrait), or the weld — the portrait sits INSIDE the same Row as the bubble's own bg/rounded-card
+ *  (`bubbleClassName`, padding stripped via {@link withoutBubblePadding}) so there is no gap and no
+ *  separate visible edge between portrait and text — the row's own painted background is what "wraps"
+ *  both, not either child's individual box. The text column carries the padding the bubble normally
+ *  applies uniformly. Split out of {@link renderRowBubble} to avoid a nested ternary (biome
+ *  `noNestedTernary`). */
+function renderSingleBubble(args: {
+  readonly role: MessageRole;
+  readonly content: ReactNode;
+  readonly bubbleClassName: string;
+  readonly decoration: BubbleDecoration | null;
+  readonly weldedAvatar: ReactElement | null;
+}): ReactElement {
+  if (args.weldedAvatar === null) {
+    return (
+      <Stack
+        gap="row"
+        data-slot="message-bubble"
+        className={args.bubbleClassName}
+        style={args.decoration?.style}
+      >
+        {args.content}
+      </Stack>
+    );
+  }
+  return (
+    <Row
+      align="start"
+      data-slot="message-bubble"
+      className={withoutBubblePadding(args.bubbleClassName)}
+      style={args.decoration?.style}
+    >
+      {args.role === "user" ? null : args.weldedAvatar}
+      <Stack gap="row" className="min-w-0 flex-1 px-block py-row">
+        {args.content}
+      </Stack>
+      {args.role === "user" ? args.weldedAvatar : null}
+    </Row>
+  );
+}
+
 /** The bubble slot: a single decorated bubble (every mode but Tide) or Tide's per-paragraph "train" of
  *  chained bubbles, each paragraph its OWN `<MessageContent>` call sharing the row's render policy/
  *  context. The attribution `ThemeScope` (character theme override — §12.4 Layer 3) wraps the WHOLE
@@ -104,6 +163,10 @@ export function renderRowBubble(args: {
   readonly trainParagraphs: readonly string[] | null;
   readonly skin: RowSkin;
   readonly decoration: BubbleDecoration | null;
+  /** Ripple's sticky portrait (renderRowAvatar's "sticky-portrait" branch), welded INSIDE the bubble's
+   *  own Row instead of rendered as a sibling of the whole row (message-row.tsx) — `null` for every
+   *  other mode/kind, which keeps the plain single-`<Stack>` bubble unchanged. */
+  readonly weldedAvatar: ReactElement | null;
   readonly attributionTokens: ThemeScopeTokens | null;
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
@@ -112,21 +175,21 @@ export function renderRowBubble(args: {
   // Hide-from-AI dims the row (still user-visible, per §12.4 — the toggle holds it out of assembly, it
   // does not hide it from the reader) — the standard Tailwind opacity utility (the same `opacity-50`
   // scale every disabled-state variant in @orb/ui already uses), never a raw inline-style value.
-  const bubbleClassName = cn(
-    args.skin.inner(args.role),
-    args.message.excludedFromPrompt && "opacity-50",
-    args.decoration?.className,
-  );
+  const bubbleClassName =
+    cn(
+      args.skin.inner(args.role),
+      args.message.excludedFromPrompt && "opacity-50",
+      args.decoration?.className,
+    ) ?? "";
   const body =
     args.trainParagraphs === null ? (
-      <Stack
-        gap="row"
-        data-slot="message-bubble"
-        className={bubbleClassName}
-        style={args.decoration?.style}
-      >
-        {args.content}
-      </Stack>
+      renderSingleBubble({
+        role: args.role,
+        content: args.content,
+        bubbleClassName,
+        decoration: args.decoration,
+        weldedAvatar: args.weldedAvatar,
+      })
     ) : (
       <Stack gap="field" data-slot="message-bubble-train">
         {args.trainParagraphs.map((paragraph, index) => (
@@ -186,30 +249,34 @@ export function renderAttributionName(attribution: RowAttribution): ReactElement
 
 /** The avatar SIBLING (§B.1/§B.2) — `null` when there's no resolved attribution to show one for, OR the
  *  `showInChatAvatars` pref is off (a real removal, not a `display:none`: nothing else in the content
- *  column reflows relative to itself either way, since the avatar was never nested inside it), OR the
- *  skin's `avatarTreatment` is "bled"/"banner" (the art paints as BUBBLE decoration instead —
- *  `renderRowBubble` — so a sibling chip here would render the same art twice). "sticky-portrait"
- *  (Ripple) swaps in the smart-cropped 2:3 portrait, pinned via `position:sticky` while a tall message
- *  scrolls past, and — per §B.2/§B.3's documented VN shape override — ignores the avatarShape pref
- *  (forced `shape="square"`, a plain portrait frame) though NOT avatarRing (still a valid accent). */
+ *  column reflows relative to itself either way, since the avatar was never nested inside it). Every
+ *  mode renders the plain "icon-left" chip here, INCLUDING Echo/Whisper's character rows — their bled/
+ *  banner art is a SEPARATE, independently kind-gated `bubbleDecoration` (`renderRowBubble`), not a
+ *  substitute for the chip (Moonlit's own preview screenshots show both at once). "sticky-portrait"
+ *  (Ripple) is the one treatment that swaps the chip out entirely for the smart-cropped 2:3 portrait,
+ *  pinned via `position:sticky` while a tall message scrolls past, and — per §B.2/§B.3's documented VN
+ *  shape override — ignores the avatarShape pref (forced `shape="square"`, a plain portrait frame)
+ *  though NOT avatarRing (still a valid accent). The weld (§B.2 Ripple defect fix): its corners round
+ *  only on the OUTER edge (the side away from the bubble it welds to — left for the common character/
+ *  leading case, right when mirrored on a role==="user" row) so the inner edge sits flush/square against
+ *  the bubble's own matching radius — `role` is needed ONLY for this mirroring (the weld's own rounding
+ *  side, not a kind-vs-kind branch). */
 export function renderRowAvatar(args: {
   readonly attribution: RowAttribution;
   readonly avatarTreatment: ReturnType<RowSkin["avatarTreatment"]>;
+  readonly role: MessageRole;
   readonly showInChatAvatars: boolean;
   readonly avatarSize: "sm" | "md" | "lg";
   readonly avatarShape: "round" | "square" | "rounded";
   readonly avatarAspect: "square" | "portrait";
   readonly avatarRing: "none" | "accent";
 }): ReactElement | null {
-  if (
-    args.attribution.name === null ||
-    !args.showInChatAvatars ||
-    args.avatarTreatment === "bled" ||
-    args.avatarTreatment === "banner"
-  ) {
+  if (args.attribution.name === null || !args.showInChatAvatars) {
     return null;
   }
   if (args.avatarTreatment === "sticky-portrait") {
+    const weldRounding =
+      args.role === "user" ? "rounded-l-none rounded-r-card" : "rounded-l-card rounded-r-none";
     return (
       <Avatar
         size={args.avatarSize}
@@ -217,7 +284,9 @@ export function renderRowAvatar(args: {
         aspect="portrait"
         ring={args.avatarRing}
         fallbackDelay={0}
-        className="sticky top-0 h-auto w-(--immersive-ripple-portrait-width)"
+        className={
+          cn("sticky top-0 h-auto w-(--immersive-ripple-portrait-width)", weldRounding) ?? ""
+        }
         {...avatarPortraitSrcProp(args.attribution.avatarHash)}
       >
         {initialsForAttribution(args.attribution.name)}

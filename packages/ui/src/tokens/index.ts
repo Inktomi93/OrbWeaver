@@ -80,6 +80,7 @@ export const TOKENS = {
   "blur.fill-chrome": { cssVar: "--blur-fill-chrome", value: "70%" },
   "blur.fill-dense": { cssVar: "--blur-fill-dense", value: "88%" },
   "immersive.echo-feather": { cssVar: "--immersive-echo-feather", value: "55%" },
+  "immersive.whisper-banner-height": { cssVar: "--immersive-whisper-banner-height", value: "9rem" },
   "immersive.whisper-feather": { cssVar: "--immersive-whisper-feather", value: "70%" },
   "immersive.stripe-width": { cssVar: "--immersive-stripe-width", value: "0.1875rem" },
   "immersive.ripple-portrait-width": { cssVar: "--immersive-ripple-portrait-width", value: "11.25rem" },

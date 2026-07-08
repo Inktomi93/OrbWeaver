@@ -122,6 +122,9 @@ export function GhostMessageRow({
       : renderRowAvatar({
           attribution,
           avatarTreatment,
+          // The ghost row always wears the assistant skin (file header) — a live turn is never the
+          // viewer's own row, so this is never the role==="user" mirrored-weld case.
+          role: "assistant",
           showInChatAvatars,
           avatarSize,
           avatarShape,

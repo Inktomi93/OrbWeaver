@@ -20,10 +20,12 @@
 // tall sticky portrait beside it, Tide splits one message into several chained bubbles. `RowSkin` grows
 // THREE new fields, all DATA the row reads (never a `switch(chatStyle)` in message-row.tsx):
 //   - `avatarTreatment(kind)` — how the row's identity art renders: the normal sibling `<Avatar>` chip
-//     ("icon-left", the pre-Phase-4 behavior every mode but Ripple's non-character rows keeps), a sticky
-//     tall VN portrait ("sticky-portrait", Ripple), or art painted AS bubble decoration instead of a
-//     sibling chip ("bled" Echo / "banner" Whisper — `renderRowAvatar` returns null for these so the art
-//     isn't rendered twice). Keyed on `RowAttribution["kind"]` (§A.8 KIND-READY — the SAME resolved tag
+//     ("icon-left" — every mode's default, INCLUDING Echo/Whisper's character rows: Moonlit's own
+//     preview screenshots show the small round chip next to the name row alongside the bled/banner
+//     bubble art, not instead of it — a scannable identity chip plus atmosphere, not a redundancy), or a
+//     sticky tall VN portrait ("sticky-portrait", Ripple — this one DOES fully replace the chip, welded
+//     into the bubble itself, `renderRowBubble`'s `weldedAvatar` slot). Keyed on `RowAttribution["kind"]`
+//     (§A.8 KIND-READY — the SAME resolved tag
 //     the row already stamps as `data-kind`), NOT `role`: a multi-character room's null-id "Narrator" row
 //     is still `kind: "character"` and gets the immersive treatment; `role` only ever separates
 //     mirroring (§B.1's established axis), never identity.
@@ -72,14 +74,16 @@ const cx = (...args: Parameters<typeof cn>): string => cn(...args) ?? "";
 // key off `RowSkin["avatarTreatment"]`/`RowSkin["bubbleLayout"]` (`ReturnType<...>`/indexed access),
 // never a re-spelled union.
 
-/** How a row renders its identity art. `icon-left` is the pre-Phase-4 sibling `<Avatar>` chip (every
- *  mode's non-character rows, plus bubble/flat/document/hush/tide unconditionally). `sticky-portrait` is
- *  Ripple's VN pinned tall portrait. `bled`/`banner` mean the art paints AS bubble decoration instead —
- *  `renderRowAvatar` (message-row.tsx) returns no sibling chip for these two. This axis has no home
- *  outside this file (net-new §B.2 vocabulary) — the tuple below IS its home (gate no-inline-union-redecl
- *  §7.5: declare once as `as const`, derive the type, never re-spell the literal union).
+/** How a row renders its identity art. `icon-left` is the sibling `<Avatar>` chip — every mode's
+ *  default, INCLUDING Echo/Whisper's character rows (Moonlit's own preview screenshots show the small
+ *  chip next to the name row ALONGSIDE the bled/banner bubble art, not instead of it — `bubbleDecoration`
+ *  below is independently kind-gated, so it still paints regardless of this axis). `sticky-portrait` is
+ *  Ripple's VN pinned tall portrait, welded into the bubble (`renderRowBubble`'s `weldedAvatar` slot) —
+ *  the one treatment that DOES replace the sibling chip. This axis has no home outside this file (net-new
+ *  §B.2 vocabulary) — the tuple below IS its home (gate no-inline-union-redecl §7.5: declare once as
+ *  `as const`, derive the type, never re-spell the literal union).
  */
-const AVATAR_TREATMENTS = ["icon-left", "bled", "banner", "sticky-portrait"] as const;
+const AVATAR_TREATMENTS = ["icon-left", "sticky-portrait"] as const;
 type AvatarTreatment = (typeof AVATAR_TREATMENTS)[number];
 
 /** The bubble render shape: one bubble (`single`, every mode but Tide) or Tide's per-paragraph "train"
@@ -140,13 +144,10 @@ function flatInner(role: MessageRole): string {
 const iconLeftTreatment = (): AvatarTreatment => "icon-left";
 
 // ── §B.2 avatar-treatment resolvers — the hide-user-portrait default lives HERE (kind-gated) ────────────
+// Echo/Whisper have no resolver of their own anymore — they keep the plain `iconLeftTreatment` chip
+// (see the `AvatarTreatment` doc comment above) and get their bled/banner ART entirely from
+// `bubbleDecoration` below, which is independently kind-gated.
 
-function echoAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
-  return kind === "character" ? "bled" : "icon-left";
-}
-function whisperAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
-  return kind === "character" ? "banner" : "icon-left";
-}
 function rippleAvatarTreatment(kind: RowAttribution["kind"]): AvatarTreatment {
   return kind === "character" ? "sticky-portrait" : "icon-left";
 }
@@ -184,7 +185,13 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
 }
 
 /** Whisper's top avatar banner + speaker-color TOP stripe. The stripe always paints (speaker-color
- *  chrome); the banner art only for a character row with a resolved avatar (hide-user-portrait). */
+ *  chrome); the banner art only for a character row with a resolved avatar (hide-user-portrait). Both
+ *  background-image layers size to the FIXED `--immersive-whisper-banner-height` (not `100% 100%` of
+ *  the bubble) — a percentage-of-bubble-height fade was the Phase-4 bug: on a long multi-paragraph
+ *  message it stretched the banner across most of the bubble, dimming/obscuring text several paragraphs
+ *  down instead of reading as a top strip (verified live in-browser). The bubble's own `bg-ai-bubble`
+ *  background-COLOR — a separate CSS property from these background-IMAGE layers — fills everything
+ *  below the fixed band unconditionally, so no third layer is needed for the "rest of the bubble". */
 function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
   const stripe: CSSProperties = {
     borderTopWidth: "var(--immersive-stripe-width)",
@@ -198,7 +205,8 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
     style: {
       ...stripe,
       backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${args.avatarUrl}")`,
-      backgroundSize: "100% 100%, cover",
+      backgroundSize:
+        "100% var(--immersive-whisper-banner-height), 100% var(--immersive-whisper-banner-height)",
       backgroundPosition: "0 0, top center",
       backgroundRepeat: "no-repeat, no-repeat",
     },
@@ -237,14 +245,14 @@ export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
   echo: {
     outer: bubbleOuter,
     inner: bubbleInner,
-    avatarTreatment: echoAvatarTreatment,
+    avatarTreatment: iconLeftTreatment,
     bubbleDecoration: echoDecoration,
     bubbleLayout: "single",
   },
   whisper: {
     outer: bubbleOuter,
     inner: bubbleInner,
-    avatarTreatment: whisperAvatarTreatment,
+    avatarTreatment: iconLeftTreatment,
     bubbleDecoration: whisperDecoration,
     bubbleLayout: "single",
   },
