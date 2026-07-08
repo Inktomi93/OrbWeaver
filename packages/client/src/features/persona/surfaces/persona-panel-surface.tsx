@@ -124,7 +124,7 @@ function PanelBody(): ReactElement {
   return (
     <Popover>
       <PanelTrigger current={current} />
-      <PopoverPopup side="right" align="end">
+      <PopoverPopup side="right" align="end" className="w-(--container-cq-sm)">
         <Container size="md">
           <Stack gap="row">
             <AccountStrip />
