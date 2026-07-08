@@ -9,7 +9,10 @@ import type { PersonaContext, PersonaService } from "./contract/service";
 import { createConnect, createDisconnect, createListConnected } from "./verbs/connection";
 import { createCreate } from "./verbs/create";
 import { createCreateFromCharacter } from "./verbs/create-from-character";
+import { createDuplicate } from "./verbs/duplicate";
+import { createExport } from "./verbs/export";
 import { createGet } from "./verbs/get";
+import { createImport } from "./verbs/import";
 import { createList } from "./verbs/list";
 import { createRemove } from "./verbs/remove";
 import { createSetActive } from "./verbs/set-active";
@@ -27,5 +30,8 @@ export function createPersonaService(ctx: PersonaContext): PersonaService {
     disconnectFromCharacter: createDisconnect(ctx),
     listConnectedToCharacter: createListConnected(ctx),
     setActivePersona: createSetActive(ctx),
+    duplicate: createDuplicate(ctx),
+    export: createExport(ctx),
+    import: createImport(ctx),
   };
 }

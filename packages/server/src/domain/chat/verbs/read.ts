@@ -146,12 +146,22 @@ interface PreviewInputs {
  *  drift). `macroNames` is the participant-scoped {@link ChatMacroNameProducer} (Chat-Macro-Resolution.md
  *  §1) — always resolved from the SAME `participants` set passed in (one query, no drift between the
  *  roster shown and the names it backs). */
-function toChatDetail(
-  chat: ChatRowView,
-  participants: readonly ParticipantView[],
-  macroNames: ChatMacroNameProducer,
-  personaAvatars: readonly PersonaAvatarEntry[],
-): ChatDetail {
+interface ToChatDetailInput {
+  readonly chat: ChatRowView;
+  readonly participants: readonly ParticipantView[];
+  readonly macroNames: ChatMacroNameProducer;
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly viewerUserId: UserId;
+}
+
+function toChatDetail({
+  chat,
+  participants,
+  macroNames,
+  personaAvatars,
+  viewerUserId,
+}: ToChatDetailInput): ChatDetail {
+  const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
     title: chat.title,
@@ -161,6 +171,9 @@ function toChatDetail(
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
     participants,
+    viewerActivePersonaId: viewer?.activePersonaId ?? null,
+    viewerIsHost: viewer?.role === "host",
+    viewerUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,
@@ -350,7 +363,13 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
     const participants = await deps.loadParticipantViews(chatId);
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    return toChatDetail(membership.chat, participants, macroNames, personaAvatars);
+    return toChatDetail({
+      chat: membership.chat,
+      participants,
+      macroNames,
+      personaAvatars,
+      viewerUserId: principal.userId,
+    });
   };
 }
 

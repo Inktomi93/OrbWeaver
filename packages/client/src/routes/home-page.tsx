@@ -24,6 +24,7 @@ import {
   DraftContextPanel,
   NewChatPicker,
 } from "#features/chat";
+import { PersonaPanelSurface } from "#features/persona";
 import { SettingsShell, ThemePickerSurface } from "#features/settings";
 import {
   chatStream,
@@ -147,6 +148,7 @@ export function HomePage(): ReactElement {
   return (
     <AppShell
       header={topbarHeader}
+      railFoot={<PersonaPanelSurface />}
       sections={{
         chats: {
           list: (

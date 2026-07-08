@@ -103,12 +103,22 @@ type LoadedChatRow = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
 /** Map a loaded chat row + its resolved roster + macro name producer → `ChatDetail` (metadata sub-blobs
  *  applied to defaults). The same projection `fork.ts`/`invites.ts`/`read.ts` use (one shape, no drift). */
-function toChatDetail(
-  chat: LoadedChatRow,
-  participants: readonly ParticipantView[],
-  macroNames: ChatMacroNameProducer,
-  personaAvatars: readonly PersonaAvatarEntry[],
-): ChatDetail {
+interface ToChatDetailInput {
+  readonly chat: LoadedChatRow;
+  readonly participants: readonly ParticipantView[];
+  readonly macroNames: ChatMacroNameProducer;
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly viewerUserId: UserId;
+}
+
+function toChatDetail({
+  chat,
+  participants,
+  macroNames,
+  personaAvatars,
+  viewerUserId,
+}: ToChatDetailInput): ChatDetail {
+  const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
     title: chat.title,
@@ -118,6 +128,9 @@ function toChatDetail(
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
     participants,
+    viewerActivePersonaId: viewer?.activePersonaId ?? null,
+    viewerIsHost: viewer?.role === "host",
+    viewerUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,
@@ -407,14 +420,16 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const now = ctx.now();
     const chatId = ctx.newChatId();
     const hostUserId = principal.userId;
-    // The anchor seed chain (D62 — ST/neo persona-lock precedence): explicit anchor > the CONNECTED
-    // persona (solo-character founding with exactly one `character_personas` connection — the
-    // character-lock hop; ambiguity/group => null) > the STARTER's user-level active persona
-    // (`seeds.defaultPersonaId`, root-validated -- stale/unowned collapses to null). The card {{user}}
-    // POV is the starter's from message one; an explicit anchor always wins.
+    // The anchor seed chain (D62 — ST/neo persona-lock precedence; extended per FINAL-Persona §A.3 with
+    // pointer #2): explicit anchor > the CONNECTED persona (solo-character founding with exactly one
+    // `character_personas` connection — the character-lock hop; ambiguity/group => null) > the starter's
+    // GLOBAL "Current persona" (`seeds.currentPersonaId`, #2) > the starter's Default persona
+    // (`seeds.defaultPersonaId`, #1, root-validated -- stale/unowned collapses to null on both). The card
+    // {{user}} POV is the starter's from message one; an explicit anchor always wins.
     const anchor =
       anchorPersonaId ??
       (await ctx.resolveConnectedPersona(hostUserId, characterIds)) ??
+      (await ctx.resolveCurrentPersona(hostUserId)) ??
       (await ctx.resolveDefaultPersona(hostUserId));
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
@@ -526,7 +541,13 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
     return {
-      chat: toChatDetail(chatRow, participants, macroNames, personaAvatars),
+      chat: toChatDetail({
+        chat: chatRow,
+        participants,
+        macroNames,
+        personaAvatars,
+        viewerUserId: hostUserId,
+      }),
       opening: openingOutcome,
     };
   };

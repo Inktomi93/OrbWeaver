@@ -15,7 +15,14 @@ import { ChatOperationError } from "../../../../../packages/server/src/domain/ch
 import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  seedChat,
+  seedParticipant,
+  seedPersona,
+  seedUser,
+} from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -114,6 +121,73 @@ describe("chat-row flags (host-only)", () => {
 
     await life.delete({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(audits).toEqual([]);
+  });
+});
+
+describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Persona §A.6b gap #2)", () => {
+  test("host re-pins to a present human's persona; emits chatUpdated; a member is refused", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const hostPersona = await seedPersona(db, host, "host_p");
+    const life = createChatLifecycle(makeChatContext(db), { emit });
+
+    await life.setChatAnchorPersona({
+      principal: principal(host),
+      chatId,
+      personaId: hostPersona,
+    });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.anchorPersonaId).toBe(hostPersona);
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+
+    const err = await life
+      .setChatAnchorPersona({ principal: principal(member), chatId, personaId: hostPersona })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+  });
+
+  test("the host may pin to ANOTHER present human's persona (multi-human — the host freely picks it)", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const memberPersona = await seedPersona(db, member, "member_p");
+    const life = createChatLifecycle(makeChatContext(db), { emit });
+
+    await life.setChatAnchorPersona({
+      principal: principal(host),
+      chatId,
+      personaId: memberPersona,
+    });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.anchorPersonaId).toBe(memberPersona);
+  });
+
+  test("a persona NOT owned by any present human participant is refused (not_persona_owner)", async () => {
+    const { host, chatId } = await seedRoom();
+    const outsider = await seedUser(db, "outsider");
+    const foreignPersona = await seedPersona(db, outsider, "foreign_p");
+    const life = createChatLifecycle(makeChatContext(db), { emit });
+
+    const err = await life
+      .setChatAnchorPersona({ principal: principal(host), chatId, personaId: foreignPersona })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_persona_owner");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.anchorPersonaId).toBeNull();
+  });
+
+  test("personaId: null clears an existing pin", async () => {
+    const { host, chatId } = await seedRoom();
+    const hostPersona = await seedPersona(db, host, "host_p");
+    const life = createChatLifecycle(makeChatContext(db), { emit });
+    await life.setChatAnchorPersona({
+      principal: principal(host),
+      chatId,
+      personaId: hostPersona,
+    });
+
+    await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: null });
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(row?.anchorPersonaId).toBeNull();
   });
 });
 

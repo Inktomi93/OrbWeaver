@@ -2,7 +2,11 @@
 // (ownership IS the gate). Thin: validate → `ctx.services.persona.<verb>` → map errors. Input shapes
 // derive from `@orb/contracts/persona`.
 
-import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
+import {
+  createPersonaSchema,
+  personaBackupSchema,
+  updatePersonaSchema,
+} from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -41,11 +45,13 @@ export const personaRouter = t.router({
 
   // PD-99: the per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
   // Auth lives in the verb (`requireChatAuthorOrHost` — self or host); `personaId: null` clears the slot.
+  // `targetUserId` is OPTIONAL — omitted = self (the verb defaults it to the caller); a host targeting
+  // someone else passes it explicitly.
   setActivePersona: authedProcedure
     .input(
       z.object({
         chatId: brandedId<ChatId>(),
-        targetUserId: brandedId<UserId>(),
+        targetUserId: brandedId<UserId>().optional(),
         personaId: brandedId<PersonaId>().nullable(),
       }),
     )
@@ -95,5 +101,24 @@ export const personaRouter = t.router({
         principal: ctx.auth,
         characterId: input.characterId,
       }),
+    ),
+
+  // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
+  duplicate: authedProcedure
+    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId }),
+    ),
+
+  export: authedProcedure
+    .input(z.object({ personaId: brandedId<PersonaId>() }))
+    .query(({ ctx, input }) =>
+      ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId }),
+    ),
+
+  import: authedProcedure
+    .input(z.object({ input: personaBackupSchema }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.persona.import({ principal: ctx.auth, input: input.input }),
     ),
 });

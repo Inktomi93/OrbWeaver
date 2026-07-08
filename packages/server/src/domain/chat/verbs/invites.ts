@@ -104,12 +104,22 @@ function modeLabel(group: GroupConfig): string {
 /** Map a loaded chat row + its resolved roster + macro name producer → the `ChatDetail` read-model (the
  *  metadata sub-blobs applied to their defaults — never raw; the same projection `read.ts`/`fork.ts`/
  *  `start-chat.ts` use). The roster `ParticipantView[]` is resolved by the root (FLAG above). */
-function toChatDetail(
-  chat: LoadedChatRow,
-  participants: readonly ParticipantView[],
-  macroNames: ChatMacroNameProducer,
-  personaAvatars: readonly PersonaAvatarEntry[],
-): ChatDetail {
+interface ToChatDetailInput {
+  readonly chat: LoadedChatRow;
+  readonly participants: readonly ParticipantView[];
+  readonly macroNames: ChatMacroNameProducer;
+  readonly personaAvatars: readonly PersonaAvatarEntry[];
+  readonly viewerUserId: UserId;
+}
+
+function toChatDetail({
+  chat,
+  participants,
+  macroNames,
+  personaAvatars,
+  viewerUserId,
+}: ToChatDetailInput): ChatDetail {
+  const viewer = participants.find((p) => p.userId === viewerUserId);
   return {
     id: chat.id,
     title: chat.title,
@@ -119,6 +129,9 @@ function toChatDetail(
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
     participants,
+    viewerActivePersonaId: viewer?.activePersonaId ?? null,
+    viewerIsHost: viewer?.role === "host",
+    viewerUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     opening: chat.metadata.opening ?? null,
@@ -288,7 +301,16 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     }
     const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
     const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    return { chat: toChatDetail(chat, participants, macroNames, personaAvatars), participant };
+    return {
+      chat: toChatDetail({
+        chat,
+        participants,
+        macroNames,
+        personaAvatars,
+        viewerUserId: principal.userId,
+      }),
+      participant,
+    };
   };
 }
 

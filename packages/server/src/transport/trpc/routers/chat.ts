@@ -255,6 +255,13 @@ const archiveChatSchema = z.object({
 // `delete` is chatId-only (`DeleteChatParams extends ChatScopedParams {}` — same shape as `getChat`/`abort`).
 const deleteChatSchema = z.object({ chatId: brandedId<ChatId>() });
 
+// `setChatAnchorPersona` (FINAL-Persona §A.0/§A.6b gap #2) — the manual/host Anchor (#4) re-pin.
+// `personaId: null` clears the pin. Host-only + the present-human ownership belt live INSIDE the verb.
+const setChatAnchorPersonaSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  personaId: brandedId<PersonaId>().nullable(),
+});
+
 // The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
 // per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
 // `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
@@ -447,6 +454,11 @@ export const chatRouter = t.router({
   archive: authedProcedure
     .input(archiveChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.archive({ principal: ctx.auth, ...input })),
+  setChatAnchorPersona: authedProcedure
+    .input(setChatAnchorPersonaSchema)
+    .mutation(({ ctx, input }) =>
+      ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input }),
+    ),
   delete: authedProcedure
     .input(deleteChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),

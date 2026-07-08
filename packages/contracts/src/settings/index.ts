@@ -333,6 +333,11 @@ const seedsSchema = z
   .object({
     // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     defaultPersonaId: z.string().nullable().catch(null).default(null),
+    // Pointer #2 (FINAL-Persona-and-Immersive-Chat-Visuals.md §A.0) — who the user is playing as GLOBALLY
+    // right now, distinct from `defaultPersonaId` (the home/star). Seeds new chats; never mutates an
+    // already-open chat's own Anchor/Chat-persona pointers (§A.3).
+    // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
+    currentPersonaId: z.string().nullable().catch(null).default(null),
     // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/deleted id degrades at consumption (not a validated entity boundary), so it stays plain.
     welcomeAssistantCharacterId: z.string().nullable().catch(null).default(null),
     // biome-ignore lint/plugin/no-raw-id: lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
@@ -380,6 +385,20 @@ const chatSchema = z
       })
       .prefault({}),
     customStoppingStrings: z.array(z.string()).catch([]).default([]),
+  })
+  .prefault({});
+
+/** Persona UX preferences (FINAL-Persona §A.6b — the ST `power_user.persona_show_notifications` parity
+ *  global; the sort-order and auto-lock siblings are left client-side/deferred, and the ST
+ *  multi-connections toggle is deliberately dropped — cruft, orb's junction is unconditional M:N).
+ *  Additive namespace → `.prefault({})`, per-field `.catch()` → NO version bump. */
+const personaSchema = z
+  .object({
+    /** Toast the caller when their `{{user}}` persona switches (Chat persona #3 changes, or a
+     *  since-switched-persona read). A generic notification pref, not a chat-behavior default — kept
+     *  out of `chatSchema` (that namespace is generation-behavior, ST `power_user` autoContinue/
+     *  autoSwipe territory; this is UI chrome). */
+    showNotifications: z.boolean().catch(true).default(true),
   })
   .prefault({});
 
@@ -558,6 +577,8 @@ export const userSettingsSchema = z.object({
   worldInfo: worldInfoSchema,
   memory: memorySchema,
   chat: chatSchema,
+  /** Persona UX prefs (FINAL-Persona §A.6b). Additive namespace, NO version bump. */
+  persona: personaSchema,
   /** Group-chat room defaults a NEW chat's `metadata.group` is seeded from. Additive namespace, NO
    *  version bump (the lenient parser prefaults it). References `groupConfigSchema` from `#chat` (the
    *  counter-intuitive boot edge — settings depends on chat) — carries `memberCardVisibility` (D22,
@@ -585,6 +606,7 @@ export const USER_SETTINGS_SECTIONS = [
   "worldInfo",
   "memory",
   "chat",
+  "persona",
   "groupDefaults",
   "onboarding",
   "workloads",

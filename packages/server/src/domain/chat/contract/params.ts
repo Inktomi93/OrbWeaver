@@ -360,6 +360,14 @@ export interface ArchiveChatParams extends ChatScopedParams {
   readonly archived: boolean;
 }
 
+/** `setChatAnchorPersona` — the manual/host re-pin for the Anchor persona (#4, FINAL-Persona §A.0/§A.6):
+ *  host-only, mid-chat change of `chats.anchorPersonaId` (the frozen CARD `{{user}}` POV). `null` clears
+ *  the anchor (card sections then fall back through the `pinnedPersona ?? activePersona` default,
+ *  `context.ts:385-386`). */
+export interface SetChatAnchorPersonaParams extends ChatScopedParams {
+  readonly personaId: PersonaId | null;
+}
+
 /** `reattributeMessages` — re-stamp the `characterId` attribution of a set of slots (host-only; a swipe never
  *  re-voices, but a deliberate re-attribution does — self-heal hash-diff). */
 export interface ReattributeMessagesParams extends ChatScopedParams {

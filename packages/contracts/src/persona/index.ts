@@ -84,3 +84,10 @@ export type CreatePersonaInput = z.infer<typeof createPersonaSchema>;
 
 export const updatePersonaSchema = createPersonaSchema.partial();
 export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
+
+// Backup/restore (FINAL-Persona §A.6b gap #3) — the export/import round-trip shape. Derived from
+// `createPersonaSchema` (one home, no re-spell): everything BUT `avatarAssetId` (a binary asset reference
+// can't travel in a JSON backup — re-attaching an avatar after restore is a separate, explicit action).
+// `export` produces this shape; `import` consumes the SAME shape, so a round-trip is byte-identical.
+export const personaBackupSchema = createPersonaSchema.omit({ avatarAssetId: true });
+export type PersonaBackupInput = z.infer<typeof personaBackupSchema>;

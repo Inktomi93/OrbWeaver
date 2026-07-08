@@ -25,6 +25,8 @@ import type { BatchStmt, Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
 import type { ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
+import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -600,6 +602,26 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         return null; // stale/unowned default -> no seed (the anchor stays unset).
       }
     },
+    // The startChat anchor seed, pointer #2 (FINAL-Persona §A.0/§A.3): the starter's GLOBAL "Current
+    // persona" (settings `seeds.currentPersonaId`), validated owned/alive exactly like
+    // `resolveDefaultPersona` above -- a stale/unowned id collapses to null so a dead id never lands in
+    // the `chats.anchorPersonaId` FK.
+    resolveCurrentPersona: async (userId) => {
+      const us = await input.settings.loadUserSettings(userId);
+      const raw = us.seeds.currentPersonaId;
+      if (raw === null) {
+        return null;
+      }
+      try {
+        const persona = await input.persona.get({
+          principal: hostPrincipal(userId),
+          personaId: castId<PersonaId>(raw),
+        });
+        return persona.id;
+      } catch {
+        return null; // stale/unowned current -> no seed (falls through to Default).
+      }
+    },
     // The `reattributePersona` ownership belt (Chat-Macro-Resolution §5): may a line authored by `ownerId` be
     // re-stamped to `personaId`? A sanctioned one-column `personas` read (the `resolveUserPublics`/world-info
     // precedent — mirrors persona's `ensurePersonaOwned` shape without a cross-domain persistence import),
@@ -726,15 +748,26 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const promptConfig = await resolvePromptConfigFor(runAsUserId, us.seeds.defaultPresetId);
 
       // anchor = the chat-open `{{user}}`; active = the speaking participant's persona (first present).
+      // `placement` (FINAL-Persona §A.6b gap #1) is resolved ONCE here off the persona's OWN metadata —
+      // `assembly/context.ts` reads `active.placement` to decide the `at_depth` injection; `in_prompt`/
+      // `none` need no further wiring (the `{{persona}}` macro already works either way).
       const loadPersona = async (
         personaId: typeof anchorPersonaId,
-      ): Promise<{ name: string; description: string } | null> => {
+      ): Promise<{
+        name: string;
+        description: string;
+        placement: PersonaDescriptionPlacement;
+      } | null> => {
         if (personaId === null) {
           return null;
         }
         try {
           const p = await input.persona.get({ principal, personaId });
-          return { name: p.name, description: p.description };
+          return {
+            name: p.name,
+            description: p.description,
+            placement: resolvePersonaDescriptionPlacement(p.metadata),
+          };
         } catch {
           return null; // deleted/unowned → degrade to null (no persona section).
         }

@@ -280,6 +280,12 @@ export type GeneratePictureOp = (p: {
  *  starter's active persona anchors the room; the card `{{user}}` POV is theirs from message one). */
 export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
 
+/** `settings`+`persona` — the starter's GLOBAL "Current persona" (pointer #2, `seeds.currentPersonaId`),
+ *  validated owned/alive at the root exactly like {@link ResolveDefaultPersonaOp}. Seed-chain rank: beats
+ *  Default (#1), loses to an explicit anchor and the connected-persona hop (#2/#4 lock) — FINAL-Persona
+ *  §A.3: `explicit ?? connected ?? current ?? default`. */
+export type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
+
 /** `persona` connections — the ST/neo character-lock hop (D62): the persona to auto-anchor a new chat
  *  founded on exactly ONE character with exactly ONE `character_personas` connection (owner-scoped —
  *  a foreign persona can never leak in). Ambiguity (0 or 2+ connections) or a group founding ⇒ null,
@@ -434,6 +440,9 @@ export interface ChatContext {
   readonly generatePicture: GeneratePictureOp;
   /** The starter's user-level active persona — startChat's anchor default-seed (null = no seed). */
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;
+  /** The starter's GLOBAL "Current persona" (pointer #2) — startChat's seed, ranked above Default, below
+   *  the connected-persona hop and an explicit anchor (null = no seed). */
+  readonly resolveCurrentPersona: ResolveCurrentPersonaOp;
   /** The character-lock hop (D62) — connected persona for a solo-character founding (null = no hop). */
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
   /** Does a `personaId` belong to a given `ownerId`? The `reattributePersona` ownership belt (§5). */

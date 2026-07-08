@@ -13,6 +13,7 @@ import { ZWSP } from "@orb/kit/guided";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
+import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { freshDb } from "../../../../support/db";
@@ -444,5 +445,251 @@ describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)"
 
     expect(out.pinnedPersona).toBeNull();
     expect(out.activePersona).toBeNull();
+  });
+});
+
+describe("buildAssembleContext — persona description placement (FINAL-Persona §A.6b gap #1)", () => {
+  test("at_depth: the ACTIVE persona's description rides an in_chat ChatInjection; the {{persona}} marker is silenced", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "at_depth", depth: 3, role: "system" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+
+    const injected = (out.chatInjections ?? []).find((i) => i.content === "a wandering scholar");
+    expect(injected).toMatchObject({ position: "in_chat", depth: 3, role: "system" });
+    // The single-placement rule: at_depth SILENCES the {{persona}} marker so it can't ALSO emit.
+    expect(out.personaMarkerActive).toBe(false);
+  });
+
+  test("in_prompt (the default): no ChatInjection is emitted — the description rides {{persona}} only", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "in_prompt" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+
+    expect(out.chatInjections ?? []).toEqual([]);
+    // {{persona}} still resolves off the SAME AssemblePersona (macros.test.ts pins the macro-layer half).
+    expect(out.activePersona?.description).toBe("a wandering scholar");
+    // in_prompt ⇒ the marker EMITS the description (the prompt slot).
+    expect(out.personaMarkerActive).toBe(true);
+  });
+
+  test("none: no ChatInjection is emitted AND the {{persona}} marker is silenced (ST opt-out)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "none" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+
+    expect(out.chatInjections ?? []).toEqual([]);
+    expect(out.personaMarkerActive).toBe(false);
+  });
+
+  test("no placement set (a fixture/legacy caller): degrades to the in_prompt no-op (marker emits, no injection)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = { name: "Nyx", description: "a wandering scholar" };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+
+    expect(out.chatInjections ?? []).toEqual([]);
+    expect(out.personaMarkerActive).toBe(true);
+  });
+
+  // The single-placement rule proven END-TO-END through assemblePrompt: at_depth must not ALSO surface in
+  // the system prompt via the {{persona}} marker (the default preset ships an enabled persona marker).
+  test("at_depth does NOT double-emit: the description is absent from the assembled system prompt", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "at_depth", depth: 2, role: "system" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+    const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, out);
+    // The description rode the in_chat injection (SHAPE splices it), so the marker-driven system halves omit it.
+    expect(`${prompt.static}\n${prompt.dynamic}`).not.toContain("a wandering scholar");
+  });
+
+  test("in_prompt DOES emit the description via the {{persona}} marker in the assembled system prompt", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "in_prompt" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+    const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, out);
+    expect(`${prompt.static}\n${prompt.dynamic}`).toContain("a wandering scholar");
+  });
+});
+
+describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FINAL-Persona §A.6b gap #1)", () => {
+  test("no swap (anchor == active): ONE injection, byte-identical to the solo (anchor-null) output", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const active = {
+      name: "Nyx",
+      description: "a wandering scholar",
+      placement: { kind: "at_depth", depth: 3, role: "system" } as const,
+    };
+
+    const solo = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: null, active },
+    });
+    // anchor is the SAME persona (a fresh structurally-equal projection, as loadPersona would produce).
+    const noSwap = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: { ...active }, active },
+    });
+
+    // The solo invariant: the anchor adds NOTHING when it is the active persona.
+    expect(noSwap.chatInjections).toEqual(solo.chatInjections);
+    expect(noSwap.personaMarkerActive).toBe(solo.personaMarkerActive);
+    expect((noSwap.chatInjections ?? []).length).toBe(1);
+  });
+
+  test("swap: ACTIVE injects per its own config (in_chat), ANCHOR injects in card-context (in_static, framed)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const anchor = {
+      name: "Alex",
+      description: "Alex is a knight",
+      placement: { kind: "in_prompt" } as const,
+    };
+    const active = {
+      name: "Steve",
+      description: "Steve is a mage",
+      placement: { kind: "at_depth", depth: 2, role: "system" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor, active },
+    });
+    const injections = out.chatInjections ?? [];
+
+    // ACTIVE (prompt-context) — its own at_depth config, UNFRAMED.
+    const activeInj = injections.find((i) => i.position === "in_chat");
+    expect(activeInj?.content).toBe("Steve is a mage");
+    expect(activeInj).toMatchObject({ depth: 2, role: "system" });
+    expect(activeInj?.content).not.toContain("The person the character knows");
+
+    // ANCHOR (card-context) — a FIXED in_static system block, framed as the established identity.
+    const anchorInj = injections.find((i) => i.position === "in_static");
+    expect(anchorInj).toMatchObject({ position: "in_static", role: "system" });
+    expect(anchorInj?.content).toContain("Alex is a knight");
+    expect(anchorInj?.content).toContain("The person the character knows as the user is Alex");
+  });
+
+  test("swap with anchor descriptionPosition='none': the anchor is NOT injected in either role", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const anchor = {
+      name: "Alex",
+      description: "Alex is a knight",
+      placement: { kind: "none" } as const,
+    };
+    const active = {
+      name: "Steve",
+      description: "Steve is a mage",
+      placement: { kind: "at_depth", depth: 2, role: "system" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor, active },
+    });
+    const injections = out.chatInjections ?? [];
+
+    // The active still injects; the anchor opted out ⇒ no in_static card block.
+    expect(
+      injections.some((i) => i.position === "in_chat" && i.content === "Steve is a mage"),
+    ).toBe(true);
+    expect(injections.some((i) => i.position === "in_static")).toBe(false);
+  });
+
+  test("each description resolves {{user}} against ITS OWN persona (no cross-contamination)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const anchor = {
+      name: "Alex",
+      description: "{{user}} is a doctor",
+      placement: { kind: "in_prompt" } as const,
+    };
+    const active = {
+      name: "Steve",
+      description: "{{user}} is a soldier",
+      placement: { kind: "at_depth", depth: 2, role: "system" } as const,
+    };
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor, active },
+    });
+    const allContent = (out.chatInjections ?? []).map((i) => i.content).join(" || ");
+
+    expect(allContent).toContain("Alex is a doctor"); // anchor desc resolved against Alex
+    expect(allContent).toContain("Steve is a soldier"); // active desc resolved against Steve
+    // The owner-flagged cross-contamination bug MUST NOT happen:
+    expect(allContent).not.toContain("Steve is a doctor");
+    expect(allContent).not.toContain("Alex is a soldier");
   });
 });

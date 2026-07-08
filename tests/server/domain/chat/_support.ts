@@ -379,6 +379,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The startChat anchor default-seed: default "no user-level active persona" — an explicit
     // anchorPersonaId in a test flows unchanged; a seeding test overrides with a resolver fake.
     resolveDefaultPersona: () => Promise.resolve(null),
+    // Pointer #2 (FINAL-Persona §A.0): default "no current persona" — the current-persona seed-chain
+    // tests override with a resolver fake, same shape as `resolveDefaultPersona` above.
+    resolveCurrentPersona: () => Promise.resolve(null),
     // The character-lock hop (D62): default "no connection" — the connected-anchor tests override
     // with a resolver fake (the REAL join is the composition root's; op fakes keep tests op-shaped).
     resolveConnectedPersona: () => Promise.resolve(null),

@@ -45,6 +45,7 @@ import type { InjectionPlacement } from "@orb/kit/injection";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { z } from "zod";
 import type { ChatApi, ChatSource } from "#connection";
 import type { ParticipantRole } from "#identity";
@@ -138,10 +139,15 @@ export interface AssembleCharacter {
 
 /** The human-side projection for `{{user}}` resolution. Slim (`{name, description}`) — homed HERE, not
  *  `contracts/persona`, so `chat` keeps the assemble family cohesive without a `chat → persona` edge (DAG
- *  CONFLICT resolved: 3 docs to 1). */
+ *  CONFLICT resolved: 3 docs to 1). `placement` (FINAL-Persona §A.6b gap #1) is the resolved
+ *  `metadata.descriptionPosition`/`inject` — `@orb/kit/persona`'s `resolvePersonaDescriptionPlacement`
+ *  output, computed once at the composition root (`entry/compose/chat.ts`). Optional: a fixture/hand-caller
+ *  that never sets it degrades to `assembly/context.ts`'s "no at-depth candidate" no-op (`in_prompt`
+ *  behavior — the `{{persona}}` macro still works either way, `assembly/macros.ts`). */
 export interface AssemblePersona {
   name: string;
   description: string;
+  placement?: PersonaDescriptionPlacement;
 }
 
 /** A world-info entry projected onto the assembler contract. `scope` is the `WorldInfoScope` axis

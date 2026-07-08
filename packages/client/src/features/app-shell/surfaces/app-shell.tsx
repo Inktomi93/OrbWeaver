@@ -55,6 +55,10 @@ export interface AppShellProps {
   /** Route-composed modal bodies (id-keyed), rendered over the `MODAL_SLOTS` placeholders. The shell
    *  stays domain-agnostic: it forwards a ReactNode slot, never importing a feature (§4.1). */
   readonly modals?: Partial<Record<ModalSlotId, ReactNode>>;
+  /** Route-composed rail-FOOT chip (the persona switcher — FINAL-Persona §A.6). When supplied it
+   *  replaces the static account avatar in the desktop rail foot; the shell forwards a ReactNode slot,
+   *  never importing the persona feature (the same seam as `modals`). Undefined ⇒ the account button. */
+  readonly railFoot?: ReactNode;
 }
 
 export function AppShell({
@@ -63,6 +67,7 @@ export function AppShell({
   contextPanel,
   contextHeader,
   modals,
+  railFoot,
 }: AppShellProps): ReactElement {
   const layout = useShellLayout();
   // The synced appearance prefs + the resolved active theme (D44 §12.1). All display axes stamp from
@@ -152,6 +157,7 @@ export function AppShell({
             activeSection={layout.activeSection}
             onSelectSection={setActiveSection}
             onOpenModal={openModal}
+            railFoot={railFoot}
           />
 
           {/* LIST panel — no PanelChrome header (UIP-202): the list surface owns its title, the topbar
