@@ -32,6 +32,14 @@ import { colorForCharacter } from "./speaker-color";
 export interface RowAttribution {
   /** `null` = render no attribution chrome. */
   readonly name: string | null;
+  /** §A.8 KIND-READY: which SIDE of the two-kind cast this row's identity resolved from — `null` only
+   *  alongside `name === null` (no attribution at all). A per-message identity is a single kind-tagged
+   *  resolved value so the coming D60 `agent` kind is a one-arm add to this union, not a rework of the
+   *  row/attribution seam. Consumers stamp it as `data-*` (never branch JSX on it) — e.g. a Phase-4
+   *  immersive skin selecting `[data-kind="character"]` to bleed only the CHARACTER's portrait, never
+   *  the user's own (§B.2). File-local union (not `export type`, no-inline-types §7.4 — a client
+   *  feature's `lib/` isn't a type home); consumers read it via `RowAttribution["kind"]`. */
+  readonly kind: "character" | "persona" | null;
   readonly avatarAssetId: AssetId | null;
   /** The avatar's CAS hash (`blobUrl(avatarHash)` is the renderable `<img src>`) — `null` renders the
    *  initials fallback. Character rows: `ParticipantView.avatarHash` (roster-scoped). User/persona rows:
@@ -47,13 +55,16 @@ export interface RowAttribution {
 
 const NO_ATTRIBUTION: RowAttribution = {
   name: null,
+  kind: null,
   avatarAssetId: null,
   avatarHash: null,
   tokens: null,
 };
-/** A null `characterId` in a multi-character room — a real, neutral identity, not "unknown". */
+/** A null `characterId` in a multi-character room — a real, neutral identity, not "unknown". Still the
+ *  CHARACTER side of the two-kind cast (an assistant-side turn, just not tied to one roster member). */
 const NARRATOR_ATTRIBUTION: RowAttribution = {
   name: "Narrator",
+  kind: "character",
   avatarAssetId: null,
   avatarHash: null,
   tokens: null,
@@ -64,6 +75,7 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
  *  which is a generic macro that floors to "User" through the kit engine (not this chrome). */
 const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
   name: "You",
+  kind: "persona",
   avatarAssetId: null,
   avatarHash: null,
   tokens: null,
@@ -108,7 +120,7 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   }
   const avatarHash =
     (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
-  return { name: persona.name, avatarAssetId: null, avatarHash, tokens: null };
+  return { name: persona.name, kind: "persona", avatarAssetId: null, avatarHash, tokens: null };
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
@@ -125,6 +137,7 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   const tokens = participant?.themeOverride ?? colorForCharacter(input.characterId);
   return {
     name,
+    kind: "character",
     avatarAssetId: participant?.avatarAssetId ?? null,
     avatarHash: participant?.avatarHash ?? null,
     tokens,

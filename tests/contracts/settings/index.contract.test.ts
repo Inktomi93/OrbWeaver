@@ -176,6 +176,8 @@ test("UserSettings.appearance reads the §12.1 defaults from an empty blob (no v
   expect(parsed.appearance.fontScale).toBe(1);
   expect(parsed.appearance.avatarSize).toBe("md");
   expect(parsed.appearance.avatarShape).toBe("round");
+  expect(parsed.appearance.avatarAspect).toBe("square"); // §B.3 avatar versatility
+  expect(parsed.appearance.avatarRing).toBe("none");
   expect(parsed.appearance.density).toBe("comfortable");
   expect(parsed.appearance.chatStyle).toBe("bubble"); // the ST-parity default
   // Metadata visibility (timestamps + in-chat avatars ON; the rest OFF)
@@ -200,6 +202,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
       appearance: {
         chatStyle: "hologram", // not a THEME_CHAT_STYLES member → catch → "bubble"
         avatarSize: "enormous", // not sm/md/lg → catch → "md"
+        avatarAspect: "landscape", // not square/portrait → catch → "square"
         chatWidthPct: 5000, // over the max → catch → 60
         fontScale: 99, // over the max → catch → 1
         showTimestamps: "yes", // not a boolean → catch → true (the default)
@@ -210,6 +213,7 @@ test("UserSettings.appearance self-heals per-field: a garbage knob degrades to i
   );
   expect(parsed.appearance.chatStyle).toBe("bubble");
   expect(parsed.appearance.avatarSize).toBe("md");
+  expect(parsed.appearance.avatarAspect).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60);
   expect(parsed.appearance.fontScale).toBe(1);
   expect(parsed.appearance.showTimestamps).toBe(true);
@@ -224,6 +228,16 @@ test("UserSettings.appearance keeps valid overrides while healing invalid siblin
   expect(parsed.appearance.chatStyle).toBe("document");
   expect(parsed.appearance.avatarShape).toBe("square");
   expect(parsed.appearance.chatWidthPct).toBe(60); // the healed sibling
+});
+
+test("UserSettings.appearance accepts the new avatarShape=rounded + avatarAspect/avatarRing values (§B.3)", () => {
+  const parsed = parseUserSettings(
+    { appearance: { avatarShape: "rounded", avatarAspect: "portrait", avatarRing: "accent" } },
+    USER_SETTINGS_SCHEMA_VERSION,
+  );
+  expect(parsed.appearance.avatarShape).toBe("rounded");
+  expect(parsed.appearance.avatarAspect).toBe("portrait");
+  expect(parsed.appearance.avatarRing).toBe("accent");
 });
 
 test("USER_SETTINGS_SECTIONS includes appearance (section-patchable via updateUserSettingsSection)", () => {

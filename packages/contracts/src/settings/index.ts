@@ -444,13 +444,14 @@ const profileSchema = z
 // top via the resolution order. `movingUI`/`waifuMode` are OUT (§12.1); sampling/instruct live on
 // preset/connection. Additive namespace → `.prefault({})`, per-field `.catch()` → NO version bump.
 
-// avatarSize/avatarShape/messageActions are enumerated INLINE below (not exported tuples): `sm/md/lg`
-// and `round/square` are generic control-scale members shared by unrelated ui axes (spinner/button/
-// avatar sizes), so promoting them to a canonical `AVATAR_SIZES` tuple would (wrongly) force every
-// sm/md/lg union to import it — the `no-inline-union-redecl` gate flags exactly that collision. These
-// axes are single-consumer (this schema); the client form authors its own labelled Select options and
-// pins their `value`s to the `AppearanceSettings` field type via `satisfies`. chatStyle/density DO
-// derive from #theme — those ARE a shared cross-package axis with a real canonical home (D44 §12.5).
+// avatarSize/avatarShape/avatarAspect/avatarRing/messageActions are enumerated INLINE below (not
+// exported tuples): `sm/md/lg` and `round/square` are generic control-scale members shared by
+// unrelated ui axes (spinner/button/avatar sizes), so promoting them to a canonical `AVATAR_SIZES`
+// tuple would (wrongly) force every sm/md/lg union to import it — the `no-inline-union-redecl` gate
+// flags exactly that collision. These axes are single-consumer (this schema); the client form authors
+// its own labelled Select options and pins their `value`s to the `AppearanceSettings` field type via
+// `satisfies`. chatStyle/density DO derive from #theme — those ARE a shared cross-package axis with a
+// real canonical home (D44 §12.5).
 
 // Sizing bounds/defaults (named — `noMagicNumbers`). chatWidthPct feeds the §11.1
 // `clamp(680px, Xdvw, 100dvw)` root var (the CSS floor makes the schema min cosmetic); fontScale is
@@ -508,7 +509,14 @@ const appearanceSchema = z
       .catch(FONT_SCALE_DEFAULT)
       .default(FONT_SCALE_DEFAULT),
     avatarSize: z.enum(["sm", "md", "lg"]).catch("md").default("md"),
-    avatarShape: z.enum(["round", "square"]).catch("round").default("round"),
+    // "rounded" (rounded-rect) added §B.3 avatar versatility — a THIRD shape alongside round/square.
+    avatarShape: z.enum(["round", "square", "rounded"]).catch("round").default("round"),
+    // §B.3 — the presence lever the Phase-4 VN/immersive modes need (a tall sticky portrait instead
+    // of a small round chip); `portrait` is the 2:3 smart-cropped variant (§B.4, already built).
+    avatarAspect: z.enum(["square", "portrait"]).catch("square").default("square"),
+    // §B.3 — an accent ring on the attribution avatar; reuse-ready for a future active-speaker
+    // highlight (Moonlit's `is_fav`/`selected` glow).
+    avatarRing: z.enum(["none", "accent"]).catch("none").default("none"),
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"), // §4 data-density axis
     // Surface elevation: `flat` = orb's default composition (no layered elevation ramp — a deliberate
     // COMPOSITION choice, not a ramp absence); `ramp` opts into the 3-tier elevation ramp (rail darkest →

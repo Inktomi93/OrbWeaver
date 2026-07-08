@@ -69,10 +69,21 @@ test("a font outside the allowlist is dropped; an allowed one becomes a stack", 
 });
 
 test("radius maps to a token var; chatStyle/density ride the attribute axes, not vars", () => {
-  const clamped = clampThemeTokens({ radius: "card", chatStyle: "flat", density: "compact" });
-  expect(clamped.vars["--radius-card"]).toBe("var(--radius-card)");
+  const clamped = clampThemeTokens({ radius: "full", chatStyle: "flat", density: "compact" });
+  expect(clamped.vars["--radius-card"]).toBe("var(--radius-full)");
   expect(clamped.chatStyle).toBe("flat");
   expect(clamped.density).toBe("compact");
+});
+
+// Regression (found live verifying §B.3 avatarShape="rounded" — every `rounded-card` consumer
+// app-wide, incl. message bubbles, was silently rendering square): `radius: "card"` used to alias
+// `--radius-card` to ITSELF (`var(--radius-card)`) — a self-reference CSS treats as invalid-at-
+// computed-value-time, breaking `--radius-card` inheritance for every descendant, not just falling
+// back. `radius: "card"` already means "use the token scale's own card radius" — a no-op, so no
+// override should be emitted at all.
+test("radius: 'card' is a no-op (never a self-referential --radius-card: var(--radius-card))", () => {
+  const clamped = clampThemeTokens({ radius: "card" });
+  expect(clamped.vars["--radius-card"]).toBeUndefined();
 });
 
 test("unknown keys are stripped and a non-object input yields an empty map", () => {

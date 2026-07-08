@@ -48,7 +48,10 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { startEditingMessage } from "#state";
-import { messageActionsRevealClass } from "../lib/message-actions-reveal";
+import {
+  MESSAGE_ACTION_ICON_CLASS,
+  messageActionsRevealClass,
+} from "../lib/message-actions-reveal";
 
 interface HideVars {
   readonly chatId: ChatId;
@@ -179,7 +182,7 @@ export function MessageActionsRow({
     >
       {editable ? (
         <Button intent="ghost" size="icon" aria-label="Edit message" onClick={onEdit}>
-          <Icon icon={Pencil} size="sm" />
+          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Pencil} size="sm" />
         </Button>
       ) : null}
       {editable ? (
@@ -190,7 +193,11 @@ export function MessageActionsRow({
           aria-label={excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
           onClick={onToggleHidden}
         >
-          <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
+          <Icon
+            className={MESSAGE_ACTION_ICON_CLASS}
+            icon={excludedFromPrompt ? EyeOff : Eye}
+            size="sm"
+          />
         </Button>
       ) : null}
       {editable ? (
@@ -201,7 +208,7 @@ export function MessageActionsRow({
           aria-label="Fork chat here"
           onClick={(): void => void onFork()}
         >
-          <Icon icon={GitFork} size="sm" />
+          <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={GitFork} size="sm" />
         </Button>
       ) : null}
       <Button
@@ -210,7 +217,7 @@ export function MessageActionsRow({
         aria-label="Copy message"
         onClick={(): void => void onCopy()}
       >
-        <Icon icon={Copy} size="sm" />
+        <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Copy} size="sm" />
       </Button>
       <AlertDialog>
         <AlertDialogTrigger
@@ -221,7 +228,7 @@ export function MessageActionsRow({
               loading={remove.isPending}
               aria-label="Delete message"
             >
-              <Icon icon={Trash2} size="sm" />
+              <Icon className={MESSAGE_ACTION_ICON_CLASS} icon={Trash2} size="sm" />
             </Button>
           }
         />
