@@ -44,7 +44,26 @@
 // literal CSS `mask-image` property — `mask-image` fades the WHOLE element (backgrounds AND the message
 // text painted on top of them), which would dim the reader's own words; a background-image gradient
 // layer only ever paints behind text, so the feather is purely decorative.
+//
+// THE READABILITY REDO (reading-surface rule: art is a corner/edge accent that fades to a CLEAN surface
+// BEFORE the text — text NEVER sits on bright art): the Phase-4 build violated this twice, both fixed by
+// leaning on OUR sharp variant pipeline instead of shoehorning CSS —
+//   - Whisper stretched an arbitrary-aspect avatar into its banner via `background-size: 100% <height>`
+//     (a non-uniform squish). The fix requests a genuinely wide, face-safe SHARP crop
+//     (`blobBannerUrl`, the 3:1 `banner` variant, `domain/assets/substrate/variant-policy` `BANNER_WIDTHS`)
+//     AND renders it as a REAL block-level child (`headerBand`, `message-row-parts.tsx`
+//     `renderSingleBubble`) instead of a background layer on the bubble's own message-length-dependent
+//     box — a real sub-element gives `background-size:cover` a stable box to crop against (no stretch),
+//     and because the band is a normal-flow element ABOVE the padded text, the two can never overlap.
+//   - Echo bled the plain (arbitrary-aspect, uncropped) avatar behind the FULL bubble height with only a
+//     width-wise fade — a long message's text ran directly under still-bright pixels. The fix requests
+//     the sharp-cropped 2:3 `blobPortraitUrl` variant (a real face-safe portrait, not the raw original)
+//     AND pads the bubble's text `padding-right: var(--immersive-echo-feather)` — an INLINE style, so it
+//     always wins the cascade over `px-block` (message-row-parts.tsx's own documented `cn`-doesn't-know-
+//     custom-classGroups footgun) — using the SAME token that drives the gradient stop, so "where the art
+//     is fully faded" and "where the text is allowed to start" are ONE number, not two that could drift.
 
+import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import type { CSSProperties } from "react";
@@ -91,16 +110,23 @@ type AvatarTreatment = (typeof AVATAR_TREATMENTS)[number];
 type BubbleLayout = "single" | "trains";
 
 /** Input to a mode's `bubbleDecoration` — the row's resolved KIND (§A.8; NOT role — see file header) and
- *  the resolved identity avatar URL (`null` when there's no image, e.g. the initials-fallback case). */
+ *  the resolved identity avatar CAS hash (`null` when there's no image, e.g. the initials-fallback case).
+ *  The HASH, not a prebuilt URL: each decorator requests its OWN correctly-shaped sharp variant (Echo →
+ *  `blobPortraitUrl`, Whisper → `blobBannerUrl`) — the row that calls `bubbleDecoration` has no opinion on
+ *  which crop a given mode needs. */
 export interface BubbleDecorationArgs {
   readonly kind: RowAttribution["kind"];
-  readonly avatarUrl: string | null;
+  readonly avatarHash: string | null;
 }
 
 /** Extra className/style for the bubble box — merged onto the existing `skin.inner(role)` classes. */
 export interface BubbleDecoration {
   readonly className?: string;
   readonly style?: CSSProperties;
+  /** Whisper's header-art BAND — a real block-level child rendered ABOVE the bubble's padded text
+   *  (`message-row-parts.tsx` `renderSingleBubble`), not a background layer on the bubble's own box (see
+   *  the file header's readability redo). Absent for every mode but Whisper. */
+  readonly headerBand?: { readonly style: CSSProperties } | undefined;
 }
 
 /** One row's skin: the outer alignment/width classes + the inner content-container classes (both
@@ -165,18 +191,29 @@ function hushDecoration(): BubbleDecoration {
   return { style: STRIPE_LEFT };
 }
 
+// Echo requests the WIDE rung of the sharp-cropped 2:3 portrait ladder (`PORTRAIT_WIDTHS`,
+// `domain/assets/substrate/variant-policy.ts`) — a full-height edge accent reads bigger than Ripple's
+// message-row chip, so it earns the crisper rung.
+const ECHO_PORTRAIT_REQUEST_WIDTH = 400;
+
 /** Echo's bled edge art: a layered `background-image` (a scrim gradient painted OVER the character's
- *  portrait, both BEHIND the bubble's own `bg-ai-bubble` — visible only where both layers are
+ *  sharp-cropped 2:3 portrait — `blobPortraitUrl`, a real face-safe crop, never the raw arbitrary-aspect
+ *  original — both BEHIND the bubble's own `bg-ai-bubble`, visible only where both layers are
  *  transparent) — never a literal `mask-image` (see file header: that would also fade the message text
- *  sitting on top of the same box). `null` for a non-character row (hide-user-portrait) or a
- *  character with no resolved avatar (nothing to bleed). */
+ *  sitting on top of the same box). `padding-right` (an INLINE style, so it always wins the cascade over
+ *  the bubble's `px-block`) reserves the SAME width as the feather stop — the reading-surface guarantee:
+ *  text can only ever start where the art is already fully dissolved into the bubble color, never before.
+ *  `null` for a non-character row (hide-user-portrait) or a character with no resolved avatar (nothing to
+ *  bleed, and no reason to reserve the padding either). */
 function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
-  if (args.kind !== "character" || args.avatarUrl === null) {
+  if (args.kind !== "character" || args.avatarHash === null) {
     return null;
   }
+  const portraitUrl = blobPortraitUrl(args.avatarHash, ECHO_PORTRAIT_REQUEST_WIDTH);
   return {
     style: {
-      backgroundImage: `linear-gradient(to left, transparent, var(--color-ai-bubble) var(--immersive-echo-feather)), url("${args.avatarUrl}")`,
+      paddingRight: "var(--immersive-echo-feather)",
+      backgroundImage: `linear-gradient(to left, transparent, var(--color-ai-bubble) var(--immersive-echo-feather)), url("${portraitUrl}")`,
       backgroundSize: "100% 100%, cover",
       backgroundPosition: "0 0, right center",
       backgroundRepeat: "no-repeat, no-repeat",
@@ -184,31 +221,42 @@ function echoDecoration(args: BubbleDecorationArgs): BubbleDecoration | null {
   };
 }
 
-/** Whisper's top avatar banner + speaker-color TOP stripe. The stripe always paints (speaker-color
- *  chrome); the banner art only for a character row with a resolved avatar (hide-user-portrait). Both
- *  background-image layers size to the FIXED `--immersive-whisper-banner-height` (not `100% 100%` of
- *  the bubble) — a percentage-of-bubble-height fade was the Phase-4 bug: on a long multi-paragraph
- *  message it stretched the banner across most of the bubble, dimming/obscuring text several paragraphs
- *  down instead of reading as a top strip (verified live in-browser). The bubble's own `bg-ai-bubble`
- *  background-COLOR — a separate CSS property from these background-IMAGE layers — fills everything
- *  below the fixed band unconditionally, so no third layer is needed for the "rest of the bubble". */
+// Whisper requests the crisp rung of the sharp-cropped 3:1 banner ladder (`BANNER_WIDTHS`,
+// `domain/assets/substrate/variant-policy.ts`) — a full-width hero band earns the top rung.
+const WHISPER_BANNER_REQUEST_WIDTH = 800;
+
+/** Whisper's speaker-color TOP stripe — chrome, always paints (see `hushDecoration` for why hide-user-
+ *  portrait doesn't apply to chrome). */
+const WHISPER_STRIPE: CSSProperties = {
+  borderTopWidth: "var(--immersive-stripe-width)",
+  borderTopStyle: "solid",
+  borderTopColor: "var(--color-speaker)",
+};
+
+/** Whisper's header-art band + speaker-color TOP stripe. The stripe always paints; the band only for a
+ *  character row with a resolved avatar (hide-user-portrait) — requests the sharp-cropped 3:1 `banner`
+ *  variant (`blobBannerUrl`, a real face-safe wide crop, never the raw original stretched via
+ *  `background-size`, the Phase-4 squish bug) and returns it as `headerBand` — a REAL block-level child
+ *  `message-row-parts.tsx` renders ABOVE the padded text (never a background layer on the bubble's own
+ *  message-length-dependent box), so `background-size:cover` has a stable box to crop against (no
+ *  stretch) and the text — normal document flow, below the band — can never sit on the art. The FIXED
+ *  `--immersive-whisper-banner-height` (not a percentage of the bubble) is what keeps the band a
+ *  consistent hero strip regardless of message length. */
 function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
-  const stripe: CSSProperties = {
-    borderTopWidth: "var(--immersive-stripe-width)",
-    borderTopStyle: "solid",
-    borderTopColor: "var(--color-speaker)",
-  };
-  if (args.kind !== "character" || args.avatarUrl === null) {
-    return { style: stripe };
+  if (args.kind !== "character" || args.avatarHash === null) {
+    return { style: WHISPER_STRIPE };
   }
+  const bannerUrl = blobBannerUrl(args.avatarHash, WHISPER_BANNER_REQUEST_WIDTH);
   return {
-    style: {
-      ...stripe,
-      backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${args.avatarUrl}")`,
-      backgroundSize:
-        "100% var(--immersive-whisper-banner-height), 100% var(--immersive-whisper-banner-height)",
-      backgroundPosition: "0 0, top center",
-      backgroundRepeat: "no-repeat, no-repeat",
+    style: WHISPER_STRIPE,
+    headerBand: {
+      style: {
+        height: "var(--immersive-whisper-banner-height)",
+        backgroundImage: `linear-gradient(to bottom, transparent, var(--color-ai-bubble) var(--immersive-whisper-feather)), url("${bannerUrl}")`,
+        backgroundSize: "100% 100%, cover",
+        backgroundPosition: "0 0, top center",
+        backgroundRepeat: "no-repeat, no-repeat",
+      },
     },
   };
 }

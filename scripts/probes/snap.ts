@@ -41,6 +41,25 @@
  *                                          # didn't generate — wrong token namespace,
  *                                          # typo'd variant — reports as DEADCSS)
  *
+ *   INTROSPECTION — the "stop dropping to the MCP browser" escape hatches. Run post-settle
+ *   (after any --click/--fill/--wait-for steps), so a caller gets computed values / arbitrary
+ *   DOM facts in the SAME Bash call that drove the interaction.
+ *   pnpm snap / --eval 'document.title'    # run raw JS in-page (repeatable, argv order);
+ *                                          # result is JSON-printed, capped ~2000 chars;
+ *                                          # an in-page throw prints EVAL ERROR, doesn't abort
+ *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text color
+ *                                          # vs its effective ancestor background (repeatable);
+ *                                          # a background-image/gradient ancestor reports
+ *                                          # INDETERMINATE (verify manually); any FAIL reddens
+ *                                          # the exit code
+ *   pnpm snap / --map                      # live selector map of <body>'s interactive/labeled
+ *                                          # elements — role, accessible name, and the BEST
+ *                                          # stable selector to target it (testid > unique
+ *                                          # ancestor testid > aria-label > role=X[name="Y"] >
+ *                                          # fallback path); runs post-steps, so
+ *                                          # `--click X --wait-for Y --map '[role=dialog]'`
+ *                                          # maps a just-revealed surface, no source-grepping
+ *
  *   TEXT PATH — structure as text, ~5–8× cheaper than a PNG and greppable.
  *   Reach for this FIRST; fall to pixels only when something looks off.
  *   pnpm snap / --aria                    # ARIA tree (roles/labels/text) of <body>
@@ -97,6 +116,13 @@ import type { Viewport } from "./_kit/flags.ts";
 import { parseViewport, splitFirstEq, splitLastEq } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
 import { print, printResult } from "./_kit/result.ts";
+import type { Rgb } from "./design-audit-checks.ts";
+import {
+  contrastRatio,
+  isLargeText,
+  LARGE_MIN_RATIO,
+  NORMAL_MIN_RATIO,
+} from "./design-audit-checks.ts";
 
 // SSIM floor for --diff. 0.98 tolerates antialiasing wobble while catching any
 // real layout/content change; tune per-surface later if flux demands.
@@ -108,6 +134,12 @@ const DIFF_SSIM_THRESHOLD = 0.98;
 const ARIA_MAX_LINES = 400;
 // Cap on DEADCSS/EMPTYCSS lines echoed (the counts always print in full).
 const CSS_FINDINGS_CAP = 15;
+// --eval result cap: a runaway selector/object dump shouldn't blow the report budget the
+// text path exists to save. Truncation is noted inline, never silent.
+const EVAL_RESULT_CAP = 2000;
+// --eval block header: the expr itself, truncated so a long one-liner doesn't wrap the report.
+const EVAL_LABEL_CAP = 80;
+const BOLD_WEIGHT = 700;
 const NAV_TIMEOUT_MS = 15_000;
 const WAIT_SELECTOR_TIMEOUT_MS = 10_000;
 const STEP_TIMEOUT_MS = 5000;
@@ -210,6 +242,17 @@ type Args = {
   reducedMotion: boolean;
   /** Settle on networkidle (bounded) instead of a fixed timeout before capture. */
   idle: boolean;
+  // ── INTROSPECTION (the "skip the MCP hop" escape hatches) ───────────────────
+  /** Raw JS run in-page post-settle (repeatable, argv order). JSON-printed, capped. */
+  eval: string[];
+  /** Selectors WCAG-contrast-checked post-settle (repeatable): text color vs effective
+   *  ancestor background of the FIRST match. */
+  contrast: string[];
+  /** Emit a selector map (role · accessible name · best stable selector) of interactive/
+   *  labeled elements within `mapSelector` — "how do I reach this" instead of grepping source. */
+  map: boolean;
+  /** Subtree to map (default "body"); scope it (e.g. a just-revealed dialog) to shrink output. */
+  mapSelector: string;
 };
 
 // ── Flag dispatch ───────────────────────────────────────────────────────────
@@ -218,17 +261,34 @@ type Args = {
 // args.steps in argv order.
 type FlagHandler = (args: Args, rest: string[]) => void;
 
+// Optional inline selector: consume the next token ONLY if it's not a flag (--…) and not a
+// route (/…). Selectors start with [ . # or a tag name. Shared by --aria/--text/--map's
+// "defaults to a broad scope, narrow it inline" idiom.
+function consumeOptionalSelector(rest: string[]): string | null {
+  const next = rest[0];
+  if (next !== undefined && !next.startsWith("-") && !next.startsWith("/")) {
+    return rest.shift() as string;
+  }
+  return null;
+}
+
 function ariaFlag(args: Args, rest: string[], textMode: boolean): void {
   args.aria = true;
   // --text is the cheap combo: structure-as-text, no pixels.
   if (textMode) {
     args.shot = false;
   }
-  // Optional inline selector: consume the next token ONLY if it's not a flag
-  // (--…) and not a route (/…). Selectors start with [ . # or a tag name.
-  const next = rest[0];
-  if (next !== undefined && !next.startsWith("-") && !next.startsWith("/")) {
-    args.ariaSelector = rest.shift() as string;
+  const sel = consumeOptionalSelector(rest);
+  if (sel !== null) {
+    args.ariaSelector = sel;
+  }
+}
+
+function mapFlag(args: Args, rest: string[]): void {
+  args.map = true;
+  const sel = consumeOptionalSelector(rest);
+  if (sel !== null) {
+    args.mapSelector = sel;
   }
 }
 
@@ -353,6 +413,21 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--viewport": (a, rest) => {
     a.viewport = parseViewport(rest.shift() ?? "") ?? a.viewport;
   },
+  "--eval": (a, rest) => {
+    const expr = rest.shift();
+    if (expr) {
+      a.eval.push(expr);
+    }
+  },
+  "--contrast": (a, rest) => {
+    const sel = rest.shift();
+    if (sel) {
+      a.contrast.push(sel);
+    }
+  },
+  "--map": (a, rest) => {
+    mapFlag(a, rest);
+  },
 };
 
 function parseArgs(argv: string[]): Args {
@@ -383,6 +458,10 @@ function parseArgs(argv: string[]): Args {
     colorScheme: null,
     reducedMotion: false,
     idle: false,
+    eval: [],
+    contrast: [],
+    map: false,
+    mapSelector: "body",
   };
   const rest = [...argv];
   while (rest.length > 0) {
@@ -409,6 +488,10 @@ type CaptureOutcome = {
   deadCss: Array<{ token: string; count: number }>;
   emptyCss: string[];
   ariaText: string | null;
+  evalResults: EvalOutcome[];
+  contrastResults: ContrastOutcome[];
+  mapResult: MapEntry[] | null;
+  mapError: string | null;
 };
 
 async function navigate(page: Page, opts: Args, url: string): Promise<string | null> {
@@ -515,6 +598,286 @@ async function captureAria(page: Page, opts: Args): Promise<string> {
   }
 }
 
+// ── --eval: arbitrary in-page JS ────────────────────────────────────────────
+
+type EvalOutcome = { expr: string; text: string };
+
+async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalOutcome[]> {
+  const results: EvalOutcome[] = [];
+  for (const expr of exprs) {
+    let text: string;
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as runSteps.
+      const value: unknown = await page.evaluate(expr);
+      text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
+      if (text.length > EVAL_RESULT_CAP) {
+        text = `${text.slice(0, EVAL_RESULT_CAP)}… (truncated, ${text.length} chars total)`;
+      }
+    } catch (e) {
+      text = `EVAL ERROR: ${errorMessage(e)}`;
+    }
+    results.push({ expr, text });
+  }
+  return results;
+}
+
+// ── --contrast: WCAG AA text/background contrast of the first selector match ─
+
+// RAW STRING (JSON.stringify-interpolated selector), not a function reference — see
+// scanDeadCss's header note: tsx's keepNames __name helper breaks a serialized function in
+// the browser context. This IIFE gathers RAW facts only (colors as strings, size, weight) —
+// ALL classification (large-text/ratio/pass-fail) happens back in Node, reusing
+// design-audit-checks.ts's WCAG math, same split as design-audit.ts's walker.
+function buildContrastScript(selector: string): string {
+  return `(() => {
+    var el = document.querySelector(${JSON.stringify(selector)});
+    if (!el) return null;
+    // Tailwind v4 tokens are oklch(); Chromium's getComputedStyle SERIALIZES CSS Color 4
+    // functions (oklch/oklab/lab/lch/color()) back verbatim rather than converting to rgb() —
+    // so style.color can read "oklch(0.7 0.1 200)". Round-tripping through fillStyle does NOT
+    // fix this (Chromium 149 preserves oklch() there too, verified empirically) — but actually
+    // COMPOSITING to a canvas pixel and reading the byte values back DOES force real sRGB
+    // conversion (canvas is an 8-bit raster surface; un-premultiply cancels any source alpha,
+    // so this is accurate even for translucent colors). One shared 1x1 probe canvas, reused
+    // across every color this script converts.
+    var probeCanvas = document.createElement("canvas");
+    probeCanvas.width = 1;
+    probeCanvas.height = 1;
+    var probeCtx = probeCanvas.getContext("2d", { willReadFrequently: true });
+    function toRgbString(cssColor) {
+      probeCtx.clearRect(0, 0, 1, 1);
+      probeCtx.fillStyle = cssColor;
+      probeCtx.fillRect(0, 0, 1, 1);
+      var d = probeCtx.getImageData(0, 0, 1, 1).data;
+      return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
+    }
+    function isTransparent(c) { return c === "rgba(0, 0, 0, 0)" || c === "transparent"; }
+    function resolveBackdrop(node) {
+      while (node) {
+        var s = getComputedStyle(node);
+        if (s.backgroundImage && s.backgroundImage !== "none") return { kind: "indeterminate" };
+        if (!isTransparent(s.backgroundColor)) return { kind: "flat", color: toRgbString(s.backgroundColor) };
+        node = node.parentElement;
+      }
+      return { kind: "flat", color: "rgb(255, 255, 255)" };
+    }
+    var style = getComputedStyle(el);
+    var fw = style.fontWeight;
+    var fontWeight = fw === "bold" ? 700 : fw === "normal" ? 400 : Number(fw) || 400;
+    return {
+      color: toRgbString(style.color),
+      fontSizePx: Number.parseFloat(style.fontSize) || 16,
+      fontWeight: fontWeight,
+      backdrop: resolveBackdrop(el),
+    };
+  })()`;
+}
+
+type ContrastFacts = {
+  color: string;
+  fontSizePx: number;
+  fontWeight: number;
+  backdrop: { kind: "flat"; color: string } | { kind: "indeterminate" };
+} | null;
+
+// buildContrastScript's toRgbString ALWAYS emits this exact "rgb(r, g, b)" shape (it composites
+// to a canvas pixel and reads the bytes back itself, sidestepping getComputedStyle's oklch()
+// passthrough) — so this is the only shape parseRgbString ever needs to handle.
+const RGB_STRING_RE = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/u;
+
+function parseRgbString(s: string): Rgb | null {
+  const m = RGB_STRING_RE.exec(s);
+  if (!(m?.[1] && m[2] && m[3])) {
+    return null;
+  }
+  return { r: Number(m[1]), g: Number(m[2]), b: Number(m[3]) };
+}
+
+type ContrastOutcome = { line: string; failed: boolean };
+
+async function checkContrast(page: Page, selector: string): Promise<ContrastOutcome> {
+  let facts: ContrastFacts;
+  try {
+    facts = (await page.evaluate(buildContrastScript(selector))) as ContrastFacts;
+  } catch (e) {
+    return { line: `CONTRAST ${selector}: EVAL ERROR: ${errorMessage(e)}`, failed: true };
+  }
+  if (facts === null) {
+    return { line: `CONTRAST ${selector}: NOT FOUND`, failed: true };
+  }
+  const large = isLargeText(facts.fontSizePx, facts.fontWeight);
+  const needRatio = large ? LARGE_MIN_RATIO : NORMAL_MIN_RATIO;
+  const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
+  const tail = `(font ${fontDisplay} · need ${needRatio.toFixed(1)})`;
+  if (facts.backdrop.kind === "indeterminate") {
+    return {
+      line: `CONTRAST ${selector}: n/a  INDETERMINATE  ${tail} — verify manually (over image/gradient)`,
+      failed: false,
+    };
+  }
+  const fg = parseRgbString(facts.color);
+  const bg = parseRgbString(facts.backdrop.color);
+  if (fg === null || bg === null) {
+    return {
+      line: `CONTRAST ${selector}: unparseable color (${facts.color} / ${facts.backdrop.color})`,
+      failed: true,
+    };
+  }
+  const ratio = contrastRatio(fg, bg);
+  const pass = ratio >= needRatio;
+  return {
+    line: `CONTRAST ${selector}: ${ratio.toFixed(2)}:1  ${pass ? "PASS" : "FAIL"}  ${tail}`,
+    failed: !pass,
+  };
+}
+
+async function captureContrasts(
+  page: Page,
+  selectors: readonly string[],
+): Promise<ContrastOutcome[]> {
+  const results: ContrastOutcome[] = [];
+  for (const selector of selectors) {
+    // biome-ignore lint/performance/noAwaitInLoops: argv-ordered, independent checks — same discipline as captureEvals/runSteps.
+    results.push(await checkContrast(page, selector));
+  }
+  return results;
+}
+
+// ── --map: a live selector map (role · accessible name · best stable selector) ──────────────
+// "How do I reach this" instead of grepping source. Runs POST-STEPS so `--click X --map` maps
+// a just-revealed surface (a settings dialog). RAW STRING IIFE (JSON.stringify-interpolated
+// scope selector) — same keepNames constraint as scanDeadCss/buildContrastScript. Unlike
+// --contrast, this whole decision (role/name resolution, selector priority) has no WCAG-style
+// fixed threshold to unit-test in Node, so it's formatted entirely in-page — nothing for
+// design-audit-checks.ts to own.
+const MAP_INTERACTIVE_SELECTOR = "a,button,[role],input,select,textarea,[tabindex],[aria-label]";
+
+function buildMapScript(selector: string): string {
+  return `(() => {
+    var root = document.querySelector(${JSON.stringify(selector)});
+    if (!root) return null;
+    var INTERACTIVE_SELECTOR = ${JSON.stringify(MAP_INTERACTIVE_SELECTOR)};
+    var IMPLICIT_ROLE = { a: "link", button: "button", select: "combobox", textarea: "textbox" };
+    var INPUT_ROLES = { checkbox: "checkbox", radio: "radio", button: "button", submit: "button", range: "slider", search: "searchbox" };
+
+    function isVisible(el) {
+      var style = getComputedStyle(el);
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+      var rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    }
+    function resolveRole(el) {
+      var explicit = el.getAttribute("role");
+      if (explicit) return explicit;
+      var tag = el.tagName.toLowerCase();
+      if (tag === "input") {
+        var type = (el.getAttribute("type") || "text").toLowerCase();
+        return INPUT_ROLES[type] || "textbox";
+      }
+      if (IMPLICIT_ROLE[tag]) return IMPLICIT_ROLE[tag];
+      return el.hasAttribute("tabindex") ? "generic" : "";
+    }
+    function accessibleName(el) {
+      var al = el.getAttribute("aria-label");
+      if (al && al.trim()) return al.trim();
+      var lbId = el.getAttribute("aria-labelledby");
+      if (lbId) {
+        var text = lbId.split(/\\s+/).map(function (id) {
+          var t = document.getElementById(id);
+          return t ? t.textContent.trim() : "";
+        }).join(" ").trim();
+        if (text) return text;
+      }
+      var text2 = (el.textContent || "").trim().replace(/\\s+/g, " ");
+      if (text2) return text2.length > 60 ? text2.slice(0, 60) + "…" : text2;
+      var title = el.getAttribute("title");
+      if (title && title.trim()) return title.trim();
+      if (el.tagName === "INPUT") {
+        var ph = el.getAttribute("placeholder");
+        if (ph && ph.trim()) return ph.trim();
+      }
+      var alt = el.getAttribute("alt");
+      if (alt && alt.trim()) return alt.trim();
+      return "";
+    }
+    function nthOfType(node) {
+      var idx = 1;
+      var sib = node.previousElementSibling;
+      while (sib) {
+        if (sib.tagName === node.tagName) idx += 1;
+        sib = sib.previousElementSibling;
+      }
+      return node.tagName.toLowerCase() + ":nth-of-type(" + idx + ")";
+    }
+    // Fallback #4: a short ancestor-chain path (capped) — not globally unique CSS, but enough
+    // to point a human/agent at the right neighborhood when no testid/label/role+name exists.
+    function fallbackPath(node) {
+      var parts = [];
+      var cur = node;
+      var depth = 0;
+      while (cur && cur !== root && cur !== document.body && depth < 4) {
+        parts.unshift(nthOfType(cur));
+        cur = cur.parentElement;
+        depth += 1;
+      }
+      return parts.join(" > ");
+    }
+    // Priority: 1) own data-testid  2) nearest ancestor testid that UNIQUELY wraps this element
+    // (its only interactive/labeled descendant)  3) own aria-label  4) role=X[name="Y"]
+    // (Playwright locator syntax)  5) fallback ancestor-chain path.
+    function bestSelector(el, role, name) {
+      var testid = el.getAttribute("data-testid");
+      if (testid) return "[data-testid=\\"" + testid + "\\"]";
+      var anc = el.parentElement;
+      var hops = 0;
+      while (anc && hops < 3) {
+        var atid = anc.getAttribute("data-testid");
+        if (atid) {
+          if (anc.querySelectorAll(INTERACTIVE_SELECTOR).length === 1) {
+            return "[data-testid=\\"" + atid + "\\"] " + el.tagName.toLowerCase();
+          }
+          break;
+        }
+        anc = anc.parentElement;
+        hops += 1;
+      }
+      var ownLabel = el.getAttribute("aria-label");
+      if (ownLabel && ownLabel.trim()) return "[aria-label=\\"" + ownLabel.trim() + "\\"]";
+      if (role && name) return "role=" + role + "[name=\\"" + name + "\\"]";
+      return fallbackPath(el);
+    }
+
+    var out = [];
+    var els = root.querySelectorAll(INTERACTIVE_SELECTOR);
+    for (var i = 0; i < els.length; i += 1) {
+      var el = els[i];
+      if (!isVisible(el)) continue;
+      var role = resolveRole(el);
+      var name = accessibleName(el);
+      if (!role && !name) continue;
+      out.push({ role: role || "(none)", name: name, selector: bestSelector(el, role, name) });
+    }
+    return out;
+  })()`;
+}
+
+type MapEntry = { role: string; name: string; selector: string };
+
+async function captureMap(
+  page: Page,
+  selector: string,
+): Promise<{ entries: MapEntry[] | null; error: string | null }> {
+  try {
+    const result = (await page.evaluate(buildMapScript(selector))) as MapEntry[] | null;
+    if (result === null) {
+      return { entries: null, error: `no element matches "${selector}"` };
+    }
+    return { entries: result, error: null };
+  } catch (e) {
+    return { entries: null, error: errorMessage(e) };
+  }
+}
+
 async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureOutcome> {
   const outcome: CaptureOutcome = {
     navError: null,
@@ -522,6 +885,10 @@ async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureO
     deadCss: [],
     emptyCss: [],
     ariaText: null,
+    evalResults: [],
+    contrastResults: [],
+    mapResult: null,
+    mapError: null,
   };
   // Volatile-region masks (pink overlay) shared by the main shot, --shot-of, and crop.
   const mask = opts.mask.map((s) => page.locator(s));
@@ -536,6 +903,17 @@ async function capture(page: Page, opts: Args, plan: ShotPlan): Promise<CaptureO
     }
     if (opts.aria) {
       outcome.ariaText = await captureAria(page, opts);
+    }
+    if (opts.eval.length > 0) {
+      outcome.evalResults = await captureEvals(page, opts.eval);
+    }
+    if (opts.contrast.length > 0) {
+      outcome.contrastResults = await captureContrasts(page, opts.contrast);
+    }
+    if (opts.map) {
+      const mapped = await captureMap(page, opts.mapSelector);
+      outcome.mapResult = mapped.entries;
+      outcome.mapError = mapped.error;
     }
     if (plan.produceShot) {
       await captureShot(page, opts, plan.out, mask);
@@ -725,6 +1103,42 @@ function printAriaBlock(opts: Args, ariaText: string | null): void {
   }
 }
 
+function printEvalBlock(evals: readonly EvalOutcome[]): void {
+  evals.forEach((e, i) => {
+    const label = e.expr.length > EVAL_LABEL_CAP ? `${e.expr.slice(0, EVAL_LABEL_CAP)}…` : e.expr;
+    print(`\n--- EVAL[${i}] (${label}) ---`);
+    print(e.text);
+  });
+}
+
+function printContrastBlock(contrasts: readonly ContrastOutcome[]): void {
+  if (contrasts.length > 0) {
+    print("");
+  }
+  for (const c of contrasts) {
+    print(c.line);
+  }
+}
+
+function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | null): void {
+  if (!opts.map) {
+    return;
+  }
+  if (error !== null) {
+    print(`\n--- MAP (${opts.mapSelector}) ---`);
+    print(`  MAP capture failed: ${error}`);
+    return;
+  }
+  const list = entries ?? [];
+  print(`\n--- MAP (${list.length} element(s)) ---`);
+  for (const e of list.slice(0, ARIA_MAX_LINES)) {
+    print(`  ${e.role}  "${e.name}"  →  ${e.selector}`);
+  }
+  if (list.length > ARIA_MAX_LINES) {
+    print(`  … +${list.length - ARIA_MAX_LINES} more — scope with --map <selector>`);
+  }
+}
+
 function printCaptureLog(session: ProbeSession, failed: CapturedRequest[]): void {
   if (failed.length > 0) {
     print("\n--- failed requests ---");
@@ -898,21 +1312,29 @@ async function snap(opts: Args): Promise<number> {
   const ctx: ReportCtx = { ...plan, failed };
   printSummary(session, outcome, opts, ctx);
   printAriaBlock(opts, outcome.ariaText);
+  printEvalBlock(outcome.evalResults);
+  printContrastBlock(outcome.contrastResults);
+  printMapBlock(opts, outcome.mapResult, outcome.mapError);
   printCaptureLog(session, failed);
   printCssFindings(outcome);
   printCropNote(opts, ctx);
   const { diffPairs, ssimFailed } = await runBaselineOrDiff(opts, out, name);
 
+  const contrastFails = outcome.contrastResults.filter((c) => c.failed).length;
   // Exit non-zero if anything observably went wrong, so `snap` is CI-usable.
   const red =
     outcome.navError !== null ||
     session.pageErrors.length > 0 ||
     failed.length > 0 ||
     outcome.stepFailures > 0 ||
+    contrastFails > 0 ||
     ssimFailed;
   printResult("snap", [
     ["out", produceShot ? out : "(none)"],
     ["aria", outcome.ariaText === null ? "no" : "yes"],
+    ["map", opts.map ? String((outcome.mapResult ?? []).length) : "no"],
+    ["evals", outcome.evalResults.length],
+    ["contrast-fails", contrastFails],
     ["nav", outcome.navError === null ? "OK" : "ERROR"],
     ["steps-failed", outcome.stepFailures],
     ["page-errors", session.pageErrors.length],

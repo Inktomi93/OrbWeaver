@@ -31,13 +31,12 @@ type ImageFormat = (typeof IMAGE_FORMATS)[number];
 export interface ImageTransformOptions {
   /** Target width in px (already snapped to the domain's ladder). Omitted ⇒ no resize. Never enlarges. */
   width?: number;
-  /** Target height in px — PAIRS with `width` for a fixed-box crop (the 2:3 portrait variant,
-   *  `domain/assets/substrate/variant-policy` `PORTRAIT_WIDTHS`). Omitted (width-only) ⇒ the existing
-   *  aspect-preserving resize (icons/Echo bled-portrait — `FINAL-Persona-and-Immersive-Chat-Visuals.md`
-   *  §B.4 keeps this path). */
+  /** Target height in px — PAIRS with `width` for a fixed-box crop (the 2:3 portrait / 3:1 banner
+   *  variants, `domain/assets/substrate/variant-policy` `PORTRAIT_WIDTHS`/`BANNER_WIDTHS`). Omitted
+   *  (width-only) ⇒ the existing aspect-preserving resize (the plain `icon` ladder). */
   height?: number;
   /** Resize fit mode — only meaningful when `height` is also given (sharp's `fit` requires both
-   *  dimensions). `'cover'` crops to fill the box; the portrait variant is the only caller. */
+   *  dimensions). `'cover'` crops to fill the box; the portrait/banner variants are the only callers. */
   fit?: "cover";
   /** Crop anchor — only meaningful with `fit:'cover'`. `'attention'` is sharp's SALIENCY/smart-crop
    *  strategy (libvips edge+skin-tone detection), never `'centre'`: avatars are face-centric and a naive

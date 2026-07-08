@@ -29,7 +29,6 @@
 // with zero visual pop-in. `attribution === undefined` (a caller that hasn't wired it) degrades to the
 // pre-fix render: no sibling avatar, no decoration — unchanged.
 
-import { blobUrl } from "@orb/contracts/assets";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
@@ -111,11 +110,10 @@ export function GhostMessageRow({
   // off the live turn's attribution instead of a committed MessageView.
   const kind = attribution?.kind ?? null;
   const avatarTreatment = skin.avatarTreatment(kind);
-  const characterAvatarUrl =
-    attribution === undefined || attribution.avatarHash === null
-      ? null
-      : blobUrl(attribution.avatarHash);
-  const decoration = skin.bubbleDecoration?.({ kind, avatarUrl: characterAvatarUrl }) ?? null;
+  // §B.2 bubbleDecoration takes the raw CAS hash, not a prebuilt URL (see message-row.tsx) — Echo/
+  // Whisper each request their OWN correctly-shaped sharp variant.
+  const decorationAvatarHash = attribution === undefined ? null : attribution.avatarHash;
+  const decoration = skin.bubbleDecoration?.({ kind, avatarHash: decorationAvatarHash }) ?? null;
   const avatarNode =
     attribution === undefined
       ? null

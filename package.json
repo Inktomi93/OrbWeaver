@@ -12,6 +12,7 @@
     "worktree:bootstrap": "bash scripts/worktree-bootstrap.sh",
     "dev": "bash scripts/dev/dev.sh",
     "stack": "bash scripts/dev/stack.sh",
+    "design-audit": "tsx scripts/probes/design-audit.ts",
     "snap": "tsx scripts/probes/snap.ts",
     "record": "tsx scripts/probes/record.ts",
     "perf-meter": "tsx scripts/probes/perf-meter.ts",

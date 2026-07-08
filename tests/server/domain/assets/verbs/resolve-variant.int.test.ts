@@ -253,3 +253,114 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     expect(h.imageTransform).not.toHaveBeenCalled();
   });
 });
+
+// The banner (3:1) smart-cropped ladder — Whisper's header-art band. `BANNER_WIDTHS = [480, 800]`;
+// 3:1 ⇒ height = width / 3.
+const BANNER_REQUESTED = 500;
+const BANNER_SNAPPED_WIDTH = 800;
+const BANNER_SNAPPED_HEIGHT = 267;
+const BANNER_TOP_WIDTH = 800;
+const BANNER_TOP_HEIGHT = 267;
+
+describe("resolveVariant — banner ladder (kind:'banner')", () => {
+  test("transforms with the snapped (width,height) + fit:cover position:attention, then caches", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const { ownerId, hash } = await storeOriginal(db, h, "banner_owner");
+
+    const first = await svc.resolveVariant({
+      principal: principal(ownerId),
+      hash,
+      width: BANNER_REQUESTED,
+      kind: "banner",
+    });
+    expect(Array.from(first ?? [])).toEqual(Array.from(FAKE_WEBP));
+    expect(h.imageTransform).toHaveBeenCalledTimes(1);
+    expect(h.imageTransform).toHaveBeenCalledWith(expect.anything(), {
+      width: BANNER_SNAPPED_WIDTH,
+      height: BANNER_SNAPPED_HEIGHT,
+      fit: "cover",
+      position: "attention",
+      format: "webp",
+    });
+
+    const second = await svc.resolveVariant({
+      principal: principal(ownerId),
+      hash,
+      width: BANNER_REQUESTED,
+      kind: "banner",
+    });
+    expect(Array.from(second ?? [])).toEqual(Array.from(FAKE_WEBP));
+    // Served from the variant cache — the transform did NOT run a second time.
+    expect(h.imageTransform).toHaveBeenCalledTimes(1);
+  });
+
+  test("an oversized banner width snaps to the top rung (800x267)", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const { ownerId, hash } = await storeOriginal(db, h, "banner_oversized");
+
+    await svc.resolveVariant({
+      principal: principal(ownerId),
+      hash,
+      width: OVERSIZED_WIDTH,
+      kind: "banner",
+    });
+    expect(h.imageTransform).toHaveBeenCalledWith(expect.anything(), {
+      width: BANNER_TOP_WIDTH,
+      height: BANNER_TOP_HEIGHT,
+      fit: "cover",
+      position: "attention",
+      format: "webp",
+    });
+  });
+
+  test("the banner ladder never collides with the portrait ladder at the same width", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const { ownerId, hash } = await storeOriginal(db, h, "banner_vs_portrait");
+
+    // 400 sits exactly on the portrait ladder's top rung; the banner ladder snaps it up to 800 — two
+    // DISTINCT (kind, width) cache keys, neither serving the other's transform.
+    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "portrait" });
+    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "banner" });
+    expect(h.imageTransform).toHaveBeenCalledTimes(2);
+    expect(h.imageTransform).toHaveBeenNthCalledWith(1, expect.anything(), {
+      width: PORTRAIT_TOP_WIDTH,
+      height: PORTRAIT_TOP_HEIGHT,
+      fit: "cover",
+      position: "attention",
+      format: "webp",
+    });
+    expect(h.imageTransform).toHaveBeenNthCalledWith(2, expect.anything(), {
+      width: 480,
+      height: 160,
+      fit: "cover",
+      position: "attention",
+      format: "webp",
+    });
+  });
+
+  test("an absurd banner width (0) returns undefined and never transforms", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const { ownerId, hash } = await storeOriginal(db, h, "banner_absurd");
+
+    const out = await svc.resolveVariant({
+      principal: principal(ownerId),
+      hash,
+      width: 0,
+      kind: "banner",
+    });
+    expect(out).toBeUndefined();
+    expect(h.imageTransform).not.toHaveBeenCalled();
+  });
+});

@@ -63,3 +63,36 @@ export function snapPortraitWidth(
   // Oversized ask → the top rung. The tuple is non-empty, so `.at(-1)` is always a number here.
   return portraitSizeOf(PORTRAIT_WIDTHS.at(-1) as number);
 }
+
+// The banner (3:1, face-safe smart-crop) variant ladder — Whisper's header-art band (the immersive
+// chatStyle redo, `FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4-follow-up). A wide, FIXED-aspect
+// crop (`fit:'cover', position:'attention'`), never a CSS `background-size` stretch of an arbitrary-aspect
+// source — that stretch is exactly the Phase-4 defect this ladder replaces (a squished portrait). Same
+// DoS-bounded-keyspace reasoning as `PORTRAIT_WIDTHS` (esoterica #2) — a small fixed set, never a
+// caller-chosen height.
+// biome-ignore lint/style/noMagicNumbers: a fixed 3:1 display-size ladder; the literals are the data itself.
+export const BANNER_WIDTHS = [480, 800] as const;
+// biome-ignore lint/style/noMagicNumbers: the 3:1 ratio IS the data (mirrors PORTRAIT_ASPECT_HEIGHT_OVER_WIDTH).
+const BANNER_ASPECT_HEIGHT_OVER_WIDTH = 1 / 3; // 3:1 — height = width / 3
+
+function bannerSizeOf(width: number): { readonly width: number; readonly height: number } {
+  return { width, height: Math.round(width * BANNER_ASPECT_HEIGHT_OVER_WIDTH) };
+}
+
+/** Snap a requested banner width to `BANNER_WIDTHS`, returning the full `(width, height)` pair (3:1,
+ *  derived — same shape as {@link snapPortraitWidth}). `undefined` for a non-finite/non-positive request
+ *  — the caller 404s it. */
+export function snapBannerWidth(
+  requested: number,
+): { readonly width: number; readonly height: number } | undefined {
+  if (!Number.isFinite(requested) || requested <= 0) {
+    return;
+  }
+  for (const width of BANNER_WIDTHS) {
+    if (width >= requested) {
+      return bannerSizeOf(width);
+    }
+  }
+  // Oversized ask → the top rung. The tuple is non-empty, so `.at(-1)` is always a number here.
+  return bannerSizeOf(BANNER_WIDTHS.at(-1) as number);
+}

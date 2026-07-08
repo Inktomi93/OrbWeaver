@@ -4,7 +4,9 @@
 
 import { describe } from "vitest";
 import {
+  BANNER_WIDTHS,
   BLOB_WIDTHS,
+  snapBannerWidth,
   snapBlobWidth,
 } from "../../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -29,5 +31,27 @@ describe("snapBlobWidth", () => {
     expect(snapBlobWidth(-10)).toBeUndefined();
     expect(snapBlobWidth(Number.NaN)).toBeUndefined();
     expect(snapBlobWidth(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+});
+
+// The banner (3:1, face-safe smart-crop) ladder — Whisper's header-art band. `BANNER_WIDTHS = [480, 800]`;
+// 3:1 ⇒ height = width / 3.
+describe("snapBannerWidth", () => {
+  test("snaps to the smallest rung >= the request, deriving the 3:1 height", () => {
+    expect(snapBannerWidth(1)).toEqual({ width: 480, height: 160 });
+    expect(snapBannerWidth(480)).toEqual({ width: 480, height: 160 });
+    expect(snapBannerWidth(481)).toEqual({ width: 800, height: 267 });
+  });
+
+  test("an oversized ask snaps to the top rung (caps the keyspace)", () => {
+    const top = BANNER_WIDTHS.at(-1);
+    expect(snapBannerWidth(100_000)).toEqual({ width: top, height: 267 });
+  });
+
+  test("non-usable widths return undefined (the route 404s)", () => {
+    expect(snapBannerWidth(0)).toBeUndefined();
+    expect(snapBannerWidth(-10)).toBeUndefined();
+    expect(snapBannerWidth(Number.NaN)).toBeUndefined();
+    expect(snapBannerWidth(Number.POSITIVE_INFINITY)).toBeUndefined();
   });
 });
