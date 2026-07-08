@@ -28,7 +28,19 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 // Exported for the contracts↔ui structural PAIRING test (D44 §12.5: the wire schema in
 // `@orb/contracts/theme` and this render clamp are a deliberate cake-forced two-copy; the pairing
 // suite imports both packages and asserts identical key sets / enums / font allowlist).
-export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document"] as const;
+// Phase 4 (§B.2): the 5 immersive modes (`@orb/client` `MESSAGE_ROW_SKINS`) join bubble/flat/document —
+// the pairing suite (`tests/contracts/theme/pairing.suite.test.ts`) enforces this tuple stays byte-
+// identical to the wire twin (`@orb/contracts/theme` `THEME_CHAT_STYLES`).
+export const THEME_SCOPE_CHAT_STYLES = [
+  "bubble",
+  "flat",
+  "document",
+  "echo",
+  "whisper",
+  "hush",
+  "ripple",
+  "tide",
+] as const;
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
 const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;

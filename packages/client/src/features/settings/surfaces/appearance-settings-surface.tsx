@@ -119,7 +119,7 @@ function AppearanceForm(): ReactElement {
             {(field): ReactElement => (
               <field.SelectField
                 label="Chat display"
-                description="Bubble tints each message; flat is full-width; document is a centered manuscript column."
+                description="Bubble tints each message; flat is full-width; document is a centered manuscript column. Echo, Whisper, Hush, Ripple and Tide are immersive modes — bled portraits, VN sticky art, accent stripes and message trains."
                 items={CHAT_STYLE_ITEMS}
               />
             )}

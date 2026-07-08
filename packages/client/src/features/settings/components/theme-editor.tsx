@@ -54,6 +54,12 @@ const CHAT_STYLE_LABELS: Record<ThemeChatStyle, string> = {
   bubble: "Bubble",
   flat: "Flat",
   document: "Document",
+  // §B.2 — the 5 immersive modes (FINAL-Persona-and-Immersive-Chat-Visuals.md).
+  echo: "Echo (bled portrait)",
+  whisper: "Whisper (avatar banner)",
+  hush: "Hush (flat + speaker stripe)",
+  ripple: "Ripple (VN sticky portrait)",
+  tide: "Tide (paragraph bubbles)",
 };
 const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
   value,

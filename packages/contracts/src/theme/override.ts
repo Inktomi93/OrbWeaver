@@ -35,7 +35,21 @@ export const THEME_FONT_ALLOWLIST = [
 ] as const;
 export type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
-export const THEME_CHAT_STYLES = ["bubble", "flat", "document"] as const;
+// Phase 4 (§B.2 FINAL-Persona-and-Immersive-Chat-Visuals.md): the 5 immersive modes join bubble/flat/
+// document as first-class peers, painted by `@orb/client` `MESSAGE_ROW_SKINS` (the exhaustive
+// `Record<ChatStyle, RowSkin>` — a new member here fails `tsc` there until it's painted). A per-character
+// `ThemeOverride.chatStyle` may ALSO pick one of these (the character-authored theme editor,
+// `features/settings/components/theme-editor.tsx`).
+export const THEME_CHAT_STYLES = [
+  "bubble",
+  "flat",
+  "document",
+  "echo",
+  "whisper",
+  "hush",
+  "ripple",
+  "tide",
+] as const;
 export type ThemeChatStyle = (typeof THEME_CHAT_STYLES)[number];
 
 export const THEME_DENSITIES = ["comfortable", "compact"] as const;
