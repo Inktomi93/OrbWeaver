@@ -55,12 +55,20 @@ import type { ReactElement, ReactNode } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, useChatBus, useTRPC } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase } from "#state";
+import {
+  isCommitted,
+  isLiveTurnPhase,
+  useDraftConfig,
+  useTurnPhase,
+  useTurnSpeakerCharacterId,
+} from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row";
 import { MessageRow } from "../components/message-row";
 import { useChatStyle } from "../hooks/use-chat-style";
 import { useMessageAppearance } from "../hooks/use-message-appearance";
 import { messageItemKey, useMessageItems } from "../hooks/use-message-items";
+import { resolveRowAttribution } from "../lib/attribution";
+import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import {
   buildParticipantsById,
@@ -167,11 +175,25 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
   // each row as props (rows stay prop-driven + Compiler-memoized, never a per-row query).
   const messageAppearance = useMessageAppearance();
   const phase = useTurnPhase(chatId);
+  // Phase 4b gap-fix (b) — the live turn's voiced speaker (a chrome-safe id-stable selector, §A.8;
+  // never re-renders this surface on a token delta). Resolved through the SAME `resolveRowAttribution`
+  // the settled row uses, so the ghost's immersive decoration (Echo/Whisper/Hush/Ripple) matches
+  // exactly what the canonical row will show once the turn settles.
+  const ghostSpeakerCharacterId = useTurnSpeakerCharacterId(chatId);
+  const ghostAttribution = resolveRowAttribution({
+    role: "assistant",
+    characterId: ghostSpeakerCharacterId,
+    personaId: null,
+    participants,
+    characterNamesById,
+  });
   const items = useMessageItems(messages, chatId);
 
   const live = isLiveTurnPhase(phase);
   // The tail assistant message is the swipe-eligible row (hidden mid-stream — scout swipe-strip rule).
   const lastAssistantId = live ? null : findLastAssistantId(messages);
+  // Phase 4b §B.5.2 — the current "last-in-context" boundary (lib/context-boundary; null ⇒ no divider).
+  const contextBoundaryMessageId = resolveContextBoundaryMessageId(messages);
 
   const renderItem = (item: (typeof items)[number]): ReactNode =>
     item.kind === "ghost" ? (
@@ -179,6 +201,14 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         chatId={chatId}
         chatStyle={chatStyle}
         streaming={phase === "streaming" || phase === "stopping"}
+        rowCharacterId={ghostSpeakerCharacterId}
+        attribution={ghostAttribution}
+        avatarSize={messageAppearance.avatarSize}
+        avatarShape={messageAppearance.avatarShape}
+        avatarAspect={messageAppearance.avatarAspect}
+        avatarRing={messageAppearance.avatarRing}
+        showInChatAvatars={messageAppearance.showInChatAvatars}
+        showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
       />
     ) : (
       <MessageRow
@@ -193,6 +223,7 @@ function ChatThread({ chatId, chatStyle, onChatForked }: ChatThreadProps): React
         metadataVisibility={messageAppearance.metadataVisibility}
         messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastAssistantId}
+        contextBoundary={item.view.id === contextBoundaryMessageId}
         participants={participants}
         characterNamesById={characterNamesById}
         personaNamesById={personaNamesById}

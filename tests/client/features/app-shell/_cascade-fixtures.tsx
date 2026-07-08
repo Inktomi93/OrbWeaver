@@ -38,7 +38,24 @@ export function ShellCascadeFixture({
   fontScale = 1,
   messageRole = "assistant",
 }: ShellCascadeFixtureProps): ReactElement {
-  useAppearanceRootEffects({ fontScale, dataTheme: null, blurSurfaces, shadowEffects: false });
+  useAppearanceRootEffects({
+    fontScale,
+    dataTheme: null,
+    blurSurfaces,
+    shadowEffects: false,
+    // Schema defaults (@orb/contracts/settings appearanceSchema) — the cascade-contract fixture isn't
+    // exercising Phase 4b's new axes, so it stamps the same no-op values a fresh user would resolve to.
+    blurStrength: 14,
+    reading: {
+      lineHeight: 1.55,
+      letterSpacing: 0,
+      paragraphSpacing: 0.75,
+      nameScale: 1,
+      bodyScale: 1,
+      justify: false,
+    },
+    themeColorization: false,
+  });
   return (
     <div
       className="shell-grid"

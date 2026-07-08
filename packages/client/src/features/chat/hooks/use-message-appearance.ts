@@ -29,6 +29,9 @@ export interface MessageAppearance {
   readonly metadataVisibility: MessageMetadataVisibility;
   /** WS3 — hover-reveal vs always-visible action cluster. */
   readonly messageActions: AppearanceSettings["messageActions"];
+  /** Phase 4b §B.5.5 — the reasoning-block metadata-chip icon. Threaded to the ghost row (the only
+   *  live `<ReasoningBlock>` consumer today, `ghost-message-row.tsx`). */
+  readonly showLLMReasoningIcon: AppearanceSettings["showLLMReasoningIcon"];
 }
 
 export function useMessageAppearance(): MessageAppearance {
@@ -49,5 +52,6 @@ export function useMessageAppearance(): MessageAppearance {
       showTokenCount: appearance.showTokenCount,
     },
     messageActions: appearance.messageActions,
+    showLLMReasoningIcon: appearance.showLLMReasoningIcon,
   };
 }

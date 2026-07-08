@@ -146,9 +146,23 @@ function buildCanonCopy(
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
+      // The §8 fit-pass boundary references ANOTHER slot (not the variant's own — a cross-slot pointer,
+      // unlike `selectedVariantId`'s same-slot remap below). Remap it through the SAME `slotIdMap`; a
+      // boundary that pointed OUTSIDE the copied range (truncated fork / a since-pruned earlier turn)
+      // has no entry → null (never a stale cross-chat id — the source chat's slot still exists, so a
+      // raw copy would silently point the fork at the WRONG chat's message).
+      const newBoundaryId =
+        variant.contextBoundaryMessageId !== null
+          ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null)
+          : null;
       variantInserts.push(
         batchStmt(
-          db.insert(messageVariants).values({ ...variant, id: newId, messageId: newMessageId }),
+          db.insert(messageVariants).values({
+            ...variant,
+            id: newId,
+            messageId: newMessageId,
+            contextBoundaryMessageId: newBoundaryId,
+          }),
         ),
       );
     }

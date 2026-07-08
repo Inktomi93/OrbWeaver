@@ -11,6 +11,7 @@
 // §8 cache breakpoint is an OFFSET-FROM-END, so a front-drop here preserves it structurally — no
 // retagging needed. Token counting via the kit estimator (advisory; truth is provider `usage`).
 
+import type { MessageId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 
 /** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
@@ -19,6 +20,7 @@ interface HistoryTurn {
   readonly role: "user" | "assistant";
   readonly content: string;
   readonly name?: string;
+  readonly messageId?: MessageId | undefined;
 }
 
 interface HistoryBudget {
@@ -37,6 +39,10 @@ interface FitResult {
   readonly history: HistoryTurn[];
   /** How many oldest turns were dropped (0 = fit as-is / no ceiling). For logging + trace. */
   readonly droppedCount: number;
+  /** The id of the earliest-KEPT turn — the "last message inside context" boundary a client can render a
+   *  divider at. `null` when nothing was dropped, or the fit-pass never ran, or no kept turn carries an
+   *  id (a hand-built/preview call with bare `{role,content}` rows). */
+  readonly earliestKeptMessageId: MessageId | null;
 }
 
 // Per-message wire overhead (role markers the estimator doesn't see) + estimator-slop headroom.
@@ -60,7 +66,7 @@ export function fitHistoryToWindow(
   );
   // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set).
   if (!Number.isFinite(ceiling)) {
-    return { history: [...history], droppedCount: 0 };
+    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null };
   }
 
   const promptBudget = ceiling - budget.systemTokens - budget.reserveOutputTokens - SAFETY_MARGIN;
@@ -84,7 +90,12 @@ export function fitHistoryToWindow(
   }
 
   if (keepFrom === 0) {
-    return { history: [...history], droppedCount: 0 };
+    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null };
   }
-  return { history: history.slice(keepFrom), droppedCount: keepFrom };
+  const kept = history.slice(keepFrom);
+  return {
+    history: kept,
+    droppedCount: keepFrom,
+    earliestKeptMessageId: kept.find((t) => t.messageId !== undefined)?.messageId ?? null,
+  };
 }

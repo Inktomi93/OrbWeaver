@@ -33,7 +33,7 @@ import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ContentImageRef } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, ChatId, PersonaId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -71,6 +71,8 @@ interface ShapeCanonRow {
   readonly content: string;
   readonly authorName?: string | null;
   readonly characterId?: CharacterId | null;
+  /** Every real canon row here always has a real backing `MessageView.id` — set by `toShapeCanon`. */
+  readonly messageId: MessageId;
 }
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
@@ -157,6 +159,10 @@ interface TurnPipelineResult {
   /** The WI entries that FIRED this turn (budget-survived) — `ctx.wiTrace.entryIds` (assembly/context.ts,
    *  D50 pt-2). The engine emits `worldInfoActivated {chatId, entryIds}` once per turn when non-empty. */
   readonly worldInfoEntryIds: readonly WorldEntryId[];
+  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
+   *  assembled history this turn, or null (nothing dropped / the fit-pass never ran). Persisted on the
+   *  variant so a client can render a "last-in-context" divider. */
+  readonly contextBoundaryMessageId: MessageId | null;
 }
 
 /** Map the loaded canon (D26 `MessageView`) → the SHAPE wire rows: drop hidden + system rows (system content
@@ -201,6 +207,7 @@ function toShapeCanon(
         }),
         characterId: m.characterId,
         authorName,
+        messageId: m.id,
       });
     } else {
       // User/narrator rows carry no authoring character → `{{char}}` falls through to the ctx default.
@@ -211,6 +218,7 @@ function toShapeCanon(
         role: "user",
         content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
         authorName: userName,
+        messageId: m.id,
       });
     }
   }
@@ -431,6 +439,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     economics: loop.economics,
     cacheBreakpointFromEnd: attach.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
+    contextBoundaryMessageId: fitted.earliestKeptMessageId,
     imageDropped,
     toolRecords: loop.records,
     toolsUnsupported: attach.unsupported,

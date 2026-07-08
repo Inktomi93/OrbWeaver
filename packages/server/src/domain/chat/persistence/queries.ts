@@ -127,6 +127,7 @@ const messageViewSelection = {
   cacheReadTokens: messageVariants.cacheReadTokens,
   cacheWriteTokens: messageVariants.cacheWriteTokens,
   contextWindow: messageVariants.contextWindow,
+  contextBoundaryMessageId: messageVariants.contextBoundaryMessageId,
   costUsd: messageVariants.costUsd,
   ttftMs: messageVariants.ttftMs,
 } as const;

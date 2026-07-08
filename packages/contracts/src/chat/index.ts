@@ -398,6 +398,10 @@ export interface MessageVariant {
   cacheWriteTokens: number | null;
   costUsd: number | null;
   contextWindow: number | null;
+  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
+   *  assembled history for this generation. Null = nothing was dropped / the fit-pass never ran. Powers
+   *  a client "last-in-context boundary" divider. */
+  contextBoundaryMessageId: MessageId | null;
   maxOutputTokens: number | null;
   ttftMs: number | null;
   finishReason: string | null;
@@ -482,6 +486,10 @@ export interface MessageView {
   cacheReadTokens: number | null;
   cacheWriteTokens: number | null;
   contextWindow: number | null;
+  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
+   *  assembled history for this generation. Null = nothing was dropped / the fit-pass never ran. Powers
+   *  a client "last-in-context boundary" divider. */
+  contextBoundaryMessageId: MessageId | null;
   costUsd: number | null;
   ttftMs: number | null;
 }

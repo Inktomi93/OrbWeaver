@@ -350,6 +350,7 @@ CREATE TABLE `message_variants` (
 	`cache_write_tokens` integer,
 	`cost_usd` real,
 	`context_window` integer,
+	`context_boundary_message_id` text,
 	`max_output_tokens` integer,
 	`ttft_ms` integer,
 	`finish_reason` text,
@@ -370,7 +371,8 @@ CREATE TABLE `message_variants` (
 	`last_continuation_reasoning` text,
 	`metadata` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`context_boundary_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint

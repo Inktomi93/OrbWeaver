@@ -83,6 +83,16 @@ export function AppShell({
     dataTheme,
     blurSurfaces: appearance.blurSurfaces,
     shadowEffects: appearance.shadowEffects,
+    blurStrength: appearance.blurStrength,
+    reading: {
+      lineHeight: appearance.readingLineHeight,
+      letterSpacing: appearance.readingLetterSpacing,
+      paragraphSpacing: appearance.readingParagraphSpacing,
+      nameScale: appearance.readingNameScale,
+      bodyScale: appearance.readingBodyScale,
+      justify: appearance.justifyBodyText,
+    },
+    themeColorization: appearance.enableThemeColorization,
   });
   // The theme's optional density/chatStyle WIN over the appearance base (themes-design §3.4 overlap LEAN);
   // resolve density here (shell.css consumes data-density). A compact override tightens spacing tokens
@@ -135,6 +145,7 @@ export function AppShell({
         url={bgUrl}
         fit={appearance.backgroundFit}
         dim={appearance.backgroundDim}
+        blur={appearance.backgroundBlur}
       />
       {/* Layer 1 — the viewer's own theme override, applied at the app root via the ONE sanctioned path
           (<ThemeScope>, which clamps every value). `display:contents` so it adds no box: custom

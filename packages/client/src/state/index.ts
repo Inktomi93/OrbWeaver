@@ -30,6 +30,7 @@ export {
   subscribeUserMessageCommitted,
   useTurnPhase,
   useTurnSlot,
+  useTurnSpeakerCharacterId,
 } from "./chat-stream";
 export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-draft-store";
 export { createEntityDraftStore } from "./create-entity-draft-store";
