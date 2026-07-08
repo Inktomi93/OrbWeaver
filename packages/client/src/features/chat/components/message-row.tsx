@@ -51,13 +51,15 @@
 //
 // PHASE 4 (§B.2 — the 5 immersive chatStyle modes): the row reads THREE more skin fields, still never a
 // `switch(chatStyle)` here. `skin.avatarTreatment(attribution.kind)` picks how identity art renders —
-// `renderRowAvatar` drops its sibling `<Avatar>` return to `null` for "bled"/"banner" (the art paints as
-// bubble decoration instead, `renderRowBubble` below) and swaps in a sticky 2:3 portrait for
-// "sticky-portrait" (Ripple). `skin.bubbleDecoration` (Echo's bled edge / Whisper's banner+stripe /
-// Hush's stripe) is resolved once per row and applied to the bubble box — hide-user-portrait (§B.2) is
-// baked into the SKIN's own decorator (see message-row-variants.ts), not a branch here. `skin.bubbleLayout
-// === "trains"` (Tide) splits `message.content` into per-paragraph bubbles (`lib/split-paragraphs`) —
-// each paragraph flows through the SAME `<MessageContent>` the single-bubble path uses.
+// every mode keeps the normal sibling `<Avatar>` chip ("icon-left", INCLUDING Echo/Whisper's character
+// rows: their bled/banner bubble art is a separate, independently kind-gated decoration, not a
+// replacement for the chip) except "sticky-portrait" (Ripple), which welds a sticky 2:3 portrait INSIDE
+// the bubble's own Row instead (`renderRowBubble`'s `weldedAvatar` slot — see message-row-parts.tsx).
+// `skin.bubbleDecoration` (Echo's bled edge / Whisper's banner+stripe / Hush's stripe) is resolved once
+// per row and applied to the bubble box — hide-user-portrait (§B.2) is baked into the SKIN's own
+// decorator (see message-row-variants.ts), not a branch here. `skin.bubbleLayout === "trains"` (Tide)
+// splits `message.content` into per-paragraph bubbles (`lib/split-paragraphs`) — each paragraph flows
+// through the SAME `<MessageContent>` the single-bubble path uses.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
@@ -245,14 +247,19 @@ export function MessageRow({
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,
+    role,
     showInChatAvatars,
     avatarSize,
     avatarShape,
     avatarAspect,
     avatarRing,
   });
-  const leadingAvatar = role === "user" ? null : avatarNode;
-  const trailingAvatar = role === "user" ? avatarNode : null;
+  // §B.2 Ripple's weld: the sticky portrait renders INSIDE the bubble's own Row (renderRowBubble) instead
+  // of as a sibling of the whole content column — so it welds flush against the bubble specifically, not
+  // against the name-row sitting above it. Every other avatarTreatment keeps the pre-Phase-4 sibling shape.
+  const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
+  const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
+  const trailingAvatar = weldedAvatar !== null || role !== "user" ? null : avatarNode;
 
   return (
     // Fragment: the §B.5.2 boundary divider is a SIBLING before the article (a transcript-level
@@ -310,6 +317,7 @@ export function MessageRow({
               trainParagraphs,
               skin,
               decoration,
+              weldedAvatar,
               attributionTokens: attribution.tokens,
               render,
               renderContext,
