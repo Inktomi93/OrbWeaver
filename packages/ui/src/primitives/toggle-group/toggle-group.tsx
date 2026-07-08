@@ -9,6 +9,8 @@ import { toggleGroupVariants } from "./variants";
 // test, together) lands when a real consumer needs it — see ui-primitive-contract BATCH 1.
 export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "orientation"> {
   className?: string;
+  "aria-label"?: string;
+  "aria-labelledby"?: string;
 }
 
 /**
@@ -18,11 +20,13 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
  *
  * Usage: `<ToggleGroup value={align} onValueChange={setAlign}><Toggle value="left">L</Toggle></ToggleGroup>`
  */
-export function ToggleGroup({ className, ...rest }: ToggleGroupProps): ReactElement {
+export function ToggleGroup({ className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...rest }: ToggleGroupProps): ReactElement {
   return (
     <BaseToggleGroup
       data-slot="toggle-group"
       className={cn(toggleGroupVariants(), className)}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledby}
       {...rest}
     />
   );

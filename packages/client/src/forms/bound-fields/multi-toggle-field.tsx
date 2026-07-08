@@ -43,6 +43,7 @@ export function MultiToggleField({
           field.handleChange(next);
         }}
         disabled={disabled ?? false}
+        aria-label={label}
       >
         {items.map((item) => (
           <Toggle key={item.value} value={item.value} aria-label={item.label}>

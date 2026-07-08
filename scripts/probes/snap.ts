@@ -764,7 +764,13 @@ function buildMapScript(selector: string): string {
       var style = getComputedStyle(el);
       if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
       var rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
+      if (rect.width === 0 || rect.height === 0) return false;
+      var cur = el;
+      while (cur && cur !== document.body) {
+        if (cur.getAttribute("aria-hidden") === "true") return false;
+        cur = cur.parentElement;
+      }
+      return true;
     }
     function resolveRole(el) {
       var explicit = el.getAttribute("role");
