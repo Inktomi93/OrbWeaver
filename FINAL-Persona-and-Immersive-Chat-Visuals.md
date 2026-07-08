@@ -2,7 +2,8 @@
 
 ```
 kind: build-spec + as-built record
-status: PART A (persona) = SHIPPED (2026-07-08, commit 1d8fc88). PART B (immersive) = NEXT, to build.
+status: PART A (persona) = SHIPPED (2026-07-08, 1d8fc88 + panel rebuild 98d54b0). PART B (immersive) = SHIPPED
+        (2026-07-08, Phase 3 02a49f1 · 4a 73b2ca4 · 4b 7fecfc3). Both halves built; aesthetic tuning owed (Part C).
 scope: (A) the persona system — model + one bottom-left panel — as built · (B) the message-row / avatar /
        immersive-mode visual system distilled from SillyTavern "Moonlit Echoes" + the neo mockup, for Phase 3–4.
 companion: FINAL-Character-Library-and-Editor-UX.md (character side) · docs …/UI-Theming-and-Content.md §12.
@@ -289,17 +290,29 @@ Genuine deltas to add:
 
 ## PART C — Where things stand (2026-07-08)
 
-**DONE + committed:**
+**DONE + committed — the whole persona + immersive lane is SHIPPED:**
 - **Phase 1 — images foundation (#67)** (`36b9842`): asset-URL resolver + upload + the client `uploadAsset` +
   `avatar-upload-field`; the 2:3 smart-crop portrait variant (§B.4); avatarHash joined onto roster/message views
   + the PD-28 co-participant persona-avatar reference-check.
 - **Phase 2 — the persona system** (`1d8fc88`): all of PART A. Gate green, guarded by the invariant suite.
+- **Persona panel rebuild** (`98d54b0`): the §A.5 as-built panel — edit-in-row (click avatar→picker, click
+  name→rename), autosave (no Save/Edit button), chevron discloses details, one-dropdown injection, single-select
+  lore book, ⓘ hint tooltips, notify/backup → Settings. Hover-reveal row actions (name keeps full width).
+- **Phase 3** (`02a49f1`): avatar-left message row + name/actions on one row + avatar versatility (rounded shape,
+  2:3 portrait aspect, accent ring) — KIND-READY (`RowAttribution.kind` seam). Also fixed a pre-existing
+  self-referential `--radius-card` bug that was square-cornering every `rounded-card` element app-wide.
+- **Phase 4a** (`73b2ca4`): all five immersive modes (Echo/Whisper/Hush/Ripple/Tide) as first-class `RowSkin`
+  entries (avatarTreatment/bubbleDecoration/bubbleLayout — data, not `switch(chatStyle)`); hide-user-portrait
+  baked in; per-mode geometry tokenized.
+- **Phase 4b** (`7fecfc3`): config axes (bg-blur, reading-typography, accent-tint, blur-strength, reasoning-icon)
+  + the last-in-context boundary marker (`context_boundary_message_id` threaded through assembly) + polish
+  (edge-fade, composer escalation, hairline border) + the two gap-fixes (portrait-icon collapse, streaming-row
+  decoration). Guarded: 678 chat-domain tests green (persona-resolution + byte-identical suites intact).
 - (Earlier this session: the theme engine WS0–WS3, D63 background→appearance, the cascade-contract suite.)
 
-**NEXT — the immersive half (PART B):**
-- **Phase 3** — message-row redesign (§B.1, build KIND-READY) + avatar versatility (§B.3).
-- **Phase 4** — ALL FIVE immersive modes (Echo/Whisper/Hush/Ripple/Tide, §B.2 — built proper, not "adapt later")
-  + config axes (bg-blur, context-boundary, reading-typography, §B.5) + the polish list (§B.5b).
+> **Aesthetic pass still owed a human eye:** the five immersive modes + the new config axes were verified for
+> MECHANICS (computed-style receipts) + correctness (gates + the invariant suites), but not fully eyeballed
+> live — flip `chatStyle` in Appearance and tune to taste.
 
 **Other tracked lanes:** #5 settings search · #13 character library+editor BUILD (design in the companion doc) ·
 #16 upload CSRF · #17 cast-producer unify (with D60) · #19 account section (with auth #50).
