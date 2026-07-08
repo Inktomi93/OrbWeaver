@@ -51,8 +51,10 @@ export type AssetKind = z.infer<typeof assetKindSchema>;
  *  chrome. `portrait` is the 2:3 smart-cropped (sharp `position:'attention'`, face-safe) variant for the
  *  fixed-box VN/portrait immersive modes (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4) — its own
  *  ladder (`domain/assets/substrate/variant-policy` `PORTRAIT_WIDTHS`) so it never collides with the icon
- *  cache keyspace. */
-export const VARIANT_KINDS = ["icon", "portrait"] as const;
+ *  cache keyspace. `banner` is the 3:1 smart-cropped variant for Whisper's header-art band (the immersive
+ *  chatStyle redo) — its own ladder (`BANNER_WIDTHS`), a genuinely different crop from `portrait`, never a
+ *  CSS stretch of an arbitrary-aspect source. */
+export const VARIANT_KINDS = ["icon", "portrait", "banner"] as const;
 
 export const variantKindSchema = z.enum(VARIANT_KINDS);
 
@@ -81,6 +83,13 @@ export function blobUrl(hash: string): string {
  *  `FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4 — this helper only proves the route is reachable). */
 export function blobPortraitUrl(hash: string, width: number): string {
   return `${BLOB_ROUTE}/${hash}?v=portrait&w=${width}`;
+}
+
+/** The URL for the `banner` (3:1 smart-cropped) variant: `/api/blob/<hash>?v=banner&w=<px>`. Whisper's
+ *  header-art band consumes this — a genuinely wide, face-safe crop, never a `background-size` stretch of
+ *  the plain original (the Phase-4 squish defect this variant + helper replace). */
+export function blobBannerUrl(hash: string, width: number): string {
+  return `${BLOB_ROUTE}/${hash}?v=banner&w=${width}`;
 }
 
 // ── The upload POST response (collapses the client's hand-redeclared `UploadedAsset`) ────────────────

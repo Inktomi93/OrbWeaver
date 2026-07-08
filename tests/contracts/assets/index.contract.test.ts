@@ -3,6 +3,7 @@ import {
   ASSET_KINDS,
   assetKindSchema,
   BLOB_ROUTE,
+  blobBannerUrl,
   blobPortraitUrl,
   blobUrl,
   storedAssetSchema,
@@ -95,9 +96,10 @@ test("storedAssetSchema parses a well-formed upload response and rejects a malfo
   ).toBe(false);
 });
 
-// ── The variant KIND axis (#67 Phase 1 — the portrait smart-crop variant) ────
-test("VARIANT_KINDS is exactly [icon, portrait] and variantKindSchema derives from it", () => {
-  expect(VARIANT_KINDS).toEqual(["icon", "portrait"]);
+// ── The variant KIND axis (#67 Phase 1 — the portrait smart-crop variant; the immersive-chat redo adds
+//    `banner`, Whisper's header-art band) ────
+test("VARIANT_KINDS is exactly [icon, portrait, banner] and variantKindSchema derives from it", () => {
+  expect(VARIANT_KINDS).toEqual(["icon", "portrait", "banner"]);
   expect(variantKindSchema.options).toEqual(VARIANT_KINDS);
 });
 
@@ -109,7 +111,7 @@ test("variantKindSchema round-trips every valid kind and rejects non-members", (
   expect(variantKindSchema.safeParse("").success).toBe(false);
 });
 
-const VARIANT_KIND_SEEN: Record<VariantKind, true> = { icon: true, portrait: true };
+const VARIANT_KIND_SEEN: Record<VariantKind, true> = { icon: true, portrait: true, banner: true };
 test("VariantKind has no member beyond the tuple (exhaustive over VARIANT_KINDS)", () => {
   expect(Object.keys(VARIANT_KIND_SEEN).sort()).toEqual([...VARIANT_KINDS].sort());
 });
@@ -119,4 +121,12 @@ test("blobPortraitUrl composes the portrait variant route, distinct from the pla
   expect(url).toBe(`/api/blob/${SAMPLE_HASH}?v=portrait&w=400`);
   expect(url.startsWith(blobUrl(SAMPLE_HASH))).toBe(true);
   expect(url).not.toBe(blobUrl(SAMPLE_HASH));
+});
+
+test("blobBannerUrl composes the banner variant route, distinct from blobUrl and blobPortraitUrl", () => {
+  const url = blobBannerUrl(SAMPLE_HASH, 800);
+  expect(url).toBe(`/api/blob/${SAMPLE_HASH}?v=banner&w=800`);
+  expect(url.startsWith(blobUrl(SAMPLE_HASH))).toBe(true);
+  expect(url).not.toBe(blobUrl(SAMPLE_HASH));
+  expect(url).not.toBe(blobPortraitUrl(SAMPLE_HASH, 800));
 });

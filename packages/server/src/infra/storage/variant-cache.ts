@@ -8,9 +8,10 @@
 // `?w=1..10000`.
 //
 // D21 — PER-USER KEYED like the CAS: `<root>/<owner>/<ab>/<cd>/<hash>/w<width>.webp` for the `icon` kind,
-// `…/<hash>/portrait-w<width>.webp` for `portrait` (a per-hash DIRECTORY so `removeAll(owner, hash)` — the
-// GC/reap hook paired with `cas.remove` — is one recursive rm regardless of kind). webp-only by design (the
-// client `avatarUrl` hardcodes `f=webp`); other formats stay JIT in the route.
+// `…/<hash>/portrait-w<width>.webp` for `portrait`, `…/<hash>/banner-w<width>.webp` for `banner` (a
+// per-hash DIRECTORY so `removeAll(owner, hash)` — the GC/reap hook paired with `cas.remove` — is one
+// recursive rm regardless of kind). webp-only by design (the client `avatarUrl` hardcodes `f=webp`); other
+// formats stay JIT in the route.
 //
 // This is a CACHE, not canon: every entry is reproducible from the CAS original, so writes are atomic
 // (a temp under the same filesystem → rename, so a concurrent reader never sees a torn file) but NOT

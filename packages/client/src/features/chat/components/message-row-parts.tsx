@@ -107,13 +107,13 @@ function withoutBubblePadding(className: string): string {
     .join(" ");
 }
 
-/** The single-bubble (non-Tide) render: the plain padded `<Stack>` (every mode/kind but Ripple's welded
- *  portrait), or the weld — the portrait sits INSIDE the same Row as the bubble's own bg/rounded-card
- *  (`bubbleClassName`, padding stripped via {@link withoutBubblePadding}) so there is no gap and no
- *  separate visible edge between portrait and text — the row's own painted background is what "wraps"
- *  both, not either child's individual box. The text column carries the padding the bubble normally
- *  applies uniformly. Split out of {@link renderRowBubble} to avoid a nested ternary (biome
- *  `noNestedTernary`). */
+/** The single-bubble (non-Tide) render: the plain padded `<Stack>` (every mode/kind with neither a
+ *  welded avatar nor a header band), Whisper's header-band weld (below), or Ripple's welded-portrait weld
+ *  — the portrait sits INSIDE the same Row as the bubble's own bg/rounded-card (`bubbleClassName`,
+ *  padding stripped via {@link withoutBubblePadding}) so there is no gap and no separate visible edge
+ *  between portrait and text — the row's own painted background is what "wraps" both, not either child's
+ *  individual box. The text column carries the padding the bubble normally applies uniformly. Split out
+ *  of {@link renderRowBubble} to avoid a nested ternary (biome `noNestedTernary`). */
 function renderSingleBubble(args: {
   readonly role: MessageRole;
   readonly content: ReactNode;
@@ -121,6 +121,32 @@ function renderSingleBubble(args: {
   readonly decoration: BubbleDecoration | null;
   readonly weldedAvatar: ReactElement | null;
 }): ReactElement {
+  const headerBand = args.decoration?.headerBand;
+  if (headerBand !== undefined) {
+    // Whisper's weld: the SAME unpadded-outer-container shape as Ripple's below, but the welded child is
+    // a full-bleed BAND stacked ABOVE the text (not a side avatar) — `rounded-t-card` matches only the
+    // band's own top corners to the bubble's `rounded-card` radius (the two share one token, so the
+    // curve lines up exactly with no clipping/overflow trick needed). The band is `aria-hidden` (pure
+    // decoration, the character's name/identity is already carried by the sibling avatar chip + the
+    // name row above the bubble).
+    return (
+      <Stack
+        data-slot="message-bubble"
+        className={withoutBubblePadding(args.bubbleClassName)}
+        style={args.decoration?.style}
+      >
+        <Stack
+          aria-hidden="true"
+          data-slot="message-band"
+          className="rounded-t-card"
+          style={headerBand.style}
+        />
+        <Stack gap="row" className="px-block py-row">
+          {args.content}
+        </Stack>
+      </Stack>
+    );
+  }
   if (args.weldedAvatar === null) {
     return (
       <Stack

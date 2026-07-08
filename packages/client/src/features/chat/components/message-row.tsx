@@ -61,7 +61,6 @@
 // splits `message.content` into per-paragraph bubbles (`lib/split-paragraphs`) — each paragraph flows
 // through the SAME `<MessageContent>` the single-bubble path uses.
 
-import { blobUrl } from "@orb/contracts/assets";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -240,10 +239,11 @@ export function MessageRow({
   // `attribution.kind` (the KIND-READY axis, §A.8) — the hide-user-portrait default (§B.2) lives inside
   // those skin functions, not here.
   const avatarTreatment = skin.avatarTreatment(attribution.kind);
-  const characterAvatarUrl =
-    attribution.avatarHash === null ? null : blobUrl(attribution.avatarHash);
+  // §B.2 bubbleDecoration takes the raw CAS hash, not a prebuilt URL — Echo/Whisper each request their
+  // OWN correctly-shaped sharp variant (`blobPortraitUrl`/`blobBannerUrl`, `lib/message-row-variants`),
+  // which this row has no opinion on.
   const decoration =
-    skin.bubbleDecoration?.({ kind: attribution.kind, avatarUrl: characterAvatarUrl }) ?? null;
+    skin.bubbleDecoration?.({ kind: attribution.kind, avatarHash: attribution.avatarHash }) ?? null;
   const avatarNode = renderRowAvatar({
     attribution,
     avatarTreatment,

@@ -1,7 +1,8 @@
 // entry/http/blob — the binary blob-serve registrar (core/Tier-5-Entry.md §layout "blob.ts").
 // `GET /api/blob/:hash` serves an owned CAS blob; `?w=<px>` (the client always pairs it with
 // `f=webp`) serves a resized-webp `icon` variant; `?v=portrait&w=<px>` serves the 2:3 smart-cropped
-// `portrait` variant (§B.4 — a genuinely different crop, not a bigger icon). It composes the `assets`
+// `portrait` variant (§B.4 — a genuinely different crop, not a bigger icon); `?v=banner&w=<px>` serves the
+// 3:1 smart-cropped `banner` variant (Whisper's header-art band). It composes the `assets`
 // front door (the owner-gate `getMetadata` + the `resolveVariant` snap→cache→transform pipeline, D6) with
 // the `infra/storage` CAS (the original bytes). Per D21 the route is OWNER-GATED, not unauthenticated —
 // the caller's `Principal` (resolved by `app.ts`'s auth middleware, read off the request context) scopes
