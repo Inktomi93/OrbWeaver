@@ -78,6 +78,10 @@
   --blur-strength: 14px;
   --blur-fill-chrome: 70%;
   --blur-fill-dense: 88%;
+  --immersive-echo-feather: 55%;
+  --immersive-whisper-feather: 70%;
+  --immersive-stripe-width: 0.1875rem;
+  --immersive-ripple-portrait-width: 11.25rem;
   --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
   --text-display: 1.5rem;

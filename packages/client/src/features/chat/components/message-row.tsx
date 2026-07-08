@@ -48,43 +48,47 @@
 // single tagged `RowAttribution` (`kind: "character" | "persona" | null`) — stamped as `data-kind` on
 // this row's `data-slot="message-row"` root (never branched on in JSX here). When the D60 `agent` kind
 // arrives, it is a one-arm add to `resolveRowAttribution`'s `kind`, not a rework of this row.
+//
+// PHASE 4 (§B.2 — the 5 immersive chatStyle modes): the row reads THREE more skin fields, still never a
+// `switch(chatStyle)` here. `skin.avatarTreatment(attribution.kind)` picks how identity art renders —
+// `renderRowAvatar` drops its sibling `<Avatar>` return to `null` for "bled"/"banner" (the art paints as
+// bubble decoration instead, `renderRowBubble` below) and swaps in a sticky 2:3 portrait for
+// "sticky-portrait" (Ripple). `skin.bubbleDecoration` (Echo's bled edge / Whisper's banner+stripe /
+// Hush's stripe) is resolved once per row and applied to the bubble box — hide-user-portrait (§B.2) is
+// baked into the SKIN's own decorator (see message-row-variants.ts), not a branch here. `skin.bubbleLayout
+// === "trains"` (Tide) splits `message.content` into per-paragraph bubbles (`lib/split-paragraphs`) —
+// each paragraph flows through the SAME `<MessageContent>` the single-bubble path uses.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-import { Avatar } from "@orb/ui/avatar";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
-import { ThemeScope } from "@orb/ui/theme-scope";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { cn } from "#lib";
 import {
-  setDraftGreeting,
   toggleMessageSelected,
   useIsEditingMessage,
   useIsMessageSelected,
   useSelectionActive,
 } from "#state";
-import type { RowAttribution } from "../lib/attribution";
-import {
-  initialsForAttribution,
-  resolveRowAttribution,
-  speakerThemesByName,
-} from "../lib/attribution";
+import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { resolveRowRenderPolicy } from "../lib/render-trust";
+import { splitIntoTrainParagraphs } from "../lib/split-paragraphs";
 import type { GreetingBinding } from "../lib/synth-greeting-row";
-import { GreetingActionsRow } from "./greeting-actions-row";
-import { GreetingSwipeStrip } from "./greeting-swipe-strip";
-import { MessageActionsRow } from "./message-actions-row";
-import { MessageContent } from "./message-content";
-import { MessageEditTextarea } from "./message-edit-textarea";
 import type { MessageMetadataVisibility } from "./message-metadata-row";
 import { MessageMetadataRow } from "./message-metadata-row";
-import { SwipeStrip } from "./swipe-strip";
+import {
+  renderAttributionName,
+  renderRowActions,
+  renderRowAvatar,
+  renderRowBubble,
+  renderRowSwipe,
+  resolveRowContent,
+} from "./message-row-parts";
 
 export interface MessageRowProps {
   readonly message: MessageView;
@@ -147,12 +151,6 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showTokenCount: false,
 };
 
-/** The omit-don't-pass-undefined `<Avatar src>` idiom (`exactOptionalPropertyTypes`), split out to keep
- *  the row's render below the cognitive-complexity ceiling. */
-function avatarSrcProp(avatarHash: string | null): { src?: string } {
-  return avatarHash === null ? {} : { src: blobUrl(avatarHash) };
-}
-
 /** Render one canonical message (slot ⋈ selected variant) in the active chatStyle. */
 export function MessageRow({
   message,
@@ -212,32 +210,35 @@ export function MessageRow({
     viewerActivePersonaId: activePersonaId,
     autoFixMarkdown,
   });
-  const content = editing ? (
-    <MessageEditTextarea
-      message={message}
-      onSave={
-        greeting === undefined
-          ? undefined
-          : (text): void => setDraftGreeting(greeting.draftKey, greeting.characterId, text)
-      }
-    />
-  ) : (
-    <MessageContent
-      content={message.content}
-      render={render}
-      renderContext={renderContext}
-      rowCharacterId={message.characterId}
-      rowPersonaId={message.personaId}
-      speakerThemes={speakerThemesByName(participants)}
-    />
-  );
+  // §B.2 Tide: split only when NOT editing (an in-progress edit is always one textarea) and the active
+  // skin says "trains" — `null` short-circuits to the normal single-bubble render (one paragraph, or
+  // past the messiness-guard cap; see split-paragraphs.ts).
+  const trainParagraphs =
+    !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
+  const content = resolveRowContent({
+    editing,
+    message,
+    greeting,
+    trainParagraphs,
+    render,
+    renderContext,
+    speakerThemes: speakerThemesByName(participants),
+  });
 
-  // §B.1 — the avatar is a single sibling flex item, placed before the content column for
+  // §B.1/§B.2 — the avatar is a single sibling flex item, placed before the content column for
   // character/system-side rows and AFTER it for the viewer's own (role==="user") rows, so the whole
   // cluster mirrors right alongside `skin.outer`'s `items-end` (a ROLE branch, not the kind-vs-kind
-  // branch §A.8 forbids — see the file header).
+  // branch §A.8 forbids — see the file header). `avatarTreatment`/`bubbleDecoration` are resolved off
+  // `attribution.kind` (the KIND-READY axis, §A.8) — the hide-user-portrait default (§B.2) lives inside
+  // those skin functions, not here.
+  const avatarTreatment = skin.avatarTreatment(attribution.kind);
+  const characterAvatarUrl =
+    attribution.avatarHash === null ? null : blobUrl(attribution.avatarHash);
+  const decoration =
+    skin.bubbleDecoration?.({ kind: attribution.kind, avatarUrl: characterAvatarUrl }) ?? null;
   const avatarNode = renderRowAvatar({
     attribution,
+    avatarTreatment,
     showInChatAvatars,
     avatarSize,
     avatarShape,
@@ -292,21 +293,18 @@ export function MessageRow({
               messageActions,
             })}
           </Row>
-          <Stack
-            gap="row"
-            data-slot="message-bubble"
-            // Hide-from-AI dims the row (still user-visible, per §12.4 — the toggle holds it out of
-            // assembly, it does not hide it from the reader) — the standard Tailwind opacity utility
-            // (the same `opacity-50` scale every disabled-state variant in @orb/ui already uses), never
-            // a raw inline-style value.
-            className={cn(skin.inner(role), message.excludedFromPrompt && "opacity-50")}
-          >
-            {attribution.tokens === null ? (
-              content
-            ) : (
-              <ThemeScope tokens={attribution.tokens}>{content}</ThemeScope>
-            )}
-          </Stack>
+          {renderRowBubble({
+            role,
+            message,
+            content,
+            trainParagraphs,
+            skin,
+            decoration,
+            attributionTokens: attribution.tokens,
+            render,
+            renderContext,
+            speakerThemes: speakerThemesByName(participants),
+          })}
           {editing ? null : (
             <MessageMetadataRow message={message} visibility={metadataVisibility} />
           )}
@@ -316,109 +314,4 @@ export function MessageRow({
       </Row>
     </Stack>
   );
-}
-
-/** UIP-304 speaker-name accent (module scope — keeps the row's nesting/complexity down, biome
- *  noNestedTernary): a CHARACTER name (tokens present) is tinted with the per-speaker ThemeScope color
- *  (`--color-speaker` → `text-speaker`) so speakers are scannable; a USER/"You" row (tokens null) stays
- *  muted. `display: contents` on the scope div keeps the vars inheriting with zero layout box. A
- *  system/unresolved row (name null) renders nothing — the name-row still owns the actions slot. */
-function renderAttributionName(attribution: RowAttribution): ReactElement | null {
-  if (attribution.name === null) {
-    return null;
-  }
-  if (attribution.tokens === null) {
-    return (
-      <Text as="span" size="label" weight="medium" tone="muted">
-        {attribution.name}
-      </Text>
-    );
-  }
-  return (
-    <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" size="label" weight="medium" className="text-speaker">
-        {attribution.name}
-      </Text>
-    </ThemeScope>
-  );
-}
-
-/** The avatar SIBLING (§B.1) — `null` when there's no resolved attribution to show one for, OR the
- *  `showInChatAvatars` pref is off (a real removal, not a `display:none`: nothing else in the content
- *  column reflows relative to itself either way, since the avatar was never nested inside it). */
-function renderRowAvatar(args: {
-  readonly attribution: RowAttribution;
-  readonly showInChatAvatars: boolean;
-  readonly avatarSize: "sm" | "md" | "lg";
-  readonly avatarShape: "round" | "square" | "rounded";
-  readonly avatarAspect: "square" | "portrait";
-  readonly avatarRing: "none" | "accent";
-}): ReactElement | null {
-  if (args.attribution.name === null || !args.showInChatAvatars) {
-    return null;
-  }
-  return (
-    <Avatar
-      size={args.avatarSize}
-      shape={args.avatarShape}
-      aspect={args.avatarAspect}
-      ring={args.avatarRing}
-      fallbackDelay={0}
-      {...avatarSrcProp(args.attribution.avatarHash)}
-    >
-      {initialsForAttribution(args.attribution.name)}
-    </Avatar>
-  );
-}
-
-/** The per-row ACTION cluster (module-scope so its branches don't load the row's complexity budget):
- *  suppressed in edit/select mode; the draft-greeting subset for a greeting row; else the committed set. */
-function renderRowActions(args: {
-  readonly editing: boolean;
-  readonly selecting: boolean;
-  readonly greeting: GreetingBinding | undefined;
-  readonly message: MessageView;
-  readonly onChatForked: ((chatId: ChatId) => void) | undefined;
-  readonly messageActions: "expanded" | "hover" | undefined;
-}): ReactNode {
-  if (args.editing || args.selecting) {
-    return null;
-  }
-  if (args.greeting !== undefined) {
-    return <GreetingActionsRow message={args.message} messageActions={args.messageActions} />;
-  }
-  return (
-    <MessageActionsRow
-      message={args.message}
-      onChatForked={args.onChatForked}
-      messageActions={args.messageActions}
-    />
-  );
-}
-
-/** The per-row SWIPE strip (module-scope, see `renderRowActions`): a draft greeting steps over the card's
- *  `greetings[]` (≥2 alternates only); a committed row shows the variant swipe on the tail assistant row. */
-function renderRowSwipe(args: {
-  readonly editing: boolean;
-  readonly showSwipes: boolean;
-  readonly role: MessageView["role"];
-  readonly greeting: GreetingBinding | undefined;
-  readonly message: MessageView;
-}): ReactNode {
-  if (args.editing) {
-    return null;
-  }
-  if (args.greeting !== undefined) {
-    return args.greeting.variants.length > 1 ? (
-      <GreetingSwipeStrip
-        draftKey={args.greeting.draftKey}
-        characterId={args.greeting.characterId}
-        variants={args.greeting.variants}
-        current={args.message.content}
-      />
-    ) : null;
-  }
-  return args.showSwipes && args.role === "assistant" ? (
-    <SwipeStrip message={args.message} />
-  ) : null;
 }
