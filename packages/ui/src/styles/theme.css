@@ -127,8 +127,8 @@
 
 @media (pointer: fine) {
   :root {
-    --spacing-touch-target: 1.75rem;
-    --spacing-control-sm: 1.75rem;
+    --spacing-touch-target: 2rem;
+    --spacing-control-sm: 2rem;
     --spacing-control-md: 2.125rem;
     --spacing-control-lg: 2.5rem;
   }

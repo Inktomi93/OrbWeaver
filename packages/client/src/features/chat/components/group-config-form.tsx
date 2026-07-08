@@ -163,6 +163,7 @@ export function GroupConfigForm({ config, onSave }: GroupConfigFormProps): React
               setOutput(next as GroupOutput);
             }
           }}
+          aria-label="How the cast replies"
         >
           {/* Concise mode names (the hint line below carries the friendly explanation) — the descriptive
               "One message each"/"One narrator voice" truncate in the narrow CONTEXT panel. */}
