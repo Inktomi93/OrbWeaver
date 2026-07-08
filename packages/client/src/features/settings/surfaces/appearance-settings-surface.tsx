@@ -17,11 +17,16 @@
 // showModelIcon/showTokenCount (`MessageMetadataRow`, message-metadata-row.tsx) · messageActions
 // (`messageActionsRevealClass`, message-actions-row.tsx / greeting-actions-row.tsx) · blurSurfaces
 // (root `data-blur-*`, useAppearanceRootEffects → globals.css/shell.css) · shadowEffects (root
-// `data-shadow` → globals.css `--shadow-prose`). The schema stays COMPLETE (all knobs persist,
-// round-tripped unchanged on every patch); `showGenerationTimer` gets NO control — FLAG[PD-130]: the
-// underlying `gen_started_at`/`gen_finished_at` data is never populated by the turn engine (see
-// message-metadata-row.tsx's header note) — a persisted-but-inert toggle would be a shim, so it stays
-// schema-only until PD-130 lands real timing data.
+// `data-shadow` → globals.css `--shadow-prose`) · Phase 4b: backgroundBlur (`ThemeBackgroundLayer`'s
+// photo `filter:blur`) · readingLineHeight/readingLetterSpacing/readingParagraphSpacing/
+// readingNameScale/readingBodyScale/justifyBodyText (root vars/attr → globals.css
+// `[data-slot="message-bubble"]`/`[data-slot="message-attribution"]`) · enableThemeColorization (root
+// `data-theme-colorization` → globals.css border retint) · blurStrength (root `--blur-strength`) ·
+// showLLMReasoningIcon (`ReasoningBlock`, threaded via the ghost row). The schema stays COMPLETE (all
+// knobs persist, round-tripped unchanged on every patch); `showGenerationTimer` gets NO control —
+// FLAG[PD-130]: the underlying `gen_started_at`/`gen_finished_at` data is never populated by the turn
+// engine (see message-metadata-row.tsx's header note) — a persisted-but-inert toggle would be a shim,
+// so it stays schema-only until PD-130 lands real timing data.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_BLUR_SURFACES } from "@orb/contracts/settings";
@@ -31,6 +36,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { AppearanceReadingSection } from "../components/appearance-reading-section";
 import { APPEARANCE_ENTITY_ID, useAppearanceForm } from "../hooks/use-appearance-form";
 import {
   AVATAR_ASPECT_ITEMS,
@@ -52,11 +58,15 @@ import {
 const BACKGROUND_DIM_MIN = 0;
 const BACKGROUND_DIM_MAX = 1;
 const BACKGROUND_DIM_STEP = 0.05;
+const BACKGROUND_BLUR_MIN = 0;
+const BACKGROUND_BLUR_MAX = 24;
 const CHAT_WIDTH_MIN = 30;
 const CHAT_WIDTH_MAX = 100;
 const FONT_SCALE_MIN = 0.8;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_STEP = 0.05;
+const BLUR_STRENGTH_MIN = 4;
+const BLUR_STRENGTH_MAX = 28;
 
 // The section-patch mutation (module scope, §13.1). `invalidates` refetches getUserSettings through the
 // central seam — the live-flip mechanism for every other appearance consumer. TVars.patch is the typed
@@ -255,6 +265,14 @@ function AppearanceForm(): ReactElement {
               />
             )}
           </form.AppField>
+          <form.AppField name="showLLMReasoningIcon">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Show reasoning icon"
+                description="A small glyph on the reasoning disclosure, alongside its Thinking/Thought label."
+              />
+            )}
+          </form.AppField>
         </Section>
 
         <Section heading="Message actions">
@@ -322,11 +340,25 @@ function AppearanceForm(): ReactElement {
                       />
                     )}
                   </form.AppField>
+                  {/* Phase 4b §B.5.1 — blurs the PHOTO only (the scrim above stays crisp). Meaningless
+                      without an image, so it lives inside this same kind-gated block. */}
+                  <form.AppField name="backgroundBlur">
+                    {(field): ReactElement => (
+                      <field.SliderField
+                        label="Image blur"
+                        description="Softens the photo itself (the darkening scrim above stays sharp)."
+                        min={BACKGROUND_BLUR_MIN}
+                        max={BACKGROUND_BLUR_MAX}
+                      />
+                    )}
+                  </form.AppField>
                 </>
               );
             }}
           </form.Subscribe>
         </Section>
+
+        <AppearanceReadingSection form={form} />
 
         <Section heading="Effects">
           <form.AppField name="blurSurfaces">
@@ -349,11 +381,33 @@ function AppearanceForm(): ReactElement {
               </Stack>
             )}
           </form.AppField>
+          {/* WS3/Phase-4b — the glass blur RADIUS dial. Inert with an empty `blurSurfaces` (no surface
+              opted in yet); rendered unconditionally rather than gated behind a `form.Subscribe` —
+              it's a preparatory dial for the moment a surface IS enabled, same posture as a color
+              picker shown before a palette is picked. */}
+          <form.AppField name="blurStrength">
+            {(field): ReactElement => (
+              <field.SliderField
+                label="Glass blur radius"
+                description="How strong the frosted-glass blur is, for any surface enabled above."
+                min={BLUR_STRENGTH_MIN}
+                max={BLUR_STRENGTH_MAX}
+              />
+            )}
+          </form.AppField>
           <form.AppField name="shadowEffects">
             {(field): ReactElement => (
               <field.SwitchField
                 label="Prose shadow"
                 description="A subtle readability halo on message text."
+              />
+            )}
+          </form.AppField>
+          <form.AppField name="enableThemeColorization">
+            {(field): ReactElement => (
+              <field.SwitchField
+                label="Tint the UI with the accent color"
+                description="Retints borders and hairlines across panels, dialogs, and the composer from your accent color."
               />
             )}
           </form.AppField>

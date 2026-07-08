@@ -148,3 +148,88 @@ body {
 html[data-shadow] [data-slot="message-bubble"] {
   text-shadow: var(--shadow-prose);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+ * Phase 4b §B.5.3 — granular READING-TYPOGRAPHY (line-height/letter-spacing/paragraph-spacing/name+
+ * body scale + the justify toggle). THE READING-SURFACE RULE: this governs spacing/sizing only — never
+ * blur/glow (those stay chrome-only, see the glass recipe above). Root vars (useAppearanceRootEffects)
+ * so a fresh user's numbers match tokens.json exactly (zero visual change until the sliders move).
+ * ══════════════════════════════════════════════════════════════════════════════════════════════ */
+[data-slot="message-bubble"] {
+  font-size: calc(var(--text-body) * var(--reading-body-scale));
+  line-height: var(--reading-line-height);
+  letter-spacing: var(--reading-letter-spacing);
+}
+[data-slot="message-bubble"] p + p {
+  margin-top: var(--reading-paragraph-spacing);
+}
+html[data-justify-body-text] [data-slot="message-bubble"] {
+  text-align: justify;
+}
+[data-slot="message-attribution"] {
+  font-size: calc(var(--text-label) * var(--reading-name-scale));
+}
+
+/* Phase 4b §B.5.5 — accent-tint-the-UI (appearance.enableThemeColorization): opt-in, retints the
+ * border/hairline chrome tokens from the accent color (D62's rationed "accent ≤10% of viewport" stays
+ * the floor; this widens it deliberately, on request). Every bordered surface (composer/panels/dialogs/
+ * cards) already reads `var(--color-border)`/`var(--color-sidebar-border)`, so retinting the CUSTOM
+ * PROPERTY here reaches all of them from one declaration — never a per-surface override. Mixed against
+ * `--color-foreground` (never self-referencing `--color-border`, which would be an invalid computed-
+ * value cycle) so the result stays a low-alpha near-neutral hairline, just accent-shifted.
+ *
+ * TWO rules, same formula: the root `<ThemeScope>` (app-shell.tsx) wraps `.shell-grid` and ALREADY
+ * declares `--color-border` inline (its own derived-contrast formula, D44 §12.4 Layer 1) —
+ * inheritance always loses to an element's own declared value, so an `html`-only override would be
+ * invisibly shadowed for every `.shell-grid` descendant (panels/composer/cards) the instant a theme is
+ * active. The `.shell-grid`-scoped rule wins there (a ThemeScope DESCENDANT's own declaration beats
+ * inheriting from its ancestor); the plain `html`-scoped rule is still needed for Dialog/AlertDialog,
+ * which portal to `document.body` — OUTSIDE both `.shell-grid` and ThemeScope — same reasoning
+ * `useAppearanceRootEffects`'s other root attrs document. */
+html[data-theme-colorization] {
+  --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
+  --color-sidebar-border: color-mix(
+    in oklab,
+    var(--color-primary) 22%,
+    var(--color-sidebar-foreground) 6%
+  );
+}
+html[data-theme-colorization] .shell-grid {
+  --color-border: color-mix(in oklab, var(--color-primary) 22%, var(--color-foreground) 6%);
+  --color-sidebar-border: color-mix(
+    in oklab,
+    var(--color-primary) 22%,
+    var(--color-sidebar-foreground) 6%
+  );
+}
+
+/* Phase 4b §B.5b polish — chat-list EDGE-FADE: the thread scroll container dissolves softly under the
+ * header/composer via `mask-image` (content genuinely fades to transparent, unlike an overlay gradient
+ * which would paint OVER it) instead of hard-clipping. Token-driven stop (`--fade-edge-stop`,
+ * tokens.json `fade.edge-stop`) — always on (pairs with any chatStyle, glass or not). */
+[data-slot="message-list-scroll"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--fade-edge-stop),
+    black calc(100% - var(--fade-edge-stop)),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--fade-edge-stop),
+    black calc(100% - var(--fade-edge-stop)),
+    transparent
+  );
+}
+
+/* Phase 4b §B.5b polish — the hairline avatar border: keeps an avatar from dissolving into a blurred/
+ * photo background. AUTO-ON when a background image is active (`[data-has-bg-image]`, already stamped
+ * on `.shell-grid` by app-shell.tsx) — data-driven, never a separate toggle. Theme-tinted (the accent),
+ * ~1.25px for retina crispness (tokens.json `border-width.hairline`). */
+.shell-grid[data-has-bg-image] [data-slot="avatar-root"] {
+  border-width: var(--border-width-hairline);
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--color-primary) 50%, transparent);
+}

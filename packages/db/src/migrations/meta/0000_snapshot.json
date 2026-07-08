@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "100427d2-ca61-42f3-ac36-1dd789bbc472",
+  "id": "571cd194-ec00-4c38-af4c-2132012a6810",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -2288,6 +2288,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "context_boundary_message_id": {
+          "name": "context_boundary_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "max_output_tokens": {
           "name": "max_output_tokens",
           "type": "integer",
@@ -2445,6 +2452,15 @@
           "columnsFrom": ["message_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "message_variants_context_boundary_message_id_messages_id_fk": {
+          "name": "message_variants_context_boundary_message_id_messages_id_fk",
+          "tableFrom": "message_variants",
+          "tableTo": "messages",
+          "columnsFrom": ["context_boundary_message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

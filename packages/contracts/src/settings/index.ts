@@ -468,6 +468,13 @@ const FONT_SCALE_DEFAULT = 1;
 const BACKGROUND_DIM_MIN = 0;
 const BACKGROUND_DIM_MAX = 1;
 const BACKGROUND_DIM_DEFAULT = 0.45;
+// Phase 4b §B.5.1 — the background-image BLUR axis, separate from the scrim (`backgroundDim`):
+// `filter: blur()` on the PHOTO layer only (never `backdrop-filter`, which would also blur the scrim
+// + content sitting above it). 0 = off (the default — a crisp photo, matching pre-4b behavior); px, not
+// a token-scale enum, since this is a genuinely continuous user dial (mirrors `blurStrength` below).
+const BACKGROUND_BLUR_MIN = 0;
+const BACKGROUND_BLUR_MAX = 24;
+const BACKGROUND_BLUR_DEFAULT = 0;
 
 // WS3 (UI-Theming §12.1 effects) — the glass-effect PLACEMENT axis. Single-consumer (this schema +
 // its one client form field), so it stays an inline tuple like avatarSize/avatarShape above, not a
@@ -491,6 +498,31 @@ export const BACKGROUND_IMAGE_KINDS = ["none", "seeded", "external"] as const;
 export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
 export const APPEARANCE_BACKGROUND_FITS = ["cover", "contain"] as const;
 export type AppearanceBackgroundFit = (typeof APPEARANCE_BACKGROUND_FITS)[number];
+
+// Phase 4b §B.5.3 — granular reading-typography bounds/defaults (named — `noMagicNumbers`). Defaults
+// MIRROR the design-system baseline (`tokens.json` `leading.body`/`spacing.block`) so a fresh user's
+// sliders start exactly where the un-tuned message render already sits — zero visual change until moved.
+const READING_LINE_HEIGHT_MIN = 1.2;
+const READING_LINE_HEIGHT_MAX = 2.2;
+const READING_LINE_HEIGHT_DEFAULT = 1.55; // mirrors tokens.json leading.body
+const READING_LETTER_SPACING_MIN = -0.02;
+const READING_LETTER_SPACING_MAX = 0.08;
+const READING_LETTER_SPACING_DEFAULT = 0; // em
+const READING_PARAGRAPH_SPACING_MIN = 0;
+const READING_PARAGRAPH_SPACING_MAX = 3;
+const READING_PARAGRAPH_SPACING_DEFAULT = 0.75; // rem, mirrors tokens.json spacing.block
+const READING_NAME_SCALE_MIN = 0.8;
+const READING_NAME_SCALE_MAX = 1.6;
+const READING_BODY_SCALE_MIN = 0.8;
+const READING_BODY_SCALE_MAX = 1.6;
+const READING_SCALE_DEFAULT = 1;
+
+// WS3/Phase-4b — the user-tunable glass blur RADIUS (px), separate from WHICH surfaces opt in
+// (`blurSurfaces`). Mirrors `tokens.json` `blur.strength` (14px) as the default — a fresh user sees the
+// exact same glass recipe as before this axis existed.
+const BLUR_STRENGTH_MIN = 4;
+const BLUR_STRENGTH_MAX = 28;
+const BLUR_STRENGTH_DEFAULT = 14;
 
 const appearanceSchema = z
   .object({
@@ -569,6 +601,64 @@ const appearanceSchema = z
       .max(BACKGROUND_DIM_MAX)
       .catch(BACKGROUND_DIM_DEFAULT)
       .default(BACKGROUND_DIM_DEFAULT),
+    // Phase 4b §B.5.1 — blurs the PHOTO layer itself (`filter: blur()`, never `backdrop-filter` — the
+    // scrim above it stays crisp). Composes with `backgroundDim`; 0 = off (byte-identical to pre-4b).
+    backgroundBlur: z
+      .number()
+      .min(BACKGROUND_BLUR_MIN)
+      .max(BACKGROUND_BLUR_MAX)
+      .catch(BACKGROUND_BLUR_DEFAULT)
+      .default(BACKGROUND_BLUR_DEFAULT),
+    // Phase 4b §B.5.3 — granular reading-typography (Moonlit steal): per-message line-height/letter-
+    // spacing/paragraph-spacing/name+body scale, + the justify toggle. Root vars via
+    // `useAppearanceRootEffects` (reaches portals, the fontScale precedent), consumed on
+    // `[data-slot="message-bubble"]`/`[data-slot="message-attribution"]` — never a per-row prop (the
+    // reading surface stays crisp text/spacing only, THE READING-SURFACE RULE keeps blur off it).
+    readingLineHeight: z
+      .number()
+      .min(READING_LINE_HEIGHT_MIN)
+      .max(READING_LINE_HEIGHT_MAX)
+      .catch(READING_LINE_HEIGHT_DEFAULT)
+      .default(READING_LINE_HEIGHT_DEFAULT),
+    readingLetterSpacing: z
+      .number()
+      .min(READING_LETTER_SPACING_MIN)
+      .max(READING_LETTER_SPACING_MAX)
+      .catch(READING_LETTER_SPACING_DEFAULT)
+      .default(READING_LETTER_SPACING_DEFAULT),
+    readingParagraphSpacing: z
+      .number()
+      .min(READING_PARAGRAPH_SPACING_MIN)
+      .max(READING_PARAGRAPH_SPACING_MAX)
+      .catch(READING_PARAGRAPH_SPACING_DEFAULT)
+      .default(READING_PARAGRAPH_SPACING_DEFAULT),
+    readingNameScale: z
+      .number()
+      .min(READING_NAME_SCALE_MIN)
+      .max(READING_NAME_SCALE_MAX)
+      .catch(READING_SCALE_DEFAULT)
+      .default(READING_SCALE_DEFAULT),
+    readingBodyScale: z
+      .number()
+      .min(READING_BODY_SCALE_MIN)
+      .max(READING_BODY_SCALE_MAX)
+      .catch(READING_SCALE_DEFAULT)
+      .default(READING_SCALE_DEFAULT),
+    justifyBodyText: z.boolean().catch(false).default(false),
+    // Phase 4b §B.5.5 — opt-in: tint more UI chrome (borders/hairlines) from the accent color, beyond
+    // the rationed default (D62 "accent on ≤10% of any viewport"). Root data-attr, off by default.
+    enableThemeColorization: z.boolean().catch(false).default(false),
+    // Phase 4b §B.5.5 — the glass blur RADIUS as a user dial (WS3 built the recipe; this exposes its
+    // one previously-fixed knob). Root var `--blur-strength`, overriding the tokens.json default.
+    blurStrength: z
+      .number()
+      .min(BLUR_STRENGTH_MIN)
+      .max(BLUR_STRENGTH_MAX)
+      .catch(BLUR_STRENGTH_DEFAULT)
+      .default(BLUR_STRENGTH_DEFAULT),
+    // Phase 4b §B.5.5 — a metadata chip/icon on the reasoning-block disclosure (mirrors the
+    // showModelIcon/showTokenCount message-metadata chip pattern). Off by default (quiet chrome).
+    showLLMReasoningIcon: z.boolean().catch(false).default(false),
   })
   .prefault({});
 

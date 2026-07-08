@@ -83,6 +83,7 @@ import type { MessageMetadataVisibility } from "./message-metadata-row";
 import { MessageMetadataRow } from "./message-metadata-row";
 import {
   renderAttributionName,
+  renderContextBoundaryDivider,
   renderRowActions,
   renderRowAvatar,
   renderRowBubble,
@@ -142,6 +143,10 @@ export interface MessageRowProps {
   /** The `messageActions` appearance pref (D44 §12.1) — threaded to the action row (committed or
    *  draft-greeting). Undefined ⇒ `"hover"` (the schema default, today's behavior). */
   readonly messageActions?: "expanded" | "hover" | undefined;
+  /** Phase 4b §B.5.2 — true for the ONE row this is the "last-in-context" boundary (the earliest
+   *  message the model's most recent generation actually saw, `lib/context-boundary`'s resolved id).
+   *  Renders a quiet divider ABOVE this row. Default false (no caller wired ⇒ unchanged render). */
+  readonly contextBoundary?: boolean;
 }
 
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
@@ -172,6 +177,7 @@ export function MessageRow({
   autoFixMarkdown,
   metadataVisibility = NO_METADATA_VISIBLE,
   messageActions,
+  contextBoundary = false,
 }: MessageRowProps): ReactElement {
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
@@ -249,69 +255,74 @@ export function MessageRow({
   const trailingAvatar = role === "user" ? avatarNode : null;
 
   return (
-    // `group` is the hover/focus hook UIP-305's message-actions-row dims-then-brightens off
-    // (group-hover / group-focus-within) — the actions cluster rests at reduced opacity until hovered/
-    // focused (message-actions-reveal.ts). `data-kind` is the §A.8 KIND-READY stamp — a future Phase-4
-    // skin selects `[data-kind="character"]` (e.g. to bleed only the CHARACTER's portrait, §B.2) without
-    // this row ever branching on it.
-    <Stack
-      // `article` makes each message a countable/navigable unit (AT + Playwright `getByRole("article")`
-      // + agent nav); `data-message-id` is the stable per-message targeting handle (tests/automation
-      // address a specific message without scraping text). `aria-label` names the article by its speaker
-      // when the attribution shows one (grouped consecutive messages omit it — they inherit visually).
-      role="article"
-      aria-label={attribution.name ?? undefined}
-      data-message-id={message.id}
-      gap="row"
-      data-slot="message-row"
-      data-role={role}
-      data-kind={attribution.kind}
-      className={cn("group", skin.outer(role))}
-    >
-      {selecting ? (
-        <Checkbox
-          aria-label="Select message"
-          checked={selected}
-          onCheckedChange={(): void => toggleMessageSelected(message.id)}
-        />
-      ) : null}
-      <Row align="start" gap="row" data-slot="message-row-body">
-        {leadingAvatar}
-        <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
-          <Row justify="between" align="center" gap="field" data-slot="message-name-row">
-            {attribution.name === null ? null : (
-              <Row gap="field" align="baseline" data-slot="message-attribution">
-                {renderAttributionName(attribution)}
-              </Row>
-            )}
-            {renderRowActions({
-              editing,
-              selecting,
-              greeting,
+    // Fragment: the §B.5.2 boundary divider is a SIBLING before the article (a transcript-level
+    // marker, not part of THIS message's own semantic unit) — never nested inside `role="article"`.
+    <>
+      {renderContextBoundaryDivider(contextBoundary)}
+      {/* `group` is the hover/focus hook UIP-305's message-actions-row dims-then-brightens off
+          (group-hover / group-focus-within) — the actions cluster rests at reduced opacity until
+          hovered/focused (message-actions-reveal.ts). `data-kind` is the §A.8 KIND-READY stamp — a
+          future Phase-4 skin selects `[data-kind="character"]` (e.g. to bleed only the CHARACTER's
+          portrait, §B.2) without this row ever branching on it. */}
+      <Stack
+        // `article` makes each message a countable/navigable unit (AT + Playwright `getByRole("article")`
+        // + agent nav); `data-message-id` is the stable per-message targeting handle (tests/automation
+        // address a specific message without scraping text). `aria-label` names the article by its speaker
+        // when the attribution shows one (grouped consecutive messages omit it — they inherit visually).
+        role="article"
+        aria-label={attribution.name ?? undefined}
+        data-message-id={message.id}
+        gap="row"
+        data-slot="message-row"
+        data-role={role}
+        data-kind={attribution.kind}
+        className={cn("group", skin.outer(role))}
+      >
+        {selecting ? (
+          <Checkbox
+            aria-label="Select message"
+            checked={selected}
+            onCheckedChange={(): void => toggleMessageSelected(message.id)}
+          />
+        ) : null}
+        <Row align="start" gap="row" data-slot="message-row-body">
+          {leadingAvatar}
+          <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
+            <Row justify="between" align="center" gap="field" data-slot="message-name-row">
+              {attribution.name === null ? null : (
+                <Row gap="field" align="baseline" data-slot="message-attribution">
+                  {renderAttributionName(attribution)}
+                </Row>
+              )}
+              {renderRowActions({
+                editing,
+                selecting,
+                greeting,
+                message,
+                onChatForked,
+                messageActions,
+              })}
+            </Row>
+            {renderRowBubble({
+              role,
               message,
-              onChatForked,
-              messageActions,
+              content,
+              trainParagraphs,
+              skin,
+              decoration,
+              attributionTokens: attribution.tokens,
+              render,
+              renderContext,
+              speakerThemes: speakerThemesByName(participants),
             })}
-          </Row>
-          {renderRowBubble({
-            role,
-            message,
-            content,
-            trainParagraphs,
-            skin,
-            decoration,
-            attributionTokens: attribution.tokens,
-            render,
-            renderContext,
-            speakerThemes: speakerThemesByName(participants),
-          })}
-          {editing ? null : (
-            <MessageMetadataRow message={message} visibility={metadataVisibility} />
-          )}
-          {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
-        </Stack>
-        {trailingAvatar}
-      </Row>
-    </Stack>
+            {editing ? null : (
+              <MessageMetadataRow message={message} visibility={metadataVisibility} />
+            )}
+            {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
+          </Stack>
+          {trailingAvatar}
+        </Row>
+      </Stack>
+    </>
   );
 }

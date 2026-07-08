@@ -228,6 +228,25 @@ export function useTurnPhase(chatId: ChatId | null): TurnSlot["phase"] {
   );
 }
 
+/** The live turn's voiced speaker (chrome-safe, same isolation guarantee as `useTurnPhase`): a plain
+ *  id/`null` selector, stable across every token delta (only `text`/`reasoning` change per delta, never
+ *  `speakerCharacterId`), so this NEVER re-renders on a delta despite the store replacing the whole slot
+ *  object each append. `null` off-turn (idle/completed/aborted) or for a narrator/persona-less turn.
+ *  Phase-4b gap-fix (b): the ghost row's own kind-aware avatar/decoration seam (§A.8) reads this to
+ *  resolve the SAME attribution the settled row uses, so immersive decoration (Echo bleed / Whisper
+ *  banner / Hush stripe / Ripple sticky-portrait) applies DURING streaming, not just after settle. */
+export function useTurnSpeakerCharacterId(chatId: ChatId | null): CharacterId | null {
+  return useChatStreamStore((s) => {
+    if (chatId === null) {
+      return null;
+    }
+    const slot = s.turns[chatId] ?? IDLE_TURN;
+    return slot.phase === "pending" || slot.phase === "streaming" || slot.phase === "stopping"
+      ? slot.speakerCharacterId
+      : null;
+  });
+}
+
 /** True for `pending`/`streaming`/`stopping` — the store's own "a turn is live" definition (mirrors
  *  `appendDelta`'s accumulate-through-stopping invariant above): the render side must agree that
  *  `stopping` is still live, or the ghost row unmounts/blanks the instant Stop is clicked. */

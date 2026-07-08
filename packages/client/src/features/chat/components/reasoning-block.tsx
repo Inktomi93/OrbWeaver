@@ -23,7 +23,7 @@
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 // biome-ignore lint/correctness/noUnresolvedImports: biome can't follow @orb/ui/icons' re-export of the lucide-react glyphs (external .d.ts); tsc resolves the barrel (same class as react's Suspense in query-boundary.tsx).
-import { ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
+import { BrainCircuit, ChevronDown, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { StreamShimmer, useSmoothText } from "@orb/ui/stream";
@@ -42,11 +42,18 @@ export interface ReasoningBlockProps {
   /** True while the turn has reasoning but no answer token yet (the TTFT window). Flips false the
    *  instant the first answer token lands — the auto-collapse trigger. */
   readonly thinking: boolean;
+  /** Phase 4b §B.5.5 appearance.showLLMReasoningIcon — a quiet metadata-chip-style glyph beside the
+   *  ticking label (mirrors `MessageMetadataRow`'s icon+chip pattern). Default off (quiet chrome). */
+  readonly showIcon?: boolean | undefined;
 }
 
 /** The TTFT reasoning disclosure: force-open + ticking while thinking, auto-collapsed once the answer
  *  starts, permanently toggle-able by the user from then on. */
-export function ReasoningBlock({ reasoning, thinking }: ReasoningBlockProps): ReactElement {
+export function ReasoningBlock({
+  reasoning,
+  thinking,
+  showIcon = false,
+}: ReasoningBlockProps): ReactElement {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   // `null` = no manual toggle yet (follow the auto thinking/thought rule); once the user clicks the
   // trigger this pins to their choice for the rest of this row's life (the "permanent override").
@@ -72,6 +79,12 @@ export function ReasoningBlock({ reasoning, thinking }: ReasoningBlockProps): Re
       <CollapsibleTrigger>
         <Row gap="field" align="center">
           <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
+          {/* Phase 4b §B.5.5 showLLMReasoningIcon — a quiet glyph naming the block as reasoning,
+              mirroring MessageMetadataRow's icon-leads-label chip shape (never a full Badge here —
+              this rides the collapsible trigger's own row, not a separate metadata chip strip). */}
+          {/* Decorative (no `label`) — the adjacent "Thinking…"/"Thought for Ns" text already names
+              the disclosure; a labelled icon here would double-announce it to assistive tech. */}
+          {showIcon ? <Icon icon={BrainCircuit} size="sm" /> : null}
           <Text size="label" tone="muted">
             {label}
           </Text>

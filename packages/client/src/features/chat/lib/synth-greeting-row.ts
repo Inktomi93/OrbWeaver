@@ -63,5 +63,6 @@ export function synthGreetingRow(
     contextWindow: null,
     costUsd: null,
     ttftMs: null,
+    contextBoundaryMessageId: null,
   };
 }

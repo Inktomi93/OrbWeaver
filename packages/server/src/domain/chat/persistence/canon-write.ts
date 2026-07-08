@@ -54,6 +54,10 @@ interface CanonVariantInput {
   readonly cacheWriteTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   readonly contextWindow?: number | null | undefined;
+  /** The §8 fit-pass boundary (`TurnPipelineResult.contextBoundaryMessageId`) — the earliest message
+   *  actually included in the assembled history this generation. Null ⇒ nothing was dropped / the
+   *  fit-pass never ran. */
+  readonly contextBoundaryMessageId?: MessageId | null | undefined;
   readonly ttftMs?: number | null | undefined;
   readonly finishReason?: string | null | undefined;
   readonly stopReason?: string | null | undefined;
@@ -100,6 +104,7 @@ interface VariantEconomics {
   readonly cacheWriteTokens: number | null;
   readonly costUsd: number | null;
   readonly contextWindow: number | null;
+  readonly contextBoundaryMessageId: MessageId | null;
   readonly ttftMs: number | null;
   readonly finishReason: string | null;
   readonly stopReason: string | null;
@@ -119,6 +124,7 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
     cacheWriteTokens: v.cacheWriteTokens ?? null,
     costUsd: v.costUsd ?? null,
     contextWindow: v.contextWindow ?? null,
+    contextBoundaryMessageId: v.contextBoundaryMessageId ?? null,
     ttftMs: v.ttftMs ?? null,
     finishReason: v.finishReason ?? null,
     stopReason: v.stopReason ?? null,

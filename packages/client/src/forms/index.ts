@@ -11,4 +11,5 @@ export type {
 export { createAutosaveEntityForm } from "./create-autosave-entity-form";
 export type { SavedEntityFormArgs, SavedEntityFormConfig } from "./create-saved-entity-form";
 export { createSavedEntityForm } from "./create-saved-entity-form";
+export type { AppFormInstance } from "./use-app-form";
 export { useAppForm, withFieldGroup, withForm } from "./use-app-form";

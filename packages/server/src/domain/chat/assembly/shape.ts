@@ -21,7 +21,7 @@
 
 import type { ChatInjection, GroupConfig } from "@orb/contracts/chat";
 import type { NamesBehavior } from "@orb/contracts/preset";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { spliceInChatInjections } from "./injections";
 import { applyNamesBehavior } from "./names";
 import { squashSameRole } from "./role-squash";
@@ -38,6 +38,7 @@ interface CanonRow {
   content: string;
   authorName?: string | null;
   characterId?: CharacterId | null;
+  messageId?: MessageId | undefined;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -45,6 +46,7 @@ interface WireRow {
   role: WireRole;
   content: string;
   name?: string;
+  messageId?: MessageId | undefined;
 }
 
 /** Derive the group axes from the canonical `GroupConfig` (no inline re-spell). `cardScope` lives only on
@@ -114,6 +116,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
       return {
         role: "user",
         content: name.length > 0 ? `${name}: ${m.content}` : m.content,
+        messageId: m.messageId,
       };
     }
     return m;

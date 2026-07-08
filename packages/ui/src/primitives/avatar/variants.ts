@@ -11,8 +11,17 @@ import { tv } from "#lib";
  *
  * `aspect` (§B.3/§B.4): `square` (default, 1:1 — `size-avatar-*` already IS square) or `portrait`
  * (the 2:3 `--aspect-portrait` token) — the presence lever the Phase-4 VN/Ripple immersive mode
- * needs (a tall sticky portrait instead of a small round chip). Widens the box beyond the `size-*`
- * square via `w-auto h-full` + the aspect-ratio utility so height still rides the size token.
+ * needs (a tall sticky portrait instead of a small round chip). `size-avatar-*` already set BOTH
+ * width+height (the square case); `w-auto` overrides ONLY the width half (tailwind-merge's conflict
+ * groups distinguish `size-*`'s width/height halves independently), so HEIGHT still rides the size
+ * token and the `aspect-portrait` ratio computes a narrower WIDTH from it — a sane small portrait chip
+ * (e.g. `size-avatar-md` 30px tall × 20px wide), not a collapsed 0-height box. Phase-4b gap-fix: the
+ * prior `h-full w-auto` depended on a PARENT height a bare icon-left avatar (a flex sibling in
+ * `message-row.tsx`, no ambient row height) never defines, collapsing it to ~0px — `h-full` resolved
+ * against an undefined parent height instead of the size token. A caller that DOES want the old
+ * parent-relative-height behavior (Ripple's `position:sticky` portrait, `message-row-parts.tsx`)
+ * still gets it: it passes its OWN `h-auto w-(--immersive-ripple-portrait-width)` via `className`,
+ * which wins over both halves here (className merges last).
  *
  * `ring` (§B.3): `none` (default) or `accent` — a ring painted from `--color-primary` (the D62 global
  * accent, always defined — never entangled with the per-character `<ThemeScope>` the row's speaker
@@ -46,7 +55,12 @@ export const avatarVariants = tv({
     },
     aspect: {
       square: {},
-      portrait: { root: "aspect-portrait h-full w-auto" },
+      // `w-auto` overrides ONLY the width half of `size-avatar-*`'s `size-*` utility (tailwind-merge
+      // resolves `size-*`'s width/height conflict groups independently) — height still rides the size
+      // token, and `aspect-portrait` computes the narrower width from it. See the doc-comment above
+      // for the Phase-4b gap-fix this replaced (`h-full w-auto`, which depended on an undefined
+      // PARENT height for a bare icon-left avatar and collapsed to ~0px).
+      portrait: { root: "aspect-portrait w-auto" },
     },
     ring: {
       none: {},

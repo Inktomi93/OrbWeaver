@@ -10,6 +10,7 @@ export {
   Anchor,
   Archive,
   BookOpen,
+  BrainCircuit,
   ChartColumn,
   Check,
   ChevronDown,

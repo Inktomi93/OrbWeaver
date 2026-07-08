@@ -15,6 +15,7 @@
 //   • "completion" — set the OpenAI-spec `name` field; content untouched.
 
 import type { NamesBehavior } from "@orb/contracts/preset";
+import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** The wire-history role axis — derive-don't-respell the `user | assistant` subset of the canonical
@@ -27,10 +28,16 @@ interface NamedRow {
   role: WireRole;
   content: string;
   name?: string;
+  messageId?: MessageId | undefined;
 }
 
 export function applyNamesBehavior(
-  history: readonly { role: WireRole; content: string; authorName?: string | null }[],
+  history: readonly {
+    role: WireRole;
+    content: string;
+    authorName?: string | null;
+    messageId?: MessageId | undefined;
+  }[],
   mode: NamesBehavior,
   speakers: { user: string; assistant: string },
   // True when the history carries >1 distinct authoring character (the group case). Drives the
@@ -38,7 +45,7 @@ export function applyNamesBehavior(
   multiCharacter = false,
 ): NamedRow[] {
   if (mode === "none") {
-    return history.map((m) => ({ role: m.role, content: m.content }));
+    return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
   return history.map((m): NamedRow => {
     const author = m.authorName ?? (m.role === "user" ? speakers.user : speakers.assistant);
@@ -47,7 +54,7 @@ export function applyNamesBehavior(
       // multi-character room — an assistant turn (prefix it with its character's name). A solo chat
       // (multiCharacter=false) prefixes nothing on the assistant side → byte-identical.
       if (m.role === "user" && author !== speakers.user) {
-        return { role: m.role, content: `${author}: ${m.content}` };
+        return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
       }
       if (
         m.role === "assistant" &&
@@ -55,13 +62,13 @@ export function applyNamesBehavior(
         m.authorName !== null &&
         m.authorName !== undefined
       ) {
-        return { role: m.role, content: `${author}: ${m.content}` };
+        return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
       }
-      return { role: m.role, content: m.content };
+      return { role: m.role, content: m.content, messageId: m.messageId };
     }
     if (mode === "content") {
-      return { role: m.role, content: `${author}: ${m.content}` };
+      return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
     }
-    return { role: m.role, content: m.content, name: author };
+    return { role: m.role, content: m.content, name: author, messageId: m.messageId };
   });
 }

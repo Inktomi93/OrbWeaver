@@ -137,6 +137,7 @@ const MESSAGE: MessageView = {
   contextWindow: null,
   costUsd: null,
   ttftMs: null,
+  contextBoundaryMessageId: null,
 };
 
 // The empty producer fixture (Chat-Macro-Resolution.md §1) — this router test only proves the wire-through,

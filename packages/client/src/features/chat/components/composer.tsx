@@ -119,7 +119,12 @@ export function Composer({
         gap="field"
         align="center"
         data-slot="composer"
-        className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input px-field py-field transition-colors duration-(--motion-fast) ease-out-expo focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+        // §B.5b composer escalation — quiet → hover → focus via a BORDER + BG-ALPHA step, never
+        // `opacity` (which would also dim the placeholder/typed text). Quiet dials the `bg-input`
+        // token's own alpha down (`/60`); hover/focus restore its full authored alpha + upgrade the
+        // border from `border-border` to the more-opaque `border-input` token; focus additionally adds
+        // the existing ring. Text/placeholder color is never touched by any step.
+        className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-input/60 px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-input focus-within:border-input focus-within:bg-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
       >
         <ComposerWand
           handle={handle}

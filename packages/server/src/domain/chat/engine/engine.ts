@@ -157,6 +157,7 @@ function variantPayloadOf(
     reasoning: result.reasoning,
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
+    contextBoundaryMessageId: result.contextBoundaryMessageId,
     ttftMs: e?.ttftMs ?? null,
     finishReason: e?.finishReason ?? null,
     stopReason: e?.stopReason ?? null,

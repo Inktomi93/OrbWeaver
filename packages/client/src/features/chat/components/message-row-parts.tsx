@@ -12,7 +12,8 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
@@ -287,4 +288,24 @@ export function renderRowSwipe(args: {
   return args.showSwipes && args.role === "assistant" ? (
     <SwipeStrip message={args.message} />
   ) : null;
+}
+
+/** Phase 4b §B.5.2 — the "last-in-context" boundary divider: a quiet accent-tinted rule marking where
+ *  the model's most recent generation stopped reading history (`lib/context-boundary`'s resolved id —
+ *  message-row.tsx passes `show = message.id === thatId`). A hairline, not a banner (mirrors the
+ *  `[data-shadow]`/bubble-token restraint the rest of the row's chrome follows) — no copy, so it never
+ *  competes with the reading surface; the accent tint alone reads as "a boundary", not "an alert". */
+export function renderContextBoundaryDivider(show: boolean): ReactNode {
+  if (!show) {
+    return null;
+  }
+  return (
+    <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
+      <Separator className="flex-1 bg-(--color-primary)/35" />
+      <Text size="micro" tone="muted" transform="caps">
+        In context from here
+      </Text>
+      <Separator className="flex-1 bg-(--color-primary)/35" />
+    </Row>
+  );
 }

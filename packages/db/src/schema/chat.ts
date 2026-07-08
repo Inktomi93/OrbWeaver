@@ -252,6 +252,13 @@ export const messageVariants = sqliteTable(
     cacheWriteTokens: integer("cache_write_tokens"),
     costUsd: real("cost_usd"),
     contextWindow: integer("context_window"),
+    // The §8 history-budget fit-pass boundary: the earliest message actually included in the assembled
+    // history for this generation (null = nothing was dropped / the fit-pass never ran). Powers a client
+    // "last-in-context" divider. SET NULL (never CASCADE) — deleting the boundary message should not
+    // delete this variant, it should just drop the marker (mirrors `messages.selectedVariantId`).
+    contextBoundaryMessageId: text("context_boundary_message_id")
+      .$type<MessageId>()
+      .references(() => messages.id, { onDelete: "set null" }),
     maxOutputTokens: integer("max_output_tokens"),
     ttftMs: integer("ttft_ms"),
     finishReason: text("finish_reason"),
