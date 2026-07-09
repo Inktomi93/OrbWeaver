@@ -38,6 +38,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     requireOwner: deps.requireOwner,
     serializeUserWrite,
     newThemeId: deps.newThemeId,
+    emitUserEvent: deps.emitUserEvent,
     getEffectiveConfig,
     reloadEffectiveConfig: () => reloadEffectiveConfig(deps.db),
   };

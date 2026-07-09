@@ -48,6 +48,7 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { reordered: ids.length };
   };
 }

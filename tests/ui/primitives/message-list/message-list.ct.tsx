@@ -7,6 +7,7 @@ import {
   CachedMeasurementsList,
   DerivedItemsMessageList,
   HandleExposingList,
+  KeepMountedStateList,
   PrependableList,
   RangeExtractorMessageList,
   UnboundedMessageList,
@@ -215,6 +216,71 @@ test("rangeExtractor passthrough: a forced index stays mounted even off-screen o
   await expect(component.getByText("Message 199", { exact: true })).toBeVisible();
   // Only the custom rangeExtractor forcing index 0 into the range keeps it mounted off-screen.
   await expect(component.getByText("Message 0", { exact: true })).toHaveCount(1);
+});
+
+// PD-119 keep-mounted path (item-space `keepMounted` predicate). The stateful row holds ONLY local
+// React state (a controlled input); off-screen unmount destroys it. These two tests prove the
+// MECHANISM: the typed value SURVIVES a scroll-to-tail-and-back iff `keepMounted` matches the row.
+const KEEP_MOUNTED_ITEMS = 200;
+const KEEP_MOUNTED_SCROLL_PX = KEEP_MOUNTED_ITEMS * ROW_HEIGHT_PX; // clears the full list in one wheel
+const TYPED_STATE = "kept-local-state";
+
+test("keepMounted keeps a stateful row mounted off-screen, so its local state survives scroll-away", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<KeepMountedStateList keep={true} />);
+  // Bottom-anchored: the tail is visible, index 0 (the input row) sits far above the window.
+  await expect(
+    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
+  ).toBeVisible();
+  await component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }).hover();
+
+  // Scroll to the top, type into the row's input.
+  await page.mouse.wheel(0, -KEEP_MOUNTED_SCROLL_PX);
+  const input = component.getByTestId("stateful-input");
+  await expect(input).toBeVisible();
+  await input.fill(TYPED_STATE);
+  await expect(input).toHaveValue(TYPED_STATE);
+
+  // Scroll to the tail — the pinned row is off-screen but still a mounted DOM node.
+  await page.mouse.wheel(0, KEEP_MOUNTED_SCROLL_PX);
+  await expect(
+    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
+  ).toBeVisible();
+  await expect(component.getByTestId("stateful-input")).toHaveCount(1);
+
+  // Scroll back to the top — the SAME row, its typed state intact (never unmounted).
+  await page.mouse.wheel(0, -KEEP_MOUNTED_SCROLL_PX);
+  await expect(component.getByTestId("stateful-input")).toHaveValue(TYPED_STATE);
+});
+
+test("WITHOUT keepMounted the same row unmounts off-screen and loses its local state (control)", async ({
+  mount,
+  page,
+}) => {
+  const component = await mount(<KeepMountedStateList keep={false} />);
+  await expect(
+    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
+  ).toBeVisible();
+  await component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }).hover();
+
+  await page.mouse.wheel(0, -KEEP_MOUNTED_SCROLL_PX);
+  const input = component.getByTestId("stateful-input");
+  await expect(input).toBeVisible();
+  await input.fill(TYPED_STATE);
+  await expect(input).toHaveValue(TYPED_STATE);
+
+  // Scroll to the tail — with no keep-mounted policy the row unmounts entirely.
+  await page.mouse.wheel(0, KEEP_MOUNTED_SCROLL_PX);
+  await expect(
+    component.getByText(`Message ${KEEP_MOUNTED_ITEMS - 1}`, { exact: true }),
+  ).toBeVisible();
+  await expect(component.getByTestId("stateful-input")).toHaveCount(0);
+
+  // Scroll back to the top — the row remounts FRESH, its typed state gone.
+  await page.mouse.wheel(0, -KEEP_MOUNTED_SCROLL_PX);
+  await expect(component.getByTestId("stateful-input")).toHaveValue("");
 });
 
 // §A.4/§F.6 "jump to latest" / reading-history primitives on the imperative handle.

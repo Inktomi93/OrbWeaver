@@ -83,6 +83,7 @@ export function createDuplicateTheme(
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "themesChanged", themeId: id });
     return toThemeView(row);
   }
   return { duplicateTheme };

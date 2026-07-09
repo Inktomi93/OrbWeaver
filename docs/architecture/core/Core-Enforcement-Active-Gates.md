@@ -114,10 +114,19 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `membership-enforcer` | no owner-equality comparison (`x.ownerId ===`) and no `fetchOwned`/`OwnedTable` import in `domain/chat` + the chat transport — chats are MEMBERSHIP-scoped (`assertParticipant` → `can()`); the host is looked up from the roster, never compared as an owner (D16/D18) | new (PD-116) | | |
 | `owner-role-split` | no `role === "owner"\|"admin"` comparison outside `domain/admin/guard.ts` — `can()` is the ONE privilege seam; owner ⊇ admin lives inside it (D17; the gate's founding catch fixed the auth seam's inline `isAdmin`) | new (PD-116) | | |
 | `bus-coverage` | every `CHAT_BUS_EVENT_TYPES` member has a server emit site OR a cited `DEFERRED` entry — a self-cleaning two-direction ratchet (missing emit RED; stale allowlist RED). Founding census: 8/26 unwired → PD-89 + PD-117 (D50) | new (PD-116) | | |
+| `user-bus-coverage` | the per-USER bus twin of `bus-coverage`: every `USER_BUS_EVENT_TYPES` member has a server emit site (a domain verb's `emitUserEvent`) OR a cited `DEFERRED` entry — same two-direction ratchet. `connectionsChanged` is the sole founding DEFERRED (no per-user connection store; config lives in settings). PD user-bus lane | new (PD user-bus) | | |
 | `member-card-clamped` | ONE D22 clamp: no `MemberCardView` declaration outside `@orb/contracts`, no `clampMemberCard`/`resolveCardVisibility` outside `chat/substrate/auth/`, and the PD-111-deleted `getRosterCardView` stays dead (D22) | new (PD-116/PD-111) | | |
 | `diagnostic-legibility` | every custom-gate + grit diagnostic STRING carries a resolvable pointer (a `*.md` doc path, a code-home path/file, or an explicit `// terse-ok:` marker) — the meta-gate that makes the W1-D message normalization permanent; a new gate/grit cannot regress to a bare/pointerless message | new (W1-D) | | |
+| `test-presence-client` | the `@orb/client` + non-primitive `@orb/ui` reach `test-presence` lacks (server/contracts only) — a test is required on the behavioral factories + logic modules, per `Spine-Testing.md` §5's conservative surface | new (W1-1) | | |
+| `no-effect-on-shared-selection` | the mechanical half of the anti-`this_chid` rule (UI-Arch §5.1) — a `useEffect`/`useLayoutEffect` in `features/**` keyed on a shared-selection store pointer is banned (the neo chase reborn); only render-only reads are sanctioned | new (2026-07-09) | | |
+| `persistence-boundary` | the device-local-vs-synced belt (UI-Theming-and-Content.md §12.1 + UI-Arch §5) — raw browser storage outside the two persist factories + the boot/dev allowlist is RED, and every persisted-store name must carry a registered why-device-local rationale | new (2026-07-09) | | |
+| `surface-a11y-focus` | a `surfaces/*.tsx` that isn't an auto-focus-trapping Base UI primitive must explicitly manage focus on mount (`.focus()`/`useFocusOnMount`) | new | | |
+| `surface-in-a-container` | a `surfaces/*.tsx` that establishes raw layout must sit inside an `@orb/ui/layout` container (UI-Arch §4) — feature code never writes raw containment | new (W1-1) | | |
+| `registry-pairing` | the RAIL registry (`rail-slots.ts`) and its sibling `MODAL_SLOTS` bodies (`modal-slots.tsx`) are a bijection on modal ids — every trigger has a body, every body has a reachable trigger | new | | |
+| `modal-body-not-placeholder` | a `MODAL_SLOTS` body whose `render` still returns `<SectionPlaceholder>` must carry an explicit `placeholder: true` flag — an unbuilt modal can't ship silently | new | | |
+| `placeholder-copy-registry` | every `SECTION_PLACEHOLDER_COPY` entry's `(title, description)` pair is DISTINCT — kills the "three sections share one string" silent-duplicate case | new | | |
 
-The table mirrors `scripts/check/report.ts` (34 registered gates); `report.ts` is the runtime truth.
+The table mirrors `scripts/check/report.ts` (43 registered gates); `report.ts` is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two
@@ -137,8 +146,6 @@ from `ALL_CHECKS`).
 | Gate | Enforces | Activation trigger |
 | - | - | - |
 | `component-size-ui` | `packages/ui/src` LOC ceiling (450) — the ui twin of `component-size` | W1-1 splits `table.tsx` (461 > 450), then registers it |
-| `test-presence-client` | client `data`/`forms`/`state` primitives + non-primitive `@orb/ui` logic modules carry a test | W1-1 backfills the 8 untested client primitives, then registers it |
-| `surface-in-a-container` | a `surfaces/*.tsx` that establishes raw layout must sit in an `@orb/ui/layout` container (UI-Arch §4) | ships WITH the first real consumer surface (deferred-with-construct; app-shell shell-tier is exempt) |
 | `monotonic-tests` | a green `check` can't be reached by deleting/disabling tests (a committed baseline manifest) | first real client test suite + committed baseline |
 | `audit-client-tests` | AST anti-patterns in `*.test.ts` (empty describe/hook, no-assertion, missing `await`) | client tests exist |
 

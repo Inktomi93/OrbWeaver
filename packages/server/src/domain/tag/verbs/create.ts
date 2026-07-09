@@ -47,6 +47,7 @@ export function createCreate(ctx: TagContext): TagService["createTag"] {
         entityId: row.id,
         metadata: { name },
       });
+      ctx.emitUserEvent(ownerId, { type: "tagsChanged", tagId: row.id });
       return toTagView(row);
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {

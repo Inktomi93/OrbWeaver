@@ -16,6 +16,7 @@
 
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { EndpointInspection } from "@orb/contracts/providers";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { UserCredentialId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
@@ -72,6 +73,11 @@ export interface CredentialContext {
   readonly probe: ProbeOp;
   readonly inspect: InspectOp;
   readonly fetchModels: FetchModelsOp;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every user-facing credential mutation
+   *  (add/setActive/remove/markRevokedByUser/clearRevoked) fires `credentialsChanged` with the owner's
+   *  `userId` AFTER its durable write, so a second device's credential list refetches. Wired to transport's
+   *  `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /** What `createCredentialsService` receives from the entry root. Identical to {@link CredentialContext}

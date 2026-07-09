@@ -36,6 +36,7 @@ export function createUpdateUserSettingsSection(
         },
         at,
       );
+      ctx.emitUserEvent(ownerId, { type: "settingsChanged" });
       return readUserSettings(ctx.db, ownerId);
     });
   };

@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-03
+updated: 2026-07-09
 ---
 
 # Orbweaver — build status & handoff
@@ -12,15 +12,17 @@ updated: 2026-07-03
 > `AGENTS.md` §7 — read AGENTS.md first; this file is only the cursor:
 > where the build is and what's next.
 
-## Where we are (2026-07-03)
+## Where we are (2026-07-09)
 
 - **Phases 0–5 BUILT** (`pnpm check` + `pnpm test` green): the 6-package cake (`kit` · `contracts` ·
   `db` · `server` · `ui` · `client`), the gate suite, all server tiers, ALL domains, and the whole
   unified chat + memory + roster system — incl. the transport chat router + `streamMessages` SSE,
   memory recall wired into GATHER (`chat/substrate/assemble-gather.ts`), guided-steer routing,
   temporary-chat reap, targeted invites (`resolveHandle`), and the image-gen-in-chat caller.
-- **One Phase-5 seam open:** the OpenAI-path tool-loop (D48) — `domain/chat/engine/pipeline.ts` marks
-  it the next chunk.
+- **Phase 5 FULLY CLOSED (2026-07-04):** the last seam — the OpenAI-path tool-loop (D48) — landed as
+  PD-54 T1–T4 (`Core-BUILD-PLAN.md` §Phase-5 seam note). No P5 seams remain; the parity-audit log
+  (`../Parity-Audit-Protocol.md`) went fully green 2026-07-09 (persona null-anchor cleared, character
+  re-verified pre-lane).
 - **Phase 6 (client) IN PROGRESS:** `@orb/ui` built + the primitive fleet integrated; the client
   feature-slice scaffold + gates landed and the base site boots; the feature surfaces remain and
   now build to the **D62 lane sequence** (L0 tokens → … → L7 parity; `Core-BUILD-PLAN.md` Phase 6 +
@@ -34,8 +36,10 @@ updated: 2026-07-03
 
 ## NEXT ACTION
 
-Burn down the `ready` rows in `Core-Audits-and-Debt.md` (the live registry — \~18 open), finish the
-Phase-6 client feature surfaces, land the D48 tool-loop chunk, then the D60 seat wave (AP3+).
+Burn down the `ready` rows in `Core-Audits-and-Debt.md` (the live registry), finish the Phase-6
+client feature surfaces — current lane: `FINAL-Character-Library-and-Editor-UX.md` (repo root; its
+§12 FIX #1/#2 are the pre-lane server work) — then the D60 seat wave (AP3+). (D48: DONE 2026-07-04;
+PD-119 keepMounted: DONE 2026-07-09.)
 
 ## Recon method that worked (keep for verification passes)
 

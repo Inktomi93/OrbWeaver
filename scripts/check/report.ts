@@ -47,6 +47,7 @@ import { testPresenceClient } from "./gates/test-presence-client.ts";
 import { turnIdentity } from "./gates/turn-identity.ts";
 import { typesInContract } from "./gates/types-in-contract.ts";
 import { uiPrimitiveStructure } from "./gates/ui-primitive-structure.ts";
+import { userBusCoverage } from "./gates/user-bus-coverage.ts";
 import { vectorScopeDerived } from "./gates/vector-scope-derived.ts";
 import { verbNaming } from "./gates/verb-naming.ts";
 import { zustandSelectorDerived } from "./gates/zustand-selector-derived.ts";
@@ -92,6 +93,7 @@ export const ALL_CHECKS: readonly Check[] = [
   membershipEnforcer,
   ownerRoleSplit,
   busCoverage,
+  userBusCoverage,
   memberCardClamped,
   diagnosticLegibility,
   surfaceA11yFocus,

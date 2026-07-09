@@ -12,7 +12,7 @@ updated: 2026-07-09
 >
 > **§-map (cross-doc `§N` references resolve here):** §0–§6.3.1 → `UI-Architecture-and-Layout.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.9 → `UI-Primitives-and-Reuse.md`.
 >
-> **Build state (2026-07-03):** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` is the public surface). `@orb/client` is a SCAFFOLD (vite build + React Compiler live, \~3 hand-written routes, feature dirs reserved as `.gitkeep` stubs); the client data/forms/state primitives, features, and PWA are Phase 6. Build design + per-primitive decisions: `proposed/ui-package-design.md`.
+> **Build state (2026-07-09):** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` is the public surface). The client data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}` is the inventory); feature slices are largely built (D62 lanes; 125+ files across 12 of 14 features — `credentials` + `user-admin` remain `.gitkeep` stubs). Remaining Phase 6 = PWA + the outstanding feature surfaces (current lane: the FINAL-Character doc). Build design + per-primitive decisions: `proposed/ui-package-design.md`.
 
 > **The one-sentence thesis:** carry over neo's *structure* (feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery) and *dump* neo's *component foundation* (shadcn copy-paste + Radix + the react-markdown stack). The replacement is **one headless primitive (Base UI), hand-authored components in the `@orb/ui` package, and the lint rules promoted to package physics.**
 
@@ -22,7 +22,7 @@ Two inputs, both *prior art*, not law: (1) the Phase-4b neo-tavern client critiq
 
 ### 0.5 Phase-6 build manifest (the index)
 
-> A scannable index. Every row points to its canonical spec section — a table of contents, **NOT a second source of truth**. **Build order (§11.7 / §13.6, born-compliant):** tokens → `@orb/ui` primitives+seals → `@orb/client` data/forms/state primitives + the gates → features. The first two stages are DONE; the client stages are Phase 6.
+> A scannable index. Every row points to its canonical spec section — a table of contents, **NOT a second source of truth**. **Build order (§11.7 / §13.6, born-compliant):** tokens → `@orb/ui` primitives+seals → `@orb/client` data/forms/state primitives + the gates → features. The client primitive stages are DONE; the remaining feature surfaces build per lane.
 
 **`@orb/ui` primitives + seals — BUILT** (each seals ONE lib behind an orbweaver API; `packages/ui/src` is the doc):
 
@@ -42,7 +42,7 @@ Two inputs, both *prior art*, not law: (1) the Phase-4b neo-tavern client critiq
 | sandbox-frame · MessageMedia · ThemeScope · lightbox | iframe/CSP · img+a/v · token scope | §12 |
 | code-editor | CodeMirror 6, token-themed | §12.1 |
 
-**`@orb/client` data / forms / state primitives — Phase 6, UNBUILT** (the §13.1 contracts):
+**`@orb/client` data / forms / state primitives — BUILT (packages/client/src/{data,forms,state})** (the §13.1 contracts):
 
 | Primitive | Job | Spec |
 | - | - | - |
@@ -100,7 +100,7 @@ The law that survives any file-level churn:
 
 #### 2.1 `@orb/client` — the feature-slice tree
 
-**State: SCAFFOLD.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); today `routes/` (3 hand-written routes: `/` · `/login` · `/admin`), `main.tsx`, the vite build (React Compiler full-compile, D54 — `packages/client/vite.config.ts`), and an app-shell stub exist; every other slot is a reserved `.gitkeep`. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
+**State: BUILT.** The tree below is committed law (gate `client-structure` enforces the per-feature shape the moment a slice gets real code); `data/`, `forms/`, `state/` are populated per the §13.1 contracts, 12 of 14 features have real code, and `credentials`/`user-admin` remain reserved `.gitkeep` stubs. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, neo's proven shape minus the three §-noted deletions, plus `data/`+`forms/` elevated to top-level peers of `state/`.
 
 ```
 packages/client/
@@ -164,7 +164,7 @@ CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
 - **Payoff:** "build the surface once, place it anywhere" (drawer · modal · grid cell · full pane), with zero variants and zero layout props.
 
-#### 4.1 The shell — the rail + collapsible panels (D55) — Phase 6, unbuilt
+#### 4.1 The shell — the rail + collapsible panels (D55)
 
 > **Design-seed status (amended D62):** the Claude-design handoff's `Hearth`/`Loom`/`Pocket` "modes" never did the structural work they claimed; the VS-Code "Work mode" stays **CUT**. **Themes are color palettes only** (§12.1) — there is NO structural mode. From the seed corpus (`reference/design/`), keep the palette (OKLCH ramp + **Ember** + **Geist**, the §3 token seed) AND — added by D62 — its **visual grammar as reference** (control metrics, popover chrome, micro-caps/mono voice, empty-state style; the D62 program docs cite it file-by-file). Where the layout below and the seed disagree, this wins.
 
@@ -319,7 +319,7 @@ The URL stays `/` (entity ids never in the address bar; multi-device sync is DB-
 If "open the library beside a live chat without it yanking the chat" is possible, the jank is gone. If real deep-links/back-forward ever become wanted, routes are a localized bolt-on (TanStack Router for the chat id only) — NOT a rewrite.
 
 **The sanctioned cross-feature-navigation SEAM (built + proven 2026-07-04c — the positive pattern that satisfies the rule):** shared client selection state (active section, active chat, open modal) lives in a **gated Zustand store BELOW the features** (`state/shell-store.ts`, `state/active-chat-store.ts`), NOT route-`useState` and NOT a feature. Arbitrary leaf writers — a rail button, a character card's "start chat", a message row's fork — call intent-named MODULE actions (`setActiveSection`/`selectChat`/`startNewChat`/`openModal`); **writers only WRITE, never write-because-they-read.** Reading has exactly THREE sanctioned shapes, all RENDER-only (amended 2026-07-09 — the pre-amendment "the route is the SINGLE reactive reader" sentence was over-narrow; the persona rail-foot panel proved the mirror shape):
->
+
 > 1. **The COMPOSITION reader** — the route (`home-page.tsx` reads the store → renders the right CONTENT/LIST into `AppShellProps.sections`); surfaces under it receive the selection as a PROP and never re-read it.
 > 2. **The OWN-SECTION reader** — a section's LIST/CONTENT surface reading *its own* section's selection pointer to render (the library highlighting its selected row via `useSelectedCharacterId`).
 > 3. **The MIRROR reader** — a shell-chrome/CONTEXT surface whose JOB is reflecting the active artifact and that the route cannot prop-thread (it mounts in a domain-agnostic shell slot): it subscribes to the CANONICAL pointer hook (`useActiveChatId`, never a hand-rolled handle derivation) and fetches its own data via Query keyed by that id. The store carries the POINTER; entity data comes from Query (whose cache dedupes across all readers — N readers, one fetch, one truth).

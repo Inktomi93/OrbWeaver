@@ -13,6 +13,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, TagId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -58,6 +59,10 @@ export interface TagContext {
   /** Best-effort audit write (foundation `logAudit` contract — suppress-and-drop, never the primary
    *  channel), timestamp pre-bound at the composition root. */
   readonly audit: (entry: AuditEntry) => Promise<void>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every tag mutation (CRUD + junction attach/detach)
+   *  fires `tagsChanged` with the acting owner's `userId` AFTER its durable write, so a second device's tag
+   *  list / usage refetches. Wired to transport's `publishUserEvent` at the entry root; fire-and-forget. */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /**

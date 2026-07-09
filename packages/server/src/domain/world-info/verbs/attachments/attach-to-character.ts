@@ -66,5 +66,6 @@ export function createAttachToCharacter(
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
   };
 }

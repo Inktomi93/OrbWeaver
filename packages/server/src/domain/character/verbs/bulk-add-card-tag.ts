@@ -38,6 +38,7 @@ export function createBulkAddCardTag(ctx: CharacterContext): CharacterService["b
         },
         ctx.now(),
       );
+      ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
     }
   };
 }

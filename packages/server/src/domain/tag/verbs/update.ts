@@ -66,6 +66,7 @@ export function createUpdate(ctx: TagContext): TagService["updateTag"] {
       if (updated === undefined) {
         throw new TagNotFoundError(params.tagId);
       }
+      ctx.emitUserEvent(ownerId, { type: "tagsChanged", tagId: params.tagId });
       return toTagView(updated);
     } catch (err) {
       if (isConstraintViolation(err)?.kind === "unique") {

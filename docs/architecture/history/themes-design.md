@@ -1,12 +1,12 @@
 ---
 kind: spec
-status: draft
-updated: 2026-07-03
+status: implemented
+updated: 2026-07-09
 ---
 
 # Themes & Appearance — the D44 §12.1 persistence design (`themes` entity + the two `UserSettings` namespaces)
 
-> **Status: COMMITTED (D44, 2026-06-28) — prescriptive build design, UNBUILT (verified 2026-07-03: no `themes` table in `@orb/db/schema/settings.ts`, no `@orb/contracts/theme` module yet; the client `<ThemeScope>` + `code-editor` halves ARE built in `@orb/ui`).** `Core-Laws-and-Precedents.md`
+> **Status: COMMITTED (D44, 2026-06-28) — IMPLEMENTED IN FULL (verified 2026-07-09): themes table (`db/schema/settings.ts`), `@orb/contracts/theme`, the six settings-domain theme verbs + `seed-themes` + int-tests, `selectedThemeId` in the settings blob, and the client theme editor/picker. Archived as the as-built design record; the code is now the doc.** `Core-Laws-and-Precedents.md`
 > D44 is the decision record; `core/UI-Theming-and-Content.md` §12 (especially §12.1) is the
 > authority — both win on any conflict with this doc. This doc specs the server/contracts/db build
 > for the two commitments §12.1 makes but does not home: (1) the **first-class single-owned
@@ -43,8 +43,8 @@ door the composition root must wire for verbs only the settings tRPC router call
 grows a real cross-feature surface (e.g. a theme-marketplace/import pipeline), promotion to a leaf
 is a mechanical extraction — the verbs/persistence files are already self-contained.
 
-_Enforcement: resolve-time — no `domain/themes` package path exists; the verbs are reachable only
-through the `settings` front door._
+*Enforcement: resolve-time — no `domain/themes` package path exists; the verbs are reachable only
+through the `settings` front door.*
 
 ---
 
@@ -340,23 +340,23 @@ that a no-op for stored `selectedThemeId` values.
 ## 6. Invariants + test plan
 
 1. **Seeds are immutable/undeletable by construction** — `updateTheme`/`removeTheme` on a seed id
-   → `DomainNotFoundError` (the `fetchOwned` miss), for owner and admin alike. _Test: direct._
+   → `DomainNotFoundError` (the `fetchOwned` miss), for owner and admin alike. *Test: direct.*
 2. **No cross-user access** — two-user fixture: `listThemes` never returns the other user's rows;
    `getTheme`/`updateTheme`/`removeTheme` on another user's id → not-found (404-shaped, no
-   existence oracle). _Test: direct._
+   existence oracle). *Test: direct.*
 3. **`duplicateTheme` seed → owned copy** — new id, `ownerId = caller`, deep-copied
    `override`/`css`, `isSeed:false` on the view; name de-dupe suffix under `unique(ownerId,name)`.
-   _Test: direct + the unique-violation typed error on `createTheme` with a taken name._
+   *Test: direct + the unique-violation typed error on `createTheme` with a taken name.*
 4. **`isSeed` is derived, never stored** — the projection maps `ownerId IS NULL`; no `is_seed`
-   column exists. _Enforcement: compile-time (schema has no such column) + the view test._
+   column exists. *Enforcement: compile-time (schema has no such column) + the view test.*
 5. **Lenient read seam** — a hand-corrupted `override` blob reads as defaults (per-field `.catch`),
-   never throws; a stale `selectedThemeId` resolves the default palette. _Test: fixture._
+   never throws; a stale `selectedThemeId` resolves the default palette. *Test: fixture.*
 6. **`ensureSeedThemes` is idempotent + non-clobbering** — double-run leaves exactly N seed rows;
-   user-owned rows untouched; a mutated seed row is restored on next boot. _Test: direct._
-7. **`users` cascade** — deleting a user removes their themes; seeds survive. _Test: FK fixture._
+   user-owned rows untouched; a mutated seed row is restored on next boot. *Test: direct.*
+7. **`users` cascade** — deleting a user removes their themes; seeds survive. *Test: FK fixture.*
 8. **Section-patch** — `updateUserSettingsSection("theme")` / `("appearance")` deep-merge +
    re-validate; the existing same-user serializer tests gain the two sections in their fixture.
-   _Test: extend existing._
+   *Test: extend existing.*
 
 ## 7. Size
 

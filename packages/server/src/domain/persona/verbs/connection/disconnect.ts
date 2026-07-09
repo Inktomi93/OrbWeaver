@@ -36,6 +36,7 @@ export function createDisconnect(ctx: PersonaContext): PersonaService["disconnec
         },
         ctx.now(),
       );
+      ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
     }
     return { disconnected };
   };

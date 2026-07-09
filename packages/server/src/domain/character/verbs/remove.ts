@@ -46,5 +46,6 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
   };
 }

@@ -16,6 +16,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PersonaBackupInput } from "@orb/contracts/persona";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -53,6 +54,10 @@ export interface PersonaContext {
   readonly now: () => number;
   readonly newPersonaId: () => PersonaId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every persona-CRUD verb fires `personasChanged`
+   *  with the acting owner's `userId` AFTER its durable write commits, so a second device's persona list
+   *  refetches. Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  readonly emitUserEvent: EmitUserEvent;
 
   readonly requireChatAuthorOrHost: (
     principal: Principal,

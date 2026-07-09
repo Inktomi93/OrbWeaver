@@ -44,6 +44,7 @@ export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeEnt
       // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential (create.ts precedent).
       await ctx.emitWiEvent({ type: "wiEntryDetached", chatId, surface: "chat", entryId });
     }
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: removed.worldBookId });
 
     return { deleted: true };
   };

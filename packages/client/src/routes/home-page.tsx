@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useMemo } from "react";
 import type { ChatBusDeps } from "#data";
-import { createInvalidation, useTRPC } from "#data";
+import { createInvalidation, useTRPC, useUserBus } from "#data";
 import { AppShell, RAIL_SECTIONS, useShellLayout, YouSheet } from "#features/app-shell";
 import {
   CharacterDetailSurface,
@@ -72,6 +72,13 @@ export function HomePage(): ReactElement {
   const queryClient = useQueryClient();
   const invalidation = createInvalidation({ queryClient, trpc });
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: invalidation.invalidate };
+  // PD user-bus lane: the ALWAYS-ON per-user entity-changed stream — device B's write to any owned
+  // non-chat surface (or the chat LIST) invalidates this device's cache. Mounted ONCE here (the authed
+  // composition reader), never in a feature (a feature could unmount + drop the freshness driver).
+  useUserBus({
+    invalidateUser: invalidation.invalidateUser,
+    invalidateAllUserRoots: invalidation.invalidateAllUserRoots,
+  });
 
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();

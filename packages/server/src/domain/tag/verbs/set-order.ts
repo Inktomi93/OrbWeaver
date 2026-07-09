@@ -12,5 +12,6 @@ export function createSetOrder(ctx: TagContext): TagService["setTagOrder"] {
       return;
     }
     await setTagOrderBatch(ctx.db, params.principal.userId, params.orderedIds);
+    ctx.emitUserEvent(params.principal.userId, { type: "tagsChanged" });
   };
 }

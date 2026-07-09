@@ -362,6 +362,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
 
     await ctx.db.batch(batchMany(stmts));
     await deps.emit({ type: "chatCreated", chatId: newChatId });
+    ctx.emitUserEvent(principal.userId, { type: "chatsChanged", chatId: newChatId });
 
     const forkRow = await loadChatRow(ctx.db, newChatId);
     if (forkRow === undefined) {

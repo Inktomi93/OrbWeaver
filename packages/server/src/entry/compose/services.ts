@@ -95,7 +95,7 @@ import {
   requireParticipant,
   setParticipantActivePersona,
 } from "../../domain/chat";
-import { publishChatEvent } from "../../transport/trpc";
+import { publishChatEvent, publishUserEvent } from "../../transport/trpc";
 import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
@@ -203,6 +203,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     requireAdmin,
     requireOwner,
     newThemeId: minter(ID_PREFIX.theme),
+    emitUserEvent: publishUserEvent,
   });
 
   // ── The effective-config boot surface: warm the resolved-config cache from the stored override so the SYNC
@@ -243,6 +244,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     probe: (credential): Promise<CredentialHealth> => diagnostics.probe({ credential }),
     inspect: (req): Promise<EndpointInspection> => diagnostics.inspect(req),
     fetchModels: fetchOpenAiModels,
+    emitUserEvent: publishUserEvent,
   });
   // The ONE GPU fact in positive form — the connection resolver's no-GPU derive fallback reads it (the
   // registry above reads its complement, `deps.vllmDisabled`). No re-probe: both arms share the boot fact.
@@ -290,6 +292,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // Tag is CLOCKLESS (rows born-stamp via SQL default), so the audit timestamp is pre-bound HERE from
     // the root's injected clock — the verbs hand only the entry.
     audit: (entry): Promise<void> => audit(entry, now()),
+    emitUserEvent: publishUserEvent,
   });
 
   // ── Asset + character cluster (the event emitters; the bus carries character.updated / asset.created) ──
@@ -396,6 +399,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newSnapshotId: minter(ID_PREFIX.characterSnapshot),
     audit,
     emit: eventBus.emit,
+    emitUserEvent: publishUserEvent,
     // INERT (flagged): assets GC is PD-26 — best-effort reap is a no-op until the GC verbs land.
     reapAssets: (): Promise<void> => Promise.resolve(),
     // The by-name card-tag attach port → tag's resolve-or-create-by-name verb (PD-49 paid down). Shapes match
@@ -508,6 +512,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     newPersonaId: minter(ID_PREFIX.persona),
     audit,
+    // PD user-bus lane: the per-user live-freshness emit → transport's process-local `publishUserEvent`.
+    // The SAME closure backs every domain below (one bus, keyed per userId).
+    emitUserEvent: publishUserEvent,
     requireChatAuthorOrHost: async (principal, chatId, targetUserId) => {
       await requireAuthorOrHost({ db, can }, principal, chatId, targetUserId);
     },
@@ -515,7 +522,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       await setParticipantActivePersona(db, emitChatEvent, { chatId, targetUserId, personaId });
     },
   });
-  const preset = createPresetService({ db, now, newPresetId: minter(ID_PREFIX.preset), audit });
+  const preset = createPresetService({
+    db,
+    now,
+    newPresetId: minter(ID_PREFIX.preset),
+    audit,
+    emitUserEvent: publishUserEvent,
+  });
   const stats = createStatsService(db);
   const search = createSearchService({ db, roleClients });
   const discovery = createDiscoveryService({
@@ -673,6 +686,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     emitChatEvent, // PD-128: the ONE bus, built above — chat no longer constructs its own.
+    emitUserEvent: publishUserEvent, // PD user-bus lane: chat LIST-level ops fire `chatsChanged`.
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
     // The PD-73 frozen-host → Principal bridge (sessions is the sanctioned users reader).
@@ -732,6 +746,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     // WI attachment changes ride the SAME durable-first chat bus (WiBusEvent ⊂ ChatBusEvent).
     emitWiEvent: emitChatBusEvent,
+    emitUserEvent: publishUserEvent,
   });
 
   const services: Services = {

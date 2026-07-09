@@ -75,6 +75,7 @@ export function createUpdateTheme(ctx: SettingsContext): Pick<SettingsService, "
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "themesChanged", themeId: params.id });
     return toThemeView(row);
   }
   return { updateTheme };

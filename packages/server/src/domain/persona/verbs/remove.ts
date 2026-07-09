@@ -45,6 +45,7 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       },
       ctx.now(),
     );
+    ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
     return { deleted: true };
   };
 }

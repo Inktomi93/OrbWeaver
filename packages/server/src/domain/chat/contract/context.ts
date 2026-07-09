@@ -35,6 +35,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { ThemeOverride } from "@orb/contracts/theme";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
@@ -405,6 +406,12 @@ export interface ChatContext {
    *  crypto op like the minters, bound to `SESSION_SECRET` at the root — `invites`). */
   readonly hashToken: (token: string) => string;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — the chat LIST-level ops (start/fork/rename/star/
+   *  archive/delete) fire `chatsChanged` with the ACTING principal's `userId` AFTER the durable write, so that
+   *  user's second device refetches its chat list. DISTINCT from the per-chat `emit` (ChatBusEvent, which only
+   *  reaches subscribers of the OPEN chat — the chat LIST has no other freshness driver). Wired to transport's
+   *  `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  readonly emitUserEvent: EmitUserEvent;
   // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   readonly runChatTurn: RunChatTurnOp;

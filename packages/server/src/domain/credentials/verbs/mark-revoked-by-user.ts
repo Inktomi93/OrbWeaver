@@ -24,5 +24,6 @@ export function createMarkRevokedByUser(
       { credentialId, reason: params.reason ?? DEFAULT_REASON, path: "user" },
       "credentials: marked revoked (user)",
     );
+    ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
   };
 }

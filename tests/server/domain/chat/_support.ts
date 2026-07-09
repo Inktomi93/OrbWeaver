@@ -330,6 +330,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newInviteId: mint<ChatInviteId>("chat_invite"),
     hashToken: (token) => `h:${token}`,
     audit: () => Promise.resolve(),
+    // PD user-bus lane: no-op recorder (chat LIST-level ops fire `chatsChanged`; a test that asserts it
+    // overrides this via `overrides.emitUserEvent`).
+    emitUserEvent: () => undefined,
     // Default = the NATIVE replace (no node:vm) — deterministic + fast for tests. A test that exercises the
     // D53 watchdog seam (WI/SEND/RECEIVE) overrides this with a fake that throws on a pathological pattern.
     tools: null,

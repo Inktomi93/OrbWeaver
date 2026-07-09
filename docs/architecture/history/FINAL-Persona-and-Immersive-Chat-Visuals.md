@@ -31,7 +31,7 @@ A user has MANY personas (name + description + avatar). At any moment **four ind
 *which* persona applies *where* — four different stores, four different meanings:
 
 | # | Name (use this term) | What it means, in one sentence | Scope | Orb column |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 1 | **Default persona** | Your "home" identity — the star. A pure SEED for new chats; drives nothing live. | Global, per-user | `seeds.defaultPersonaId` |
 | 2 | **Current persona** | Who you're playing as *right now, globally*. CAN be any persona — not necessarily your Default. Seeds new chats; changing it never touches an open chat. | Global, per-user, live | `seeds.currentPersonaId` |
 | 3 | **Chat persona** | The live `{{user}}` for *this human's lines in THIS chat*. An explicit per-chat override. | Per-chat participant | `chat_participants.activePersonaId` |
@@ -55,6 +55,7 @@ correct after a swap. A *consequence*, not a control you set.)
 > Chat persona (#3); a message already in the log = its own `personaId` stamp.
 
 **How it's wired (all correct — do not rebuild):**
+
 - Card vs Prompt: `AssembleContext` carries both `pinnedPersona` (= Anchor) and `activePersona` (= Chat
   persona) (`contracts/chat/index.ts`); `assemble.ts` feeds card-derived sections `pinnedPersona`, user-authored
   sections `activePersona` (`assembly/context.ts`).
@@ -88,7 +89,7 @@ correct after a swap. A *consequence*, not a control you set.)
 `Anchor (#4) / Chat persona (#3) at chat-open = explicit choice ?? character-connected persona ?? Current (#2)
 ?? Default (#1)` (`start-chat.ts`). After chat-open the chat holds its own concrete ids — which is why changing
 global Current/Default later never disturbs an open chat. Per-chat changes (set Chat persona #3, re-pin Anchor
-#4) happen inside that chat and affect only it.
+\#4) happen inside that chat and affect only it.
 
 ### A.4 The traps — "these are NOT the same thing"
 
@@ -120,7 +121,7 @@ Settings→Personas pane, no in-chat picker, no `whoami`, no dual home.
   🗑 delete — so the name keeps full width. A **⌄ chevron** (a disclosure, not an edit button) expands DETAILS.
 - **DETAILS = expand-in-row, fully autosaving** (`createAutosaveEntityForm`): `title` (never prompt-injected)
   · `description` (macro-aware + token count, help as a ⓘ hover tip) · a single **Placement** dropdown
-  (`descriptionPosition`) that reveals a compact `inject.depth`/`role` ONLY when `at_depth` (assistant@0 guard
+  (`descriptionPosition`) that reveals a compact `inject.depth`/`role` ONLY when `at_depth` (assistant\@0 guard
   kept) · a **single-select** connected-lore-book dropdown · the provenance chip · duplicate / export. Identity
   (avatar/name/favorite) is ROW-owned — not repeated here. NO Save button, NO dirty pill. (Field help is a
   ⓘ hover tip via the shared `Field` primitive's new `hint` prop, not inline description text.)
@@ -150,7 +151,7 @@ character editor when wanted.
   `{{user}}` contexts, and `PersonaDetail.avatarHash` were already built pre-Phase-2.)
 - **Client:** the whole `features/persona/` slice (panel surface + `persona-panel-row` + `persona-editor` +
   `persona-this-chat-section` + `persona-world-books-section`, hooks, lib) + `forms/bound-fields/macro-field.tsx`
-  + the app-shell `railFoot` slot + `home-page` wiring. Route-composed; zero feature→feature imports.
+  - the app-shell `railFoot` slot + `home-page` wiring. Route-composed; zero feature→feature imports.
 - **Guard:** `persona-resolution.suite.int.test.ts` (the 4 worked examples + card-`{{persona}}`→anchor +
   canon-freeze; 6 guards proven red-on-break).
 
@@ -186,9 +187,11 @@ is a one-arm add, not a rework.** (Consistency-checked against D60/D61: personas
 The Moonlit steal-and-improve list (message row + avatars + immersive modes), rebuilt clean.
 
 ### B.1 Message-row redesign (Phase 3 — DECIDED; ST/Discord-standard)
+
 Today the row is vertically stacked (`[avatar+name] / [bubble] / [metadata] / [actions] / [swipes]`,
 `chat/components/message-row.tsx`); `RowSkin` is only two class-producers (`outer`/`inner`) and avatar/name/action
 placement is hardcoded, style-independent. The redesign is a real JSX restructure:
+
 - **Avatar-LEFT**, a sibling flex item *outside* the bubble (intrinsic width) + a content column (`flex:1`).
   Never nest name/actions inside the avatar column.
 - **Name + per-message actions on ONE row** atop the content column, `justify-content: space-between` (name-group
@@ -206,6 +209,7 @@ placement is hardcoded, style-independent. The redesign is a real JSX restructur
   character-vs-persona.
 
 ### B.2 chatStyle immersive modes (Phase 4)
+
 `chatStyle` is an exhaustive `Record<ChatStyle, RowSkin>` (`chat/lib/message-row-variants.ts`); a new mode = a
 `RowSkin` entry + one literal added to BOTH tuples (`clamp.ts` + `contracts/theme/override.ts` — the pairing
 test enforces it). **`RowSkin` currently can't express a different DOM shape (avatar-bleed / sticky portrait) —
@@ -227,8 +231,10 @@ EXTEND `RowSkin`** (stay in the tsc-forced Record) rather than branch JSX on `ch
 > `hideRippleUserAvatar`): bleed the CHARACTER's art, never your own — the user's own bubble stays clean.
 
 ### B.3 Avatar versatility (Phase 3 — appearance prefs + the Avatar primitive)
+
 Today: `avatarSize` sm/md/lg + `avatarShape` round/square. The `@orb/ui/avatar` primitive has round/square only —
 **no aspect, no ring** (both net-new; add as `tv` variants). ADD:
+
 - **Shape:** + `rounded` (rounded-rect).
 - **Aspect:** + **`portrait` (2:3)** — the presence lever the immersive modes need.
 - **Ring:** border on/off + an **accent-ring** from the character's theme color (reuse for active-speaker
@@ -238,6 +244,7 @@ Today: `avatarSize` sm/md/lg + `avatarShape` round/square. The `@orb/ui/avatar` 
   banner/hidden) lives in the SKIN, not a user pref.
 
 ### B.4 The sharp 2:3 portrait variant  ·  DONE (Phase 1)
+
 The 2:3 smart-crop portrait variant is BUILT: `infra/image` gained `fit:'cover', position:'attention'` (smart/
 entropy crop — face-safe, not center); `variant-policy` a portrait ladder; `resolve-variant` a kind-keyed cache;
 `blob.ts` a `?v=portrait&w=` selector; contracts a portrait `blobUrl` helper. The width-only icon ladder is
@@ -245,7 +252,9 @@ unchanged. **Phase 4 CONSUMES it** for Ripple/VN `<img>` modes (thumb for icons,
 portraits). Nothing to build here — just call the portrait helper.
 
 ### B.5 New config concepts (Phase 4 — mined from the Moonlit JSON, not just CSS)
+
 Genuine deltas to add:
+
 1. **Background-image BLUR** — separate from the scrim/`backgroundDim`. Blur the *photo itself* via `filter:
    blur()` on the photo div in `theme-background-layer.tsx` (NOT `backdrop-filter`; keep the scrim crisp). Add a
    `backgroundBlur` appearance axis (composes with dim). **Steal.**
@@ -269,16 +278,18 @@ Genuine deltas to add:
    customization, QRs-bar, lorebook-topbar). Nothing else new.
 
 ### B.5b Polish worth stealing (portable, token-clean)
+
 - **Chat-list edge fade** — `mask-image` gradient on the scroll container (softly dissolves top/bottom under the
   header/composer). Pairs great with glass. **Steal.**
 - **Composer escalation** — quiet→hover→focus, via a **border/ring + bg-alpha step, NOT `opacity`** (opacity dims
   the text/placeholder). **Adapt.**
-- **Hairline avatar border (~1.25px, theme-tinted)** — keeps avatars from dissolving into a blurred/photo bg
+- **Hairline avatar border (\~1.25px, theme-tinted)** — keeps avatars from dissolving into a blurred/photo bg
   (auto-on when a background image is active). **Steal.**
 - Moonlit's "polished" feel is 100% `transition` timing, zero `@keyframes` — consistent with our token/compose
   philosophy.
 
 ### B.6 What NOT to port (Moonlit's blockers — all vanish in our architecture)
+
 - **JS `MutationObserver` injecting `--mes-avatar-url` per DOM node** → we render each row; put the URL in an
   inline CSS var at render. Gone.
 - **`!important` sprawl** → we own 100% of our CSS. Gone.
@@ -291,9 +302,10 @@ Genuine deltas to add:
 ## PART C — Where things stand (2026-07-08)
 
 **DONE + committed — the whole persona + immersive lane is SHIPPED:**
+
 - **Phase 1 — images foundation (#67)** (`36b9842`): asset-URL resolver + upload + the client `uploadAsset` +
   `avatar-upload-field`; the 2:3 smart-crop portrait variant (§B.4); avatarHash joined onto roster/message views
-  + the PD-28 co-participant persona-avatar reference-check.
+  - the PD-28 co-participant persona-avatar reference-check.
 - **Phase 2 — the persona system** (`1d8fc88`): all of PART A. Gate green, guarded by the invariant suite.
 - **Persona panel rebuild** (`98d54b0`): the §A.5 as-built panel — edit-in-row (click avatar→picker, click
   name→rename), autosave (no Save/Edit button), chevron discloses details, one-dropdown injection, single-select
@@ -305,9 +317,9 @@ Genuine deltas to add:
   entries (avatarTreatment/bubbleDecoration/bubbleLayout — data, not `switch(chatStyle)`); hide-user-portrait
   baked in; per-mode geometry tokenized.
 - **Phase 4b** (`7fecfc3`): config axes (bg-blur, reading-typography, accent-tint, blur-strength, reasoning-icon)
-  + the last-in-context boundary marker (`context_boundary_message_id` threaded through assembly) + polish
-  (edge-fade, composer escalation, hairline border) + the two gap-fixes (portrait-icon collapse, streaming-row
-  decoration). Guarded: 678 chat-domain tests green (persona-resolution + byte-identical suites intact).
+  - the last-in-context boundary marker (`context_boundary_message_id` threaded through assembly) + polish
+    (edge-fade, composer escalation, hairline border) + the two gap-fixes (portrait-icon collapse, streaming-row
+    decoration). Guarded: 678 chat-domain tests green (persona-resolution + byte-identical suites intact).
 - (Earlier this session: the theme engine WS0–WS3, D63 background→appearance, the cascade-contract suite.)
 
 > **Aesthetic pass still owed a human eye:** the five immersive modes + the new config axes were verified for
@@ -315,11 +327,12 @@ Genuine deltas to add:
 > live — flip `chatStyle` in Appearance and tune to taste.
 
 **Other tracked lanes:** #5 settings search · #13 character library+editor BUILD (design in the companion doc) ·
-#16 upload CSRF · #17 cast-producer unify (with D60) · #19 account section (with auth #50).
+\#16 upload CSRF · #17 cast-producer unify (with D60) · #19 account section (with auth #50).
 
 ## PART D — Notes for whoever builds Phase 3–4
+
 - The immersive work is **client-heavy** (message-row, avatar primitive, appearance schema, tokens, the bg-layer)
-  + a couple of small server touches (the context-boundary "last in context" flag, if assembly doesn't expose it).
+  - a couple of small server touches (the context-boundary "last in context" flag, if assembly doesn't expose it).
 - Respect the client-structure law (buckets-as-roles, surface purity, `@container` not layout-props, `state/` for
   stores, form factories) — see `UI-Architecture-and-Layout.md` §2.1/§4/§4.3/§5/§5.1/§6.1, and the persona lane
   (`features/persona/`) as the freshest worked example.

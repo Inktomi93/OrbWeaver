@@ -40,6 +40,7 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
       },
       now,
     );
+    ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: id });
     return toPresetDetail(row);
   }
   return { create };

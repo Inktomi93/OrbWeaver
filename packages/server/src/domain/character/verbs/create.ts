@@ -99,6 +99,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 
     const row = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);
     if (row === undefined) {

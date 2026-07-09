@@ -517,6 +517,9 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     await ctx.db.batch(batchMany(stmts));
 
     await deps.emit({ type: "chatCreated", chatId });
+    // The starter/host's chat LIST gained a row → their second device refetches it (the per-chat
+    // `chatCreated` above only reaches a subscriber already attached to this new chat).
+    ctx.emitUserEvent(hostUserId, { type: "chatsChanged", chatId });
     for (const view of seed.views) {
       // biome-ignore lint/performance/noAwaitInLoops: the durable chat-bus ring assigns a monotonic seq per emit — the seeded greetings must log in canon (seq 1..N) order, so the writes are intentionally sequential.
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });

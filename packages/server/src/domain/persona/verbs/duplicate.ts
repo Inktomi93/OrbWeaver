@@ -46,6 +46,7 @@ export function createDuplicate(ctx: PersonaContext): PersonaService["duplicate"
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId: newId });
 
     const row = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, newId);
     if (row === undefined) {

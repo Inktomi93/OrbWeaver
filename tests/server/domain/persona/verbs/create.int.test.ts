@@ -32,6 +32,23 @@ describe("create", () => {
     expect(h.audits.map((a) => a.entry.action)).toContain("persona.create");
   });
 
+  test("emits `personasChanged` (PD user-bus lane) with the owner's userId after the durable write", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createPersonaService(h.ctx);
+    const owner = await seedUser(db, { handle: "owner" });
+
+    const detail = await svc.create({
+      principal: principal(owner),
+      input: { name: "Nyx", description: "a wanderer" },
+    });
+
+    // Exactly one user-bus emit — `personasChanged`, keyed to the acting owner, carrying the new id.
+    expect(h.userEvents).toEqual([
+      { userId: owner, event: { type: "personasChanged", personaId: detail.id } },
+    ]);
+  });
+
   test("stores typed metadata (placement) and a null avatar joins to a null hash", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

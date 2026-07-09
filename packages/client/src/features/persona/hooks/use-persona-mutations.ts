@@ -1,9 +1,14 @@
 // The persona CRUD mutations (mirrors settings/hooks/use-theme-mutations.ts) — the ONE mutation factory
-// (`createEntityMutation`) instanced per verb, all bus-agnostic → cache invalidation (persona is not
-// SSE-bus-covered, so `invalidates` is required, never `busDriven`). `list` refetches after every write
-// so the panel reflows; `get` refetches after an update so an open editor rebaselines. star/rename are
-// NOT separate verbs — they ride `persona.update` (a partial patch). TVars are the tRPC-INFERRED inputs
-// (`inferInput`) so a branded-id the wire types as `unknown` never fights `exactOptionalPropertyTypes`.
+// (`createEntityMutation`) instanced per verb. PD user-bus lane: every persona verb emits `personasChanged`,
+// and `USER_BUS_FILTERS.personasChanged` path-invalidates the whole `persona` router (list + get). That
+// user-bus subscription is ALWAYS on (home-page.tsx), so all four are `busDriven` — the echo reconciles the
+// acting device AND device B (a self-`invalidates` would double-refetch the same keys). star/rename are NOT
+// separate verbs — they ride `persona.update` (a partial patch). TVars are the tRPC-INFERRED inputs.
+//   verb        user-bus event    client filters (USER_BUS_FILTERS.personasChanged)
+//   create      personasChanged   persona.path (list + get)
+//   update      personasChanged   persona.path (list + get)
+//   remove      personasChanged   persona.path (list + get)
+//   duplicate   personasChanged   persona.path (list + get)
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -16,7 +21,7 @@ export const useCreatePersona = createEntityMutation<
   PersonaDetail
 >({
   options: (trpc) => trpc.persona.create.mutationOptions(),
-  invalidates: (trpc) => [trpc.persona.list.queryFilter()],
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't create the persona.",
 });
 
@@ -25,10 +30,7 @@ export const useUpdatePersona = createEntityMutation<
   PersonaDetail
 >({
   options: (trpc) => trpc.persona.update.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.persona.list.queryFilter(),
-    trpc.persona.get.queryFilter({ personaId: vars.personaId }),
-  ],
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't save the persona.",
 });
 
@@ -37,7 +39,7 @@ export const useRemovePersona = createEntityMutation<
   unknown
 >({
   options: (trpc) => trpc.persona.remove.mutationOptions(),
-  invalidates: (trpc) => [trpc.persona.list.queryFilter()],
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't delete the persona.",
 });
 
@@ -46,7 +48,7 @@ export const useDuplicatePersona = createEntityMutation<
   PersonaDetail
 >({
   options: (trpc) => trpc.persona.duplicate.mutationOptions(),
-  invalidates: (trpc) => [trpc.persona.list.queryFilter()],
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
   errorToast: "Couldn't duplicate the persona.",
 });
 

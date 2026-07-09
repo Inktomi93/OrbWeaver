@@ -189,6 +189,10 @@ function writeFixtures(): void {
   // STILL in the DEFERRED map — `personaSwitched`/`reasoningStreamDone` were wired (PD-117 wave 2), so
   // this uses `chatOpened` (stream-attach synthesis still unbuilt; keep this in sync with bus-coverage.ts).
   fx(`${D}/chat/__g_bus.ts`, 'export const staleDeferredEmit = "chatOpened";\n');
+  // user-bus-coverage: the STALE arm — the DEFERRED `connectionsChanged` member (no per-user connection
+  // store yet) gains an emit-site literal in domain scope → "stale allowlist". Keep in sync with the
+  // DEFERRED map in user-bus-coverage.ts (if a real per-user connection emit lands, retarget this fixture).
+  fx(`${D}/chat/__g_userbus.ts`, 'export const staleUserBusEmit = "connectionsChanged";\n');
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(
     `${D}/character/__g_mcv.ts`,

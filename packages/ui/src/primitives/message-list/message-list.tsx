@@ -1,5 +1,5 @@
 import type { Range } from "@tanstack/react-virtual";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, useVirtualizer } from "@tanstack/react-virtual";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { cn } from "#lib";
@@ -31,6 +31,43 @@ function gapPxFor(token: MessageListGapToken): number {
   return Number.parseFloat(TOKENS[`spacing.${token}`].value) * ROOT_FONT_SIZE_PX;
 }
 
+// The PD-119 keep-mounted composition. `keepMounted` unions the indices of the matched items ON TOP
+// of a BASE window — the base being the caller's own `rangeExtractor` when supplied (keepMounted
+// composes WITH it, never replaces it: the caller's extractor computes the scroll window, then the
+// pinned indices are added), else virtual-core's own `defaultRangeExtractor`. The union is de-duped
+// and sorted ascending because virtual-core's `calculateRange` consumers require a sorted index list
+// (verified against `@tanstack/virtual-core@3.17.3` — `defaultRangeExtractor` returns ascending, and
+// forced indices out of order render at the wrong absolute offset). A forced index appears in
+// `getVirtualItems()` and stays positioned by its own measurement regardless of scroll distance
+// (the `measurementsCache` covers every index up front), so its row is a REAL mounted DOM node that
+// never unmounts — the exact property a stateful row (edit-in-place local state, a Tier-B
+// `sandbox-frame` iframe) needs to survive scroll-away. Returns `undefined` when neither input is
+// set, so the plain library default stays in force with no wrapper allocation. The CALLER owns the
+// pinning policy — cap the matched set so it can't silently defeat virtualization.
+function composeRangeExtractor<T>(
+  items: readonly T[],
+  keepMounted: ((item: T) => boolean) | undefined,
+  rangeExtractor: ((range: Range) => number[]) | undefined,
+): ((range: Range) => number[]) | undefined {
+  if (keepMounted === undefined) {
+    return rangeExtractor;
+  }
+  const forced: number[] = [];
+  for (const [index, item] of items.entries()) {
+    if (keepMounted(item)) {
+      forced.push(index);
+    }
+  }
+  const base = rangeExtractor ?? defaultRangeExtractor;
+  return (range: Range): number[] => {
+    const union = new Set<number>(base(range));
+    for (const index of forced) {
+      union.add(index);
+    }
+    return Array.from(union).sort((a, b) => a - b);
+  };
+}
+
 function prefersReducedMotion(): boolean {
   return (
     typeof globalThis.matchMedia === "function" &&
@@ -52,31 +89,21 @@ export interface MessageListHandle {
   readonly scrollToEnd: () => void;
 }
 
-// FLAG[PD-119]: this seal is pure WINDOWED virtualization BY DEFAULT — rows mount/unmount on
+// PD-119 (SHIPPED): this seal is pure WINDOWED virtualization BY DEFAULT — rows mount/unmount on
 // scroll, and a stable `getItemKey` alone does NOT keep an off-screen row mounted (a Tier-B
 // `sandbox-frame` iframe reloads on scroll-back; edit-in-place local state drops — neo's
-// virtualizer footgun). UI-Gates §11.3 / UI-Theming §12.2 over-claimed this as built; the docs
-// were corrected 2026-07-04c.
-//
-// 2026-07-04d re-audit (Task #26): the generic MECHANISM for keep-mounted now exists here — the
-// `rangeExtractor` passthrough below is the SAME escape hatch already sealed + CT-proven on
-// `virtual-list` ("rangeExtractor passthrough: a custom extractor's forced index stays mounted
-// off-screen"). Forcing extra indices into the rendered range keeps them REAL mounted DOM nodes at
-// their correct absolute position regardless of scroll distance, because `measurementsCache`
-// covers every index up front (verified against the shipped `@tanstack/virtual-core@3.17.3`
-// `dist/esm/index.js` — `resizeItem`/`getVirtualItems` place items by absolute index, not by
-// proximity to the current viewport). That much is zero-risk and landed dormant (unused unless a
-// caller supplies one).
-//
-// What's still UNBUILT here, deliberately NOT guessed (that's task #25's job): the POLICY of WHICH
-// rows get pinned (the currently-edited row only? every row with a live iframe? a capped set?),
-// how a caller expresses that policy (a `rangeExtractor` runs in INDEX space — a real consumer
-// needs to translate its own "pinned ids" into indices from `items` itself, and cap the pinned set
-// so it can't silently defeat virtualization), and how that interacts with `anchorTo: "end"` under
-// heavy pinning. Guessing that shape now risks locking in the wrong API before #25's actual
-// consumer exists. Until #25 lands, stateful-row consumers MUST ALSO keep hoisting row state to an
-// external store keyed by message id — the `rangeExtractor` mechanism only stops the unmount, it
-// does not, by itself, solve state loss.
+// virtualizer footgun). The first-class opt-out is the `keepMounted` predicate below: a caller
+// names WHICH items must stay mounted (the currently-edited row, a row with a live iframe, a capped
+// set), and the seal forces their indices into the rendered range via the composed `rangeExtractor`
+// (`composeRangeExtractor` above). A pinned row stays a REAL mounted DOM node at its correct
+// absolute offset regardless of scroll distance, so its own local React state survives scroll-away
+// without being hoisted to an external store. The keep-mounted MECHANISM (an index forced into the
+// range persists off-screen) is the SAME escape hatch sealed + CT-proven on `virtual-list`;
+// `keepMounted` is the item-space policy surface over it, CT-proven here against a stateful input
+// row (state SURVIVES with `keepMounted` matching the row, is LOST without it). The caller owns the
+// pinning POLICY — cap the matched set so pinning can't silently defeat virtualization, and note
+// that heavy pinning composes with `anchorTo: "end"` (pinned rows above the viewport do not move
+// the tail anchor, they just stay mounted at their own offset).
 export interface MessageListProps<T> {
   readonly items: readonly T[];
   /**
@@ -97,13 +124,27 @@ export interface MessageListProps<T> {
   readonly scrollEndThreshold?: number;
   /**
    * Overrides which indices render for the current scroll range — the SAME `rangeExtractor` escape
-   * hatch sealed on `virtual-list` (see its own doc), passed straight through unmodified. Lets a
-   * caller force additional indices to stay mounted outside the normal overscan window (the
-   * PD-119 keep-mounted MECHANISM — see the FLAG above for what's built vs. still a task-#25
-   * policy decision). Omit for the library default (a plain overscan-padded contiguous range);
-   * this seal does not invent its own pinning policy.
+   * hatch sealed on `virtual-list` (see its own doc), the low-level index-space form. When
+   * `keepMounted` is ALSO set, this extractor is the BASE window and the pinned indices are unioned
+   * on top of it (they compose — see `keepMounted`); when it is omitted, virtual-core's own
+   * `defaultRangeExtractor` is the base. Most callers want `keepMounted` (item-space) instead of
+   * this; reach for `rangeExtractor` only to reshape the whole window itself. Omit both for the
+   * library default (a plain overscan-padded contiguous range).
    */
   readonly rangeExtractor?: (range: Range) => number[];
+  /**
+   * The PD-119 keep-mounted path (SHIPPED): a predicate naming WHICH items must stay mounted even
+   * when scrolled far outside the overscan window. Every matched item's index is forced into the
+   * rendered range (composed with `rangeExtractor` if supplied, else the library default — see the
+   * `composeRangeExtractor` helper), so its row stays a REAL mounted DOM node at its correct
+   * absolute offset and its own local React state (an edit-in-place textarea, a Tier-B
+   * `sandbox-frame` iframe) survives scroll-away WITHOUT being hoisted to an external store.
+   * Item-space (not index-space): the seal derives the indices from `items` itself, so the caller
+   * expresses policy against its own domain objects. The CALLER owns the pinning policy — cap the
+   * matched set (e.g. only the currently-edited row) so pinning can't silently defeat
+   * virtualization. Omit for the pure-windowed default.
+   */
+  readonly keepMounted?: (item: T) => boolean;
   /**
    * Passthrough for virtual-core's `useCachedMeasurements` (verified against the shipped
    * `dist/esm/index.js`'s default `measureElement`: when true, EVERY measurement call — the
@@ -172,13 +213,15 @@ export interface MessageListProps<T> {
  * - **`isAtEnd()` / `getDistanceFromEnd()` / `scrollToEnd()`** on the imperative handle are the
  *   "jump to latest" / reading-history primitives (§A.4/§F.6) — plain numbers/actions only; the
  *   chat feature composes the badge copy, the threshold, and the button.
- * - **`useCachedMeasurements` / `rangeExtractor`** complete the seal against the full TanStack
- *   Virtual option surface (Task #26 audit). `useCachedMeasurements` (default `false`) is the
- *   `<Activity>`-hidden-pane measurement-cache freeze (§4a/§5.1 — see its prop doc for the exact,
- *   source-verified semantics — it is a static bypass a caller must toggle live, not a "smart"
- *   hidden-only mode). `rangeExtractor` is the generic keep-mounted-off-screen escape hatch already
- *   sealed + CT-proven on `virtual-list`; it's dormant here (PD-119 — see the FLAG above) until a
- *   real consumer (task #25) supplies its own pinning policy.
+ * - **`useCachedMeasurements` / `rangeExtractor` / `keepMounted`** complete the seal against the
+ *   full TanStack Virtual option surface plus the PD-119 keep-mounted path. `useCachedMeasurements`
+ *   (default `false`) is the `<Activity>`-hidden-pane measurement-cache freeze (§4a/§5.1 — see its
+ *   prop doc for the exact, source-verified semantics — it is a static bypass a caller must toggle
+ *   live, not a "smart" hidden-only mode). `keepMounted(item)` (SHIPPED, PD-119 — see the note
+ *   above `MessageListProps`) is the first-class opt-out from unmount-on-scroll for stateful rows:
+ *   matched items' indices are forced into the rendered range so an off-screen edit-in-place / Tier-B
+ *   iframe row stays mounted and keeps its own local state. `rangeExtractor` is the low-level
+ *   index-space form it composes over (the same escape hatch sealed + CT-proven on `virtual-list`).
  *
  * Usage:
  * ```tsx
@@ -199,6 +242,7 @@ export function MessageList<T>({
   gapToken,
   scrollEndThreshold = DEFAULT_SCROLL_END_THRESHOLD_PX,
   rangeExtractor,
+  keepMounted,
   useCachedMeasurements = false,
   renderItem,
   className,
@@ -215,6 +259,10 @@ export function MessageList<T>({
     return item;
   };
 
+  // PD-119: `keepMounted` (item-space) composes WITH any caller `rangeExtractor` (index-space) into
+  // one sorted, de-duped extractor — see `composeRangeExtractor`. `undefined` when neither is set.
+  const composedRangeExtractor = composeRangeExtractor(items, keepMounted, rangeExtractor);
+
   const virtualizer = useVirtualizer<HTMLDivElement, HTMLDivElement>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
@@ -225,7 +273,7 @@ export function MessageList<T>({
     // Conditionally spread (not a bare `rangeExtractor` key): `exactOptionalPropertyTypes`
     // distinguishes an omitted optional property from one explicitly set to `undefined` — the same
     // guard virtual-list uses for its own optional passthroughs.
-    ...(rangeExtractor === undefined ? {} : { rangeExtractor }),
+    ...(composedRangeExtractor === undefined ? {} : { rangeExtractor: composedRangeExtractor }),
     // The chat-thread anchor pair (verified against virtual-core@3.17's pendingScrollAnchor path):
     // `followOnAppend` only fires when the viewport was already at the end AND the item count grew
     // AND the last key actually changed — so it never fights a reader who scrolled up.

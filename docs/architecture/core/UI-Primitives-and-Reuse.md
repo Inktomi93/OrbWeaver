@@ -10,7 +10,7 @@ updated: 2026-07-05
 
 ## 13. The reuse model — the central primitives every feature builds on (D54)
 
-> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep (the five `UI-Lib-*` companions in this directory; cite them for any specific claim). The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. The `@orb/ui` half is BUILT; the client factories ship in the client-foundation wave **BEFORE any feature agent runs** (§11.7/§13.6).
+> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep (the five `UI-Lib-*` companions in this directory; cite them for any specific claim). The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. The `@orb/ui` half is BUILT; the client factories shipped in the client-foundation wave, ahead of the feature lanes (§11.7/§13.6).
 
 ### 13.0 The litmus (what gets centralized, what stays in the feature)
 
@@ -18,7 +18,7 @@ updated: 2026-07-05
 - **Feature-owned:** the fields, the row/card visuals, the copy, the per-field control choice.
 - **The bar to centralize:** repeated **3+ times AND changing together**. A genuine one-off stays hand-composed from `@orb/ui` — premature DRY is still a cost even here.
 
-### 13.1 The primitive catalog (contracts — Phase 6, client-side)
+### 13.1 The primitive catalog (BUILT — packages/client/src/{data,forms})
 
 - **`createEntityMutation`** — bakes the canonical 4-phase optimistic flow: `onMutate` = `cancelQueries` → snapshot → `setQueryData` patch → return rollback; `onError` restores; `onSettled` invalidates **via the central seam**. Uses the `context.client` arg (provider-clean). A lightweight variables-render mode for append-only creates. **Resets the v5 sticky error on next `mutate`.** Returns ONE error slot per mutation (`{ error, clear() }`), never multiplexed.
 - **`createCollectionSurface`** — one machine for every browse view. Feature supplies the (infinite) query + row renderer + filter config + bulk actions. Bakes `useInfiniteQuery` + `maxPages` + `placeholderData: keepPreviousData` gated on `isPlaceholderData`, the virtual-list seal, the selection store, empty/loading/error, and the tail-fetch guard **off the virtualizer's own range** — no `react-intersection-observer`.
@@ -66,7 +66,7 @@ The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldVal
 
 ### 13.4 Where to use Form — the surface map (the under-use correction)
 
-The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft semantics** — *Form is for forms, not for "entities."* The six obligations the factories bake (verified FACTORY-ORIGINAL — no example or doc fixes them): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` · the `seededRef + persistent-isDirty` reseed guard · the Zustand-`persist` draft mirror (autosave) · `dontUpdateMeta` on non-user writes.
+The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft semantics** — *Form is for forms, not for "entities."* The six obligations the factories bake (verified FACTORY-ORIGINAL — no example or doc fixes them): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` · the `seededRef + persistent-isDirty` reseed guard · the Zustand-`persist` draft mirror (autosave; OPTIONAL on saved, see the obligation-5 doctrine below) · `dontUpdateMeta` on non-user writes.
 
 | Surface | Factory | Why |
 | - | - | - |
@@ -90,11 +90,16 @@ AUTOSAVE form the server row IS the crash mirror — a confirmed save lands with
 the `draft` slot is deliberately omitted (the use-appearance-form / use-persona-form precedent; a local
 mirror would duplicate synced truth, §12.1). The slot earns its keep only for offline-heavy or
 long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form the original stance — "unsaved
-state lives in the form itself" — is being AMENDED for long-form editors: `createSavedEntityForm` gains
-an optional `draft` crash mirror (seed defaults from the SERVER row, then promote the surviving draft so
-`!isDefaultValue` lights the pill honestly; clear on save AND on discard), required for editors whose
-fields carry long authored text (the character card editor is the founding consumer). Every
-`createEntityDraftStore` name registers in the `persistence-boundary` gate's DEVICE_LOCAL_REGISTRY.
+state lives in the form itself" — is AMENDED for long-form editors: `createSavedEntityForm` takes an
+optional `draft` crash mirror (shipped 2026-07-09). It seeds `defaultValues` from the SERVER row ONLY
+(so `isDefaultValue` still compares against server truth), then PROMOTES any surviving draft after mount
+as user-intent writes so `!isDefaultValue` lights the pill honestly (a restored draft that read "clean"
+would silently drop the work on the next navigation); a `draftSeededRef` makes the promotion mount-once
+so a background refetch can't re-apply it, a debounced form-level listener mirrors every real change
+(skipping the untouched seed so an open never mints a draft), and the slot clears on a confirmed save
+AND on `discard()`. Omitting `draft` is byte-identical to the original button-gated behavior. Required
+for editors whose fields carry long authored text (the character card editor is the founding consumer).
+Every `createEntityDraftStore` name registers in the `persistence-boundary` gate's DEVICE\_LOCAL\_REGISTRY.
 
 ### 13.5 Deferred-with-a-committed-default forks (D54)
 
@@ -103,7 +108,7 @@ fields carry long authored text (the character card editor is the founding consu
 
 ### 13.6 Sequencing (born-compliant — non-negotiable)
 
-Every §13.1 client primitive + the §13.3 client belts ship in the client-foundation wave **before any feature agent runs** (§11.7). The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. (The `@orb/ui` half already shipped, gates included.)
+Every §13.1 client primitive + the §13.3 client belts shipped in the client-foundation wave, ahead of the feature lanes (§11.7). The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. (The `@orb/ui` half already shipped, gates included.)
 
 ### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT — gate `ui-primitive-structure`)
 

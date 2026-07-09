@@ -40,6 +40,7 @@ export function createImport(ctx: PersonaContext): PersonaService["import"] {
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
 
     const row = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);
     if (row === undefined) {

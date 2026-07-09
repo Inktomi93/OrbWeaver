@@ -1,8 +1,16 @@
-// The theme-library mutations (themes-design §4) — the ONE mutation factory (`createEntityMutation`)
-// instanced per verb, all bus-agnostic → cache invalidation. `listThemes` refetches after every write so
-// the picker/library reflow; `getUserSettings` refetches after a SELECT or a DELETE (a delete may orphan
-// the `selectedThemeId`, which resolves back to the Hearth default). Seeds are un-mutable server-side
-// (fetchOwned), so duplicate/update/delete only ever touch owned rows.
+// The theme-library mutations (themes-design §4) — the ONE mutation factory (`createEntityMutation`).
+// PD user-bus lane: the theme verbs emit `themesChanged` (`USER_BUS_FILTERS` covers listThemes + getTheme)
+// and the SELECT verb emits `settingsChanged` (covers getUserSettings). That subscription is ALWAYS on
+// (home-page.tsx), so create/duplicate/update/select are `busDriven` (the echo reconciles this device + B).
+//   verb        user-bus event    client filters
+//   create      themesChanged     listThemes.path + getTheme.path
+//   duplicate   themesChanged     listThemes.path + getTheme.path
+//   update      themesChanged     listThemes.path + getTheme.path
+//   select      settingsChanged   getUserSettings.path (rides updateUserSettingsSection)
+// EXCEPTION — `remove` is NOT busDriven: a delete may orphan `theme.selectedThemeId` (→ Hearth default), so
+// it must ALSO refetch `getUserSettings`, which `themesChanged` does NOT cover (that's a user-settings read,
+// a distinct member). It keeps ONLY that uncovered key; `listThemes` is dropped (the `themesChanged` echo
+// covers it — keeping it would double-refetch).
 
 import type { CreateThemeInput, Theme, UpdateThemeInput } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
@@ -10,7 +18,7 @@ import { createEntityMutation } from "#data";
 
 export const useCreateTheme = createEntityMutation<CreateThemeInput, Theme>({
   options: (trpc) => trpc.settings.createTheme.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.listThemes.queryFilter()],
+  busDriven: true, // emits `themesChanged` → USER_BUS_FILTERS covers listThemes + getTheme.
   errorToast: "Couldn't create the theme.",
 });
 
@@ -20,7 +28,7 @@ export interface DuplicateThemeVars {
 }
 export const useDuplicateTheme = createEntityMutation<DuplicateThemeVars, Theme>({
   options: (trpc) => trpc.settings.duplicateTheme.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.listThemes.queryFilter()],
+  busDriven: true, // emits `themesChanged` → USER_BUS_FILTERS covers listThemes + getTheme.
   errorToast: "Couldn't duplicate the theme.",
 });
 
@@ -30,10 +38,7 @@ export interface UpdateThemeVars {
 }
 export const useUpdateTheme = createEntityMutation<UpdateThemeVars, Theme>({
   options: (trpc) => trpc.settings.updateTheme.mutationOptions(),
-  invalidates: (trpc, vars) => [
-    trpc.settings.listThemes.queryFilter(),
-    trpc.settings.getTheme.queryFilter({ id: vars.id }),
-  ],
+  busDriven: true, // emits `themesChanged` → USER_BUS_FILTERS covers listThemes + getTheme.
   errorToast: "Couldn't save the theme.",
 });
 
@@ -42,10 +47,9 @@ export interface RemoveThemeVars {
 }
 export const useRemoveTheme = createEntityMutation<RemoveThemeVars, void>({
   options: (trpc) => trpc.settings.removeTheme.mutationOptions(),
-  invalidates: (trpc) => [
-    trpc.settings.listThemes.queryFilter(),
-    trpc.settings.getUserSettings.queryFilter(),
-  ],
+  // `themesChanged` (emitted) covers listThemes/getTheme via the always-on user bus; only `getUserSettings`
+  // (the possibly-orphaned `selectedThemeId`) is uncovered, so THAT is the sole kept invalidate.
+  invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
   errorToast: "Couldn't delete the theme.",
 });
 
@@ -57,6 +61,6 @@ export interface SelectThemeVars {
 }
 export const useSelectTheme = createEntityMutation<SelectThemeVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
+  busDriven: true, // updateUserSettingsSection emits `settingsChanged` → USER_BUS covers getUserSettings.
   errorToast: "Couldn't switch the theme.",
 });

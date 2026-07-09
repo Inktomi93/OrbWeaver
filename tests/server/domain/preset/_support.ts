@@ -80,6 +80,8 @@ export function makeHarness(db: Db): PresetHarness {
       audits.push({ entry, at });
       return Promise.resolve();
     },
+    // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
+    emitUserEvent: (): void => undefined,
   };
   return { ctx, audits };
 }

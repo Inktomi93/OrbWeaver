@@ -129,7 +129,7 @@ Phase-6 lane.**
    interim search (J10) · the settings full-bleed overlay shell (J11 — Appearance pane migrates
    first; **`proposed/connection-capability-panel.md`** lands as the Connections pane's
    descriptor-driven params half when credentials UI arrives) · the interim theme picker
-   (Hearth/Mocha/Light) — the full theme EDITOR rides **`proposed/themes-design.md`** (server
+   (Hearth/Mocha/Light) — the full theme EDITOR rides **`history/themes-design.md`** (server
    `themes` entity + `createSavedEntityForm`) as a follow-on.
 7. **L6 — mobile — DONE (`9de07ab`)** (J12, P3): bottom tab bar (Chats · Characters · Corpus · You) · land-on-CONTENT ·
    sheet polish · `interactive-widget=resizes-content` + safe-area audit · the §4.1 `MOBILE:`

@@ -67,6 +67,7 @@ export function createCreate(ctx: WorldInfoContext): WorldInfoService["createEnt
       // biome-ignore lint/performance/noAwaitInLoops: the chat bus assigns a monotonic seq per emit — fan-out emits are sequential so per-chat ordering stays deterministic (the start-chat.ts seeded-greetings precedent).
       await ctx.emitWiEvent({ type: "wiEntryAttached", chatId, surface: "chat", entryId, scope });
     }
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
 
     return {
       id: entryId,
