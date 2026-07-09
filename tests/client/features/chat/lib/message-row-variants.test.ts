@@ -83,9 +83,9 @@ test("whisper's stripe always paints (speaker-color chrome); the header band is 
   expect(characterDecoration?.headerBand?.style.backgroundImage).toContain(
     "/api/blob/x?v=banner&w=",
   );
-  expect(characterDecoration?.headerBand?.style.height).toBe(
-    "var(--immersive-whisper-banner-height)",
-  );
+  // A fixed height drifted the box aspect off 3:1 as the fluid bubble width changed — the band is now
+  // an aspect-ratio box so its height derives from width and always matches the server's 3:1 crop.
+  expect(characterDecoration?.headerBand?.style.aspectRatio).toBe("var(--aspect-banner)");
   expect(
     whisper.bubbleDecoration?.({ kind: "character", avatarHash: null })?.headerBand,
   ).toBeUndefined();

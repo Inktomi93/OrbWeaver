@@ -77,3 +77,52 @@ export function ShellCascadeFixture({
     </div>
   );
 }
+
+export interface ReadingTypographyFixtureProps {
+  readonly lineHeight: number;
+  readonly letterSpacing: number;
+  readonly paragraphSpacing: number;
+  readonly nameScale: number;
+  readonly bodyScale: number;
+  readonly justify: boolean;
+}
+
+/**
+ * Stamps the Phase-4b §B.5.3 reading-typography root vars via the REAL `useAppearanceRootEffects` (the
+ * exact hook app-shell.tsx calls — same effect body that stamps `--font-scale`) and renders the two
+ * message slots the client globals.css reading rules target: `[data-slot="message-bubble"]`
+ * (line-height / letter-spacing / body-scale font-size / paragraph-spacing on `p + p` / justify) and
+ * `[data-slot="message-attribution"]` (name-scale font-size). This proves the root-var → globals.css →
+ * computed-style wiring end-to-end — the half NOT covered by app-shell.ct.tsx's
+ * getUserSettings→`--font-scale` test (which proves the hook reaches the root, but nothing asserts the
+ * client globals.css rules actually consume these vars on a real message bubble/attribution).
+ */
+export function ReadingTypographyFixture({
+  lineHeight,
+  letterSpacing,
+  paragraphSpacing,
+  nameScale,
+  bodyScale,
+  justify,
+}: ReadingTypographyFixtureProps): ReactElement {
+  useAppearanceRootEffects({
+    fontScale: 1,
+    dataTheme: null,
+    blurSurfaces: [],
+    shadowEffects: false,
+    blurStrength: 14,
+    reading: { lineHeight, letterSpacing, paragraphSpacing, nameScale, bodyScale, justify },
+    themeColorization: false,
+  });
+  return (
+    <div>
+      <div data-slot="message-bubble" data-testid="reading-bubble">
+        <p>First paragraph.</p>
+        <p>Second paragraph.</p>
+      </div>
+      <div data-slot="message-attribution" data-testid="reading-attribution">
+        Speaker
+      </div>
+    </div>
+  );
+}
