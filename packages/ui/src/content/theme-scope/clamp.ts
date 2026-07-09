@@ -120,8 +120,15 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-popover-foreground",
   "--color-sidebar-foreground",
   // The UI border — an explicit `borderColor` when set, else DERIVED from the base surface (a low-alpha
-  // contrast hairline, so it stays visible on light AND dark bases).
+  // contrast hairline, so it stays visible on light AND dark bases). `--color-sidebar-border` is the
+  // SAME hairline for the sidebar-tinted chrome (rail edge, LIST/CONTEXT panel edges + the CONTEXT
+  // header underline) — derived alongside it so panel chrome tracks the theme instead of keeping the
+  // default near-white 7%-alpha edge (visible-defect: a themed CONTEXT panel with an unthemed border).
   "--color-border",
+  "--color-sidebar-border",
+  // The input-field surface — DERIVED from the base so a themed text field/search chip tracks the
+  // palette instead of staying a pinned near-white overlay (low-contrast on themed panels).
+  "--color-input",
   "--font-sans",
   "--radius-card",
 ] as const;
@@ -154,6 +161,7 @@ const FG_L_MAX = 0.96; // lightest derived text (off-white, on dark surfaces)
 // foreground (opaque) and the derived border (low-alpha hairline).
 const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
 const BORDER_ALPHA = 0.14; // a subtle hairline — visible on either polarity, never a hard line
+const INPUT_ALPHA = 0.12; // the input-field surface lift (matches the token's default 0.12 alpha)
 /** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
 function foregroundOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
@@ -161,6 +169,12 @@ function foregroundOn(surface: string): string {
 /** A subtle contrast border DERIVED from `surface` (the foreground contrast tone at low alpha). */
 function borderOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${BORDER_ALPHA})`;
+}
+/** The input-field SURFACE lift DERIVED from `surface` (the contrast tone at input alpha) — a
+ *  translucent contrast overlay that composites over ANY surface, so a themed input tracks the palette
+ *  instead of staying pinned near-white (the low-contrast search-chip defect on themed panels). */
+function inputSurfaceOn(surface: string): string {
+  return `oklch(from ${surface} ${CONTRAST_L} 0 h / ${INPUT_ALPHA})`;
 }
 
 /**
@@ -214,10 +228,18 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     vars["--color-popover-foreground"] = fg;
     vars["--color-sidebar-foreground"] = fg;
     // The border derives from the base surface too — UNLESS the user set an explicit borderColor (below).
+    // Both the generic UI border and the sidebar-chrome border derive from the same base so every themed
+    // surface's hairline (content borders AND rail/panel/panel-header edges) tracks the palette + stays
+    // polarity-correct; without this the panel chrome kept the default near-white edge under any theme.
     vars["--color-border"] = borderOn(t.background);
+    vars["--color-sidebar-border"] = borderOn(t.background);
+    // The input-field surface derives too — a search chip / text field must track the palette rather
+    // than stay a pinned near-white slab on a themed panel (the low-contrast side-eye finding).
+    vars["--color-input"] = inputSurfaceOn(t.background);
   }
-  // An explicit border color WINS over the derived hairline (ST parity).
+  // An explicit border color WINS over the derived hairline (ST parity) — for both border scopes.
   put("--color-border", t.borderColor);
+  put("--color-sidebar-border", t.borderColor);
   if (t.font !== undefined) {
     vars["--font-sans"] = fontStack(t.font);
   }

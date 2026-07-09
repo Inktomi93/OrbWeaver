@@ -5,7 +5,6 @@
 
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { AssetId, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./contract/context";
 import type { ChatService } from "./contract/service";
 import { createTurnEngine } from "./engine/engine";
@@ -77,12 +76,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           characterId: r.characterId,
         });
 
-        let avatarAssetId: AssetId | null = null;
-        if (publics?.avatarAssetId !== undefined && publics.avatarAssetId !== null) {
-          avatarAssetId = castId<AssetId>(publics.avatarAssetId as string);
-        } else if (card?.avatarAssetId !== undefined && card.avatarAssetId !== null) {
-          avatarAssetId = castId<AssetId>(card.avatarAssetId as string);
-        }
+        // Both sources are BRANDED at their contracts (ResolveUserPublicsOp / characterCardSchema) —
+        // the pre-2026-07-09 castId+as-string laundering here died with the string-type audit.
+        const avatarAssetId: AssetId | null = publics?.avatarAssetId ?? card?.avatarAssetId ?? null;
         const avatarHash = await ctx.resolveAssetHash(avatarAssetId);
 
         return {
@@ -100,8 +96,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): Chat
           leftSeq: r.leftSeq,
           joinHistoryVisibility: r.joinHistoryVisibility,
           displayName: publics?.displayName ?? card?.name ?? r.userId ?? r.characterId ?? "",
-          // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
-          handle: (publics?.handle as any) ?? null,
+          handle: publics?.handle ?? null,
           avatarAssetId,
           avatarHash,
           renderPolicy,

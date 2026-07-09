@@ -88,4 +88,19 @@ export interface ResultByKind {
   "crew-card-evolution": DeferredResult;
   "crew-director": DeferredResult;
   "crew-prose-audit": DeferredResult;
+  // Expressions + databank STUB kinds (E1 / DB2-tables riders) — deferred until each real runner lands.
+  "expressions-sprite-sheet": DeferredResult;
+  "databank-ingest": DeferredResult;
+  "databank-reindex": DeferredResult;
+  // The 10 rpg crew STUB kinds (R1-subset rider) — deferred until each real crew runner lands.
+  "rpg-world-gen": DeferredResult;
+  "rpg-recap": DeferredResult;
+  "rpg-session-distill": DeferredResult;
+  "rpg-director": DeferredResult;
+  "rpg-lorebook-upkeep": DeferredResult;
+  "rpg-illustration": DeferredResult;
+  "rpg-npc-portrait": DeferredResult;
+  "rpg-scene-plan": DeferredResult;
+  "rpg-scene-distill": DeferredResult;
+  "rpg-recruit-card": DeferredResult;
 }

@@ -19,9 +19,13 @@
 
 import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ReactElement } from "react";
+import { useEffect } from "react";
 import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
 import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
+import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
+import { openModal } from "../../../../packages/client/src/state/shell-store";
+import "../../../../packages/client/src/styles/globals.css";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 /** The full shell with a chats CONTENT slot + a corpus LIST/CONTENT slot; other sections fall back. */
@@ -58,6 +62,30 @@ export function AppShellWidthProbeStory(): ReactElement {
               </div>
             ),
           },
+        }}
+      />
+    </CtDataProviders>
+  );
+}
+
+/** Opens ONE modal id (via the store action) over the shell with a DELIBERATELY TALL body injected, so
+ *  the no-window-scroll invariant CT can assert the DOCUMENT never scrolls (the shell-tier html/body
+ *  `overflow: clip` lock + globals.css imported here) while the modal's own region absorbs the overflow.
+ *  Registry-driven: the CT loops MODAL_SLOT_IDS, so a NEW modal is covered for free (registry-pairing
+ *  keystone spirit). The tall body uses an inline height (a test story is not a compose-only feature). */
+export function ModalScrollStory({ modalId }: { readonly modalId: ModalSlotId }): ReactElement {
+  useEffect(() => {
+    openModal(modalId);
+  }, [modalId]);
+  return (
+    <CtDataProviders>
+      <AppShell
+        sections={{ chats: { content: <p>chats content pane</p> } }}
+        modals={{
+          // `flexShrink: 0` so the drawer's flex-column scroll region can't shrink this EMPTY probe to
+          // fit (real drawer content has intrinsic height that resists shrink; an empty div would not) —
+          // we want it to genuinely overflow so the scroll assertion measures a real scroll region.
+          [modalId]: <div data-testid="tall-modal-body" style={{ height: 3000, flexShrink: 0 }} />,
         }}
       />
     </CtDataProviders>

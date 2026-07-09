@@ -25,6 +25,10 @@ const VECTOR_TABLES = new Set([
   "chatDigests",
   "chatSegments",
   "chatDigestSpeakers",
+  // databank's 5th primary vector table (D49 #5; databank-design/02 §2). Born into the baseline with the
+  // same chokepoint physics: writes are embeddings.store lens arms (land with DB2 proper), reads go
+  // through the ONE search engine — never a direct databank import of the table symbol.
+  "documentChunks",
 ]);
 const DB_SPECIFIER = /^@orb\/db(?:\/|$)/u;
 const SERVER_SRC = /\/packages\/server\/src\//u;

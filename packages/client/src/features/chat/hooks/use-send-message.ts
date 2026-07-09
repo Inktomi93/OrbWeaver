@@ -68,9 +68,12 @@ interface StartChatResult {
   readonly chat: { readonly id: ChatId };
 }
 
+// `busDriven` (PD user-bus lane): `startChat` emits `chatsChanged` with the new chat's id, and
+// `USER_BUS_FILTERS.chatsChanged` covers `listChats` + `getChat({chatId})` — delivered by the ALWAYS-ON
+// user-bus subscription (home-page.tsx), reaching a chat the caller isn't chat-bus-subscribed to yet.
 const useStartChatMutation = createEntityMutation<StartChatVars, StartChatResult>({
   options: (trpc) => trpc.chat.startChat.mutationOptions(),
-  invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
+  busDriven: true, // emits `chatsChanged` → USER_BUS_FILTERS covers listChats + getChat(new chat).
   errorToast: "Couldn't start the chat.",
 });
 

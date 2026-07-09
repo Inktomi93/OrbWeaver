@@ -5,6 +5,14 @@
 // (`features/settings` importing `features/persona` internals would be the banned feature→feature import,
 // client-structure law) — this pane talks to `trpc.persona.import`/`trpc.settings.*` directly, the same
 // "cross-feature reads ride trpc.*" seam every other settings pane uses.
+//
+// INVALIDATION (PD user-bus lane — busDriven): `updateUserSettingsSection` emits `settingsChanged`
+// (covers getUserSettings) and `persona.import` emits `personasChanged` (covers the whole persona.path,
+// including `persona.list`) — both always-on subscriptions (home-page.tsx), so the echo reconciles the
+// acting device (a self-invalidate would double-refetch).
+//   verb                        user-bus event    client filters
+//   updateUserSettingsSection   settingsChanged   getUserSettings.path
+//   persona.import              personasChanged   persona.path (covers persona.list)
 
 import { personaBackupSchema } from "@orb/contracts/persona";
 import { Button } from "@orb/ui/button";
@@ -27,13 +35,13 @@ interface PersonaPrefsPatchVars {
 }
 const useSetPersonaPrefs = createEntityMutation<PersonaPrefsPatchVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
+  busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
   errorToast: "Couldn't save your persona settings.",
 });
 
 const useImportPersona = createEntityMutation<inferInput<Trpc["persona"]["import"]>, unknown>({
   options: (trpc) => trpc.persona.import.mutationOptions(),
-  invalidates: (trpc) => [trpc.persona.list.queryFilter()],
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (persona.list).
   errorToast: "Couldn't restore the persona.",
 });
 

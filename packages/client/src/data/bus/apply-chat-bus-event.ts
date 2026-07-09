@@ -41,6 +41,11 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
       return;
     case "reasoningStreamDone":
       return; // display affordance only; the slot keeps buffering until terminal
+    case "expression":
+      // Ephemeral sprite-swap presentation state (expressions-design/02 §4) — NOT a cache invalidation.
+      // The stage holder (expressions E5b) consumes it directly off the bus subscription; until that
+      // client lands, the honest arm is a no-op (never invalidate — there is no query to refetch).
+      return;
     case "warning":
       deps.onWarning?.(event.code, event.chatId);
       return;

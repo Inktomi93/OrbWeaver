@@ -28,8 +28,10 @@ import { z } from "zod";
  *  is unwired in v1, kept per "unwired ≠ worthless"); `generated` = a model-generated image stored from a
  *  chat `generateImage` turn (D47 #1 — the chat caller; the `imagery` orchestrator is Phase 7); `gallery` =
  *  a curated gallery image (gallery v2); `attachment` = a user-attached inline chat image (distinct from
- *  `generated`/`gallery`/`card` so `listOwned` can filter it). The db `assets.kind` enum derives from this
- *  tuple. */
+ *  `generated`/`gallery`/`card` so `listOwned` can filter it). `document` = a databank source document's
+ *  original bytes (databank-design/02, D49 #5); `sprite` = a per-character expression sprite
+ *  (expressions-design/01 §3 — its own kind, not `avatar`/`generated`, so the D21 membership grant + GC
+ *  reporting stay distinct). The db `assets.kind` enum derives from this tuple. */
 export const ASSET_KINDS = [
   "card",
   "avatar",
@@ -37,6 +39,8 @@ export const ASSET_KINDS = [
   "generated",
   "gallery",
   "attachment",
+  "document",
+  "sprite",
 ] as const;
 
 export const assetKindSchema = z.enum(ASSET_KINDS);

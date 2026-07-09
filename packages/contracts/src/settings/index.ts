@@ -552,8 +552,9 @@ const appearanceSchema = z
     density: z.enum(THEME_DENSITIES).catch("comfortable").default("comfortable"), // §4 data-density axis
     // Surface elevation: `flat` = orb's default composition (no layered elevation ramp — a deliberate
     // COMPOSITION choice, not a ramp absence); `ramp` opts into the 3-tier elevation ramp (rail darkest →
-    // list/context middle → content lightest, `proposed/discord-ux-recon.md`) for users who want the
-    // layered look. Display-only; never touches stored content.
+    // list/context middle → content lightest; implemented by app-shell `shell.css` `[data-elevation=ramp]`
+    // over the `--color-panel` token) for users who want the layered look. Display-only; never touches
+    // stored content.
     elevation: z.enum(["flat", "ramp"]).catch("flat").default("flat"),
     // Message style (§12.1 — ST chatDisplay's 3 modes; the #theme-homed union)
     chatStyle: z.enum(THEME_CHAT_STYLES).catch("bubble").default("bubble"),

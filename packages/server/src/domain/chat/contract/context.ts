@@ -174,8 +174,8 @@ export type ResolveUserPublicsOp = (
   personaId: PersonaId | null,
 ) => Promise<{
   displayName: string | null;
-  handle: string | null;
-  avatarAssetId: string | null;
+  handle: Handle | null;
+  avatarAssetId: AssetId | null;
 } | null>;
 
 /** `assets.resolveImageUrl` — resolve a parsed message-image ref (D45) to a model-fetchable URL/data-URI at
@@ -271,7 +271,7 @@ export type GeneratePictureOp = (p: {
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
 }) => Promise<{
-  readonly images: readonly { readonly assetId: string }[];
+  readonly images: readonly { readonly assetId: AssetId }[];
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
 

@@ -1,3 +1,10 @@
+/* LINT NOTE (biome `noDescendingSpecificity` is scoped OFF for this file in biome.json#overrides): the
+ * glass/shadow/prefers-contrast rules below intentionally straddle @media (prefers-contrast / reduced-
+ * transparency / max-width) boundaries and layer role-scoped over generic message-bubble rules — the
+ * flagged "descending" pairs are either cross-@media (the rule can't see the context switch) or
+ * higher-specificity-role over lower-specificity-generic by design. The cascade outcome is locked by the
+ * app-shell.ct.tsx cascade tests; reordering for the lint would break the readable effect grouping. */
+
 /* @orb/client — the app's single stylesheet. Pulls in @orb/ui's one CSS entry (Tailwind v4 + the
  * generated @theme + the unlayered floors — UI-Arch §3) and adds the two globals @orb/ui's stylesheet
  * defers to the consuming shell (Base UI stacking context + iOS backdrop coverage). */
@@ -19,6 +26,20 @@ body {
   min-height: 100dvh;
   color: var(--color-foreground);
   background-color: var(--color-background);
+}
+
+/* THE SHELL IS THE WINDOW (task #14 — the no-window-scroll invariant). The 100dvh `.shell-grid` owns ALL
+ * scrolling; the DOCUMENT itself must never scroll — a modal taller than the viewport scrolls INSIDE its
+ * own Dialog viewport (overflow-y:auto, primitive-tier), never the page, and a stray focus-scroll can't
+ * shift the shell (the UIP-205 rationale, promoted to the document root). `overflow: clip` removes html +
+ * body as scroll containers entirely (stricter than `hidden`: no wheel/drag/programmatic-focus scroll),
+ * so this holds with or without Base UI's own per-modal body scroll-lock. Enforced by the registry-driven
+ * CT in app-shell.ct.tsx (every MODAL_SLOTS entry asserts the page can't scroll while the modal region
+ * can) — the registry-pairing keystone spirit. */
+html,
+body {
+  overflow: clip;
+  overscroll-behavior: none;
 }
 
 #root {
@@ -71,6 +92,15 @@ body {
       var(--color-sidebar) var(--blur-fill-chrome),
       transparent
     );
+  }
+  /* WS3 — the reading/document CONTENT backing (shell.css gives it a solid `--color-card` over a bg
+   * image for every non-Chats section) upgrades to glass in lock-step with the side panels, so a frosted
+   * chrome look carries through the reader surface instead of leaving it an opaque slab beside glass
+   * panels. Card tone (the reading-surface token) at the lighter chrome fill (it's chrome, not prose). */
+  html[data-blur-panels] .shell-grid[data-has-bg-image][data-section]:not([data-section="chats"])
+    .shell-main {
+    backdrop-filter: blur(var(--blur-strength)) saturate(1.4);
+    background-color: color-mix(in oklab, var(--color-card) var(--blur-fill-chrome), transparent);
   }
   html[data-blur-modals] [data-slot="dialog-popup"],
   html[data-blur-modals] [data-slot="alert-dialog-popup"] {

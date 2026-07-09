@@ -154,6 +154,7 @@ export function AppShell({
       <ThemeScope tokens={theme?.override ?? {}} className="contents">
         <div
           className="shell-grid"
+          data-section={layout.activeSection}
           data-list-mode={layout.listMode}
           data-context-mode={layout.contextMode}
           data-density={density}

@@ -149,6 +149,9 @@ const BUS_FILTERS: BusFilterMap = {
   chatDeleted: (e, trpc) => chatReads(trpc, e.chatId),
   chatOpened: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
   historyTruncated: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+  // Ephemeral sprite-swap presentation state (expressions-design/02 §4) — invalidates NOTHING (there is
+  // no query to refetch; the stage holder reads it directly off the bus). Explicit `[]`, never omitted.
+  expression: () => [],
   chatUpdated: (e, trpc) => chatReads(trpc, e.chatId),
 };
 

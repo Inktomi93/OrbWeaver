@@ -47,6 +47,25 @@ export const WORKLOAD_KINDS = [
   "crew-card-evolution",
   "crew-director",
   "crew-prose-audit",
+  // Expressions sprite-sheet generation (D49 #4, expressions-design/05 E1) — a STUB runner until E4
+  // lands the real bulk pass; born into the `0000_baseline` kind CHECK now.
+  "expressions-sprite-sheet",
+  // Databank ingest + reindex (D49 #5, databank-design/02) — STUB runners until DB2 proper lands the
+  // real chunk/extract/embed passes; born into the baseline kind CHECK now.
+  "databank-ingest",
+  "databank-reindex",
+  // The 10 rpg crew kinds (D58, rpg-design/10 R6/R7/R9/R10) — STUB runners until each real crew chunk
+  // lands; born into the baseline kind CHECK now (the R1-subset rider).
+  "rpg-world-gen",
+  "rpg-recap",
+  "rpg-session-distill",
+  "rpg-director",
+  "rpg-lorebook-upkeep",
+  "rpg-illustration",
+  "rpg-npc-portrait",
+  "rpg-scene-plan",
+  "rpg-scene-distill",
+  "rpg-recruit-card",
 ] as const;
 
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];

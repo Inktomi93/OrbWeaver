@@ -27,6 +27,17 @@
  *                                          # hover-then-FORCED-click for hover-revealed
  *                                          # targets (group-hover kebabs, toolbars) and
  *                                          # Radix triggers failing actionability checks
+ *   pnpm snap / --jsclick "[data-slot=list-row-body]"
+ *                                          # RAW in-page el.click() — the fallback for
+ *                                          # VIRTUALIZED rows (absolute inset-x-0 rows in a
+ *                                          # scroll container): role=/actionability locators
+ *                                          # FLAKE against them (timeouts on selectors --map
+ *                                          # just printed); a plain CSS selector + raw click
+ *                                          # is reliable. Reach for --jsclick, not --click, on
+ *                                          # a message-list / virtual-list / composite row.
+ *   SELECTOR ENGINES ARE STANDALONE — never concatenate them (`[aria-label=x] role=button[name=y]`
+ *   is a CSS parse error, not an AND). One engine per selector: a CSS string, OR `role=…`, OR
+ *   `text=…`. Combine conditions with Playwright's `:has()`/`>>` or pick the single best engine.
  *   pnpm snap / --ls "orb-draft:character={\"state\":{...}}"
  *                                          # seed localStorage BEFORE navigation
  *                                          # (repeatable; FIRST `=` splits — values are
@@ -45,11 +56,20 @@
  *   (after any --click/--fill/--wait-for steps), so a caller gets computed values / arbitrary
  *   DOM facts in the SAME Bash call that drove the interaction.
  *   pnpm snap / --eval 'document.title'    # run raw JS in-page (repeatable, argv order);
- *                                          # result is JSON-printed, capped ~2000 chars;
- *                                          # an in-page throw prints EVAL ERROR, doesn't abort
+ *                                          # result is JSON-printed, capped ~2000 chars (a cap
+ *                                          # is announced by a loud [TRUNCATED n/N] first line);
+ *                                          # an in-page throw prints EVAL ERROR, doesn't abort.
+ *                                          # A function LITERAL is auto-invoked — `async()=>{…}`
+ *                                          # / `()=>{…}` run and return their result (no more
+ *                                          # silent-undefined from an un-called async arrow;
+ *                                          # you may still write `(...)()` explicitly).
  *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text color
- *                                          # vs its effective ancestor background (repeatable);
- *                                          # a background-image/gradient ancestor reports
+ *                                          # vs its effective ancestor background (repeatable).
+ *                                          # TRANSLUCENT backdrops (glass panels, color-mix at
+ *                                          # <1 alpha) are now alpha-COMPOSITED down to the first
+ *                                          # opaque ancestor before measuring — the reported ratio
+ *                                          # matches the visible pixels (was a false-FAIL). A
+ *                                          # background-IMAGE/gradient ancestor still reports
  *                                          # INDETERMINATE (verify manually); any FAIL reddens
  *                                          # the exit code
  *   pnpm snap / --map                      # live selector map of <body>'s interactive/labeled
@@ -563,8 +583,25 @@ async function runSteps(page: Page, steps: readonly Step[]): Promise<number> {
       await runStep(page, step);
       await settle(page, STEP_SETTLE_MS);
     } catch (e) {
+      const msg = errorMessage(e);
+      // Dev-server churn (HMR/restart/5xx) tears down the realm mid-run — say so distinctly and give the
+      // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
+      if (isContextChurn(msg)) {
+        print(`${CHURN_LINE} — retrying: ${step.kind} ${step.selector}`);
+        try {
+          await settle(page, STEP_SETTLE_MS);
+          await runStep(page, step);
+          continue;
+        } catch (retryErr) {
+          failures += 1;
+          print(
+            `STEP FAILED (after churn retry)  ${step.kind} ${step.selector}: ${errorMessage(retryErr)}`,
+          );
+          continue;
+        }
+      }
       failures += 1;
-      print(`STEP FAILED  ${step.kind} ${step.selector}: ${errorMessage(e)}`);
+      print(`STEP FAILED  ${step.kind} ${step.selector}: ${msg}`);
     }
   }
   return failures;
@@ -602,19 +639,47 @@ async function captureAria(page: Page, opts: Args): Promise<string> {
 
 type EvalOutcome = { expr: string; text: string };
 
+// A bare function LITERAL passed to page.evaluate(string) evaluates to the FUNCTION, never invokes it
+// — so `async () => {…}` silently returns undefined (the worst failure mode). Detect a function literal
+// (arrow or `function`) and auto-invoke it as `(<expr>)()`. A plain value/expression is left untouched.
+const FN_LITERAL_RE =
+  /^\s*(?:async\s+)?(?:function\b|(?:async\s*)?\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/u;
+function wrapEvalExpr(expr: string): string {
+  return FN_LITERAL_RE.test(expr) ? `(${expr})()` : expr;
+}
+
+// A dev-server churn (HMR reload / Vite restart / tRPC 5xx mid-run) tears down the page's JS realm; its
+// error text is indistinguishable from an app bug unless we name it. These are the Playwright/Chromium
+// signatures for "the world moved under us," NOT "your selector/logic is wrong."
+const CHURN_SIGNATURES = [
+  "Execution context was destroyed",
+  "context was destroyed",
+  "Target closed",
+  "Target page, context or browser has been closed",
+  "frame was detached",
+];
+function isContextChurn(message: string): boolean {
+  return CHURN_SIGNATURES.some((sig) => message.includes(sig));
+}
+const CHURN_LINE =
+  "[snap] server churned mid-run (HMR/restart?) — step failed for environmental reasons";
+
 async function captureEvals(page: Page, exprs: readonly string[]): Promise<EvalOutcome[]> {
   const results: EvalOutcome[] = [];
   for (const expr of exprs) {
     let text: string;
     try {
       // biome-ignore lint/performance/noAwaitInLoops: evals are argv-ordered and independent — sequential to keep report order matching argv, same discipline as runSteps.
-      const value: unknown = await page.evaluate(expr);
+      const value: unknown = await page.evaluate(wrapEvalExpr(expr));
       text = value === undefined ? "undefined" : JSON.stringify(value, null, 2);
       if (text.length > EVAL_RESULT_CAP) {
-        text = `${text.slice(0, EVAL_RESULT_CAP)}… (truncated, ${text.length} chars total)`;
+        // Loud, on its OWN first line (a quiet suffix hid mid-array cuts) so a capped result is never
+        // mistaken for the whole thing.
+        text = `[TRUNCATED ${EVAL_RESULT_CAP}/${text.length} chars]\n${text.slice(0, EVAL_RESULT_CAP)}`;
       }
     } catch (e) {
-      text = `EVAL ERROR: ${errorMessage(e)}`;
+      const msg = errorMessage(e);
+      text = isContextChurn(msg) ? `EVAL ERROR: ${msg}\n${CHURN_LINE}` : `EVAL ERROR: ${msg}`;
     }
     results.push({ expr, text });
   }
@@ -652,14 +717,41 @@ function buildContrastScript(selector: string): string {
       return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
     }
     function isTransparent(c) { return c === "rgba(0, 0, 0, 0)" || c === "transparent"; }
+    // TRUE opacity test: composite the color over pure black AND pure white; identical bytes ⇒ alpha 1.
+    // (Avoids parsing oklch()/oklab() alpha in-page.)
+    function compositeOver(cssColor, baseRgb) {
+      probeCtx.clearRect(0, 0, 1, 1);
+      probeCtx.fillStyle = baseRgb;
+      probeCtx.fillRect(0, 0, 1, 1);
+      probeCtx.fillStyle = cssColor; // source-over IS alpha compositing
+      probeCtx.fillRect(0, 0, 1, 1);
+      var d = probeCtx.getImageData(0, 0, 1, 1).data;
+      return "rgb(" + d[0] + ", " + d[1] + ", " + d[2] + ")";
+    }
+    function isOpaque(cssColor) {
+      return compositeOver(cssColor, "rgb(0,0,0)") === compositeOver(cssColor, "rgb(255,255,255)");
+    }
+    // Walk ancestors collecting every non-transparent background from the element DOWN to the first
+    // OPAQUE one (the real base), then composite the translucent layers over it bottom-to-top. A glass
+    // panel (color-mix at 0.7 alpha) over a dark base now yields the VISUAL backdrop the eye sees — the
+    // old code took a translucent layer's own rgb as if opaque (the 1.11-vs-2.6 false-FAIL side-eye hit).
     function resolveBackdrop(node) {
+      var layers = []; // element-first (topmost) → base-last (bottommost non-transparent)
+      var base = "rgb(255, 255, 255)"; // the app root paints --color-background; white only if none found
       while (node) {
         var s = getComputedStyle(node);
         if (s.backgroundImage && s.backgroundImage !== "none") return { kind: "indeterminate" };
-        if (!isTransparent(s.backgroundColor)) return { kind: "flat", color: toRgbString(s.backgroundColor) };
+        var bc = s.backgroundColor;
+        if (!isTransparent(bc)) {
+          if (isOpaque(bc)) { base = toRgbString(bc); break; }
+          layers.push(bc);
+        }
         node = node.parentElement;
       }
-      return { kind: "flat", color: "rgb(255, 255, 255)" };
+      // Paint the opaque base, then the translucent layers bottom-up (reverse of the element-first array).
+      var acc = base;
+      for (var i = layers.length - 1; i >= 0; i--) acc = compositeOver(layers[i], acc);
+      return { kind: "flat", color: acc };
     }
     var style = getComputedStyle(el);
     var fw = style.fontWeight;
@@ -1143,6 +1235,13 @@ function printMapBlock(opts: Args, entries: MapEntry[] | null, error: string | n
   if (list.length > ARIA_MAX_LINES) {
     print(`  … +${list.length - ARIA_MAX_LINES} more — scope with --map <selector>`);
   }
+  // Two recurring foot-guns worth reprinting where the selectors are chosen: engine-mixing + virtual rows.
+  print(
+    "  NOTE: one selector engine per target — never concatenate a CSS selector with a role= selector.",
+  );
+  print(
+    "  NOTE: a virtualized/composite row often needs --jsclick (raw click); role= locators flake.",
+  );
 }
 
 function printCaptureLog(session: ProbeSession, failed: CapturedRequest[]): void {

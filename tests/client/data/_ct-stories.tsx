@@ -11,6 +11,7 @@ import {
   useGatedQuery,
   useInvalidation,
   useTRPC,
+  useViewer,
 } from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
@@ -273,6 +274,35 @@ export function TagCreateVariablesStory(): ReactElement {
   return (
     <CtDataProviders>
       <TagCreateVariablesInner />
+    </CtDataProviders>
+  );
+}
+
+// ── useViewer — the canonical "who am I" hook (data/use-viewer.ts). Composes THREE real procedures
+//    (`sessions.me` + `settings.getUserSettings` + `persona.list`) and derives the current persona
+//    client-side; routeTrpc stubs the wire so the probe asserts the composed + derived shape. ──────
+
+function ViewerProbe(): ReactElement {
+  const viewer = useViewer();
+  return (
+    <dl>
+      <dd data-testid="viewer-handle">{viewer.handle}</dd>
+      <dd data-testid="viewer-role">{viewer.globalRole}</dd>
+      <dd data-testid="viewer-persona">{viewer.currentPersona?.name ?? "none"}</dd>
+      <dd data-testid="viewer-persona-avatar">{viewer.currentPersona?.avatarHash ?? "none"}</dd>
+    </dl>
+  );
+}
+
+export function ViewerStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary
+        fallback={<p>loading…</p>}
+        renderError={(e): ReactElement => <p>{String(e)}</p>}
+      >
+        <ViewerProbe />
+      </QueryBoundary>
     </CtDataProviders>
   );
 }

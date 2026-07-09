@@ -24,6 +24,7 @@
     "start": "NODE_ENV=production tsx packages/server/src/entry/index.ts",
     "engines": "bash scripts/dev/engines.sh",
     "typecheck": "pnpm -r exec tsc --noEmit --pretty false",
+    "typecheck:graph": "tsc --noEmit --pretty false -p tsconfig.json",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",
     "lint:eslint": "eslint packages/ui packages/client tests/ui tests/client packages/server packages/kit packages/db packages/contracts --max-warnings 3",
     "lint:fix": "biome check --write .",

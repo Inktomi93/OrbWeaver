@@ -19,9 +19,8 @@
 // precedent for a `components/` leaf owning its own mutations rather than a `hooks/` file. Edit doesn't
 // mutate here at all: it only flips the external edit-draft store's mode (state/message-edit-draft) —
 // message-row.tsx reads that flag and swaps in `<MessageEditTextarea>`, which owns the actual
-// `chat.editMessage` call. Hide/Delete/Fork rely on the bus's `messageHidden`/`messagesDeleted`/
-// `chatCreated` re-folds (already wired) for the eventual cache refresh; `invalidates` is the
-// settle-time backstop, never a manual cache patch.
+// `chat.editMessage` call. Hide/Delete/Fork are all `busDriven` — the settle-time reconcile is the bus
+// echo, never a manual cache patch (see the audit table below).
 //
 // FORK NAVIGATION SEAM — now WIRED (the active-chat store closed the gap the earlier note called for).
 // `forkChat` returns the new chat's id; the `onChatForked` callback threads UP through
@@ -69,11 +68,16 @@ interface ForkVars {
   readonly throughSeq: number;
 }
 
-// Module-scope factories → stable hook identities (§13.1). Every settle reconciles through the
-// BUS-DRIVEN (mutation-vs-bus rule, invalidation.ts): both act on the OPEN chat, and their verbs emit a
-// canon event on it — setMessageHidden → messageHidden, deleteMessages → messagesDeleted (both → chatReads)
-// — delivered by the active subscription → the seam refetches. `busDriven`; the removed keys were a
-// redundant backstop. (Fork is DIFFERENT — it creates a chat you're not yet subscribed to; it keeps below.)
+// Module-scope factories → stable hook identities (§13.1). INVALIDATION (chat-bus + PD user-bus lane):
+//   verb              bus              event             client filters
+//   setMessageHidden  chat (open)      messageHidden     chatReads (getChat/listMessages/…/listChats)
+//   deleteMessages    chat (open)      messagesDeleted   chatReads (getChat/listMessages/…/listChats)
+//   forkChat          user (always on) chatsChanged      listChats.path + getChat({chatId: new chat})
+// Hide/Delete act on the OPEN chat — their chat-bus event is delivered by the active subscription. Fork
+// creates a NEW chat the caller isn't subscribed to (so the chat bus can't reach it), but the ALWAYS-ON
+// user bus does: `forkChat` emits `chatsChanged` with the new chat's id, and `USER_BUS_FILTERS.chatsChanged`
+// covers `listChats` (the list row) + `getChat` for that id — a superset of the old `listChats`-only
+// invalidate. All three are `busDriven`; a mutation-side invalidate here would double-refetch the echo.
 const useHideMutation = createEntityMutation<HideVars, unknown>({
   options: (trpc) => trpc.chat.setMessageHidden.mutationOptions(),
   busDriven: true,
@@ -86,11 +90,9 @@ const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   errorToast: "Couldn't delete that message.",
 });
 
-// KEEP: `forkChat` emits `chatCreated` on a NEW chat the caller is NOT subscribed to (like startChat), so
-// the bus can't refresh the list here — the mutation-side `listChats` invalidate is the only refresh.
 const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
-  invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
+  busDriven: true, // emits `chatsChanged` → USER_BUS_FILTERS covers listChats + getChat(new chat).
   errorToast: "Couldn't fork this chat.",
 });
 

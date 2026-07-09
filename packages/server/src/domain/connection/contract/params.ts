@@ -68,6 +68,8 @@ export interface GetOrCreditsParams {
 /** `getGenerationCost` input — the principal + the upstream generation id to settle. */
 export interface GetGenerationCostParams {
   readonly principal: Principal;
+  /** OpenRouter's UPSTREAM generation handle (THEIR id namespace, opaque to us) — deliberately NOT a
+   *  branded orbweaver id (`ImageryGenerationId` is ours; this is foreign wire vocab. 2026-07-09 audit). */
   readonly generationId: string;
   readonly signal?: AbortSignal | undefined;
 }

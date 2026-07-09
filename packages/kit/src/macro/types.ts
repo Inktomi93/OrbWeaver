@@ -87,6 +87,12 @@ export interface MacroContext {
   compactSummary?: string | undefined;
   memory?: string | undefined;
   guidedInstruction?: string | undefined;
+  // The {{databank}} slot — RESERVED parallel to {{memory}} (D49 #5; databank-design/07 §3). The
+  // retrieved-chunk string databank's gatherRetrieval stages onto the assemble context; undefined ⇒
+  // nothing retrieved ⇒ the `{{databank}}` marker renders empty (byte-identical non-databank turn). The
+  // slot is born now so the preset section templates + the rpg GM preset can reference it; the producer
+  // (domain/databank.gatherRetrieval) fills it when DB2 proper lands.
+  databank?: string | undefined;
   // Run-environment shortcuts (legacy card-format compat). Threaded by the chat send/assembly path.
   model?: string | undefined; // → {{model}}
   chatId?: string | undefined; // → {{chatId}}

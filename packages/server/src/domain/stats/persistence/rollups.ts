@@ -14,7 +14,8 @@
 
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { LeaderboardOpts, TimeseriesOpts } from "../contract/params";
 import type {
@@ -302,7 +303,9 @@ export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<Persona
     ORDER BY p.created_at DESC
   `);
   return rows.map((r) => ({
-    personaId: r.personaId,
+    // Raw-SQL boundary mint: `p.id` IS the branded personas.id column, but sql`` template rows come
+    // back untyped — this is the sanctioned castId edge (2026-07-09 string-type audit).
+    personaId: castId<PersonaId>(r.personaId),
     name: r.name,
     chatCount: Number(r.chatCount ?? 0),
     messageCount: Number(r.messageCount ?? 0),

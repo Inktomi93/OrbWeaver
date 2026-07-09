@@ -4,7 +4,7 @@
 // percentiles (substrate/percentiles.ts via persistence/latency.ts). NO percentile is ever a stored
 // column (invariant #6) — the `*GenMs`/`*TtftMs` fields are computed on read and spread in here.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
 // Behavior / cost / efficiency fields + read-layer-derived rates. Shared by the owner + character views.
 export interface ExtraStats {
@@ -113,7 +113,7 @@ export interface StatsFreshness {
 }
 
 export interface PersonaUsageRow {
-  personaId: string;
+  personaId: PersonaId;
   name: string;
   chatCount: number;
   messageCount: number;

@@ -20,6 +20,9 @@ export interface ShellCascadeFixtureProps {
   readonly density?: "comfortable" | "compact";
   readonly fontScale?: number;
   readonly messageRole?: MessageRole;
+  /** The active section stamped on `.shell-grid` (WS3 reading-surface backing). Left off ⇒ the immersive
+   *  transparent path (the Chats/no-section case); a non-`chats` value gets the reading-surface backing. */
+  readonly section?: string;
 }
 
 /**
@@ -37,6 +40,7 @@ export function ShellCascadeFixture({
   density = "comfortable",
   fontScale = 1,
   messageRole = "assistant",
+  section,
 }: ShellCascadeFixtureProps): ReactElement {
   useAppearanceRootEffects({
     fontScale,
@@ -63,10 +67,17 @@ export function ShellCascadeFixture({
       data-elevation={elevation}
       data-density={density}
       {...(hasBgImage ? { "data-has-bg-image": "" } : {})}
+      {...(section === undefined ? {} : { "data-section": section })}
     >
       <div className="shell-panel" data-panel-side="list" data-testid="panel-probe" />
       <div className="shell-main" data-testid="main-probe">
         <div className="shell-topbar" data-testid="topbar-probe" />
+        {/* The CONTENT column + a landing empty-state hero — for the WS3 Chats-immersive scrim-chip
+            rule (only the Chats section over a bg image anchors this hero; every other case leaves it
+            un-boxed). */}
+        <div className="shell-content">
+          <div data-slot="empty-state-root" data-testid="empty-state-probe" />
+        </div>
       </div>
       <div data-slot="composer" data-testid="composer-probe" />
       <div data-role={messageRole}>

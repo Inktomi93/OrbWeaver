@@ -25,6 +25,7 @@ import type {
   CharacterId,
   ChatId,
   MessageId,
+  MessageVariantId,
   PersonaId,
   WorldBookId,
   WorldEntryId,
@@ -108,6 +109,7 @@ function freshChatId(): ChatId {
 const MESSAGE_ID = castId<MessageId>("message_test_bus_0001");
 const CHARACTER_ID = castId<CharacterId>("character_test_bus_01");
 const PERSONA_ID = castId<PersonaId>("persona_test_bus_0001");
+const VARIANT_ID = castId<MessageVariantId>("message_variant_test_bus1");
 const WORLD_BOOK_ID = castId<WorldBookId>("world_book_test_bus01");
 const WORLD_ENTRY_ID = castId<WorldEntryId>("world_entry_test_bus1");
 
@@ -199,6 +201,29 @@ describe("applyChatBusEvent — stream-transient events", () => {
     expect(h.abortTurn).not.toHaveBeenCalled();
     expect(h.invalidate).not.toHaveBeenCalled();
     expect(h.slotOf(chatId)).toMatchObject({ phase: "pending" });
+    h.unsub();
+  });
+
+  test("expression → no-op: no store mutation, no invalidate (ephemeral presentation state)", () => {
+    const chatId = freshChatId();
+    const h = harness([chatId]);
+
+    applyChatBusEvent(
+      {
+        type: "expression",
+        chatId,
+        characterId: CHARACTER_ID,
+        messageId: MESSAGE_ID,
+        variantId: VARIANT_ID,
+        label: "joy",
+      },
+      h.deps,
+    );
+
+    expect(h.appendDelta).not.toHaveBeenCalled();
+    expect(h.completeTurn).not.toHaveBeenCalled();
+    expect(h.abortTurn).not.toHaveBeenCalled();
+    expect(h.invalidate).not.toHaveBeenCalled();
     h.unsub();
   });
 
@@ -321,11 +346,20 @@ const STREAM_TRANSIENT = new Set([
   "warning",
   "turnCompleted",
   "turnAborted",
+  // Ephemeral sprite-swap presentation state — a pure no-op in the reducer (not a canon invalidate);
+  // classified here beside reasoningStreamDone (expressions-design/02 §4).
+  "expression",
 ]);
 
 type CanonEventType = Exclude<
   ChatBusEvent["type"],
-  "delta" | "turnStarted" | "reasoningStreamDone" | "warning" | "turnCompleted" | "turnAborted"
+  | "delta"
+  | "turnStarted"
+  | "reasoningStreamDone"
+  | "warning"
+  | "turnCompleted"
+  | "turnAborted"
+  | "expression"
 >;
 
 function assertNeverCanon(value: never): never {

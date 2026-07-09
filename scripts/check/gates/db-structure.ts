@@ -56,6 +56,16 @@ const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
   // automation_rules/automation_budgets/automation_fires/global_variables — producer =
   // domain/automation (D46; lands Phase 8, automation-design/04).
   automation: "packages/server/src/domain/automation",
+  // roster_presets/roster_preset_members — producer = domain/roster-preset (D61; lands at
+  // saved-rosters-design RP1).
+  "roster-preset": "packages/server/src/domain/roster-preset",
+  // character_sprites — producer = domain/expressions (D49 #4; lands at expressions-design E2).
+  expressions: "packages/server/src/domain/expressions",
+  // documents + the 3 scope junctions — producer = domain/databank (D49 #5; lands at DB2 proper).
+  // (document_chunks rides schema/embeddings.ts — the vector-substrate home — so it is NOT here.)
+  databank: "packages/server/src/domain/databank",
+  // the 14 rpg campaign tables — producer = domain/rpg (D58; lands at rpg-design/10 R1-proper).
+  rpg: "packages/server/src/domain/rpg",
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {
