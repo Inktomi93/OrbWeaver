@@ -630,7 +630,33 @@ rows over `listInvitesForChat`, `persistence/invites.ts` L30) · FIX #5 `undoCon
   mutation called throttled (leading edge + \~4s repeat while typing continues). Client: §8's cue.
   Nothing else depends on it; drop it and nothing regresses.
 
-### CREATE (client) — see §0 waves.
+### CREATE (client) — net-new file homes (the slice-shape law applied)
+
+Every feature slice follows `packages/client/src/features/README.md` (law:
+UI-Architecture-and-Layout §2.1/§4): `surfaces/` (containment consumers) · `anchors/` (containment
+providers) · `components/` (leaves composing @orb/ui — never hand-rolled UI) · `hooks/` (trpc reads
+
+- entity mutations) · `lib/` (pure helpers) · `index.ts` (the ONLY public surface — new exports the
+  route consumes must be added to the barrel). Features are islands (cross-feature = trpc only);
+  compose, never paint. Homes for this spec's net-new pieces:
+
+| Piece (wave) | Home |
+| - | - |
+| Variant tray (W2) | `chat/components/variant-tray.tsx` (+ reads via the existing `use-variant-history.ts` / a sibling hook if needed) |
+| Jump-to-present pill (W2) | `chat/components/jump-to-present-pill.tsx`, composed by `chat/surfaces/message-list-surface.tsx` (it owns the seal handle) |
+| Fork-humans confirm (W2) | inside `chat/components/message-actions-row.tsx` + the tray (an AlertDialog composition, not a new file unless shared twice — then `chat/components/fork-confirm-dialog.tsx`) |
+| `@`-mention autocomplete (W2) | `chat/components/composer-mention-autocomplete.tsx`, composed by `composer.tsx` |
+| Chat-mode carrier (W2) | `state/shell-store.ts` field + action (LAW 3); route wrappers in `routes/home-page.tsx`; resolve edit in `app-shell/hooks/use-shell-layout.ts` |
+| Members panel rework (W3) | rework `chat/components/roster-panel.tsx` in place (rename the FILE only if the export renames — builder's call); the row menu = `chat/components/member-row-menu.tsx` |
+| Invite dialog (W3) | `chat/components/invite-dialog.tsx` (a MODAL\_SLOTS body if rail/topbar-triggered; a feature Dialog if ⋯-triggered) |
+| `/join/:token` (W3) | a route: `routes/join-page.tsx` beside `home-page.tsx` (the route owns composition) |
+| **`features/notifications/` — a NEW SLICE (W3).** | `notifications/{components/notification-bell.tsx, components/notification-inbox.tsx, hooks/use-notifications-bus.ts, index.ts}` — **registration required: the §2.1 slice list (UI-Architecture-and-Layout) and `features/README.md` enumerate the slices; add `notifications` to BOTH** (the list is closed law, not a suggestion). Bell mounts in the topbar via the route. |
+| Cast-bar human chips (W3) | extend `chat/components/chat-cast-bar.tsx` (DO-NOT-REBUILD table) |
+| Scene section (W4, on amendment B) | `chat/components/scene-section.tsx` + mutations in `chat/hooks/use-context-panel-mutations.ts` (the existing context-mutations home); the room ThemeScope layer = a `chat-room-surface.tsx` edit |
+| Atmosphere opt-out store (W4) | a device-local persisted field — home per the `DEVICE_LOCAL_REGISTRY` registration it requires (state tier, `createPersistedStore` shape) |
+| "Last turn" Preview digest (W4, G2) | extend `chat/components/assembly-preview-panel.tsx` |
+| Unread pip + divider (W4, R1) | pip = `chat-list-surface.tsx` row edit; divider = a `message-list-surface.tsx` derivation + `chat/lib/unread-divider.ts` for the snapshot-anchor rule |
+| Composing cue (W5, S1) | composer-adjacent leaf `chat/components/composing-cue.tsx` + the cast-bar chip state |
 
 ### DO-NOT-REBUILD (this slice is NOT greenfield)
 
