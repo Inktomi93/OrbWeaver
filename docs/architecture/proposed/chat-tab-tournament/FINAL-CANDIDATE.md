@@ -75,22 +75,38 @@ group — the shell enters chat mode: **LIST → `overlay`** (edge-reachable sli
 clamp; zero width closed) and **CONTEXT → `collapsed`**. The landing (no chat open) keeps the boot map
 (`chats: { list: "docked", context: "collapsed" }`, `features/app-shell/lib/rail-slots.ts` L107–113).
 The user's per-panel toggle wins permanently thereafter (§4.2 rule 3 untouched — the rule changes only
-the un-overridden default). **Mechanism — the tier boundary, stated exactly (app-shell is
-domain-agnostic and may NOT read the chat handle, UI-Arch §5.1 property 1; this is why the
-rail-slots header once anticipated a `setPanelMode` seed):** the handle read lives in the ROUTE.
-`home-page.tsx` (the composition reader — it already composes from the active-chat handle) derives a
-domain-agnostic runtime default — `landing` ⇒ nothing; `draft | committed` ⇒
-`{ list: "overlay", context: "collapsed" }` — and passes it INTO the shell as a generic per-section
-runtime-default input (e.g. a `sectionDefaultOverrides` prop/param on the shell layout; shape:
-`Partial<Record<SectionId, PanelModes>>` — no `ChatHandle` type crosses the boundary). The resolve
-seam (`features/app-shell/hooks/use-shell-layout.ts`) then computes `override ?? runtimeDefault ??
-bootDefault`. No runtime seed, no phantom persisted override, no effect (a render derivation; gate
-`no-effect-on-shared-selection` stays green), and `features/app-shell/**` imports nothing from
-`features/chat/**`. **Mobile is out of scope for this law:** on a mobile viewport the shell already
-renders LIST/CONTEXT as transient sheets (`use-shell-layout.ts` mobile fork — "docked is a desktop
-concept a full-width sheet must never inherit"); chat mode is a desktop-resolve concern only, the
-mobile behavior is unchanged (land on CONTENT, sheets closed). Ledger amendment: §15. Consequences
-a builder must honor:
+the un-overridden default). **Mechanism — composed from two VERIFIED existing patterns (do not
+invent a new seam shape; app-shell is domain-agnostic and may NOT read the chat handle, UI-Arch
+§5.1 property 1):**
+
+- **The carrier (pattern: the shell store's domain-agnostic seams — `contextTab: string | null`,
+  written by chat files, meaning-blind to the shell; and `mobileSheet`, the NON-PERSISTED
+  device-state field "deliberately SEPARATE from the persisted `panelOverrides`" — both in
+  `state/shell-store.ts`):** one new shell-store field, e.g. `panelRuntimeDefault:
+  Partial<Record<PanelName, PanelMode>> | null`, typed entirely in shell vocabulary (no `ChatHandle`
+  crosses), NON-persisted (partialize excludes it; migrate resets it — the `mobileSheet` treatment),
+  written by an intent-named action. Both `useShellLayout` call sites (`home-page.tsx` L90 and
+  `app-shell.tsx` — the hook has TWO consumers, which is why a hook parameter or prop cannot carry
+  this coherently) read the store, so the resolve is one value everywhere:
+  `override ?? runtimeDefault ?? SECTION_PANEL_DEFAULTS[section][panel]` (extending the built
+  `resolveMode`, `use-shell-layout.ts` L63–65).
+- **The writers (pattern: the route's wrapped-callback composition — `selectChatFromList` in
+  `home-page.tsx` L105–108 already wraps `selectChat` + `setMobileSheet(null)` at the call site;
+  §5.1: the route owns app-shell↔chat composition):** every chat-open/close affordance is a
+  route-passed callback (list row, landing recents, ⌘K, `onChatForked`, `onDeletedChat`/
+  `goToLanding`, join) — the route wraps each with the shell write (`draft|committed` ⇒ set the
+  chat-mode default; `landing` ⇒ clear it). Exhaustive BY CONSTRUCTION because §5.1 already forces
+  all these affordances through the route; the active-chat store actions themselves stay pure
+  single-store writes (verified: `active-chat-store.ts` L86–131). Pin it with a test: handle kind
+  and `panelRuntimeDefault` may never disagree.
+
+No effect (writers are store actions fired from event handlers; gate
+`no-effect-on-shared-selection` stays green), no phantom persisted override, and
+`features/app-shell/**` imports nothing from `features/chat/**`. **Mobile is out of scope for this
+law:** on a mobile viewport the shell already renders LIST/CONTEXT as transient sheets
+(`use-shell-layout.ts` mobile fork — "docked is a desktop concept a full-width sheet must never
+inherit"); chat mode is a desktop-resolve concern only, the mobile behavior is unchanged (land on
+CONTENT, sheets closed). Ledger amendment: §15. Consequences a builder must honor:
 
 - The room is the immersive default for every composition; the transcript fills the frame at rest.
 - CONTEXT surfaces are reached by the **topbar member-count chip** (§6.1 — 1 click) or the existing
@@ -180,8 +196,9 @@ builder must not invent one:**
   not exist here (it is room-header chrome). A DRAFT immediately swaps in the draft twin
   (`DraftContextPanel`, built — same file, L150–152).
 - **Chat-mode check, plainly:** the entire LAW 3 trigger is ONE check — `handle.kind !== "landing"`
-  — run in `home-page.tsx`, which already reads the handle (L92). The route passes the result down;
-  the shell never checks anything itself (the LAW 3 tier boundary).
+  — and it runs in the ROUTE's wrapped open/close callbacks (`home-page.tsx`, which already reads
+  the handle at L92), writing the non-persisted shell-store runtime default. The shell never checks
+  anything itself (the LAW 3 mechanism + tier boundary).
 
 ## 6. CONTENT — the ROOM
 
@@ -668,11 +685,12 @@ supersedes the two tournament amendments — the discord pitch's CONTEXT-docked-
 immersion pitch's solo-focus seed): **the Chats section's un-overridden panel default is
 handle-dependent — no chat open (landing) ⇒ the boot map (`list: docked, context: collapsed`); chat
 open (draft or committed), ANY composition ⇒ `list: overlay, context: collapsed`.** Mechanism per
-LAW 3 (binding — the tier boundary): the ROUTE derives the runtime default from the handle and
-passes a domain-agnostic per-section default into the shell; the resolve computes `override ??
-runtimeDefault ?? bootDefault`; desktop-only (the mobile sheet fork is untouched); not a runtime
-seed — no phantom persisted override; the user's explicit per-panel toggle wins permanently (§4.2
-rule 3 untouched). **The ledger amendment explicitly supersedes the `rail-slots.ts` header comment's
+LAW 3 (binding — composed from the verified precedents): a NON-persisted shell-store
+`panelRuntimeDefault` field (the `contextTab`/`mobileSheet` seam pattern) written by the route's
+wrapped chat-open/close callbacks (the `selectChatFromList` pattern); the resolve computes
+`override ?? runtimeDefault ?? bootDefault` at both `useShellLayout` consumers; desktop-only (the
+mobile sheet fork is untouched); no phantom persisted override; the user's explicit per-panel
+toggle wins permanently (§4.2 rule 3 untouched). **The ledger amendment explicitly supersedes the `rail-slots.ts` header comment's
 anticipated `setPanelMode`-on-commit seed** so the two mechanisms never coexist; update that header
 when the amendment lands.
 
