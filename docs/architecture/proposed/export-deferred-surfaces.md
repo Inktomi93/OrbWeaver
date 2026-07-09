@@ -14,24 +14,11 @@ updated: 2026-07-03
 > code headers + tests. This file carries ONLY the genuinely-unbuilt design so it survives the doc's
 > deletion.
 
-## The HTTP download registrar (`entry/http/export.ts`) — the reachability gap (BUG; PD row pending central assignment, filed by the 2026-07 export audit)
+## ~~The HTTP download registrar — the reachability gap~~ (RESOLVED — PD-109 DONE 2026-07-05)
 
-`createExportService` is composed at the entry root (`entry/compose/services.ts`) but NOTHING consumes
-it — there is no `entry/http/export.ts`, no tRPC procedure, no client href. Both verbs are
-runtime-unreachable: a composed-but-dead surface (PD-103-style). The design that lands with the wire-up
-(carried from `export.md` Movement + invariant 7 + the §7.1 notes):
-
-- A non-tRPC binary/text download registrar in `entry/http/` (beside `blob.ts` / `upload.ts`), calling
-  the export FRONT DOOR only (`#domain/export` — the `entry → domain front door` rule; dep-cruiser
-  backstop).
-- Two routes: the character card (PNG bytes) and the chat transcript (`?format=jsonl|txt`, default
-  jsonl). A verb `null` → **404** (not-owned / non-host and missing collapse — no foreign-existence
-  leak; the verbs already encode this).
-- Streams with `Content-Disposition: attachment` using the verb's returned `filename` (already
-  filename-safe — `substrate/download-slug.ts`).
-- Auth: resolve the caller via the SAME auth seam the sibling `entry/http` routes use — never a second
-  resolution path. Safe **GET downloads carry no CSRF requirement** (a deliberate transport decision,
-  carried from neo — preserve it).
+The registrar section this doc originally carried is BUILT: `entry/http/export.ts` exists and serves
+both routes per the carried design (front-door-only, 404-on-null, `Content-Disposition` from the verb's
+filename, same auth seam, CSRF-free GET). The code is now the doc (triage cut 2026-07-09).
 
 ## Bulk / library zip export — DEFERRED (unflagged; no PD row)
 
