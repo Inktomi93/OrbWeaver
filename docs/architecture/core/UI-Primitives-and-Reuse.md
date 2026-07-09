@@ -10,7 +10,7 @@ updated: 2026-07-05
 
 ## 13. The reuse model — the central primitives every feature builds on (D54)
 
-> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep (the five `UI-Lib-*` companions in this directory; cite them for any specific claim). The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. The `@orb/ui` half is BUILT; the client factories shipped in the client-foundation wave, ahead of the feature lanes (§11.7/§13.6).
+> **Status: authoritative (D54, 2026-06-29).** Synthesis of the full client-foundation research sweep (the five `UI-Lib-*` companions in `history/`, re-homed 2026-07-09; cite them for any specific claim). The §11.0 thesis — *every footgun carried by STRUCTURE, never convention* — **extended from footguns to boilerplate**: a feature converges to **config + a field/row renderer**; all wiring (fetch · cache · invalidate · optimistic · error · virtualize · select · seed · dirty · lifecycle) lives in a primitive the call site **cannot bypass or get wrong**. The `@orb/ui` half is BUILT; the client factories shipped in the client-foundation wave, ahead of the feature lanes (§11.7/§13.6).
 
 ### 13.0 The litmus (what gets centralized, what stays in the feature)
 

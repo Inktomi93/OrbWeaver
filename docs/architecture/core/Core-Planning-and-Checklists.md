@@ -1,7 +1,7 @@
 ---
-kind: law
+kind: reference
 status: active
-updated: 2026-07-03
+updated: 2026-07-09
 ---
 
 # Planning-and-Checklists
@@ -12,6 +12,15 @@ updated: 2026-07-03
 > decisions are committed in `Core-Laws-and-Precedents.md §5`; this file is the operational "do these or
 > the architecture's guarantees don't hold," ordered by when they bite. Most have now LANDED (marked;
 > the code + gates are the proof) — the still-open rows are the live obligations.
+>
+> **Triage 2026-07-09 — what is still ALIVE in this file (everything else is a landed record):**
+> **B1** (the ST-import data-port scripts — rides `proposed/import-st-profile-waves.md`,
+> blocked:later) · **D1** (the `logAudit('WORKLOAD_FAILED')` terminal-failure emit — still open) ·
+> **D4** (`custom-byo contextWindow?` + the BYO response-mapping schema — still open, ships with the
+> BYO form) · **§E** (owned risks — permanent acceptance record, never "resolves"). D1/D4 have no PD
+> rows yet — mint them at the next debt-registry pass rather than re-discovering them here. The §"council
+> review" half is a dated historical record kept for its verdicts. Re-kinded law→reference (the live
+> law it carried was promoted long ago; what remains is a checklist record + four live rows).
 
 ## A. Before the first domain compiles — ALL LANDED
 

@@ -6,6 +6,8 @@ updated: 2026-07-03
 
 # UI-Lib-Zustand
 
+> **Re-homed to `history/` 2026-07-09:** an evidence/provenance MINE, not law — its distilled verdicts were promoted into the `core/UI-*.md` spec sections (see `core/UI-Architecture-and-Layout.md` §6.1 companions table). Read this file only when debugging or upgrading the library it mines; code comments citing `<this filename> §N` resolve here.
+
 > **A lib companion of the nine-doc UI law set** — a full-read examples/deep-docs mine (evidence + provenance, NOT extra law; the distilled verdicts are folded into the spec sections of `UI-Architecture-and-Layout.md` / `UI-Gates-and-Lessons.md` / `UI-Primitives-and-Reuse.md`, cited per claim).
 >
 > Cross-doc `§N` references resolve via the §-map in `UI-Architecture-and-Layout.md`.
