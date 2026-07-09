@@ -9,7 +9,7 @@ updated: 2026-07-03
 > **Status: COMMITTED (D48). Promoted from `proposed/tool-use/`. Phase 7 — ships with the recurse loop.**
 > Authoritative expansion of D48. The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/tool-use/tool-use.md`.
-> **Authoritative build design: [`../proposed/tool-use-design/`](../proposed/tool-use-design/README.md) — wins on detail; this file remains the committed decision record.**
+> **Authoritative build design: [`README.md`](README.md) — wins on detail; this file remains the committed decision record.**
 
 ---
 

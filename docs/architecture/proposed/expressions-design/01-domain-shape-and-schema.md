@@ -22,7 +22,7 @@ updated: 2026-07-03
 - The **sprite-sheet generation pass** — the `expressions-sprite-sheet` workload body (doc 03)
 
 NOT owned: image bytes (`assets`/`infra/storage`), generation (`domain/imagery`, injected), the
-app background (a D44 theme token — committed `../expressions.md` §5), any VN compositor
+app background (a D44 theme token — committed `expressions.md` §5), any VN compositor
 (permanently out).
 
 ## 1. The 8-slot layout

@@ -9,7 +9,7 @@ updated: 2026-07-03
 > **Status: COMMITTED (D49 closes the D47 OPEN call). Promoted from `proposed/databank/`. Phase 7 — post-chat additive graft.**
 > Authoritative expansion of D49 item (5). The ledger D-entry wins on any conflict with this doc.
 > Source proposal: `proposed/databank/databank.md`.
-> **Authoritative build design: [`../proposed/databank-design/README.md`](../proposed/databank-design/README.md) — wins on detail; this file remains the committed decision record.**
+> **Authoritative build design: [`README.md`](README.md) — wins on detail; this file remains the committed decision record.**
 
 ---
 

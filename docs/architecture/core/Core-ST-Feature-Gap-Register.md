@@ -58,7 +58,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 | Welcome screen | landing: recent/pinned chats | ABSENT | TRIVIAL→MODERATE | the reference example in the client spec (`UI-Architecture-and-Layout.md` `{kind:landing}`) |
 | Gallery | per-character image grid | ABSENT | MODERATE | per-user CAS backend exists; a Phase-6 `@orb/ui` surface (v2 curation since landed — see the feature map) |
 | Image-gen in chat (txt2img portrait/"selfie") | SD ext generate-from-chat | ABSENT | MODERATE | the `generateImage` role exists (hosted); chat caller since landed (see the feature map) |
-| Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | ABSENT | ARCHITECTURAL | needs a classify/vision role + the dropped VN compositor + a per-turn hook; committed D49, PD-56, [`../proposed/expressions.md`](../proposed/expressions.md) |
+| Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | ABSENT | ARCHITECTURAL | needs a classify/vision role + the dropped VN compositor + a per-turn hook; committed D49, PD-56, [`../proposed/expressions-design/expressions.md`](../proposed/expressions-design/expressions.md) |
 | Backgrounds (app background image) | set an app/chat-chrome background image | DEFERRED-CHEAP (D49) | TRIVIAL | **was wrongly rated PAINFUL** — it's app-chrome theming, NOT the VN scene-compositor. A D44 `ThemeOverride.background` token (`AssetRef\|ExternalUrl` + `fit`), per-user global + per-chat lock, via `<ThemeScope>` (never raw `url()`). Home: `UI-Theming-and-Content.md` + [`../history/themes-design.md`](../history/themes-design.md) |
 | Audio / BGM / blip sounds | scene/char music + typing blips | ABSENT | PAINFUL | player is trivial; "which track for this scene" needs new persistence + VN coupling |
 | TTS (text-to-speech) | \~30 providers + narrate pipeline | ABSENT | ARCHITECTURAL | a new inference role **and** a streaming-audio transport (SSE is text/JSON) + turn hook |
@@ -71,7 +71,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 
 ## 3. Scripting & extensibility
 
-**Addressed by D46 — committed record: [`../proposed/automation.md`](../proposed/automation.md)** (authoritative build designs: `../proposed/automation-design/` Tier 1 + `../proposed/plugin-design/` Tier 2). Not re-litigated here. Where the ST surface lands:
+**Addressed by D46 — committed record: [`../proposed/automation-design/automation.md`](../proposed/automation-design/automation.md)** (authoritative build designs: `../proposed/automation-design/` Tier 1 + `../proposed/plugin-design/` Tier 2). Not re-litigated here. Where the ST surface lands:
 
 | Feature | What it is (ST) | Status | Where addressed |
 | - | - | - | - |
@@ -98,7 +98,7 @@ orbweaver rebuilt the vector substrate (embeddings/search/memory) but it is **ca
 | Scrapers | web/file/youtube/wiki → Data Bank | ABSENT | MODERATE | simple fetchers, but **homeless without a Data Bank target** |
 | Web Search RAG | live search → inject results | ABSENT | MODERATE–PAINFUL | per-turn live ingestion; no orb seam |
 | Server doc text-extraction | pdf/docx/epub/html → text | ABSENT | MODERATE | a real sub-feature any Data Bank needs (vendored lib in a loader) |
-| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | DECIDED-BUILD (D49) | ARCHITECTURAL | additive graft, P6/7: a single-owned `documents` producer + derived `document_chunks` + per-type FK scope junctions + chunker + db-free extraction loader. [`../proposed/databank.md`](../proposed/databank.md), FLAG\[PD-57] |
+| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | DECIDED-BUILD (D49) | ARCHITECTURAL | additive graft, P6/7: a single-owned `documents` producer + derived `document_chunks` + per-type FK scope junctions + chunker + db-free extraction loader. [`../proposed/databank-design/databank.md`](../proposed/databank-design/databank.md), FLAG\[PD-57] |
 | Vectors as file-RAG | chunk+embed+retrieve uploaded files | ABSENT | PAINFUL | embed/search plumbing reuses; the producer/canon shape doesn't fit (needs the doc-store above) |
 | assets ext (community downloader) | download chars/extensions/audio from a repo index | ABSENT | N/A | no extension system, no marketplace, no ambient-audio concept; the "download a character from URL" sliver = import-from-URL |
 | **Already covered** (do not re-add) | chat-memory vectorization (→ memory/embeddings/search); image-captioning *capability* (inline in the indexer); RAG retrieval machinery (embed/space/exact-scan/rerank/threshold); bulk profile import (`import` domain) | COVERED | — | |
@@ -114,12 +114,12 @@ orbweaver rebuilt the vector substrate (embeddings/search/memory) but it is **ca
 | Inpainting / img2img | mask/init-image | ABSENT | MODERATE | `ImageGenerateRequest` is text→image only; contract widening + backend support |
 | `/imagine` slash surface | 4 commands | ABSENT | MODERATE | Phase-6 client command surface |
 | Tool/function calling — agent-sdk path | recursive multi-tool loop | COMMITTED (D47) | MODERATE | `createAgentToolServer` seam + reserved `toolCalls` col; the SDK owns the loop. One registry w/ the OpenAI path (D48) |
-| Tool/function calling — chat-completions/responses path | OpenAI-style tools + recurse | COMMITTED (D48) | MODERATE | the "PAINFUL/fights stateless-turn" framing is RESOLVED — the `tool` role lands on the WIRE axis + the **chat DOMAIN owns the recurse loop** (not infra). Gates landed. [`../proposed/tool-use.md`](../proposed/tool-use.md), PD-54 |
+| Tool/function calling — chat-completions/responses path | OpenAI-style tools + recurse | COMMITTED (D48) | MODERATE | the "PAINFUL/fights stateless-turn" framing is RESOLVED — the `tool` role lands on the WIRE axis + the **chat DOMAIN owns the recurse loop** (not infra). Gates landed. [`../proposed/tool-use-design/tool-use.md`](../proposed/tool-use-design/tool-use.md), PD-54 |
 | Reasoning data + streaming + resolve | native reasoning handling | COVERED | — | `message_variants.reasoning`/effort + `STREAM_DELTA_KINDS` + `resolve-chat.resolveReasoning` (D41) |
 | Reasoning `<think>` auto-parse (non-native models) | parse inline tags | ABSENT | MODERATE | a parse step in the chat turn (since landed: `server/kit/reasoning`) |
 | Reasoning UI render / effort picker | collapsible blocks + effort UI | ABSENT (deferred) | MODERATE | data exists; Phase-6 client |
 | Vision / image INPUT (image→model) | `image_url` content parts | **COMMITTED (D45)** | born-compliant before Phase 5 | `ModelCapability.input.vision` axis (the gate) + `ChatHistoryMessage.content` `string`→content-parts; sealed translators map image parts. Landed in contracts before Phase 5 as planned |
-| Structured-output via tools (`tool_choice:{type:tool}`) | forced JSON | COMMITTED (D48) | MODERATE | a SEPARATE `response_format` axis (not via `tool_choice`); `ModelCapability.output.structured` gate landed. [`../proposed/tool-use.md`](../proposed/tool-use.md) |
+| Structured-output via tools (`tool_choice:{type:tool}`) | forced JSON | COMMITTED (D48) | MODERATE | a SEPARATE `response_format` axis (not via `tool_choice`); `ModelCapability.output.structured` gate landed. [`../proposed/tool-use-design/tool-use.md`](../proposed/tool-use-design/tool-use.md) |
 
 ## 6. Deliberately OUT by design (not gaps to "fix")
 
@@ -142,7 +142,7 @@ Rejected by a decision or the constitution — recorded so a cold agent doesn't 
 
 ## 8. Cross-references
 
-- Scripting/automation/variables/macro/STscript: D46 → [`../proposed/automation.md`](../proposed/automation.md).
+- Scripting/automation/variables/macro/STscript: D46 → [`../proposed/automation-design/automation.md`](../proposed/automation-design/automation.md).
 - Ownership categories + the no-global-tier + image/asset decisions: ledger D18 / D20 / D21 / D23.
 - Sealed backends + adding a source (the D39 template) + roles firewall: `Tier-3b-Providers.md`, D39.
 - Reserved columns/roles: D37 (`toolCalls`), D39 (`generateImage`), D41 (reasoning/warnings).

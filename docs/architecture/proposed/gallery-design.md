@@ -385,7 +385,7 @@ SSRF-guarded card-hub proxies all ride exactly this pair), and orbweaver already
 `safeFetch` exists unwired in `infra/network/egress.ts` beside the boot-time egress firewall
 (`Tier-3-Infra.md`, "the hardening seam for the first user-supplied-URL feature"). The guard gates:
 **this doc's §5 gif import** (the first likely wiring), **databank's scraper verbs**
-(`databank.md` homes scrapers on `infra/network`), **remote card-hub browsing if B5 is ever
+(`databank-design/databank.md` homes scrapers on `infra/network`), **remote card-hub browsing if B5 is ever
 greenlit**, and **any server-side fetch of D44 external media** (`ThemeOverride` external URLs /
 `allowedMediaPrefixes` — the client-side load path stays CSP-gated per `UI-Theming-and-Content.md`
 §12.3, but the moment any of those URLs is fetched server-side — proxied, thumbnailed, imported to
@@ -446,7 +446,7 @@ an infra prerequisite; it must not ship with a raw `fetch()` as a stopgap.
 - `Core-Laws-and-Precedents.md` — D49 #2 · D21 · D24 · D42 · D44.
 - `Core-Legacy-Migration-and-Gaps.md` §2/§4/§6; `Core-SillyTavern-Feature-Map.md` §2d (PD-55 row).
 - `core/Tier-3-Infra.md` — `infra/network/egress.ts` (`safeFetch`, the staged seam §6 wires).
-- `history/Marinara-Residue-Non-RPG.md` §1 B4/B5; `databank.md` (scrapers share the §6 guard).
+- `history/Marinara-Residue-Non-RPG.md` §1 B4/B5; `databank-design/databank.md` (scrapers share the §6 guard).
 - `UI-Theming-and-Content.md` §12.3 — `forbidExternalMedia`/`allowedMediaPrefixes` (why §5's picker
   previews are outside that gate, and when D44 media would ride §6).
 

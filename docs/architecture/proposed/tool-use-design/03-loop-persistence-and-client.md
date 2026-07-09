@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 03 — The Recurse Loop (chat-owned), Persistence, and the Client Contract
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then
-> [`tool-use.md`](../tool-use.md), win on any conflict.**
+> [`tool-use.md`](tool-use.md), win on any conflict.**
 > **COORDINATION: PD-54 (the loop) is in flight with chat Phase 5.** This doc describes THE loop
 > the D48 ledger entry + `chat.md` authorize — the same one the chat implementation builds. It is
 > a specification of that loop's contract with tool-use, not a second design; where the chat

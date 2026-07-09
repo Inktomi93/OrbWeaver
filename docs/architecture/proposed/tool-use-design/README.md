@@ -8,7 +8,7 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D48, 2026-06-28).** Tool/function calling + structured output ARE in scope;
 > `Core-Laws-and-Precedents.md` D48 is the decision record and wins on any conflict, then
-> [`../tool-use.md`](../tool-use.md) (the committed decision doc this set
+> [`tool-use.md`](tool-use.md) (the committed decision doc this set
 > expands — its decisions are LAW here, never re-decided). This doc set is the build-grade design:
 > a builder with ONLY this set + the orbweaver law docs (AGENTS-1/2/3, `domains/chat.md` (gutted — the code is the doc; git history),
 > `domains/buddy.md` (gutted — the code is the doc; git history), `core/Tier-3b-Providers.md`) can build the whole domain. Every decision

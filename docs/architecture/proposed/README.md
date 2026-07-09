@@ -10,14 +10,19 @@ updated: 2026-07-09
 
 **Status legend:** `built` (shipped — code is the doc) · `building` (in flight, + where) · `design-locked` (committed + review-clean, awaiting its build slot) · `decided` (closed record) · `deferred:<why>` / `blocked:<what>` (parked, trigger recorded).
 
-**File-layout law (triage ruling 2026-07-09 — do NOT "tidy" this directory):** the flat layout is
-FROZEN. A citation sweep found 25 of the 29 root files AND all ten `*-design/` set directories are
-path-cited from CODE (`packages/**` file headers, `scripts/check` gates, `.dependency-cruiser.cjs`,
-tests) — moving or renaming them breaks doc pointers the code deliberately carries. Only
-`character-snapshot-ux.md` · `DESIGN-REVIEW-2026-07-01.md` · `discovery-deferred-corpus-surface.md` ·
-`Marinara-Residue-Non-RPG.md` · `preset-form-mapper-elimination.md` · `sessions-token-rotation.md` ·
-`stats-discovery-seam.md` · `tag-pending-review.md` are doc-cited-only, and moving 8 of 29 buys
-nothing. THIS README is the organization; §0 below is the dispatch order.
+**File-layout law (triage ruling 2026-07-09, CORRECTED same day — measure citations before moving
+ANYTHING):** the ten `*-design/` set directories, **`ui-package-design.md` (195 code citations —
+untouchable, never renumber)**, and a small tail (design-enforcement · gallery-design ·
+import-st-profile-waves · client-tooling-setup · connection-capability-panel · saved-rosters-design ·
+export-deferred-surfaces · ux-flow-revamp · the deferred gap docs — 1–9 citation-shaped code refs
+each) are path-cited from CODE file headers/gates and are FROZEN in place. The four committed
+decision DIGESTS proved zero-code-cited and were CO-LOCATED into their sets (owner call, 2026-07-09):
+`tool-use-design/tool-use.md` · `automation-design/automation.md` · `databank-design/databank.md` ·
+`expressions-design/expressions.md` (basenames kept — prose citing "the digest `x.md`" stays true).
+`gallery.md` stays at root (its design doc is a single sibling file, not a set). Any future move:
+run the citation-shaped sweep first (`grep -rnE '<name>\.md|proposed/<name>|<name> §'` over
+packages/scripts/tests/config), and treat a bare-word count as noise. THIS README is the
+organization; §0 below is the dispatch order.
 
 ## 0. DISPATCH ORDER — the dependency-ordered build queue (triage 2026-07-09)
 
@@ -35,13 +40,13 @@ nothing. THIS README is the organization; §0 below is the dispatch order.
 | hub-browse H1 | the egress guard (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`) | zero deps; unblocks gallery G7 + databank DB7 + D44 fetches |
 | databank DB3 spike | `infra/extraction` (the declared long pole — start it early, it parallelizes) | zero deps; DB2 schema landed |
 | rpg R1-proper | the rpg contracts MODULE (views/verbs/substrate goldens) — schema/brands/stubs already landed | schema rider landed 2026-07-09; R1-proper is self-contained |
-| Doc-corpus amendment sweep | the `domains/*.md` citation repairs + landed-row annotations (mech-tier; spec in the triage record) | doc-only |
+| ~~Doc-corpus amendment sweep~~ | DONE 2026-07-09 (the `domains/*.md` citation repairs, landed-row annotations, digest co-location) | — |
 
 **Track 1 — the client Phase-6 program (sequential where marked):**
 
 1. **Character lane Waves 1–4** (`FINAL-Character-Library-and-Editor-UX.md` §0) — IN FLIGHT.
-   Wave-triggered riders: `character-snapshot-ux.md` (History tab) · `tag-pending-review.md` (the
-   pending-tags read, first tag surface).
+   Wave-triggered rider: `tag-pending-review.md` (the pending-tags read, first tag surface). (The
+   snapshot-history UX rider was retired — the FINAL's §7/§12 already answers it.)
 2. **Chats lane** (`FINAL-Chats-Landing-Room-and-Context-UX.md` §0) — FIX wave first (above), then
    Wave A (room/list polish) ∥ Wave B (multi-human client) ∥ Wave C (chat lore, PD-30) in parallel.
 3. **THE PRESETS-PLACEMENT DECISION (owner)** — presets→settings needs its ledger amendment BEFORE
@@ -75,13 +80,13 @@ search verb waves (per-demand) · import ST-profile waves (blocked:later).
 **Decision gates needing the OWNER (everything else is dispatchable without him):** presets
 placement (Track 1 #3) · the crew CW4 director playtest · nothing else found in triage.
 
-**Digest vs design set (read this before opening an effort):** five efforts have BOTH a loose digest (`automation.md` · `databank.md` · `expressions.md` · `gallery.md` · `tool-use.md` — each the promoted committed decision record expanding its D-entry) AND a full build design. **The `*-design/` set (for gallery: `gallery-design.md`) is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter.
+**Digest vs design set (read this before opening an effort):** five efforts have BOTH a committed decision digest (the promoted decision record expanding its D-entry) AND a full build design. The digests live INSIDE their sets (co-located 2026-07-09): `automation-design/automation.md` · `databank-design/databank.md` · `expressions-design/expressions.md` · `tool-use-design/tool-use.md`; gallery's digest `gallery.md` sits beside its single-file design `gallery-design.md` at root. **The `*-design/` set (for gallery: `gallery-design.md`) is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter. When a built set retires to `../history/`, its digest rides with it.
 
 ## 1. Building NOW — the Phase-5 tail
 
 | Effort | Decision | Status | Canonical spec | Grafts into |
 | - | - | - | - | - |
-| Two-plane variables per-variant delta-fold | D46 | **building** — a separate parked build session (resumes after the docs pass) | `automation.md` §1 (Phase-5 law; the design sets consume it, never reshape it) | `domain/chat` engine + persistence; automation/plugin/rpg all stand on it |
+| Two-plane variables per-variant delta-fold | D46 | **building** — a separate parked build session (resumes after the docs pass) | `automation-design/automation.md` §1 (Phase-5 law; the design sets consume it, never reshape it) | `domain/chat` engine + persistence; automation/plugin/rpg all stand on it |
 | OpenAI-path tool recurse loop (= tool-use **T4**) | D48 · PD-54 | **LANDED 2026-07-04** — PD-54 T1–T4 cleared, Phase 5 FULLY CLOSED (`Core-STATUS.md`); remaining tool-use work is the consumer-gated T5/T6/T7 (§3 row) | `tool-use-design/03` | `domain/chat` engine; rpg R4, automation depth-guard, plugin tools now unblocked |
 
 **Baseline-window riders (must land while the `0000_baseline` squash is open):** agent-principal AP0 ✓ landed (`users.kind`, `agent_principals`, the participant kind-CHECK swap) · crew CW1's tables ✓ landed (`crew_chats`/`crew_plots`/`crew_edit_proposals`/`crew_guides` in `db/schema/crew.ts`, `card_evolution_proposals` in `schema/character-proposals.ts`, and the `crew-*` WORKLOAD\_KINDS members in `@orb/contracts/workloads` — verified in-tree 2026-07-09) · automation's rule store ✓ landed EARLY (`automation_rules`/`automation_budgets`/`automation_fires`/`global_variables` in `db/schema/automation.ts` — a baseline rider, verified in-tree 2026-07-09 round-4) · **RP1 saved-rosters ✓ landed 2026-07-09** (`roster_presets`/`roster_preset_members` in `db/schema/roster-preset.ts`, `RosterPresetId` brand, `@orb/contracts/roster-preset` views) · **expressions E1 + E2-schema ✓ landed 2026-07-09** (`ChatBusEvent` `{type:"expression"}` member + `chat_events` CHECK regen + replay guard + bus-coverage DEFERRED entry; `"sprite"` ASSET\_KIND; `expressions-sprite-sheet` WORKLOAD\_KIND + stub runner; `@orb/contracts/expressions`; `character_sprites` in `db/schema/expressions.ts`) · **DB2-tables subset ✓ landed 2026-07-09** (`documents`/`global_documents`/`character_documents`/`chat_documents` in `db/schema/databank.ts`, `document_chunks` 5th vector table in `db/schema/embeddings.ts`, `"document"` ASSET\_KIND, `databank-ingest`/`databank-reindex` WORKLOAD\_KINDS + stub runners, the `{{databank}}` macro slot, `document`/`document_chunk` brands, `@orb/contracts/databank` origin axis) · **rpg R1-subset ✓ landed 2026-07-09** (owner-authorized option (a)): the 14 tables (`db/schema/rpg.ts`, every CHECK/XOR/RESTRICT/partial-unique DDL-verbatim), 14 TypeID brands, the MINIMAL `@orb/contracts/rpg` (enum tuples + the `$type<>` JSON-column schemas ONLY — no service/verb/bus types; conservative schemas + doc notes for the columns 03 defers to 04/07/R8), the 10 `rpg-*` WORKLOAD\_KINDS + stub runners, and a design-gap fix (`StyleProfileId` brand minted — no unbranded id strings). The rpg contracts MODULE proper (views/verbs/substrate) still trails with R1-proper.
@@ -116,9 +121,9 @@ placement (Track 1 #3) · the crew CW4 director playtest · nothing else found i
 
 | Effort | Decision · PD | Canonical docs | Moving parts | Depends on / grafts into | Open / pivot |
 | - | - | - | - | - | - |
-| tool-use — `domain/tool-use` | D48 · PD-54 | [`tool-use-design/`](tool-use-design/README.md) (README + 5 parts) + digest `tool-use.md` | **T1–T4 LANDED (2026-07-04, PD-54 cleared — `domain/tool-use` + the `runRecurseLoop` in `chat/engine/pipeline.ts` are in-tree).** Remaining, consumer-gated: T5 project-mcp (rides buddy) → T6 structured output (lands with first consumer) → T7 client tool block. README carries the verified landed-vs-remaining truth table (current as of 2026-07-04) | T4 is chat P5 (obligations #1–2); T5 rides buddy; T6 consumers = crew CW2 / rpg | tools × responseFormat exclusivity is a LEAN; T6's first-consumer race is arbitrated in 05 |
-| databank — `domain/databank` | D49 #5 · PD-57 | [`databank-design/`](databank-design/README.md) (README + 8 parts) + digest `databank.md` | DB1 kit/chunk + contracts → DB2 schema + 5th embeddings arm → DB3 `infra/extraction` (**the long pole**, parallel) → DB4 domain core → DB5 `search.documents` lens → DB6 chat graft → DB7 web scraper → DB8 fast-follows | the `{{databank}}` slot reservation (obligation #9) ✓ landed 2026-07-09 (`kit/macro`; the DB2-tables rider) — DB6 consumes it · DB7 needs hub H1 (the guard) | DB3 pdf loader is the only uncertain-cost item (isolated — DB4–6 run on textlike) · prune-verb vs clear-then-restore (05, default: prune) · host-only v1 vs corpus membership-union (flag 2 — a one-site flip later) |
-| expressions — `domain/expressions` | D49 #4 · PD-56 | [`expressions-design/`](expressions-design/README.md) (README + 5 parts) + digest `expressions.md` | E1 contracts + tuples ✓ **LANDED 2026-07-09** (baseline rider) + E2 SCHEMA ✓ landed (`character_sprites`; the CRUD leaf still trails) → E3 classify + post-turn hook (obligations #7–8) → E4 sprite-sheet workload (needs imagery — BUILT; the E1 stub runner is in-tree) → E5 client stage | imagery (built) · chat hook ops · assets ref-registry must gain `character_sprites` | the single-active workload lock serializes sheet jobs deployment-wide (accepted, re-scope criterion in 03 §7) |
+| tool-use — `domain/tool-use` | D48 · PD-54 | [`tool-use-design/`](tool-use-design/README.md) (README + 5 parts; digest `tool-use.md` inside) | **T1–T4 LANDED (2026-07-04, PD-54 cleared — `domain/tool-use` + the `runRecurseLoop` in `chat/engine/pipeline.ts` are in-tree).** Remaining, consumer-gated: T5 project-mcp (rides buddy) → T6 structured output (lands with first consumer) → T7 client tool block. README carries the verified landed-vs-remaining truth table (current as of 2026-07-04) | T4 is chat P5 (obligations #1–2); T5 rides buddy; T6 consumers = crew CW2 / rpg | tools × responseFormat exclusivity is a LEAN; T6's first-consumer race is arbitrated in 05 |
+| databank — `domain/databank` | D49 #5 · PD-57 | [`databank-design/`](databank-design/README.md) (README + 8 parts; digest `databank.md` inside) | DB1 kit/chunk + contracts → DB2 schema + 5th embeddings arm → DB3 `infra/extraction` (**the long pole**, parallel) → DB4 domain core → DB5 `search.documents` lens → DB6 chat graft → DB7 web scraper → DB8 fast-follows | the `{{databank}}` slot reservation (obligation #9) ✓ landed 2026-07-09 (`kit/macro`; the DB2-tables rider) — DB6 consumes it · DB7 needs hub H1 (the guard) | DB3 pdf loader is the only uncertain-cost item (isolated — DB4–6 run on textlike) · prune-verb vs clear-then-restore (05, default: prune) · host-only v1 vs corpus membership-union (flag 2 — a one-site flip later) |
+| expressions — `domain/expressions` | D49 #4 · PD-56 | [`expressions-design/`](expressions-design/README.md) (README + 5 parts; digest `expressions.md` inside) | E1 contracts + tuples ✓ **LANDED 2026-07-09** (baseline rider) + E2 SCHEMA ✓ landed (`character_sprites`; the CRUD leaf still trails) → E3 classify + post-turn hook (obligations #7–8) → E4 sprite-sheet workload (needs imagery — BUILT; the E1 stub runner is in-tree) → E5 client stage | imagery (built) · chat hook ops · assets ref-registry must gain `character_sprites` | the single-active workload lock serializes sheet jobs deployment-wide (accepted, re-scope criterion in 03 §7) |
 | hub-browse — `domain/hub` + the egress guard | D61 (B5a/B5b) | [`hub-browse-design/`](hub-browse-design/README.md) (README + 3 parts) | H1 **the guard** (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`; ≡ gallery G6, ONE work item — unblocks G7/DB7/D44 fetches) → H2 leaf + chub adapter → H3 wyvern/chartavern/pygmalion → H4 preview + import handoff → H5 avatar proxy → H6 client → H7 gif migration (absorbs gallery G7's home) | import front door (built) · `infra/network/egress.ts` staged seam (zero callers today) | pygmalion flow needs build-verification (drop to deferred if closed) · per-user hub credentials = a named flip criterion, not built |
 | saved-rosters — `domain/roster-preset` | D61 (B6) | [`saved-rosters-design.md`](saved-rosters-design.md) (single doc, canonical) | RP1 server (schema + leaf + `applyToChat`, M) → RP2 client picker (S–M, Phase 6) | drives EXISTING chat roster verbs by injection; chat stays preset-blind | none — review-CLEAN |
 
@@ -126,8 +131,8 @@ placement (Track 1 #3) · the crew CW4 director playtest · nothing else found i
 
 | Effort | Canonical docs | Moving parts | Depends on / grafts into | Open / pivot |
 | - | - | - | - | - |
-| automation (Tier 1) — `domain/automation` | [`automation-design/`](automation-design/README.md) (README + 5 parts) + digest `automation.md` | A1 macro-DX → A2 CEL + `{{expr}}` → A3 global variables → A4 contracts + rule store → A5 watcher + dispatch (the L) → A6 action arms → A7 `transform_draft` + the D50 seam → A8 client. A1–A3 are kit-early (buildable NOW) | A5–A7 need chat obligations #3–6 (turn-record `initiator`/`automationDepth`, `variantSelected` ordering, `PromptTransform` points, `applyVariableOps`) — none landed · the variables substrate (§1, building) | reserved `enqueue_crew_workload`/`rpg_verb` arms stay typed-not-built in v1 |
-| plugin (Tier 2) — `infra/plugin-host` + `domain/plugin` | [`plugin-design/`](plugin-design/README.md) (README + 4 parts) + digest `automation.md` §3 | P1 runtime spike + realm → P2 the membrane contract → P3 lifecycle domain → P4 host-function wiring + seams → P5 inline snippets → P6 hardening + the permanent membrane-escape suite | P4 needs automation A5–A7 + the tool-use registry + the D50 seam; tools register as `plugin_<slug'>_<name>` (review PLG-1 resolution) | DoS budget numbers are LEANs with criteria (P6 soak review) · install-widening criterion (02 §4) |
+| automation (Tier 1) — `domain/automation` | [`automation-design/`](automation-design/README.md) (README + 5 parts; digest `automation.md` inside) | A1 macro-DX → A2 CEL + `{{expr}}` → A3 global variables → A4 contracts + rule store → A5 watcher + dispatch (the L) → A6 action arms → A7 `transform_draft` + the D50 seam → A8 client. A1–A3 are kit-early (buildable NOW) | A5–A7 need chat obligations #3–6 (turn-record `initiator`/`automationDepth`, `variantSelected` ordering, `PromptTransform` points, `applyVariableOps`) — none landed · the variables substrate (§1, building) | reserved `enqueue_crew_workload`/`rpg_verb` arms stay typed-not-built in v1 |
+| plugin (Tier 2) — `infra/plugin-host` + `domain/plugin` | [`plugin-design/`](plugin-design/README.md) (README + 4 parts) + the automation digest `automation-design/automation.md` §3 | P1 runtime spike + realm → P2 the membrane contract → P3 lifecycle domain → P4 host-function wiring + seams → P5 inline snippets → P6 hardening + the permanent membrane-escape suite | P4 needs automation A5–A7 + the tool-use registry + the D50 seam; tools register as `plugin_<slug'>_<name>` (review PLG-1 resolution) | DoS budget numbers are LEANs with criteria (P6 soak review) · install-widening criterion (02 §4) |
 
 ## 5. Shipped from this folder — `built` (code is the doc; only the residue is listed)
 

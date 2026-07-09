@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-03
+updated: 2026-07-09
 ---
 
 # Documentation & Comments Law
@@ -115,8 +115,18 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 
 ## Prose / knowledge docs (`docs/`)
 
-- **Taxonomy is physical.** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers) · `proposed/` = unbuilt specs. A doc lives in exactly one.
+- **Taxonomy is physical.** `core/` = current law · `history/` = resolved archeology (dated audits, cleared ledgers) · `proposed/` = unbuilt specs (+ deferrals-with-triggers; `proposed/README.md` is the tracker) · repo ROOT = the active lane's `FINAL-*.md` build-spec (→ `history/` when the lane ships — the persona-doc precedent). A doc lives in exactly one. A committed decision DIGEST lives inside its `*-design/` set (the gallery single-file pair is the root-level exception).
 - **Built code has no prose doc.** For a built module/domain, the code + its file-headers + tests ARE the doc. The cross-cutting law it carries promotes UP to `core/`; the per-module prose is deleted.
+
+### Relocation & retirement (run this BEFORE moving, renaming, or deleting any doc)
+
+Docs are path-cited from code file headers, gates, and other docs — a blind move is silent citation rot. The procedure (established at the 2026-07-09 triage; the worked verdicts live in `proposed/README.md` §File-layout law):
+
+1. **Classify by CITATION-SHAPED sweep, never bare-word counts.** `/usr/bin/grep -rnE '<name>\.md|proposed/<name>|<name> §' packages scripts tests .dependency-cruiser.cjs biome.jsonc` (and the docs tree separately). A bare-word count is noise — `automation` hits domain code, not citations. Verdicts: **FROZEN** (≥1 code-side ref) · **MOVABLE** (doc-side refs only) · **FREE** (none).
+2. **FROZEN freezes the PATH and §-numbers, never the content.** Edit in place freely; never rename the file or renumber cited §s (`ui-package-design.md` and `client-tooling-setup.md` §7/§9 are the canonical examples). Unfreezing is legal but is a CODE change: move + repoint every code-side citation in ONE commit, from a lane that may touch `packages/**`, with the sweep re-run as proof — never from a docs-only lane, never split across commits.
+3. **MOVABLE move checklist (one commit):** `git mv` (keep the basename unless the name itself is wrong — prose cites docs by name) → repoint every doc-side citation (sweep the whole docs tree + root `*.md`) → re-fix the moved file's OWN relative links (depth changed) → update `proposed/README.md` if the file is tracked there → `pnpm check:docs` → re-run the sweep and prove zero references to the old path.
+4. **Retirement paths (pick by why the doc is done):** SUBSUMED by a newer spec → `git rm` + repoint citations to the subsuming doc (the character-snapshot-ux precedent — never leave a tombstone file) · CLOSED record / dated audit → `git mv` to `history/` (the Marinara precedent) · BUILT → delete per the built-code rule above, promoting any cross-cutting WHY to `core/` first · a lane's `FINAL-*.md` on ship → `history/`, its `*-design/` set + digest ride along.
+5. **Never** invent a new directory tier, "tidy" for aesthetics without the sweep, or move a file another live session has dirty (check `git -C ../orbweaver status` when parallel sessions run).
 - **Structure.** One topic per file, under \~40 KB. Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required, deliberately minimal):**
   ```yaml

@@ -10,7 +10,7 @@ updated: 2026-07-03
 > The Phase-6 client half: event → swap, what the client may and may not compute, blob resolution,
 > the swipe cache. ST evidence: `#expression-holder`/`setImage` crossfade — one-line cite. The
 > group multi-sprite VN layer stays deferred (committed §8 reject list); background rendering is
-> the D44 theme-token shell slot (committed `../expressions.md` §5 — not re-covered here).
+> the D44 theme-token shell slot (committed `expressions.md` §5 — not re-covered here).
 
 ---
 
