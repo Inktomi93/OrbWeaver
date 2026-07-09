@@ -33,8 +33,9 @@ companions: FINAL-Chats-Landing-Room-and-Context-UX.md (the as-built baseline + 
    `chat.compact` router row (CREATE A) · the PD-30 lore trio router rows (CREATE C) · **the
    guided-wire zod schema** (§14 ask G1 — `guidedSteerSchema` replacing the `z.any()` guided/opening
    fields, `routers/chat.ts` L44/L64/L87–L89). All thin, independent rows.
-2. **Wave 1 — the ledger amendment (owner action, no code):** ratify §15's chat-mode amendment to
-   `SECTION_PANEL_DEFAULTS`. Blocks the Wave-2 shell change only.
+2. **Wave 1 — the ledger amendments (owner action, no code):** ratify §15 amendment A (chat mode,
+   `SECTION_PANEL_DEFAULTS`) and amendment B (D44 per-chat un-deferral for the scene atmosphere).
+   A blocks the Wave-2 shell change only; B blocks R2 + every atmosphere client piece (Wave 4).
 3. **Wave 2 — room/list client (small, parallel, disjoint files):** the chat-mode resolve-seam
    derivation (§1 LAW 3) · the wand gate drop (§6.4) · FINAL-Chats Wave-A polish (continue-on-empty,
    undo/redo-continue, LIST subtitle/avatars/fork badge/chips, options-menu Compact row) · the jump
@@ -43,8 +44,8 @@ companions: FINAL-Chats-Landing-Room-and-Context-UX.md (the as-built baseline + 
    its build checkpoint (§9.2). Blocks: FIX #3 for the LIST subtitle/avatars; FIX #5 for undo/redo;
    the amendment for chat mode; everything else blocks on nothing.
 4. **Wave 3 — the multi-human client (after Wave 0's FIX #1/#2/#4):** invite dialog · `/join/:token`
-   route · the Members panel rework (§7.1 — rename, People section, the row interaction contract,
-   respond-with-direction pending owner question Q1) · `features/notifications/` (bell + inbox) ·
+   route · the Members panel rework (§7.1 — rename, People section, the row interaction contract) ·
+   `features/notifications/` (bell + inbox) ·
    cast-bar human chips · the Lore tab.
 5. **Wave 4 — reward-zone server asks + their clients (each severable from the others):**
    read-state (§14 ask R1 → the LIST pip + the thread unread divider + §9.3) · scene atmosphere
@@ -74,12 +75,22 @@ group — the shell enters chat mode: **LIST → `overlay`** (edge-reachable sli
 clamp; zero width closed) and **CONTEXT → `collapsed`**. The landing (no chat open) keeps the boot map
 (`chats: { list: "docked", context: "collapsed" }`, `features/app-shell/lib/rail-slots.ts` L107–113).
 The user's per-panel toggle wins permanently thereafter (§4.2 rule 3 untouched — the rule changes only
-the un-overridden default). Mechanism: a **derivation at the existing resolve seam**
-(`features/app-shell/hooks/use-shell-layout.ts`, `override ?? default`) — the Chats section's
-un-overridden default resolves from the active-chat handle: `landing` ⇒ the boot map; `draft |
-committed` ⇒ `{ list: "overlay", context: "collapsed" }`. No runtime seed, no phantom persisted
-override, no effect (the resolve is a render derivation; gate `no-effect-on-shared-selection` stays
-green). Ledger amendment: §15. Consequences a builder must honor:
+the un-overridden default). **Mechanism — the tier boundary, stated exactly (app-shell is
+domain-agnostic and may NOT read the chat handle, UI-Arch §5.1 property 1; this is why the
+rail-slots header once anticipated a `setPanelMode` seed):** the handle read lives in the ROUTE.
+`home-page.tsx` (the composition reader — it already composes from the active-chat handle) derives a
+domain-agnostic runtime default — `landing` ⇒ nothing; `draft | committed` ⇒
+`{ list: "overlay", context: "collapsed" }` — and passes it INTO the shell as a generic per-section
+runtime-default input (e.g. a `sectionDefaultOverrides` prop/param on the shell layout; shape:
+`Partial<Record<SectionId, PanelModes>>` — no `ChatHandle` type crosses the boundary). The resolve
+seam (`features/app-shell/hooks/use-shell-layout.ts`) then computes `override ?? runtimeDefault ??
+bootDefault`. No runtime seed, no phantom persisted override, no effect (a render derivation; gate
+`no-effect-on-shared-selection` stays green), and `features/app-shell/**` imports nothing from
+`features/chat/**`. **Mobile is out of scope for this law:** on a mobile viewport the shell already
+renders LIST/CONTEXT as transient sheets (`use-shell-layout.ts` mobile fork — "docked is a desktop
+concept a full-width sheet must never inherit"); chat mode is a desktop-resolve concern only, the
+mobile behavior is unchanged (land on CONTENT, sheets closed). Ledger amendment: §15. Consequences
+a builder must honor:
 
 - The room is the immersive default for every composition; the transcript fills the frame at rest.
 - CONTEXT surfaces are reached by the **topbar member-count chip** (§6.1 — 1 click) or the existing
@@ -92,7 +103,13 @@ green). Ledger amendment: §15. Consequences a builder must honor:
 to inner: **global → chat atmosphere (§7.3) → character**. Most specific on top; resolution is pure
 CSS-cascade nesting exactly as FINAL-Character §8.2 — **zero merge code**. In a true-solo room the
 built character chrome takeover (FINAL-Chats §6) therefore sits ABOVE the atmosphere; the atmosphere
-earns its keep in group/multi-human rooms, where no single character owns the chrome.
+earns its keep in group/multi-human rooms, where no single character owns the chrome. **Ledger
+dependency, stated:** per-chat theming is currently DEFERRED by D44 decision (1)
+(`Core-Path-Registry-D44-D52.md` — scopes = global + per-character, order `character > global >
+default` "built to accept" more later). The atmosphere (§7.3/R2) is therefore gated on **§15
+amendment B**, which supersedes that deferral (owner-ruled 2026-07-09 — the precedence adjudication
+above IS the ruling; the ledger row makes it law). Build nothing atmosphere-shaped before amendment
+B lands.
 
 **The source-agnostic editor corollary** (FINAL-Chats §1) carries: every CONTEXT editor is a pure
 `(value, save)` component; committed passes the verb, draft passes the `setDraft*` store action.
@@ -107,7 +124,7 @@ or amends:
 | Surface | Write | Verb (authority) | Freshness |
 | - | - | - | - |
 | Wand (guided actions) | immediate | `chat.generate`/`swipe`/`continueTurn`/`impersonate` with `guided` — **composer text = the steer; empty composer ⇒ `guided.input` absent** (§6.4) | bus (turn events) |
-| Respond-with-direction (Members row) | immediate | `chat.generate({speakerCharacterId, guided})` (`GenerateParams` carries both — `domain/chat/contract/params.ts` L214–218) — pending owner question Q1 (§15) | bus (turn events) |
+| Wand Guided response with a target (groups) | immediate | `chat.generate({speakerCharacterId, guided})` (`GenerateParams` carries both — `domain/chat/contract/params.ts` L214–218) — steer = composer text, target = the wand's submenu pick (§6.4; Q1 RESOLVED, §15) | bus (turn events) |
 | Scene atmosphere | immediate | `chat.setChatTheme` (host; §14 ask R2) | bus: `chatUpdated` |
 | Mark-read | immediate, debounced | `chat.markRead({chatId, seq})` (member; §14 ask R1) | user bus: `chatsChanged {chatId}` |
 | Composing signal | ephemeral (never persisted) | `chat.signalComposing` (member, throttled; §14 ask S1) | bus: ephemeral `composing` member |
@@ -123,7 +140,9 @@ read `useTurnPhase` — never a mutation's `isPending`.
 
 Unchanged (FINAL-Chats §3). One topbar addition (not rail): the notifications **bell** (§8.4 of
 FINAL-Chats; built here in Wave 3) — notifications are per-USER and cross-section, so the topbar is
-its home. Feature-detected; single-user installs render no bell.
+its home. Feature-detected; single-user installs render no bell. **This doc adds ZERO rail
+sections** (the seven-section ceiling, D62, is untouched; the World Info/Presets additions stay
+PENDING their own owner re-decision) — do not home the inbox or any chat surface in the rail.
 
 ## 4. LIST — the conversation rows (finds)
 
@@ -227,6 +246,17 @@ Built (`composer.tsx`); FINAL-Chats §6.4 carries (one pill, WAND + SPEAK-AS lef
   note: verify the kit's guided template no-ops on an absent `input` (the `{{guided_instruction}}`
   placement must inject nothing rather than an empty scaffold); if it doesn't, add the one-line kit
   guard and a test. Delete the gate's caveat from the wand header when this lands.
+- **Guided response gains a TARGET submenu at roster > 1 (Q1 resolved — neo parity).** The
+  neo-tavern reference threaded its Speak-As selection into Guided Response ONLY
+  (`composer-guided-row.tsx` L98: `forcedCharacterId: speakAs`); swipe/continue/impersonate stayed
+  member-agnostic. This spec ports that shape: the wand's **Guided response** item, at ≥2
+  characters, opens a member submenu (Auto · each character seat) — pick fires
+  `chat.generate({speakerCharacterId, guided})` with the steer from the composer text as ever
+  (both params on the one exposed verb, `params.ts` L214–218; `generate` runs no arbitration and
+  targets `speakerCharacterId ?? primary`). The other wand items thread NO target (neo parity —
+  they operate on the tail). The built SPEAK-AS control is unchanged (it stays the fire-immediate
+  unsteered targeted generate, `speak-as-select.tsx` L79–80). No own-input steer surface exists
+  anywhere — the composer is the only steer source (owner ruling; §13 pain-point 13).
 - **`@`-mention autocomplete**: typing `@` opens a roster Combobox (`@orb/ui/command` seal) inserting
   the literal `@Name` the arbiter hard-parses from HUMAN send text (`engine/select-speakers.ts`;
   FINAL-Chats §7 — longest-name-first, AI text never forces). Offered only at ≥2 characters (§12).
@@ -234,7 +264,8 @@ Built (`composer.tsx`); FINAL-Chats §6.4 carries (one pill, WAND + SPEAK-AS lef
   (the parse runs server-side over the stored human post, `verbs/turn.ts` L514) — it appears in the
   transcript and the assembled prompt. The sent row renders it as plain text (a styled chip would make
   the render diverge from the stored string — D26). Autocomplete footer copy: *"@Aria appears in your
-  message."* The no-token alternatives (SPEAK-AS; §7.1 respond-with-direction) post nothing.
+  message."* The no-token alternatives (SPEAK-AS; the wand's guided-response target, below) post
+  nothing.
 - Deliberately absent (FINAL-Chats §6.4 drops carry): attach button, `/`-commands (automation's lane —
   the prefix stays free), composer persona switcher.
 
@@ -255,9 +286,11 @@ no second mechanism; under LAW 4 a solo character's own `chatStyle` override sti
 Built (`chat-context-panel-surface.tsx` + the draft twin); host/group gates and the `contextTab` seam
 carry (FINAL-Chats §7). Under LAW 3 CONTEXT rests collapsed; the member-count chip (§6.1) and the
 options-menu tab jumps open it. Tab set after this doc: **Members · Overrides · Group · Scene ·
-Preview · Injections · Lore**. Default tab when opened: **Members** for a group composition,
-**Overrides** otherwise (the surface's own `contextTab: null` default — chat-feature-internal, no
-shell change).
+Preview · Injections · Lore**. **Default tab when opened — the ONE rule (all cases):** Members if
+the Members tab renders AND the room is a group composition; else Overrides. The Members tab renders
+when either of its sections is non-empty (People: multi-human install with >1 human; Cast: ≥2
+characters) and is hidden when both would be empty — so a solo chat on a single-user install opens
+to Overrides. Chat-feature-internal (`contextTab: null` default) — no shell change.
 
 ### 7.1 Members (the Roster tab renamed + reworked; Wave 3)
 
@@ -279,14 +312,12 @@ only at ≥2 characters (§12).
   EXPOSED today — the Cast half blocks on nothing.
 - **Presence honesty:** no online/idle dots for characters (no such data axis). The only live marks:
   responding (turn phase) and muted (roster flag).
-- **Respond with direction…** (pending owner question Q1, §15): opens a small anchored popover with
-  ONE labeled steer input; submit fires `chat.generate({speakerCharacterId, guided: {action:
-  "response", input}})` (both params on one exposed verb — `params.ts` L214–218; `generate` runs no
-  arbitration and targets `speakerCharacterId ?? primary`). Posts no meta-text into canon. **Its steer
-  field is its own input and never touches the composer draft** — it is a Members-row action, not a
-  composer guide action. If the owner rules composer-only steers everywhere, the row degrades to an
-  unsteered `generate({speakerCharacterId})` (= force-turn with targeting) and the popover is not
-  built.
+- **Q1 RESOLVED (owner ruling: neo parity — no own-input steer anywhere).** The
+  respond-with-direction popover is NOT built. The Members row's targeting action is **Force turn**
+  (unsteered, works on muted — the neo reference's per-row ⚡, `group-roster-panel.tsx` L192–210).
+  Steering a SPECIFIC member = the composer path: type the steer in the composer → wand → Guided
+  response → pick the target from its submenu (§6.4) — neo's exact Speak-As-into-Guided-Response
+  shape. Posts no meta-text into canon.
 
 **The row interaction contract (binding — build exactly this):**
 
@@ -330,8 +361,12 @@ reuse) bound to the CHAT row's atmosphere override. Immediate-commit: a control 
 `chat.setChatTheme` (host) → `chatUpdated` on the bus → every member's room chrome re-renders in the
 staged look, and the same user's other devices follow (the override is server truth on the chat row,
 not a device pref). "Reset" sends `null`. Members see a read-only swatch summary + the device-local
-**"Use my own theme in this room"** opt-out toggle (a view pref: Zustand-persist, name registered with
-a why-device-local rationale in the `persistence-boundary` gate's `DEVICE_LOCAL_REGISTRY`). Values are
+**"Use my own theme in this room"** opt-out toggle. **Why device-local (the registry rationale,
+stated here because a builder cannot invent it):** the opt-out is a per-device VIEWING CONDITION,
+not a durable appearance preference — the same user may keep the host's staging on the desktop and
+opt out on a small phone screen, exactly the class of state panel modes occupy; it does not ride the
+synced `UserSettings` blob (UI-Theming §12.1 reserves device-local for precisely this). Register the
+field with that rationale in the `persistence-boundary` gate's `DEVICE_LOCAL_REGISTRY`. Values are
 clamped by the shared `ThemeOverride` Zod clamp — a hostile host can at worst be ugly. v1 is
 committed-only (the draft twin omits Scene; carrying an atmosphere in draft-config into `startChat` is
 a future one-line add, not built now). Precedence: LAW 4 (character wins; zero merge code).
@@ -366,8 +401,10 @@ route (`home-page.tsx`); each attaches the per-chat SSE only for its OPEN chat.
 
 The per-chat stream carries the whole turn lifecycle INCLUDING token deltas: `ChatBusEvent` has a
 `{type:"delta"}` member wrapping `ChatDeltaEvent` (`packages/contracts/src/chat/index.ts` L592/L657),
-`chat.streamMessages` yields to every subscribed member with a per-yield membership gate
-(`routers/chat.ts`), and late attach / reconnect are covered by `replayStreamEvents` ("late-subscriber
+`chat.streamMessages` yields to every subscribed member with a per-yield membership gate — verified:
+the router header states the DRAFT-TOLERANT gate "runs on EVERY live yield so a kicked member's
+stream stops within the kick tx" (`routers/chat.ts` header L4–12; subscription at L480), and late
+attach / reconnect are covered by `replayStreamEvents` ("late-subscriber
 ramp-up") + `replayChatEvents` (`domain/chat/contract/service.ts` L156–163). So a second device with
 the room open streams the in-flight turn live — `turnStarted → delta → turnCompleted` — on its own
 ghost row (the ghost-is-the-only-token-subscriber rule is per-client). Stop is honest from either
@@ -425,8 +462,9 @@ what you didn't, the divider where you left off — with zero per-device state.
 - **(d) Fork-nav** — FINAL-Chats §9d verbatim, plus the >1-human confirm copy (§6.3).
 - **(e) Cross-section jumps** — FINAL-Chats §9e verbatim (store actions only).
 - **(f) Join** — FINAL-Chats §9f verbatim (`/join/:token` → preview → accept → seated at `joinSeq`).
-- **(g) Steer a specific member** — Members panel (member-count chip if closed, 1 click) → row Menu →
-  Respond with direction… → type → Enter → `generate({speakerCharacterId, guided})` (pending Q1).
+- **(g) Steer a specific member** — type the steer into the composer → wand → Guided response ▸
+  pick the target → `generate({speakerCharacterId, guided})` (§6.4; Q1 resolved). Unsteered
+  targeting: the Members row's Force turn, or SPEAK-AS.
 - **(h) Stage the room** — CONTEXT → Scene (host) → adjust a control → `setChatTheme` immediate →
   every member + every own device re-renders (bus `chatUpdated`).
 - **(i) Two devices** — §9 end-to-end; no user-facing ceremony exists or is built (no sync button, no
@@ -448,7 +486,7 @@ Counting rule: gestures = clicks + keystroke chords, identical in both columns; 
 | Mute a group member | 2 (open Roster tab → toggle) | 2 (chip → Members is open-to; inline mute) · keys: chip, row, Enter, item |
 | See who's in the room + state | 1 (open Roster tab) | 1 (member-count chip; opens to Members) |
 | Summon a specific character | 2 (SPEAK-AS open + pick) + type msg | 2 (`@` + pick) + type msg — hands stay on the keyboard; token-in-canon owned (§6.4) |
-| Steer a SPECIFIC member's reply | not directly available | 2 + type (row Menu → item → type → Enter) — pending Q1 |
+| Steer a SPECIFIC member's reply | not directly available | type steer + 2 (wand → Guided response ▸ target) — Q1 resolved, neo parity |
 | Invite someone (host) | 3 gestures (FINAL target) | 3 |
 | Accept an invite | 2 | 2 |
 | Jump to present after scrolling up | manual scroll | 1 (pill) |
@@ -469,7 +507,8 @@ an `if(isGroup)` flag** (D16). Audited against the owner-designated neo-tavern r
 | Output narrator⇄per-speaker (DU whole-object rebuild) | Group tab | hidden at ≤1 character (built gate) |
 | Turn policy ×5 · speakerTags · groupNudge | Group tab | hidden at ≤1 character |
 | cardScope + member-card visibility · auto-mode trio (maxTurns/delayMs/allowSelfResponses) + cost warning | Group tab → Advanced | hidden at ≤1; scoped-cards additionally per-speaker-output-only |
-| Mute · talkativeness · force-turn · respond-with-direction | Members panel Cast rows | Cast section renders at ≥2 characters |
+| Mute · talkativeness · force-turn | Members panel Cast rows | Cast section renders at ≥2 characters |
+| Guided-response target submenu | wand (composer) | ≥2 characters (Auto-only ⇒ no submenu at ≤1) |
 | Cast bar (+ host `+`) | CONTENT | `null` at ≤1 character (built, `chat-cast-bar.tsx`) |
 | SPEAK-AS | composer | size-gated >1 character (built) |
 | `@`-autocomplete | composer | offers rows only at ≥2 characters |
@@ -491,9 +530,10 @@ lifecycle booleans · modals are pickers/interrupts only · destructive = AlertD
 attribution/mentions/trust from AI text · no injection soft-disable · members never see host-only
 affordances · don't re-spec shipped systems). This spec adds:
 
-13. **One steer model.** The composer text IS the wand's steer (owner ruling). Do not add a second
-    steer input to any composer guide action; the Members-row respond-with-direction popover is the
-    ONE sanctioned own-input steer and is pending Q1 — build nothing else with its shape.
+13. **One steer model — the composer is the ONLY steer input in the app** (owner ruling; Q1
+    resolved to neo parity). No guide action, row action, popover, or panel gets its own steer
+    field. Targeting is a pick (the wand's guided-response submenu, SPEAK-AS, Force turn); the
+    direction text always comes from the composer.
 14. **The unread divider anchors to the entry snapshot, never the live `lastReadSeq`** — a divider
     that chases the live value disappears while the user reads.
 15. **No presence invention.** Characters get no online/idle state; the only live marks are
@@ -531,9 +571,11 @@ rows over `listInvitesForChat`, `persistence/invites.ts` L30) · FIX #5 `undoCon
   obligation satisfied by construction). Client: §4 pip, §6.3 divider, §9.3 reconciliation. Cost:
   one column + one verb + one denorm + one emit site. Degrade: recency emphasis stands; pip + divider
   don't render.
-- **R2 — scene atmosphere (from pitch-immersion).** One nullable clamped-`ThemeOverride` field on the
-  chat row + `chat.setChatTheme` (host, immediate, `requireHost`) + carry on `ChatDetail`; the
-  `chatUpdated` fan is free. Client: §6.5 layer + §7.3 Scene tab + the device-local opt-out. LAW 4
+- **R2 — scene atmosphere (from pitch-immersion). BLOCKS on §15 amendment B (the D44 per-chat
+  un-deferral) — build nothing here before that ledger row lands.** One nullable
+  clamped-`ThemeOverride` field on the chat row + `chat.setChatTheme` (host, immediate,
+  `requireHost`) + carry on `ChatDetail`; the `chatUpdated` fan is free. Client: §6.5 layer + §7.3
+  Scene tab + the device-local opt-out. LAW 4
   fixes the precedence (character wins). Cost: S–M — no new clamp, no resolution engine. The
   `previewInvite` rider is owner question Q2 — not built until ruled.
 - **G2 — the last-turn trace summary (S; from pitch-greenfield).** Carry a compact
@@ -546,50 +588,94 @@ rows over `listInvitesForChat`, `persistence/invites.ts` L30) · FIX #5 `undoCon
 ### Tier 2 — severable
 
 - **S1 — the composing signal (S; from pitch-immersion).** A `{type:"composing", chatId, userId}`
-  ephemeral `ChatBusEvent` member (the declared `{type:"expression"}` ephemeral member — schema
-  landed, not yet emitted (`contracts/chat/index.ts` L707) — is the exact shape precedent: same
-  replay-guard posture, never persisted) + a rate-limited `chat.signalComposing`
+  ephemeral `ChatBusEvent` member (the declared `{type:"expression"}` union member — schema landed,
+  emit site deliberately deferred to expressions E3 per its own comment
+  (`contracts/chat/index.ts` L707–712) — is the exact shape precedent: same replay-guard posture,
+  never persisted) + a rate-limited `chat.signalComposing`
   mutation called throttled (leading edge + \~4s repeat while typing continues). Client: §8's cue.
   Nothing else depends on it; drop it and nothing regresses.
 
-### CREATE (client) — see §0 waves. DO-NOT-REBUILD — FINAL-Chats §12's list binds in full; additionally do not rebuild the wand's dispatch (`use-guided-actions.ts` is reused wholesale) or the cast bar.
+### CREATE (client) — see §0 waves.
+
+### DO-NOT-REBUILD (this slice is NOT greenfield)
+
+FINAL-Chats §12's verified-built list binds in full, drops included. Additionally — this spec
+MODIFIES the following built files; each is **extend/rework in place, never regenerate** (the
+landmine that torches working code):
+
+| Built file | This spec's change | Everything else in it |
+| - | - | - |
+| `composer-wand.tsx` | drop the non-empty-draft gate; add the Guided-response target submenu | labels, dispatch wiring, item set — KEPT (dispatch hook `use-guided-actions.ts` reused wholesale) |
+| `swipe-strip.tsx` | the counter becomes a button opening the variant tray | chevron stepping, ArrowLeft/Right, tail gating — KEPT |
+| `chat-header.tsx` | member-count chip becomes the CONTEXT toggle button | committed/draft faces, AvatarStack, ⋯ menu — KEPT |
+| `chat-options-menu.tsx` | add "Invite people…" (host) + "Add character…" (growth seed) rows | existing rows — KEPT |
+| `chat-context-panel-surface.tsx` (+ draft twin) | Roster tab renamed Members + People section + row contract; Scene + Lore tabs added | the five dual-mode editors, host/group gates, `contextTab` seam — KEPT |
+| `chat-cast-bar.tsx` | human chips (Wave 3) | glance chips, size gate, host `+`/`AddMemberPopover` — KEPT |
+| `ghost-message-row.tsx` | wire the speaker attribution props its header anticipates | ghost isolation (the ONLY token subscriber) — KEPT |
+| `chat-list-surface.tsx` | inbox register styling + filter chips + recency emphasis | plumbing (suspense read, client filter, kebab, `onSelect`-only writes) — KEPT |
+| `message-list` seal (@orb/ui) | CONSUMED only (`isAtEnd`/`scrollToEnd` for the jump pill) | never modified |
 
 ### PARKED (recorded, not built)
 
-- **The ⌘. steering band** (greenfield) — owner ruled composer-as-steer; the transient command surface
-  is also the natural future home of automation's `/`-commands, whose lane it stays.
-- **The CONTEXT dossier / config-door restructure** (greenfield) — chat mode collapses CONTEXT at
-  rest, killing the ambient-read premise; the tab structure + the Members face stays. Its best piece
-  survives as the G2 Preview digest.
-- **The user-bus activity fan / LIST "Live" group** (greenfield §7.1) — not asked for; revisit when a
-  presence need materializes.
-- **The checkpoint-history system** — owner lukewarm; fork stays per-message; the ONE D25 checkpoint
-  renders per FINAL-Chats §6.1 (divider tooltip + Compact row).
-- **The Guide popover** (immersion) and **the Members default-open amendment** (discord) — both dead
-  under rulings 2 and 1 respectively; recorded here so no future lane resurrects them without a ruling.
+The `pitch-*`/`CRITIQUE` siblings are historical tournament artifacts — this doc is self-contained,
+and the pitch names below are provenance only. Each dead concept is described so the name is not
+load-bearing:
 
-## 15. The law amendment + open owner questions
+- **The ⌘. steering band** (greenfield) — a transient keyboard-first command popover unifying steer
+  verbs + cast targeting + free-text direction. Owner ruled composer-as-steer; the command-surface
+  slot is also the natural future home of automation's `/`-commands, whose lane it stays.
+- **The CONTEXT dossier / config-door restructure** (greenfield) — CONTEXT split into an
+  always-visible read-only glance face plus one consolidated config surface replacing the tabs. Chat
+  mode collapses CONTEXT at rest, killing the ambient-read premise; the tab structure + the Members
+  face stays. Its best piece survives as the G2 Preview digest.
+- **The user-bus activity fan / LIST "Live" group** (greenfield) — a new user-bus event family
+  (turn-started/settled/viewer-active) powering a LIST group pinning rooms with a scene in motion +
+  presence dots. Not asked for; revisit when a presence need materializes.
+- **The checkpoint-history system** — multiple compaction checkpoints as a browsable timeline. Owner
+  lukewarm; fork stays per-message; the ONE D25 checkpoint renders per FINAL-Chats §6.1 (divider
+  tooltip + Compact row).
+- **The Guide popover** (immersion — the wand rebuilt as a popover with its own steer input) and
+  **the Members default-open amendment** (discord — CONTEXT opening docked-to-Members for group
+  chats) — both dead under rulings 2 and 1 respectively; recorded here so no future lane resurrects
+  them without a ruling.
 
-**THE ONE AMENDMENT — `SECTION_PANEL_DEFAULTS`: chat mode.** Current law:
-`chats: { list: "docked", context: "collapsed" }` (`rail-slots.ts` L107–113) applied unconditionally;
-the map header anticipates a runtime `setPanelMode` seed for state-dependent behavior. Amendment
-(owner-ruled, supersedes the two tournament amendments — the discord pitch's CONTEXT-docked-for-groups
-and the immersion pitch's solo-focus seed): **the Chats section's un-overridden panel default is
+## 15. The law amendments + open owner questions
+
+**AMENDMENT A — `SECTION_PANEL_DEFAULTS`: chat mode.** Current law:
+`chats: { list: "docked", context: "collapsed" }` (`rail-slots.ts` L107–113) as the **boot default**
+— the map sets ONLY the boot value, merged `override ?? default` at the `use-shell-layout.ts`
+resolve seam (the map's own header says so; nothing is "applied unconditionally"); that header
+anticipates a runtime `setPanelMode` seed for state-dependent behavior. Amendment (owner-ruled,
+supersedes the two tournament amendments — the discord pitch's CONTEXT-docked-for-groups and the
+immersion pitch's solo-focus seed): **the Chats section's un-overridden panel default is
 handle-dependent — no chat open (landing) ⇒ the boot map (`list: docked, context: collapsed`); chat
-open (draft or committed), ANY composition ⇒ `list: overlay, context: collapsed`.** Mechanism: a
-derivation at the `use-shell-layout.ts` resolve seam (`override ?? default`), not a runtime seed — no
-phantom persisted override; the user's explicit per-panel toggle wins permanently (§4.2 rule 3
-untouched). **The ledger amendment explicitly supersedes the `rail-slots.ts` header comment's
+open (draft or committed), ANY composition ⇒ `list: overlay, context: collapsed`.** Mechanism per
+LAW 3 (binding — the tier boundary): the ROUTE derives the runtime default from the handle and
+passes a domain-agnostic per-section default into the shell; the resolve computes `override ??
+runtimeDefault ?? bootDefault`; desktop-only (the mobile sheet fork is untouched); not a runtime
+seed — no phantom persisted override; the user's explicit per-panel toggle wins permanently (§4.2
+rule 3 untouched). **The ledger amendment explicitly supersedes the `rail-slots.ts` header comment's
 anticipated `setPanelMode`-on-commit seed** so the two mechanisms never coexist; update that header
 when the amendment lands.
 
+**AMENDMENT B — D44 decision (1): un-defer per-chat theming for the scene atmosphere.** Current law
+(`Core-Path-Registry-D44-D52.md`, D44 decision 1): theming scopes = global + per-character;
+per-persona/**per-chat DEFERRED**; resolution order `character > global > default` "built to accept
+them later." Amendment (owner-ruled 2026-07-09 — the LAW 4 precedence adjudication): **per-chat
+gains ONE scope instance, the host-set scene atmosphere (§7.3/R2), slotted UNDER character:
+`character > chat atmosphere > global > default`** — exactly the "accepts them later without
+rework" seam the deferral reserved. Per-persona stays deferred; no other per-chat theming surface is
+sanctioned by this amendment. R2 (the `setChatTheme` ask) and every atmosphere-shaped client piece
+block on this row landing in the ledger.
+
 **Open owner questions (decide before or during Wave 3/4; each has a designed default):**
 
-- **Q1 — respond-with-direction's own steer input (§7.1).** The Members-row steer popover carries its
-  own input, an exception to the composer-as-steer model (it is a row action, not a composer guide
-  action). If the owner rules composer-only steers everywhere: the row degrades to an unsteered
-  `generate({speakerCharacterId})` — targeting without direction — and no popover is built. Default in
-  this spec: build the popover.
+- **Q1 — RESOLVED (owner ruling 2026-07-09: default to the neo-tavern model).** Neo had NO
+  own-input steer anywhere: per-member row = unsteered Force (`group-roster-panel.tsx` L192–210);
+  steer text = the composer, with the Speak-As selection threaded into Guided Response ONLY
+  (`composer-guided-row.tsx` L98). Adopted: the respond-with-direction popover is NOT built; the
+  wand's Guided response gains the target submenu (§6.4); the composer is the app's only steer
+  input (§13 pain-point 13).
 - **Q2 — the `previewInvite` atmosphere rider (§8; immersion §8 item C).** Should the invite preview
   render inside the room's clamped atmosphere (host-authored room chrome, not identity), or stay
   atmosphere-free? Not built until ruled; either answer leaves R2 intact.
