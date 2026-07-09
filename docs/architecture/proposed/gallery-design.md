@@ -7,12 +7,14 @@ updated: 2026-07-03
 # Gallery & Media Surfaces — the build design
 
 > **Status: COMMITTED (D49 item 2, full scope; gallery v2 reserved under FLAG[PD-55]).** The ledger
-> D49 entry is the decision record and wins on any conflict; `domains/gallery.md` remains the
+> D49 entry is the decision record and wins on any conflict; `gallery.md` remains the
 > committed decision record and this doc is its authoritative build-grade expansion (wins on
 > detail). Also folds in the marinara residue row **B4** (gif external-search proxy —
-> `Marinara-Residue-Non-RPG.md` §1) and homes the **B5a** remote-fetch prerequisite paragraph (§6).
+> `history/Marinara-Residue-Non-RPG.md` §1) and homes the **B5a** remote-fetch prerequisite paragraph (§6).
 > Server bits are additive to the BUILT `domain/assets` (Phase 4c); client bits are Phase 6;
 > v2 + gif import are Phase 7. Source evidence: the ST source audit in the retired
+
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** PARTIALLY BUILT (server v1 shipped). Remaining: G2 animated-sniff rung · G4/G5 client (Phase 6); G6/G7 re-homed to hub H1/H7 (D61).
 > `proposed/media-surfaces/media-surfaces.md` (git history at the promotion commit).
 
 ---
@@ -96,7 +98,7 @@ a real Phase-6 surface demands it. The grid virtualizes via TanStack Virtual (`U
 
 **Gates:** rides the existing assets gates — owner-scoped query in `persistence/`, `test-presence`
 for the verb, `types-in-contract` for the view. Note `contract/views.ts` is a new (legal) slot file
-in the assets 8-slot layout, and `AssetsService` grows from 7 verbs to 8 — `domains/assets.md` takes
+in the assets 8-slot layout, and `AssetsService` grows from 7 verbs to 8 — `domains/assets.md` (gutted — the code is the doc; git history) takes
 a one-line delta when this lands.
 
 **Test plan:**
@@ -383,7 +385,7 @@ SSRF-guarded card-hub proxies all ride exactly this pair), and orbweaver already
 `safeFetch` exists unwired in `infra/network/egress.ts` beside the boot-time egress firewall
 (`Tier-3-Infra.md`, "the hardening seam for the first user-supplied-URL feature"). The guard gates:
 **this doc's §5 gif import** (the first likely wiring), **databank's scraper verbs**
-(`domains/databank.md` homes scrapers on `infra/network`), **remote card-hub browsing if B5 is ever
+(`databank.md` homes scrapers on `infra/network`), **remote card-hub browsing if B5 is ever
 greenlit**, and **any server-side fetch of D44 external media** (`ThemeOverride` external URLs /
 `allowedMediaPrefixes` — the client-side load path stays CSP-gated per `UI-Theming-and-Content.md`
 §12.3, but the moment any of those URLs is fetched server-side — proxied, thumbnailed, imported to
@@ -438,13 +440,13 @@ an infra prerequisite; it must not ship with a raw `fetch()` as a stopgap.
 
 ## 9. Cross-refs
 
-- `domains/gallery.md` — the committed decision record this doc expands.
-- `domains/assets.md` — the CAS index/byte-store split, `storeBlob`, the variant pipeline, the
+- `gallery.md` — the committed decision record this doc expands.
+- `domains/assets.md` (gutted — the code is the doc; git history) — the CAS index/byte-store split, `storeBlob`, the variant pipeline, the
   `sniffMime`→kit deferral (the model for `isAnimated`), D21 ownership.
 - `Core-Laws-and-Precedents.md` — D49 #2 · D21 · D24 · D42 · D44.
 - `Core-Legacy-Migration-and-Gaps.md` §2/§4/§6; `Core-SillyTavern-Feature-Map.md` §2d (PD-55 row).
 - `core/Tier-3-Infra.md` — `infra/network/egress.ts` (`safeFetch`, the staged seam §6 wires).
-- `proposed/Marinara-Residue-Non-RPG.md` §1 B4/B5; `domains/databank.md` (scrapers share the §6 guard).
+- `history/Marinara-Residue-Non-RPG.md` §1 B4/B5; `databank.md` (scrapers share the §6 guard).
 - `UI-Theming-and-Content.md` §12.3 — `forbidExternalMedia`/`allowedMediaPrefixes` (why §5's picker
   previews are outside that gate, and when D44 media would ride §6).
 

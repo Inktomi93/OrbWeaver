@@ -8,6 +8,8 @@ updated: 2026-07-03
 
 > **Status: EXECUTED build design (waves 0–3 + the carve-out fleet are BUILT, 2026-07; the §6.2 client factories are ALSO BUILT — verified 2026-07-09, see the §6.2 status update).** The build plan for the `@orb/ui` package — the frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54/D58; **those win on any conflict** — this doc adds (a) the concrete scaffold decisions the law leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the recorded doc-vs-current-API deltas. **For anything built, the code is the doc** (`packages/ui/src` + the CT suite); code comments cite this doc's §-numbers as their spec provenance — the §-numbering is load-bearing, do not renumber. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9.
 
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** AS-BUILT REFERENCE — waves 0–3 + the client data/forms/state factories are BUILT. §-numbers are load-bearing (code file headers cite them): never renumber, never move this file.
+
 ## 1. Position in the cake + the physics
 
 ```

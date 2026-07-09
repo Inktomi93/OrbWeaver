@@ -32,7 +32,7 @@ D49), the D45 vision-caption op (multimodal modes), Phase-5 chat (the shaper op 
 
 ## I0 — Born-compliant contracts + DDL (S)
 
-The `domains/imagery.md` §7 list, finalized by this design set:
+The `domains/imagery.md` (gutted — the code is the doc; git history) §7 list, finalized by this design set:
 
 1. `ImageGenerateRequest` widening — `negativePrompt`/`size`/`edit{image,mask,references}`
    (doc 01 §4). Additive; existing text→image callers byte-identical.

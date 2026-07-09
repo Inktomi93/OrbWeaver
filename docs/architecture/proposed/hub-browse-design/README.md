@@ -13,7 +13,9 @@ updated: 2026-07-03
 > (`neo-tavern/references/marinara-engine/packages/server/src/routes/bot-browser*.routes.ts`,
 > 1,647 LOC + `utils/security.ts` — dissected fresh for this set, file:line cites inline).
 > Everything here is prescriptive and self-contained: a builder with ONLY this doc set + the
-> orbweaver law docs (AGENTS-1/2/3, `domains/import.md`, `domains/assets.md`,
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. H1 (the egress guard) is dispatchable NOW and unblocks gallery G7 + databank DB7; H2+ follow it.
+> orbweaver law docs (AGENTS-1/2/3, `domains/import.md` (gutted — the code is the doc; git history), `domains/assets.md` (gutted — the code is the doc; git history),
 > `core/Tier-3-Infra.md`) can build the whole system. Every decision carries its WHY + the
 > rejected alternative.
 

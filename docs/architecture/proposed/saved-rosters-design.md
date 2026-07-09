@@ -13,6 +13,8 @@ updated: 2026-07-03
 > character ids**, no FK, no owner, no per-member config) + its CRUD in
 > `characters.storage.ts:649-691`. Orbweaver's roster system (chat.md Part III) is categorically
 > bigger than marinara's group model — the residue doc §4 records that B6 is the ONLY group
+
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** PARTIALLY BUILT — RP1 (schema/brands/views) landed 2026-07-09. Remaining: the RP1 leaf verbs if not yet in-tree (verify `domain/roster-preset`) + RP2 client picker (Phase 6, small).
 > borrow. This is deliberately a SMALL feature: a named, reusable cast you can drop into a new
 > chat. It adds no arbitration, no membership semantics, no chat state.
 
@@ -241,8 +243,8 @@ and FKs; discovery/search never see them).
 
 ## 8. Cross-refs
 
-`domains/chat.md` Part III (the roster, `startChat`, the participant chokepoint, GroupConfig) ·
+`domains/chat.md` (gutted — the code is the doc; git history) Part III (the roster, `startChat`, the participant chokepoint, GroupConfig) ·
 `@orb/contracts/chat` (`groupConfigSchema`/`GroupConfigInput`/`DEFAULT_GROUP_CONFIG`) ·
 `Core-Laws-and-Precedents.md` D16/D18/D22/D23 · `gallery-design.md` §10 flag 1 (the
-producer-vs-derive rule §1 applies) · `Marinara-Residue-Non-RPG.md` §1 B6 + §4 (the
+producer-vs-derive rule §1 applies) · `../history/Marinara-Residue-Non-RPG.md` §1 B6 + §4 (the
 validation record: B6 is the only group borrow).

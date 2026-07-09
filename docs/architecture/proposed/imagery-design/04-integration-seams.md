@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 04 — Integration seams: /imagine, chat wiring, workloads, consumers
 
 > **Status: COMMITTED (D49 item 1) — prescriptive design.** Who calls imagery, through what, with
-> which names — and the resolution of every `domains/imagery.md` §8 open question. The names in §1
+> which names — and the resolution of every `domains/imagery.md` (gutted — the code is the doc; git history) §8 open question. The names in §1
 > are DICTATED vocabulary shared with the concurrently-hardened automation design
 > (`proposed/automation-design/`) — do not drift.
 

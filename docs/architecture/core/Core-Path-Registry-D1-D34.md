@@ -7,12 +7,16 @@ updated: 2026-07-03
 # Orbweaver — Path/Home Registry: D1–D34
 
 > Split from `Core-Laws-and-Precedents.md` §7 (2026-07-02). The central path/home conflict-resolution registry — decisions **D1–D34** (Phase 0–4 backend: entry shape, kit/contracts homes, schema/ownership model). §7 is the single source of truth; every other doc aligns to it. D-numbers are stable global ids (cite as `§7 Dxx`).
+>
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against
+> the code — ALL LIVE. Two annotations landed inline: D2 (stale-additive enumeration) and D9 (form
+> gap). No decision in this range is superseded.
 
 ---
 
 - **D1 — The auth seam is `entry/auth/seam.ts`.** The ONE Principal construction site. NOT `entry/compose/auth-seam.ts`. (Winner: ledger §2 + `core/Tier-3-Infra.md` + `domain/sessions`; `core/Tier-5-Entry.md` was the outlier and is corrected.)
 
-- **D2 — `entry/` canonical shape (LOCKED):** root files `index.ts`, `app.ts`, `lifecycle.ts`; `auth/` (the seam, D1); `boot/` (migrate + `seed-credential` + `seed-owner` + `seed-default-preset` + `seed-default-characters` + `reclaim-locks`); `compose/` (the non-auth wiring: `services`, `runner-env`, `event-bus`, `role-clients`, `effective-config`); `http/` (`blob`, `upload`, `auth-routes`, `healthz`); `import/` (`run-profile-import`, the bulk composition driver). `compose/` is KEPT for wiring; the auth seam lives in `auth/`, not `compose/`.
+- **D2 — `entry/` canonical shape (LOCKED):** root files `index.ts`, `app.ts`, `lifecycle.ts`; `auth/` (the seam, D1); `boot/` (migrate + `seed-credential` + `seed-owner` + `seed-default-preset` + `seed-default-characters` + `reclaim-locks`); `compose/` (the non-auth wiring: `services`, `runner-env`, `event-bus`, `role-clients`, `effective-config`); `http/` (`blob`, `upload`, `auth-routes`, `healthz`); `import/` (`run-profile-import`, the bulk composition driver). `compose/` is KEPT for wiring; the auth seam lives in `auth/`, not `compose/`. *(Audit 2026-07-09: the LOCK is the bucket SHAPE — root files · auth-not-in-compose · the five bucket roles — and it HOLDS; the per-bucket file enumeration above is a 2026-06 snapshot that has grown additively within the same buckets: `http/` gained `export`, `security-headers`; `compose/` gained `chat`, `emit-character-updated`, `emit-chat-changed`, `resolve-image-ref`. Additions inside a bucket comply with the lock; treat the lists as examples, not a closed set.)*
 
 - **D3 — Bulk import has two distinct homes, both real:** `entry/http/upload.ts` = the HTTP multipart route; it delegates to `entry/import/run-profile-import.ts` = the composition driver. Not a conflict — two responsibilities.
 
@@ -26,7 +30,7 @@ updated: 2026-07-03
 
 - **D8 — Claude Agent SDK backend = `infra/providers/backends/agent-sdk/`** (+ `session/`). The `infra/providers/claude-sdk` name is dropped; `domain/settings`'s SDK-runtime-config references point here.
 
-- **D9 — `content-hash` = `@orb/server/kit/content-hash`** (node-only-pure; NOT `@orb/kit`). (Winner: `Core-Legacy-Migration-and-Gaps.md §2`.)
+- **D9 — `content-hash` = `@orb/server/kit/content-hash`** (node-only-pure; NOT `@orb/kit`). (Winner: `Core-Legacy-Migration-and-Gaps.md §2`.) *(Audit 2026-07-09: the HOME holds, but the module sits as a flat `content-hash.ts` placeholder — the one D15 directory-module violation in the tree; fold it into a directory when it gains real content.)*
 
 - **D10 — `replay-buffer` + `stats-tally` = `@orb/kit/{replay-buffer,stats-tally}`** (pure primitives; NOT feature-internal). (Winner: `Core-Legacy-Migration-and-Gaps.md §8` boot-order + `domains/{buddy,workloads,stats}.md`.)
 

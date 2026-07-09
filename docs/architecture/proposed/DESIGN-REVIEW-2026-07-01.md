@@ -48,7 +48,7 @@ All findings applied 2026-07-02 (`0d0a7fe`); the middle column preserves the as-
 | `gallery-design.md` | CLEAN | **CLEAN — YES** |
 | `themes-design.md` | CLEAN | **CLEAN — YES** |
 | `saved-rosters-design.md` | CLEAN | **CLEAN — YES** |
-| `Marinara-Residue-Non-RPG.md` | CLEAN (closed record) | n/a |
+| `../history/Marinara-Residue-Non-RPG.md` | CLEAN (closed record) | n/a |
 
 ---
 
@@ -356,7 +356,7 @@ verbs exist. The derive-vs-stamp argument (§1) applies gallery's D23 generaliza
 (true producer, no owned anchor → stamp). The two-call new-chat flow is honestly distinguished
 from gallery's one-call rule (no torn invariant). No findings.
 
-### 2.14 Marinara-Residue-Non-RPG.md — CLEAN
+### 2.14 ../history/Marinara-Residue-Non-RPG.md — CLEAN
 
 A closed record whose every pointer resolves to a real design set/section; the B-row dispositions
 match D58/D59/D61 exactly. The §2–§4 cautionary records earn their permanence.
@@ -456,7 +456,7 @@ implement in its stated order as it now stands.** §7 is the chat-tail handoff s
 Every NEW chat-side verb, contract field, injected-op seam, or behavior the design library
 requires — the list observation §5.1 called for, deduplicated across all 14 sets. "Chat-side"
 means: `domain/chat` code, `@orb/contracts/chat` shapes, `chats`-family schema, or chat's client
-registries. Verified against the tree 2026-07-02 (nothing below is landed unless marked).
+registries. Verified against the tree 2026-07-02 (nothing below is landed unless marked). **Staleness note (triage 2026-07-09):** rows #1–#2 LANDED with tool-use T1–T4 (2026-07-04, PD-54 cleared); rows #7 ({type:"expression"} bus member), #9 (the {{databank}} macro slot), and #19 (the AP0 participant kind-CHECK) LANDED 2026-07-09 as baseline riders — `README.md` §1 is the verified rider record. Row #15 (`ChatInjection.audience`) re-verified NOT landed 2026-07-09.
 Sorted by phase; each row names its consuming set(s) and the spec home.
 
 ### 7.1 Phase 5 (the live chat build / its immediate tail) — build WITH chat

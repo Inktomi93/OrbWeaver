@@ -140,7 +140,7 @@ Each domain follows the 8-slot template in `Core-0-Architecture-and-Structure.md
 IS the domain name:** `packages/server/src/domain/<name>/` — and for built domains the code + its file
 headers ARE the doc (per-domain prose gutted per `Documentation-Law.md`). Special cases: `memory` lives
 at `domain/chat/memory/` (a chat subsystem; boundary: `Knowledge-Cluster.md`); `character` snapshot-UX:
-`../proposed/character-snapshot-ux.md`; `stats`↔`discovery` seam: `../proposed/stats-discovery-seam.md`;
+`FINAL-Character-Library-and-Editor-UX.md` (repo root) §7 History + §12 FIX #3; `stats`↔`discovery` seam: `../proposed/stats-discovery-seam.md`;
 participants/agents/identity → the pointer subsection below.
 
 | Domain | Origin | Owns |

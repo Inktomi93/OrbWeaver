@@ -280,9 +280,9 @@ deferred per-chat theme scope — the resolution order `character > global > def
 - **D47** — both features previously "Out by design"; this is the re-evaluation, now committed
 - **D49** — adjudication: expressions/sprites = deferred ARCHITECTURAL in the proposal, but user greenlit full scope
 - **D18/D23/D24** — single-owned, derive-don't-stamp, per-type-FK: rules that shape `character_sprites`
-- `domains/assets.md` — per-user CAS, `AssetRef`, `reapIfOrphan` pattern
-- `domains/character.md` — per-character theme override + sprite-set parent
-- `domains/connection.md` — classify request-shaper / `ModelCapability` for structured output gating
+- `domains/assets.md` (gutted — the code is the doc; git history) — per-user CAS, `AssetRef`, `reapIfOrphan` pattern
+- `domains/character.md` (gutted — the code is the doc; git history) — per-character theme override + sprite-set parent
+- `domains/connection.md` (gutted — the code is the doc; git history) — classify request-shaper / `ModelCapability` for structured output gating
 - `core/Tier-3b-Providers.md` — `PROVIDER_ROLES`, `local-light` (v2 classify role template)
-- `domains/chat.md` — the Phase-5 per-turn hook + `ChatEvent`
+- `domains/chat.md` (gutted — the code is the doc; git history) — the Phase-5 per-turn hook + `ChatEvent`
 - `proposed/expression-stage/expression-stage.md` — the full evidence base (ST source audit, neo findings)

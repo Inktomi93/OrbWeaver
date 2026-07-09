@@ -12,6 +12,14 @@ pass-through (see `ux-flow-revamp.md`).
 golden baselines, and rulings P1–P6 — ALL DECIDED 2026-07-05 under Nate's delegation; tasks below
 cite them as settled).
 
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** re-verified against code — the §0c
+> reconciliation table below is ACCURATE; the program is LARGELY LANDED. Still open, and the ONLY
+> dispatchable remainder: **UIP-404** (finish `SettingRow` row-grammar adoption across the settings
+> panes) · **UIP-405** (account modal — deliberately blocked on auth #50) · §8's two slivers (the
+> app-wide focus-ring audit; the streaming caret is VERIFY-LIVE, delegated to the markdown seal) ·
+> §9's Presets/World-Info rail rows stay PENDING the presets-placement owner decision (build from
+> `ux-flow-revamp.md` §3, not §9, when it settles). Do not re-execute a LANDED UIP.
+
 ## 0. How to work this list (read first, cold-read contract)
 
 **The design spec is in-repo.** The Claude-Design mockup is a live React prototype at

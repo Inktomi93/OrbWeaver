@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 01 — The Registry: Entry Contract, Execution Path, `can()` Gating, Registration
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then
-> [`domains/tool-use.md`](../../domains/tool-use.md), win on any conflict.** This doc makes the
+> [`tool-use.md`](../tool-use.md), win on any conflict.** This doc makes the
 > committed doc's §4 skeleton buildable: every shape inline, every seam named.
 
 ---

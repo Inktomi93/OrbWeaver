@@ -198,7 +198,7 @@ const estimate = n(pastedText); // advisory
 
 ## 7. Cross-refs
 
-- `domains/assets.md` — the CAS index/byte-store split, the variant pipeline, the avatar-ref registry,
+- `domains/assets.md` (gutted — the code is the doc; git history) — the CAS index/byte-store split, the variant pipeline, the avatar-ref registry,
   the deferred `sniffMime`→kit promotion (the model for `isAnimated`), D21 per-user ownership
 - `Core-Legacy-Migration-and-Gaps.md` §2 (gallery, thumbnails MODERATE), §4 (token-counter TRIVIAL),
   §6 (tokenizer zoo BY-DESIGN-OUT), §7 (cheap-wins list)

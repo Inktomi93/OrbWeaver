@@ -7,6 +7,11 @@ updated: 2026-07-03
 # Orbweaver — Path/Home Registry: D53–D59
 
 > Split from `Core-Laws-and-Precedents.md` §7 (2026-07-02). Decisions **D53–D59** (note: D54 precedes D53 in source order — preserved as written): client-foundation modernization (D54), regex-script attachment (D53), the memory-system ratification (D55), two small gap notes (D56/D57), and the RPG (D58) and plain-chat-crew (D59) domain commitments (Phase-7+).
+>
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against
+> the code — ALL LIVE (spot-proofs: D53's `node:vm` watchdog is BUILT at `@orb/server/kit/regex` — the
+> entry's "TO BUILD" is now history; D55's constants/schema/witnessing match the built
+> `domain/chat/memory/`; D54's dep/primitive claims all hold). No supersessions.
 
 ---
 

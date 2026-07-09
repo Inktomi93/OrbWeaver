@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 05 — Open-Question Resolutions, Build Chunks, Test Plans, Review Flags
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then
-> [`domains/tool-use.md`](../../domains/tool-use.md), win on any conflict.**
+> [`tool-use.md`](../tool-use.md), win on any conflict.**
 
 ---
 
@@ -167,7 +167,7 @@ applied anywhere in this set without its argument:
    `infra/providers/contract/chat.ts`; D51 re-homed it to `@orb/contracts/chat` (landed). §6.5's
    sketch shows `image_dropped` inside infra `WARNING_CODES`; it landed in `CHAT_WARNING_CODES`.
    Not re-decided here — 02 §1 lands the same shapes at the landed homes. **Ask: a patch pass on
-   `domains/tool-use.md` §1/§6** when the lead next touches it (this set already carries the
+   `../tool-use.md` §1/§6** when the lead next touches it (this set already carries the
    corrected homes, so nothing blocks).
 3. **The committed §4 parenthetical "registry is in-memory per request"** conflicts with
    rpg-design/05 §3's committed "registered once at compose". This design is compose-time /

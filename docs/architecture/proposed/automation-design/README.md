@@ -8,11 +8,13 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D46, 2026-06-28).** This doc set is the authoritative BUILD design for the
 > Tier-1 declarative automation layer (`Core-Laws-and-Precedents.md` D46 is the decision record and
-> wins on any conflict; `domains/automation.md` remains the committed decision digest). Everything
+> wins on any conflict; `../automation.md` remains the committed decision digest). Everything
 > here is prescriptive and self-contained: a builder with ONLY this doc set + the orbweaver law docs
 > (AGENTS-1/2/3, the domain docs it cites) can build the whole Tier-1 system. Every decision carries
 > its WHY + the rejected alternative. Tier 2 (the QuickJS plugin host) is the sibling set
 > [`../plugin-design/`](../plugin-design/README.md); the two share the trigger taxonomy (01), the
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. A1–A3 are dispatchable NOW (kit-early, zero deps; the `global_variables` schema already landed). A4+ waits on the D46 variables substrate; A5–A7 additionally need chat obligations #3–#6 (none landed).
 > CEL/macro expression layer (02), and the `can()` capability model.
 
 ## The one-paragraph design
@@ -44,7 +46,7 @@ claim are RESERVED — enumerated and typed, not built in v1.
 ## Context: the variables substrate (Phase-5 law — do NOT redesign here)
 
 Tier 1 stands on the D46 variables substrate, which is **being built by the live Phase-5
-implementation** and is fully specified in `domains/automation.md` §1 + the D46 ledger entry. The
+implementation** and is fully specified in `../automation.md` §1 + the D46 ledger entry. The
 five facts a Tier-1 builder consumes (and must not reshape):
 
 1. **Two planes**: config = ChoiceBlock picks (chat config, carried on fork); runtime = script

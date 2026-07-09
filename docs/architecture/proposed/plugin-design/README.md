@@ -8,11 +8,13 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D46, 2026-06-28) — a deliverable, not a maybe.** This doc set is the
 > authoritative BUILD design for the Tier-2 code sandbox (`Core-Laws-and-Precedents.md` D46 is the
-> decision record and wins on any conflict; `domains/automation.md` §3 remains the committed
+> decision record and wins on any conflict; `../automation.md` §3 remains the committed
 > decision digest). Sequenced after the Phase-5 seams it depends on (the `can()` axis, the chat
 > event bus, the turn pipeline) and after the Tier-1 set it composes with
 > ([`../automation-design/`](../automation-design/README.md) — the trigger taxonomy, the
 > PromptTransform seam, and the budget axes are DEFINED there and consumed here). Everything here
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD-LATER. The P1 runtime spike is dispatchable anytime; P4+ is blocked on automation A5–A7 + the D50 transform seam + the tool-use registry.
 > is prescriptive and self-contained; every decision carries its WHY + the rejected alternative.
 
 ## The one-paragraph design

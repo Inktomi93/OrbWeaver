@@ -18,6 +18,8 @@ updated: 2026-07-03
 > (AGENTS-1/2/3, the domain docs it cites, `rpg-design/` for the precedent pattern) can build the
 > whole system. Every decision carries its WHY + the rejected alternative.
 
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. Next: CW2 (lands tool-use T6 structured-output as its first consumer; the `worldInfo.upsertEntries` first-builder race with rpg R7 is arbitrated in 08). CW4 stays HARD-GATED on the mandatory owner director playtest.
+
 ## The one-paragraph design
 
 Ordinary (non-game) chats gain an **async crew** — the D58 rpg-crew pattern with the game removed.

@@ -7,6 +7,8 @@ PLANNED block); THIS doc holds the implementation detail, tiering, and process. 
 [`ux-flow-revamp.md`](ux-flow-revamp.md) (the flows/parity). This doc answers ONE question:
 **after the revamp lands, what makes an agent six months from now unable to ship ugly?**
 
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** LIVE LAW COMPANION (D62). The gate program is largely LANDED (the 2026-07-09 gate quartet brought the battery to 50 gates / 8 stages — `core/Core-Enforcement-Active-Gates.md` is the live registry). The presets-placement rows stay PENDING the owner decision.
+
 ## 0. The philosophy — why this repo can actually enforce design
 
 Most codebases can't enforce design because they rely on human review taste. This repo has two

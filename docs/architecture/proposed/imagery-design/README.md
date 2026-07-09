@@ -8,12 +8,14 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D49 item 1, 2026-06-28).** The `imagery` domain IS committed law; this doc
 > set is its authoritative BUILD design. `Core-Laws-and-Precedents.md` D49 item (1) is the decision
-> record and wins on any conflict; `domains/imagery.md` remains the committed decision record and
+> record and wins on any conflict; the D49 #1 ledger entry (`core/Core-Path-Registry-D44-D52.md`) is the committed decision record — `domains/imagery.md` was gutted (git history) — and
 > this set expands it to build grade — where this set resolves one of that doc's §8 open questions
 > or extends a sketch shape, the delta is recorded in §Review flags below so the lead sees every
 > change. Evidence bases: the archived `proposed/image-studio/image-studio.md` (git history, commit
 > `1d18f17` — the ST `stable-diffusion/index.js` source audit + neo findings) and
-> `proposed/Marinara-Residue-Non-RPG.md` §1 rows B2/B3 (the marinara fold-ins). Everything here is
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** AS-BUILT (code is the doc). Remaining: I5 client (Phase 6). Note: the committed decision record is the D49 #1 LEDGER ENTRY — `domains/imagery.md` was gutted (git history); this README's flag list carries the as-built deltas.
+> `history/Marinara-Residue-Non-RPG.md` §1 rows B2/B3 (the marinara fold-ins). Everything here is
 > prescriptive and self-contained: a builder with ONLY this doc set + the orbweaver law docs
 > (AGENTS-1/2/3, the domain docs it cites) can build the whole domain — no ST or marinara reading
 > required. Every decision carries its WHY + the rejected alternative.

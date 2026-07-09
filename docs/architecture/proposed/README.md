@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-03
+updated: 2026-07-09
 ---
 
 # proposed/ — the in-progress board
@@ -9,6 +9,71 @@ updated: 2026-07-03
 > ONE tracker for every in-flight design effort staged here: status, canonical docs, moving parts, graft points, live pivot points. Cross-refs (NOT restated here): decisions = the D-entries in `../core/Core-Laws-and-Precedents.md` (they win on conflict) · phase/PD catalogue = `../core/Core-SillyTavern-Feature-Map.md` §2c–2e + the PD registry `../core/Core-Audits-and-Debt.md` · build cursor = `../core/Core-STATUS.md`. The 2026-07-01 adversarial review of every set (all findings APPLIED in `0d0a7fe`) is [`DESIGN-REVIEW-2026-07-01.md`](DESIGN-REVIEW-2026-07-01.md); its **§7 is the consolidated chat-side obligations sheet** — every "obligation #n" below is a row there.
 
 **Status legend:** `built` (shipped — code is the doc) · `building` (in flight, + where) · `design-locked` (committed + review-clean, awaiting its build slot) · `decided` (closed record) · `deferred:<why>` / `blocked:<what>` (parked, trigger recorded).
+
+**File-layout law (triage ruling 2026-07-09 — do NOT "tidy" this directory):** the flat layout is
+FROZEN. A citation sweep found 25 of the 29 root files AND all ten `*-design/` set directories are
+path-cited from CODE (`packages/**` file headers, `scripts/check` gates, `.dependency-cruiser.cjs`,
+tests) — moving or renaming them breaks doc pointers the code deliberately carries. Only
+`character-snapshot-ux.md` · `DESIGN-REVIEW-2026-07-01.md` · `discovery-deferred-corpus-surface.md` ·
+`Marinara-Residue-Non-RPG.md` · `preset-form-mapper-elimination.md` · `sessions-token-rotation.md` ·
+`stats-discovery-seam.md` · `tag-pending-review.md` are doc-cited-only, and moving 8 of 29 buys
+nothing. THIS README is the organization; §0 below is the dispatch order.
+
+## 0. DISPATCH ORDER — the dependency-ordered build queue (triage 2026-07-09)
+
+> What can be dispatched, in what order, and what blocks what — so lanes never double back. Sets
+> named here carry a matching `Triage 2026-07-09` banner. The three tracks are mutually
+> independent; WITHIN a track, order is load-bearing. Re-verify a row's blockers against
+> `Core-STATUS.md` before dispatching if this stamp is >1 week old.
+
+**Dispatchable NOW (no unmet blockers, disjoint file sets — safe to run in parallel):**
+
+| Lane | First chunk | Why it's unblocked |
+| - | - | - |
+| Chats FIX wave | `FINAL-Chats-Landing-Room-and-Context-UX.md` (repo root) §12 FIX #1–#5 — thin router exposures of built verbs (invites/membership cluster, `compact`, `undoContinue`/`revertContinue`, `listInvites`, `ChatSummary` denorms) | domain code verified built + dark 2026-07-09 |
+| automation A1–A3 | macro-DX · CEL+`{{expr}}` · global variables (kit-early) | zero deps — `automation-design/05` says buildable now; `global_variables` schema already landed |
+| hub-browse H1 | the egress guard (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`) | zero deps; unblocks gallery G7 + databank DB7 + D44 fetches |
+| databank DB3 spike | `infra/extraction` (the declared long pole — start it early, it parallelizes) | zero deps; DB2 schema landed |
+| rpg R1-proper | the rpg contracts MODULE (views/verbs/substrate goldens) — schema/brands/stubs already landed | schema rider landed 2026-07-09; R1-proper is self-contained |
+| Doc-corpus amendment sweep | the `domains/*.md` citation repairs + landed-row annotations (mech-tier; spec in the triage record) | doc-only |
+
+**Track 1 — the client Phase-6 program (sequential where marked):**
+
+1. **Character lane Waves 1–4** (`FINAL-Character-Library-and-Editor-UX.md` §0) — IN FLIGHT.
+   Wave-triggered riders: `character-snapshot-ux.md` (History tab) · `tag-pending-review.md` (the
+   pending-tags read, first tag surface).
+2. **Chats lane** (`FINAL-Chats-Landing-Room-and-Context-UX.md` §0) — FIX wave first (above), then
+   Wave A (room/list polish) ∥ Wave B (multi-human client) ∥ Wave C (chat lore, PD-30) in parallel.
+3. **THE PRESETS-PLACEMENT DECISION (owner)** — presets→settings needs its ledger amendment BEFORE
+   any of: the Presets rail section (ux-flow L7), the preset editor, `preset-form-mapper-elimination.md`,
+   `connection-capability-panel.md`. Everything preset/connection-client is BLOCKED on this one ruling.
+4. **Settings IA finish** (ux-flow J11 partials + punchlist UIP-404 row grammar + the side-eye P3s).
+5. **Phase-6 stages of the grafts** (each after its server half): imagery I5 · gallery G4/G5 ·
+   saved-rosters RP2 picker · expressions E5 · tool-use T7 (needs the `CHAT_SURFACE_SLOTS`/
+   `CHAT_CONTEXT_SLOTS`/`TOOL_RENDERERS` registries — DESIGN-REVIEW §7 #23–25; land the registries
+   with their first consumer, not speculatively).
+6. J10 corpus preview — blocked on the discovery corpus waves (Track 3, per-demand).
+
+**Track 2 — the play systems (server; order is load-bearing):**
+
+1. **Variables substrate** (D46 Phase-5, `building` in a parked session) — BLOCKS automation A5–A7,
+   rpg R2+. Resume/finish it before dispatching either.
+2. **AP3 + AP4a — the agent seat wave** (needs chat obligation #18 `seatAgent`; AP4a additionally
+   needs rpg R3). `buddy-observer-reaction-engine.md` lands WITH this wave (its named trigger).
+3. **rpg R2 → R11** per `rpg-design/10` (R4 needs the P5 obligations — #1–2 LANDED with T1–T4).
+4. **crew CW2+** (T6 structured-output lands with CW2 as first consumer; `worldInfo.upsertEntries`
+   is first-builder-lands-it, shared with rpg R7). **CW4 stays gated on the MANDATORY director
+   playtest (owner).**
+5. **automation A4 → A5–A8** (after the substrate + chat obligations #3–6) → **plugin P1–P6**
+   (P1 spike is dispatchable anytime; P4 waits on A5–A7 + the tool registry + the D50 seam).
+
+**Track 3 — deferred/per-demand (each doc carries its own trigger; do not schedule):** the §6
+client-trigger docs · the §7 deferred surfaces · tool-use T5 (rides buddy) · databank DB4–DB8 (after
+DB3+chat graft ops) · expressions E3–E4 (needs chat hook ops #8) · hub H2–H7 (after H1) · discovery/
+search verb waves (per-demand) · import ST-profile waves (blocked:later).
+
+**Decision gates needing the OWNER (everything else is dispatchable without him):** presets
+placement (Track 1 #3) · the crew CW4 director playtest · nothing else found in triage.
 
 **Digest vs design set (read this before opening an effort):** five efforts have BOTH a loose digest (`automation.md` · `databank.md` · `expressions.md` · `gallery.md` · `tool-use.md` — each the promoted committed decision record expanding its D-entry) AND a full build design. **The `*-design/` set (for gallery: `gallery-design.md`) is canonical and wins on detail; the digest stays the decision record** — each digest carries a banner saying exactly this. Build from the set; cite the digest only for the committed decision's letter.
 
@@ -74,14 +139,31 @@ updated: 2026-07-03
 | client tooling (ESLint + Vite) | — | **built** except the CSP | §7.5 reference CSP lands with the `entry/http` wave; §9 open flags. Docs [`client-tooling-setup.md`](client-tooling-setup.md) — §7/§9 numbers cited from code |
 | themes — `themes` entity in `domain/settings` | D44 §12.1 | **built** (server: `themes` table + 6 CRUD verbs + seed rows + `theme`/`appearance` UserSettings namespaces; client: `<ThemeScope>`, editor) | nothing — archived as the as-built design record. Docs moved to [`../history/themes-design.md`](../history/themes-design.md) |
 
+## 5b. The D62 client program + the FINAL lane docs (live companions — previously untracked here)
+
+| Doc | Role | State (2026-07-09) |
+| - | - | - |
+| [`ux-flow-revamp.md`](ux-flow-revamp.md) | the D62 journeys/parity/lanes program record | lanes L0–L6 LANDED (its §0.5 truth table is current); remaining = J10/J11 partials + L7 parity (Presets row BLOCKED on the presets-placement decision). The chat journeys are now governed by the FINAL-Chats doc; J9 by FINAL-Character |
+| [`ui-polish-punchlist.md`](ui-polish-punchlist.md) | the 43 UIP pixel/chrome fixes | re-verified against code 2026-07-09: LARGELY LANDED; open = UIP-404 SettingRow adoption · UIP-405 (auth #50) · §8 focus-ring audit + VERIFY-LIVE caret · §9 pending the presets decision (its banner carries the detail) |
+| [`design-enforcement.md`](design-enforcement.md) | the D62 gate machine (Tier A/B/C) | gate battery LIVE at 50 gates / 8 stages (`core/Core-Enforcement-Active-Gates.md` is the registry); presets rows PENDING the owner decision |
+
+**The FINAL lane docs (repo ROOT, one per active client lane — the convention):** a lane in active
+build carries an exhaustive `FINAL-<lane>.md` at the repo root (the build-spec the builders obey);
+when the lane SHIPS, the FINAL moves to `../history/` as the as-built record (the persona doc did
+exactly this). Current: `FINAL-Character-Library-and-Editor-UX.md` (in build) ·
+`FINAL-Chats-Landing-Room-and-Context-UX.md` (authored 2026-07-09, dispatch-ready) · shipped:
+`../history/FINAL-Persona-and-Immersive-Chat-Visuals.md`.
+
 ## 6. Client-slot decide-at-build designs (Phase 6 triggers)
 
 | Effort | Doc | Status | Trigger |
 | - | - | - | - |
 | Descriptor-driven params panel + `quality` dial mapping | [`connection-capability-panel.md`](connection-capability-panel.md) | deferred:no-client-surface | the client params panel build |
 | `PresetFormValues` + mapper elimination | [`preset-form-mapper-elimination.md`](preset-form-mapper-elimination.md) | deferred:no-client-surface | the preset editor build (criterion: TanStack binds every nested path) |
-| Character snapshot-history UX | [`character-snapshot-ux.md`](character-snapshot-ux.md) | deferred:presentation-only | the character-editor build |
 | Tag pending-review read verb | [`tag-pending-review.md`](tag-pending-review.md) | deferred:first-consumer | build WITH the Phase-6 tag/character surfaces |
+
+(`character-snapshot-ux.md` was RETIRED at the 2026-07-09 triage — both of its open questions are
+answered by `FINAL-Character-Library-and-Editor-UX.md` §7 History + §12 FIX #3.)
 
 ## 7. Deferred domain surfaces (gap docs carved from gutted `domains/*.md` — each PD-cross-referenced, design preserved)
 
@@ -99,6 +181,6 @@ updated: 2026-07-03
 
 ## 8. Records (closed — do not re-mine)
 
-- [`Marinara-Residue-Non-RPG.md`](Marinara-Residue-Non-RPG.md) — `decided` (D58/D59/D61 in full). The adjudicated borrow list + the permanent scripting/agent-pipeline/group-system cautionary records. Marinara mining is CLOSED; evidence in git history.
+- [`Marinara-Residue-Non-RPG.md`](../history/Marinara-Residue-Non-RPG.md) — `decided` (D58/D59/D61 in full); MOVED to `../history/` at the 2026-07-09 triage (a closed record belongs with the resolved archeology). The adjudicated borrow list + the permanent scripting/agent-pipeline/group-system cautionary records. Marinara mining is CLOSED; evidence in git history.
 - [`DESIGN-REVIEW-2026-07-01.md`](DESIGN-REVIEW-2026-07-01.md) — `decided` (all findings applied `0d0a7fe`). Kept live for **§7, the chat-side obligations sheet** — the P5/P6/P7 handoff list this board's "obligation #n" refs point into.
 - [`rpg/`](rpg/README.md) — tombstone for the absorbed marinara RPG corpus (git history).

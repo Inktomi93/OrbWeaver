@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 04 — The Structured-Output Axis (`responseFormat`) End-to-End
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then
-> [`domains/tool-use.md`](../../domains/tool-use.md), win on any conflict.** Structured output is
+> [`tool-use.md`](../tool-use.md), win on any conflict.** Structured output is
 > the SECOND axis of this domain — a separate `responseFormat` contract that never rides
 > `tool_choice` (D48). Its consumers are already committed: every chat-crew member is "pure
 > structured output + one bounded retry" (D59, chat-crew-design/03 §0), and rpg's async crew

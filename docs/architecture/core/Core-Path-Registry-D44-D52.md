@@ -7,6 +7,7 @@ updated: 2026-07-03
 # Orbweaver — Path/Home Registry: D44–D52
 
 > Split from `Core-Laws-and-Precedents.md` §7 (2026-07-02). Decisions **D44–D52** (plus PD-11): specs for not-yet-built surfaces — theming/rich-HTML (D44), multimodal image input (D45), scripting/automation (D46), the 7 committed ST-parity gaps (D47), tool-calling (D48), gap-register adjudication (D49), event-bus parity (D50), the D45 threading correction (D51), the ECharts pre-commit (D52).
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against the code — ALL LIVE, no supersessions beyond those already annotated inline (D49 §3 background-image → amended by D63, already cross-noted; PD-11's hosted-rerank premise is runtime-verifiable only).
 
 ---
 

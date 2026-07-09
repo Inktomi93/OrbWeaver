@@ -7,6 +7,7 @@ updated: 2026-07-05
 # Orbweaver — Path/Home Registry: D62
 
 > Split-sibling of `Core-Laws-and-Precedents.md` §7 (range files D1–D61 listed there). Decision **D62**: the UI/UX revamp program — flows, region law, design grammar, primitive deltas, design gates.
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against the code — ALL LIVE, no supersessions beyond those already annotated inline (the program itself is largely BUILT — `proposed/ux-flow-revamp.md` §0.5 is the per-journey truth table).
 
 ---
 

@@ -13,6 +13,8 @@ updated: 2026-07-03
 > never contradicted — where this set adds detail, this set wins on detail. Evidence base: the ST
 > `extensions/expressions/index.js` source audit (the archived `proposed/expression-stage/` proposal,
 > git history at `982fd99^`) + marinara `sprites.routes.ts` (sprite-sheet generation — the
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. E1 + the E2 schema landed 2026-07-09; next is the E2 CRUD leaf + E3 classify (needs the chat hook ops, obligation #8). E4 consumes imagery (BUILT).
 > Marinara-Residue B1 fold-in, decided into this domain). Everything here is prescriptive and
 > self-contained: a builder with ONLY this doc set + the orbweaver law docs (AGENTS-1/2/3, the domain
 > docs it cites) can build the whole system. Every decision carries its WHY + the rejected
@@ -61,7 +63,7 @@ this domain (committed; unchanged here).
 
 VN scene compositor / live2d / VRM / talkinghead — permanently out (D49) · group multi-sprite VN
 layer — deferred v2 at best · background is a D44 `ThemeOverride` token, NOT a domain (committed
-`domains/expressions.md` §5 — unchanged by this set; no body doc re-covers it) · classify is a
+`../expressions.md` §5 — unchanged by this set; no body doc re-covers it) · classify is a
 server-side shaper against the resolved credential, never a browser call · no raw `url()` across
 the theme-token boundary · sprite-sheet generation is EXPRESSIONS-owned (domain-of-affect: it
 writes `character_sprites` rows); `domain/imagery` is consumed by injection

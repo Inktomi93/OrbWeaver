@@ -7,7 +7,7 @@ updated: 2026-07-03
 # 02 — The Wire Seams + the Two Projections + the Translators
 
 > **Status: COMMITTED (D48) — prescriptive design; the ledger D-entry, then
-> [`domains/tool-use.md`](../../domains/tool-use.md), win on any conflict.** This doc lands the
+> [`tool-use.md`](../tool-use.md), win on any conflict.** This doc lands the
 > committed doc's §6 contract shapes at their POST-D51 homes (the committed §1/§6 pre-date D51's
 > re-homing of `ChatContentPart` and the warning-code split — see §5 + the review flag in 05),
 > and specifies both projections + every translator's mapping obligation.

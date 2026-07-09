@@ -17,6 +17,8 @@
 > whole system. Every decision carries its WHY + the rejected alternative; every lean carries a
 > committed default + the criterion that finalizes it.
 
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. Next: the AP3+AP4a seat wave (needs chat obligation #18 `chat.seatAgent`; the AP4a agent-GM half additionally needs rpg R3). `buddy-observer-reaction-engine.md` lands WITH this wave.
+
 ## The one-paragraph design
 
 An agent becomes a **real principal**: its own `users` row (`kind:'agent'`, structurally

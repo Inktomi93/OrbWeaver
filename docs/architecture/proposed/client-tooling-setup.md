@@ -8,6 +8,8 @@ updated: 2026-07-03
 
 > **BUILT except the CSP (§7.5/§9):** the ESLint lane lives in `eslint.config.js` and the Vite build in `packages/client/vite.config.ts` — **both files carry their full WHY inline; they are the doc for everything built.** This file keeps only (a) the §-numbered rationale code comments cite (§7, §9 — do not renumber), (b) the verification detail not worth repeating in code, and (c) the UNBUILT reference CSP (§7.5) + open items (§9). Installed + verified against the live registry 2026-07-02.
 
+> **Triage 2026-07-09 (dispatch board — `README.md` §0):** AS-BUILT except the §7.5 reference CSP (lands with the `entry/http` wave). §7/§9 numbers are code-cited: never renumber, never move this file.
+
 ## 1. The doctrine — ESLint is the NARROW supplement to Biome
 
 Biome owns formatting + 400+ correctness rules (`biome.json` + the grit plugins). ESLint exists ONLY for the rules Biome can't do: React-hooks + React-Compiler Rules-of-React diagnostics, TanStack Query/Router discipline, Tailwind compiled-class validation, `@typescript-eslint/no-deprecated`, `tsdoc/syntax`. **Explicit-rules-only** (never a `...recommended` bundle — one reasoned exception, §2). Config at repo root; `lint:eslint` is a `pnpm check` stage. Rule-by-rule verdicts + drop reasons: the `eslint.config.js` header.

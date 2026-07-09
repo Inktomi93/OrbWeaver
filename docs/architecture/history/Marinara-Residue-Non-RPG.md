@@ -29,7 +29,7 @@ updated: 2026-07-03
 ## 1. The borrow list (ALL DECIDED — pointers + the preserved evidence)
 
 | # | Borrow | Disposition | Evidence (verified against marinara source) |
-|---|---|---|---|
+| - | - | - | - |
 | B1 | **Sprite-sheet GENERATION → feed `character_sprites`** — generate a full expression set from a prompt, slice the grid with sharp, background-remove each cell, write N sprite rows; the committed classify-and-swap then selects from them | **DECIDED (D61) — COMMITTED, folded into [`expressions-design/`](expressions-design/README.md)** (the `expressions-sprite-sheet` WorkloadKind injecting `imagery.generatePicture`); rides its D49 #4 host | marinara `sprites.routes.ts` (1,999 LOC): `/generate-sheet` compiles a sheet prompt (`compileSpritePrompt`, cells `cols×rows`, `MAX_INDIVIDUAL_SPRITE_EXPRESSIONS = 8`), calls `generateImage`, sharp-slices, `tryRemoveBackgroundWithBackgroundRemover` mattes cells |
 | B2 | **Asset-manifest "pick-before-generate"** — catalog existing tagged assets; the model picks by tag; generate only when nothing fits (cost/latency saver) | **DECIDED (D61) — COMMITTED, folded into [`imagery-design/`](imagery-design/README.md)** (incl. the flagged `imagery_generations` provenance-table delta); rides its D49 #1 host | marinara `asset-manifest.service.ts`: startup-scanned `manifest.json` mapping tags (`backgrounds:fantasy:dark-forest`) → files; the model receives the condensed tag list and references by tag |
 | B3 | **Avatar-reference img2img conditioning** — feed existing character avatars as references so generated art stays on-model | **DECIDED (D61) — COMMITTED, folded into [`imagery-design/`](imagery-design/README.md)** (the D49 `edit`/`ImageEditInput` seam's first generic consumer); rides its D49 #1 host | marinara `readAvatarBase64` + `gameImageUseAvatarReferences`; the GAME-side cousin was adopted in rpg-design/08 §2 |
@@ -66,9 +66,9 @@ model. Kept as one-line evidence anchors for the D46 decisions:
 
 ## 3. The agent-pipeline post-mortem (why orbweaver never builds one — the residue of two retired docs)
 
-Marinara ran ~21 agent types through a functional 3-phase pipeline (`pre_generation → parallel →
+Marinara ran \~21 agent types through a functional 3-phase pipeline (`pre_generation → parallel →
 post_processing`) orchestrated inline in the 11,227-line `generate.routes.ts` god-route; agents
-returned a custom `AgentResult` applied by a ~1,400-line `switch(result.type)`; five agent types
+returned a custom `AgentResult` applied by a \~1,400-line `switch(result.type)`; five agent types
 bypassed the pipeline entirely with hand-rolled route code (director's stateful secret-plot
 double-loop, knowledge-retrieval/router, lorebook-keeper, the text-rewrite editor). The port verdict
 (now enacted by D58's crew + buddy.md's agent-as-pattern law): **dismantle, don't port** — pre-gen

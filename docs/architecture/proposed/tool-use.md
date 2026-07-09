@@ -306,6 +306,6 @@ export const WARNING_CODES = [
 - **D32** — `MESSAGE_ROLES` home + ST bimap (reason `tool` does NOT widen it)
 - **D46** — plugin `can()` surface the tool registry reconciles with
 - `core/Tier-3b-Providers.md` — sealed backends; the drop-with-warning membrane; the agent role
-- `domains/chat.md` — the turn pipeline owns orchestration; the loop is the domain's
+- `domains/chat.md` (gutted — the code is the doc; git history) — the turn pipeline owns orchestration; the loop is the domain's
 - `core/Spine-TypeScript-and-Patterns.md §8` — the `tool`-role open-watch note (RESOLVED here)
 - `proposed/tool-use/tool-use.md` — the full evidence base (ST source audit, neo findings, ST architecture critique)

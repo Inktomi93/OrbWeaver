@@ -13,6 +13,8 @@ updated: 2026-07-03
 > evidence base (the ST source audit) is archived to git history
 > (`docs/architecture/domains/proposed/databank/databank.md` at commit `982fd99~1`). Everything here
 > is prescriptive and self-contained: a builder with ONLY this doc set + the orbweaver law docs
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. DB3 (`infra/extraction`, the declared long pole) is dispatchable NOW and should start early; DB2 schema landed 2026-07-09. DB6 needs the chat GATHER op (obligation #20); DB7 needs hub H1.
 > (AGENTS-1/2/3, the committed domain docs it cites — `embeddings.md`, `search.md`, `assets.md`,
 > `workloads.md`, `chat.md`, `world-info.md`) can build the whole system — no ST reading required.
 > Every new decision carries its WHY + the rejected alternative; where a call is deliberately open,
@@ -73,7 +75,7 @@ nothing about the substrate changes.
 
 ## Review flags (arguments to the lead — the committed decisions above are NOT edited)
 
-1. **`StoreParams` shape drift (embeddings.md).** `domains/embeddings.md` sketches ONE flat
+1. **`StoreParams` shape drift (embeddings.md).** `domains/embeddings.md` (gutted — the code is the doc; git history) sketches ONE flat
    `StoreParams` with an optional `fkRefs` bag; the committed databank one-pager names a
    *discriminated* `DocumentChunkStoreParams` arm. Doc 05 specs the discriminated-union shape (the
    databank commitment) and treats the other four kinds' arms as the mechanical consequence.

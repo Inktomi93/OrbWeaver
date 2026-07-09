@@ -10,9 +10,11 @@ updated: 2026-07-03
 > `Core-Laws-and-Precedents.md` D48 is the decision record and wins on any conflict, then
 > [`../tool-use.md`](../tool-use.md) (the committed decision doc this set
 > expands — its decisions are LAW here, never re-decided). This doc set is the build-grade design:
-> a builder with ONLY this set + the orbweaver law docs (AGENTS-1/2/3, `domains/chat.md`,
-> `domains/buddy.md`, `core/Tier-3b-Providers.md`) can build the whole domain. Every decision
+> a builder with ONLY this set + the orbweaver law docs (AGENTS-1/2/3, `domains/chat.md` (gutted — the code is the doc; git history),
+> `domains/buddy.md` (gutted — the code is the doc; git history), `core/Tier-3b-Providers.md`) can build the whole domain. Every decision
 > carries its WHY + the rejected alternative. The ST/neo evidence base is the archived proposal
+
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** PARTIALLY BUILT — T1–T4 LANDED 2026-07-04 (PD-54 cleared). Remaining is consumer-gated: T5 rides buddy · T6 lands with crew CW2 · T7 lands with the chat client registries (DESIGN-REVIEW §7 #23–25).
 > (`domains/proposed/tool-use/tool-use.md`, pre-`982fd99` git history) — cited one-line, never
 > required reading.
 

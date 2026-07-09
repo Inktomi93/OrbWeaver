@@ -250,5 +250,5 @@ committed, the `can()` seam is a **hard requirement** of Phase 5, not an aspirat
 - **D38** — the event bus + the `can()` deferral
 - `Core-0-Architecture-and-Structure.md` — 8-slot template + gates
 - `core/Spine-Identity-and-Auth.md` — the `can()`/Principal seam
-- `domains/chat.md` — the Phase-5 turn pipeline, chat events, variable substrate
+- `domains/chat.md` (gutted — the code is the doc; git history) — the Phase-5 turn pipeline, chat events, variable substrate
 - `proposed/scripting-automation-extensibility/scripting-automation-extensibility.md` — the full evidence base

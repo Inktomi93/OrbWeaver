@@ -7,6 +7,7 @@ updated: 2026-07-03
 # Orbweaver — Path/Home Registry: D35–D43
 
 > Split from `Core-Laws-and-Precedents.md` §7 (2026-07-02). Decisions **D35–D43**: provider/regex/warning-code/db-enum decisions through the identity-resolution invariant (D40), the resolve-chat warning channel (D41), the Phase-6 client-foundation bet (D42), and the neo-client full audit (D43).
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against the code — ALL LIVE, no supersessions beyond those already annotated inline (D43's nivo-keep → superseded by D52; its virtualizer claim → amended by D54 — both already bracket-noted in the entry text).
 
 ---
 

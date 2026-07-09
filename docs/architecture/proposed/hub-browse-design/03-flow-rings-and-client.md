@@ -101,7 +101,7 @@ HubService = {
 - **`getCard`** — adapter passthrough + the same marker.
 - **`previewCard`** — `adapter.fetchCardBytes` (safeFetch-bound) → the **import domain's pure
   reader** `parseCardPng`/`parseCardJson` (already exported from import's front door for the
-  bulk driver + tests — `domains/import.md` §"Public surface"; reused READ-ONLY, zero writes) →
+  bulk driver + tests — `domains/import.md` (gutted — the code is the doc; git history) §"Public surface"; reused READ-ONLY, zero writes) →
   `HubCardPreview`. **Never a second parser** — a hub card that the import reader can't parse
   fails preview exactly as it would fail import (the honest signal). `cardContentHash`/token
   estimate computed on the parsed card; `importHash` (sha256 of bytes) checked via injected
@@ -119,7 +119,7 @@ HubService = {
 
 `importedFrom = "hub:<key>:<ref>"` (e.g. `hub:chub:Anonymous/seraphina-xyz`) and
 `importHash = sha256(bytes)` ride the existing `character.create` provenance params
-(`domains/character.md`; PD-43 built `findByImportHash`). The `hub:` prefix format is minted in
+(`domains/character.md` (gutted — the code is the doc; git history); PD-43 built `findByImportHash`). The `hub:` prefix format is minted in
 `domain/hub/substrate/provenance.ts` (ONE formatter + ONE matcher — no inline string-building at
 call sites). A NEW small `character` read verb **`findByImportedFrom(ownerId, values[])`** backs
 the §2 summary markers (an indexed `IN` lookup; lands with H4, one-line delta to
@@ -273,7 +273,7 @@ Zero client math beyond rendering; every displayed fact arrives on the wire shap
 
 `domains/import.md` (the pure readers + the composition-layer driver + provenance invariants) ·
 `domains/character.md` + PD-43 (`findByImportHash`; the new `findByImportedFrom` delta) ·
-`domains/assets.md`/D21 (why the proxy cache is not CAS; `Cache-Control: private`) ·
+`domains/assets.md` (gutted — the code is the doc; git history)/D21 (why the proxy cache is not CAS; `Cache-Control: private`) ·
 `gallery-design.md` §5/§6/§8 (G6 = H1; the G7 home delta) · `databank-design` (scraper consumers
 of H1) · doc 01/02 · `Core-Laws-and-Precedents.md` D37 · `Spine-Config-and-Serialization.md`
 §7.2 (the AppSettings nature).

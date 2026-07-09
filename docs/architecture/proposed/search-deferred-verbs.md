@@ -36,7 +36,7 @@ updated: 2026-07-03
   CSLS adjustment on the text→image path; `hub_score` exists on that table only for a future
   image↔image similarity verb. Pin with an inline invariant comment + an `images.int.test.ts` test
   asserting a hub-score-dominant outlier (blank/generic avatar) does not outrank a relevant match.
-  (Same invariant carried in `domains/embeddings.md` + `domains/discovery.md` Esoteric #2.)
+  (Same invariant carried in `domains/embeddings.md` (gutted — the code is the doc; git history) + `domains/discovery.md` (gutted — the code is the doc; git history) Esoteric #2.)
 - Lens gating: the `image_embeddings.lens` column + `(assetId, model, lens)` unique are BUILT
   (`@orb/db/schema/embeddings.ts`; `IMAGE_LENSES` from `@orb/contracts/embeddings`, D34). Decide
   whether the verb gates on lens availability or treats `image-captioned`-only as the initial state

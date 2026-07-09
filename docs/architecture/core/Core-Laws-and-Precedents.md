@@ -30,14 +30,14 @@ updated: 2026-07-03
 | - | - | - |
 | R1 | **§8 cache: the rolling-tail history breakpoint is PRESERVED + upgraded to ST's rolling PAIR** (`depth` & `depth+2`), computed in SHAPE, placed by the runner | the original "drop it" was wrong — `computeHistoryBreakpoint` feeds a live 2nd `cache_control` (\~5300 tok/turn, `chat-completions.ts`); dropping = silent regression. ST `cachingAtDepth` confirms the pair pattern. |
 | R2 | **The canonical character card is ALREADY fully typed** (`creator`/`cardVersion`/`regexScripts`/`extensions` columns, `raw` dropped) — preserve, don't re-derive | `db/schema/character.ts:137-140`; import + export agents both confirmed. character.md §7.3 was stale ("pending"). |
-| R3 | **`resolveCharacterDepthPrompt` → `@orb/server/kit/serde`** (not `character/substrate`) | 2 server consumers (chat/assembly + export) — a domain-substrate home forces a cross-feature import. |
+| R3 | **`resolveCharacterDepthPrompt` → `@orb/server/kit/serde`** (not `character/substrate`) | 2 server consumers (chat/assembly + export) — a domain-substrate home forces a cross-feature import. *(Audit 2026-07-09: the HOME holds — the capability lives at `server/kit/serde/card` as `parseDepthPrompt`; the R3 function name did not survive the build.)* |
 | R4 | **`AssetKind` + `StoredAsset` → `@orb/contracts/assets`** (not domain-internal) | a cross-boundary wire union re-spelled across db enum + http + client + domain. |
 | R5 | **`oidc-store.ts` → `domain/sessions/persistence`** (not `infra/auth`) | it imports `@orb/db` (`oidc_transactions`) → can't be sealed db-free infra. |
 | R6 | **The PNG codec uses isomorphic base64/latin1 over `Uint8Array`, no `node:buffer`** | the steady codec imports `node:buffer` (`png-card-codec.ts:9,77,134`), illegal in kit per the kit-purity ruling. |
 | R7 | **memory is a `chat/` SUBSYSTEM, not its own domain** | `core/Core-0-Architecture-and-Structure.md §4`; `domains/memory.md` "own domain" wording was stale (fixed). |
 | R8 | **`http` registrars → `entry/http`** (not transport); `buildWorkloadsEnv`/runner-env → `entry/`; the jobs worker is the `transport/jobs` driver | composition wiring crosses every feature boundary → entry, per `core/Core-0-Architecture-and-Structure.md §3`. |
 | R9 | **`infra/providers/resolve-chat` READS the capability descriptor on the request — never imports `resolveModelCapability`** | infra→domain is an illegal upward import (`domain/connection` self-contradiction, fixed). |
-| R10 | **`core/Core-0-Architecture-and-Structure.md §7` gate table grown to 13** (added `no-inline-types`, `no-inline-union-redecl`, `exhaustive-dispatch`, `persistence-no-io`, `persistence-no-in-memory-state`, `test-presence`, `test-determinism` to the base set) | promoted from the §7.4/§7.5 spine + the persistence + testing rules. The canonical count is **13** (core/Core-0-Architecture-and-Structure.md §7). |
+| R10 | **`core/Core-0-Architecture-and-Structure.md §7` gate table grown to 13** (added `no-inline-types`, `no-inline-union-redecl`, `exhaustive-dispatch`, `persistence-no-io`, `persistence-no-in-memory-state`, `test-presence`, `test-determinism` to the base set) | promoted from the §7.4/§7.5 spine + the persistence + testing rules. The canonical count is **13** (core/Core-0-Architecture-and-Structure.md §7). *(Audit 2026-07-09: 13 = the CONSTITUTIONAL CORE table only; the live battery has since grown to 50 active gates across 8 stages — `Core-Enforcement-Active-Gates.md` is the count that matters operationally. Both numbers are correct at their own scope.)* |
 | R11 | **`infra/providers/vllm/` is nested** (not a sibling `infra/vllm/`); domain/credentials path reconciled | one tree location for the local engine. |
 | R12 | **The 3 doubled docs merged into single homes** (chat→domains/chat, connection→domains/connection, providers→tiers/providers); the 5 spine docs grouped into `spine/` | one home per topic; no cross-file drift. |
 
@@ -79,6 +79,14 @@ updated: 2026-07-03
 - **stats delta builders stay in `chat/engine`** (chat owns the row shapes; anti-drift = shared `kit/stats-tally`). **Economics `messages` projection**: constructor in `stats/persistence`, the result shape discovery receives in `@orb/contracts`. **`forgottenGems`/`modelRouting` stay discovery verbs** with an injected stats-economics op.
 
 ## 3. Deferred to scaffold (committed default + the criterion that finalizes)
+
+> **Audit 2026-07-09:** five of the six criteria below have FIRED — those defaults are now FINAL law,
+> not deferrals: **UI headless engine** = Base UI (the client is built on it, D42/D54) · **version
+> pins** = pinned at scaffold (`package.json`s are the record) · **§8.6 agent-principal mechanics** =
+> landed AP0–AP2 (D60; the seat wave remains) · **agent credential inheritance** = LIVE as written
+> (`users.kind` landed 2026-07-09; INHERIT-for-OWNER stands) · **event-bus shape** = wired
+> (`entry/compose/event-bus.ts`). Only the last row (observability mirror / t-digest / per-knob
+> settings-form) remains genuinely deferred. Rows kept verbatim below as the decision record.
 
 | Item | Default | Finalizes when |
 | - | - | - |

@@ -200,7 +200,7 @@ block a turn and never run a completion inside the turn path.
 
 - The loop's code homes: 02 (domain shape) · 03 (state) · 04 (mechanics) · 05 (turn integration) ·
   06 (GM + crew) · 07 (encounters/scenes/party) · 08 (generative + client) · 09 (seams) · 10 (build).
-- Orbweaver law this design obeys: `domains/chat.md` (turn pipeline, Part III roster),
-  `domains/buddy.md` (agent = pattern; sealed `agentTurn`), `domains/tool-use.md` (D48 one registry),
-  `domains/workloads.md` (WorkloadKind gold standard), `domains/automation.md` (D46),
+- Orbweaver law this design obeys: `domains/chat.md` (gutted — the code is the doc; git history) (turn pipeline, Part III roster),
+  `domains/buddy.md` (gutted — the code is the doc; git history) (agent = pattern; sealed `agentTurn`), `../tool-use.md` (D48 one registry),
+  `domains/workloads.md` (gutted — the code is the doc; git history) (WorkloadKind gold standard), `../automation.md` (D46),
   D44/D45/D51 (content blocks / vision / wire seam), D24 (per-type FK), D26 (variants), D27 (fork).

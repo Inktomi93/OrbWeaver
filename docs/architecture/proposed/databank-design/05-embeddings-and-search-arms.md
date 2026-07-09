@@ -9,7 +9,7 @@ updated: 2026-07-03
 > **Status: COMMITTED (D49 item 5) — prescriptive design.** Both arms are written IN THEIR OWNING
 > DOMAINS (`domain/embeddings`, `domain/search`), never in databank — databank calls them via
 > injection. This doc is the exact additive delta each domain receives, in the vocabulary of
-> `domains/embeddings.md` and `domains/search.md`.
+> `domains/embeddings.md` (gutted — the code is the doc; git history) and `domains/search.md` (gutted — the code is the doc; git history).
 
 ---
 

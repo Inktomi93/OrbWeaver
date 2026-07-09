@@ -194,7 +194,7 @@ Param invariants (enforced by a zod `superRefine` on the wire schema AND re-asse
 the parse-at-the-boundary + trust-internal split): `mode === "free"` ⇒ `prompt` required, `chatId`
 optional; extraction modes ⇒ `chatId` required; `character|face|*_multimodal` ⇒
 `subjectCharacterId` required. WHY `chatId` optional at the DOMAIN params while the committed WIRE
-schema (`generatePictureRequestSchema`, `domains/imagery.md` §6.1) requires it: the wire is the
+schema (`generatePictureRequestSchema`, `domains/imagery.md` (gutted — the code is the doc; git history) §6.1) requires it: the wire is the
 chat-client surface where a chat always exists; the domain params also serve chat-less injectors
 (expressions' sprite sheet, rpg's workloads — both call with `mode:"free"` + a composed prompt).
 Rejected: two param types (a chat one and a free one) — one type with a refinement beats a

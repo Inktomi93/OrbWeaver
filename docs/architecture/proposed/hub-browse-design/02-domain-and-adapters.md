@@ -22,12 +22,12 @@ handoff/capability exposure). It is the "real remote-browse leaf" whose existenc
 **Rejected alternatives (each argued):**
 
 - **Verbs on `discovery`** — discovery is LOCAL-library semantics over the embedding store
-  (`domains/discovery.md`: themes/hubness/duplicates/distill; "embeds nothing, reads the vector
+  (`domains/discovery.md` (gutted — the code is the doc; git history): themes/hubness/duplicates/distill; "embeds nothing, reads the vector
   tables read-only, computes in-RAM"). A remote catalog proxy shares zero substrate with it — no
   vectors, no rollups, no `summarize` — and the rename `corpus → discovery` was justified by
   "the name names what it does"; bolting remote IO on would re-muddy it on day one. The two
   browse surfaces (my library / the world's libraries) are siblings in the UI, not one domain.
-- **Verbs on `import`** — import owns ST-format PARSING + the canon write (`domains/import.md`);
+- **Verbs on `import`** — import owns ST-format PARSING + the canon write (`domains/import.md` (gutted — the code is the doc; git history));
   it is the consumer at the END of the hub flow, not the flow. Giving import a remote-catalog
   client means one domain owning two jobs (reader + browser) — the exact "one folder doing two
   jobs" split trigger in the placement rule.

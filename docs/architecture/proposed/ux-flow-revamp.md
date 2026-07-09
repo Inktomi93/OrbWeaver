@@ -66,10 +66,14 @@ mostly *wiring what exists to the shape already specified* — very little new i
 > diagnosis is fixed. **Do not re-execute a LANDED journey — the code is now its doc.** This table
 > is the ONE remaining-work picture for this program; the journey prose below stays as the
 > as-planned spec record. Remaining work = the PARTIAL rows here + §3 parity growth (lane L7).
+> **Successor specs (triage 2026-07-09):** the chat-side journeys (J1–J8/J12) are now governed by
+> `FINAL-Chats-Landing-Room-and-Context-UX.md` (repo root) and J9 by
+> `FINAL-Character-Library-and-Editor-UX.md` — the FINALs win over the journey prose below on any
+> conflict; this doc remains the D62 program record + the J10/J11/L7 remaining-work tracker.
 
 | Journey / block | State | Evidence / what remains |
 |---|---|---|
-| J1 landing | **LANDED** (one deferral) | `chat-landing-surface.tsx` + `{kind:"landing"}` in `state/chat-handle.ts`; empty-library hero built. The first-run persona name-ask is DEFERRED with `features/persona` (still a .gitkeep) — the surface's own header records it |
+| J1 landing | **LANDED** (deferral CLOSED) | `chat-landing-surface.tsx` + `{kind:"landing"}` in `state/chat-handle.ts`; empty-library hero built. The first-run persona name-ask deferral is RESOLVED the other way (triage 2026-07-09): persona SHIPPED (rail-foot panel — `../history/FINAL-Persona-and-Immersive-Chat-Visuals.md` PART A) and `FINAL-Chats-Landing-Room-and-Context-UX.md` §5 rules the landing deliberately carries NO identity onboarding — do not add it without an owner ruling |
 | J2 new-chat picker | **LANDED** | `new-chat-picker-surface.tsx` (note: built as a SURFACE, not the specced `anchors/new-chat-picker.tsx` path); greeting lane landed 2026-07-07 (inline note below) |
 | J3 CONTENT anatomy | **LANDED** | `chat-header.tsx` + draft variant (inline notes below); prose cap + composer per punchlist §0b |
 | J4 ⌘K palette | **LANDED** | `command-palette-surface.tsx`, route-composed |

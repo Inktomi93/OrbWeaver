@@ -7,6 +7,7 @@ updated: 2026-07-07
 # Orbweaver — Path/Home Registry: D63
 
 > Split-sibling of `Core-Laws-and-Precedents.md` §7 (range files D1–D61 listed there, D62 solo). Decision **D63**: the app background IMAGE re-homes from the theme to the user appearance namespace.
+> **Audited 2026-07-09 (tree @ ec937b1):** every entry's path/home/enforcement claims verified against the code — ALL LIVE, no supersessions beyond those already annotated inline (fully built: the image fields are gone from `contracts/theme/override.ts` + the ui clamp, and live in the appearance namespace).
 
 ---
 

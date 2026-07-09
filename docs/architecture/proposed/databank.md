@@ -281,9 +281,9 @@ Drop `FLAG[PD-57]` on the embeddings tuples + search scope union so the add-when
 - **D47** — Data Bank is the OPEN call committed to BUILD; gap register §4 (Attachments/Vectors-as-file-RAG)
 - **D49** — closes the D47 open call; BUILD as post-chat additive graft
 - **D18/D20/D21/D23/D24** — ownership categories, no-polymorphic, no-global-tier
-- `domains/embeddings.md` — write path, source-kinds, derive-don't-stamp, content_hash, hub_score
-- `domains/search.md` — retrieval engine, lenses, CSLS, rerank, vector-scope-derived gate
-- `domains/world-info.md` — the ownership/junction precedent this mirrors exactly
-- `domains/assets.md` — per-user CAS, AssetRef, AssetKind
-- `domains/chat.md` — Part III (host-only group retrieval, the D16 rule this mirrors)
+- `domains/embeddings.md` (gutted — the code is the doc; git history) — write path, source-kinds, derive-don't-stamp, content_hash, hub_score
+- `domains/search.md` (gutted — the code is the doc; git history) — retrieval engine, lenses, CSLS, rerank, vector-scope-derived gate
+- `domains/world-info.md` (gutted — the code is the doc; git history) — the ownership/junction precedent this mirrors exactly
+- `domains/assets.md` (gutted — the code is the doc; git history) — per-user CAS, AssetRef, AssetKind
+- `domains/chat.md` (gutted — the code is the doc; git history) — Part III (host-only group retrieval, the D16 rule this mirrors)
 - `proposed/databank/databank.md` — the full evidence base (ST source audit, neo findings)

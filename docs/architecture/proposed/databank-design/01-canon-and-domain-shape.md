@@ -8,7 +8,7 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D49 item 5) — prescriptive design; the ledger D-entry wins on any conflict.**
 > This doc carries the committed canon/ownership resolution forward from
-> `domains/databank.md` §0–§4 and expands it to build grade. Nothing in §1–§3 is new law — it is
+> `../databank.md` §0–§4 and expands it to build grade. Nothing in §1–§3 is new law — it is
 > the committed decision restated with its enforcement made explicit.
 
 ---

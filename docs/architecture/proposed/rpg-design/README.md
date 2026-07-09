@@ -14,6 +14,8 @@ updated: 2026-07-03
 > domain docs it cites) can build the whole system — no marinara reading required. Every decision
 > carries its WHY + the rejected alternative.
 
+> **Triage 2026-07-09 (dispatch board — `../README.md` §0):** READY-TO-BUILD. Next: R1-proper (the rpg contracts MODULE — schema/brands/workload stubs already landed 2026-07-09 as baseline riders). R2+ is blocked on the D46 variables substrate finishing; R4's chat-side obligations (#1–#2) landed with tool-use T1–T4.
+
 ## The one-paragraph design
 
 A chat becomes a **table**: the GM is a **SEAT** (held by the model by default, or by a human
