@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "637415c2-5e5e-4017-9f7d-148acab220f0",
+  "id": "85598648-8af6-4ef1-9e9a-f2ea69a5f01e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "agent_principals": {
@@ -1160,6 +1160,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "token_size": {
+          "name": "token_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "name": {
           "name": "name",

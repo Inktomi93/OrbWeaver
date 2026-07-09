@@ -43,6 +43,7 @@ import {
   eq,
   gt,
   inArray,
+  isNotNull,
   isNull,
   lt,
   lte,
@@ -268,6 +269,46 @@ export async function loadChatMessageStats(
     .groupBy(messages.chatId);
   for (const r of rows) {
     out.set(r.chatId, { messageCount: r.messageCount, lastMessageAt: r.lastMessageAt ?? null });
+  }
+  return out;
+}
+
+/** The character-SEAT ids per chat (the reverse "which chats include character X" read for `ChatSummary`).
+ *  Batched over a set of chatIds (ONE junction read, no N+1 — the `canonicalTagsFor` precedent). Only
+ *  `kind='character'` seats (characterId non-null by the D60 kind-shape CHECK; `isNotNull` narrows the type);
+ *  DEDUPED (a character can leave + rejoin → two rows). INCLUDES departed seats (NO `leftSeq` filter): §7
+ *  Activity wants "every chat you've had with them," so a chat a character has since left still counts here
+ *  (mirrors `roster.characterSeatedInAnotherChat`, which also counts past seats). A chat with no character
+ *  seats is simply ABSENT from the map (the verb defaults it to `[]`). No-op (empty map) on an empty id list. */
+export async function loadChatParticipantCharacterIds(
+  db: Db,
+  chatIds: readonly ChatId[],
+): Promise<Map<ChatId, CharacterId[]>> {
+  const out = new Map<ChatId, CharacterId[]>();
+  if (chatIds.length === 0) {
+    return out;
+  }
+  const rows = await db
+    .select({ chatId: chatParticipants.chatId, characterId: chatParticipants.characterId })
+    .from(chatParticipants)
+    .where(
+      and(
+        inArray(chatParticipants.chatId, [...chatIds]),
+        eq(chatParticipants.kind, "character"),
+        isNotNull(chatParticipants.characterId),
+      ),
+    )
+    .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+  for (const { chatId, characterId } of rows) {
+    if (characterId === null) {
+      continue;
+    }
+    const bucket = out.get(chatId);
+    if (bucket === undefined) {
+      out.set(chatId, [characterId]);
+    } else if (!bucket.includes(characterId)) {
+      bucket.push(characterId);
+    }
   }
   return out;
 }

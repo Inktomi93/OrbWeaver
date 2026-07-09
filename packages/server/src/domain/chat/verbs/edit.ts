@@ -592,6 +592,9 @@ function createDuplicateMessage(
     await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
     const view = buildCommittedMessageView(params);
     await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+    // PD user-bus lane: the duplicated slot is a new tail message → chat-list recency moved → fan `chatsChanged`
+    // (list-only) to every present human member (cross-device + multi-human).
+    void ctx.emitChatChanged(chatId);
     return view;
   };
 }

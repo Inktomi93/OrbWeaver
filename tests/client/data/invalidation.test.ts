@@ -47,16 +47,20 @@ const TRACKED_KEYS = [
   "listMessageVariants",
   "listChats",
   "worldInfo",
+  // The character library `character.list` — driven ONLY by the user-bus `chatsChanged` fan now (the sole
+  // `lastChattedAt` recency driver, same AND cross device); the chat-bus terminal arms no longer carry it.
+  "characterList",
 ] as const;
 type TrackedKey = (typeof TRACKED_KEYS)[number];
 
-// The full room+list refetch (`chatReads` in invalidation.ts) — named once so the table below stays legible.
-const CHAT_READS: readonly TrackedKey[] = [
-  "getChat",
-  "listMessages",
-  "listMessageVariants",
-  "listChats",
-];
+// The OPEN chat's DETAIL reads (`chatDetailReads` in invalidation.ts) — NO chat list. The canon-TERMINAL events
+// (messageCommitted/turnCompleted) use this: the chat LIST + character library recency rides the server's
+// `chatsChanged` member-fan on the same moment (one driver per surface, no triple-invalidate).
+const CHAT_DETAIL_READS: readonly TrackedKey[] = ["getChat", "listMessages", "listMessageVariants"];
+
+// The full room+list refetch (`chatReads` = detail + `listChats`) — the NON-terminal canon events that fire no
+// server `chatsChanged` (edit/hide/reorder/delete/select/abort) keep `listChats` as their same-device driver.
+const CHAT_READS: readonly TrackedKey[] = [...CHAT_DETAIL_READS, "listChats"];
 
 // The freshness contract in ONE readable table, EXHAUSTIVE over `ChatBusEvent["type"]`: a new bus member
 // fails `tsc` HERE (the `Record<…>` is total) until it declares what it invalidates — mirroring the
@@ -69,8 +73,11 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it
   expression: [], // ephemeral sprite-swap presentation state; no query reads it (expressions-design/02 §4)
-  // Canon mutations + turn terminals — the full room + list refetch.
-  messageCommitted: CHAT_READS,
+  // The canon-TERMINAL commits (messageCommitted/turnCompleted) refetch the OPEN chat's DETAIL only — the chat
+  // LIST (`listChats`) + character library (`characterList`) recency rides the server's `chatsChanged`
+  // member-fan on the same moment (one driver per surface, no triple-invalidate). Non-terminal canon mutations
+  // (edit/hide/select/delete/reorder/abort) fire no server `chatsChanged`, so they keep the full `chatReads`.
+  messageCommitted: CHAT_DETAIL_READS,
   messageEdited: CHAT_READS,
   messageHidden: CHAT_READS,
   variantSelected: CHAT_READS,
@@ -78,7 +85,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   messagesReordered: CHAT_READS,
   reasoningEdited: CHAT_READS,
   reasoningCleared: CHAT_READS,
-  turnCompleted: CHAT_READS,
+  turnCompleted: CHAT_DETAIL_READS,
   turnAborted: CHAT_READS,
   chatDeleted: CHAT_READS,
   chatUpdated: CHAT_READS,
@@ -121,6 +128,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         }),
         listChats: trpc.chat.listChats.queryKey(),
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
+        characterList: trpc.character.list.queryKey(),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry.
       for (const key of Object.values(keys)) {
@@ -170,8 +178,10 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
   settingsChanged: ["userSettings"], // NOT themes.
   credentialsChanged: ["credentials"],
-  // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage).
-  chatsChanged: ["chatGet", "chatList"],
+  // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
+  // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
+  // signal for a character's `lastChattedAt` / chat membership change).
+  chatsChanged: ["character", "chatGet", "chatList"],
   connectionsChanged: ["connection"], // DEFERRED member — never emitted, but the map entry is live.
 };
 
@@ -213,6 +223,25 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       Object.entries(USER_EXPECTED).map(([type, ks]) => [type, [...ks].sort()]),
     );
     expect(actual).toEqual(expected);
+  });
+
+  test("chatsChanged WITHOUT a chatId (the message-commit terminal fan) drives list + character, NOT getChat", () => {
+    // The server's terminal-path member-fan omits `chatId` (the per-chat bus already drives the open chat's
+    // `getChat`) — so this branch must invalidate `listChats` + `character.list` and leave `getChat` alone
+    // (carrying it would triple-invalidate `getChat` inside the commit+complete window and trip the dup alarm).
+    const { invalidateUser, queryClient, trpc } = setup();
+    const chatList = trpc.chat.listChats.queryKey();
+    const character = trpc.character.list.queryKey();
+    const chatGet = trpc.chat.getChat.queryKey({ chatId: CHAT_ID });
+    for (const key of [chatList, character, chatGet]) {
+      queryClient.setQueryData([...key], [] as never);
+    }
+
+    invalidateUser({ type: "chatsChanged" });
+
+    expect(isInvalidated(queryClient, chatList)).toBe(true);
+    expect(isInvalidated(queryClient, character)).toBe(true);
+    expect(isInvalidated(queryClient, chatGet)).toBe(false);
   });
 
   test("invalidateAllUserRoots (the reconnect gap-heal) marks EVERY user root stale", () => {

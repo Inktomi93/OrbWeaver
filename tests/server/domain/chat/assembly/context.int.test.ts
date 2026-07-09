@@ -3,6 +3,7 @@
 // (macro→wiFormat-wrap, §3 rules 1-3), the ONE injection list + ONE budget pass (§4 — lore dropped by
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
+import { cardDepthPromptWriteSchema } from "@orb/contracts/character";
 import type { ChatInjection } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
@@ -15,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
 import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
+import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context";
 import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
@@ -288,6 +290,141 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
     expect(out.sendUserText).toBeUndefined();
     // "wyrm" never became "dragon" → the keyword did NOT fire.
     expect(result.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+  });
+});
+
+// ── Character's-Note-@-Depth (card `depthPrompt`) → per-member in_chat injection (the CHARACTER sibling of
+//    the persona depth candidate) ────────────────────────────────────────────────────────────────────────
+type DepthNote = NonNullable<CharacterCard["depthPrompt"]>;
+function cardWithNote(name: string, note: DepthNote | null): CharacterCard {
+  return { ...cardOf(name), depthPrompt: note };
+}
+/** A ChatContext whose getCard maps each characterId → its card (multi-member rooms). */
+function ctxWithCards(byId: Record<string, CharacterCard>): ChatContext {
+  return makeChatContext(db, {
+    getCard: ({ characterId }) => Promise.resolve(byId[characterId] ?? null),
+  });
+}
+/** The in_chat notes filtered by role != undefined would be ambiguous; select by known content instead. */
+
+describe("buildAssembleContext — character depthPrompt (Character's Note @ Depth)", () => {
+  test("a solo character's non-empty note injects exactly once as in_chat at its depth/role", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(
+      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }),
+    );
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    const notes = (out.chatInjections ?? []).filter((i) => i.content === "Aria stays cryptic.");
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system" });
+    expect(out.authorsNoteSource).toBe("from Aria");
+  });
+
+  test("a null depthPrompt injects nothing + leaves authorsNoteSource unset", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardWithNote("Aria", null));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    expect(out.chatInjections ?? []).toHaveLength(0);
+    expect(out.authorsNoteSource).toBeUndefined();
+  });
+
+  test("an empty-prompt note (whitespace-only) injects nothing", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "   ", depth: 4, role: "system" }));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    expect(out.chatInjections ?? []).toHaveLength(0);
+    expect(out.authorsNoteSource).toBeUndefined();
+  });
+
+  test("an absent role defaults to system", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "no explicit role", depth: 3 }));
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    const note = (out.chatInjections ?? []).find((i) => i.content === "no explicit role");
+    expect(note).toMatchObject({ position: "in_chat", depth: 3, role: "system" });
+  });
+
+  test("{{char}} in each member's note binds to THAT member (per-member render ctx)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({
+      [ariaId]: cardWithNote("Aria", {
+        prompt: "{{char}} guards a secret.",
+        depth: 4,
+        role: "system",
+      }),
+      [branId]: cardWithNote("Bran", { prompt: "{{char}} owes a debt.", depth: 2, role: "user" }),
+    });
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId, branId]));
+    const contents = (out.chatInjections ?? []).map((i) => i.content);
+
+    // Each note's {{char}} resolved to its OWN owner, not the cast primary.
+    expect(contents).toContain("Aria guards a secret.");
+    expect(contents).toContain("Bran owes a debt.");
+    const aria = (out.chatInjections ?? []).find((i) => i.content === "Aria guards a secret.");
+    const bran = (out.chatInjections ?? []).find((i) => i.content === "Bran owes a debt.");
+    expect(aria).toMatchObject({ depth: 4, role: "system" });
+    expect(bran).toMatchObject({ depth: 2, role: "user" });
+    expect(out.authorsNoteSource).toBe("merged (present cast)");
+  });
+
+  test("multiple notes at the SAME depth stack in cast order (primary first in the array)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const ariaId = await seedCharacter(db, host, "aria");
+    const branId = await seedCharacter(db, host, "bran");
+    const ctx = ctxWithCards({
+      [ariaId]: cardWithNote("Aria", { prompt: "Aria note.", depth: 4, role: "system" }),
+      [branId]: cardWithNote("Bran", { prompt: "Bran note.", depth: 4, role: "system" }),
+    });
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [ariaId, branId]));
+    const order = (out.chatInjections ?? []).map((i) => i.content);
+
+    // Array order = output order for same-depth in_chat injections (the SHAPE splice is stable on ties):
+    // primary (Aria) precedes the member (Bran), so the primary's note lands on top after the splice.
+    expect(order.indexOf("Aria note.")).toBeLessThan(order.indexOf("Bran note."));
+  });
+
+  test("the note splices into runner history at its depth (SHAPE placement, N from the tail)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // role:user so the spliced content stays verbatim (system would be [Note from system: …]-framed).
+    const ctx = ctxWithCard(
+      cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 2, role: "user" }),
+    );
+    const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+
+    const history = [1, 2, 3, 4, 5].map((n) => ({ role: "user" as const, content: `m${n}` }));
+    const spliced = spliceInChatInjections(history, built.chatInjections);
+    // depth 2 → inserted 2 slots from the tail (index length-2 = 3 in the original 5-msg history).
+    expect(spliced).toHaveLength(6);
+    expect(spliced.findIndex((m) => m.content.includes("Aria stays cryptic."))).toBe(3);
+  });
+
+  test("assembly needs no prefill special-case: assistant@depth-0 is rejected at the WRITE boundary", () => {
+    // The assumption the assembler relies on (it emits the note verbatim, no prefill branch): a
+    // response-prefill note can never be authored, so it never reaches assembly. The gate is the write schema.
+    expect(
+      cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 0, role: "assistant" }).success,
+    ).toBe(false);
+    expect(
+      cardDepthPromptWriteSchema.safeParse({ prompt: "x", depth: 1, role: "assistant" }).success,
+    ).toBe(true);
   });
 });
 

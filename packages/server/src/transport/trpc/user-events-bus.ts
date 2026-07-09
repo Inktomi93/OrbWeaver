@@ -14,7 +14,7 @@
 
 import { EventEmitter, on } from "node:events";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
-import type { UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 
 // Process-local; unbounded listeners (one per connected device per user — many concurrent SSE streams).
 const emitter = new EventEmitter();
@@ -26,6 +26,20 @@ const channelFor = (userId: UserId): string => `user:${userId}`;
  *  `EmitUserEvent` op from a domain verb AFTER its durable write committed. Fire-and-forget (LIVE-ONLY — a
  *  dropped tick is healed by the client's reconnect blanket invalidate). */
 export function publishUserEvent(userId: UserId, event: UserBusEvent): void {
+  emitter.emit(channelFor(userId), event);
+}
+
+/** Publish a `chatsChanged` to ONE member's channel — the entry-composed member-fan helper
+ *  (`entry/compose/emit-chat-changed.ts`) calls this per present human member of the changed chat, so the
+ *  `chatsChanged` producer literal lives HERE in transport (the `user-bus-coverage` gate scans the
+ *  domain/transport literal corpus). `chatId` present ⇒ the changed chat's DETAIL (`getChat`) refetches too
+ *  (the lifecycle/create/delete case, where the chat row itself changed); OMITTED on the message-commit
+ *  terminal path — there the per-chat bus already drives every subscribed device's `getChat`, so a `chatId`
+ *  here would triple-invalidate `getChat`/`listChats` inside the commit+complete window and trip the dup
+ *  alarm; the terminal fan drives ONLY the chat LIST + character library (the `chatId`-undefined map arm). */
+export function publishChatChanged(userId: UserId, chatId: ChatId | undefined): void {
+  const event: UserBusEvent =
+    chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };
   emitter.emit(channelFor(userId), event);
 }
 

@@ -1,9 +1,12 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import {
   CHARA_CARD_V3_SPEC,
+  CHARACTER_LIST_SORTS,
   cardDepthPromptWriteSchema,
   characterCardSchema,
   characterCardV3Schema,
+  characterListCursorSchema,
+  characterListSortSchema,
   createCharacterSchema,
   updateCharacterSchema,
 } from "@orb/contracts/character";
@@ -185,4 +188,101 @@ test("characterCardV3Schema rejects a wrong spec literal", () => {
   // biome-ignore lint/style/useNamingConvention: ST V3 wire field name (snake_case)
   const bad = { spec: "chara_card_v2", spec_version: "2.0", data: {} };
   expect(characterCardV3Schema.safeParse(bad).success).toBe(false);
+});
+
+// ── the library-list sort axis + its sort-discriminated keyset cursor (FIX #2 / §4.5) ──
+test("characterListSortSchema accepts every sort and rejects an unknown one", () => {
+  for (const sort of CHARACTER_LIST_SORTS) {
+    expect(characterListSortSchema.safeParse(sort).success).toBe(true);
+  }
+  expect(characterListSortSchema.safeParse("bogus").success).toBe(false);
+  // Largest/Smallest cards ARE on the axis now — backed by the `characters.token_size` denorm column (a
+  // keyset ORDER BY needs a persisted column, not the post-query estimate).
+  expect(characterListSortSchema.safeParse("largestCards").success).toBe(true);
+  // The tuple IS the axis (no drift): the owner-ruled 9 (§4.5).
+  expect([...CHARACTER_LIST_SORTS]).toEqual([
+    "recent",
+    "alpha",
+    "starred",
+    "newest",
+    "oldest",
+    "mostChats",
+    "fewestChats",
+    "largestCards",
+    "smallestCards",
+  ]);
+});
+
+// A well-formed character TypeID (26-char Crockford-base32 suffix) — the cursor `id` is `typeIdSchema`-gated.
+// biome-ignore lint/security/noSecrets: a TypeID test literal (base32 id), not a secret (entropy false-positive).
+const CHAR_ID = "character_01h455vb4pex5vsknk084sn02q";
+
+test("characterListCursorSchema parses each sort variant (recent carries a nullable lastChattedAt)", () => {
+  const recent = characterListCursorSchema.parse({
+    sort: "recent",
+    lastChattedAt: null, // never-chatted boundary (the NULLS-LAST tail)
+    createdAt: 1_750_000_000_000,
+    id: CHAR_ID,
+  });
+  expect(recent.sort).toBe("recent");
+  const alpha = characterListCursorSchema.parse({ sort: "alpha", name: "Ada", id: CHAR_ID });
+  expect(alpha.sort).toBe("alpha");
+  const starred = characterListCursorSchema.parse({
+    sort: "starred",
+    starred: true,
+    name: "Ada",
+    id: CHAR_ID,
+  });
+  expect(starred.sort).toBe("starred");
+  const newest = characterListCursorSchema.parse({
+    sort: "newest",
+    createdAt: 1_750_000_000_000,
+    id: CHAR_ID,
+  });
+  expect(newest.sort).toBe("newest");
+  const oldest = characterListCursorSchema.parse({
+    sort: "oldest",
+    createdAt: 1_700_000_000_000,
+    id: CHAR_ID,
+  });
+  expect(oldest.sort).toBe("oldest");
+  // most/fewestChats carry a NULLABLE chatCount (null = the never-chatted NULLS-LAST tail).
+  const mostChats = characterListCursorSchema.parse({
+    sort: "mostChats",
+    chatCount: 12,
+    id: CHAR_ID,
+  });
+  expect(mostChats.sort).toBe("mostChats");
+  const fewestChats = characterListCursorSchema.parse({
+    sort: "fewestChats",
+    chatCount: null,
+    id: CHAR_ID,
+  });
+  expect(fewestChats.sort).toBe("fewestChats");
+  // largest/smallestCards carry a NON-null tokenSize (the notNull `characters.token_size` denorm column).
+  const largest = characterListCursorSchema.parse({
+    sort: "largestCards",
+    tokenSize: 2048,
+    id: CHAR_ID,
+  });
+  expect(largest.sort).toBe("largestCards");
+  const smallest = characterListCursorSchema.parse({
+    sort: "smallestCards",
+    tokenSize: 0,
+    id: CHAR_ID,
+  });
+  expect(smallest.sort).toBe("smallestCards");
+});
+
+test("characterListCursorSchema rejects a cross-sort shape (an alpha cursor missing recent's keys)", () => {
+  // `sort:"recent"` demands lastChattedAt + createdAt — an alpha-shaped payload can't satisfy it.
+  expect(
+    characterListCursorSchema.safeParse({ sort: "recent", name: "Ada", id: CHAR_ID }).success,
+  ).toBe(false);
+  // `mostChats` demands `chatCount` — a bare id can't satisfy it.
+  expect(characterListCursorSchema.safeParse({ sort: "mostChats", id: CHAR_ID }).success).toBe(
+    false,
+  );
+  // An unknown discriminant is rejected outright.
+  expect(characterListCursorSchema.safeParse({ sort: "bogus", id: CHAR_ID }).success).toBe(false);
 });

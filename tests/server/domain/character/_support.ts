@@ -9,11 +9,12 @@
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, users } from "@orb/db";
+import { assets, characterStats, characterSummaries, characters, users } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
   CharacterSnapshotId,
+  CharacterStatId,
   ExternalId,
   Handle,
   UserId,
@@ -142,6 +143,7 @@ interface SeedRawCharacterOverrides {
   readonly ownerId: UserId;
   readonly handle?: string;
   readonly name?: string;
+  readonly starred?: boolean;
   readonly synthetic?: boolean;
   readonly importedFrom?: string | null;
   readonly importHash?: string | null;
@@ -151,10 +153,13 @@ interface SeedRawCharacterOverrides {
    *  boundaries this way (the CRUD wire always stamps `ctx.now()`, so a raw insert is the only way to
    *  author a deliberate createdAt tie or ordering). */
   readonly createdAt?: number;
+  /** The `token_size` denorm — set explicitly to author deliberate `largestCards`/`smallestCards` orderings
+   *  + ties (a raw insert bypasses the write-side `cardTokenSize` stamp). Defaults to the column default (0). */
+  readonly tokenSize?: number;
 }
 
 /** Insert a flat `characters` row DIRECTLY (bypassing the service) — for seeding import-provenance /
- *  synthetic / cross-owner rows the CRUD wire can't author. Returns the branded id. */
+ *  synthetic / cross-owner / starred rows the CRUD wire can't author. Returns the branded id. */
 export async function seedRawCharacter(
   db: Db,
   overrides: SeedRawCharacterOverrides,
@@ -165,14 +170,50 @@ export async function seedRawCharacter(
     handle: overrides.handle ?? id,
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Seed",
+    starred: overrides.starred ?? false,
     synthetic: overrides.synthetic ?? false,
     importedFrom: overrides.importedFrom ?? null,
     importHash: overrides.importHash ?? null,
     contentHash: overrides.contentHash ?? "seed_content_hash",
     avatarAssetId: overrides.avatarAssetId ?? null,
     createdAt: overrides.createdAt ?? FROZEN_AT,
+    ...(overrides.tokenSize !== undefined ? { tokenSize: overrides.tokenSize } : {}),
   });
   return id;
+}
+
+/** Seed a `character_stats` rollup row carrying `lastActivityAt` (+ optional `chats`) — the FIX-#2 `recent`-sort
+ *  / `lastChattedAt` denorm source AND the `most/fewestChats` chat-count source (both LEFT JOINed by the
+ *  library list). Only the columns the list read projects are meaningful; the rest default (`chats` → 0). Pass
+ *  `lastActivityAt: null` to model a stats row that exists but has never chatted. A card with NO stats row at
+ *  all (don't call this) is the join-null case both sorts sink to the tail. */
+export async function seedCharacterStats(
+  db: Db,
+  args: {
+    readonly characterId: CharacterId;
+    readonly lastActivityAt: number | null;
+    readonly chats?: number;
+  },
+): Promise<void> {
+  await db.insert(characterStats).values({
+    id: castId<CharacterStatId>(`character_stat_${args.characterId}`),
+    characterId: args.characterId,
+    lastActivityAt: args.lastActivityAt,
+    ...(args.chats !== undefined ? { chats: args.chats } : {}),
+  });
+}
+
+/** Seed a `character_summaries` distillation row carrying `elevatorPitch` — the FIX-#2 LIST-subtitle denorm
+ *  source (LEFT JOINed by the library list). `model` is the only other NOT-NULL column (no default). */
+export async function seedCharacterSummary(
+  db: Db,
+  args: { readonly characterId: CharacterId; readonly elevatorPitch: string | null },
+): Promise<void> {
+  await db.insert(characterSummaries).values({
+    characterId: args.characterId,
+    elevatorPitch: args.elevatorPitch,
+    model: "test-summarizer",
+  });
 }
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). */

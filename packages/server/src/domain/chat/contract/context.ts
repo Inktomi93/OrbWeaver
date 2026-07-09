@@ -35,7 +35,6 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions } from "@orb/contracts/search";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { ThemeOverride } from "@orb/contracts/theme";
-import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
@@ -69,6 +68,25 @@ import type { TurnRequest, TurnStreamChunk } from "./results";
  *  `executeRegexScripts({ applyReplace })`: WORLD_INFO + SEND (assembly), AI_OUTPUT + REASONING (pipeline). The
  *  shape mirrors the kit `RegexExecuteOptions.applyReplace` seam. Bound at the root to `createRegexApplyReplace()`. */
 export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
+
+// ── The chat-list recency fan (PD user-bus lane) ─────────────────
+/** Options for {@link EmitChatChanged}. `detail` ⇒ the changed chat's OWN row/detail changed (lifecycle/
+ *  create/delete) so the emitted `chatsChanged` carries `chatId` (drives `getChat` too); OMITTED on the
+ *  message-commit terminal path (the per-chat bus already drives every subscribed device's `getChat`, so a
+ *  `chatId` here would triple-invalidate inside the commit+complete window and trip the dup alarm — the
+ *  terminal fan drives ONLY the chat LIST + character library). `extraUserIds` = channels to include beyond
+ *  the present roster (a just-KICKED/DELETED member; the caller enumerates them BEFORE the row cascade so
+ *  their list drops the chat). */
+export interface EmitChatChangedOptions {
+  readonly detail?: boolean;
+  readonly extraUserIds?: readonly UserId[];
+}
+/** `emitChatChanged` — fan `chatsChanged` to EVERY present human member's user-bus channel (the cross-device +
+ *  multi-human chat-list recency driver). The engine + verbs pass a bare `ChatId` (PRINCIPAL-BLIND — no acting
+ *  userId reaches the engine); membership is enumerated at the composition root. Best-effort + LIVE-ONLY
+ *  (a failed roster read heals on the client's next reconnect); NEVER throws into the turn (callers `void` it).
+ *  Bound at the root to `entry/compose/emit-chat-changed.createChatChangedEmitter`. */
+export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions) => Promise<void>;
 
 // ── The turn role (the ONE dispatch) ─────────────────────────────
 /** The injected `chat` role (`infra/providers.runChatTurn`): the engine builds a {@link TurnRequest} and
@@ -406,12 +424,14 @@ export interface ChatContext {
    *  crypto op like the minters, bound to `SESSION_SECRET` at the root — `invites`). */
   readonly hashToken: (token: string) => string;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  /** The user-bus live-freshness emit (PD user-bus lane) — the chat LIST-level ops (start/fork/rename/star/
-   *  archive/delete) fire `chatsChanged` with the ACTING principal's `userId` AFTER the durable write, so that
-   *  user's second device refetches its chat list. DISTINCT from the per-chat `emit` (ChatBusEvent, which only
-   *  reaches subscribers of the OPEN chat — the chat LIST has no other freshness driver). Wired to transport's
-   *  `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
-  readonly emitUserEvent: EmitUserEvent;
+  /** The chat-list recency fan (PD user-bus lane) — the message-commit terminal path (`messageCommitted`/
+   *  `turnCompleted` moments) AND the chat LIST-level ops (start/fork/rename/star/archive/delete/kick) fan
+   *  `chatsChanged` to EVERY present human member's channel AFTER the durable write, so each member's device
+   *  refetches its chat list (+ character library recency). DISTINCT from the per-chat `emit` (ChatBusEvent,
+   *  which only reaches subscribers of the OPEN chat — the chat LIST has no other cross-device driver). The
+   *  engine passes a bare `chatId` (PRINCIPAL-BLIND); membership is enumerated at the entry root. See
+   *  {@link EmitChatChanged}. */
+  readonly emitChatChanged: EmitChatChanged;
   // ── the regex ReDoS watchdog (D53 — injected into every host-side executeRegexScripts) ──
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   readonly runChatTurn: RunChatTurnOp;

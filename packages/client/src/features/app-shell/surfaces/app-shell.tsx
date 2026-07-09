@@ -17,6 +17,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { useRef } from "react";
 import type { ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor";
@@ -75,6 +76,10 @@ export function AppShell({
   const appearance = useAppearance();
   // Layer 1 — the viewer's OWN global theme (fetched for THIS user only; never pushed to other viewers).
   const theme = useSelectedTheme();
+  // Modals portal to a THEMED root inside `<ThemeScope>` (below) instead of `<body>`, so a Dialog/Drawer
+  // inherits the active theme's tokens (D44 §12.1) — a body-portaled overlay escapes the scope and paints
+  // Hearth defaults under a custom theme. The node lives at the app root; ModalHost passes it as `container`.
+  const modalPortalRef = useRef<HTMLDivElement>(null);
   // A SEED palette also stamps [data-theme] on <html> (full-palette + color-scheme reflow, portals
   // included); a custom/Hearth theme uses none and layers its override on the Hearth base via ThemeScope.
   const dataTheme = theme?.isSeed === true ? theme.name.toLowerCase() : null;
@@ -235,8 +240,17 @@ export function AppShell({
             />
           ) : null}
 
-          <ModalHost openModal={layout.openModalId} modals={modals} onClose={closeModal} />
+          <ModalHost
+            openModal={layout.openModalId}
+            modals={modals}
+            container={modalPortalRef}
+            onClose={closeModal}
+          />
         </div>
+        {/* Themed portal ROOT for modals — a SIBLING of `.shell-grid` (not inside its `isolation:isolate`
+            stacking context) but INSIDE `<ThemeScope>`, so a portaled Dialog/Drawer inherits the active
+            theme's custom properties. `contents` = no box; the fixed overlay positions off the viewport. */}
+        <div ref={modalPortalRef} className="contents" data-slot="modal-portal-root" />
       </ThemeScope>
     </TooltipProvider>
   );

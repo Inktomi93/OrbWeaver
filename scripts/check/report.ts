@@ -9,6 +9,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
+import { baselineSingleMigration } from "./gates/baseline-single-migration.ts";
 import { busCoverage } from "./gates/bus-coverage.ts";
 import { busOnDataNoStoreWrite } from "./gates/bus-onData-no-store-write.ts";
 import { clientStructure } from "./gates/client-structure.ts";
@@ -16,6 +17,7 @@ import { commentedCode } from "./gates/commented-code.ts";
 import { componentSize } from "./gates/component-size.ts";
 import { dbStructure } from "./gates/db-structure.ts";
 import { diagnosticLegibility } from "./gates/diagnostic-legibility.ts";
+import { createEnforcementRegistryParity } from "./gates/enforcement-registry-parity.ts";
 import { featureStructure } from "./gates/feature-structure.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
@@ -59,10 +61,10 @@ import { zustandSelectorDerived } from "./gates/zustand-selector-derived.ts";
 import type { Check, GateResult, RunChecksResult } from "./harness.ts";
 import { runChecks } from "./harness.ts";
 
-/** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which
- *  filters this list by touched-path zone — importing this module does NOT run anything (the
- *  is-main guard below fires only under `tsx scripts/check/report.ts`, i.e. `pnpm check:structure`). */
-export const ALL_CHECKS: readonly Check[] = [
+// Every gate EXCEPT enforcement-registry-parity, which needs the FULL name list (itself included) to
+// check doc/registry parity — built separately below to avoid a report.ts↔gate import cycle (see
+// enforcement-registry-parity.ts's header).
+const BASE_CHECKS: readonly Check[] = [
   featureStructure,
   testLayout,
   verbNaming,
@@ -79,6 +81,7 @@ export const ALL_CHECKS: readonly Check[] = [
   commentedCode,
   schemaBranding,
   dbStructure,
+  baselineSingleMigration,
   providersRunnerSeal,
   noDirectUsersRead,
   noCallerUserId,
@@ -111,6 +114,17 @@ export const ALL_CHECKS: readonly Check[] = [
   registryPairing,
   modalBodyNotPlaceholder,
   placeholderCopyRegistry,
+];
+
+/** Every registered gate, in run order. Exported for the scoped mid-tier runner (file.ts), which
+ *  filters this list by touched-path zone — importing this module does NOT run anything (the
+ *  is-main guard below fires only under `tsx scripts/check/report.ts`, i.e. `pnpm check:structure`). */
+export const ALL_CHECKS: readonly Check[] = [
+  ...BASE_CHECKS,
+  createEnforcementRegistryParity([
+    ...BASE_CHECKS.map((c) => c.name),
+    "enforcement-registry-parity",
+  ]),
 ];
 
 /** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact

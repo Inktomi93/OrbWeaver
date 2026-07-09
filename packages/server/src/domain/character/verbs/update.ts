@@ -17,6 +17,7 @@ import {
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
 import { flagEdits, mergeCard } from "../substrate/card-merge";
+import { cardTokenSize } from "../substrate/card-tokens";
 
 export function createUpdate(ctx: CharacterContext): CharacterService["update"] {
   return async ({ principal, characterId, input }: UpdateCharacterParams) => {
@@ -36,6 +37,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
       const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
         ...next,
         contentHash: cardContentHash(next),
+        tokenSize: cardTokenSize(next),
         ...flagEdits(input),
       });
       if (!written) {

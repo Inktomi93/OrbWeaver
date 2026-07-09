@@ -1,9 +1,12 @@
-// domain/character/substrate/card-tokens — the list-only card-heft estimate
-// (Movement: "stays domain feature — local list-presentation logic"). Pure,
-// zero-I/O. DERIVES the ONE generic estimator from `@orb/kit/tokens` (`estimateTokens`, the OpenRouter
-// QuadChars algo) — it does NOT re-implement counting (no-doubling). Joins the card's free-text fields
-// into one definition string (greetings appended), then estimates. Advisory only — billing truth is the
-// provider `usage` post-turn.
+// domain/character/substrate/card-tokens — the ONE card-heft computer. Pure, zero-I/O. DERIVES the ONE
+// generic estimator from `@orb/kit/tokens` (`estimateTokens`, the OpenRouter QuadChars algo) — it does NOT
+// re-implement counting (no-doubling). Joins the card's free-text fields into one definition string
+// (greetings appended), then estimates. Advisory only — billing truth is the provider `usage` post-turn.
+//
+// WRITE-SIDE (one home): called at every card-content write (create / update / restore / duplicate /
+// mint-synthetic, alongside the `contentHash` recompute) to STAMP the `characters.token_size` denorm column.
+// The read path (`summaryOf`) reads that column — it never re-estimates per page — and the
+// `largestCards`/`smallestCards` library sorts keyset on it (a post-query estimate can't be an ORDER BY).
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { estimateTokens } from "@orb/kit/tokens";

@@ -36,7 +36,20 @@ function fx(rel: string, content: string): void {
 function cleanFixtures(): void {
   execFileSync(
     "find",
-    ["packages", "tests", "tools", "-name", "__g_*", "-prune", "-exec", "rm", "-rf", "{}", "+"],
+    [
+      "packages",
+      "tests",
+      "tools",
+      "scripts",
+      "-name",
+      "__g_*",
+      "-prune",
+      "-exec",
+      "rm",
+      "-rf",
+      "{}",
+      "+",
+    ],
     {
       cwd: ROOT,
     },
@@ -87,6 +100,17 @@ function writeFixtures(): void {
   );
   // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
   fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
+  // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
+  // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
+  fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");
+  // enforcement-registry-parity: a gate .ts file dropped in scripts/check/gates/ with no ALL_CHECKS
+  // registration and no DORMANT_GATES entry (the anti-drift arm promoted from check-gates.int.test.ts
+  // to every pnpm check). GATE_FILES above is computed at module load, BEFORE this fixture is written,
+  // so it doesn't also trip the "every gate file is registered" test below.
+  fx(
+    "scripts/check/gates/__g_unregistered.ts",
+    'import type { Check } from "../harness.ts";\nexport const gUnregistered: Check = { name: "g-unregistered", run: () => [] };\n',
+  );
   // test-layout: a test with no source mirror.
   fx("tests/server/__g_nomirror.test.ts", "export {};\n");
   // test-determinism: ambient clock in a test (tooling/ is scanned; only support/+e2e/ are exempt).

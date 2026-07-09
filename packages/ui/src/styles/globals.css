@@ -153,11 +153,16 @@
 
 /* SCROLLBARS (D62 §8 · DESIGN.md §6 "scrollbars → the neutral ramp") — thin, quiet, themed. The standard
  * two-property model (Firefox + Chromium 121+): a low-prominence thumb derived from the foreground so it
- * reads as part of the neutral ramp on ANY palette, an invisible track. Set on :root so every scroll
- * region inherits it — one home, no per-surface scrollbar CSS. */
+ * reads as part of the neutral ramp on ANY palette, an invisible track. `scrollbar-color` IS inherited, so
+ * it lives on :root and reaches every scroll region; `scrollbar-width` is NOT inherited (CSS spec), so a
+ * :root-only rule left every NESTED scroller at the OS default `auto` (side-eye: the settings pane read
+ * `auto`, not thin) — it must be set on all elements. `*` at specificity 0,0,0 still yields to any explicit
+ * `scrollbar-width: none` (a deliberately hidden scrollbar wins). One home, no per-surface scrollbar CSS. */
 :root {
-  scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+}
+* {
+  scrollbar-width: thin;
 }
 
 /* The skeleton shimmer sweep (D62 UIP-309, primitives/skeleton) — a 90° muted→accent→muted gradient

@@ -72,6 +72,12 @@ export const characters = sqliteTable(
     importHash: text("import_hash"),
     // The semantic-fields hash (always present — computed at create/edit).
     contentHash: text("content_hash").notNull(),
+    // Advisory card-heft estimate (the ONE `estimateTokens` QuadChars algo via `substrate/card-tokens`) —
+    // a DENORM of the card content, RESTAMPED on every content write (alongside `contentHash`, same sites).
+    // notNull default 0. Exists as a QUERYABLE column so `largestCards`/`smallestCards` (FINAL §4.5) can be a
+    // keyset ORDER BY — a post-query JS estimate can't sort server-side. Advisory only (billing truth is the
+    // provider `usage` post-turn); an empty card estimates to 0.
+    tokenSize: integer("token_size").notNull().default(0),
     // ── Card content (FLAT on the row — D28; mirrors @orb/contracts/character `characterCardSchema`) ──
     name: text("name").notNull(),
     description: text("description"),

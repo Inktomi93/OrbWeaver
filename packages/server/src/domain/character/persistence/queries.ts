@@ -12,7 +12,11 @@
 // `types-in-contract` gate forbids an EXPORTED type outside `contract/`, and the join bundle is only ever
 // produced + consumed within `persistence/`.
 
-import type { CharacterCard } from "@orb/contracts/character";
+import type {
+  CharacterCard,
+  CharacterListCursor,
+  CharacterListSort,
+} from "@orb/contracts/character";
 import { cardDepthPromptSchema, refinerySignalsSchema } from "@orb/contracts/character";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { TagView } from "@orb/contracts/tag";
@@ -20,18 +24,20 @@ import type { Db } from "@orb/db";
 import {
   assets,
   characterSnapshots,
+  characterStats,
+  characterSummaries,
   characters,
   characterTags,
   parseStringArray,
   tags,
 } from "@orb/db";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { AssetNotFoundError } from "../contract/errors";
 import type { SnapshotSummary } from "../contract/results";
 import type { CharacterDetail, CharacterSummary } from "../contract/views";
-import { cardTokenSize } from "../substrate/card-tokens";
 
 const LIMIT_ONE = 1;
 
@@ -96,41 +102,223 @@ export async function loadCharacterWithAvatarById(
 }
 
 // The library keyset page args (file-local — types-in-contract forbids an exported shape here; the
-// `list` verb owns the public `ListCharactersParams`/`CharacterListCursor` contract shapes).
+// `list` verb owns the public `ListCharactersParams`/`CharacterListCursor` contract shapes). `cursor` is the
+// FULL sort-discriminated wire cursor — the verb has already checked its `sort` matches `input.sort`.
 interface ListOwnedPageInput {
   readonly ownerId: UserId;
   readonly limit: number;
-  /** `createdAt` of the previous page's last row (the keyset cursor); paired with `cursorId` — pass
-   *  both or neither (the `domain/assets` `(uploadedAt, id)` precedent). */
-  readonly cursor: number | undefined;
-  /** `id` of that same row — the deterministic tiebreak. `createdAt` is NOT unique (a frozen clock in
-   *  tests, or a bulk import, can stamp many rows with the identical millisecond), so a single-column
-   *  cursor would skip/dupe rows on a tie; `id` breaks it. */
-  readonly cursorId: CharacterId | undefined;
+  readonly sort: CharacterListSort;
+  readonly cursor: CharacterListCursor | undefined;
 }
 
-/** The owner's NON-synthetic characters + avatars, `ORDER BY createdAt DESC, id DESC`, keyset-paged
- *  (synthetic group buckets excluded — every user-facing query filters `synthetic = false`). The cursor
- *  predicate is `createdAt < :cursor OR (createdAt = :cursor AND id < :cursorId)` — no offset (which
- *  skips/dupes rows under concurrent writes). Fetches exactly `limit` rows; the caller (the `list` verb)
- *  derives `nextCursor` from whether a full page came back. */
+// The list-page row bundle: the character + avatar join PLUS the two FIX-#2 denorm LEFT JOINs
+// (`elevatorPitch` from `character_summaries`; `lastChattedAt` from `character_stats.lastActivityAt`). Both
+// source tables are keyed uniquely by characterId (PK / unique index) → no row fan-out. File-local (the
+// list verb consumes it via `summaryOf`; `types-in-contract` forbids exporting it).
+interface CharacterListRow extends CharacterWithAvatar {
+  readonly elevatorPitch: string | null;
+  readonly lastChattedAt: number | null;
+  // `character_stats.chats` via the same LEFT JOIN — null when the card has no stats row (never chatted). The
+  // `most/fewestChats` sorts derive the next cursor's `chatCount` from it; the summary view does not carry it.
+  readonly chatCount: number | null;
+}
+
+const assertNever = (value: never): never => {
+  throw new Error(`unhandled character list sort: ${String(value)}`);
+};
+
+// The per-sort ORDER BY (§4.5). `recent` sinks never-chatted (null `lastActivityAt`) to the tail via the
+// `… is null` leading term (the `domain/tag` NULLS-LAST precedent), then DESC within each group; `alpha`/
+// `starred` order by `name` under the DB's default (binary) collation — the keyset comparisons below use the
+// SAME collation so paging is consistent (`name` is not unique → `id` tiebreaks).
+function orderFor(sort: CharacterListSort): SQL[] {
+  switch (sort) {
+    case "recent":
+      return [
+        sql`${characterStats.lastActivityAt} is null`,
+        desc(characterStats.lastActivityAt),
+        desc(characters.createdAt),
+        desc(characters.id),
+      ];
+    case "alpha":
+      return [asc(characters.name), asc(characters.id)];
+    case "starred":
+      return [desc(characters.starred), asc(characters.name), asc(characters.id)];
+    case "newest":
+      return [desc(characters.createdAt), desc(characters.id)];
+    case "oldest":
+      return [asc(characters.createdAt), asc(characters.id)];
+    case "mostChats":
+      // `chats` is join-nullable (no stats row = never chatted) → the leading `is null` term sinks that group
+      // to the tail (NULLS-LAST), same construction as `recent`; then chat-count DESC, `id` DESC tiebreak.
+      return [
+        sql`${characterStats.chats} is null`,
+        desc(characterStats.chats),
+        desc(characters.id),
+      ];
+    case "fewestChats":
+      // ASC twin: fewest chats first, but the never-chatted null group STILL sinks to the tail (never "fewest").
+      return [sql`${characterStats.chats} is null`, asc(characterStats.chats), asc(characters.id)];
+    case "largestCards":
+      // `token_size` is notNull (default 0) → NO null handling; heftiest first, `id` DESC tiebreak.
+      return [desc(characters.tokenSize), desc(characters.id)];
+    case "smallestCards":
+      return [asc(characters.tokenSize), asc(characters.id)];
+    default:
+      return assertNever(sort);
+  }
+}
+
+// The `(createdAt, id)` keyset — rows strictly after the boundary. DESC form serves BOTH `recent`'s
+// createdAt-DESC tiebreak AND the `newest` primary sort; the ASC form is `oldest`'s direction-flipped twin
+// (an own predicate, never a negated copy). `createdAt` is not unique → `id` is the deterministic tiebreak.
+function createdAtKeysetDesc(createdAt: number, id: CharacterId): SQL | undefined {
+  return or(
+    lt(characters.createdAt, createdAt),
+    and(eq(characters.createdAt, createdAt), lt(characters.id, id)),
+  );
+}
+function createdAtKeysetAsc(createdAt: number, id: CharacterId): SQL | undefined {
+  return or(
+    gt(characters.createdAt, createdAt),
+    and(eq(characters.createdAt, createdAt), gt(characters.id, id)),
+  );
+}
+
+// The keyset predicate for the `recent` order `(lastActivityAt DESC NULLS-LAST, createdAt DESC, id DESC)`:
+// rows strictly AFTER the boundary. Null-boundary handling is explicit — when the boundary row is itself in
+// the null tail (`lastChattedAt === null`), ONLY further null rows remain (every non-null row already ranked
+// above it); otherwise the whole null tail plus the lower/equal-`lastActivityAt` non-null rows follow.
+function recentKeyset(cursor: Extract<CharacterListCursor, { sort: "recent" }>): SQL | undefined {
+  const olderTiebreak = createdAtKeysetDesc(cursor.createdAt, cursor.id);
+  if (cursor.lastChattedAt === null) {
+    return and(isNull(characterStats.lastActivityAt), olderTiebreak);
+  }
+  return or(
+    isNull(characterStats.lastActivityAt),
+    lt(characterStats.lastActivityAt, cursor.lastChattedAt),
+    and(eq(characterStats.lastActivityAt, cursor.lastChattedAt), olderTiebreak),
+  );
+}
+
+// The keyset predicate for the `mostChats` order `(chats DESC NULLS-LAST, id DESC)` — rows strictly AFTER the
+// boundary. Same null-boundary shape as `recent` (nulls = no stats row): a null-boundary cursor stays within
+// the null tail (`id` DESC); a non-null boundary is followed by the whole null tail plus the lower/equal-count
+// non-null rows. `chats` is not unique → `id` DESC tiebreaks.
+function mostChatsKeyset(
+  cursor: Extract<CharacterListCursor, { sort: "mostChats" }>,
+): SQL | undefined {
+  if (cursor.chatCount === null) {
+    return and(isNull(characterStats.chats), lt(characters.id, cursor.id));
+  }
+  return or(
+    isNull(characterStats.chats),
+    lt(characterStats.chats, cursor.chatCount),
+    and(eq(characterStats.chats, cursor.chatCount), lt(characters.id, cursor.id)),
+  );
+}
+
+// The `fewestChats` twin `(chats ASC NULLS-LAST, id ASC)` — direction-flipped, NOT a negated copy. The null
+// tail STILL trails every non-null row (never-chatted is never "fewest"), so a non-null boundary is followed by
+// higher-count non-null rows, the equal-count `id`-ASC remainder, AND the whole null tail; a null boundary
+// stays within the tail (`id` ASC).
+function fewestChatsKeyset(
+  cursor: Extract<CharacterListCursor, { sort: "fewestChats" }>,
+): SQL | undefined {
+  if (cursor.chatCount === null) {
+    return and(isNull(characterStats.chats), gt(characters.id, cursor.id));
+  }
+  return or(
+    isNull(characterStats.chats),
+    gt(characterStats.chats, cursor.chatCount),
+    and(eq(characterStats.chats, cursor.chatCount), gt(characters.id, cursor.id)),
+  );
+}
+
+// The `(token_size, id)` keyset — rows strictly after the boundary. `token_size` is notNull (no null tail);
+// DESC serves `largestCards`, the ASC twin serves `smallestCards` (direction-flipped, not a negated copy).
+// `token_size` is not unique → `id` is the deterministic tiebreak.
+function tokenSizeKeysetDesc(tokenSize: number, id: CharacterId): SQL | undefined {
+  return or(
+    lt(characters.tokenSize, tokenSize),
+    and(eq(characters.tokenSize, tokenSize), lt(characters.id, id)),
+  );
+}
+function tokenSizeKeysetAsc(tokenSize: number, id: CharacterId): SQL | undefined {
+  return or(
+    gt(characters.tokenSize, tokenSize),
+    and(eq(characters.tokenSize, tokenSize), gt(characters.id, id)),
+  );
+}
+
+// The keyset predicate for the `alpha` order `(name ASC, id ASC)` — rows strictly after the boundary.
+function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
+  return or(gt(characters.name, name), and(eq(characters.name, name), gt(characters.id, id)));
+}
+
+// The keyset predicate per sort. Built off the cursor's OWN discriminant (== `input.sort`, verb-checked).
+// `if`-chained (not `switch`) so the exhaustiveness `assertNever` guard holds — the `latency.ts` precedent
+// (a `z.infer` discriminated union the switch-reachability lint mis-reads, but the `if`-form doesn't).
+function keysetFor(cursor: CharacterListCursor): SQL | undefined {
+  if (cursor.sort === "recent") {
+    return recentKeyset(cursor);
+  }
+  if (cursor.sort === "alpha") {
+    return alphaKeyset(cursor.name, cursor.id);
+  }
+  if (cursor.sort === "starred") {
+    // starred-first: a row follows if it's in a LOWER starred group (false after true) OR the same group and
+    // after in the alpha keyset. `starred < :starred` is only satisfiable when the boundary is starred.
+    return or(
+      lt(characters.starred, cursor.starred),
+      and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)),
+    );
+  }
+  if (cursor.sort === "newest") {
+    return createdAtKeysetDesc(cursor.createdAt, cursor.id);
+  }
+  if (cursor.sort === "oldest") {
+    return createdAtKeysetAsc(cursor.createdAt, cursor.id);
+  }
+  if (cursor.sort === "mostChats") {
+    return mostChatsKeyset(cursor);
+  }
+  if (cursor.sort === "fewestChats") {
+    return fewestChatsKeyset(cursor);
+  }
+  if (cursor.sort === "largestCards") {
+    return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
+  }
+  if (cursor.sort === "smallestCards") {
+    return tokenSizeKeysetAsc(cursor.tokenSize, cursor.id);
+  }
+  return assertNever(cursor);
+}
+
+/** The owner's NON-synthetic characters + avatars + the FIX-#2 denorms, sorted per `input.sort` and
+ *  keyset-paged (synthetic group buckets excluded — every user-facing query filters `synthetic = false`).
+ *  No offset (which skips/dupes rows under concurrent writes). Fetches exactly `limit` rows; the caller (the
+ *  `list` verb) derives `nextCursor` from whether a full page came back. */
 export async function listOwnedCharactersWithAvatar(
   db: Db,
   input: ListOwnedPageInput,
-): Promise<CharacterWithAvatar[]> {
-  const keyset =
-    input.cursor !== undefined && input.cursorId !== undefined
-      ? or(
-          lt(characters.createdAt, input.cursor),
-          and(eq(characters.createdAt, input.cursor), lt(characters.id, input.cursorId)),
-        )
-      : undefined;
+): Promise<CharacterListRow[]> {
+  const scope = and(eq(characters.ownerId, input.ownerId), eq(characters.synthetic, false));
+  const keyset = input.cursor === undefined ? undefined : keysetFor(input.cursor);
   const rows = await db
-    .select({ character: characters, avatar: assets })
+    .select({
+      character: characters,
+      avatar: assets,
+      elevatorPitch: characterSummaries.elevatorPitch,
+      lastChattedAt: characterStats.lastActivityAt,
+      chatCount: characterStats.chats,
+    })
     .from(characters)
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
-    .where(and(eq(characters.ownerId, input.ownerId), eq(characters.synthetic, false), keyset))
-    .orderBy(desc(characters.createdAt), desc(characters.id))
+    .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
+    .leftJoin(characterStats, eq(characterStats.characterId, characters.id))
+    .where(keyset === undefined ? scope : and(scope, keyset))
+    .orderBy(...orderFor(input.sort))
     .limit(input.limit);
   return rows;
 }
@@ -358,9 +546,11 @@ export function detailOf(
   };
 }
 
-/** Row + joined avatar + accepted tags → the light library-list summary (with the advisory token estimate). */
+/** Row + joined avatar + the FIX-#2 denorms + accepted tags → the light library-list summary (with the
+ *  advisory token estimate). `elevatorPitch`/`lastChattedAt` ride the {@link CharacterListRow} bundle (the
+ *  two LEFT JOINs), so this projection is only meaningful over a `listOwnedCharactersWithAvatar` row. */
 export function summaryOf(
-  { character: row, avatar }: CharacterWithAvatar,
+  { character: row, avatar, elevatorPitch, lastChattedAt }: CharacterListRow,
   canonicalTags: readonly TagView[],
 ): CharacterSummary {
   return {
@@ -376,7 +566,11 @@ export function summaryOf(
     avatarHash: avatar?.hash ?? null,
     contentHash: row.contentHash,
     createdAt: row.createdAt,
-    tokenSize: cardTokenSize({ ...row, greetings: parseStringArray(row.greetings) }),
+    // Reads the DENORM column (the write path stamps it via `cardTokenSize`; one home). NOT re-estimated
+    // per page — the `largestCards`/`smallestCards` keyset sorts on this same column.
+    tokenSize: row.tokenSize,
     tags: canonicalTags,
+    elevatorPitch,
+    lastChattedAt,
   };
 }

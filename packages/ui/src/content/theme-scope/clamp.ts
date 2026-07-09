@@ -119,6 +119,8 @@ export const THEME_SCOPE_EMIT_VARS = [
   "--color-card-foreground",
   "--color-popover-foreground",
   "--color-sidebar-foreground",
+  // Secondary/placeholder text — derived softer than the full foreground but still AA-legible.
+  "--color-muted-foreground",
   // The UI border — an explicit `borderColor` when set, else DERIVED from the base surface (a low-alpha
   // contrast hairline, so it stays visible on light AND dark bases). `--color-sidebar-border` is the
   // SAME hairline for the sidebar-tinted chrome (rail edge, LIST/CONTEXT panel edges + the CONTEXT
@@ -162,9 +164,24 @@ const FG_L_MAX = 0.96; // lightest derived text (off-white, on dark surfaces)
 const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
 const BORDER_ALPHA = 0.14; // a subtle hairline — visible on either polarity, never a hard line
 const INPUT_ALPHA = 0.12; // the input-field surface lift (matches the token's default 0.12 alpha)
+// The MUTED foreground (placeholders, hints, secondary text) — the SAME pivot flip as the full
+// foreground, but a softer band (min 0.34 / max 0.82 vs the foreground's 0.22 / 0.96) so it reads as
+// secondary yet still clears WCAG AA (≥4.5:1) against the derived `--color-input` fill on both light and
+// dark bases (verified: worst realistic-pole ratio ≈4.8:1). The static token was a fixed L=0.705 that
+// failed AA on a lighter derived surface (side-eye: 3.12:1) — deriving it makes muted text track the
+// palette AND stay legible. (Mid-gray bases near the 0.62 pivot are a pre-existing pivot limitation the
+// full foreground shares — a mid-gray surface is inherently low-contrast for ANY sub-maximal tone.)
+const MUTED_L_MIN = 0.34;
+const MUTED_L_MAX = 0.82;
+const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
 /** A contrast-safe foreground for text sitting on `surface` (any validated color) — browser-computed. */
 function foregroundOn(surface: string): string {
   return `oklch(from ${surface} ${CONTRAST_L} 0 h)`;
+}
+/** A contrast-safe MUTED foreground (secondary text/placeholders) for `surface` — softer than
+ *  `foregroundOn` but still ≥4.5:1 against the derived input fill. */
+function mutedForegroundOn(surface: string): string {
+  return `oklch(from ${surface} ${MUTED_CONTRAST_L} 0 h)`;
 }
 /** A subtle contrast border DERIVED from `surface` (the foreground contrast tone at low alpha). */
 function borderOn(surface: string): string {
@@ -227,6 +244,9 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
     vars["--color-card-foreground"] = fg;
     vars["--color-popover-foreground"] = fg;
     vars["--color-sidebar-foreground"] = fg;
+    // Secondary/placeholder text derives too — a softer contrast tone that still clears AA, so a custom
+    // theme's muted text tracks the palette instead of keeping the fixed (light-only) static token.
+    vars["--color-muted-foreground"] = mutedForegroundOn(t.background);
     // The border derives from the base surface too — UNLESS the user set an explicit borderColor (below).
     // Both the generic UI border and the sidebar-chrome border derive from the same base so every themed
     // surface's hairline (content borders AND rail/panel/panel-header edges) tracks the palette + stays

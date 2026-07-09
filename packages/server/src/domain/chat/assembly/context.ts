@@ -281,6 +281,9 @@ function toAssembleCharacter(card: CharacterCard): AssembleCharacter {
     exampleMessages: card.exampleMessages,
     systemPrompt: card.systemPrompt,
     postHistoryInstructions: card.postHistoryInstructions,
+    // The Character's-Note-@-Depth carried onto the slim cast (the `{depth, role?, prompt}` projection),
+    // spliced per-member by `characterDepthNoteCandidates`. A null card field ⇒ no note.
+    depthPrompt: card.depthPrompt,
   };
 }
 
@@ -590,6 +593,67 @@ function resolvePersonaDescriptionCandidates(
   return candidates;
 }
 
+/** The seated cast's Character's-Note-\@-Depth (`card.depthPrompt`, ST `data.extensions.depth_prompt` /
+ *  getGroupDepthPrompts) → per-member `in_chat` injection candidates, the CHARACTER sibling of the persona
+ *  depth-candidate above (same unified list + budget pass; `ignoreBudget: true` — a card-authored steering
+ *  intent, never droppable, the persona/guided precedent). EVERY present cast member with a non-empty note
+ *  injects — its `{{char}}` bound to THAT member (a per-member render ctx: `character`/`speaker` swapped to
+ *  the member, so `charForSpeaker` yields the member's name — the "each member's note is about itself" rule).
+ *  `{{user}}` routes to the CARD (anchor/pinned) persona: the note is a CARD-authored field, so it follows
+ *  the card-section persona axis (Chat-Macro-Resolution §3 "CARD sections" — `pinnedPersona`), NOT the active
+ *  speaker's. Depth is the note's own `depth`; role its own `role ?? "system"` (the assembler default).
+ *
+ *  STACKING (multiple notes at the SAME depth): the candidates are pushed in CAST ORDER (primary first) and
+ *  budgetInjections preserves insertion order, so the emitted `chatInjections` array is cast-ordered; the
+ *  SHAPE splice (`spliceInChatInjections`) sorts depth-DESC then `order`-DESC and is STABLE on ties, and no
+ *  note sets `order` — so same-depth notes keep array order ("array order = output order", per that splice),
+ *  i.e. the primary's note lands on top. Deterministic without an explicit per-note `order`.
+ *
+ *  PREFILL: assistant\@depth-0 is a response prefill, rejected at the WRITE boundary
+ *  (`cardDepthPromptWriteSchema`), so assembly never receives it and needs no special case — the splice would
+ *  normalize it anyway. Solo (one present member, one note) stays byte-identical to the single-note output. */
+function characterDepthNoteCandidates(ctx: AssembleContext): {
+  candidates: InjectionCandidate[];
+  contributorNames: string[];
+} {
+  const cast = ctx.cast ?? [ctx.character];
+  const candidates: InjectionCandidate[] = [];
+  const contributorNames: string[] = [];
+  cast.forEach((member, idx) => {
+    const note = member.depthPrompt;
+    if (note === null || note === undefined || note.prompt.trim().length === 0) {
+      return;
+    }
+    const memberCtx: AssembleContext = {
+      ...ctx,
+      character: member,
+      speaker: { kind: "single", character: member },
+    };
+    const content = renderMacros(note.prompt, memberCtx, ctx.pinnedPersona);
+    if (content.trim().length === 0) {
+      return;
+    }
+    contributorNames.push(member.name);
+    candidates.push({
+      injection: { position: "in_chat", depth: note.depth, role: note.role ?? "system", content },
+      tokens: estimateTokens(content),
+      ignoreBudget: true,
+      priority: OPERATOR_PRIORITY,
+      entryId: `character-note:${idx}`,
+      bucket: null,
+    });
+  });
+  return { candidates, contributorNames };
+}
+
+/** The `authorsNoteSource` trace label for the fired character notes (assemble.ts →
+ *  `overrideSources.authorsNote`): the single contributor's name, or "merged (present cast)" when 2+
+ *  cast members contribute. Callers pass a NON-EMPTY name list (a zero-note turn leaves
+ *  `authorsNoteSource` unset). */
+function depthNoteSource(contributorNames: readonly string[]): string {
+  return contributorNames.length === 1 ? `from ${contributorNames[0]}` : "merged (present cast)";
+}
+
 /**
  * RESOLVE → GATHER → BUILD: produce the IMMUTABLE per-turn `AssembleContext`. Reads the
  * chat-owned roster cast (via `ctx.getCard`) + the WI pool; everything cross-domain is in `input` (see the
@@ -704,8 +768,18 @@ export async function buildAssembleContext(
     bucket: null,
   }));
   const personaDescription = resolvePersonaDescriptionCandidates(base, input.personas);
+  // The seated cast's per-member Character's-Note-@-Depth (card `depthPrompt`) — the CHARACTER sibling of the
+  // persona depth candidate, joining the SAME list/budget pass. Appended AFTER persona so a same-depth tie
+  // orders persona-then-note deterministically (array order = output order; see the builder's STACKING note).
+  const depthNotes = characterDepthNoteCandidates(base);
   const { kept, dropped } = budgetInjections(
-    [...wi.candidates, ...userCandidates, ...guided.candidates, ...personaDescription],
+    [
+      ...wi.candidates,
+      ...userCandidates,
+      ...guided.candidates,
+      ...personaDescription,
+      ...depthNotes.candidates,
+    ],
     input.injectionTokenBudget,
   );
   const { chatInjections, beforeParts, afterParts } = routeKept(kept);
@@ -718,6 +792,11 @@ export async function buildAssembleContext(
     chatInjections,
     worldInfoBefore: beforeParts.join("\n"),
     worldInfoAfter: afterParts.join("\n"),
+    // The author's-note trace label for the fired character notes (`ignoreBudget` ⇒ every contributor
+    // survives the budget; the label mirrors that set). Unset when no note fired (trace omits it).
+    ...(depthNotes.contributorNames.length > 0
+      ? { authorsNoteSource: depthNoteSource(depthNotes.contributorNames) }
+      : {}),
     // Carry the resolved host-tier regex set onto the immutable ctx so RECEIVE (the pipeline) applies the same
     // set (AI_OUTPUT/REASONING) the SEND pass used (USER_INPUT) — D53. Absent stays absent (preview/aux turns).
     ...(input.hostTierRegexScripts !== undefined

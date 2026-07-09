@@ -108,9 +108,10 @@ async function hostRowUpdate(
     .set({ ...args.patch, updatedAt: ctx.now() })
     .where(eq(chats.id, args.chatId));
   await emit({ type: "chatUpdated", chatId: args.chatId });
-  // The chat-LIST row (title/star/archive) moved → the acting user's second device refetches its list
-  // (the per-chat `chatUpdated` above only reaches subscribers of the OPEN chat).
-  ctx.emitUserEvent(args.principal.userId, { type: "chatsChanged", chatId: args.chatId });
+  // The chat-LIST row (title/star/archive) moved → fan `chatsChanged` to EVERY present human member's device
+  // (the per-chat `chatUpdated` above only reaches subscribers of the OPEN chat). `detail` ⇒ the changed
+  // chat's `getChat` refetches too (the row itself changed).
+  await ctx.emitChatChanged(args.chatId, { detail: true });
 }
 
 /** `updateTitle` — host-only. */
@@ -178,9 +179,17 @@ function createSetChatAnchorPersona(
 function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delete"] {
   return async ({ principal, chatId }: DeleteChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
+    // Enumerate present human members BEFORE the FK cascade drops the roster — each (incl. the host) must have
+    // the deleted chat drop from their live list. Post-delete the roster is gone, so they ride `extraUserIds`.
+    const roster = await loadRoster(ctx.db, chatId);
+    const members = [
+      ...new Set(
+        roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])),
+      ),
+    ];
     await ctx.db.delete(chats).where(eq(chats.id, chatId));
     await emit({ type: "chatDeleted", chatId });
-    ctx.emitUserEvent(principal.userId, { type: "chatsChanged", chatId });
+    await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
     await ctx.audit(
       {
         actorUserId: principal.userId,

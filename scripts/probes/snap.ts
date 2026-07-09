@@ -71,7 +71,9 @@
  *                                          # matches the visible pixels (was a false-FAIL). A
  *                                          # background-IMAGE/gradient ancestor still reports
  *                                          # INDETERMINATE (verify manually); any FAIL reddens
- *                                          # the exit code
+ *                                          # the exit code. An EMPTY input/textarea is measured at
+ *                                          # its ::placeholder color (not the invisible text color —
+ *                                          # a placeholder that fails AA was a silent false PASS).
  *   pnpm snap / --map                      # live selector map of <body>'s interactive/labeled
  *                                          # elements — role, accessible name, and the BEST
  *                                          # stable selector to target it (testid > unique
@@ -756,8 +758,17 @@ function buildContrastScript(selector: string): string {
     var style = getComputedStyle(el);
     var fw = style.fontWeight;
     var fontWeight = fw === "bold" ? 700 : fw === "normal" ? 400 : Number(fw) || 400;
+    // ::placeholder blind spot: an EMPTY input/textarea paints its PLACEHOLDER, not its text color —
+    // reading style.color measures the (invisible) text color and reports a false PASS. When the field
+    // is empty, measure the pseudo-element's color instead (the pixels the eye actually sees).
+    var tag = el.tagName;
+    var colorSource = style.color;
+    if ((tag === "INPUT" || tag === "TEXTAREA") && !el.value) {
+      var phColor = getComputedStyle(el, "::placeholder").color;
+      if (phColor && !isTransparent(phColor)) colorSource = phColor;
+    }
     return {
-      color: toRgbString(style.color),
+      color: toRgbString(colorSource),
       fontSizePx: Number.parseFloat(style.fontSize) || 16,
       fontWeight: fontWeight,
       backdrop: resolveBackdrop(el),

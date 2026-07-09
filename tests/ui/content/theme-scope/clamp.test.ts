@@ -30,6 +30,18 @@ test("a bubble/surface FOREGROUND is DERIVED from its bg for contrast, never tak
   expect(vars["--color-foreground"]).toContain("oklch(from oklch(0.158 0.006 60)");
 });
 
+test("the MUTED foreground derives from the base too — a softer contrast band than the full foreground", () => {
+  const { vars } = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
+  // Derived (browser computes the value), and DISTINCT from the full foreground — a softer band (max L
+  // 0.82 vs 0.96) so placeholders/hints read as secondary while still clearing AA (never the fixed token
+  // that failed on a lighter surface).
+  expect(vars["--color-muted-foreground"]).toContain("oklch(from oklch(0.158 0.006 60)");
+  expect(vars["--color-muted-foreground"]).not.toBe(vars["--color-foreground"]);
+  // The muted band caps at 0.82; the full foreground caps at 0.96 — the two clamps must not collide.
+  expect(vars["--color-muted-foreground"]).toContain("0.82");
+  expect(vars["--color-foreground"]).toContain("0.96");
+});
+
 test("the border derives from the base surface, but an explicit borderColor WINS", () => {
   // Derived when unset — a low-alpha contrast hairline off the base. BOTH scopes derive together so the
   // sidebar-tinted chrome (rail/panel/CONTEXT-header edges) tracks the theme, not just the content border.

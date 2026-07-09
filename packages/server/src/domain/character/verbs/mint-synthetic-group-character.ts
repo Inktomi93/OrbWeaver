@@ -11,6 +11,7 @@ import type { MintGroupCharParams } from "../contract/params";
 import type { CharacterContext, CharacterService } from "../contract/service";
 import { insertCharacter } from "../persistence/card";
 import { findByOwnerHandle } from "../persistence/queries";
+import { cardTokenSize } from "../substrate/card-tokens";
 import { buildGroupCard, groupHandle } from "../substrate/group-character";
 
 export function createMintSyntheticGroupCharacter(
@@ -32,6 +33,7 @@ export function createMintSyntheticGroupCharacter(
         ownerId,
         synthetic: true,
         contentHash: cardContentHash(card),
+        tokenSize: cardTokenSize(card),
         createdAt: ctx.now(),
         ...card,
       });

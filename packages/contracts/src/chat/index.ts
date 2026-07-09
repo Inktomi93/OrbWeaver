@@ -124,6 +124,18 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 // logic. Types only — the producing engine (`assemblePrompt`/`buildAssembleContext`) is `domain/chat`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
+/** The card's Character's-Note-\@-Depth (`@orb/contracts/character` `CardDepthPrompt`) projected onto the
+ *  assemble cast: a recurring per-character snippet spliced into history at a fixed `depth`/`role` (the same
+ *  at-depth mechanism WI-at-depth + the persona description use, D32). Re-homed slim HERE (not imported from
+ *  `contracts/character`) so `chat` keeps the assemble family cohesive without a `chat → character` DAG edge —
+ *  mirroring {@link AssemblePersona}. `role` optional (the assembler defaults `system`); an empty `prompt` is
+ *  "no note" at assemble time. */
+export interface AssembleDepthNote {
+  prompt: string;
+  depth: number;
+  role?: MessageRole | undefined;
+}
+
 /** A roster character projected to the fields the ASSEMBLE stage renders — a slim cast projection, NOT the
  *  full `CharacterCard`. `systemPrompt`/`postHistoryInstructions`, when present, REPLACE the matching preset
  *  section in place (`{{original}}` recovers the preset text). */
@@ -135,6 +147,10 @@ export interface AssembleCharacter {
   exampleMessages?: string | null;
   systemPrompt?: string | null;
   postHistoryInstructions?: string | null;
+  /** The character's own Character's-Note-\@-Depth (its card `depthPrompt`), or null/absent (no note). The
+   *  assembler splices it at its `depth`/`role` with `{{char}}` bound to THIS character (see
+   *  {@link AssembleDepthNote}). */
+  depthPrompt?: AssembleDepthNote | null;
 }
 
 /** The human-side projection for `{{user}}` resolution. Slim (`{name, description}`) — homed HERE, not

@@ -11,6 +11,15 @@ import { tv } from "#lib";
  * the full-bleed presentation (J11 settings overlay): the popup fills the viewport (no max-width,
  * no radius, no border) and the viewport drops its gutter padding. `w-full` + the max-width cap keeps
  * the sm/md/lg popups fluid below their clamp.
+ *
+ * SCROLL OWNERSHIP (§13.7 overlay-anatomy): the POPUP owns layout, NEVER the backdrop/viewport. The
+ * viewport is a plain flex CENTERING container — it is NOT a scroll container (a scrollable viewport
+ * took the title + close + any pinned nav out of view along with the content). The popup is a capped
+ * flex COLUMN (`flex flex-col max-h-full`) so a consumer can pin a header and let ONLY an interior body
+ * region scroll (`flex-1 min-h-0 overflow-y-auto` — the same capped-flex pattern the drawer uses). Flex
+ * (not grid) centering is deliberate: a grid `place-items-center` track auto-sizes to its content, so a
+ * `max-h`/`h-full` percentage resolved against it never clamps (tall popups grew unbounded); a flex
+ * container has a definite height, so `max-h-full`/`h-full` clamp correctly.
  */
 export const dialogVariants = tv({
   slots: {
@@ -18,10 +27,10 @@ export const dialogVariants = tv({
       "fixed inset-0 z-(--z-modal) bg-scrim backdrop-blur-sm transition-opacity duration-(--motion-base) ease-out-expo data-starting-style:opacity-0 data-ending-style:opacity-0",
     // Viewport gutter is set PER-SIZE (below), never in the base — else `full`'s `p-0` and the base
     // `p-gutter` are two padding classes tailwind-merge can't dedupe (custom `gutter` scale), and the
-    // gutter wins. One padding class per size = a clean override.
-    viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto",
+    // gutter wins. One padding class per size = a clean override. NOT a scroll container (see header).
+    viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
     popup:
-      "w-full rounded-card border border-border bg-popover p-section text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
+      "flex max-h-full w-full flex-col rounded-card border border-border bg-popover p-section text-popover-foreground shadow-lg transition-all duration-(--motion-base) ease-out-expo data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
   },

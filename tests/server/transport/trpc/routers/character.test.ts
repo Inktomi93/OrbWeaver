@@ -35,7 +35,12 @@ describe("character.list — wire-through", () => {
       auth: principal("user", { userId: ACTOR }),
       services: { character: { list } },
     });
-    const cursor = { createdAt: 1000, id: castId<CharacterId>("character_a") };
+    const cursor = {
+      sort: "recent" as const,
+      lastChattedAt: null,
+      createdAt: 1000,
+      id: castId<CharacterId>("character_00000000000000000000000000"),
+    };
 
     await caller(ctx).character.list({ cursor, limit: 10 });
 
@@ -61,7 +66,12 @@ describe("character.list — wire-through", () => {
   });
 
   test("returns the domain page verbatim ({items, nextCursor})", async () => {
-    const cursor = { createdAt: 500, id: castId<CharacterId>("character_z") };
+    const cursor = {
+      sort: "recent" as const,
+      lastChattedAt: 500,
+      createdAt: 500,
+      id: castId<CharacterId>("character_0000000000000000000000000z"),
+    };
     const page: ListCharactersResult = { items: [], nextCursor: cursor };
     const list = vi.fn<CharacterService["list"]>(async () => page);
     const ctx = makeContext({

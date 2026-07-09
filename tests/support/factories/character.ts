@@ -34,6 +34,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     importedFrom: null,
     importHash: null,
     contentHash: `hash_${id}`,
+    tokenSize: 0,
     name: "Test Character",
     description: null,
     personality: null,

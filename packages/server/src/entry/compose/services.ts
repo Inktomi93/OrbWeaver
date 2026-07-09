@@ -686,7 +686,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     emitChatEvent, // PD-128: the ONE bus, built above — chat no longer constructs its own.
-    emitUserEvent: publishUserEvent, // PD user-bus lane: chat LIST-level ops fire `chatsChanged`.
     holder: deps.holder ?? "replica-default",
     sessionSecret: deps.sessionSecret,
     // The PD-73 frozen-host → Principal bridge (sessions is the sanctioned users reader).

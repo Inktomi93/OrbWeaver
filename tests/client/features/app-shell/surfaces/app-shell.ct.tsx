@@ -9,7 +9,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
@@ -97,6 +97,47 @@ test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ moun
 // A short viewport + a 3000px injected body forces the overflow; if it leaked to the page, `documentElement`
 // would become scrollable.
 
+// Classify where the tall body's overflow is absorbed: is the first scrollable ancestor a DESCENDANT of
+// the modal popup (correct), the popup itself, or something OUTSIDE it (the broken backdrop-owns-scroll)?
+function scrollRegionContainment(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const popup = document.querySelector('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
+    if (popup === null) {
+      return "no-popup";
+    }
+    let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
+    while (el !== null) {
+      const s = getComputedStyle(el);
+      if (
+        (s.overflowY === "auto" || s.overflowY === "scroll") &&
+        el.scrollHeight > el.clientHeight
+      ) {
+        return popup.contains(el) && popup !== el ? "descendant" : "outside-popup";
+      }
+      el = el.parentElement;
+    }
+    return "no-scroll-region";
+  });
+}
+
+// Scroll the first scrollable ancestor of the tall body to its bottom (to prove the header stays pinned).
+function scrollInteriorToBottom(page: Page): Promise<void> {
+  return page.evaluate(() => {
+    let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
+    while (el !== null) {
+      const s = getComputedStyle(el);
+      if (
+        (s.overflowY === "auto" || s.overflowY === "scroll") &&
+        el.scrollHeight > el.clientHeight
+      ) {
+        el.scrollTop = el.scrollHeight;
+        return;
+      }
+      el = el.parentElement;
+    }
+  });
+}
+
 for (const modalId of MODAL_SLOT_IDS) {
   test(`no-window-scroll: the "${modalId}" modal overflows its OWN region, never the document`, async ({
     mount,
@@ -119,26 +160,57 @@ for (const modalId of MODAL_SLOT_IDS) {
       )
       .toBe(true);
 
-    // 2) The overflow went SOMEWHERE reachable — an ancestor scroll region of the tall body absorbs it
-    //    (the Dialog viewport `overflow-y:auto`, or the Drawer's own scroll region for the `you` sheet).
-    await expect
-      .poll(() =>
-        page.evaluate(() => {
-          let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
-          while (el !== null) {
-            const s = getComputedStyle(el);
-            if (
-              (s.overflowY === "auto" || s.overflowY === "scroll") &&
-              el.scrollHeight > el.clientHeight
-            ) {
-              return true;
-            }
-            el = el.parentElement;
-          }
-          return false;
-        }),
-      )
-      .toBe(true);
+    // 2) The absorbing scroll region is a DESCENDANT of the modal POPUP — never the backdrop/viewport.
+    //    (The receipts showed the outer backdrop wrapper absorbing the overflow, which scrolled the title
+    //    + nav + close out of view along with the content. "Some ancestor scrolls" is too weak — it PASSED
+    //    with the broken backdrop-owns-scroll shape; the scroll must live INSIDE the popup.)
+    await expect.poll(() => scrollRegionContainment(page)).toBe("descendant");
+
+    // 3) PINNED HEADER — scrolling the interior region to the bottom leaves the modal header's box put
+    //    (the dialog header is a SIBLING of the scroll region; the drawer header pins via `sticky top-0`).
+    //    This is the proof the title + close never scroll away with the content.
+    const header = page.locator(".shell-modal-header");
+    const beforeBox = await header.boundingBox();
+    await scrollInteriorToBottom(page);
+    const afterBox = await header.boundingBox();
+    expect(beforeBox).not.toBeNull();
+    expect(afterBox).not.toBeNull();
+    expect(Math.abs((afterBox?.y ?? 0) - (beforeBox?.y ?? -999))).toBeLessThan(1.5);
+  });
+}
+
+// ── Escape closes the top layer (§4.3 rule 6) — registry-driven over MODAL_SLOTS ──────────────────
+// Every modal (Dialog or the `you` Drawer) must dismiss on Escape — Base UI gives this for free, but a
+// body that swallows the key (a cmdk/combobox search) or an onOpenChange wiring gap can silently break it
+// (side-eye round-3 retrace). Looping the registry means a NEW modal id is covered for free.
+for (const modalId of MODAL_SLOT_IDS) {
+  test(`escape closes the "${modalId}" modal`, async ({ mount, page }) => {
+    await mount(<ModalScrollStory modalId={modalId} />);
+    await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+    // Focus starts inside the modal (Base UI initial focus); Escape must dismiss it to the store.
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("tall-modal-body")).toHaveCount(0);
+  });
+}
+
+// ── Modals inherit the active theme (D44 §12.1) — registry-driven over MODAL_SLOTS ────────────────
+// A Dialog/Drawer portals out of the DOM; without a THEMED portal root it escapes the app's <ThemeScope>
+// and renders Hearth tokens under a custom theme (side-eye). The app root portals modals into a themed
+// node, so the overlay must inherit the active override. `hooksConfig.theme` wraps the whole mount in a
+// <ThemeScope> (beforeMount); the app-shell's own empty-override scope falls through to it, so a correctly
+// portaled overlay inherits the sentinel. `--color-background` is set verbatim from the override (hue 300,
+// distinct from every Hearth surface's hue 60) — the cleanest sentinel that a modal carries the theme.
+for (const modalId of MODAL_SLOT_IDS) {
+  test(`the "${modalId}" modal inherits the active theme override`, async ({ mount, page }) => {
+    await mount(<ModalScrollStory modalId={modalId} />, {
+      hooksConfig: { theme: { background: "oklch(0.3 0.14 300)" } },
+    });
+    await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+    const popup = page.locator('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
+    const bg = await popup.evaluate((el) =>
+      getComputedStyle(el).getPropertyValue("--color-background").trim(),
+    );
+    expect(bg).toContain("300");
   });
 }
 

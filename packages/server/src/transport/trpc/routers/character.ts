@@ -3,7 +3,12 @@
 // `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
-import { createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
+import {
+  characterListCursorSchema,
+  characterListSortSchema,
+  createCharacterSchema,
+  updateCharacterSchema,
+} from "@orb/contracts/character";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -22,17 +27,17 @@ export const characterRouter = t.router({
       ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId }),
     ),
 
-  // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `cursor` rides as
-  // ONE `{createdAt, id}` object field (not a `cursor`/`cursorId` sibling pair) — tRPC's
-  // `infiniteQueryOptions` threads exactly one `cursor` field through as the page param, overwriting it
-  // wholesale on every next-page fetch (`domain/character/contract/params.ts` `CharacterListCursor`).
+  // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `sort` + `cursor` derive
+  // from `@orb/contracts/character` (never re-spelled here). `cursor` rides as ONE sort-discriminated object
+  // field — tRPC's `infiniteQueryOptions` threads exactly one `cursor` field through as the page param,
+  // overwriting it wholesale on every next-page fetch (a sibling would go stale). `sort` is a separate
+  // top-level input (part of the query key), so changing it resets the infinite query's pages.
   list: authedProcedure
     .input(
       z
         .object({
-          cursor: z
-            .object({ createdAt: z.number().int(), id: brandedId<CharacterId>() })
-            .optional(),
+          sort: characterListSortSchema.optional(),
+          cursor: characterListCursorSchema.optional(),
           limit: z.number().int().optional(),
         })
         .optional(),
@@ -40,6 +45,7 @@ export const characterRouter = t.router({
     .query(({ ctx, input }) =>
       ctx.services.character.list({
         principal: ctx.auth,
+        ...(input?.sort !== undefined ? { sort: input.sort } : {}),
         ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
       }),
