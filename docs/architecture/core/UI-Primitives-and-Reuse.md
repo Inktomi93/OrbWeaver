@@ -85,6 +85,17 @@ The §6.1 rule applied. **Trigger = ≥3 fields OR validation OR save/draft sema
 
 **The correction in one line:** treating Form as "the 4 entity editors" (neo's framing) under-used it — settings, connections, group config, theme, and user-admin are all multi-field forms that belong in a factory.
 
+**Obligation-5 doctrine (codified 2026-07-09 from the shipped consumers' own reasoning):** on an
+AUTOSAVE form the server row IS the crash mirror — a confirmed save lands within the debounce window, so
+the `draft` slot is deliberately omitted (the use-appearance-form / use-persona-form precedent; a local
+mirror would duplicate synced truth, §12.1). The slot earns its keep only for offline-heavy or
+long-invalid-mid-edit autosave panels. On a SAVED (button-gated) form the original stance — "unsaved
+state lives in the form itself" — is being AMENDED for long-form editors: `createSavedEntityForm` gains
+an optional `draft` crash mirror (seed defaults from the SERVER row, then promote the surviving draft so
+`!isDefaultValue` lights the pill honestly; clear on save AND on discard), required for editors whose
+fields carry long authored text (the character card editor is the founding consumer). Every
+`createEntityDraftStore` name registers in the `persistence-boundary` gate's DEVICE_LOCAL_REGISTRY.
+
 ### 13.5 Deferred-with-a-committed-default forks (D54)
 
 - **Editor draft layer** — DEFAULT: TanStack Form + the Zustand-`persist` draft store + the factory seed/dirty guards. Deferred upgrade: **TanStack DB** local-storage-collection + manual transactions would dissolve the dirty/reset/seed dance — revisit when TanStack DB hits 1.0 + a proven Form-editor recipe. **The factory IS the swap seam.**

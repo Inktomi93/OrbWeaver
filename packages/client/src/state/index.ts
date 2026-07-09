@@ -11,6 +11,7 @@ export {
   selectChat,
   startNewChat,
   useActiveChatHandle,
+  useActiveChatId,
   useActiveDraftSeed,
   useActiveSessionKey,
 } from "./active-chat-store";

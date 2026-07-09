@@ -26,7 +26,7 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { isCommitted, useActiveChatHandle } from "#state";
+import { useActiveChatId } from "#state";
 import {
   useReattributePersona,
   useSetChatActivePersona,
@@ -51,8 +51,7 @@ export function PersonaThisChatSection(): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const queryClient = useQueryClient();
-  const handle = useActiveChatHandle();
-  const chatId = isCommitted(handle) ? handle.id : null;
+  const chatId = useActiveChatId();
 
   const { data: chat } = useGatedQuery(chatId, (id) =>
     trpc.chat.getChat.queryOptions({ chatId: id }),

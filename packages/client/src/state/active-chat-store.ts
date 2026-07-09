@@ -1,11 +1,19 @@
 // The ACTIVE-CHAT store (UI-Arch §5.1) — the shared state substrate below BOTH the chat and character
 // features that homes "which chat is the CONTENT hero showing". It is the `this_chid` successor done
-// RIGHT: the anti-jank rule (§5.1) forbids a surface that reads an ambient active-chat AND effects off
-// it (the neo `this_chid` chase). Here that is impossible BY CONSTRUCTION — every writer (the character
-// card's "start chat", the message row's Fork, the chat-list's select) only CALLS a module action; the
-// ONLY reactive reader is the route (routes/home-page.tsx), which reads the handle and renders the right
-// CONTENT. No surface reads-and-effects, so nothing can chase. Same blessed shape as `shell-store.ts`
-// (many leaf writers, one reader), one layer down (per-chat, not per-section).
+// RIGHT: the anti-jank rule (§5.1) forbids a surface that reads an ambient active-chat AND EFFECTS off
+// it (the neo `this_chid` chase). Writers (the character card's "start chat", the message row's Fork,
+// the chat-list's select) only CALL a module action. Readers come in exactly the two §5.1 sanctioned
+// shapes — both RENDER-only:
+//   • the COMPOSITION reader — the route (routes/home-page.tsx) reads the handle and renders the right
+//     CONTENT/LIST/CONTEXT; chat surfaces then receive the handle as a PROP, never re-reading it.
+//   • MIRROR readers — shell-chrome panels whose JOB is reflecting the active artifact and that the
+//     route cannot prop-thread (they mount in shell slots, and app-shell is domain-agnostic): e.g. the
+//     rail-foot persona panel's "This chat" section reads `useActiveChatId()` and fetches its own data
+//     via Query keyed by that id. The store carries the POINTER, never entity data.
+// What stays banned is subscribe-and-EFFECT: an effect keyed on a selection pointer is the chase (gate
+// `no-effect-on-shared-selection`); the sanctioned escape for "do X when the selection changes" render
+// work is deriving in render — not an effect. Same blessed shape as `shell-store.ts` (many leaf
+// writers, render-only readers), one layer down (per-chat, not per-section).
 //
 // This file also HOMES `DraftSeed` — the founding-roster seed a new chat carries until first send
 // promotes it (relocated from features/chat/hooks/use-send-message.ts): state owns the seed the same way
@@ -127,6 +135,15 @@ export function goToLanding(): void {
 /** The active chat's handle (draft|committed) — the route's read gate for which CONTENT to render. */
 export function useActiveChatHandle(): ChatHandle {
   return useActiveChatStore((s) => s.handle);
+}
+
+/** THE canonical "which committed chat is active" pointer — `null` while landing OR while the active
+ *  chat is still an uncommitted draft (no server row → nothing to fetch). Mirror readers use THIS, not
+ *  a hand-rolled `isCommitted(handle) ? handle.id : null` (one derivation, one home — re-deriving it
+ *  per call site is how the draft case gets forgotten). A primitive selector (id or null, no fresh
+ *  object). Data about the chat is NEVER read from here — key a Query off the returned id. */
+export function useActiveChatId(): ChatId | null {
+  return useActiveChatStore((s) => (isCommitted(s.handle) ? s.handle.id : null));
 }
 
 /** The active chat's new-chat seed — threaded to `ChatRoomSurface.draftSeed`. */

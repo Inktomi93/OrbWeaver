@@ -281,8 +281,23 @@ export function createLifecycle(): Lifecycle {
       ...(oidc !== undefined ? { oidc } : {}),
     });
 
-    server = serve({ fetch: app.fetch, port: env.PORT });
-    log.info({ port: env.PORT }, "boot: listening — healthz live");
+    // Await the BIND, don't assume it: `serve()` binds asynchronously, and a bind failure
+    // (EADDRINUSE — e.g. the dev stack already holds the port) surfaces as a server "error" event,
+    // not a throw. Pre-fix, boot logged "listening" unconditionally and returned a zombie process
+    // that claimed healthy while nothing was bound (found via the lifecycle int test silently
+    // polling a NEIGHBOR server's healthz). Boot must fail LOUDLY on a dead listener.
+    await new Promise<void>((resolve, reject) => {
+      const onBindError = (err: Error): void => {
+        reject(err);
+      };
+      const handle = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+        handle.removeListener("error", onBindError);
+        log.info({ port: info.port }, "boot: listening — healthz live");
+        resolve();
+      });
+      server = handle;
+      handle.once("error", onBindError);
+    });
   }
 
   async function shutdown(): Promise<void> {

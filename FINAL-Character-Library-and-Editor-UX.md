@@ -2,6 +2,11 @@
 
 ```
 kind: build-spec (implementable)   status: authoritative for this lane   authored: 2026-07-07
+amended: 2026-07-09 — on-disk re-census + state-law sync: §12 CREATE corrected (selection is ALREADY
+         homed in state/character-selection-store — the new store is view-prefs only; the §6 editor
+         SUPERSEDES the J9 detail surface, not beside it), FIX #2 gained the invalidation-map freshness
+         obligation, §11 gained pain-point 12 (no effect on selection — gate-enforced), tail markup
+         corruption removed.
 scope: the Characters RAIL section ONLY — its LIST, CONTENT, CONTEXT + the handoff jump into a chat.
        NOT the whole-app UX, NOT the Chats LANDING, NOT the chat room, NOT other rail sections.
 ```
@@ -407,6 +412,11 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
 10. **PNG export is SHIPPED** — do not build an export route; link the href.
 11. **No centered spinners, no layout shift** (rule 7): optimistic writes, shape-matched skeletons, streaming
     text as the arrival motion. Every surface ships empty/loading/error as designed states (`QueryBoundary`).
+12. **NO effect keyed on a selection pointer** (§5.1 reader taxonomy, amended 2026-07-09; gate
+    `no-effect-on-shared-selection` makes it a RED build). Selection reads are RENDER-only — the
+    resume-or-new decision, row highlight, and CONTEXT tab contents all derive in render from the pointer
+    + Query data. "When the selected character changes, do X" is a render derivation (or a `key=` remount),
+    never a `useEffect`.
 
 ---
 
@@ -440,6 +450,12 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
      no `ownerId`, D23 — join via `characters` on the owner, same as `domain/stats` does). Do NOT N-per-row
      scan chats.
    - **Cursor:** the recency sort's keyset + the nullable/multi-sort gotchas are in **§4.5** (don't re-derive).
+   - **Freshness (added 2026-07-09 — do not skip):** `staleTime: Infinity` means `lastChattedAt` on a
+     mounted library goes stale the moment you chat and NEVER self-heals. Landing this field carries the
+     obligation to declare its invalidation in the ONE map (`packages/client/src/data/invalidation.ts`):
+     the chat-bus terminal events (`messageCommitted`/`turnCompleted`) add a `character.list` pathFilter
+     entry (same-device), and the user-level bus (the 2026-07-09 multi-device lane) covers other-device
+     writes. A denorm field with no declared freshness driver is a stale-forever field.
    - **Degrade:** subtitle → tag line → `handle`; sort → A–Z. (Note: `themeOverride` + `avatarHash` + `tags`
      are ALREADY on the summary → the accent dot, avatar, and tag filter all work today with zero new fields.)
 3. **(Optional) Snapshot content read** for a diff-before-restore. Today `listSnapshots` returns
@@ -450,21 +466,39 @@ If any core loop exceeds ~2 gestures, the build is wrong — restructure.
 ### CREATE (client feature slice — `packages/client/src/features/character/`, per §2.1 shape)
 
 **⚠️ EXTEND, DON'T REBUILD (the landmine that torches working code).** This slice is NOT greenfield. Verified
-on disk: `surfaces/character-library-surface.tsx` **already exists and works** — **236 lines**: a virtualized,
-infinite-**keyset**-paged (`(createdAt, id)`) browse via `createCollectionSurface`, with search
-(`useDeferredValue` + `filterCharacters`), and empty/loading/error states. `components/character-card.tsx`
-**exists** (112 lines — the current row/tile). Also present: `character-detail-surface`, `character-detail-card`,
-`character-library-welcome`, `filter-characters`, `initials`, `character-library-anchor`. **REWORK/EXTEND
-these — do NOT regenerate from scratch** (a "build the surface from scratch" plan would delete a working
-236-line surface; that's exactly the kind of over-claim that forces reverts). The **only genuinely-new** client
-file is `state/character-library-store` (the view-state store: sort mode, filter, selection). Read each
-component's actual API before touching it. The spec wins on *behavior*; the existing code wins on *don't-nuke-it*.
+on disk (re-censused 2026-07-09): `surfaces/character-library-surface.tsx` **already exists and works** —
+**240 lines**: a virtualized, infinite-**keyset**-paged (`(createdAt, id)`) browse via
+`createCollectionSurface`, with search (`useDeferredValue` + `filterCharacters`), and empty/loading/error
+states. `components/character-card.tsx` **exists** (112 lines — the current row/tile; §4.4's `ListRow`
+anatomy REWORKS it, does not sit beside it). Also present: `character-detail-surface` (78 lines, the J9
+read-only detail card) + `character-detail-card` (131 lines), `character-library-welcome`,
+`filter-characters`, `initials`, `character-library-anchor`. **REWORK/EXTEND these — do NOT regenerate from
+scratch** (a "build the surface from scratch" plan would delete a working surface; that's exactly the kind
+of over-claim that forces reverts). **The §6 editor SUPERSEDES the J9 detail card in CONTENT** — rework
+`character-detail-surface`/`character-detail-card` INTO `character-editor-surface`; a read-only detail card
+left mounted beside an editor is two CONTENT homes for one artifact (one-home violation). Read each
+component's actual API before touching it. The spec wins on *behavior*; the existing code wins on
+*don't-nuke-it*.
+
+**State (corrected 2026-07-09 — the original line here claimed the new store holds "selection"; that is
+STALE and building it would double-home selection):** `state/character-selection-store.ts` **already
+exists** and is the ONE home for the selected character id (`selectCharacter`/`useSelectedCharacterId`) —
+the new store must NOT duplicate it. The **only genuinely-new** client state file is
+`state/character-library-store.ts` holding **view prefs ONLY**: sort mode · flat⇄categorized view mode ·
+filter chips · bulk-select flag. Mint it with `createPersistedStore` (version + partialize + total
+migrate baked) AND register its name with a why-device-local rationale in the `persistence-boundary`
+gate's `DEVICE_LOCAL_REGISTRY` (`scripts/check/gates/persistence-boundary.ts`) — an unregistered persisted
+store is a RED build. Reads follow the §5.1 reader taxonomy (amended 2026-07-09, `UI-Architecture-and-Layout.md`):
+render-only; an effect keyed on any selection pointer fails gate `no-effect-on-shared-selection`. The
+resume-or-new CTA (§4.4/§9c) derives its decision from **Query data** in render and fires exactly one
+store action — never an effect.
 
 - `surfaces/character-library-surface.tsx` — the LIST (§4): `createCollectionSurface` over `listCharacters`;
   header + favorites strip + flat/categorized + rows + filters + bulk.
 - `surfaces/character-editor-surface.tsx` — CONTENT selected (§6): hero band + Presence/Craft tabs +
   save-bar; one `createSavedEntityForm` over the card fields.
-- `surfaces/character-empty-surface.tsx` — CONTENT teaching state (§5).
+- `surfaces/character-empty-surface.tsx` — CONTENT teaching state (§5). (`character-library-welcome.tsx`
+  already renders a welcome — rework it to the §5 shape rather than adding a second empty surface.)
 - `components/character-list-row.tsx` — the §4.4 row.
 - `components/character-hero-band.tsx` — §6.1 portrait/name/star/archive/accent-swatch/Start-chat/greeting
   preview.
@@ -532,12 +566,7 @@ Two seams absorb any genuinely per-character expansion:
   flip).
 - **Rail-level, NOT character-editor concerns:** gallery, automation, tool-use, corpus/discovery — each is
   its own rail section. Do not build them into the character editor.
-```
-```
-```
-```
-```
+
 Test: authored content the user writes → a CONTENT tab. Config/relation/derived-data ABOUT the character →
 a CONTEXT tab. An identity capability flip → the Actions menu. A new concern is a one-line list add, never a
 restructure — the doors are already in the right walls.
-```
