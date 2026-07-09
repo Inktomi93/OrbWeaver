@@ -7,10 +7,14 @@ scope: the Chats RAIL section — its LIST, the LANDING, the ROOM (header · thr
        NOT the Characters lane (FINAL-Character-Library-and-Editor-UX.md), NOT the persona panel or the
        immersive visual system (both SHIPPED — docs/architecture/history/FINAL-Persona-and-Immersive-
        Chat-Visuals.md), NOT rpg/crew/tool-use content (they GRAFT via the §14 registries).
-companions: FINAL-Character-Library-and-Editor-UX.md (the sibling lane; its §7 Activity tab consumes
-       this lane's reads) · ux-flow-revamp.md J1–J8/J12 (the journey record this doc SUPERSEDES for the
-       chat section — its J-lanes are as-built history now, not the spec) · DESIGN-REVIEW-2026-07-01.md
-       §7 (the cross-set chat obligations — §14 here restates the client-registry rows as law).
+companions: FINAL-Chat-Tab-Redesign-UX.md (repo root — the 2026-07-09 tournament-won REDESIGN wave
+       that EXTENDS this doc: chat-mode posture, Members panel, dual-device read-state, scene
+       atmosphere; where the two conflict on a NEW surface, the redesign doc wins; this doc stays the
+       as-built baseline + verb inventory) · FINAL-Character-Library-and-Editor-UX.md (the sibling
+       lane; its §7 Activity tab consumes this lane's reads) · ux-flow-revamp.md J1–J8/J12 (the
+       journey record this doc SUPERSEDES for the chat section — its J-lanes are as-built history
+       now, not the spec) · DESIGN-REVIEW-2026-07-01.md §7 (the cross-set chat obligations — §14 here
+       restates the client-registry rows as law).
 ```
 
 > **You are a cold, amnesiac agent.** This document is the whole design — every panel, every verb, every
@@ -87,7 +91,7 @@ full wire inventory is `packages/server/src/transport/trpc/routers/chat.ts`; the
 `packages/server/src/domain/chat/contract/service.ts` — read both before adding any verb call.
 
 | Surface | Write | Verb (authority) | Freshness |
-|---|---|---|---|
+| - | - | - | - |
 | Composer Send | immediate | `chat.send` (participant) — the promise stays open for the WHOLE turn | bus: `messageCommitted` + `turnCompleted` |
 | Swipe / step | immediate | `chat.swipe` / `chat.selectVariant` (author-or-host) | bus: `turnCompleted` / `variantSelected` |
 | Guided actions | immediate | `chat.generate`/`swipe`/`continueTurn`/`impersonate` (+`guided` steer) | bus (turn events) |
@@ -146,7 +150,7 @@ the surface only WRITES `onSelect` out (§5.1 — it never reads the active-chat
 
 **Deliberately unpaged, client-filtered.** `listChats` returns the caller's whole membership list —
 bounded by "chats a human belongs to", not a library-scale collection. Keep the plain suspense read (NOT
-`createCollectionSurface`); flag server paging/search only if a real inbox exceeds ~1k rows (record the
+`createCollectionSurface`); flag server paging/search only if a real inbox exceeds \~1k rows (record the
 observation before building it).
 
 ## 5. CONTENT — the LANDING (nothing selected)
@@ -233,7 +237,7 @@ contracts:
 ### 6.4 The composer
 
 Built (`composer.tsx`): ONE pill (container owns border+ring; borderless growing textarea inside,
-~8-row cap; quiet→hover→focus escalation via border+bg-alpha, never opacity) · left cluster = the WAND
+\~8-row cap; quiet→hover→focus escalation via border+bg-alpha, never opacity) · left cluster = the WAND
 (guided steer over the draft text: response/swipe/continue/impersonate committed; "Guide the opening"
 draft) + SPEAK-AS (summon a character via `generate({speakerCharacterId})`; size-gated) · right = the
 circular Send⇄Stop morph off `useTurnPhase`. IME `isComposing` guard. Clear-on-commit: the draft clears
@@ -283,7 +287,7 @@ assembly pre-commit) with the viewer always host.
 - **Preview** (host) — the assembled next-turn prompt + `AssembleTrace` (override sources · fired
   sections · world-info in/dropped · matched keys · cache busters · flags) + the advisory QuadChars
   token estimate. Read-only. The member-scoped `previewSection` affordance stays DEFERRED (#28 flag).
-- **Injections** — persisted positional context rows (position ×4 · depth (in_chat) · role · content),
+- **Injections** — persisted positional context rows (position ×4 · depth (in\_chat) · role · content),
   per-row autosave + Add/Remove. **No enabled toggle — "off" is delete** (deliberate neo divergence; do
   not add soft-disable). The coming #22 injection-placement ruling widens depth+role to ALL injectables
   via the ONE `injectionDirectiveSchema` — a contract change that REDS this tab's form types when it
@@ -321,9 +325,9 @@ client surface exists. This section is the UX law for that build (§12 FIX #1/#2
 - **Host-only:** roster mutation, group config, room overrides, injections, force-turn, delete, rename/
   star/archive, anchor re-pin, invite mint/revoke, kick, handoff nomination. **Member:** send/turns on
   their own behalf, edit/delete THEIR rows (author-or-host per slot), read-only Overrides+Injections,
-  self-leave, accept a handoff. A member NEVER sees an affordance that would only NOT_FOUND (mirror the
+  self-leave, accept a handoff. A member NEVER sees an affordance that would only NOT\_FOUND (mirror the
   server gate client-side — the Preview-tab precedent).
-- **Single-user deployments refuse the whole multi-human surface** as NOT_FOUND (`multiHumanProcedure`,
+- **Single-user deployments refuse the whole multi-human surface** as NOT\_FOUND (`multiHumanProcedure`,
   PD-106). The client must FEATURE-DETECT: one gated capability read (the notifications `list` probe or
   a config flag — FIX #2 decides the shape) hides the bell, the Invite rows, and the People section
   entirely. Never render dead multi-human chrome in a single-user install.
@@ -355,7 +359,7 @@ security posture — do not "fix" this with an accept button; the notification's
   handle · member count · mode label — NO roster identities, NO history) → Accept (`redeemInvite` →
   `selectChat(chatId)` + `setActiveSection("chats")`) / Decline (targeted only — `declineInvite`).
   Invalid/expired/foreign token = one honest "This invite isn't valid" state with a "Go home" affordance
-  (leak-free NOT_FOUND; rule 1 — no dead end).
+  (leak-free NOT\_FOUND; rule 1 — no dead end).
 - **History visibility from `joinSeq`:** a joiner's transcript replays from their join point. The room
   header shows a quiet system-style divider "X joined" (already representable as canon events); do not
   fetch or render pre-join history for a member the server would refuse anyway.
@@ -422,7 +426,7 @@ its first producer), route-composed into the topbar slot.
 ## 10. Click-economy targets (verify the build against these)
 
 | Journey | Target | How |
-|---|---|---|
+| - | - | - |
 | Cold → resume the last conversation | 1 click | landing recent row, or LIST row; ⌘K → title → Enter |
 | New chat with a known character | 2 clicks | `+` → pick (the picker's Start row auto-focuses via cmdk) |
 | Send → reading the reply | 0 extra | optimistic lifecycle; ghost streams in place |
@@ -462,7 +466,7 @@ If any core loop exceeds these, the build is wrong — restructure.
 10. **Do not add a soft-disable toggle to injections** ("off" = delete — deliberate) and do not
     field-patch the group-config union (whole-object rebuild via `buildConfig`).
 11. **Members never see host-only affordances** (and single-user installs never see multi-human chrome).
-    Mirror the server gate in render; the server's leak-free NOT_FOUND is the backstop, not the UX.
+    Mirror the server gate in render; the server's leak-free NOT\_FOUND is the backstop, not the UX.
 12. **Don't re-spec the shipped systems.** Message-row visuals/immersive modes → the immersive FINAL;
     persona pointers/`{{user}}` → FINAL-Persona PART A; theming layers → §12.1/§12.4. This doc OWNS
     flows and the multi-human room; it CONSUMES those.
@@ -481,10 +485,10 @@ If any core loop exceeds these, the build is wrong — restructure.
    `/join/:token` HTTP entry: the tRPC rows serve the app shell; the route itself is client-side (§8.2).
 2. **The multi-human capability probe** (blocks feature-detection, §8.1). Smallest honest shape: the
    client calls one `multiHumanProcedure` read at boot (`notifications.list({limit:1})`) and treats
-   NOT_FOUND as "single-user install" → hides the bell/invite/People chrome. If that read-as-probe
+   NOT\_FOUND as "single-user install" → hides the bell/invite/People chrome. If that read-as-probe
    offends, add an explicit `settings.getCapabilities` row instead — decide at build, don't build both.
 3. **`ChatSummary` list denorms** (the LIST rework, §4): `lastMessagePreview: string | null` (server-side
-   `toPlainText`, ~140 chars) + `participantAvatarHashes` (present-roster order, cap 3). One pass over
+   `toPlainText`, \~140 chars) + `participantAvatarHashes` (present-roster order, cap 3). One pass over
    the existing list query; no N+1 (the `participantCharacterIds` junction-bulk precedent, views.ts L67).
 4. **`chat.listInvites`** (blocks the outstanding-invites list, §8.2) — NEW small host-only read
    returning `InviteView[]` (tokens never re-derivable). Degrade: the invite dialog is mint-only.
@@ -497,6 +501,7 @@ If any core loop exceeds these, the build is wrong — restructure.
 ### CREATE (client — `packages/client/src/features/chat/` unless noted)
 
 **Wave A — room/list polish (small, independent):**
+
 - Continue-on-empty send (§6.4) + Undo/Redo-continue actions (§6.3) + the stale-caveat deletions.
 - LIST: preview subtitle + avatar stack (after FIX #3) + fork badge + Starred/Archived chips (§4).
 - Options menu: Compact history… row (host) with an AlertDialog explaining the D25 checkpoint.
@@ -504,6 +509,7 @@ If any core loop exceeds these, the build is wrong — restructure.
   cluster-sibling shape.
 
 **Wave B — the multi-human client (§8; after FIX #1/#2/#4):**
+
 - `components/invite-dialog.tsx` (mint + outstanding list + revoke) and the options-menu rows
   (Invite/Leave/Hand off).
 - `routes/join-page.tsx` — the `/join/:token` route (preview → accept/decline; hand-written route #4).
@@ -514,6 +520,7 @@ If any core loop exceeds these, the build is wrong — restructure.
   owner); the notification row's actions write through `#state`/`trpc.*` only.
 
 **Wave C — chat lore (PD-30):**
+
 - The `worldInfo.attachToChat`/`detachFromChat`/`listForChat` verbs are BUILT on the world-info service
   (`domain/world-info/service.ts` L67–69; `chatBooks` schema `db/schema/world-info.ts` L136) but NOT on
   the world-info router (verified 2026-07-09) — add the router rows (+ the PD-30 `WiBusEvent` emit check),

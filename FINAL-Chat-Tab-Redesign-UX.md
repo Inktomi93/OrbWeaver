@@ -1,16 +1,19 @@
-# FINAL candidate — Chat tab: community-chat grammar over the built room system
+# FINAL — Chat tab redesign: community-chat grammar over the built room system
 
 ```
-kind: build-spec candidate (tournament winner, unified)   status: awaiting owner ratification
-scope: the Chats RAIL section — LIST, LANDING, ROOM, CONTEXT, multi-human, dual-device. Supersedes the
-       three tournament pitches; EXTENDS (never re-specs) FINAL-Chats-Landing-Room-and-Context-UX.md —
-       where this doc is silent, FINAL-Chats is the law. NOT the Characters lane, NOT the immersive
-       visual system or persona system (shipped FINALs), NOT rpg/crew/tool-use content (§16 seams).
-provenance: chassis = pitch-discord.md (tournament winner); grafts = pitch-immersion.md (scene
-       atmosphere, composing signal, dual-device spectate fix, solo→group growth seed) and
-       pitch-greenfield.md (last-turn trace summary, guided-wire zod schema); three binding owner
-       rulings folded in (§1 LAW 3 chat mode · §6.4 wand model · §1 LAW 4 atmosphere precedence).
-       CRITIQUE.md findings are integrated, not re-litigated.
+kind: build-spec (active lane; repo-root FINAL convention — moves to history/ on ship)
+status: build-ready pending the two Wave-1 ledger ratifications (§15 amendments A + B)
+scope: the Chats RAIL section — LIST, LANDING, ROOM, CONTEXT, multi-human, dual-device. EXTENDS
+       (never re-specs) FINAL-Chats-Landing-Room-and-Context-UX.md — where this doc is silent,
+       FINAL-Chats is the law. NOT the Characters lane, NOT the immersive visual system or persona
+       system (shipped FINALs), NOT rpg/crew/tool-use content (§16 seams).
+provenance: winner of the 2026-07-09 chat-tab design tournament, unified with grafts. The tournament
+       artifacts (BRIEF, three pitches, the adversarial CRITIQUE) were deleted after this doc
+       subsumed them — GIT HISTORY holds them at `docs/architecture/proposed/chat-tab-tournament/`
+       (commits 9dd2fa0..02cf761 on fable-docs-lane). In-body "from pitch-X §Y" tags are provenance
+       credits into that history, never required reading — this doc is self-contained. Three binding
+       owner rulings folded in (§1 LAW 3 chat mode · §6.4 wand model · §1 LAW 4 atmosphere
+       precedence); the critique's findings are integrated, not re-litigated.
 companions: FINAL-Chats-Landing-Room-and-Context-UX.md (the as-built baseline + FIX/CREATE ledger this
        doc consumes) · FINAL-Character-Library-and-Editor-UX.md (the sibling lane; §8.1 theme control
        cluster reused here) · docs/architecture/history/FINAL-Persona-and-Immersive-Chat-Visuals.md.

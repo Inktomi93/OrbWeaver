@@ -35,7 +35,7 @@ organization; §0 below is the dispatch order.
 
 | Lane | First chunk | Why it's unblocked |
 | - | - | - |
-| Chats FIX wave | `FINAL-Chats-Landing-Room-and-Context-UX.md` (repo root) §12 FIX #1–#5 — thin router exposures of built verbs (invites/membership cluster, `compact`, `undoContinue`/`revertContinue`, `listInvites`, `ChatSummary` denorms) | domain code verified built + dark 2026-07-09 |
+| Chats redesign Wave 0 | `FINAL-Chat-Tab-Redesign-UX.md` (repo root) §0 Wave 0 — the FINAL-Chats §12 FIX #1–#5 exposures + `compact`/lore router rows + the `guidedSteerSchema` wire fix (the redesign doc's build order now GOVERNS the chats client program; FINAL-Chats stays the as-built baseline) | domain code verified built + dark 2026-07-09; Wave 0 blocks on nothing |
 | automation A1–A3 | macro-DX · CEL+`{{expr}}` · global variables (kit-early) | zero deps — `automation-design/05` says buildable now; `global_variables` schema already landed |
 | hub-browse H1 | the egress guard (`safeFetch` + `isAllowedImageBuffer` + `@orb/kit/image-sniff`) | zero deps; unblocks gallery G7 + databank DB7 + D44 fetches |
 | databank DB3 spike | `infra/extraction` (the declared long pole — start it early, it parallelizes) | zero deps; DB2 schema landed |
@@ -47,8 +47,11 @@ organization; §0 below is the dispatch order.
 1. **Character lane Waves 1–4** (`FINAL-Character-Library-and-Editor-UX.md` §0) — IN FLIGHT.
    Wave-triggered rider: `tag-pending-review.md` (the pending-tags read, first tag surface). (The
    snapshot-history UX rider was retired — the FINAL's §7/§12 already answers it.)
-2. **Chats lane** (`FINAL-Chats-Landing-Room-and-Context-UX.md` §0) — FIX wave first (above), then
-   Wave A (room/list polish) ∥ Wave B (multi-human client) ∥ Wave C (chat lore, PD-30) in parallel.
+2. **Chats lane** (`FINAL-Chat-Tab-Redesign-UX.md` §0 — the tournament-won redesign spec; it
+   subsumes FINAL-Chats' Wave A/B/C into its Waves 2–3) — Wave 0 exposures first (above), then the
+   two Wave-1 owner ratifications (§15 amendments A chat-mode + B D44 atmosphere un-deferral), then
+   Wave 2 (room/list) ∥ Wave 3 (multi-human) → Wave 4 (read-state · atmosphere · trace digest, each
+   severable) → Wave 5 (composing signal, optional).
 3. **THE PRESETS-PLACEMENT DECISION (owner)** — presets→settings needs its ledger amendment BEFORE
    any of: the Presets rail section (ux-flow L7), the preset editor, `preset-form-mapper-elimination.md`,
    `connection-capability-panel.md`. Everything preset/connection-client is BLOCKED on this one ruling.
