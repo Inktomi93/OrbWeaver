@@ -11,6 +11,7 @@
 
 import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
@@ -136,6 +137,106 @@ describe("invalidation — the bus half (invalidate)", () => {
       Object.entries(EXPECTED).map(([type, ks]) => [type, [...ks].sort()]),
     );
     expect(actual).toEqual(expected);
+  });
+});
+
+// ── The USER-bus half (PD user-bus lane): the SECOND exhaustive event→filter contract ─────────────
+// The reads any `USER_BUS_FILTERS` entry can touch — one representative read per domain root the map
+// path-invalidates (pathFilter matches every read under that router, so one seeded read per root suffices).
+const USER_TRACKED_KEYS = [
+  "character",
+  "persona",
+  "preset",
+  "worldInfo",
+  "tag",
+  "themes",
+  "userSettings",
+  "credentials",
+  "chatList",
+  "chatGet",
+  "connection",
+] as const;
+type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
+
+// EXHAUSTIVE over `UserBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it
+// invalidates — mirroring the `USER_BUS_FILTERS` mapped type it verifies.
+const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
+  charactersChanged: ["character"],
+  personasChanged: ["persona"],
+  presetsChanged: ["preset"],
+  worldInfoChanged: ["worldInfo"],
+  tagsChanged: ["tag"],
+  themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
+  settingsChanged: ["userSettings"], // NOT themes.
+  credentialsChanged: ["credentials"],
+  // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage).
+  chatsChanged: ["chatGet", "chatList"],
+  connectionsChanged: ["connection"], // DEFERRED member — never emitted, but the map entry is live.
+};
+
+// The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
+// on every event is harmless (only `chatsChanged` reads it), so one shape exercises every path.
+function userEventOf(type: UserBusEvent["type"]): UserBusEvent {
+  return { type, chatId: CHAT_ID } as unknown as UserBusEvent;
+}
+
+describe("invalidation — the USER-bus half (invalidateUser)", () => {
+  test("the event→filter contract holds for EVERY UserBusEvent type", () => {
+    const actual: Record<string, readonly UserTrackedKey[]> = {};
+
+    for (const type of Object.keys(USER_EXPECTED) as UserBusEvent["type"][]) {
+      const { invalidateUser, queryClient, trpc } = setup();
+      const keys: Record<UserTrackedKey, readonly unknown[]> = {
+        character: trpc.character.list.queryKey(),
+        persona: trpc.persona.list.queryKey(),
+        preset: trpc.preset.list.queryKey(),
+        worldInfo: trpc.worldInfo.listBooks.queryKey(),
+        tag: trpc.tag.listTags.queryKey(),
+        themes: trpc.settings.listThemes.queryKey(),
+        userSettings: trpc.settings.getUserSettings.queryKey(),
+        credentials: trpc.credentials.list.queryKey(),
+        chatList: trpc.chat.listChats.queryKey(),
+        chatGet: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
+        connection: trpc.connection.getCatalog.queryKey(),
+      };
+      for (const key of Object.values(keys)) {
+        queryClient.setQueryData([...key], [] as never);
+      }
+
+      invalidateUser(userEventOf(type));
+
+      actual[type] = USER_TRACKED_KEYS.filter((k) => isInvalidated(queryClient, keys[k])).sort();
+    }
+
+    const expected = Object.fromEntries(
+      Object.entries(USER_EXPECTED).map(([type, ks]) => [type, [...ks].sort()]),
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  test("invalidateAllUserRoots (the reconnect gap-heal) marks EVERY user root stale", () => {
+    const { invalidateAllUserRoots, queryClient, trpc } = setup();
+    const roots = [
+      trpc.character.list.queryKey(),
+      trpc.persona.list.queryKey(),
+      trpc.preset.list.queryKey(),
+      trpc.worldInfo.listBooks.queryKey(),
+      trpc.tag.listTags.queryKey(),
+      trpc.settings.listThemes.queryKey(),
+      trpc.settings.getUserSettings.queryKey(),
+      trpc.credentials.list.queryKey(),
+      trpc.chat.listChats.queryKey(),
+      trpc.connection.getCatalog.queryKey(),
+    ];
+    for (const key of roots) {
+      queryClient.setQueryData([...key], [] as never);
+    }
+
+    invalidateAllUserRoots();
+
+    for (const key of roots) {
+      expect(isInvalidated(queryClient, key)).toBe(true);
+    }
   });
 });
 

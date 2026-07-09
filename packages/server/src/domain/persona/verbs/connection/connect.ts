@@ -29,5 +29,6 @@ export function createConnect(ctx: PersonaContext): PersonaService["connectToCha
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
   };
 }

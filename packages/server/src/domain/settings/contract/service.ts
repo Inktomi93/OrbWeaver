@@ -8,6 +8,7 @@
 // `guard.ts` impl is never imported). `audit` is `foundation/observability`'s `logAudit` pre-bound to db.
 
 import type { EffectiveAppConfig, UserSettings } from "@orb/contracts/settings";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -59,6 +60,11 @@ export interface SettingsContext {
    *  `updateAppSettings` after a write, and by entry boot). */
   readonly getEffectiveConfig: () => EffectiveAppConfig;
   readonly reloadEffectiveConfig: () => Promise<EffectiveAppConfig>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — user-settings writes fire `settingsChanged` and
+   *  the theme verbs fire `themesChanged` (two client read surfaces), with the acting owner's `userId`
+   *  AFTER the durable write. AppSettings/GlobalSettings are GLOBAL/admin (not per-user) → no user-bus emit.
+   *  Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /**
@@ -74,6 +80,7 @@ export interface SettingsServiceDeps {
   readonly requireAdmin: RequireAdmin;
   readonly requireOwner: RequireOwner;
   readonly newThemeId: () => ThemeId;
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /**

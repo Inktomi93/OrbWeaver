@@ -60,6 +60,7 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
 
     const updated = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);
     if (updated === undefined) {

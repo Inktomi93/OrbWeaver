@@ -74,6 +74,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId: newId });
 
     const row = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, newId);
     if (row === undefined) {

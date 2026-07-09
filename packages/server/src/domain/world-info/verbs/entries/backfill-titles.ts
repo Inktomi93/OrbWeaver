@@ -46,6 +46,7 @@ export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["b
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { filled: updates.length };
   };
 }

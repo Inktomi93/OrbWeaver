@@ -38,7 +38,7 @@
     "check:file": "tsx scripts/check/file.ts",
     "check:structure": "tsx scripts/check/report.ts",
     "check:show": "tsx scripts/check/show.ts",
-    "test": "vitest run --project unit --project integration --project contract",
+    "test": "vitest run --project unit --project integration --project contract --reporter=default --reporter=json --outputFile.json=reports/test-report.json",
     "test:types": "vitest run --project types",
     "test:parity": "vitest run --project parity",
     "test:coverage": "vitest run --coverage",
@@ -48,7 +48,7 @@
     "cpd:report": "jscpd -c jscpd.json --reporters html --output reports/cpd",
     "test:mutation": "bash scripts/dev/mutation.sh stryker.config.json",
     "test:mutation:gate": "bash scripts/dev/mutation.sh stryker.gate.config.json",
-    "check": "pnpm lint && pnpm lint:eslint && pnpm typecheck && pnpm test:types && pnpm check:structure && pnpm depcruise"
+    "check": "tsx scripts/check/run.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

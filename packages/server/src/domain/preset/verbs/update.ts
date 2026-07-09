@@ -84,6 +84,7 @@ async function cowFork(
     },
     now,
   );
+  ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: forkId });
   return toPresetDetail(row);
 }
 
@@ -114,6 +115,7 @@ export function createUpdate(ctx: PresetContext): Pick<PresetService, "update"> 
       },
       now,
     );
+    ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: params.id });
     return toPresetDetail(row);
   }
   return { update };

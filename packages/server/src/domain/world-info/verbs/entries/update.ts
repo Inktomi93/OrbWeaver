@@ -96,6 +96,7 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateEnt
       }
     }
 
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: updated.worldBookId });
     return toEntryView(updated);
   };
 }

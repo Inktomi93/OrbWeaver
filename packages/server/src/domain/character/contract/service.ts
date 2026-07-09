@@ -18,6 +18,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -86,6 +87,11 @@ export interface CharacterContext {
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every user-facing character mutation fires
+   *  `charactersChanged` with the owner's `userId` AFTER its durable write, so a second device's character
+   *  list/card refetches. DISTINCT from `emit` (the in-process DomainEventBus that drives EMBEDDING re-index,
+   *  not client cache). Wired to transport's `publishUserEvent` at the entry root; fire-and-forget. */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 export interface CharacterService {

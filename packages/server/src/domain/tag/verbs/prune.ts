@@ -19,6 +19,7 @@ export function createPrune(ctx: TagContext): TagService["pruneUnusedTags"] {
         entityId: null,
         metadata: { removed },
       });
+      ctx.emitUserEvent(params.principal.userId, { type: "tagsChanged" });
     }
     return { removed };
   };

@@ -216,6 +216,55 @@ export function RangeExtractorMessageList({
   );
 }
 
+/** A row whose ONLY state is local React state (a controlled input) — no external store. When the
+ *  virtualizer unmounts this row off-screen, React destroys the state; when it remounts, the input
+ *  re-initializes to empty. Keeping the row mounted (via `keepMounted`) is what preserves the typed
+ *  value across a scroll-away — the exact PD-119 property. */
+function StatefulInputRow({ label }: { readonly label: string }): ReactElement {
+  const [value, setValue] = useState("");
+  return (
+    <div style={{ height: 40 }}>
+      <input
+        data-testid="stateful-input"
+        value={value}
+        onChange={(event): void => setValue(event.target.value)}
+      />
+      {label}
+    </div>
+  );
+}
+
+/**
+ * The PD-119 keep-mounted proof (item-space). Index 0 renders a `StatefulInputRow` holding purely
+ * local React state; the list is bottom-anchored over 200 rows, so index 0 sits far outside the
+ * overscan window from mount. When `keep` is true, `keepMounted` matches item 0 and forces its index
+ * into the rendered range — the row stays mounted off-screen and its typed value survives a
+ * scroll-to-tail-and-back. When `keep` is false, the row unmounts on scroll-away and remounts empty
+ * (the control case that proves the MECHANISM, not the vibe).
+ */
+export function KeepMountedStateList({ keep }: { readonly keep: boolean }): ReactElement {
+  const items = makeItems(200);
+  const firstId = items[0]?.id;
+  return (
+    <div style={{ height: 200 }}>
+      <MessageList
+        items={items}
+        getItemKey={(item): string => item.id}
+        estimateSize={(): number => 40}
+        {...(keep ? { keepMounted: (item: FixtureItem): boolean => item.id === firstId } : {})}
+        renderItem={(item, index): ReactElement =>
+          index === 0 ? (
+            <StatefulInputRow label={item.label} />
+          ) : (
+            <div style={{ height: 40 }}>{item.label}</div>
+          )
+        }
+        className="h-full"
+      />
+    </div>
+  );
+}
+
 /** Exposes the imperative handle's `isAtEnd`/`getDistanceFromEnd` readings as two SEPARATE
  *  plain-text nodes (not one combined string — keeps the CT's assertions plain `toHaveText`
  *  equality checks rather than string-parsing) so the CT can read the READING-HISTORY primitives

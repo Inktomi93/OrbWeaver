@@ -23,6 +23,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { presetRouter } from "./routers/preset";
 import { searchRouter } from "./routers/search";
+import { sessionsRouter } from "./routers/sessions";
 import { settingsRouter } from "./routers/settings";
 import { statsRouter } from "./routers/stats";
 import { tagRouter } from "./routers/tag";
@@ -81,6 +82,7 @@ export const appRouter = t.router({
   persona: personaRouter,
   preset: presetRouter,
   search: searchRouter,
+  sessions: sessionsRouter,
   settings: settingsRouter,
   stats: statsRouter,
   tag: tagRouter,

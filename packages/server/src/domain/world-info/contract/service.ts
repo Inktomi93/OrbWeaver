@@ -24,6 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 import type { Principal } from "@orb/contracts/identity";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WiBusEvent } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -85,6 +86,11 @@ export interface WorldInfoContext {
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every world-info book/entry/attachment mutation
+   *  fires `worldInfoChanged` with the owner's `userId` AFTER its durable write, so a second device's
+   *  world-info list refetches. DISTINCT from `emitWiEvent` (the per-OPEN-CHAT bus for `WiBusEvent`
+   *  attachment changes). Wired to transport's `publishUserEvent` at the entry root; fire-and-forget. */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 export interface WorldInfoService {

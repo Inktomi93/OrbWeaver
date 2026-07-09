@@ -47,6 +47,7 @@ export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBoo
       at,
     );
 
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return toBookView(updated);
   };
 }

@@ -69,16 +69,19 @@ import {
   SEEDED_BACKGROUND_ITEMS,
 } from "../lib/appearance-select-items";
 
-// The section-patch mutation (module scope, §13.1). `invalidates` refetches getUserSettings through the
-// central seam — the live-flip mechanism for every other appearance consumer. TVars.patch is the typed
-// section; the router input is a generic `Record<string, unknown>`, hence the one boundary cast below.
+// The section-patch mutation (module scope, §13.1). PD user-bus lane: `updateUserSettingsSection` emits
+// `settingsChanged`, and `USER_BUS_FILTERS.settingsChanged` refetches `getUserSettings` — the live-flip
+// mechanism for every appearance consumer, now driven by the always-on user bus (home-page.tsx) rather than
+// a self-invalidate, so it is `busDriven` (an echo reconciles this device AND device B; a self-`invalidates`
+// would double-refetch the same key). TVars.patch is the typed section; the router input is a generic
+// `Record<string, unknown>`, hence the one boundary cast below.
 interface UpdateAppearanceVars {
   readonly section: "appearance";
   readonly patch: Record<string, unknown>;
 }
 const useUpdateAppearance = createEntityMutation<UpdateAppearanceVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  invalidates: (trpc) => [trpc.settings.getUserSettings.queryFilter()],
+  busDriven: true, // updateUserSettingsSection emits `settingsChanged` → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your appearance settings.",
 });
 

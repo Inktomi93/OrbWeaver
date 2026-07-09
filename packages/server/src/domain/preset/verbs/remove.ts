@@ -35,6 +35,7 @@ export function createRemove(ctx: PresetContext): Pick<PresetService, "remove"> 
       },
       ctx.now(),
     );
+    ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: params.id });
   }
   return { remove };
 }

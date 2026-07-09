@@ -47,6 +47,7 @@ export function createCreate(ctx: PersonaContext): PersonaService["create"] {
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
 
     const row = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);
     if (row === undefined) {

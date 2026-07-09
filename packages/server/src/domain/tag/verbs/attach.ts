@@ -57,6 +57,7 @@ export function createAttach(ctx: TagContext): AttachTrio {
         status: params.status ?? DEFAULT_ATTACH_STATUS,
       },
     });
+    ctx.emitUserEvent(ownerId, { type: "tagsChanged", tagId: params.tagId });
   };
 
   const detachTag: TagService["detachTag"] = async (params: DetachTagParams) => {
@@ -87,6 +88,7 @@ export function createAttach(ctx: TagContext): AttachTrio {
       entityId: params.tagId,
       metadata: { targetType: params.targetType, targetId: params.targetId },
     });
+    ctx.emitUserEvent(ownerId, { type: "tagsChanged", tagId: params.tagId });
   };
 
   const bulkAttachTag: TagService["bulkAttachTag"] = async (params: BulkAttachTagParams) => {
@@ -128,6 +130,7 @@ export function createAttach(ctx: TagContext): AttachTrio {
         status: params.status ?? DEFAULT_ATTACH_STATUS,
       },
     });
+    ctx.emitUserEvent(ownerId, { type: "tagsChanged" });
   };
 
   return { attachTag, detachTag, bulkAttachTag };

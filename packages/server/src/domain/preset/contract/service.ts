@@ -4,6 +4,7 @@
 // preset is a leaf user-scoped CRUD feature: no cross-feature port, no injected guard (it gates by
 // `ownerId === userId`). The context carries only db + the determinism seam + the bound audit writer.
 
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -32,6 +33,10 @@ export interface PresetContext {
   readonly now: () => number;
   readonly newPresetId: () => PresetId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /** The user-bus live-freshness emit (PD user-bus lane) — every preset mutation fires `presetsChanged`
+   *  with the acting owner's `userId` AFTER its durable write, so a second device's preset list refetches.
+   *  Wired to transport's `publishUserEvent` at the entry root; fire-and-forget (LIVE-ONLY). */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /**

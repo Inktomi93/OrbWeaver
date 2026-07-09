@@ -53,6 +53,7 @@ export function createUpdate(ctx: CharacterContext): CharacterService["update"] 
         },
         at,
       );
+      ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
     }
 
     const updated = await loadOwnedCharacterWithAvatar(ctx.db, ownerId, characterId);

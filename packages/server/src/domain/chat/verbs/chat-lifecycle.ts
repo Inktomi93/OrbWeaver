@@ -108,6 +108,9 @@ async function hostRowUpdate(
     .set({ ...args.patch, updatedAt: ctx.now() })
     .where(eq(chats.id, args.chatId));
   await emit({ type: "chatUpdated", chatId: args.chatId });
+  // The chat-LIST row (title/star/archive) moved → the acting user's second device refetches its list
+  // (the per-chat `chatUpdated` above only reaches subscribers of the OPEN chat).
+  ctx.emitUserEvent(args.principal.userId, { type: "chatsChanged", chatId: args.chatId });
 }
 
 /** `updateTitle` — host-only. */
@@ -177,6 +180,7 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent): ChatService["delet
     await requireHost(ctx, principal, chatId);
     await ctx.db.delete(chats).where(eq(chats.id, chatId));
     await emit({ type: "chatDeleted", chatId });
+    ctx.emitUserEvent(principal.userId, { type: "chatsChanged", chatId });
     await ctx.audit(
       {
         actorUserId: principal.userId,

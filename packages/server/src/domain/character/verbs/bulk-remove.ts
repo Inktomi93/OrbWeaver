@@ -33,6 +33,7 @@ export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkR
     if (deletedRows.length === 0) {
       return;
     }
+    ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
 
     await Promise.all(
       deletedRows.map((row) =>

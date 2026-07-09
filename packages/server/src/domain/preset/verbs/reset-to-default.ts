@@ -44,6 +44,7 @@ export function createResetToDefault(ctx: PresetContext): Pick<PresetService, "r
       },
       now,
     );
+    ctx.emitUserEvent(params.userId, { type: "presetsChanged", presetId: params.id });
     return toPresetDetail(row);
   }
   return { resetToDefault };

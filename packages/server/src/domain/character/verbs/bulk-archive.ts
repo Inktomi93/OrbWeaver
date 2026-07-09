@@ -21,6 +21,7 @@ export function createBulkArchive(ctx: CharacterContext): CharacterService["bulk
         },
         ctx.now(),
       );
+      ctx.emitUserEvent(ownerId, { type: "charactersChanged" });
     }
   };
 }

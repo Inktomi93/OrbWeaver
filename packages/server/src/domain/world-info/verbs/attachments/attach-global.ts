@@ -30,5 +30,6 @@ export function createAttachGlobal(ctx: WorldInfoContext): WorldInfoService["att
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
   };
 }

@@ -26,6 +26,7 @@ export function createRemoveTheme(ctx: SettingsContext): Pick<SettingsService, "
       },
       ctx.now(),
     );
+    ctx.emitUserEvent(ownerId, { type: "themesChanged", themeId: params.id });
   }
   return { removeTheme };
 }

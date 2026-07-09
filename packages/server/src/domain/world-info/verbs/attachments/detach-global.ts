@@ -33,6 +33,7 @@ export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["det
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { detached: true };
   };
 }

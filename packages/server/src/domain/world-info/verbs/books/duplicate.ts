@@ -50,6 +50,7 @@ export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplic
       at,
     );
 
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId: newBookId });
     return { id: newBookId, name: newName, description: source.description, createdAt: at };
   };
 }

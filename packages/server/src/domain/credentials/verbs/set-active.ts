@@ -27,6 +27,7 @@ export function createSetActive(ctx: CredentialContext): CredentialsService["set
       await fetchOwnedCredential(ctx.db, ownerId, credentialId),
       credentialId,
     );
+    ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId });
     return toCredentialView(updated);
   };
 }

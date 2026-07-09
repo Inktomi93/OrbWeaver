@@ -192,3 +192,132 @@ export function SavedEntityPromoteStory(): ReactElement {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// createSavedEntityForm DRAFT MIRROR stories (obligation 5, OPTIONAL — shipped 2026-07-09;
+// UI-Primitives §13.4 obligation-5 doctrine). Pins the crash-survival mirror the button-gated saved
+// factory gained for long-form editors (the character card editor is the founding consumer): a
+// surviving draft PROMOTED after mount lights the pill HONESTLY, edits mirror (debounced) into the
+// draft slot, and the slot clears on a confirmed save AND on explicit discard. CT (not the headless
+// create-saved-entity-form.test.ts sibling) for the SAME reason the autosave draft stories above are
+// CT — every one is a RENDER + EFFECT interaction (the promotion effect, the debounced listener, the
+// reseed-clobber guard) that only reproduces with the real React scheduler + real timers (§7).
+
+interface SavedDraftValues {
+  readonly text: string;
+}
+
+const SAVED_DRAFT_ENTITY_ID = "saved-draft-entity";
+// The server row the form seeds from — the draft NEVER seeds `defaultValues`, so a promoted draft must
+// differ from THIS for `isDefaultValue` to flip and the pill to light.
+const SAVED_DRAFT_SERVER_TEXT = "server text";
+// The surviving crash draft the promotion restores over the server seed.
+const SAVED_DRAFT_RESTORED_TEXT = "restored draft";
+
+// --- Restore + reseed-guard: a store PRE-SEEDED with a surviving draft before any mount. Fresh
+// browser context per test (see the autosave story header) re-runs this module → re-seeds clean. ---
+const savedRestoreStore = createEntityDraftStore<SavedDraftValues>({ name: "saved-ct-restore" });
+savedRestoreStore.setDraft(SAVED_DRAFT_ENTITY_ID, { text: SAVED_DRAFT_RESTORED_TEXT });
+
+const useSavedRestoreForm = createSavedEntityForm<SavedDraftValues>({
+  defaultValues: { text: "" },
+  save: (values): Promise<SavedDraftValues> => Promise.resolve(values),
+  draft: savedRestoreStore,
+});
+
+/** Owns the saved hook + the bound field; exposes the pill signal (`isDefaultValue`) for the test. */
+function SavedRestoreFormPane({
+  serverValues,
+}: {
+  readonly serverValues: SavedDraftValues;
+}): ReactElement {
+  const { form } = useSavedRestoreForm({ entityId: SAVED_DRAFT_ENTITY_ID, serverValues });
+  return (
+    <div>
+      <form.AppField name="text">
+        {(field): ReactElement => <field.TextField label="Saved text" />}
+      </form.AppField>
+      {/* The save-bar pill lights on `!isDefaultValue`; a restored draft MUST flip this to false. */}
+      <form.Subscribe selector={(s): boolean => s.isDefaultValue}>
+        {(isDefaultValue): ReactElement => (
+          <output data-testid="saved-restore-is-default">{String(isDefaultValue)}</output>
+        )}
+      </form.Subscribe>
+    </div>
+  );
+}
+
+/** SIBLING observer — reactive read of the same draft slot (the autosave-story convention). */
+function SavedRestoreDraftObserver(): ReactElement {
+  const draft = savedRestoreStore.useDraft(SAVED_DRAFT_ENTITY_ID);
+  return <output data-testid="saved-restore-draft">{JSON.stringify(draft)}</output>;
+}
+
+/**
+ * `serverValues` is state-held so the button hands it a FRESH object identity (identical content) — the
+ * background-refetch trigger that flips `draftSeed`'s identity and RE-RUNS the promotion effect. Without
+ * the `draftSeededRef` guard that re-run re-applies the ORIGINAL mount draft over the user's live edit.
+ */
+export function SavedDraftRestoreStory(): ReactElement {
+  const [serverValues, setServerValues] = useState<SavedDraftValues>({
+    text: SAVED_DRAFT_SERVER_TEXT,
+  });
+  return (
+    <div>
+      <SavedRestoreFormPane serverValues={serverValues} />
+      <SavedRestoreDraftObserver />
+      <button
+        type="button"
+        onClick={(): void => setServerValues({ text: SAVED_DRAFT_SERVER_TEXT })}
+      >
+        force host re-render
+      </button>
+    </div>
+  );
+}
+
+// --- Mirror / clear-on-save / clear-on-discard / untouched-mints-no-draft: an EMPTY store. ---
+const savedMirrorStore = createEntityDraftStore<SavedDraftValues>({ name: "saved-ct-mirror" });
+
+const useSavedMirrorForm = createSavedEntityForm<SavedDraftValues>({
+  defaultValues: { text: "" },
+  // Resolves to the saved row (the re-baseline source) — onSubmit clears the mirror after it resolves.
+  save: (values): Promise<SavedDraftValues> => Promise.resolve(values),
+  draft: savedMirrorStore,
+});
+
+/** Owns the form + the save/discard actions (both need the hook's own surface). */
+function SavedMirrorFormPane(): ReactElement {
+  const { form, discard } = useSavedMirrorForm({
+    entityId: SAVED_DRAFT_ENTITY_ID,
+    serverValues: { text: SAVED_DRAFT_SERVER_TEXT },
+  });
+  return (
+    <div>
+      <form.AppField name="text">
+        {(field): ReactElement => <field.TextField label="Mirror text" />}
+      </form.AppField>
+      <button type="button" onClick={(): void => void form.handleSubmit()}>
+        save
+      </button>
+      <button type="button" onClick={(): void => discard()}>
+        discard
+      </button>
+    </div>
+  );
+}
+
+/** SIBLING observer — reactive read of the mirror slot (empty-key default `{}`). */
+function SavedMirrorDraftObserver(): ReactElement {
+  const draft = savedMirrorStore.useDraft(SAVED_DRAFT_ENTITY_ID);
+  return <output data-testid="saved-mirror-draft">{JSON.stringify(draft)}</output>;
+}
+
+export function SavedDraftMirrorStory(): ReactElement {
+  return (
+    <div>
+      <SavedMirrorFormPane />
+      <SavedMirrorDraftObserver />
+    </div>
+  );
+}

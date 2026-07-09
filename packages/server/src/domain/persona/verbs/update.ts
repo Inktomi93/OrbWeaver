@@ -53,6 +53,7 @@ export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
         },
         at,
       );
+      ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
     }
 
     const updated = await loadOwnedPersonaWithAvatar(ctx.db, ownerId, personaId);

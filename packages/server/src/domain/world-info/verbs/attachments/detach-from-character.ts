@@ -34,6 +34,7 @@ export function createDetachFromCharacter(
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { detached: true };
   };
 }

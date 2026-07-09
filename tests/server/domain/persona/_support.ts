@@ -7,6 +7,7 @@
 // scopes only `packages/server/src/domain`.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characters, users } from "@orb/db";
 import type { AssetId, CharacterId, ExternalId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -22,9 +23,17 @@ interface AuditCall {
   readonly at: number;
 }
 
+/** A recorded user-bus emit (PD user-bus lane) — tests assert a persona CRUD verb fired `personasChanged`. */
+export interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
 export interface PersonaHarness {
   readonly ctx: PersonaContext;
   readonly audits: AuditCall[];
+  /** The recorded `emitUserEvent` calls (assert `personasChanged` fires after a durable write). */
+  readonly userEvents: UserEventCall[];
   /** Advance the injected frozen clock (ms) — to break createdAt ties for newest-first ordering tests. */
   readonly advance: (ms: number) => void;
 }
@@ -34,6 +43,7 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
   const clock = createFrozenClock(FROZEN_AT);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
+  const userEvents: UserEventCall[] = [];
   const ctx: PersonaContext = {
     db,
     now: (): number => clock.now(),
@@ -42,11 +52,14 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
       audits.push({ entry, at });
       return Promise.resolve();
     },
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
+    },
     requireChatAuthorOrHost: () => Promise.resolve(),
     setChatActivePersona: () => Promise.resolve(),
     ...overrides,
   };
-  return { ctx, audits, advance: (ms: number): void => clock.advance(ms) };
+  return { ctx, audits, userEvents, advance: (ms: number): void => clock.advance(ms) };
 }
 
 interface SeedUserOverrides {

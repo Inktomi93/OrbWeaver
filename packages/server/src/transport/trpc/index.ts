@@ -21,3 +21,6 @@ export type { AppRouter } from "./router";
 export { appRouter, createCaller } from "./router";
 export type { SubscriptionErrorFrame } from "./subscriptions";
 export { withSubscriptionErrors } from "./subscriptions";
+// The transport-owned per-user "entity you own changed" LIVE bus (PD user-bus lane). LIVE-ONLY (no durable
+// half); `entry/` wires the `EmitUserEvent` domain op straight to `publishUserEvent`.
+export { publishUserEvent, subscribeUserEvents } from "./user-events-bus";

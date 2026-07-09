@@ -78,6 +78,8 @@ export function makeHarness(db: Db): CharacterHarness {
       tagAttaches.push(args);
       return Promise.resolve(tagAttachResult);
     },
+    // PD user-bus lane: no-op recorder (this harness's tests don't assert the emit; persona's do).
+    emitUserEvent: (): void => undefined,
   };
 
   return {

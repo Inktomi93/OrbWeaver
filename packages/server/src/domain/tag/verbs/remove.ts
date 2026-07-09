@@ -19,5 +19,6 @@ export function createRemove(ctx: TagContext): TagService["removeTag"] {
       entityType: "tag",
       entityId: params.tagId,
     });
+    ctx.emitUserEvent(params.principal.userId, { type: "tagsChanged", tagId: params.tagId });
   };
 }

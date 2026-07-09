@@ -31,6 +31,7 @@ export function createDetachFromPersona(
       },
       at,
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { detached: true };
   };
 }

@@ -21,6 +21,7 @@ import type { AgentSourceKind, Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
 import type { ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
@@ -95,6 +96,9 @@ export interface ChatComposeInput {
    *  composition root (`services.ts`) and injected so chat does NOT construct a second `createChatBus`. The
    *  SAME wrapper backs persona's active-persona write, so persona/chat/world-info all share one bus + ring. */
   readonly emitChatEvent: (event: ChatBusEvent) => Promise<void>;
+  /** PD user-bus lane: transport's `publishUserEvent`, injected so chat's LIST-level verbs fire `chatsChanged`
+   *  onto the acting user's live channel (the per-chat bus can't reach the chat LIST read). */
+  readonly emitUserEvent: EmitUserEvent;
   /** The lock-holder tag for this replica (also used by the boot lock reclaim — one source of truth). */
   readonly holder: string;
   /** The invite-token pepper (mirrors sessions). */
@@ -271,6 +275,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The invite-token pepper hasher (the sessions discipline; PD-61 — a ctx crypto op).
     hashToken: createTokenHasher(input.sessionSecret),
     audit: input.audit,
+    // PD user-bus lane: the chat LIST-level ops (start/fork/rename/star/archive/delete) fire `chatsChanged`
+    // → transport's process-local `publishUserEvent` (the acting user's second device refetches its list).
+    emitUserEvent: input.emitUserEvent,
     applyRegexReplace: createRegexApplyReplace(),
     // D48: the injected tool ops — null until a registrant/consumer wires the service in services.ts.
     tools:

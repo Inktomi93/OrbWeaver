@@ -42,6 +42,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
     const existing = await findSlotLabelRow(ctx.db, ownerId, provider, label);
     if (existing !== undefined) {
       await rotateSealed(ctx.db, { credentialId: existing.id, sealed, metadata, now });
+      ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: existing.id });
       return reloadView(ctx, ownerId, existing.id);
     }
 
@@ -70,6 +71,7 @@ export function createAdd(ctx: CredentialContext): CredentialsService["add"] {
       }
       throw err;
     }
+    ctx.emitUserEvent(ownerId, { type: "credentialsChanged", credentialId: id });
     return reloadView(ctx, ownerId, id);
   };
 }

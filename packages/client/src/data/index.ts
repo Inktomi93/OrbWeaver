@@ -2,8 +2,8 @@
 // pinned QueryClient, the central invalidation seam, the bus reducer + adapter, and the three
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
-export type { ChatBusDeps } from "./bus/index";
-export { applyChatBusEvent, useChatBus } from "./bus/index";
+export type { ChatBusDeps, UserBusDeps } from "./bus/index";
+export { applyChatBusEvent, useChatBus, useUserBus } from "./bus/index";
 export type {
   CollectionSelection,
   CollectionSurface,

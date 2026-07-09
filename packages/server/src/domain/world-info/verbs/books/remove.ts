@@ -29,6 +29,7 @@ export function createRemove(ctx: WorldInfoContext): WorldInfoService["removeBoo
       },
       ctx.now(),
     );
+    ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
     return { deleted: true };
   };
 }
