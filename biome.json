@@ -430,6 +430,19 @@
   },
   "overrides": [
     {
+      "includes": [
+        "packages/client/src/features/app-shell/surfaces/shell.css",
+        "packages/client/src/styles/globals.css"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDescendingSpecificity": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["packages/*/src/**/index.ts"],
       "linter": {
         "rules": {

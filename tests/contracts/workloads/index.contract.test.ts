@@ -11,7 +11,7 @@ import { expect, test } from "../../support/fixtures";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (incl. reserved reconcile-world-state + the 4 crew-* CW1 stubs)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 31-member kind axis (incl. the reserved/crew/expressions/databank stubs + the 10 rpg-* stubs)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "embed-corpus",
     "embed-assets",
@@ -31,6 +31,19 @@ test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (incl. reserved r
     "crew-card-evolution",
     "crew-director",
     "crew-prose-audit",
+    "expressions-sprite-sheet",
+    "databank-ingest",
+    "databank-reindex",
+    "rpg-world-gen",
+    "rpg-recap",
+    "rpg-session-distill",
+    "rpg-director",
+    "rpg-lorebook-upkeep",
+    "rpg-illustration",
+    "rpg-npc-portrait",
+    "rpg-scene-plan",
+    "rpg-scene-distill",
+    "rpg-recruit-card",
   ]);
   expect(workloadKindSchema.options).toEqual(WORKLOAD_KINDS);
 });
@@ -103,6 +116,19 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "crew-card-evolution": true,
   "crew-director": true,
   "crew-prose-audit": true,
+  "expressions-sprite-sheet": true,
+  "databank-ingest": true,
+  "databank-reindex": true,
+  "rpg-world-gen": true,
+  "rpg-recap": true,
+  "rpg-session-distill": true,
+  "rpg-director": true,
+  "rpg-lorebook-upkeep": true,
+  "rpg-illustration": true,
+  "rpg-npc-portrait": true,
+  "rpg-scene-plan": true,
+  "rpg-scene-distill": true,
+  "rpg-recruit-card": true,
 };
 test("WorkloadKind has no member beyond the tuple", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual([...WORKLOAD_KINDS].sort());

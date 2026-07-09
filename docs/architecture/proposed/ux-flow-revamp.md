@@ -49,7 +49,7 @@ These are already decided; do not re-open, do not "improve":
 - Verify loop: `pnpm snap` (punchlist §0 has the idioms) + `tests/e2e/` (Playwright, webServer boots
   the stack per `playwright.config.ts`).
 
-### 0.4 The one-paragraph diagnosis
+### 0.4 The one-paragraph diagnosis (as-audited 2026-07-05 — now HISTORICAL; see §0.5)
 
 The shell architecture is right and the primitive fleet is deep, but the app currently ships the
 **skeleton of the architecture with none of its intended flesh**: the law's own CONTENT spec (entity
@@ -59,6 +59,32 @@ dead-end; three of five rail sections and three of four modals are identical pla
 features that ARE built composed generic primitives (`Card`, raw text) where purpose-built ones
 exist (`ListRow`, `SettingRow`, `Command`, `AvatarStack`, `SelectionBar`). The revamp is therefore
 mostly *wiring what exists to the shape already specified* — very little new invention is required.
+
+### 0.5 Build-state truth table (verified against code, 2026-07-09)
+
+> Lanes **L0–L6 all LANDED** (`Core-BUILD-PLAN.md` Phase-6 header carries the commits); the §0.4
+> diagnosis is fixed. **Do not re-execute a LANDED journey — the code is now its doc.** This table
+> is the ONE remaining-work picture for this program; the journey prose below stays as the
+> as-planned spec record. Remaining work = the PARTIAL rows here + §3 parity growth (lane L7).
+
+| Journey / block | State | Evidence / what remains |
+|---|---|---|
+| J1 landing | **LANDED** (one deferral) | `chat-landing-surface.tsx` + `{kind:"landing"}` in `state/chat-handle.ts`; empty-library hero built. The first-run persona name-ask is DEFERRED with `features/persona` (still a .gitkeep) — the surface's own header records it |
+| J2 new-chat picker | **LANDED** | `new-chat-picker-surface.tsx` (note: built as a SURFACE, not the specced `anchors/new-chat-picker.tsx` path); greeting lane landed 2026-07-07 (inline note below) |
+| J3 CONTENT anatomy | **LANDED** | `chat-header.tsx` + draft variant (inline notes below); prose cap + composer per punchlist §0b |
+| J4 ⌘K palette | **LANDED** | `command-palette-surface.tsx`, route-composed |
+| J5 find a conversation | **LANDED** | `ListRow` rows + search + kebab; the four lifecycle procedures are on the router (`routers/chat.ts` — rename rides `updateTitle`, star/archive/delete explicit) |
+| J6 manage active chat | **LANDED** | `chat-options-menu.tsx` (Continue/Regenerate/Delete…); `state/message-selection-store.ts` + `MessageSelectionBar`; `contextTab` on `shell-store.ts` |
+| J7 group flows | **LANDED** | picker multi-select ("Start chat with N characters"); cast-bar `AddMemberPopover` |
+| J8 theme picker | **LANDED** | `theme-picker-surface.tsx` |
+| J9 character detail | **LANDED** | `character-detail-surface.tsx` + `character-detail-card.tsx`; `state/character-selection-store.ts`. The full EDITOR is its own lane (current: `FINAL-Character-Library-and-Editor-UX.md`, repo root) |
+| J10 placeholders → previews | **PARTIAL** | distinct placeholder copy LANDED (`section-placeholder-copy.ts`); the Corpus client-side chat-search preview is NOT built (`features/corpus/` is a .gitkeep) |
+| J11 settings overlay | **PARTIAL** | full-bleed shell + USER/APP nav + Appearance pane LANDED (`settings-shell-surface.tsx`); OPEN: `SettingRow` row-grammar adoption (punchlist UIP-404) · Account/Personas/Chat-behavior/Connections panes (each rides its feature; Account rides auth #50) |
+| J12 mobile | **LANDED** | bottom tab bar in `shell.css` + safe-area insets + `interactive-widget=resizes-content` |
+| §4.1 composition corrections | **LANDED** | all rows verified (ListRow swap, Command body, raw `<button>Retry</button>` gone) |
+| §4.2 variant tuning | **LANDED** | P5 bordered `secondary` (`button/variants.ts`), avatar hue hash + size trio, Text micro/caps, Skeleton shimmer, Dialog width/full + blur, `TabsIndicator`, EmptyState `action`/`decoration`. (Toast success/undo variants unverified — check when the first undo-delete ships) |
+| §4.3 missing primitives | **LANDED** | `kbd/` built; `SectionLabel` ruled out; `WeaveGlyph` re-homed to `client/src/lib/` with `anim` |
+| §5 lanes | L0–L6 **LANDED** · **L7 remaining** | L7 parity growth (§3 rows; Presets first — PENDING the presets-placement decision) |
 
 ---
 
@@ -420,9 +446,9 @@ the **client home + shape** so no future lane invents geography. "Home" uses the
 | Character bulk ops / folders / filter chips (`character/components/character-bulk-bar.tsx`, `-folder-strip.tsx`, `-filter-chips.tsx`) | ✗ | Characters LIST | Later; tags feature dependency. |
 | HotSwap strip (favorites quick-switch) (`character/surfaces/character-hot-swap-surface.tsx`) | ✗ | Landing quick-picks (J1) cover the need | Do NOT clone the drawer-header strip; landing is our home. |
 | Personas manage/edit (`persona/surfaces/personas-surface.tsx`, `-editor-`, `-list-`) | ✗ (feature dir is .gitkeep; speak-as exists in composer) | **Settings overlay → USER → Personas** (J11); the rail-avatar `account` modal stays a quick identity card linking there | Per-chat persona pin lives in options menu (NT parity). First-run persona ask (`persona/components/first-run-persona-wizard.tsx` precedent) — **DECIDED: fold into the J1 landing hero** (an inline "what should characters call you?" name field on the zero-personas landing; no interrupting dialog), keeping NT's onboarding latch semantics. |
-| Presets: selector + editor panes (sampling/output/quality/reasoning/**templates**/post-process/compaction) (`preset/surfaces/*` incl. `preset-templates-surface.tsx` — 13 format/guided knobs) | ✗ (server domain exists) | **New rail SECTION `presets`** (P6 ruling): LIST = preset list + selector CRUD toolbar; CONTENT = tabbed editor panes | `rail-slots.ts` addition; prompt-manager rides along (below). Per-chat preset binding surfaces in CONTEXT Overrides tab, consuming via the injected seam (never bound-to-chat config — memory/law). |
+| Presets: selector + editor panes (sampling/output/quality/reasoning/**templates**/post-process/compaction) (`preset/surfaces/*` incl. `preset-templates-surface.tsx` — 13 format/guided knobs) | ✗ (server domain exists) | **New rail SECTION `presets`** (P6 ruling — **PENDING owner re-decision: presets→settings candidate; do not dispatch this lane until the ledger settles it**): LIST = preset list + selector CRUD toolbar; CONTENT = tabbed editor panes | `rail-slots.ts` addition; prompt-manager rides along (below). Per-chat preset binding surfaces in CONTEXT Overrides tab, consuming via the injected seam (never bound-to-chat config — memory/law). |
 | Prompt manager (section order editor) (`prompt-manager/surfaces/prompt-sections-surface.tsx`, `section-edit-surface.tsx`) | ✗ | Presets CONTENT, "Prompt" tab | `sortable` primitive (dnd seal) exists for reorder. |
-| World info (books + entries editor + FOUR activation sources) (`world-info/surfaces/world-info-surface.tsx`) | ✗ (server domain exists) | **New rail SECTION `world-info`** (P6 ruling): LIST = books; CONTENT = entry table/editor. Activation homes: **global** = section's defaults panel (`world-info/components/globally-active-books-picker.tsx` precedent) · **per-chat** = chat CONTEXT tab · **character-linked + chat-lore** = character editor dialogs (`character/anchors/character-world-books-dialog.tsx`, `…/character-chat-lore-dialog.tsx`) · **persona-linked** = persona editor section (`persona/components/persona-world-books-section.tsx`) | NT's surface is the density spec; entries table uses `table` + `list-row`. |
+| World info (books + entries editor + FOUR activation sources) (`world-info/surfaces/world-info-surface.tsx`) | ✗ (server domain exists) | **New rail SECTION `world-info`** (P6 ruling — **PENDING owner re-decision alongside the presets-placement call**): LIST = books; CONTENT = entry table/editor. Activation homes: **global** = section's defaults panel (`world-info/components/globally-active-books-picker.tsx` precedent) · **per-chat** = chat CONTEXT tab · **character-linked + chat-lore** = character editor dialogs (`character/anchors/character-world-books-dialog.tsx`, `…/character-chat-lore-dialog.tsx`) · **persona-linked** = persona editor section (`persona/components/persona-world-books-section.tsx`) | NT's surface is the density spec; entries table uses `table` + `list-row`. |
 | Connections / credentials (`credentials/surfaces/connections-surface.tsx`) | ✗ (server domain exists) | Settings modal, **Connections** section (J11) | Add/edit via form factory; `status-chip` for health. |
 | Corpus hub (search/browse/insights/stats/dossier) (`corpus/surfaces/*`) | ✗ (placeholder) | Corpus rail section: LIST = saved lenses/filters (later); CONTENT = search-first hub (J10 seeds layout) | Mockup `CorpusView` = visual spec; NT surfaces = capability spec. |
 | Workloads (background jobs) (`workloads/`) | ✗ | **Settings → APP → System** (J11 taxonomy; decided 2026-07-05) | Low priority; observability surface. |
@@ -433,7 +459,10 @@ the **client home + shape** so no future lane invents geography. "Home" uses the
 | Token counter panel (build-plan committed) | ✗ | CONTEXT panel tab (chat) — quiet mono stats | Over `@orb/kit/tokens`; pure client. |
 | `/imagine` command surface (build-plan committed) | ✗ | Composer wand item | Rides D46 automation actions. |
 
-**Rail end-state** (when the above lands): Chats · Characters · World Info · Presets · Corpus ·
+**Rail end-state** (when the above lands — **PENDING owner re-decision 2026-07-09:** the owner is
+considering moving Presets/generation/prompt-manager to SETTINGS categories instead of rail
+sections, which would contract the seven; needs a ledger amendment before any lane builds toward
+it): Chats · Characters · World Info · Presets · Corpus ·
 Refinery · Analytics — seven sections, grouped on the rail with `--spacing-section` dividers
 (primary: Chats/Characters/Corpus · authoring: World Info/Presets/Refinery · insight: Analytics).
 **This amends law:** UI-Arch §4.1 enumerates FIVE sections (no World Info, no Presets) — the

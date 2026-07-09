@@ -45,6 +45,12 @@ stamp `ownerId` + `fetchOwned`"*): **`roster_presets` stamps `ownerId`**;
 **`roster_preset_members` DERIVES** through its required `presetId` FK (no `ownerId` column —
 stamping it would mint the guardable-mismatch state D23 exists to kill).
 
+> **RIDER STATUS: schema + brand + contracts ✓ LANDED 2026-07-09.** `roster_presets` +
+> `roster_preset_members` rode the regenerated `0000_baseline` (`db/schema/roster-preset.ts`), the
+> `RosterPresetId` brand is in `@orb/kit/ids`, and `@orb/contracts/roster-preset` carries the
+> `RosterPresetView`/`RosterPresetSummary`/`ApplyRosterPresetResult` view types. The `domain/roster-preset`
+> leaf + verbs (RP1 proper) still trail.
+
 ## 2. Schema (`@orb/db/schema/roster-preset.ts`; rides `0000_baseline` if still open — the
 gallery §1.3 born-compliant gate, verbatim; else a normal additive migration)
 

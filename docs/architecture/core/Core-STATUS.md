@@ -30,7 +30,8 @@ updated: 2026-07-09
 - **Phase 7 PARTIAL:** `domain/imagery` + gallery landed early; tool-use · databank · expressions ·
   the D61 leaves (hub, roster-preset) pending.
 - **D60 agent principals:** AP0–AP2 landed (identity spine + attribution + containment suite); the
-  AP3+ seat wave is pending (PD-17).
+  AP3+ seat wave is pending (PD-17) — though AP3's seat verb (`chat.seatAgent` + auth-matrix row) is
+  already in-tree; `resolveAgentSpeaker` and the rest of the wave are not.
 - Phase detail + per-phase checkpoints: `Core-BUILD-PLAN.md`. Ledger latest: **D62**
   (`Core-Laws-and-Precedents.md` + `Core-Path-Registry-D62.md` — the UI/UX revamp program).
 

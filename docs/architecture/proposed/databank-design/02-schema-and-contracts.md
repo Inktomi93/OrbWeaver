@@ -15,6 +15,15 @@ updated: 2026-07-03
 
 ---
 
+> **RIDER STATUS: the DB2-tables subset ✓ LANDED 2026-07-09.** `documents` + the 3 scope junctions
+> (`db/schema/databank.ts`) + `document_chunks` (the 5th vector table, in `db/schema/embeddings.ts`) rode
+> the regenerated `0000_baseline`; `"document"` joined `ASSET_KINDS`; `databank-ingest`/`databank-reindex`
+> joined `WORKLOAD_KINDS` with stub runners; `document`/`document_chunk` brands are in `@orb/kit/ids`; the
+> `{{databank}}` macro slot is reserved in `kit/macro`; `@orb/contracts/databank` carries the origin axis.
+> ADDED (stated house-consistency deviation from the illustrative DDL): a SQL `documents_origin_check`
+> (every sibling enum column pairs `{enum}` with a CHECK). EXCLUDED per scope: the `embeddings.store`
+> document-chunk routing arm + the DB2-proper domain/verbs/full-contract surface.
+
 ## 1. `documents` — the NEW canon producer (`@orb/db/schema/databank.ts`)
 
 ```ts

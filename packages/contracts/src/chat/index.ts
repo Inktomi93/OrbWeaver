@@ -683,6 +683,20 @@ export type ChatBusEvent =
   | { type: "chatOpened"; chatId: ChatId }
   // ── Resume control (subscription-synthesized; never emitted by domain code, never logged) ──
   | { type: "historyTruncated"; chatId: ChatId }
+  // ── Expression sprite swap (expressions-design/02 §4; D49 #4) — EPHEMERAL presentation state, never
+  //    logged to chat_events (the chatOpened precedent, D50): there is deliberately NO canon row holding
+  //    the classify result, so `label` rides as payload (a justified deviation from id-only re-read).
+  //    messageId/variantId are the swipe-correctness key — the client drops an event whose variantId
+  //    mismatches the displayed variant. DECLARED here (union↔CHECK mirror) but NOT YET EMITTED — the
+  //    emit site lands with expressions E3 (bus-coverage DEFERRED entry, the chatOpened precedent). ──
+  | {
+      type: "expression";
+      chatId: ChatId;
+      characterId: CharacterId;
+      messageId: MessageId;
+      variantId: MessageVariantId;
+      label: string;
+    }
   // ── Catch-all for low-payload chat-row changes (star/archive/title/variables/injections/compact) ──
   | { type: "chatUpdated"; chatId: ChatId };
 
@@ -715,6 +729,7 @@ export const CHAT_BUS_EVENT_TYPES = {
   chatDeleted: true,
   chatOpened: true,
   historyTruncated: true,
+  expression: true,
   chatUpdated: true,
 } satisfies Record<ChatBusEvent["type"], true>;
 

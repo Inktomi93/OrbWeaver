@@ -15,8 +15,10 @@ import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/fixtures";
 
 const ROOT = join(import.meta.dirname, "..", "..");
-const OK_RE = /✓\s+([a-z0-9-]+)/gu;
-const FIRED_RE = /✗\s+([a-z0-9-]+)/gu;
+// Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name
+// (UI-Gates-and-Lessons.md §8/§11.1), so the capture class allows uppercase too.
+const OK_RE = /✓\s+(?<gate>[a-zA-Z0-9-]+)/gu;
+const FIRED_RE = /✗\s+(?<gate>[a-zA-Z0-9-]+)/gu;
 const TS_EXT_RE = /\.ts$/u;
 const GATE_DIR = join(ROOT, "scripts", "check", "gates");
 // every gate file on disk (basename) — the source of truth for "what gates exist".
@@ -54,9 +56,14 @@ function runStructure(): string {
 }
 
 function names(re: RegExp, out: string): Set<string> {
-  // `m[1]` is `string | undefined` under noUncheckedIndexedAccess — flatMap drops the (impossible
+  // `groups.gate` is `string | undefined` under noUncheckedIndexedAccess — flatMap drops the (impossible
   // here, but type-visible) undefined so the Set is `Set<string>`.
-  return new Set([...out.matchAll(re)].flatMap((m) => (m[1] === undefined ? [] : [m[1]])));
+  return new Set(
+    [...out.matchAll(re)].flatMap((m) => {
+      const gate = m.groups?.["gate"];
+      return gate === undefined ? [] : [gate];
+    }),
+  );
 }
 
 function writeFixtures(): void {
@@ -241,6 +248,33 @@ function writeFixtures(): void {
   fx(
     "packages/client/src/features/__g_phcopy/lib/section-placeholder-copy.ts",
     `export const SECTION_PLACEHOLDER_COPY = {\n  one: { title: "Dup", description: "same copy" },\n  two: { title: "Dup", description: "same copy" },\n};\n`,
+  );
+  // no-array-literal-querykey: a client options object minting a queryKey as an inline array literal
+  // (keys are 100% tRPC-proxy-derived). These gates scope to packages/client/src ONLY, so writing the
+  // banned shapes literally in THIS tests/tooling file can't self-trip them.
+  fx(
+    "packages/client/src/features/__g_qkey/lib/__g_qkey.ts",
+    `export const opts = { queryKey: ["chat", "list"], enabled: true };\n`,
+  );
+  // no-inline-invalidate-outside-seam: an invalidateQueries call outside data/invalidation.ts.
+  fx(
+    "packages/client/src/features/__g_inval/lib/__g_inval.ts",
+    "export function gBad(qc: { invalidateQueries: (f: unknown) => void }, filter: unknown): void {\n  qc.invalidateQueries(filter);\n}\n",
+  );
+  // bus-onData-no-store-write: a raw .setState() inside a subscription onData body in data/bus/.
+  fx(
+    "packages/client/src/data/bus/__g_buswrite.ts",
+    "declare const store: { setState: (s: unknown) => void };\nexport const sub = {\n  onData: (): void => {\n    store.setState({ x: 1 });\n  },\n};\n",
+  );
+  // no-form-reset-in-autosave: a file importing createAutosaveEntityForm that calls .reset() on a form.
+  fx(
+    "packages/client/src/features/__g_autoreset/hooks/__g_autoreset.ts",
+    'import { createAutosaveEntityForm } from "#forms";\nexport const useGThing = createAutosaveEntityForm<{ a: string }>({ defaultValues: { a: "" } });\nexport function gBad(form: { reset: () => void }): void {\n  form.reset();\n}\n',
+  );
+  // persist-partialize-and-total-migrate: a bare zustand persist() outside the two minting factories.
+  fx(
+    "packages/client/src/features/__g_persist/lib/__g_persist.ts",
+    'declare function persist(init: unknown, opts: unknown): unknown;\nexport const gStore = persist(() => ({}), { name: "x" });\n',
   );
 }
 

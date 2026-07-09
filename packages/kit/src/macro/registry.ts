@@ -506,6 +506,14 @@ export function createDefaultRegistry(): MacroRegistry {
     charField((ctx) => ctx.memory),
     { requires: "chat" },
   );
+  // The {{databank}} slot — RESERVED parallel to {{memory}} (D49 #5; databank-design/07 §3). Renders
+  // empty until domain/databank.gatherRetrieval stages `ctx.databank` (DB2 proper); born now so preset
+  // section templates can place it.
+  registry.register(
+    "databank",
+    charField((ctx) => ctx.databank),
+    { requires: "chat" },
+  );
   registry.register(
     "guided_instruction",
     charField((ctx) => ctx.guidedInstruction),

@@ -156,8 +156,11 @@ export const modelCapabilitySchema = z.object({
   /** Input-modality axis (D45). `vision` = the model accepts image content-parts; absent ⇒ no vision.
    *  The GATE for the multimodal send: assembly drops image parts for a model whose `input.vision` is not
    *  true (a non-vision model never receives them). Optional so existing constructors default to no-vision;
-   *  a vision-capable model declares `input: { vision: true }`. */
-  input: z.object({ vision: z.boolean() }).optional(),
+   *  a vision-capable model declares `input: { vision: true }`. `imageEdit` (imagery-design/01 §5) =
+   *  the model accepts an init/reference image on the image-GENERATION call and transforms it
+   *  (gpt-image-1 edits, Gemini image editing) — distinct from `vision` (chat-input images); absent ⇒
+   *  cannot edit. The GATE for `ImageGenerateRequest.edit`. */
+  input: z.object({ vision: z.boolean(), imageEdit: z.boolean().optional() }).optional(),
   /** Tool-calling axis (D48). Present ⇒ the model/backend accepts a `tools[]` request and emits tool-call
    *  parts; `parallel` = it may request several tool calls in one turn. Absent ⇒ no tool-calling (the GATE
    *  the recurse loop reads: a model without it never receives `tools`, and tool-call parts are dropped

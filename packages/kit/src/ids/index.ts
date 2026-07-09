@@ -89,6 +89,10 @@ export const ID_PREFIX = {
   // D49: hosted image-generation provenance (imagery leaf, item 1) + curated gallery items (gallery v2, item 2).
   imageryGeneration: "imagery_generation",
   galleryItem: "gallery_item",
+  // D58 design-gap fix (owner 2026-07-09, no unbranded id strings): the imagery style-profile entity's
+  // brand — minted at the rpg config reference (rpg-design/03 §1.1 `styleProfileId`); the future
+  // style-profile row (imagery-owned) adopts it. The brand is the one-home; the table trails.
+  styleProfile: "style_profile",
   // D59: chat-crew review artifacts — the prose-audit edit proposal (crew-owned) + the card-evolution
   // proposal (character-owned; the crew only FILES it — chat-crew-design/02 §4–5).
   crewEditProposal: "crewprop",
@@ -97,6 +101,28 @@ export const ID_PREFIX = {
   // it; the natural key (ownerId, key) IS the identity (automation-design/02 §4).
   automationRule: "automation_rule",
   automationFire: "automation_fire",
+  // D61: saved roster presets (saved-rosters-design §2). `roster_preset_members` has NO TypeID — its
+  // identity is the composite PK (presetId, characterId).
+  rosterPreset: "roster_preset",
+  // D49 #5: databank source documents + their vector chunks (databank-design/02).
+  document: "document",
+  documentChunk: "document_chunk",
+  // D58: the rpg campaign tables (rpg-design/03 §0 — 14 new prefixes; the ID_PREFIX value is the prefix
+  // WITHOUT the trailing underscore typeid appends, e.g. `rpggame` → `rpggame_…`).
+  rpgGame: "rpggame",
+  rpgSnapshot: "rpgsnap",
+  rpgNpc: "rpgnpc",
+  rpgPartyMember: "rpgparty",
+  rpgClock: "rpgclock",
+  rpgJournal: "rpgjournal",
+  rpgQuest: "rpgquest",
+  rpgMap: "rpgmap",
+  rpgWidget: "rpgwidget",
+  rpgSession: "rpgsession",
+  rpgCheckpoint: "rpgcheck",
+  rpgPendingCheck: "rpgpend",
+  rpgEncounter: "rpgenc",
+  rpgScene: "rpgscene",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -129,6 +155,7 @@ export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
+export type StyleProfileId = TypeIdOf<"style_profile">;
 
 // --- Chat / conversation -----------------------------------------------------
 export type ChatId = TypeIdOf<"chat">;
@@ -171,6 +198,29 @@ export type CardEvolutionProposalId = TypeIdOf<"cardprop">;
 // --- Automation (D46 — rules + the fire log) ----------------------------------
 export type AutomationRuleId = TypeIdOf<"automation_rule">;
 export type AutomationFireId = TypeIdOf<"automation_fire">;
+
+// --- Roster presets (D61 — named party presets) ------------------------------
+export type RosterPresetId = TypeIdOf<"roster_preset">;
+
+// --- Databank (D49 #5 — source documents + vector chunks) --------------------
+export type DocumentId = TypeIdOf<"document">;
+export type DocumentChunkId = TypeIdOf<"document_chunk">;
+
+// --- RPG (D58 — the 14 campaign tables, rpg-design/03) ------------------------
+export type RpgGameId = TypeIdOf<"rpggame">;
+export type RpgSnapshotId = TypeIdOf<"rpgsnap">;
+export type RpgNpcId = TypeIdOf<"rpgnpc">;
+export type RpgPartyMemberId = TypeIdOf<"rpgparty">;
+export type RpgClockId = TypeIdOf<"rpgclock">;
+export type RpgJournalId = TypeIdOf<"rpgjournal">;
+export type RpgQuestId = TypeIdOf<"rpgquest">;
+export type RpgMapId = TypeIdOf<"rpgmap">;
+export type RpgWidgetId = TypeIdOf<"rpgwidget">;
+export type RpgSessionId = TypeIdOf<"rpgsession">;
+export type RpgCheckpointId = TypeIdOf<"rpgcheck">;
+export type RpgPendingCheckId = TypeIdOf<"rpgpend">;
+export type RpgEncounterId = TypeIdOf<"rpgenc">;
+export type RpgSceneId = TypeIdOf<"rpgscene">;
 
 // --- Workloads (in-server bulk-work lifecycle) -------------------------------
 export type WorkloadId = TypeIdOf<"workload">;

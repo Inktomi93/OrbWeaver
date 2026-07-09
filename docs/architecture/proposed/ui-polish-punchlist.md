@@ -73,6 +73,44 @@ comparison is against the corrected palette. Within a section, tasks are indepen
 
 ---
 
+## 0b. Reconciliation — the build-state truth table (verified against code, 2026-07-09)
+
+> The D62 lanes L0–L6 all LANDED (`Core-BUILD-PLAN.md` Phase-6 header carries the commits). **Do
+> not re-execute a row marked LANDED — the code is now its doc.** This table is the ONE
+> remaining-work picture for this program; the task prose below stays as the as-planned spec record.
+
+| Task | State (2026-07-09) | Evidence / what remains |
+|---|---|---|
+| UIP-101 corrected Hearth palette | **LANDED** | `tokens.json` background `oklch(0.158 0.006 60)`, primary `oklch(0.72 0.175 52)`, `info` + `glow`/`shadow-overlay` tokens present |
+| UIP-102 pointer-conditional density | **LANDED** | `tokens.json` `$extensions.orb.pointerFine` (control-sm 28px …) emitted under `@media (pointer: fine)` |
+| UIP-103 micro-caps + mono voice | **LANDED** | `Text` `size="micro"` + `transform="caps"` (`text/variants.ts`); `--text-micro`/`--tracking-micro` tokens. The `SectionLabel`-primitive alternative was RULED OUT (Text variants only — ux-flow §4.3) |
+| UIP-201 rail polish | **LANDED** | `rail-button.tsx`: tooltips on every button; active = `color-mix(primary 14%)`, not a slab |
+| UIP-202 double title row | **LANDED** | `panel-chrome.tsx` drops the LIST text title; the route threads the identity header |
+| UIP-203 topbar / ⌘K chip | **LANDED** | `@orb/ui` `kbd` primitive; `shell-topbar.tsx` renders the `<Kbd>⌘K</Kbd>` chip |
+| UIP-204 context panel header | **LANDED** | `app-shell.tsx` `contextHeader?: ReactNode`, route-composed |
+| UIP-205 document-scroll leak | **LANDED** | `shell.css` `overscroll-behavior: contain` on the scroll region |
+| UIP-301 chat list rows | **LANDED** | `ListRow` + avatar + relative time (`chat-list-surface.tsx`) |
+| UIP-302 New-chat → header `+` | **LANDED** | compact icon-button header row; the slab is gone |
+| UIP-303 chat list search | **LANDED** | client-side filter + search `Input` in the list |
+| UIP-304 thread column / prose | **LANDED** | `max-w-prose` centered column on document AND bubble (`message-row-variants.ts`) |
+| UIP-305 hover-reveal actions | **LANDED** | `message-actions-reveal.ts` (dim → `group-hover`/focus reveal, `pointer-coarse` always-on) + the `messageActions` user pref |
+| UIP-306 composer pill | **LANDED** | one rounded `focus-within` container, wand + speak-as inside, circular Send⇄Stop |
+| UIP-307 cast bar + context tabs | **LANDED** | `TabsIndicator` skin; cast-bar `AddMemberPopover`; the raw `<button>Retry</button>` is gone |
+| UIP-308 draft/empty welcome | **LANDED** | landing surface `EmptyState` + `WeaveGlyph anim` + action (the J1 landing subsumed the draft-void fix) |
+| UIP-309 skeletons | **LANDED** | shape-matched rows + the `orb-skeleton-shimmer` sweep (reduced-motion static) |
+| UIP-401 dialog chrome | **LANDED** | dialog `sm/md/lg/xl/full` variants, `bg-scrim backdrop-blur`, `--shadow-overlay` token |
+| UIP-402 theme picker | **LANDED** | `features/settings/surfaces/theme-picker-surface.tsx` (real picker; placeholder gone) |
+| UIP-403 ⌘K palette | **LANDED** | `features/chat/surfaces/command-palette-surface.tsx` |
+| UIP-404 settings modal | **PARTIAL** | settings shell + USER/APP nav + Appearance pane LANDED, but the pane composes `Grid`/`Section`/`Stack` — the `SettingRow` row-grammar adoption is the OPEN remainder |
+| UIP-405 account modal | **OPEN** | still `placeholder: true` (deliberate — blocked on the auth feature, task #50) |
+| §5 distinct placeholders | **LANDED** | `section-placeholder-copy.ts` registry (distinct per-section copy, gate-paired) |
+| §6 empty states + Weave | **LANDED** | `EmptyState` `action` + `decoration` slots; `WeaveGlyph` re-homed to `client/src/lib/` with `anim` |
+| §7 mobile (bottom tabs, P3) | **LANDED** | `shell.css` bottom tab bar + `env(safe-area-inset-*)`; `index.html` `interactive-widget=resizes-content` |
+| §8 micro-polish sweep | **PARTIAL** | LANDED: devtools FAB dev-gating, kbd chips, mono relative times. OPEN: `::selection` styling · thin themed scrollbars · the focus-ring audit · the streaming caret/typing-dots verification |
+| §9 placement map | superseded / pending | `ux-flow-revamp.md` §3 is the richer, current map; §9's Presets/World-Info rail rows are **PENDING owner decision (presets→settings candidate)** — do not build from §9 |
+
+---
+
 ## 1. Foundation — tokens (do FIRST; everything else is judged against this)
 
 ### UIP-101 · Adopt the corrected Hearth palette (P1)
@@ -137,8 +175,9 @@ buttons 34px, composer input ≈40px min-height. Touch targets on coarse pointer
 The mockup leans on two type devices the app never uses: (1) uppercase letterspaced micro-labels
 (10.5px, weight 600, `letter-spacing .08em`) for section headers ("SCORES", "CRITICAL ISSUES",
 cmdk group headers, panel titles), and (2) `Geist Mono` for data accents (scores `0.94`, token
-counts, kbd chips, timestamps). Add to `@orb/ui`: a `Text` variant (e.g. `size="micro"` +
-`transform="caps"`, or a dedicated `SectionLabel` primitive in `packages/ui/src/content/`) and use
+counts, kbd chips, timestamps). Add to `@orb/ui`: a `Text` variant (`size="micro"` +
+`transform="caps"` — ~~or a dedicated `SectionLabel` primitive~~ RULED OUT 2026-07-05: Text
+variants only, no wrapper primitive, ux-flow §4.3) and use
 the existing mono font token for data accents. Adopt in: panel-chrome headers, context-panel tab
 labels, settings section headers, cmdk group headers, cast-bar label. This one primitive is the
 single highest-leverage "looks designed" move after the palette.
@@ -460,6 +499,10 @@ J12. Anything deeper (per-section mobile layouts) is future feature work.
   it's the cheap regression net for typo'd token utilities.
 
 ## 9. NeoTavern-completeness placement map (layout homes, NOT build orders)
+
+> **2026-07-09:** `ux-flow-revamp.md` §3 is the richer, current placement map — prefer it. The
+> Presets/sampler and World-info RAIL-SECTION rows below are **PENDING owner decision
+> (presets→settings candidate)** — do not build from them until the ledger settles it.
 
 The features below have no client surface yet (`packages/client/src/features/<f>/` is a .gitkeep).
 When each lands, its LAYOUT HOME is already decided by the shell grammar — record here so nothing

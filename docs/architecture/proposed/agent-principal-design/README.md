@@ -1,6 +1,10 @@
 # Agent-Principal Design — the prescriptive plan for agents as first-class principals (doc-set index)
 
-> **Status: COMMITTED (D60, 2026-07-01).** The §8.6/PD-17 transition — "buddy gets its own ID" — is
+> **Status: COMMITTED (D60, 2026-07-01). Build state (trued 2026-07-09): AP0–AP2 LANDED; AP3 is
+> PARTIALLY in — the seat verb (`chat.seatAgent`: `createSeatAgent` in `domain/chat/verbs/roster.ts`
+> + the `seatAgent:"host"` auth-matrix row + the persistence arm) is in-tree, but
+> `resolveAgentSpeaker` is NOT (the placeholder note in `roster.ts` marks it); AP4a/AP4b pending.**
+> The §8.6/PD-17 transition — "buddy gets its own ID" — is
 > planned work, not a someday note (Nate, 2026-07-01: "we should plan for it, it's kinda
 > important"). This doc set is the authoritative design (`Core-Laws-and-Precedents.md` D60 is the
 > decision record and wins on any conflict). The evidence base: the neo-tavern principal-scout dig

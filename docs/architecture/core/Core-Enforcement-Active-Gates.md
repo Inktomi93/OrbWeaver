@@ -125,8 +125,13 @@ lands) and **pinned by `tests/tooling/check-gates.int.test.ts`** — it derives 
 | `registry-pairing` | the RAIL registry (`rail-slots.ts`) and its sibling `MODAL_SLOTS` bodies (`modal-slots.tsx`) are a bijection on modal ids — every trigger has a body, every body has a reachable trigger | new | | |
 | `modal-body-not-placeholder` | a `MODAL_SLOTS` body whose `render` still returns `<SectionPlaceholder>` must carry an explicit `placeholder: true` flag — an unbuilt modal can't ship silently | new | | |
 | `placeholder-copy-registry` | every `SECTION_PLACEHOLDER_COPY` entry's `(title, description)` pair is DISTINCT — kills the "three sections share one string" silent-duplicate case | new | | |
+| `no-array-literal-querykey` | a `queryKey:` property whose value is an inline array literal anywhere in `packages/client/src` is RED — client query keys are 100% tRPC-proxy-derived (`.queryKey()`/`.queryFilter()`/`.pathFilter()`), §11.1; the data/ factory passthroughs are identifiers, never literals, so they pass | new (2026-07-09, client-foundation) | | |
+| `no-inline-invalidate-outside-seam` | `.invalidateQueries(` may be called ONLY in `data/invalidation.ts` (the central seam); everything else routes `invalidate(event)`/`invalidateFilters`. Tighter than the Layer-2 grit `client-cache-surgery-only-in-data` (which allows all of `data/`) — §11.3 | new (2026-07-09, client-foundation) | | |
+| `bus-onData-no-store-write` | a raw `.setState(` inside a `data/bus/*` subscription `onData`/`onConnectionStateChange` body is RED — the seam buffers through the chatStream api + routes to the invalidation seam, never a second store (§11.1); the reducer-body twin of the import-side grit `chat-stream-writes-in-bus-only` | new (2026-07-09, client-foundation) | | |
+| `no-form-reset-in-autosave` | a `.reset(` on a form in any file importing `createAutosaveEntityForm`, PLUS the reset type-strip (`Omit<…,"reset">`) must stay present and unexposed in the factory — the runtime backstop to the compile-time strip (the autosave infinite loop, §7 row 2) | new (2026-07-09, client-foundation) | | |
+| `persist-partialize-and-total-migrate` | a bare zustand `persist(` outside the two minting factories (`create-persisted-store.ts`/`create-entity-draft-store.ts`) is RED, AND inside each factory the persist options must carry `version`+`partialize`+`migrate` — the Layer-3 twin of the `no-raw-zustand-persist` grit, reading INTO the chokepoint (§11.5) | new (2026-07-09, client-foundation) | | |
 
-The table mirrors `scripts/check/report.ts` (43 registered gates); `report.ts` is the runtime truth.
+The table mirrors `scripts/check/report.ts` (48 registered gates); `report.ts` is the runtime truth.
 
 The 7th fired-trigger gate (PD-116), `solo-byte-identical`, is NOT a static gate — it is the
 cross-cutting property suite `tests/server/domain/chat/solo-byte-identical.suite.int.test.ts`: two

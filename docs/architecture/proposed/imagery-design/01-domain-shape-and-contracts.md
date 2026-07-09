@@ -263,6 +263,12 @@ still wants; an explicit edit of THIS image silently degraded to an unrelated te
 violate least surprise (the model would "edit" by ignoring the source entirely). Rejected: uniform
 drop-with-warning (surprising on the edit verb); uniform throw (kills B3's graceful fallback).
 
+> **RIDER STATUS: the I0 contract pair ✓ LANDED 2026-07-09.** `ImageGenerateRequest` gained
+> `negativePrompt?`/`size?`/`edit?` (+ the `ImageEditInput` interface) in
+> `infra/providers/contract/roles.ts`; `ModelCapability.input` widened to `{ vision, imageEdit? }` in
+> `@orb/contracts/connection`. EXCLUDED per the emit-site rule: the `image_edit_dropped` warning code
+> (lands with imagery-proper).
+
 ## 4. `infra/providers` — the `ImageGenerateRequest` widening (born-compliant, chunk I0)
 
 The built contract today (`contract/roles.ts:85`) is `{ prompt, systemPrompt?, n? }` +

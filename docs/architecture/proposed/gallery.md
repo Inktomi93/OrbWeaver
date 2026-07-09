@@ -25,8 +25,8 @@ updated: 2026-07-03
 | Animated-detect                    | pure byte-sniff in `assets/substrate/mime.ts`                                   | **No**                  | No                      |
 | Token-counter panel                | pure Phase-6 client over `@orb/kit/tokens` `n`                                  | **No**                  | No                      |
 
-This doc lives under `domains/` for discoverability but describes additions to `domain/assets` and client
-surfaces, not a separate domain.
+This doc (originally homed under the now-gutted `domains/`) describes additions to `domain/assets` and
+client surfaces, not a separate domain.
 
 ---
 

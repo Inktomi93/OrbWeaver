@@ -9,7 +9,7 @@ updated: 2026-07-03
 > **Status: COMMITTED (D49 item 4, full scope — Nate greenlit; 2026-06-28).** This doc set is the
 > authoritative BUILD design for the expressions domain. The ledger D-entry
 > (`Core-Laws-and-Precedents.md` D49) is the decision record and wins on any conflict; the committed
-> decision record [`../../domains/expressions.md`](../../domains/expressions.md) is expanded here,
+> decision record [`../expressions.md`](../expressions.md) is expanded here,
 > never contradicted — where this set adds detail, this set wins on detail. Evidence base: the ST
 > `extensions/expressions/index.js` source audit (the archived `proposed/expression-stage/` proposal,
 > git history at `982fd99^`) + marinara `sprites.routes.ts` (sprite-sheet generation — the

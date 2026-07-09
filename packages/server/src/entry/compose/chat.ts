@@ -24,7 +24,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { BatchStmt, Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
-import type { ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
@@ -480,7 +480,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         .limit(1);
       const handle = rows[0]?.handle ?? null;
 
-      let avatarAssetId: string | null = null;
+      let avatarAssetId: AssetId | null = null;
       let displayName: string | null = handle;
 
       if (personaId !== null) {
@@ -501,7 +501,10 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       if (avatarAssetId === null) {
         try {
           const userSettings = await input.settings.loadUserSettings(userId);
-          avatarAssetId = userSettings.profile.avatarAssetId ?? null;
+          // The settings blob is the deliberately-LENIENT tier (its avatarAssetId is plain by design —
+          // contracts/settings profile precedent); this compose seam is the sanctioned brand mint.
+          const raw = userSettings.profile.avatarAssetId ?? null;
+          avatarAssetId = raw === null ? null : castId<AssetId>(raw);
         } catch {
           // Ignore settings load failures for user publics
         }

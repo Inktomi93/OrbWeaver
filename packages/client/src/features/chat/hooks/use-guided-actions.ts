@@ -93,10 +93,12 @@ interface GuidedStartChatResult {
   readonly chat: { readonly id: ChatId };
 }
 
+// `busDriven` (PD user-bus lane, mirrors use-send-message.ts's `useStartChatMutation`): `startChat` emits
+// `chatsChanged` with the new chat's id → `USER_BUS_FILTERS.chatsChanged` covers listChats + getChat.
 const useGuidedStartChatMutation = createEntityMutation<GuidedStartChatVars, GuidedStartChatResult>(
   {
     options: (trpc) => trpc.chat.startChat.mutationOptions(),
-    invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
+    busDriven: true, // emits `chatsChanged` → USER_BUS_FILTERS covers listChats + getChat(new chat).
     errorToast: "Couldn't guide the opening.",
   },
 );

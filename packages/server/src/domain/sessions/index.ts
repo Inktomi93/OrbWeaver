@@ -6,6 +6,9 @@
 export type { Principal, ResolvedIdentity } from "@orb/contracts/identity";
 export type { SessionView } from "@orb/contracts/session";
 export type { SessionsService } from "./contract/service";
+// The canonical viewer-identity view (`sessions.me`) — its shape home (types-in-contract §7.4). Projected
+// from the `Principal` at the transport seam (see `contract/views.ts`), never a persistence read.
+export type { ViewerView } from "./contract/views";
 export { createOidcStore } from "./persistence/oidc-store";
 export { createSessionsService } from "./service";
 // The ONE owner-handle predicate (D17 role policy) — exported so entry's boot owner-seed and the

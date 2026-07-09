@@ -68,6 +68,7 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   turnStarted: [],
   warning: [],
   worldInfoActivated: [], // per-turn trace; no query reads it
+  expression: [], // ephemeral sprite-swap presentation state; no query reads it (expressions-design/02 §4)
   // Canon mutations + turn terminals — the full room + list refetch.
   messageCommitted: CHAT_READS,
   messageEdited: CHAT_READS,

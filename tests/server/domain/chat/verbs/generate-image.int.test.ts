@@ -8,7 +8,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -45,7 +45,10 @@ describe("generateImage", () => {
       generatePicture: (p) => {
         calls.push(p);
         return Promise.resolve({
-          images: [{ assetId: "asset_one" }, { assetId: "asset_two" }],
+          images: [
+            { assetId: castId<AssetId>("asset_one") },
+            { assetId: castId<AssetId>("asset_two") },
+          ],
           warnings: [],
         });
       },

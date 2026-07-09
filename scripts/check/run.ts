@@ -18,6 +18,12 @@ const STAGES: readonly Stage[] = [
   { name: "lint", argv: ["pnpm", "lint"] },
   { name: "lint:eslint", argv: ["pnpm", "lint:eslint"] },
   { name: "typecheck", argv: ["pnpm", "typecheck"] },
+  // The ROOT-program net: packages + scripts + TESTS as one tsc program (the root tsconfig.json's
+  // whole-graph include). Per-package `typecheck` validates each package under its OWN libs/strictness;
+  // vitest transpiles tests without typechecking — so before this stage, a contract tightening could
+  // leave a .test.ts type-stale with every gate green (found live 2026-07-09: a branded-id change left
+  // a fixture stale for an hour, invisible to all six stages).
+  { name: "typecheck:graph", argv: ["pnpm", "typecheck:graph"] },
   { name: "test:types", argv: ["pnpm", "test:types"] },
   { name: "check:structure", argv: ["pnpm", "check:structure"] },
   { name: "depcruise", argv: ["pnpm", "depcruise"] },

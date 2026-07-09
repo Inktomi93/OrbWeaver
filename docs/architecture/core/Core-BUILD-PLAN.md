@@ -21,7 +21,12 @@ updated: 2026-07-05
 > feature-slice scaffold + gates landed and the base site boots; **the D62 revamp lanes L0–L6 are all
 > LANDED** (`fa0d2e3` · `18383f8` · `0076f31` · `1f3a967` · `3cad8a0` · `ab54d38` · `9de07ab`) — the
 > whole shell/polish revamp is done, desktop + mobile. **Remaining Phase-6 work = L7 parity buildout**
-> (Presets first) + the §8 micro-polish. **Phase 7 PARTIAL:** `domain/imagery` + gallery v1/v2 landed
+> (Presets first — placement PENDING the owner's presets→settings call, D62 P6 note) + the §8
+> micro-polish + the punchlist §0b / revamp §0.5 PARTIAL leftovers (`SettingRow` grammar in the
+> Appearance pane · account pane rides auth #50 · corpus J10 preview) + the design-enforcement §3
+> gate/golden backlog (ARIA + screenshot goldens, `no-raw-interactive-intrinsics`,
+> `empty-state-has-action`, the absent client-foundation belts — `ui-package-design.md` §11,
+> re-trued 2026-07-09). **Phase 7 PARTIAL:** `domain/imagery` + gallery v1/v2 landed
 > early (D47#1/D49#2); **tool-use BUILT** (D48/PD-54 — registry + recurse loop; the structured-output/MCP registrant extensions land with crew/buddy); databank · expressions pending. **Phase 8 not started.** The **D60
 > agent-principal waves** ride alongside: AP0–AP2 landed; the AP3+ seat wave is pending (PD-17).
 > Remaining targets: the `ready` rows in `Core-Audits-and-Debt.md`.

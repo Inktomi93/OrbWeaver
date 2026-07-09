@@ -102,7 +102,7 @@ test("modelCapabilitySchema round-trips the input/tools/structured gates (D45 + 
   const capability: ModelCapability = {
     reasoning: { mode: "none", enabled: false },
     sampling: {},
-    input: { vision: true },
+    input: { vision: true, imageEdit: true },
     tools: { parallel: true },
     output: { maxTokens: { min: 1, max: 8192 }, structured: true },
     context: { window: 128_000 },

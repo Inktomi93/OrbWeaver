@@ -11,6 +11,12 @@
 // the backfill slice → the workloads runner) and the avatar-ref registry over `characters.avatarAssetId` /
 // `personas.avatarAssetId`; building them here would ship dead, unwired code. Target:
 // docs/architecture/proposed/assets-maintenance.md.
+//   BASELINE-RIDER NOTE (D49 #4, expressions-design/01 §4): `character_sprites.assetId` (born into the
+//   `0000_baseline`) is a NEW asset-bearing FK — the registry MUST cover it (and, per the design, the
+//   coverage-test predicate widens from "columns named avatarAssetId" to "columns whose brand is
+//   `AssetId` and FK target is `assets.id`" so this class of miss can never recur), OR `collectGarbage`'s
+//   mark-sweep silently reclaims every live sprite blob. Same obligation for `documents.sourceAssetId`
+//   (D49 #5, databank) — a SET-NULL asset FK the registry must also count.
 
 import type { AssetsContext, AssetsService } from "./contract/service";
 import { createAddToGallery } from "./verbs/add-to-gallery";

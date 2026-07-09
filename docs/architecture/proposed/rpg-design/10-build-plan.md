@@ -27,7 +27,12 @@ updated: 2026-07-03
 
 ## The chunks
 
-**R1 — Contracts + schema + substrate (the bedrock).** `@orb/contracts/rpg` (tuples, view/bus/
+**R1 — Contracts + schema + substrate (the bedrock).** *(SUBSET ✓ LANDED 2026-07-09 — owner-authorized
+baseline rider: `@orb/db/schema/rpg.ts` (14 tables into the squashed baseline), the 14 `@orb/kit/ids`
+prefixes+brands, the MINIMAL `@orb/contracts/rpg` (enum tuples + `$type<>` JSON-column schemas ONLY — NOT
+the view/bus/tool-result schemas), and the 10 `rpg-*` WORKLOAD_KINDS + stub runners. STILL TRAILING in
+R1-proper: the full contracts module (views/bus/tool-result), ALL of `substrate/`, and the ~180 goldens.)*
+`@orb/contracts/rpg` (tuples, view/bus/
 tool-result schemas) · `@orb/db/schema/rpg.ts` (14 tables into baseline) · `@orb/kit/ids` prefixes ·
 ALL of `substrate/` (04: every engine + constants + `applyLockedPatch` + consequence picker) with
 the full golden suite. *Checkpoint:* `pnpm test` runs ~180 substrate goldens; schema round-trips

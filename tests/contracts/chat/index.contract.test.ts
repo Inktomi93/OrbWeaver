@@ -343,8 +343,10 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("chatOpened")).toBe(true);
   expect(isChatBusEventType("warning")).toBe(true);
   expect(isChatBusEventType("messageHidden")).toBe(true);
-  // 21 chat-owned (incl. the D45 `warning` + the PD-86 `messageHidden`) + 5 WI variants.
-  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(26);
+  expect(isChatBusEventType("expression")).toBe(true);
+  // 22 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the D49 #4 `expression`) + 5 WI
+  // variants.
+  expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(27);
 });
 
 test("a representative ChatBusEvent round-trips its public, secret-free shape", () => {

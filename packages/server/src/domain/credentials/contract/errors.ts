@@ -8,6 +8,7 @@
 // else. Clients key on the `code` discriminator, never the HTTP status.
 
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
+import type { UserCredentialId } from "@orb/kit/ids";
 
 /** The `DomainOperationError.code` discriminators credential verbs throw. One home for the reason strings. */
 export const CREDENTIALS_OP_CODES = {
@@ -29,7 +30,7 @@ export type CredentialsOpCode = (typeof CREDENTIALS_OP_CODES)[keyof typeof CREDE
  */
 export class CredentialsNotFoundError extends DomainOperationError {
   declare readonly code: typeof CREDENTIALS_OP_CODES.notFound;
-  constructor(credentialId: string) {
+  constructor(credentialId: UserCredentialId) {
     super(CREDENTIALS_OP_CODES.notFound, `credential ${credentialId} not found`);
   }
 }

@@ -53,6 +53,23 @@ export const PARAMS_SCHEMAS = {
   "crew-card-evolution": noParams,
   "crew-director": noParams,
   "crew-prose-audit": noParams,
+  // Expressions + databank STUB kinds (E1 / DB2-tables riders) keep the real-empty-schema posture; the
+  // committed params land with each kind's real runner.
+  "expressions-sprite-sheet": noParams,
+  "databank-ingest": noParams,
+  "databank-reindex": noParams,
+  // The 10 rpg crew STUB kinds (R1-subset rider) keep the real-empty-schema posture; the committed
+  // params land with each real crew runner (rpg-design/10 R6/R7/R9/R10).
+  "rpg-world-gen": noParams,
+  "rpg-recap": noParams,
+  "rpg-session-distill": noParams,
+  "rpg-director": noParams,
+  "rpg-lorebook-upkeep": noParams,
+  "rpg-illustration": noParams,
+  "rpg-npc-portrait": noParams,
+  "rpg-scene-plan": noParams,
+  "rpg-scene-distill": noParams,
+  "rpg-recruit-card": noParams,
 } as const satisfies { [K in WorkloadKind]: z.ZodType };
 
 /** The per-kind params payload type — derived from {@link PARAMS_SCHEMAS} (one home; the runner's
@@ -102,6 +119,28 @@ export const startWorkloadInput = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("crew-director"), params: PARAMS_SCHEMAS["crew-director"] }),
   z.object({ kind: z.literal("crew-prose-audit"), params: PARAMS_SCHEMAS["crew-prose-audit"] }),
+  z.object({
+    kind: z.literal("expressions-sprite-sheet"),
+    params: PARAMS_SCHEMAS["expressions-sprite-sheet"],
+  }),
+  z.object({ kind: z.literal("databank-ingest"), params: PARAMS_SCHEMAS["databank-ingest"] }),
+  z.object({ kind: z.literal("databank-reindex"), params: PARAMS_SCHEMAS["databank-reindex"] }),
+  z.object({ kind: z.literal("rpg-world-gen"), params: PARAMS_SCHEMAS["rpg-world-gen"] }),
+  z.object({ kind: z.literal("rpg-recap"), params: PARAMS_SCHEMAS["rpg-recap"] }),
+  z.object({
+    kind: z.literal("rpg-session-distill"),
+    params: PARAMS_SCHEMAS["rpg-session-distill"],
+  }),
+  z.object({ kind: z.literal("rpg-director"), params: PARAMS_SCHEMAS["rpg-director"] }),
+  z.object({
+    kind: z.literal("rpg-lorebook-upkeep"),
+    params: PARAMS_SCHEMAS["rpg-lorebook-upkeep"],
+  }),
+  z.object({ kind: z.literal("rpg-illustration"), params: PARAMS_SCHEMAS["rpg-illustration"] }),
+  z.object({ kind: z.literal("rpg-npc-portrait"), params: PARAMS_SCHEMAS["rpg-npc-portrait"] }),
+  z.object({ kind: z.literal("rpg-scene-plan"), params: PARAMS_SCHEMAS["rpg-scene-plan"] }),
+  z.object({ kind: z.literal("rpg-scene-distill"), params: PARAMS_SCHEMAS["rpg-scene-distill"] }),
+  z.object({ kind: z.literal("rpg-recruit-card"), params: PARAMS_SCHEMAS["rpg-recruit-card"] }),
 ]);
 
 /** The parsed `start` input (the wire/verb shape). The `kind`-keyed `params` is narrowed by the union. */

@@ -43,6 +43,8 @@ import type {
   ChatDigestId,
   ChatId,
   ChatSegmentId,
+  DocumentChunkId,
+  DocumentId,
   ImageEmbeddingId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -61,6 +63,7 @@ import { vector32 } from "../custom-types";
 import { assets } from "./assets";
 import { characters } from "./character";
 import { chats } from "./chat";
+import { documents } from "./databank";
 
 // The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — domains/memory.md §1). Every
 // `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.
@@ -278,5 +281,50 @@ export const chatDigestSpeakers = sqliteTable(
     primaryKey({ columns: [t.digestId, t.characterId] }),
     // The by-character cross-room lookup (find every digest a character appears in).
     index("chat_digest_speakers_character_idx").on(t.characterId),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// document_chunks — the 5th primary vector table (producer FK: databank `documents`; databank-design/02
+// §2). Structurally identical to chat_segments: re-chunk/re-embed regenerates it from
+// `documents.extractedText`; a document delete CASCADEs it away. NO ownerId (D20 — scope derives via
+// `documents.ownerId`). The write path (an `embeddings.store` lens arm) + the search read arm land with
+// DB2 proper; the table is born into the baseline now (the vector-scope-derived gate enforces the
+// chokepoint from birth). `charStart`/`charEnd` are the non-overlap span offsets into extractedText
+// (source highlighting + lossless-coverage assertions — databank-design/02 §2.1).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const documentChunks = sqliteTable(
+  "document_chunks",
+  {
+    // TypeID PK (`document_chunk_…`); brand is type-only, SQL is plain TEXT.
+    id: text("id").$type<DocumentChunkId>().primaryKey(),
+    // The producer FK — the ONLY ownership link (owner derives via documents.ownerId). CASCADE.
+    documentId: text("document_id")
+      .$type<DocumentId>()
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    // Reading order; restore-on-retrieve (ST `index`).
+    chunkIdx: integer("chunk_idx").notNull(),
+    // The verbatim slice (chat_segments analogue).
+    content: text("content").notNull(),
+    // Offsets into documents.extractedText (exclusive end; the non-overlap span).
+    charStart: integer("char_start").notNull(),
+    charEnd: integer("char_end").notNull(),
+    // The native vector (F32_BLOB(1024), the one Qwen3-VL space).
+    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // Staleness gate + dedup collapse key. NOT NULL.
+    contentHash: text("content_hash").notNull(),
+    // Advisory-stale hub score (a FLOAT) — discovery-only write, never nulled by a store; v1 always NULL.
+    hubScore: real("hub_score"),
+    // The `(model, dim)` space tag.
+    model: text("model").notNull(),
+    dim: integer("dim").notNull(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // The idempotent upsert key: one chunk per (document, chunkIdx, model).
+    uniqueIndex("document_chunks_doc_chunk_model_unique").on(t.documentId, t.chunkIdx, t.model),
+    index("document_chunks_document_idx").on(t.documentId),
   ],
 );

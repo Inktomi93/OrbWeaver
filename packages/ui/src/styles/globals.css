@@ -143,6 +143,23 @@
   --color-speaker: oklch(0.5 0.17 50);
 }
 
+/* Text SELECTION (D62 §8) — the one rationed accent moment on selected text: primary bg + its
+ * contrast-safe foreground. Tracks the active palette for free (both are theme tokens). UNLAYERED so a
+ * later utility can't out-specificity it. */
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+/* SCROLLBARS (D62 §8 · DESIGN.md §6 "scrollbars → the neutral ramp") — thin, quiet, themed. The standard
+ * two-property model (Firefox + Chromium 121+): a low-prominence thumb derived from the foreground so it
+ * reads as part of the neutral ramp on ANY palette, an invisible track. Set on :root so every scroll
+ * region inherits it — one home, no per-surface scrollbar CSS. */
+:root {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-foreground) 22%, transparent) transparent;
+}
+
 /* The skeleton shimmer sweep (D62 UIP-309, primitives/skeleton) — a 90° muted→accent→muted gradient
  * swept across the box over --motion-shimmer. A keyframe animation Tailwind utilities can't express
  * (token-color gradient stops + a moving background-position), so it lives here as ONE bespoke class

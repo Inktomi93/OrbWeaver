@@ -24,7 +24,16 @@ E1+E2 are pre-Phase-5 independent (the committed §7 sequencing, unchanged). E3 
 chat exists. E4 additionally waits on the committed `domain/imagery` leaf (being built from
 `../imagery-design/`) and the two new `infra/image` ops. E5b is last.
 
-## E1 — contracts + tuples (S)
+## E1 — contracts + tuples (S) — ✓ LANDED 2026-07-09
+
+> `@orb/contracts/expressions` (labels + verb schemas + `CharacterSpriteView`), `"sprite"` in
+> `ASSET_KINDS` (CHECK regen), the `expression` `ChatBusEvent` member (+ replay guard + `chat_events`
+> CHECK regen + the `bus-coverage` DEFERRED entry + the client reducer/invalidation no-op arms), and the
+> `expressions-sprite-sheet` `WorkloadKind` + stub runner all rode the regenerated `0000_baseline`. The
+> `character_sprites` DDL (E2's schema half) landed with it; the E2 CRUD leaf + the avatar-ref registry
+> entry still trail (the registry itself is FLAG[PD-26], not yet built — a breadcrumb was left in
+> `domain/assets/service.ts`).
+
 
 **Build:** `@orb/contracts/expressions` (the `EXPRESSION_LABELS` tuple, `expressionLabelSchema`,
 all verb zod schemas, `CharacterSpriteView` — 01 §2) · add `"sprite"` to `ASSET_KINDS`

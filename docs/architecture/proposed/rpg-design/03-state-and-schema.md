@@ -26,6 +26,15 @@ gets a real column or table. **`chats.metadata` carries exactly ONE rpg key:** `
 
 ---
 
+> **RIDER STATUS: the 14 tables + 14 brands ✓ LANDED 2026-07-09** (owner-authorized R1-subset). All 14
+> tables are in `db/schema/rpg.ts` (rode the regenerated `0000_baseline`), every CHECK/XOR/RESTRICT/
+> partial-unique DDL-verbatim; the 14 TypeID brands are in `@orb/kit/ids`; the MINIMAL `@orb/contracts/rpg`
+> (enum tuples + the `$type<>` JSON-column schemas ONLY) backs the columns. Columns 03 defers to a later
+> doc (`lootTable`→04 §5, `widgetValues`/custom-config→11-ui, `result`→04 §2, encounter `state`/`summary`→
+> 07/R8) got DOCUMENTED CONSERVATIVE schemas (permissive typed blobs), tightened by their owning chunk. The
+> `styleProfileId` design gap was fixed (brand minted — see §1.1 note). The domain leaf/verbs/views + the
+> substrate goldens are R1-proper.
+
 ## 0. Schema file + conventions
 
 CREATE `packages/db/src/schema/rpg.ts`, exported from the schema barrel, tables born into
@@ -108,7 +117,7 @@ export const rpgGameConfigSchema = z.object({
     useAvatarReferences: z.boolean().default(true),
     includeCharacterAppearance: z.boolean().default(true),
     promptInstructions: z.string().max(1200).default(""),
-    styleProfileId: z.string().nullable().default(null),
+    styleProfileId: z.string().nullable().default(null), // DESIGN GAP FIXED: `StyleProfileId` brand minted 2026-07-09 (owner: no unbranded id strings) — the R1-subset uses `typeIdSchema(ID_PREFIX.styleProfile)`; the style-profile entity (imagery-owned) adopts it when it lands.
   }).default({}),
   lorebook: z.object({
     keeperEnabled: z.boolean().default(false),

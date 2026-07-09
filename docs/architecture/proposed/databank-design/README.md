@@ -8,7 +8,7 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D49 item 5, 2026-06-28).** Data Bank / document-RAG IS built, as a post-chat
 > ADDITIVE GRAFT (Phase 7). `Core-Laws-and-Precedents.md` D49 item (5) is the decision record and
-> wins on any conflict; [`../../domains/databank.md`](../../domains/databank.md) is the committed
+> wins on any conflict; [`../databank.md`](../databank.md) is the committed
 > one-page decision record this set expands — its decisions are LAW here, never re-decided. The
 > evidence base (the ST source audit) is archived to git history
 > (`docs/architecture/domains/proposed/databank/databank.md` at commit `982fd99~1`). Everything here

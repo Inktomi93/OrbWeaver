@@ -31,15 +31,27 @@ test("a bubble/surface FOREGROUND is DERIVED from its bg for contrast, never tak
 });
 
 test("the border derives from the base surface, but an explicit borderColor WINS", () => {
-  // Derived when unset — a low-alpha contrast hairline off the base.
+  // Derived when unset — a low-alpha contrast hairline off the base. BOTH scopes derive together so the
+  // sidebar-tinted chrome (rail/panel/CONTEXT-header edges) tracks the theme, not just the content border.
   const derived = clampThemeTokens({ background: "oklch(0.158 0.006 60)" });
   expect(derived.vars["--color-border"]).toContain("oklch(from oklch(0.158 0.006 60)");
-  // Explicit border color takes over verbatim.
+  expect(derived.vars["--color-sidebar-border"]).toBe(derived.vars["--color-border"]);
+  // Explicit border color takes over verbatim — for both the generic and the sidebar border.
   const explicit = clampThemeTokens({
     background: "oklch(0.158 0.006 60)",
     borderColor: "#334455",
   });
   expect(explicit.vars["--color-border"]).toBe("#334455");
+  expect(explicit.vars["--color-sidebar-border"]).toBe("#334455");
+});
+
+test("the input-field surface derives from the base so a themed field tracks the palette", () => {
+  // No override ⇒ inherit the token default (near-white overlay); a base surface ⇒ a derived contrast
+  // overlay at the input alpha, so the search chip stops reading pinned-near-white on themed panels.
+  expect(clampThemeTokens({}).vars["--color-input"]).toBeUndefined();
+  const themed = clampThemeTokens({ background: "oklch(0.30 0.14 300)" });
+  expect(themed.vars["--color-input"]).toContain("oklch(from oklch(0.30 0.14 300)");
+  expect(themed.vars["--color-input"]).toContain("/ 0.12)");
 });
 
 test("hostile color values are DROPPED (url/expression/injection/js)", () => {

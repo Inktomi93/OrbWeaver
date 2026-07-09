@@ -153,7 +153,7 @@ one canonical declaration). Adding `"sprite"` is a contracts-pass tuple edit tha
 CHECK into the `0000_baseline` squash (pre-launch, the D58 rpg-tables precedent); post-launch it
 would be an additive CHECK-widening migration. Land it in E1 (05 §1) so the table is born with it.
 
-## 4. DDL — `@orb/db/schema/expressions.ts`
+## 4. DDL — `@orb/db/schema/expressions.ts` — ✓ SCHEMA LANDED 2026-07-09 (rode the `0000_baseline`; the avatar-ref registry entry trails with the FLAG[PD-26] GC wave — breadcrumb in `domain/assets/service.ts`)
 
 ```ts
 export const characterSprites = sqliteTable(

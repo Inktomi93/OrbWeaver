@@ -173,7 +173,9 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
   RAIL    — persistent thin icon column (~56px, fixed). Weave glyph → section icons, SEVEN at
-            end-state (D62 P6), grouped by --spacing-section dividers:
+            end-state (D62 P6 — the World Info/Presets additions are PENDING an owner re-decision
+            2026-07-09: presets→settings candidate; needs a ledger amendment before either section
+            is built), grouped by --spacing-section dividers:
             Chats · Characters · Corpus (primary) | World Info · Presets · Refinery (authoring)
             | Analytics (insight) → spacer → Theme · Settings · avatar. Seven is the CEILING —
             anything further goes to modals/settings. Sections exist only as RAIL_SLOTS entries,

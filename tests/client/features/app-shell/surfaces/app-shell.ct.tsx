@@ -10,9 +10,10 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ShellCascadeFixture } from "../_cascade-fixtures";
-import { AppShellStory, AppShellWidthProbeStory } from "../_ct-stories";
+import { AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
@@ -88,6 +89,58 @@ test("a footer modal trigger opens the paired MODAL_SLOTS dialog", async ({ moun
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+// ── No-window-scroll invariant (task #14) — registry-driven over MODAL_SLOTS ─────────────────────
+// The shell is the window: html/body `overflow: clip` (client globals.css) means the DOCUMENT can never
+// scroll — a modal taller than the viewport scrolls inside its OWN region, never the page. Looping the
+// registry (not a hardcoded list) means a NEW modal id is covered for free — the registry-pairing spirit.
+// A short viewport + a 3000px injected body forces the overflow; if it leaked to the page, `documentElement`
+// would become scrollable.
+
+for (const modalId of MODAL_SLOT_IDS) {
+  test(`no-window-scroll: the "${modalId}" modal overflows its OWN region, never the document`, async ({
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1024, height: 500 });
+    await mount(<ModalScrollStory modalId={modalId} />);
+    // The modal PORTALS to document.body — scope the wait to the page, not the mounted component root.
+    await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
+
+    // 1) The DOCUMENT cannot scroll — computed overflow is clip AND there is no scrollable overflow.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const de = document.documentElement;
+          const overflowLocked = ["clip", "hidden"].includes(getComputedStyle(de).overflowY);
+          const cannotScroll = de.scrollHeight <= de.clientHeight + 1;
+          return overflowLocked && cannotScroll;
+        }),
+      )
+      .toBe(true);
+
+    // 2) The overflow went SOMEWHERE reachable — an ancestor scroll region of the tall body absorbs it
+    //    (the Dialog viewport `overflow-y:auto`, or the Drawer's own scroll region for the `you` sheet).
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          let el = document.querySelector('[data-testid="tall-modal-body"]')?.parentElement ?? null;
+          while (el !== null) {
+            const s = getComputedStyle(el);
+            if (
+              (s.overflowY === "auto" || s.overflowY === "scroll") &&
+              el.scrollHeight > el.clientHeight
+            ) {
+              return true;
+            }
+            el = el.parentElement;
+          }
+          return false;
+        }),
+      )
+      .toBe(true);
+  });
+}
 
 // ── MOBILE (L6/J12 · D62 P3) — the bottom-tab-bar reflow ─────────────────────────────────────────
 
@@ -319,6 +372,68 @@ test("elevation alone (bg-image off) leaves .shell-main opaque — bg-image is w
   // Matrix cell: ramp × bg-off. Elevation-ramp's own fill (--color-card) is opaque — confirms the
   // transparency above comes from has-bg-image winning, not from ramp itself.
   await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+});
+
+// ── WS3: the reading/document CONTENT backing over a bg image (only Chats stays immersive) ──────────
+
+test("bg-image + a non-Chats section: .shell-main gets a SOLID reading backing, not the photo", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" />);
+  // THE DEFECT: a document/reader section (character detail, world-info, …) used to inherit the Chats
+  // immersive transparency and float its prose directly on the photo. A non-Chats section now backs the
+  // content column with an opaque --color-card reading surface.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(1);
+});
+
+test("bg-image + a non-Chats section + blur-panels: the reading backing upgrades to glass (panel parity)", async ({
+  mount,
+}) => {
+  const shell = await mount(
+    <ShellCascadeFixture hasBgImage={true} section="characters" blurSurfaces={["panels"]} />,
+  );
+  const main = shell.getByTestId("main-probe");
+  await expect.poll(() => bgAlpha(main)).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(main)).toContain("blur(");
+});
+
+test("bg-image + the Chats section stays IMMERSIVE: .shell-main transparent (photo behind the thread)", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="chats" />);
+  // The carve-out: Chats keeps the transparent path so the message thread shows the image behind bubbles
+  // that carry their own fill — the reading-surface backing must NOT reach it.
+  await expect.poll(() => bgAlpha(shell.getByTestId("main-probe"))).toBe(0);
+});
+
+// ── WS3: the Chats-immersive landing HERO scrim chip (anchor the copy over the photo) ───────────────
+
+test("bg-image + Chats: the landing empty-state hero gets a frosted scrim chip (anchored over the photo)", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="chats" />);
+  const hero = shell.getByTestId("empty-state-probe");
+  // Chats stays immersive (main transparent, asserted above) — but the empty-state COPY is anchored in a
+  // translucent themed scrim so it clears AA over ANY photo region instead of floating at ~2:1.
+  await expect.poll(() => bgAlpha(hero)).toBeGreaterThan(0);
+  await expect.poll(() => bgAlpha(hero)).toBeLessThan(1);
+  await expect.poll(() => backdropFilterOf(hero)).toContain("blur(");
+});
+
+test("bg-image + a NON-Chats section: the empty-state hero is NOT scrim-chipped (backed content already)", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture hasBgImage={true} section="characters" />);
+  // Non-Chats content is already backed (the reading surface) — the hero needs no separate chip, so the
+  // scrim rule is Chats-scoped and must NOT fire here.
+  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe"))).toBe(0);
+});
+
+test("no bg-image + Chats: the landing hero is NOT scrim-chipped (nothing to float over)", async ({
+  mount,
+}) => {
+  const shell = await mount(<ShellCascadeFixture section="chats" />);
+  await expect.poll(() => bgAlpha(shell.getByTestId("empty-state-probe"))).toBe(0);
 });
 
 test("useAppearanceRootEffects lands a representative axis on <html> as a real computed effect", async ({

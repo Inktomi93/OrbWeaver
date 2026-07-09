@@ -104,8 +104,9 @@ export interface SavedEntityFormArgs<TValues extends object> {
 
 // The factory's return type is INFERENCE-CARRIED on purpose: the AppForm instance is a 20+-generic
 // TanStack type that cannot be truthfully named without re-spelling the library's internals — the
-// hook returns `{ form, mountKey, promote, discard }` with `form` fully typed by inference.
-// biome-ignore lint/nursery/useExplicitReturnType: see above — naming the AppForm generic instance would re-spell TanStack internals (the same class of exception as AppRouter).
+// hook returns `{ form, mountKey, promote, discard }` with `form` fully typed by inference. (The
+// useExplicitReturnType exception is suppressed on the RETURNED hook below, where the rule actually
+// fires — this outer factory needs no suppression.)
 export function createSavedEntityForm<TValues extends object>(
   config: SavedEntityFormConfig<TValues>,
 ) {

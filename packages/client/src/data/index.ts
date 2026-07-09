@@ -23,3 +23,5 @@ export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient
 export { uploadAsset } from "./upload-asset";
 export { useGatedQuery } from "./use-gated-query";
 export { useInvalidation } from "./use-invalidation";
+export type { Viewer, ViewerPersona } from "./use-viewer";
+export { useViewer } from "./use-viewer";

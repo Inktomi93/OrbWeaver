@@ -6,7 +6,7 @@ updated: 2026-07-03
 
 # `@orb/ui` — the package design (structure · scaffold · factories · build order)
 
-> **Status: EXECUTED build design (waves 0–3 + the carve-out fleet are BUILT, 2026-07; the §6.2 client factories remain Phase 6).** The build plan for the `@orb/ui` package — the frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54/D58; **those win on any conflict** — this doc adds (a) the concrete scaffold decisions the law leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the recorded doc-vs-current-API deltas. **For anything built, the code is the doc** (`packages/ui/src` + the CT suite); code comments cite this doc's §-numbers as their spec provenance — the §-numbering is load-bearing, do not renumber. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9.
+> **Status: EXECUTED build design (waves 0–3 + the carve-out fleet are BUILT, 2026-07; the §6.2 client factories are ALSO BUILT — verified 2026-07-09, see the §6.2 status update).** The build plan for the `@orb/ui` package — the frontend cake leaf (`kit ← contracts ← ui ← client`, D42). The law this doc executes is the `core/UI-*.md` docs + ledger D42/D43/D44/D52/D54/D58; **those win on any conflict** — this doc adds (a) the concrete scaffold decisions the law leaves open, (b) the factory inventory with homes/signatures/obligations, (c) the recorded doc-vs-current-API deltas. **For anything built, the code is the doc** (`packages/ui/src` + the CT suite); code comments cite this doc's §-numbers as their spec provenance — the §-numbering is load-bearing, do not renumber. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9.
 
 ## 1. Position in the cake + the physics
 
@@ -183,6 +183,18 @@ factories are inventoried here because this package is their substrate and their
 
 ### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)
 
+> **STATUS UPDATE (verified in-tree 2026-07-09): the §6.2 inventory is BUILT — every factory below
+> exists at its pre-decided home** (`client/src/forms/`: `create-saved-entity-form.ts` ·
+> `create-autosave-entity-form.ts` · `use-app-form.ts`; `client/src/data/`:
+> `create-entity-mutation.ts` · `create-collection-surface.ts` · `use-gated-query.ts` ·
+> `query-boundary.tsx` · `invalidation.ts` · `bus/apply-chat-bus-event.ts`; `client/src/state/`:
+> `create-entity-draft-store.ts` · `shell-store.ts` · `chat-handle.ts` (the `ChatHandle` union,
+> grown a third `{kind:"landing"}` member per D62 P4); `client/src/lib/time.ts`; the
+> `RAIL_SLOTS`↔`MODAL_SLOTS` registries + the live `registry-pairing` gate). **The code is now the
+> doc for the built shapes; the table below stays as the obligations spec the builds were verified
+> against.** NOTE the gate caveat: several §6.2-obligation belts are still NOT wired (§11 table,
+> re-trued 2026-07-09) — the obligations hold by construction+review, not yet by gate.
+
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | --- | --- | --- | --- |
 | `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** (footgun #2) · the `seededRef + persistent-isDirty` reseed guard (footgun #4 — `isDirty`, NOT `!isDefaultValue`, for the guard) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (gate `tanstack-form-only-in-shared`). |
@@ -270,8 +282,9 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
   tokens-only, `.ct.tsx`, doc-comment, Base UI verified live.
 - **Deferral outcome (2026-07):** the originally-deferred ui chunks (`message-list` · `stream/` ·
   `command` · `sortable` · `charts` · `macro-textarea` + the whole carve-out set) were UN-PARKED and
-  BUILT by the primitive fleet. Still deferred: **ALL §6.2 client factories — Phase 6** (they need
-  tRPC/Query/contracts).
+  BUILT by the primitive fleet. ~~Still deferred: ALL §6.2 client factories — Phase 6~~ **superseded
+  2026-07-09: the §6.2 client factories are now BUILT too** (the client-foundation wave landed them;
+  see the §6.2 status update).
 
 ## 10. Recorded deltas + flags for Nate (decision-level, not resolved unilaterally)
 
@@ -327,9 +340,9 @@ client-foundation wave (the `archive/ENFORCEMENT.md` backlog table names them wi
 | `touch-target-floor` | ◐ PARTIAL | the token floor is test-locked (tests/ui/tokens); the per-component "no control below the token" half rides review + the CT computed-height assertions until a grit for h-* under the floor is worth writing |
 | `no-direct-useform` / `no-form-state-in-useeffect` / `no-chat-trpc-in-surface` / `no-inline-optimistic-in-surface` (the neo client four) | ✅ LIVE (dormant) | grit — wired since Phase 0; fire when client code lands |
 | `tanstack-form-only-in-shared` | ◐ PARTIAL | `no-direct-useform` covers the "no raw useForm" half; the single-`createFormHook` half lands with `client/forms` |
-| `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ⏸ PARKED (named) | need the app-shell/anchor structure to exist to allowlist against — client-foundation wave; until then ui ships zero `@media` (reviewable by grep) |
-| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ⏸ PARKED (correct) | the D43/D54 client-foundation belts — they gate constructs (`trpc.*`, stores, factories, features/) that do not exist yet; MUST land in the client-foundation wave BEFORE feature agents (§11.7/§13.6) — this is the ENFORCEMENT.md backlog's `optimistic-chat`/`client-structure` cluster |
-| D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ◐ Wave-2/Phase-6 | the ui half ships as Wave-2 CT containment tests; the lint/route halves need message-render + entry/http code to exist |
+| `no-media-queries-in-features` / `no-raw-container-widths` / `surface-in-a-container` | ✅ LIVE (re-trued 2026-07-09) | the first two as grit (`biome.json`), the third as a `scripts/check/gates/` gate — landed with the client-foundation wave as planned |
+| `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `no-inline-cache-surgery-in-stream` · `no-multiplexed-mutation-error` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `no-client-wire-redeclare` · `no-fake-disabled-id` · `no-static-staletime-on-bus-keys` · `form-factory-for-multifield` · `persist-shape-needs-version`/`persist-partialize-and-total-migrate` · zustand-selector · `state:files` · `check:registry-pairing` · typed-`testId` · client-determinism (client render scope) · `client-feature-front-door`/`client-features-no-cross` | ◐ PARTIALLY discharged (re-trued 2026-07-09) — **the open gate gap** | LIVE: `state:files` · `check:registry-pairing` · typed-`testId` (`testid-typed-only.grit`) · `no-fake-disabled-id` · the client-structure/feature-isolation gates. **STILL ABSENT although the feature lanes have run** (a §11.7 born-compliant miss now on the books): `no-array-literal-querykey` · `no-inline-invalidate-outside-seam` · `bus-onData-no-store-write` · `no-form-reset-in-autosave` · `persist-partialize-and-total-migrate` (verify the remainder of the named list before relying on it) — the built §6.2 factories satisfy these obligations by review only; wire the belts or record a deliberate deferral ruling |
+| D44 quartet (`no-untrusted-html-in-main-dom` · `no-external-media-without-gate` · `theme-override-only-via-scope` · CSP-headers-present) | ✅ lint trio LIVE (re-trued 2026-07-09); CSP half riding `entry/http` | the three grit rules are wired in `biome.json`; the CSP lands with `entry/http/security-headers.ts` (in-tree, cites `client-tooling-setup.md` §7.5) |
 | `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` | RESOLVED — LIVE | the eslint lane was adopted (`eslint.config.js`, wired into `pnpm check` via `lint:eslint`); rationale in that file's header + `proposed/client-tooling-setup.md` |
 | visual-regression screenshots (D42 §8) | ⏸ PARKED | Playwright screenshot gate — adopt when the first themed surfaces stabilize (HUD named the highest-drift surface, rpg-design/11 §13) |
 
@@ -356,7 +369,7 @@ referenced by ≥1 committed design (or a neo staple). Domain components live in
 | command (cmdk) · sortable (@dnd-kit) | ✓ | ✗ (seal) | ✅ built (un-parked) | carve-out |
 | macro-textarea (minisearch fuzzy match) | ✓ (hand-rolled, ported) | ✗ | ✅ built (carve-out item 18) | carve-out |
 | carve-out set (media-grid · status-chip · compare-blocks · avatar-stack · file-dropzone · highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate · list-row · setting-row · selection-bar · save-bar) | partial | mixed | ✅ built | carve-out |
-| weave-glyph (brand) | ✓ | — | ⏸ brand asset — lands with app-shell (the RAIL brand mark) |
+| weave-glyph (brand) | ✓ | — | ✅ landed (2026-07) — app-level per §13.9: `client/src/lib/weave-glyph.tsx` (`anim` prop, D62 re-home), consumed by the rail brand + EmptyState decorations |
 
 **Deliberately NOT `@orb/ui` (they were neo `components/ui/` but are app-shell/feature concerns):**
 `resizable` (DROPPED — D54 clamp-overlay shell) · `sheet` (folded into `drawer` side variants) ·

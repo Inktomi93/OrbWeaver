@@ -10,6 +10,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { assumesSingleReplica } from "./gates/assumes-single-replica.ts";
 import { busCoverage } from "./gates/bus-coverage.ts";
+import { busOnDataNoStoreWrite } from "./gates/bus-onData-no-store-write.ts";
 import { clientStructure } from "./gates/client-structure.ts";
 import { commentedCode } from "./gates/commented-code.ts";
 import { componentSize } from "./gates/component-size.ts";
@@ -19,13 +20,17 @@ import { featureStructure } from "./gates/feature-structure.ts";
 import { memberCardClamped } from "./gates/member-card-clamped.ts";
 import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
+import { noArrayLiteralQuerykey } from "./gates/no-array-literal-querykey.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
 import { noEffectOnSharedSelection } from "./gates/no-effect-on-shared-selection.ts";
+import { noFormResetInAutosave } from "./gates/no-form-reset-in-autosave.ts";
+import { noInlineInvalidateOutsideSeam } from "./gates/no-inline-invalidate-outside-seam.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { ownerRoleSplit } from "./gates/owner-role-split.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
+import { persistPartializeAndTotalMigrate } from "./gates/persist-partialize-and-total-migrate.ts";
 import { persistenceBoundary } from "./gates/persistence-boundary.ts";
 import { placeholderCopyRegistry } from "./gates/placeholder-copy-registry.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
@@ -62,6 +67,11 @@ export const ALL_CHECKS: readonly Check[] = [
   testLayout,
   verbNaming,
   typesInContract,
+  noArrayLiteralQuerykey,
+  noInlineInvalidateOutsideSeam,
+  busOnDataNoStoreWrite,
+  noFormResetInAutosave,
+  persistPartializeAndTotalMigrate,
   noInlineUnionRedecl,
   testPresence,
   testPresenceClient,
