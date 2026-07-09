@@ -159,11 +159,29 @@ register:
   law (UI-Theming §12.1). Until R1 lands the pip does not render (no dead chrome).
 - Kept deliberately: unpaged, client-filtered, plain suspense read (FINAL-Chats §4).
 
-## 5. CONTENT — the LANDING
+## 5. CONTENT — the LANDING (the no-chat-selected posture, ALL regions stated)
 
-Unchanged (FINAL-Chats §5). The recent-chats rows adopt the §4 inbox row (avatar stack + preview +
-recency emphasis) — composition only. The boot map keeps the LIST docked here (LAW 3 applies only when
-a chat is open), so `showRecents` still derives false when docked.
+**When no chat is selected (`handle.kind === "landing"`), every region has a defined face — a
+builder must not invent one:**
+
+- **CONTENT** = the landing surface, unchanged (FINAL-Chats §5: hero + recent chats + character
+  quick-picks; empty library ⇒ the create-first-character variant, data-driven). The recent-chats
+  rows adopt the §4 inbox row (avatar stack + preview + recency emphasis) — composition only.
+- **LIST** = docked (the boot map; LAW 3 fires only when a chat is open), so `showRecents` still
+  derives false when docked — the docked LIST IS the finder and the landing drops its duplicate.
+- **CONTEXT** = **no artifact, so no chat panel** — the route composes `null` and the shell renders
+  its own quiet placeholder (BUILT end-to-end: `home-page.tsx` L144–153 composes `null`;
+  `app-shell.tsx` falls back to `SectionPlaceholder` with the section's own copy from
+  `SECTION_PLACEHOLDER_COPY`, the J10 one-home rule). This is D62 §4.2 law working as intended:
+  CONTEXT is detail +
+  config of CONTENT's ACTIVE artifact; the landing has none. The boot map keeps it collapsed anyway;
+  a user who opens it via the shell affordance sees the placeholder, and that is correct — do not
+  fill it with landing furniture (recents/quick-picks live in CONTENT). The member-count chip does
+  not exist here (it is room-header chrome). A DRAFT immediately swaps in the draft twin
+  (`DraftContextPanel`, built — same file, L150–152).
+- **Chat-mode check, plainly:** the entire LAW 3 trigger is ONE check — `handle.kind !== "landing"`
+  — run in `home-page.tsx`, which already reads the handle (L92). The route passes the result down;
+  the shell never checks anything itself (the LAW 3 tier boundary).
 
 ## 6. CONTENT — the ROOM
 
