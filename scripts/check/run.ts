@@ -27,6 +27,10 @@ const STAGES: readonly Stage[] = [
   { name: "test:types", argv: ["pnpm", "test:types"] },
   { name: "check:structure", argv: ["pnpm", "check:structure"] },
   { name: "depcruise", argv: ["pnpm", "depcruise"] },
+  // The docs-formatter drift check — a hand-edited/unformatted architecture doc (e.g. a broken PD
+  // table) was invisible to all 7 other stages until it landed in a doc-reading agent's face. Was
+  // advisory-only per format-md.ts's own header comment; promoted into the fast lane 2026-07-09.
+  { name: "check:docs", argv: ["pnpm", "check:docs"] },
 ];
 
 /** Per-stage result — mirrors `check-structure.json`'s idiom (report.ts) of a flat array of

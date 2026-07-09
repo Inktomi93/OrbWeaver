@@ -20,6 +20,7 @@ import {
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
+import { cardTokenSize } from "../substrate/card-tokens";
 
 const COPY_SUFFIX = "-copy";
 const FIRST_INCREMENT = 2;
@@ -56,6 +57,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       handle,
       ownerId,
       contentHash: cardContentHash(card),
+      tokenSize: cardTokenSize(card),
       forbidExternalMedia: source.forbidExternalMedia,
       trustHtml: source.trustHtml,
       themeOverride: source.themeOverride,

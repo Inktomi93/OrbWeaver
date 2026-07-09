@@ -69,6 +69,9 @@ export function createGenerateImage(
       await ctx.db.batch(batchMany(insertCanonMessageStatements(ctx.db, params)));
       const view = buildCommittedMessageView(params);
       await deps.emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+      // PD user-bus lane: a new image message moved chat-list recency → fan `chatsChanged` (list-only) to every
+      // present human member (cross-device + multi-human).
+      void ctx.emitChatChanged(chatId);
       return view;
     },
   };

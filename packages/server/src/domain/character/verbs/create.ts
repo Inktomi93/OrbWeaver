@@ -18,6 +18,7 @@ import {
   ensureAssetOwned,
   loadOwnedCharacterWithAvatar,
 } from "../persistence/queries";
+import { cardTokenSize } from "../substrate/card-tokens";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */
@@ -82,6 +83,7 @@ export function createCreate(ctx: CharacterContext): CharacterService["create"] 
       handle: input.handle,
       ownerId,
       contentHash: cardContentHash(card),
+      tokenSize: cardTokenSize(card),
       importedFrom,
       importHash,
       createdAt: at,

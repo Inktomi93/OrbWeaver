@@ -11,11 +11,25 @@
 // `no-direct-users-read` gate). The two SYNTHETIC-identity ops are the exception: they are internal,
 // chat-injected, and act on an already-resolved `ownerId` (the room owner), not a request principal.
 
-import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+import type {
+  CharacterListCursor,
+  CharacterListSort,
+  CreateCharacterInput,
+  UpdateCharacterInput,
+} from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
-export type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
+// The library-list sort axis + its sort-discriminated keyset cursor are cross-boundary wire shapes — their
+// ONE home is `@orb/contracts/character` (the tRPC router validates the SAME zod schemas the domain types
+// derive from). Re-exported TYPE-ONLY so the verb signatures + the front door reference one name (§7.5);
+// the runtime schemas stay in contracts (this file is pure-type by design — no `z.object` here).
+export type {
+  CharacterListCursor,
+  CharacterListSort,
+  CreateCharacterInput,
+  UpdateCharacterInput,
+} from "@orb/contracts/character";
 
 /** Common to every owner-scoped character verb: the acting principal whose `userId` scopes ownership. */
 export interface CharacterActorParams {
@@ -40,21 +54,13 @@ export interface GetCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
-/** The library-list keyset cursor — `(createdAt, id)` (§ persistence/queries.ts header: `createdAt` alone
- *  is NOT unique — a frozen test clock or a bulk import can stamp many rows with the identical
- *  millisecond — so `id` is the deterministic tiebreak). Wire-shaped as ONE object field (not the
- *  `cursor`/`cursorId` sibling-field pair the `domain/assets` precedent uses) because tRPC's
- *  `infiniteQueryOptions` threads exactly one `cursor` field through as the page param
- *  (`@trpc/tanstack-react-query` `ExtractCursorType<TInput> = TInput["cursor"]`) — a second sibling field
- *  would go stale across pages (the client only ever overwrites `cursor`). */
-export interface CharacterListCursor {
-  readonly createdAt: number;
-  readonly id: CharacterId;
-}
-
 export interface ListCharactersParams extends CharacterActorParams {
-  /** Newest-first cursor — fetch the page of owned characters strictly older than this; omit for the
-   *  first (newest) page. */
+  /** The sort order (default `recent` per §4.5). The keyset is sort-discriminated — see
+   *  {@link CharacterListCursor}. */
+  readonly sort?: CharacterListSort;
+  /** The sort-discriminated keyset cursor — fetch the page strictly AFTER this row in the current sort's
+   *  order; omit for the first page. Its `sort` discriminant MUST match `sort` (a mismatch is a stale
+   *  cursor from a different sort — the verb rejects it rather than apply the wrong keyset). */
   readonly cursor?: CharacterListCursor;
   /** Page size; the verb clamps to a sane max. */
   readonly limit?: number;

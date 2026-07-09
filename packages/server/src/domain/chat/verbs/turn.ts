@@ -329,6 +329,9 @@ async function persistUserMessage(
   await ctx.db.batch(batchMany(statements));
   const view = buildCommittedMessageView(params);
   await emit({ type: "messageCommitted", chatId: args.chatId, messageId: view.id, view });
+  // PD user-bus lane: the user row moved chat-list recency → fan `chatsChanged` to every present human member
+  // (cross-device + multi-human). List-only (no `detail`) — the per-chat bus drives the OPEN chat's detail.
+  void ctx.emitChatChanged(args.chatId);
   return view;
 }
 
@@ -938,6 +941,9 @@ async function restoreContinue(
     throw new ChatNotFoundError(chatId);
   }
   await emit({ type: "messageCommitted", chatId, messageId: view.id, view });
+  // PD user-bus lane: the restored content changed the chat-list preview → fan `chatsChanged` (list-only) to
+  // every present human member (cross-device + multi-human).
+  void ctx.emitChatChanged(chatId);
   return view;
 }
 

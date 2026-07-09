@@ -54,11 +54,21 @@ export function SettingsShell(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="outline-none h-full">
       <Container className="h-full">
-        {/* align="start": top-align the nav + content. `<Row>` defaults to `items-center`, which in a tall
-            settings modal floats both columns vertically-centered (a big dead gap above the search + below
-            the pane). They fill the height and scroll on their own — anchor them to the top. */}
-        <Row align="start" className="h-full min-h-0" gap="section">
-          <Stack className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto" gap="section">
+        {/* align="stretch" (the Row default) — NOT `start`: each column must FILL the row height so its own
+            `min-h-0 overflow-y-auto` engages and it scrolls INTERNALLY (the nav then stays put and the modal
+            body's outer scroller never sweeps it). `align="start"` shrank the columns to content height, so
+            neither capped — the OUTER modal wrapper won the scroll and carried the nav off-screen. Content
+            still top-aligns for free: each column is a `<Stack>` (flex-col, justify-start). */}
+        {/* NARROW-CONTAINER reflow (§4b axis 1 — @container, NOT viewport): the root is a `<Container>`
+            (container-type), so below the `@md` breakpoint (a phone-width settings modal, e.g. via the
+            mobile You-sheet) the two columns STACK — the fixed 220px nav collapsed the content column to
+            one word per line. Stacked: the nav goes full-width on TOP, capped to `--container-cq-sm` with
+            its own scroll, and the content column takes the rest. */}
+        <Row align="stretch" className="h-full min-h-0 @max-md:flex-col" gap="section">
+          <Stack
+            className="w-(--width-sidebar-sm) min-h-0 shrink-0 overflow-y-auto @max-md:max-h-(--container-cq-sm) @max-md:w-full"
+            gap="section"
+          >
             <Input
               aria-label="Search settings"
               onValueChange={setQuery}

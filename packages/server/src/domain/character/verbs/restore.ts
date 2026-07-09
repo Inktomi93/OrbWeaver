@@ -17,6 +17,7 @@ import {
   loadOwnedCharacterWithAvatar,
   loadSnapshotContent,
 } from "../persistence/queries";
+import { cardTokenSize } from "../substrate/card-tokens";
 
 const PRE_RESTORE_LABEL = "auto: before restore";
 
@@ -44,6 +45,7 @@ export function createRestore(ctx: CharacterContext): CharacterService["restore"
     const written = await writeCardInPlace(ctx.db, characterId, ownerId, {
       ...blob,
       contentHash: cardContentHash(blob),
+      tokenSize: cardTokenSize(blob),
     });
     if (!written) {
       throw new CharacterNotFoundError(characterId);

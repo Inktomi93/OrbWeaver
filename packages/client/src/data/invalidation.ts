@@ -84,18 +84,29 @@ type BusFilterMap = {
 // Shared shapes, named once.
 const nothing = (): readonly InvalidateFilter[] => [];
 
-function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
-  // The room read + the message list + the chat list (recency/preview all move on any canon change).
-  // Cheap + precise: getChat + listMessages are input-scoped to THIS chat; listChats is path-scoped.
-  // listMessages is the chat message-list surface's read (W-17); a canon mutation refetches it.
-  // listMessageVariants is the swipe strip's step-target resolver (path-scoped — a swipe/select/delete may
-  // touch any slot's sibling set, and the read is cheap/gated so a broad path invalidate is fine here too).
+// The OPEN chat's DETAIL reads (NO chat list): the room read + the message list + the swipe strip's step-target
+// resolver. Cheap + precise: getChat + listMessages are input/THIS-chat scoped; listMessageVariants is
+// path-scoped (a swipe/select/delete may touch any slot's sibling set — the read is cheap/gated). The
+// canon-TERMINAL events (`messageCommitted`/`turnCompleted`) use THIS set — NOT `chatReads` — because the chat
+// LIST (`listChats`) + character library (`character.list`) recency is now driven by the user-bus `chatsChanged`
+// fan the server fires on the SAME terminal moments (see the SECOND map below): the fan's echo reaches the
+// acting device too, so ALSO carrying `listChats`/`character.list` here would triple-invalidate them inside the
+// commit+complete window (`bus-devlog.ts` DUP_ALARM_MIN) — one driver per surface: chat-bus → the open chat's
+// detail, user-bus `chatsChanged` → the chat list + character library (same AND cross device).
+function chatDetailReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
   return [
     trpc.chat.getChat.queryFilter({ chatId }),
     trpc.chat.listMessages.pathFilter(),
     trpc.chat.listMessageVariants.pathFilter(),
-    trpc.chat.listChats.pathFilter(),
   ];
+}
+
+// The DETAIL reads PLUS the chat list (recency/preview move on any canon change). The NON-terminal canon events
+// (edit/hide/reorder/delete/select) use this: they change the open chat's list preview but the server fires no
+// `chatsChanged` for them (cross-device list recency on those is the reconnect story — deferred), so `listChats`
+// stays here as their same-device list driver. `listChats` is path-scoped.
+function chatReads(trpc: Trpc, chatId: ChatBusEvent["chatId"]): readonly InvalidateFilter[] {
+  return [...chatDetailReads(trpc, chatId), trpc.chat.listChats.pathFilter()];
 }
 
 const BUS_FILTERS: BusFilterMap = {
@@ -106,8 +117,10 @@ const BUS_FILTERS: BusFilterMap = {
   warning: nothing,
   worldInfoActivated: nothing, // per-turn trace (automation trigger) — no query reads it
 
-  // Canon mutations — refetch the room + the list.
-  messageCommitted: (e, trpc) => chatReads(trpc, e.chatId),
+  // The canon-TERMINAL commit — the OPEN chat's detail ONLY. The chat LIST + character-library recency
+  // (`listChats` + `character.list`) is driven by the server's `chatsChanged` member-fan on this SAME moment
+  // (the SECOND map's `chatsChanged` arm) — one driver per surface, no triple-invalidate (see `chatDetailReads`).
+  messageCommitted: (e, trpc) => chatDetailReads(trpc, e.chatId),
   messageEdited: (e, trpc) => chatReads(trpc, e.chatId),
   messageHidden: (e, trpc) => chatReads(trpc, e.chatId),
   variantSelected: (e, trpc) => chatReads(trpc, e.chatId),
@@ -116,8 +129,11 @@ const BUS_FILTERS: BusFilterMap = {
   reasoningEdited: (e, trpc) => chatReads(trpc, e.chatId),
   reasoningCleared: (e, trpc) => chatReads(trpc, e.chatId),
 
-  // Turn terminals — completion commits canon; an abort may still have committed a partial.
-  turnCompleted: (e, trpc) => chatReads(trpc, e.chatId),
+  // Turn terminal — completion commits canon; the OPEN chat's detail ONLY (the chat LIST + character-library
+  // recency ride the server's `chatsChanged` member-fan on this same moment — see `messageCommitted`). An abort
+  // may still have committed a partial → the full `chatReads` (no server `chatsChanged` fires on an abort, so
+  // `listChats` stays here as its same-device driver; the next commit's fan heals cross-device recency).
+  turnCompleted: (e, trpc) => chatDetailReads(trpc, e.chatId),
   turnAborted: (e, trpc) => chatReads(trpc, e.chatId),
 
   personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
@@ -189,16 +205,26 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // User settings only — NOT the app/global settings (those are admin/global, no per-user bus emit).
   settingsChanged: (_e, trpc) => [trpc.settings.getUserSettings.pathFilter()],
   credentialsChanged: (_e, trpc) => [trpc.credentials.pathFilter()],
-  // The chat LIST (recency/preview/flags) + the changed chat's own detail. The per-chat `ChatBusEvent` bus
-  // only reaches a chat you're SUBSCRIBED to (open); this drives the LIST + `getChat` for a chat you are NOT
-  // viewing (rename/star/archive/delete from the list, or on device B). Covering `getChat` here is what lets
-  // the chat-row mutations be fully `busDriven` (their `invalidates` were exactly `getChat` + `listChats`).
-  // A `chatsChanged` for the chat you ALSO have open double-invalidates with that chat's `chatUpdated` — a
-  // harmless extra refetch of two cheap keys (the [bus] dev dup-alarm may note it), never a stale screen.
+  // THE chat-list + character-library recency driver (same AND cross device), and the SOLE driver on the
+  // message-commit terminal path. The server fans `chatsChanged` to EVERY present human member's channel on
+  // BOTH (a) the canon-commit terminal moments (`messageCommitted`/`turnCompleted` — chat-list ordering +
+  // `character.list` `lastChattedAt` recency; the chat-bus map arms dropped `listChats`/`character.list` to
+  // avoid a triple-invalidate) AND (b) the chat LIST-level lifecycle ops (start/fork/rename/star/archive/
+  // delete/kick). Always refetches `listChats` + `character.list`; `chatId` present (lifecycle) ALSO refetches
+  // that chat's `getChat` (the row/detail changed) — the terminal-path fan OMITS `chatId` (the per-chat bus
+  // already drives the open chat's `getChat` on every subscribed device, so carrying it here would triple it).
+  //   • Multi-human: a non-host member's fan refetches a `character.list` whose rows didn't change (the host
+  //     owns the characters) — accepted (one cheap path-invalidate; the map is static per-event, not per-role).
+  //   • A `chatsChanged` for a chat you ALSO have open double-invalidates its `getChat`/`listChats` with the
+  //     per-chat bus — a harmless extra refetch (the [bus] dup-alarm tolerates 2×, fires at 3×), never stale.
   chatsChanged: (e, trpc) =>
     e.chatId === undefined
-      ? [trpc.chat.listChats.pathFilter()]
-      : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId })],
+      ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter()]
+      : [
+          trpc.chat.listChats.pathFilter(),
+          trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
+          trpc.character.list.pathFilter(),
+        ],
   // DEFERRED member (never emitted today — see @orb/contracts/user-bus + the gate's DEFERRED allowlist). The
   // map entry is READY: when a per-user connection store lands and emits this, it invalidates the connection
   // reads with no further client change. Harmless until then (nothing dispatches it).

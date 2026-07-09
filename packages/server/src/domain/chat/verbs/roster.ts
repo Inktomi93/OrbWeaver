@@ -515,6 +515,10 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
       markUserLeftStatement(ctx.db, chatId, userId, leftSeq),
     ]);
     await emit({ type: "chatUpdated", chatId });
+    // PD user-bus lane: the roster changed → fan `chatsChanged` to the remaining present members AND the kicked
+    // user (their list must DROP this chat). The kicked user's row is already `leftSeq`-stamped (so no longer
+    // enumerated by the fan) — they ride `extraUserIds`. `detail` ⇒ the chat's own row/detail changed.
+    await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [userId] });
     // Best-effort audit AFTER the transition committed (the emit op owns the batch). NOT a co-statement:
     // `ctx.audit` is the foundation logAudit contract — suppress-and-drop, never the primary channel; an
     // in-tx ride would promote it to a channel that can abort the kick.

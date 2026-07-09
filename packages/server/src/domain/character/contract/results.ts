@@ -26,11 +26,12 @@ export interface SnapshotSummary {
   readonly createdAt: number;
 }
 
-/** A cursor page of the caller's own character library — newest-first, synthetic buckets excluded
- *  (invariant 3). Mirrors `domain/notifications`'s `ListInboxResult` `{items, nextCursor}` shape. */
+/** A cursor page of the caller's own character library — sorted per the request's `sort` (default recent),
+ *  synthetic buckets excluded (invariant 3). Mirrors `domain/notifications`'s `ListInboxResult`
+ *  `{items, nextCursor}` shape. */
 export interface ListCharactersResult {
   readonly items: readonly CharacterSummary[];
-  /** The `(createdAt, id)` pair to pass as the next `cursor`, or `null` when a short page came back
-   *  (no older character remains). */
+  /** The sort-discriminated keyset cursor to pass as the next `cursor`, or `null` when a short page came
+   *  back (no further row remains in this sort's order). Its `sort` matches the request's. */
   readonly nextCursor: CharacterListCursor | null;
 }

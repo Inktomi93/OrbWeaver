@@ -448,6 +448,14 @@ async function executeTurn(
       nextSeq: maxSeq + 1,
     });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
+    // PD user-bus lane (cross-device + multi-human chat-list recency): fan `chatsChanged` to every present
+    // human member's live channel — the assistant settle bumped `lastActivityAt` (character-library recency)
+    // and chat-list ordering, which the per-chat bus can't carry to a member's LIST (or to another device).
+    // PRINCIPAL-BLIND: only `chatId` crosses — membership is enumerated at the entry root. Fired ONCE here for
+    // the whole turn (NOT also on the `messageCommitted` above — the pair fires inside one dup-alarm window, so
+    // a second fan would triple-invalidate the list keys). List-only (no `detail`): the per-chat bus already
+    // drives the OPEN chat's `getChat` on every subscribed device. One fan per terminal event, no debounce v1.
+    void ctx.emitChatChanged(prep.chatId);
 
     // Memory trigger (§3a): fire-and-forget — must not block the reply.
     void Promise.resolve().then(async () => {

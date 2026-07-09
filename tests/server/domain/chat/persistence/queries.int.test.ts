@@ -6,6 +6,7 @@ import {
   chatEventBounds,
   listMemberChats,
   loadCanonHistory,
+  loadChatParticipantCharacterIds,
   loadChatRow,
   loadForkChildren,
   loadMaxMessageSeq,
@@ -20,6 +21,7 @@ import { freshDb } from "../../../../support/db";
 import { expect, test } from "../../../../support/fixtures";
 import {
   addVariant,
+  seedCharacter,
   seedChat,
   seedChatEvent,
   seedMessage,
@@ -104,6 +106,59 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
     const child = await seedChat(db, "child", { parentChatId: parent });
     await seedChat(db, "unrelated");
     expect((await loadForkChildren(db, parent)).map((c) => c.id)).toStrictEqual([child]);
+  });
+});
+
+describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 reverse read)", () => {
+  test("returns character-seat ids per chat, batched; human seats excluded; a no-character chat is absent", async () => {
+    const owner = await seedUser(db, "owner");
+    const human = await seedUser(db, "human");
+    const charA = await seedCharacter(db, owner, "a");
+    const charB = await seedCharacter(db, owner, "b");
+    const chat1 = await seedChat(db, "c1");
+    const chat2 = await seedChat(db, "c2");
+    const soloHuman = await seedChat(db, "solo");
+    await seedParticipant(db, { chatId: chat1, key: "1h", userId: human, role: "host" });
+    await seedParticipant(db, { chatId: chat1, key: "1a", characterId: charA });
+    await seedParticipant(db, { chatId: chat1, key: "1b", characterId: charB });
+    await seedParticipant(db, { chatId: chat2, key: "2a", characterId: charA });
+    // A chat with only a human seat — must be ABSENT from the map (the verb defaults it to []).
+    await seedParticipant(db, { chatId: soloHuman, key: "sh", userId: human, role: "host" });
+
+    const map = await loadChatParticipantCharacterIds(db, [chat1, chat2, soloHuman]);
+    expect(new Set(map.get(chat1))).toStrictEqual(new Set([charA, charB]));
+    expect(map.get(chat2)).toStrictEqual([charA]);
+    expect(map.has(soloHuman)).toBe(false);
+  });
+
+  test("INCLUDES departed (leftSeq) character seats — §7 wants every chat you've had with them", async () => {
+    const owner = await seedUser(db, "owner");
+    const present = await seedCharacter(db, owner, "present");
+    const departed = await seedCharacter(db, owner, "departed");
+    const chatId = await seedChat(db, "c");
+    await seedParticipant(db, { chatId, key: "p", characterId: present });
+    // A character that has since LEFT the chat (leftSeq set) still counts for the reverse read.
+    await seedParticipant(db, { chatId, key: "d", characterId: departed, leftSeq: 5 });
+
+    const map = await loadChatParticipantCharacterIds(db, [chatId]);
+    expect(new Set(map.get(chatId))).toStrictEqual(new Set([present, departed]));
+  });
+
+  test("dedupes a character that left and rejoined (two seat rows → one id)", async () => {
+    const owner = await seedUser(db, "owner");
+    const rejoiner = await seedCharacter(db, owner, "rejoiner");
+    const chatId = await seedChat(db, "c");
+    // Left once (leftSeq set) then rejoined (present) — two rows, one character.
+    await seedParticipant(db, { chatId, key: "left", characterId: rejoiner, leftSeq: 3 });
+    await seedParticipant(db, { chatId, key: "back", characterId: rejoiner, joinSeq: 4 });
+
+    expect(await loadChatParticipantCharacterIds(db, [chatId])).toStrictEqual(
+      new Map([[chatId, [rejoiner]]]),
+    );
+  });
+
+  test("an empty id list is a no-op (empty map, no query)", async () => {
+    expect((await loadChatParticipantCharacterIds(db, [])).size).toBe(0);
   });
 });
 

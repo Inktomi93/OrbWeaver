@@ -134,9 +134,17 @@ separate explicit hover-CTA (§4.4). One representation of a character = one mea
   `lastChattedAt != null` (§12 FIX #2); *which* chat to resume comes from the chats-by-character reverse read
   (§12 FIX #1) — so both fixes power this button.
 
-**4.5 Sort + filters** — default sort **most-recently-talked-with** (`lastChattedAt`, **needs a new summary
-field — §12 FIX #2**; until it lands, fall back to A–Z). "Relationships, not a card catalog." A sort toggle
-(Recent / A–Z / Starred-first) sits in the search row. **Cursor gotchas (real — don't gloss):** the current
+**4.5 Sort + filters** — default sort **most-recently-talked-with** (`lastChattedAt` — §12 FIX #2, LANDED
+2026-07-09). "Relationships, not a card catalog." The sort set (owner-ruled 2026-07-09, superseding the
+earlier 3-sort line; LANDED same day): **Recent · A–Z · Starred-first · Newest · Oldest · Most chats ·
+Fewest chats · Largest cards · Smallest cards** (`CHARACTER_LIST_SORTS` is the one home; most/fewest-chats
+keyset on the `character_stats.chats` join, NULLS-LAST like recent). **Largest/Smallest cards LANDED
+2026-07-09** on a denormalized **`characters.token_size`** column (notNull, stamped on write like
+`contentHash` via the ONE `substrate/card-tokens.cardTokenSize` computer at every content-write site;
+`summaryOf` reads the column, the keyset sorts `(token_size DESC/ASC, id)`). A server keyset needs that
+persisted column — the historical warning holds: do NOT fake it with a client-side sort (breaks keyset
+paging). neo's `random` (keyset-incompatible) and `name-desc` are DELIBERATE DROPS. The sort select sits in the
+search row. **Cursor gotchas (real — don't gloss):** the current
 keyset is `(createdAt, id)` as ONE `cursor` object field (tRPC threads exactly one cursor field — a sibling
 goes stale). A recency sort needs `(lastActivityAt, createdAt, id)`, but (a) `lastActivityAt` is **nullable**
 (never-chatted = null) → the keyset needs explicit **NULLS-LAST** ordering + null-boundary handling, and (b)
@@ -177,6 +185,12 @@ single artifact, never two artifacts).
   CONTEXT to the Appearance tab. (It is a preview + shortcut, NOT a second editing control — that keeps the
   theme editor single-homed in CONTEXT and avoids a two-region form.)
 - **Primary CTA "Start chat"** (`intent="primary"` — the one primary action in this region, rule 3).
+- **Spoiler-free eye toggle** (owner-ruled IN, 2026-07-09 — the neo screen-share-hygiene carry): a quiet
+  eye icon-button that BLURS the spoiler-bearing card text across the editor (description · personality ·
+  scenario · exampleMessages · the greeting preview) until toggled off — for streaming/screen-sharing a
+  library without spoiling cards. Pure view state: a `spoilerBlur` field on the §12 view-prefs store
+  (device-local, persisted — rides the store's DEVICE_LOCAL_REGISTRY entry), CSS blur on the affected
+  field containers, `prefers-reduced-motion`-safe (no transition needed), never touches data.
 - **The live-themed greeting bubble** — `greetings[0]` rendered through `@orb/ui/markdown` inside a
   `<ThemeScope theme={draftThemeOverride}>` so it shows in **this character's own** `aiBubble`/
   `dialogueColor`/`narrationColor`. Editing the first message OR the theme updates it live — "a face saying
@@ -191,8 +205,16 @@ single artifact, never two artifacts).
 `description` · `personality` · `scenario` · `exampleMessages` (render collapsed as a formatted
 mini-transcript = a read-only Streamdown render of the parsed `<START>`-delimited blocks, with "expand to
 edit" swapping to the raw `MacroTextarea` on the same field — **the stored string is never reformatted**;
-save round-trips the raw text byte-identical) · `creatorNotes`. Macro-aware textareas with a below-field
-mono token counter. This is "who they are."
+save round-trips the raw text byte-identical) · `creatorNotes`. Macro-aware textareas. This is "who they
+are."
+
+**Token counters (owner-ruled 2026-07-09, the ST pattern):** EVERY prompt-bearing field — name ·
+description · personality · scenario · greetings (the active one) · exampleMessages · systemPrompt ·
+postHistoryInstructions · depthPrompt.prompt — carries a below-field **mono token counter**, computed
+LIVE off the draft value via the ONE kit tokenizer (`@orb/kit/tokens` `estimateTokens`; the client
+already imports it — never a second estimator). `creatorNotes` + provenance + unrecognized-data get NO
+counter (never sent to the model — don't imply they cost tokens). The save-bar carries the total +
+permanent split (§6.5).
 
 **6.4 Craft tab (the quiet clerical card content; SAME form, SAME save-bar; DRAFT):**
 - **Prompt overrides** — `systemPrompt` · `postHistoryInstructions`.
@@ -203,7 +225,11 @@ mono token counter. This is "who they are."
   validation message, do not silently drop.
 - **Regex scripts** — `regexScripts[]`: a `list-row`-per-script + add. (Use direct `form.Field`, not a bound
   macro field — TanStack Form array-field constraint.)
-- **Provenance** — `creator` · `cardVersion` (read-mostly; typed columns, editable text).
+- **Provenance** — `creator` · `cardVersion` (read-mostly; typed columns, editable text) **plus the
+  read-only import provenance** (added 2026-07-09 — the completeness crosswalk found these unhomed):
+  `importedFrom` (source label) · `importHash` (whole-file sha-256) render as muted read-only rows when
+  non-null (an app-authored card shows neither). Display only — never editable, never in the form's
+  draft fields.
 - **Unrecognized data** — `extensions` · `residualData`: a collapsed read-only JSON viewer (hygiene-only
   round-trip fields).
 - **Refinery** — `refinery {score, analysis}`: DERIVED, never authored → a `@orb/ui/meter`/`stat-figure`
@@ -211,8 +237,15 @@ mono token counter. This is "who they are."
 
 **6.5 Save/dirty model** — ONE `createSavedEntityForm` per character (`key={characterId}` full remount on
 switch, §13.4/§13.6). `!isDefaultValue` drives the dirty pill. `@orb/ui/save-bar` sticky at the **top** of
-CONTENT (visible from either tab so "Save" is never lost): `<Name>` · token count · dirty dot · Discard /
-Save. It governs **exactly** the Presence + Craft draft fields. The immediate-commit surfaces (hero
+CONTENT (visible from either tab so "Save" is never lost): `<Name>` · **the token TOTAL with the
+permanent split** (owner-ruled 2026-07-09, ST-style: "N total · M permanent") · dirty dot · Discard /
+Save. **PERMANENT is defined by OUR assembly, not ST folklore** — the fields the section walk includes
+every turn when non-empty: `description` · `personality` · `scenario` · `systemPrompt` ·
+`postHistoryInstructions` · `exampleMessages` (ours does NOT budget-squeeze examples — an ST delta,
+recorded) · `depthPrompt` (once its assembly wiring lands — see the flagged gap). NON-permanent:
+`greetings` (a one-time history seed — it costs history tokens after send, never card tokens). Both
+totals compute live off the draft client-side; the persisted `token_size` column stays the whole-card
+heft (the list/sort number — a different, coarser question). It governs **exactly** the Presence + Craft draft fields. The immediate-commit surfaces (hero
 gestures, CONTEXT Appearance/Trust) are outside its scope **by construction** — that is the legibility
 guarantee (a user never changes an accent and watches the dirty pill stay dark). The editor's unsaved-draft
 guard on a section switch is the **hand-rolled in-app guard** off view-state (`useBlocker` will NOT fire on
@@ -244,7 +277,9 @@ immediate-commit or a picker.
 - **Relations** — Linked World Books (`worldInfo.attachToCharacter`/`detachFromCharacter`/`listForCharacter`
   — built) + Connected Personas (`persona.connectToCharacter`/`disconnectFromCharacter`/
   `listConnectedToCharacter` — built), each an inline summary list + a **picker modal** (legal). Immediate,
-  never save-bar-gated.
+  never save-bar-gated. (CHAT-scoped book attachment — neo's "Chat lore" — is deliberately NOT here: it is
+  the **Chats lane's** concern, tracked as **PD-30** (verbs deferred-ready; `chatBooks` table exists). Do
+  not add a chat-lore control to the character editor.)
 - **Actions** (a persistent options menu above the tabs; secondary chrome, rule 4): Duplicate (→ AlertDialog
   confirm) · **Export card** (an `<a href>` to `GET /api/export/character/:characterId` — **shipped, no
   build**) · Convert to persona (`persona.createFromCharacter` — built) · Set as welcome greeter
@@ -527,7 +562,12 @@ write (`<ThemeScope>` + clamp + the `themeOverride` write path) · snapshot verb
 the data/forms factories (`createSavedEntityForm`, `createAutosaveEntityForm`, `createCollectionSurface`,
 `createEntityMutation`, `useGatedQuery`, `QueryBoundary`). **`proposedTags`, a `v3`/version counter, and
 per-character CSS are deliberate drops — do not add them** (proposed = a tag STATUS; history = snapshots;
-per-character CSS = the structured `themeOverride`).
+per-character CSS = the structured `themeOverride`). **`synthetic`** (CharacterDetail) is deliberately
+never surfaced — the library query excludes synthetic rows and the owner editor never opens one
+(server-plumbing; the D38 group-bucket marker). (Both lines added 2026-07-09, completeness crosswalk.) Also owner-ruled 2026-07-09: neo's **grid⇄list view
+toggle is DROPPED** (the §13 "rows read as people" list anatomy is the one view; a density axis can return
+via the view-prefs store later if ever missed); neo's **`random` + `name-desc` sorts are DROPPED** (§4.5
+carries the ruled-in set).
 
 ---
 

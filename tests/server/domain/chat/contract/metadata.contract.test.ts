@@ -128,6 +128,7 @@ describe("representative contract shapes", () => {
       lastMessageAt: null,
       messageCount: 0,
       participantNames: [],
+      participantCharacterIds: [],
       createdAt: 0,
       updatedAt: 0,
     } satisfies ChatSummary;

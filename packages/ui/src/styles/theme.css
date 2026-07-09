@@ -14,7 +14,7 @@
   --color-secondary: oklch(0.255 0.007 60);
   --color-secondary-foreground: oklch(0.955 0.004 75);
   --color-muted: oklch(0.255 0.006 60);
-  --color-muted-foreground: oklch(0.705 0.008 65);
+  --color-muted-foreground: oklch(0.74 0.008 65);
   --color-accent: oklch(0.285 0.009 60);
   --color-accent-foreground: oklch(0.96 0.004 75);
   --color-destructive: oklch(0.62 0.19 25);
@@ -45,7 +45,7 @@
   --color-ai-bubble: oklch(0.205 0.006 60);
   --color-ai-bubble-foreground: oklch(0.955 0.004 75);
   --color-system-bubble: oklch(0.255 0.006 60);
-  --color-system-bubble-foreground: oklch(0.705 0.008 65);
+  --color-system-bubble-foreground: oklch(0.74 0.008 65);
   --color-dialogue: oklch(0.955 0.004 75);
   --color-narration: oklch(0.78 0.02 70);
   --color-prose-body: oklch(0.9 0.008 72);

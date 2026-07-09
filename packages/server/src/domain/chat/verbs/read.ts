@@ -82,6 +82,7 @@ import {
   chatEventBounds as loadChatEventBounds,
   replayChatEvents as loadChatEventReplay,
   loadChatMessageStats,
+  loadChatParticipantCharacterIds,
   loadForkChildren,
   loadMessagesPage,
   loadMessageVariantSummaries,
@@ -186,12 +187,14 @@ function toChatDetail({
   };
 }
 
-/** Map a loaded chat row + its canon stats + present roster → the light `ChatSummary` list row (D18 — no
- *  `ownerId`; `participantNames` are display names only — the heavy roster is `getChat`). */
+/** Map a loaded chat row + its canon stats + present roster + character-seat ids → the light `ChatSummary`
+ *  list row (D18 — no `ownerId`; `participantNames` are display names only — the heavy roster is `getChat`;
+ *  `participantCharacterIds` is the reverse-read membership set, incl. departed seats — see the view doc). */
 function toChatSummary(
   row: ChatRowView,
   stat: { messageCount: number; lastMessageAt: number | null },
   participants: readonly ParticipantView[],
+  participantCharacterIds: readonly CharacterId[],
 ): ChatSummary {
   return {
     id: row.id,
@@ -202,6 +205,7 @@ function toChatSummary(
     lastMessageAt: stat.lastMessageAt,
     messageCount: stat.messageCount,
     participantNames: participants.map((p) => p.displayName),
+    participantCharacterIds,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -220,15 +224,19 @@ async function buildSummaries(
   if (rows.length === 0) {
     return [];
   }
-  const stats = await loadChatMessageStats(
-    db,
-    rows.map((r) => r.id),
-  );
+  const chatIds = rows.map((r) => r.id);
+  const stats = await loadChatMessageStats(db, chatIds);
+  const characterIdsByChat = await loadChatParticipantCharacterIds(db, chatIds);
   const enriched = await Promise.all(
     rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })),
   );
   return enriched.map(({ row, names }) =>
-    toChatSummary(row, stats.get(row.id) ?? EMPTY_STATS, names),
+    toChatSummary(
+      row,
+      stats.get(row.id) ?? EMPTY_STATS,
+      names,
+      characterIdsByChat.get(row.id) ?? [],
+    ),
   );
 }
 

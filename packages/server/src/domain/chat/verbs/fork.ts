@@ -362,7 +362,9 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
 
     await ctx.db.batch(batchMany(stmts));
     await deps.emit({ type: "chatCreated", chatId: newChatId });
-    ctx.emitUserEvent(principal.userId, { type: "chatsChanged", chatId: newChatId });
+    // Fan `chatsChanged` to the new room's present human members (at fork this is just the forker/host) so
+    // their chat list gains the row. `detail` ⇒ the new chat's `getChat` is covered too.
+    await ctx.emitChatChanged(newChatId, { detail: true });
 
     const forkRow = await loadChatRow(ctx.db, newChatId);
     if (forkRow === undefined) {

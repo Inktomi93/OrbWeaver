@@ -22,7 +22,14 @@ import type {
   PersonaAvatarEntry,
   RoomOverrides,
 } from "@orb/contracts/chat";
-import type { ChatId, ChatInjectionId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type {
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  MessageVariantId,
+  UserId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 
 export type {
   AssembledPrompt,
@@ -50,6 +57,14 @@ export interface ChatSummary {
   readonly messageCount: number;
   /** The resolved present cast for the list-card avatars (names only — the heavy roster is `getChat`). */
   readonly participantNames: readonly string[];
+  /** The character-SEAT ids in this chat — the reverse "which chats include character X" read backing the
+   *  FINAL-Character §7 Activity tab (every chat you've had with a character) + the §4.4/§9c resume-or-new
+   *  decision + the §4.5 recency signal. Unlike `participantNames` (display names, PRESENT roster only), this
+   *  DELIBERATELY includes DEPARTED character seats: §7 wants "every chat you've had with them," so a chat a
+   *  character has since left still counts for the reverse read (mirrors `roster.characterSeatedInAnotherChat`,
+   *  which also counts past seats). Character seats only (`kind='character'`) — human/agent/observer excluded;
+   *  deduped. Populated via ONE junction bulk read per page (no N+1 — the `canonicalTagsFor` precedent). */
+  readonly participantCharacterIds: readonly CharacterId[];
   readonly createdAt: number;
   readonly updatedAt: number;
 }

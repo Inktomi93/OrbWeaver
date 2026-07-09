@@ -17,6 +17,7 @@ export type {
   ChatToolExecFrame,
   ChatToolOps,
   ChatToolSet,
+  EmitChatChanged,
   GeneratePictureOp,
   PresenceReadOp,
 } from "./contract/context";

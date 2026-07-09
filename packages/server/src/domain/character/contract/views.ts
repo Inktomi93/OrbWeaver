@@ -58,4 +58,16 @@ export interface CharacterSummary {
   readonly tokenSize: number;
   /** The ACCEPTED canonical tags (the library tag filter); pending suggestions excluded. */
   readonly tags: readonly TagView[];
+  /** The discovery-domain distilled one-liner (LEFT JOIN `character_summaries.elevatorPitch`, D28-keyed by
+   *  characterId) — the LIST subtitle's "distilled pitch" source (§4.4 fallback ladder: pitch → tag line →
+   *  handle). `null` until the distill producer has run OR when no summary row exists. NOT `refinery`
+   *  (that's the card-QUALITY grade — a different domain). */
+  readonly elevatorPitch: string | null;
+  /** When this character was last chatted with (LEFT JOIN `character_stats.lastActivityAt`, MAX-merged on
+   *  every canon write; joined via `characters` on the owner per D23 — `character_stats` has no `ownerId`).
+   *  `null` = never chatted. Drives the §4.5 `recent` sort + the §4.4/§9c resume-or-new decision. Freshness
+   *  under `staleTime:Infinity` is bus-driven: the server fans the user-bus `chatsChanged` on every canon-commit
+   *  terminal moment (messageCommitted/turnCompleted) + chat lifecycle op, which is the SOLE `character.list`
+   *  invalidate driver — same AND cross device (client `data/invalidation.ts` `chatsChanged` arm). */
+  readonly lastChattedAt: number | null;
 }

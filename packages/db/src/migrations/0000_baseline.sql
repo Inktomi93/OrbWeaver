@@ -179,6 +179,7 @@ CREATE TABLE `characters` (
 	`imported_from` text,
 	`import_hash` text,
 	`content_hash` text NOT NULL,
+	`token_size` integer DEFAULT 0 NOT NULL,
 	`name` text NOT NULL,
 	`description` text,
 	`personality` text,

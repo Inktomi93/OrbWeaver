@@ -97,6 +97,8 @@ interface Harness {
   ctx: ChatContext;
   events: ChatBusEvent[];
   deltas: StatsDelta[];
+  /** The `chatsChanged` member-fan calls (PD user-bus lane) — one per terminal turn, list-only (no `detail`). */
+  chatChangedFans: { chatId: string; options: unknown }[];
   debitBudget: ReturnType<typeof vi.fn>;
   engine: ReturnType<typeof createTurnEngine>;
 }
@@ -112,10 +114,15 @@ function harness(
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
+  const chatChangedFans: { chatId: string; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn ?? OK_TURN,
     applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
       deltas.push(delta);
+    },
+    emitChatChanged: (chatId, options): Promise<void> => {
+      chatChangedFans.push({ chatId, options });
+      return Promise.resolve();
     },
   });
   const debitBudget = vi.fn(over.debit ?? ((): Promise<void> => Promise.resolve()));
@@ -139,7 +146,7 @@ function harness(
       /* no-op */
     },
   });
-  return { ctx, events, deltas, debitBudget, engine };
+  return { ctx, events, deltas, chatChangedFans, debitBudget, engine };
 }
 
 let db: Db;
@@ -172,6 +179,18 @@ describe("createTurnEngine — happy path", () => {
     expect(t.indexOf("turnStarted")).toBeLessThan(t.indexOf("messageCommitted"));
     expect(t.indexOf("messageCommitted")).toBeLessThan(t.indexOf("turnCompleted"));
     expect(t).toContain("delta");
+  });
+
+  test("PD user-bus lane: fans `chatsChanged` ONCE for the turn, list-only (no `detail`), after the settle", async () => {
+    const chatId = await seedChat(db, "fan");
+    const h = harness(db);
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    // Exactly ONE fan for the whole turn (NOT one per messageCommitted + turnCompleted — the pair fires inside
+    // one dup-alarm window, so a second fan would triple-invalidate the list keys). PRINCIPAL-BLIND: only the
+    // chatId crosses. List-only: no `detail` (the per-chat bus drives the open chat's getChat).
+    expect(h.chatChangedFans).toEqual([{ chatId, options: undefined }]);
   });
 
   test("PD-117: a turn with NO reasoning channel never emits reasoningStreamDone", async () => {

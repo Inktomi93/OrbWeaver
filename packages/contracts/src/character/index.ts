@@ -164,6 +164,103 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
+// ── The library-list sort axis + its sort-discriminated keyset cursor (FINAL-Character §4.5) ──────────
+// The `list` verb reads in one of these orders; each needs its OWN keyset (a single tuple can't serve them
+// all), so the wire cursor is DISCRIMINATED by `sort`. The canonical `as const` tuple is the ONE home
+// (§5.5; the domain verb's dispatch + the tRPC input both derive — never re-spell). Default = `recent`.
+//   • recent      — most-recently-chatted first: `(lastChattedAt DESC NULLS-LAST, createdAt DESC, id DESC)`.
+//                   `lastChattedAt` is nullable (never-chatted sinks to the tail) → the cursor carries it as
+//                   `number | null` and the query does explicit null-boundary handling.
+//   • alpha       — `(name ASC, id ASC)`; `name` is NOT unique, so `id` is the deterministic tiebreak.
+//   • starred     — starred-first then the alpha keyset: `(starred DESC, name ASC, id ASC)`.
+//   • newest      — `(createdAt DESC, id DESC)`; `createdAt` is not unique, so `id` is the tiebreak.
+//   • oldest      — `(createdAt ASC, id ASC)`; the direction-flipped twin of `newest` (own predicate).
+//   • mostChats   — `(chatCount DESC NULLS-LAST, id DESC)`. `chatCount` is `character_stats.chats` LEFT-JOINed
+//                   on the owner (D23 — join via `characters`); a never-chatted card has NO stats row, so the
+//                   join yields null → the tail, exactly like `recent`. Carried as `number | null` with
+//                   explicit null-boundary handling; `chats` is not unique, so `id` tiebreaks.
+//   • fewestChats — `(chatCount ASC NULLS-LAST, id ASC)`; the direction-flipped twin of `mostChats` (nulls
+//                   STILL sink to the tail — never-chatted is never "fewest").
+//   • largestCards  — `(tokenSize DESC, id DESC)`. `tokenSize` is the `characters.token_size` DENORM column
+//                     (notNull, stamped by `substrate/card-tokens` at every content write) → NO null handling;
+//                     not unique, so `id` tiebreaks.
+//   • smallestCards — `(tokenSize ASC, id ASC)`; the direction-flipped twin of `largestCards`.
+// `tokenSize` MUST be a persisted column (not the post-query JS estimate) for these two to be a keyset ORDER BY
+// — that's why `characters.token_size` exists. neo's `random` (keyset-incompatible) and `name-desc` are drops.
+export const CHARACTER_LIST_SORTS = [
+  "recent",
+  "alpha",
+  "starred",
+  "newest",
+  "oldest",
+  "mostChats",
+  "fewestChats",
+  "largestCards",
+  "smallestCards",
+] as const;
+export type CharacterListSort = (typeof CHARACTER_LIST_SORTS)[number];
+export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS);
+
+// ONE object field on the wire (tRPC's `infiniteQueryOptions` threads exactly one `cursor`, overwriting it
+// wholesale each page — a sibling field would go stale). The `sort` discriminant is carried IN the payload so
+// the server can detect a cursor minted under a DIFFERENT sort (a threading bug) and reject it, rather than
+// silently apply the wrong keyset and return misordered/duplicated rows.
+export const characterListCursorSchema = z.discriminatedUnion("sort", [
+  z.object({
+    sort: z.literal("recent"),
+    /** `null` = the boundary row has never been chatted (the NULLS-LAST tail). */
+    lastChattedAt: z.number().int().nullable(),
+    createdAt: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("alpha"),
+    name: z.string(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("starred"),
+    starred: z.boolean(),
+    name: z.string(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("newest"),
+    createdAt: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("oldest"),
+    createdAt: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("mostChats"),
+    /** `null` = the boundary row has no `character_stats` row (never chatted → the NULLS-LAST tail). */
+    chatCount: z.number().int().nullable(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("fewestChats"),
+    /** `null` = the boundary row has no `character_stats` row (never chatted → the NULLS-LAST tail). */
+    chatCount: z.number().int().nullable(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("largestCards"),
+    /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
+    tokenSize: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("smallestCards"),
+    /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
+    tokenSize: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+]);
+export type CharacterListCursor = z.infer<typeof characterListCursorSchema>;
+
 // ── The ST V3 card wire shape (serde IN/OUT pivot) ──────────────────────────
 // The strict ST `chara_card_v3` wire object the export emitter writes and the import reader parses. SELF-
 // CONTAINED: its embedded `character_book` is the ST V3 lorebook wire sub-schema (the serde maps it →
