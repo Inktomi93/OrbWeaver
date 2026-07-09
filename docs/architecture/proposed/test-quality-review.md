@@ -86,8 +86,11 @@ logic, callees have first-party coverage); the repo-wide `audit` recording-fake 
 ## 4. Presence-gate blind spots (three found today; one already being fixed)
 
 1. **Interface-level verbs** — `test-presence` is file-mirror-based; Service-interface methods
-   without a dedicated verbs/ file slip it (the 10 untested verbs in the punchlist §5) — the
-   in-flight `contract-verb-presence` gate closes this.
+   without a dedicated verbs/ file slip it. The `contract-verb-presence` gate (built 2026-07-09)
+   closes this — and its calibrated detection CORRECTED the punchlist's count: only TWO verbs are
+   genuinely untested (`chat.getRoomOverridesForChat`, `discovery.themes`); the other eight were
+   dot-anchored-grep false negatives (real tests call verb closures bare or via `create<Verb>`
+   factories). The replay verbs the redesign leans on ARE tested.
 2. **`@orb/contracts/imagery`** — 3 zod schemas, zero tests anywhere, and no
    `tests/contracts/imagery/` dir; the presence gate's contracts arm apparently missed it —
    VERIFY why (exemption, glob, or `hasSchema` heuristic miss) and fix both the gate hole and the

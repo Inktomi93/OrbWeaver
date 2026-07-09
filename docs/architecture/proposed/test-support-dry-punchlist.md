@@ -110,15 +110,14 @@ hygiene on the classic axes is near-perfect across 894 files: `as any` ×12 · b
   `never` ×12 / `{__behaviors}` casts) are exempt — they are the negative-space tests.
 - **`castId` ×1,251 is NOT a hole — leave it.** Ids are opaque brands; castId at test seams is the
   documented design (`kit/ids` header). Top mints: UserId ×209, CharacterId ×169, Handle ×162.
-- **Contract-verb coverage: 269 Service-interface verbs, 258 (96%) invoked somewhere in the
-  domain's tests — but 10 verbs have ZERO tests anywhere in tests/:** `chat.listChats` ·
-  `chat.getChatLineage` · `chat.getActivePresetConfig` · `chat.previewSection` ·
-  `chat.replayStreamEvents` · `chat.replayChatEvents` · `chat.chatEventBounds` ·
-  `chat.getRoomOverridesForChat` · `discovery.themes` · `settings.reloadEffectiveConfig`
-  (+ `chat.previewAssembly` at exactly one file). NOTE: `listChats` powers the LIST panel and the
-  replay verbs are the dual-device spine `FINAL-Chat-Tab-Redesign-UX.md` §9 leans on — its
-  "wiring-verified, not run-verified" hedge is now measured fact. Writing these \~10 tests is
-  Wave-1-adjacent work (W1i).
+- **Contract-verb coverage (CORRECTED 2026-07-09 by the gate build): 269 Service-interface
+  verbs, 267 covered — exactly TWO have zero tests anywhere:** `chat.getRoomOverridesForChat` ·
+  `discovery.themes`. The first audit claimed 10; eight were false-negatives from a dot-anchored
+  grep (`.method(`) — the real tests import verb closures and call them BARE (`listChats(...)`)
+  or via `create<Verb>(...)` factories. The `contract-verb-presence` gate matches the real
+  invocation shapes and carries the two genuine gaps as its DEFERRED list. W1i = two tests, not
+  ten. (Measurement lesson: presence sweeps must match bare-call + factory shapes, never just
+  dot-method.)
 - **Two new gates hold the line (W2c):** (1) `contract-verb-presence` — ts-morph enumerates each
   domain's `*Service` interface methods and requires an invocation in that domain's test tree
   (grep-style presence, not filename convention — world-info/tag organize differently and are
