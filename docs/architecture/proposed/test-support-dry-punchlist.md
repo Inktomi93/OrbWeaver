@@ -92,7 +92,42 @@ lands) · OpenRouter runner siblings (2 API surfaces that change independently �
 · per-domain `makeHarness` bodies (each domain's Context is a distinct interface; a generic
 harness = configuration-object indirection) · \~96 tail clusters under the 3-file / 150-token bar.
 
-## 5. Expected reclaim
+## 5. Type-safety audit (ts-morph census 2026-07-09 — the "tests never know" problem)
+
+Tests ARE in the strict net (`pnpm check` runs `typecheck` + `typecheck:graph` + `test:types`), and
+hygiene on the classic axes is near-perfect across 894 files: `as any` ×12 · bare `any` ×13 ·
+`@ts-ignore` ×11 · non-null `!` ×0 · `satisfies` ×12. The drift holes are elsewhere:
+
+- **The real vector — fabricated entities: `as unknown as X` ×168 + object-literal `as X` ×67.**
+  Both compile when the target type gains/renames a required field — the "source changed, tests
+  never knew" hole. Concentrated on \~8 types: `ResolvedCredential` ×47 (server/infra owns 72 of
+  the double-casts) · `ModelCapability` ×12 · `UpdateCharacterInput` ×11 · `ChatRequest` ×8 ·
+  `MessageView` ×6 · `CharacterCard` ×5 · `ResolvedConnection` ×4 · `RoleClients` ×3.
+  **Fix (W1h, mech-scale, \~235 sites):** typed factories for the top fabricated types (the
+  factory-contract convention + gate already exist — `makeResolvedCredential(overrides?)` etc.,
+  typed RETURN so a new required field errors in ONE place and every test inherits it), plus
+  convert complete-value `as X` literals to `satisfies X`. Deliberate invalid-input probes (the
+  `never` ×12 / `{__behaviors}` casts) are exempt — they are the negative-space tests.
+- **`castId` ×1,251 is NOT a hole — leave it.** Ids are opaque brands; castId at test seams is the
+  documented design (`kit/ids` header). Top mints: UserId ×209, CharacterId ×169, Handle ×162.
+- **Contract-verb coverage: 269 Service-interface verbs, 258 (96%) invoked somewhere in the
+  domain's tests — but 10 verbs have ZERO tests anywhere in tests/:** `chat.listChats` ·
+  `chat.getChatLineage` · `chat.getActivePresetConfig` · `chat.previewSection` ·
+  `chat.replayStreamEvents` · `chat.replayChatEvents` · `chat.chatEventBounds` ·
+  `chat.getRoomOverridesForChat` · `discovery.themes` · `settings.reloadEffectiveConfig`
+  (+ `chat.previewAssembly` at exactly one file). NOTE: `listChats` powers the LIST panel and the
+  replay verbs are the dual-device spine `FINAL-Chat-Tab-Redesign-UX.md` §9 leans on — its
+  "wiring-verified, not run-verified" hedge is now measured fact. Writing these \~10 tests is
+  Wave-1-adjacent work (W1i).
+- **Two new gates hold the line (W2c):** (1) `contract-verb-presence` — ts-morph enumerates each
+  domain's `*Service` interface methods and requires an invocation in that domain's test tree
+  (grep-style presence, not filename convention — world-info/tag organize differently and are
+  100% covered); adding a verb with no test then FAILS `pnpm check`, which is the "we add to the
+  contract and never know" fix. (2) `no-test-fabrication` — ban `as unknown as` and
+  object-literal `as X` in tests/ with an escape comment for deliberate invalid-input probes;
+  holds the W1h cleanup ratcheted.
+
+## 6. Expected reclaim
 
 Wave 1 ≈ 6–8k duplicated tokens across \~120 files, all import-swap-shaped. Wave 2 ≈ 1k. Wave 3,
 if ruled GO, takes the largest single share (\~4k+) but is churn-heavy. The remaining \~40k stays
