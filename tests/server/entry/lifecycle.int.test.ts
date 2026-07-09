@@ -8,9 +8,13 @@ import { rmSync } from "node:fs";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
-// A fixed high port + temp db (the integration lane runs serially — no port contention; no random ids, the
-// determinism gate bans Math.random). Cleaned up in afterAll.
-const PORT = 8788;
+// A fixed high port + temp db (the integration lane runs serially — no INTRA-suite contention; no random
+// ids, the determinism gate bans Math.random). NOT the env-default 8788: a running dev stack holds that,
+// and pre-fix the collision was SILENT — boot's bind failed but `waitForHealthz` polled the DEV server's
+// healthz and got its 200, so the test green-ran against a neighbor process until the shutdown half lied
+// (2026-07-09). Boot now rejects on a failed bind (entry/lifecycle.ts), so a collision here fails loudly
+// at `boot()` instead. Cleaned up in afterAll.
+const PORT = 18_788;
 const DB_PATH = "/tmp/orb-lifecycle-int.db";
 const ASSETS_DIR = "/tmp/orb-lifecycle-int-assets";
 const HEALTHZ_URL = `http://localhost:${PORT}/healthz`;

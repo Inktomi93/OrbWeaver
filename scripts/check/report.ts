@@ -21,10 +21,12 @@ import { membershipEnforcer } from "./gates/membership-enforcer.ts";
 import { modalBodyNotPlaceholder } from "./gates/modal-body-not-placeholder.ts";
 import { noCallerUserId } from "./gates/no-caller-user-id.ts";
 import { noDirectUsersRead } from "./gates/no-direct-users-read.ts";
+import { noEffectOnSharedSelection } from "./gates/no-effect-on-shared-selection.ts";
 import { noInlineUnionRedecl } from "./gates/no-inline-union-redecl.ts";
 import { ownerRoleSplit } from "./gates/owner-role-split.ts";
 import { packageLayout } from "./gates/package-layout.ts";
 import { pdCitationIntegrity } from "./gates/pd-citation-integrity.ts";
+import { persistenceBoundary } from "./gates/persistence-boundary.ts";
 import { placeholderCopyRegistry } from "./gates/placeholder-copy-registry.ts";
 import { providersRunnerSeal } from "./gates/providers-runner-seal.ts";
 import { registryPairing } from "./gates/registry-pairing.ts";
@@ -82,6 +84,8 @@ export const ALL_CHECKS: readonly Check[] = [
   clientStructure,
   stateFiles,
   zustandSelectorDerived,
+  noEffectOnSharedSelection,
+  persistenceBoundary,
   componentSize,
   vectorScopeDerived,
   turnIdentity,

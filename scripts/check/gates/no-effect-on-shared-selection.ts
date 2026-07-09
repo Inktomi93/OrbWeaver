@@ -1,0 +1,175 @@
+// Gate: no-effect-on-shared-selection (UI-Architecture-and-Layout.md §5.1, amended 2026-07-09) — the
+// mechanical half of the anti-`this_chid` rule. §5.1 sanctions THREE reader shapes for the shared
+// selection stores (composition / own-section / mirror), ALL render-only; what it bans is
+// subscribe-and-EFFECT — a `useEffect`/`useLayoutEffect` in `features/**` keyed on a shared-selection
+// pointer is the neo chase reborn (a surface reacting to ambient selection with side effects), and it
+// was pure prose until this gate. Landed on a clean field (2026-07-09 census: zero effect-on-selection
+// sites in features), so any future hit is a NEW violation, never legacy noise.
+//
+// FLAGS: in packages/client/src/features/** (app-shell EXEMPT — the shell tier owns layout/appearance
+// root effects), a `useEffect(...)`/`useLayoutEffect(...)` whose dependency array contains an
+// identifier TAINTED by a shared-selection hook:
+//   • seed taint: a variable initialized from a call to a SELECTION_HOOK_RE hook
+//     (`const chatId = useActiveChatId()`);
+//   • transitive taint (same file, name-level fixpoint): a variable whose initializer references a
+//     tainted identifier (`const gated = chatId !== null` — depping `gated` still chases).
+//
+// Does NOT flag: render-only reads (no effect involved); effects depping props/query data (a
+// selection threaded as a PROP by the route is the composition shape — the parent re-keys/renders,
+// the child never subscribes); app-shell (shell-tier); `chat-stream`/draft-store hooks (lifecycle
+// stores, not selection pointers — their read hooks ARE the API). The sanctioned fixes the message
+// names: derive in render, or `useEffectEvent` for a non-reactive read inside an unrelated effect.
+// Name-level taint is file-scoped and deliberately simple (the state-files.ts literal-scan
+// precedent); laundering through a helper FUNCTION isn't traced — review owns that residue.
+import type { ArrayLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import type { Check, Violation } from "../harness.ts";
+
+const FEATURES_DIR = "/packages/client/src/features/";
+const SHELL_EXEMPT = "/packages/client/src/features/app-shell/";
+
+/** The shared-selection pointer hooks (the state/ selection stores' read APIs — NOT the
+ *  lifecycle/draft stores). Kept in sync with state/index.ts by the fixture in
+ *  tests/tooling/check-gates.int.test.ts; a rename lands here in the same commit. */
+const SELECTION_HOOK_RE =
+  /^use(?:Active(?:ChatHandle|ChatId|DraftSeed|SessionKey|Section)|SelectedCharacterId|OpenModal|ContextTab|MobileSheet|PanelOverride)$/u;
+
+const EFFECT_HOOK_RE = /^use(?:Effect|LayoutEffect|InsertionEffect)$/u;
+
+const MESSAGE =
+  "effect keyed on a shared-selection pointer — the neo `this_chid` chase (UI-Architecture-and-Layout.md " +
+  "§5.1: selection readers are RENDER-only). Derive in render instead, or use `useEffectEvent` for a " +
+  "non-reactive read inside an unrelated effect; if this surface genuinely can't be render-driven, " +
+  "that's a §5.1 amendment conversation, not a workaround.";
+
+function clientRel(path: string): string {
+  const idx = path.indexOf("/packages/");
+  return idx === -1 ? path : path.slice(idx + 1);
+}
+
+/** All identifier names bound by a declaration's name node (plain or destructured). */
+function boundNames(decl: VariableDeclaration): string[] {
+  const nameNode = decl.getNameNode();
+  if (Node.isIdentifier(nameNode)) {
+    return [nameNode.getText()];
+  }
+  // Object/array binding patterns: every BindingElement's own name identifier.
+  return nameNode
+    .getDescendantsOfKind(SyntaxKind.BindingElement)
+    .map((b) => b.getNameNode())
+    .filter(Node.isIdentifier)
+    .map((n) => n.getText());
+}
+
+/** `node` is, or contains, an identifier whose text is in `names`. */
+function touchesName(node: Node, names: ReadonlySet<string>): boolean {
+  if (Node.isIdentifier(node)) {
+    return names.has(node.getText());
+  }
+  return node.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => names.has(id.getText()));
+}
+
+/** Does this initializer (sub)tree call one of the selection hooks? */
+function callsSelectionHook(init: Node): boolean {
+  const calls = Node.isCallExpression(init)
+    ? [init, ...init.getDescendantsOfKind(SyntaxKind.CallExpression)]
+    : init.getDescendantsOfKind(SyntaxKind.CallExpression);
+  return calls.some((c) => {
+    const callee = c.getExpression();
+    return Node.isIdentifier(callee) && SELECTION_HOOK_RE.test(callee.getText());
+  });
+}
+
+/** Seed taint: every name bound from an initializer that calls a selection hook. */
+function seedTaint(decls: readonly VariableDeclaration[]): Set<string> {
+  const tainted = new Set<string>();
+  for (const decl of decls) {
+    const init = decl.getInitializer();
+    if (init !== undefined && callsSelectionHook(init)) {
+      for (const name of boundNames(decl)) {
+        tainted.add(name);
+      }
+    }
+  }
+  return tainted;
+}
+
+/** One propagation pass: taint names whose initializer references a tainted name. True if it grew. */
+function propagateTaint(decls: readonly VariableDeclaration[], tainted: Set<string>): boolean {
+  let grew = false;
+  for (const decl of decls) {
+    const init = decl.getInitializer();
+    if (init === undefined || !touchesName(init, tainted)) {
+      continue;
+    }
+    for (const name of boundNames(decl)) {
+      if (!tainted.has(name)) {
+        tainted.add(name);
+        grew = true;
+      }
+    }
+  }
+  return grew;
+}
+
+/** File-level name taint: seeds = selection-hook call results; fixpoint over initializer references. */
+function taintedNames(sf: SourceFile): Set<string> {
+  const decls = sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+  const tainted = seedTaint(decls);
+  while (tainted.size > 0 && propagateTaint(decls, tainted)) {
+    // fixpoint loop — bounded by the file's declaration count.
+  }
+  return tainted;
+}
+
+/** The dep-array of a `useEffect`-family call, or undefined (no deps → exhaustive-deps owns it). */
+function effectDepsOf(call: Node): ArrayLiteralExpression | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const callee = call.getExpression();
+  if (!(Node.isIdentifier(callee) && EFFECT_HOOK_RE.test(callee.getText()))) {
+    return;
+  }
+  const deps = call.getArguments()[1];
+  if (deps === undefined || !Node.isArrayLiteralExpression(deps)) {
+    return;
+  }
+  return deps;
+}
+
+function checkFile(sf: SourceFile, tainted: ReadonlySet<string>): Violation[] {
+  const violations: Violation[] = [];
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const deps = effectDepsOf(call);
+    if (deps === undefined) {
+      continue;
+    }
+    if (deps.getElements().some((el) => touchesName(el, tainted))) {
+      violations.push({
+        file: clientRel(sf.getFilePath()),
+        line: call.getStartLineNumber(),
+        message: MESSAGE,
+      });
+    }
+  }
+  return violations;
+}
+
+export const noEffectOnSharedSelection: Check = {
+  name: "no-effect-on-shared-selection",
+  run: ({ project }): Violation[] => {
+    const violations: Violation[] = [];
+    for (const sf of project.getSourceFiles()) {
+      const path = sf.getFilePath();
+      if (!path.includes(FEATURES_DIR) || path.includes(SHELL_EXEMPT)) {
+        continue;
+      }
+      const tainted = taintedNames(sf);
+      if (tainted.size > 0) {
+        violations.push(...checkFile(sf, tainted));
+      }
+    }
+    return violations;
+  },
+};

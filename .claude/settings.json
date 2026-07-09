@@ -12,5 +12,43 @@
         ]
       }
     ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check)",
+      "Bash(pnpm check *)",
+      "Bash(pnpm check:*)",
+      "Bash(pnpm test)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm test:types)",
+      "Bash(pnpm test:types *)",
+      "Bash(pnpm test:ct *)",
+      "Bash(pnpm vitest *)",
+      "Bash(pnpm exec vitest *)",
+      "Bash(pnpm exec tsc --noEmit *)",
+      "Bash(pnpm -r exec tsc --noEmit *)",
+      "Bash(node_modules/.bin/tsc *)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm lint:eslint)",
+      "Bash(pnpm lint:eslint *)",
+      "Bash(pnpm depcruise)",
+      "Bash(pnpm depcruise *)",
+      "Bash(pnpm snap *)",
+      "Bash(/usr/bin/grep *)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_snapshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__wait_for",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_pages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__Claude_Preview__preview_list",
+      "mcp__Claude_Preview__preview_snapshot",
+      "mcp__Claude_Preview__preview_inspect"
+    ]
   }
 }

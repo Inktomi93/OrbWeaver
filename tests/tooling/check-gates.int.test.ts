@@ -145,6 +145,20 @@ function writeFixtures(): void {
   // component-size: a client source over the 450-line cap (in lib/, not a feature, so it trips
   // component-size alone). 451 padded lines.
   fx("packages/client/src/lib/__g_oversize.ts", "// pad line\n".repeat(451));
+  // persistence-boundary: raw browser storage in a feature file (outside the two persist factories
+  // + the boot/dev allowlist).
+  fx(
+    "packages/client/src/features/__g_persistb/lib/__g_flag.ts",
+    'export const v = globalThis.localStorage.getItem("k");\n',
+  );
+  // no-effect-on-shared-selection: a feature effect depping a selection-hook result (the chase).
+  // The hook is a local `declare` — the gate matches by NAME (AST-only), so the fixture parses
+  // standalone without importing #state.
+  fx(
+    "packages/client/src/features/__g_chase/components/__g_chase.tsx",
+    // biome-ignore lint/security/noSecrets: fixture SOURCE CODE (a hook name), not a secret.
+    "declare function useActiveChatId(): string | null;\ndeclare function useEffect(fn: () => void, deps: unknown[]): void;\nexport function GChase(): null {\n  const chatId = useActiveChatId();\n  useEffect(() => {\n    void chatId;\n  }, [chatId]);\n  return null;\n}\n",
+  );
   // zustand-selector-derived: a store-hook selector returning a fresh object literal, unwrapped.
   fx(
     "packages/client/src/state/__g_zustand.ts",
