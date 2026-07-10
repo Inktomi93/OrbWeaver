@@ -1,7 +1,29 @@
 # Neo-tavern test steal list — 2026-07-09
 
+> **RE-VERIFIED 2026-07-10 against `994318d..eb5d6b3` (the mega/mega2/auth-macro fork — 245 test
+> files, +20k lines): the fork CONSUMED most of this list.** Verified DONE on disk:
+> **N0** (the cold-cache `removeQueries` fix landed, `create-entity-mutation.ts` L145) · **N1**
+> nearly all (injection\_trigger suite in `assemble.test.ts` · S5-1 corrupt-credential degrade —
+> using the `no-test-fabrication` gate's `FABRICATION-OK` escape, in live use day one ·
+> banned/groupnotmuted/hasvar-literal + the new `registry.test.ts` · WI `dr.`/dotless-ı ·
+> fix-markdown tilde · guards null-proto · opening-policy cardinality lock · blank-digest parse) ·
+> **N3** #1–#5 (bus-golden, at-depth-collision, cross-tenant-sweep, db-batch-atomicity,
+> lineage-guard suites all exist) · **N4** (the scenario/tape/assertions harness is ported at
+> `tests/support/chat/` with its acceptance proof; full turn.int conversion sweep = declared
+> follow-up). The two 2026-07-09 gates (`contract-verb-presence`, `no-test-fabrication`) also
+> landed with their registry rows.
+>
+> **STILL OPEN after the fork:** **N2 in full** (e2e is still ONE spec — the five ports incl.
+> multi-tab-sync remain the largest unclaimed win) · N3 #6 (rate-limiter inversion) + #7
+> (historyTruncated/prune verify) · N1's provider-routing passthrough pin · the harness
+> conversion sweep + kitchen-sink stress suite · and from test-quality-review\.md: **R1
+> (`markdown/policy.ts` hostile-input suite — the P0 — still zero tests)**, R3 stats real-wire
+> (engine.int still uses the recorder fake), R2 egress (superseded by the stickler finding that
+> the firewall isn't installed at boot — fix the install, then the tests). Body below is the
+> original record.
+
 ```
-kind: work-queue (dispatch-shaped)   status: reviewed, unbuilt
+kind: work-queue (dispatch-shaped)   status: RE-VERIFIED 2026-07-10 — mostly consumed; open remainder in the banner
 source: five reviewers read neo-tavern's ENTIRE test corpus (~470 files across tests/{server,
         integration,client,shared,support+harness,contract,e2e,unit,arch,scripts,db} +
         tools/st-extract + the CT rig), each grounded first in orb's Spine-Testing law, the
